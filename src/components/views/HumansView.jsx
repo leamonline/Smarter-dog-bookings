@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { getSizeForBreed } from "../../constants/index";
-import { MessageCircle, Plus } from "lucide-react";
+import { Mail, MessageCircle, MessageSquareText, PawPrint, Phone, Plus } from "lucide-react";
 import { FloatingDecor } from "../decor/index.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
 import { filterHumansForDirectory, getDogsForHuman } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
-import { SizeDot } from "../ui/SizeDot.jsx";
 import { safeGet, safeSet } from "../../lib/storage";
 import {
   Button,
@@ -18,7 +17,7 @@ import {
   PageHeaderSegmented,
   SafetyAlertChip,
 } from "../ui/index.js";
-import { telLink, waLink } from "../modals/dog-card/helpers.js";
+import { normalisePhoneDigits, telLink, waLink } from "../modals/dog-card/helpers.js";
 import { HumanInitials, ProfileArrow } from "./directory/IdentityMarker.jsx";
 import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
 
@@ -26,6 +25,25 @@ const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
   "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "#",
 ];
+
+const DOG_SIZE_TONES = new Set(["small", "medium", "large"]);
+const DOG_FIGURE_LABELS = {
+  small: "small dog",
+  medium: "medium dog",
+  large: "large dog",
+  unknown: "dog with size to confirm",
+};
+
+function getDogSizeTone(dog) {
+  const size = String(dog?.size || getSizeForBreed(dog?.breed) || "").toLowerCase();
+  return DOG_SIZE_TONES.has(size) ? size : "unknown";
+}
+
+function getPackTone(dogList) {
+  if (dogList.length === 0) return "none";
+  const sizes = new Set(dogList.map(getDogSizeTone));
+  return sizes.size > 1 ? "mixed" : getDogSizeTone(dogList[0]);
+}
 
 // A–Z jump rail. Letters with no matches under the current query are
 // disabled. The same component renders as a vertical sticky rail on desktop
@@ -77,48 +95,175 @@ function UnarchiveButton({ onUnarchive }) {
   );
 }
 
-function DogChips({ dogs: dogList, dim }) {
-  if (dogList.length === 0) {
-    return <span className="text-xs text-ink-muted italic">No dogs</span>;
-  }
+function PackSpectrum({ dogList }) {
+  const sizes = [...new Set(dogList.map(getDogSizeTone))];
+
   return (
-    <>
-      {dogList.map((dog) => {
-        const dogSize = dog.size || getSizeForBreed(dog.breed);
-        return (
+    <span className="human-pack-spectrum" aria-hidden="true">
+      {sizes.length > 0 ? (
+        sizes.map((size) => (
           <span
-            key={dog.id}
-            role="listitem"
-            className="flex min-w-0 items-start gap-1.5 py-0.5"
-          >
-            <SizeDot size={dogSize} dim={dim} />
-            <span className="min-w-0 text-micro font-semibold leading-4 text-slate-600">
-              {titleCase(dog.name)}
-              {dog.breed && <span className="font-medium text-ink-muted"> ({titleCase(dog.breed)})</span>}
-            </span>
-          </span>
-        );
-      })}
-    </>
+            className={`human-pack-spectrum__part human-pack-spectrum__part--${size}`}
+            key={size}
+          />
+        ))
+      ) : (
+        <span className="human-pack-spectrum__part human-pack-spectrum__part--none" />
+      )}
+    </span>
   );
 }
 
-// Key for the size dots — reuses SizeDot so the legend can never drift from the
-// real colours. Decorative for screen readers (each dog already carries its own
-// size label via SizeDot on the cards).
-function ContactLines({ human }) {
+function DogFigures({ dogList, composition }) {
+  return (
+    <div
+      data-testid="human-pack-figures"
+      className={`human-pack-figures human-pack-figures--${composition}`}
+    >
+      {dogList.map((dog, index) => {
+        const size = getDogSizeTone(dog);
+        const dogName = titleCase(dog.name) || "Unnamed dog";
+        return (
+          <span
+            data-testid="human-pack-dog"
+            data-size-tone={size}
+            className={`human-pack-dog human-pack-dog--${size}`}
+            role="img"
+            aria-label={`${dogName}, ${DOG_FIGURE_LABELS[size]}`}
+            key={dog.id || `${dog.name || "dog"}-${dog.breed || "unknown"}-${index}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function DogRoster({ dogList }) {
+  return (
+    <ul
+      role="list"
+      aria-label={`${dogList.length} linked dog${dogList.length === 1 ? "" : "s"}`}
+      className="human-pack-roster"
+    >
+      {dogList.map((dog, index) => {
+        const size = getDogSizeTone(dog);
+        const dogName = titleCase(dog.name) || "Unnamed dog";
+        const breed = titleCase(dog.breed);
+        return (
+          <li key={dog.id || `${dog.name || "dog"}-${dog.breed || "unknown"}-${index}`}>
+            <span
+              className={`human-pack-roster__dot human-pack-roster__dot--${size}`}
+              aria-hidden="true"
+            />
+            <strong className="human-pack-roster__label">
+              {breed ? `${dogName} - ${breed}` : dogName}
+            </strong>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function HumanDogPanel({ dogList, historyFlag, archived, onOpen }) {
+  const composition =
+    dogList.length === 1 ? "single" : dogList.length > 1 ? "multiple" : "empty";
+
+  return (
+    <div
+      data-testid="human-dog-panel"
+      className={`human-dog-panel human-dog-panel--${composition}`}
+    >
+      <div
+        data-testid="human-pack-stage"
+        className={`human-pack-stage human-pack-stage--${composition}`}
+      >
+        {dogList.length > 0 ? (
+          <DogFigures dogList={dogList} composition={composition} />
+        ) : (
+          <PawPrint className="human-pack-stage__empty-mark" aria-hidden="true" strokeWidth={2.2} />
+        )}
+      </div>
+
+      <div className="human-pack-details">
+        {historyFlag && (
+          <SafetyAlertChip
+            items={[historyFlag]}
+            className="human-pack-safety min-h-11 min-w-11 w-full shrink-0"
+          />
+        )}
+        {dogList.length > 0 ? (
+          <DogRoster dogList={dogList} />
+        ) : archived ? (
+          <div className="human-empty-pack human-empty-pack--archived">
+            <strong>No dogs linked</strong>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="human-empty-pack min-h-11 min-w-11"
+          >
+            <span>
+              <strong>No dogs linked yet</strong>
+              <small>Add their first dog</small>
+            </span>
+            <Plus aria-hidden="true" strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ContactLines({ human, mode }) {
   return (
     <div
       data-testid="human-contact-strip"
-      className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0 text-micro text-slate-500"
+      className="human-directory-card__contact-strip flex-wrap"
     >
       {human.phone ? (
+        <span className="human-directory-card__phone">{human.phone}</span>
+      ) : (
+        <span className="human-directory-card__phone italic">No phone</span>
+      )}
+      {human.email && mode === "list" ? (
+        <span className="human-directory-card__email" title={human.email}>
+          {human.email}
+        </span>
+      ) : human.email ? (
+        <a
+          href={`mailto:${human.email}`}
+          className="inline-flex min-h-11 min-w-11 basis-full items-center break-all whitespace-normal no-underline"
+        >
+          {human.email}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function ContactActions({ human, fullName, mode }) {
+  const isList = mode === "list";
+  const name = titleCase(fullName);
+  const iconSize = isList ? 22 : 18;
+  const smsDigits = normalisePhoneDigits(human.phone);
+
+  return (
+    <div
+      data-testid="human-contact-actions"
+      className="human-directory-card__contact-actions"
+      aria-label={`Contact ${name}`}
+    >
+      {human.phone && (
         <>
           <a
             href={telLink(human.phone)}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center font-medium no-underline hover:text-brand-purple"
+            title={`Call ${name} on ${human.phone}`}
+            aria-label={`Call ${name}`}
+            className="human-directory-card__contact-action--call size-11"
           >
-            {human.phone}
+            <Phone size={iconSize} strokeWidth={2.35} aria-hidden="true" />
           </a>
           <a
             href={waLink(human.phone)}
@@ -126,47 +271,32 @@ function ContactLines({ human }) {
             rel="noopener noreferrer"
             title="Open in WhatsApp"
             aria-label="Open in WhatsApp"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-1.5 px-1 font-semibold text-emerald-700 no-underline hover:text-emerald-900"
+            className="human-directory-card__contact-action--whatsapp size-11"
           >
-            <MessageCircle size={15} aria-hidden="true" />
-            <span>WhatsApp</span>
+            <MessageCircle size={iconSize} strokeWidth={2.35} aria-hidden="true" />
           </a>
+          {isList && (
+            <a
+              href={smsDigits ? `sms:+${smsDigits}` : "#"}
+              title={`Send SMS to ${name}`}
+              aria-label={`Send SMS to ${name}`}
+              className="human-directory-card__contact-action--sms size-11"
+            >
+              <MessageSquareText size={iconSize} strokeWidth={2.35} aria-hidden="true" />
+            </a>
+          )}
         </>
-      ) : (
-        <span className="shrink-0 italic text-ink-muted">No phone</span>
       )}
-      {human.email && (
+      {isList && human.email && (
         <a
           href={`mailto:${human.email}`}
-          className="inline-flex min-h-11 min-w-11 basis-full items-center break-all whitespace-normal text-slate-400 no-underline hover:text-brand-purple"
+          title={`Email ${name} at ${human.email}`}
+          aria-label={`Email ${name}`}
+          className="human-directory-card__contact-action--email size-11"
         >
-          {human.email}
+          <Mail size={iconSize} strokeWidth={2.35} aria-hidden="true" />
         </a>
       )}
-    </div>
-  );
-}
-
-function HumanDogs({ dogList, archived, onOpen }) {
-  if (dogList.length === 0 && !archived) {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className="mt-1 min-h-11 min-w-11 self-start border-none bg-transparent p-0 text-xs font-semibold italic text-brand-coral-text underline-offset-2 hover:text-brand-coral-text hover:underline"
-      >
-        No dogs yet — add one?
-      </button>
-    );
-  }
-
-  return (
-    <div
-      role="list"
-      aria-label={`${dogList.length} linked dog${dogList.length === 1 ? "" : "s"}`}
-      className="mt-1 h-[50px] overflow-y-auto pr-1"
-    >
-      <DogChips dogs={dogList} dim={14} />
     </div>
   );
 }
@@ -178,37 +308,66 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
   const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
   const humanDogs = getDogsForHuman(human, dogs, dogsByHumanId);
   const open = () => onOpenHuman(human.id || fullName);
-  const gridCardClass =
-    `group relative flex ${showArchived ? "h-[276px]" : "h-[216px]"} flex-col items-start gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover`;
-  const listCardClass =
-    "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-purple";
+  const packTone = getPackTone(humanDogs);
+  const packComposition =
+    humanDogs.length === 1 ? "single" : humanDogs.length > 1 ? "multiple" : "empty";
+  const cardClass = [
+    "human-directory-card",
+    `human-directory-card--${mode}`,
+    `human-directory-card--${packTone}`,
+    showArchived ? "human-directory-card--archived" : "",
+    "group flex flex-col",
+  ].filter(Boolean).join(" ");
 
   return (
     <article
       aria-label={titleCase(fullName)}
-      className={mode === "list" ? listCardClass : gridCardClass}
+      data-pack-composition={packComposition}
+      className={cardClass}
     >
-      <div data-testid="human-card-primary" className="flex w-full min-w-0 items-start gap-3">
-        <HumanInitials fullName={fullName} />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="break-words text-title font-extrabold leading-tight text-brand-purple">
-              {titleCase(fullName)}
-            </span>
-            {human.historyFlag && (
-              <SafetyAlertChip
-                items={[human.historyFlag]}
-                className="min-h-11 min-w-11 max-w-[45%] shrink-0"
-              />
-            )}
+      <PackSpectrum dogList={humanDogs} />
+      <div
+        data-testid="human-card-primary"
+        className="human-directory-card__inner w-full min-w-0"
+      >
+        <div className="human-directory-card__identity">
+          {mode !== "list" && (
+            <HumanInitials fullName={fullName} className="human-directory-card__avatar" />
+          )}
+          <div
+            data-testid="human-owner-details"
+            className="human-directory-card__identity-copy"
+          >
+            <div className="human-directory-card__name-row">
+              <span className="human-directory-card__name">
+                {titleCase(fullName)}
+              </span>
+            </div>
+            <ContactLines human={human} mode={mode} />
           </div>
-          <ContactLines human={human} />
-          <HumanDogs dogList={humanDogs} archived={showArchived} onOpen={open} />
         </div>
-        <ProfileArrow label={`View profile for ${titleCase(fullName)}`} onClick={open} />
+
+        <ContactActions human={human} fullName={fullName} mode={mode} />
+        <HumanDogPanel
+          dogList={humanDogs}
+          historyFlag={human.historyFlag}
+          archived={showArchived}
+          onOpen={open}
+        />
+
+        <div className="human-directory-card__profile">
+          <ProfileArrow
+            label={`View profile for ${titleCase(fullName)}`}
+            onClick={open}
+            visibleLabel
+          />
+        </div>
       </div>
       {showArchived && (
-        <div data-testid="human-card-secondary-actions" className="flex w-full justify-end">
+        <div
+          data-testid="human-card-secondary-actions"
+          className="human-directory-card__secondary-actions flex w-full justify-end"
+        >
           <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />
         </div>
       )}

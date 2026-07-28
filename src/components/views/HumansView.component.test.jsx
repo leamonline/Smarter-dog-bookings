@@ -103,7 +103,7 @@ describe("HumansView directory", () => {
     const { onOpenHuman } = renderView({ directoryHumans: [sarah] });
     const article = screen.getByRole("article", { name: "Sarah Jones" });
     const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
-    const phone = within(article).getByRole("link", { name: "07700900111" });
+    const phone = within(article).getByRole("link", { name: "Call Sarah Jones" });
 
     phone.addEventListener("click", (event) => event.preventDefault());
     fireEvent.click(phone);
@@ -122,18 +122,79 @@ describe("HumansView directory", () => {
     if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
 
     const card = screen.getByRole("article", { name: "Sarah Jones" });
-    expect(within(card).getByTestId("human-initials")).toHaveTextContent("SJ");
+    expect(card).toHaveClass(`human-directory-card--${mode.toLowerCase()}`);
     expect(within(card).getByText(/Minnie/)).toBeInTheDocument();
-    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveAttribute(
-      "href",
-      "mailto:sarah@example.com",
-    );
+    if (mode === "Grid") {
+      expect(within(card).getByTestId("human-initials")).toHaveTextContent("SJ");
+      expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveAttribute(
+        "href",
+        "mailto:sarah@example.com",
+      );
+    } else {
+      expect(within(card).queryByTestId("human-initials")).not.toBeInTheDocument();
+      const ownerDetails = within(card).getByTestId("human-owner-details");
+      expect(
+        Array.from(
+          ownerDetails.querySelectorAll(
+            ".human-directory-card__name, .human-directory-card__phone, .human-directory-card__email",
+          ),
+        ).map((element) => element.textContent),
+      ).toEqual(["Sarah Jones", "07700900111", "sarah@example.com"]);
+      expect(within(card).getByRole("link", { name: "Email Sarah Jones" })).toHaveAttribute(
+        "href",
+        "mailto:sarah@example.com",
+      );
+    }
 
     fireEvent.click(within(card).getByRole("button", { name: "View profile for Sarah Jones" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
-  it("renders every linked dog inside a fixed, scrollable grid-card dog area", () => {
+  it("lets one dog fill the balanced silhouette stage without visible pack labels", () => {
+    renderView({
+      directoryHumans: [sarah],
+      dogsByHumanId: {
+        h1: [{ id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" }],
+      },
+    });
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    const dogPanel = within(card).getByTestId("human-dog-panel");
+    const stage = within(dogPanel).getByTestId("human-pack-stage");
+    const figures = within(stage).getByTestId("human-pack-figures");
+    expect(card).toHaveAttribute("data-pack-composition", "single");
+    expect(card).toHaveClass("human-directory-card--grid", "human-directory-card--small");
+    expect(stage).toHaveClass("human-pack-stage--single");
+    expect(figures).toHaveClass("human-pack-figures--single");
+    expect(within(stage).getByRole("img", { name: "Minnie, small dog" })).toHaveAttribute(
+      "data-size-tone",
+      "small",
+    );
+    expect(within(card).queryByText(/their pack/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/^1 dog$/i)).not.toBeInTheDocument();
+  });
+
+  it.each(["Grid", "List"])(
+    "shows each dog as one stronger name-and-breed line without visible size copy in %s mode",
+    (mode) => {
+      renderView({
+        directoryHumans: [sarah],
+        dogsByHumanId: {
+          h1: [{ id: "d1", name: "Max", breed: "Shih Tzu", size: "small" }],
+        },
+      });
+      if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+      const card = screen.getByRole("article", { name: "Sarah Jones" });
+      const dogArea = within(card).getByRole("list", { name: "1 linked dog" });
+      expect(within(dogArea).getByText("Max - Shih Tzu")).toHaveClass(
+        "human-pack-roster__label",
+      );
+      expect(within(dogArea).queryByText(/^(Small|Medium|Large)$/i)).not.toBeInTheDocument();
+    },
+  );
+
+  it("renders every linked dog in a fixed multi-dog composition and scrollable roster", () => {
     const linkedDogs = [
       { id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" },
       { id: "d2", name: "Bertie", breed: "Cockapoo", size: "medium" },
@@ -150,12 +211,21 @@ describe("HumansView directory", () => {
 
     const card = screen.getByRole("article", { name: "Sarah Jones" });
     const dogArea = within(card).getByRole("list", { name: "6 linked dogs" });
+    const stage = within(card).getByTestId("human-pack-stage");
     for (const dog of linkedDogs) {
-      expect(within(dogArea).getByText(dog.name)).toBeInTheDocument();
+      expect(
+        within(dogArea).getByText(`${dog.name} - ${dog.breed}`),
+      ).toBeInTheDocument();
+      expect(
+        within(stage).getByRole("img", { name: new RegExp(`^${dog.name},`, "i") }),
+      ).toBeInTheDocument();
     }
-    expect(dogArea).toHaveClass("overflow-y-auto");
-    expect(card).toHaveClass("h-[216px]");
+    expect(card).toHaveAttribute("data-pack-composition", "multiple");
+    expect(card).toHaveClass("human-directory-card--grid", "human-directory-card--mixed");
+    expect(stage).toHaveClass("human-pack-stage--multiple");
+    expect(dogArea).toHaveClass("human-pack-roster");
     expect(within(card).queryByLabelText(/more dogs/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/^6 dogs$/i)).not.toBeInTheDocument();
   });
 
   it("uses equal-height grid tracks and keeps full contact text available", () => {
@@ -169,21 +239,34 @@ describe("HumansView directory", () => {
       name: "sarah.with.a.long.email@example.com",
     });
     expect(grid).toHaveClass("auto-rows-fr", "items-stretch");
+    expect(card).toHaveClass("human-directory-card--grid");
     expect(email).not.toHaveClass("truncate");
     expect(email).toHaveClass("break-all", "whitespace-normal");
     expect(within(card).getByTestId("human-contact-strip")).toHaveClass("flex-wrap");
   });
 
-  it("presents WhatsApp as a restrained secondary contact action", () => {
-    renderView({ directoryHumans: [sarah] });
+  it("presents larger call, WhatsApp, SMS and email actions at the right of a list card", () => {
+    renderView({ directoryHumans: [{ ...sarah, email: "sarah@example.com" }] });
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
 
     const card = screen.getByRole("article", { name: "Sarah Jones" });
     const contactStrip = within(card).getByTestId("human-contact-strip");
-    const whatsapp = within(contactStrip).getByRole("link", { name: "Open in WhatsApp" });
-    expect(contactStrip).toHaveClass("flex-wrap");
-    expect(whatsapp).toHaveClass("min-h-11", "min-w-11");
-    expect(whatsapp).not.toHaveClass("size-11", "border", "bg-emerald-50");
-    expect(within(whatsapp).getByText("WhatsApp")).toBeInTheDocument();
+    const contactActions = within(card).getByTestId("human-contact-actions");
+    const call = within(contactActions).getByRole("link", { name: "Call Sarah Jones" });
+    const whatsapp = within(contactActions).getByRole("link", { name: "Open in WhatsApp" });
+    const sms = within(contactActions).getByRole("link", { name: "Send SMS to Sarah Jones" });
+    const email = within(contactActions).getByRole("link", { name: "Email Sarah Jones" });
+    expect(contactStrip).toHaveTextContent("07700900111");
+    expect(contactStrip).toHaveTextContent("sarah@example.com");
+    expect(call).toHaveClass("size-11");
+    expect(whatsapp).toHaveClass("size-11");
+    expect(sms).toHaveClass("size-11");
+    expect(email).toHaveClass("size-11");
+    expect(call.querySelector("svg")).toHaveAttribute("width", "22");
+    expect(whatsapp.querySelector("svg")).toHaveAttribute("width", "22");
+    expect(sms).toHaveAttribute("href", "sms:+447700900111");
+    expect(email).toHaveAttribute("href", "mailto:sarah@example.com");
+    expect(within(contactActions).queryByText("WhatsApp")).not.toBeInTheDocument();
   });
 
   it.each(["Grid", "List"])("keeps every direct %s card action at least 44px tall", (mode) => {
@@ -194,13 +277,21 @@ describe("HumansView directory", () => {
     if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
 
     const card = screen.getByRole("article", { name: "Sarah Jones" });
-    expect(within(card).getByRole("link", { name: "07700900111" })).toHaveClass("min-h-11");
-    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "Call Sarah Jones" })).toHaveClass("size-11");
     expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
+      "size-11",
     );
-    expect(within(card).getByRole("button", { name: "No dogs yet — add one?" })).toHaveClass("min-h-11");
+    if (mode === "Grid") {
+      expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveClass("min-h-11");
+    } else {
+      expect(within(card).getByRole("link", { name: "Send SMS to Sarah Jones" })).toHaveClass(
+        "size-11",
+      );
+      expect(within(card).getByRole("link", { name: "Email Sarah Jones" })).toHaveClass(
+        "size-11",
+      );
+    }
+    expect(within(card).getByRole("button", { name: /No dogs linked yet/i })).toHaveClass("min-h-11");
     expect(within(card).getByRole("button", { name: "View profile for Sarah Jones" })).toHaveClass("size-11");
     expect(within(card).getByRole("button", { name: "Safety alert: Muzzle required" })).toHaveClass(
       "min-h-11",
@@ -227,7 +318,10 @@ describe("HumansView directory", () => {
     fireEvent.click(screen.getByRole("button", { name: "List" }));
 
     const article = screen.getByRole("article", { name: "Sarah Jones" });
-    const email = within(article).getByRole("link", { name: "sarah@example.com" });
+    expect(within(article).getByText("sarah@example.com")).toHaveClass(
+      "human-directory-card__email",
+    );
+    const email = within(article).getByRole("link", { name: "Email Sarah Jones" });
     expect(email).toHaveAttribute("href", "mailto:sarah@example.com");
 
     email.addEventListener("click", (event) => event.preventDefault());
@@ -239,7 +333,12 @@ describe("HumansView directory", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.
     const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const safetyAlert = within(article).getByRole("button", {
+      name: "Safety alert: Muzzle required",
+    });
     expect(within(article).getByText("Muzzle required")).toBeInTheDocument();
+    fireEvent.click(safetyAlert);
+    expect(safetyAlert).toHaveAttribute("aria-expanded", "true");
   });
 
   it("the grid/list view toggle switches mode and persists it", () => {
@@ -275,7 +374,7 @@ describe("HumansView directory", () => {
       dogsByHumanId: {},
     });
     const article = screen.getByRole("article", { name: "Sarah Jones" });
-    fireEvent.click(within(article).getByRole("button", { name: "No dogs yet — add one?" }));
+    fireEvent.click(within(article).getByRole("button", { name: /No dogs linked yet/i }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
