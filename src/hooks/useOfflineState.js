@@ -102,25 +102,28 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   );
 
   const offlineUpdateHuman = useCallback((humanIdentifier, updates) => {
+    const found = Object.entries(offlineHumans).find(
+      ([key, human]) =>
+        key === humanIdentifier ||
+        human.id === humanIdentifier ||
+        human.fullName === humanIdentifier,
+    );
+    if (!found) return null;
+
+    const [key, human] = found;
+    const nextName = updates.name ?? human.name;
+    const nextSurname = updates.surname ?? human.surname;
+    const nextKey = `${nextName} ${nextSurname}`.trim();
+    const merged = { ...human, ...updates, fullName: nextKey };
+
     setOfflineHumans((prev) => {
-      const entries = Object.entries(prev);
-      const found = entries.find(
-        ([key, human]) =>
-          key === humanIdentifier ||
-          human.id === humanIdentifier ||
-          human.fullName === humanIdentifier,
-      );
-      if (!found) return prev;
-      const [key, human] = found;
-      const nextName = updates.name ?? human.name;
-      const nextSurname = updates.surname ?? human.surname;
-      const nextKey = `${nextName} ${nextSurname}`.trim();
       const next = { ...prev };
       delete next[key];
-      next[nextKey] = { ...human, ...updates, fullName: nextKey };
+      next[nextKey] = merged;
       return next;
     });
-  }, []);
+    return merged;
+  }, [offlineHumans]);
 
   const offlineUpdateConfig = useCallback((updater) => {
     setOfflineConfig((prev) =>

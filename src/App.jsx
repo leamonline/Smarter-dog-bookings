@@ -915,6 +915,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onRemove={handleRemove}
           onUpdateDog={updateDog}
           onUpdateHuman={updateHuman}
+          onAddHuman={addHuman}
+          fetchHumanById={sbFetchHumanById}
+          findHumanByFullName={sbFindHumanByFullName}
+          searchHumansByTerm={sbSearchHumansByTerm}
           onOpenHuman={handleOpenHuman}
           onOpenDog={handleOpenDog}
           configPricing={salonConfig?.pricing}
@@ -1350,6 +1354,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   humans={humans}
                   onUpdateDog={updateDog}
                   onUpdateHuman={updateHuman}
+                  onAddHuman={addHuman}
+                  fetchHumanById={sbFetchHumanById}
+                  findHumanByFullName={sbFindHumanByFullName}
+                  searchHumansByTerm={sbSearchHumansByTerm}
                   daySettings={daySettings}
                 />
               </Suspense>

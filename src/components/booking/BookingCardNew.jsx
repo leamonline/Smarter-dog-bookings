@@ -186,6 +186,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     onUpdate,
     onUpdateDog,
     onUpdateHuman,
+    onAddHuman,
+    fetchHumanById,
+    findHumanByFullName,
+    searchHumansByTerm,
     onOpenHuman,
     onOpenDog,
     configPricing,
@@ -640,6 +644,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             humans={humans}
             onUpdateDog={onUpdateDog}
             onUpdateHuman={onUpdateHuman}
+            onAddHuman={onAddHuman}
+            fetchHumanById={fetchHumanById}
+            findHumanByFullName={findHumanByFullName}
+            searchHumansByTerm={searchHumansByTerm}
             daySettings={daySettings}
           />
         </Suspense>

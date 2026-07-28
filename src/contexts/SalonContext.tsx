@@ -23,6 +23,10 @@ export interface SalonContextValue {
   /** Staff update path for a human (key, patch) — used by the booking
    *  detail's delivery-failure "Fix the number" inline save. */
   onUpdateHuman: (humanKey: string, patch: Partial<Human>) => unknown;
+  onAddHuman?: (human: Partial<Human>) => unknown;
+  fetchHumanById?: (humanId: string) => unknown;
+  findHumanByFullName?: (name: string, surname: string) => unknown;
+  searchHumansByTerm?: (term: string) => unknown;
   onOpenHuman: (name: string) => void;
   onOpenDog: (name: string) => void;
   /** salon_config.pricing (Settings guide prices, integer pence). Feeds the
@@ -50,6 +54,10 @@ export function SalonProvider({
   onRemove,
   onUpdateDog,
   onUpdateHuman,
+  onAddHuman,
+  fetchHumanById,
+  findHumanByFullName,
+  searchHumansByTerm,
   onOpenHuman,
   onOpenDog,
   configPricing,
@@ -68,6 +76,10 @@ export function SalonProvider({
       onRemove,
       onUpdateDog,
       onUpdateHuman,
+      onAddHuman,
+      fetchHumanById,
+      findHumanByFullName,
+      searchHumansByTerm,
       onOpenHuman,
       onOpenDog,
       configPricing,
@@ -85,6 +97,10 @@ export function SalonProvider({
       onRemove,
       onUpdateDog,
       onUpdateHuman,
+      onAddHuman,
+      fetchHumanById,
+      findHumanByFullName,
+      searchHumansByTerm,
       onOpenHuman,
       onOpenDog,
       configPricing,

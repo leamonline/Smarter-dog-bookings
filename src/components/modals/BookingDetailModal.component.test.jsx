@@ -135,6 +135,84 @@ describe("BookingDetailModal", () => {
     expect(screen.getAllByText(/Cockapoo/).length).toBeGreaterThan(0);
   });
 
+  it("shows the owner's trusted humans on the appointment card", () => {
+    const mark = {
+      ...human,
+      id: "human-2",
+      fullName: "Mark Smith",
+      name: "Mark",
+      surname: "Smith",
+      phone: "07700900222",
+    };
+    const sarah = {
+      ...human,
+      trustedContacts: [
+        {
+          id: "human-2",
+          fullName: "Mark Smith",
+          relationship: "Dog walker",
+        },
+      ],
+    };
+
+    renderModal({
+      humans: { "Sarah Jones": sarah, "Mark Smith": mark },
+    });
+
+    expect(screen.getByText("Trusted humans")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark Smith" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Relationship for Mark Smith" }),
+    ).toHaveValue("Dog walker");
+  });
+
+  it("adds a new trusted human from the appointment card", async () => {
+    const onAddHuman = vi.fn().mockResolvedValue({
+      ...human,
+      id: "human-2",
+      fullName: "Mark Smith",
+      name: "Mark",
+      surname: "Smith",
+      phone: "+447700900222",
+      trustedContacts: [],
+    });
+    const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
+
+    renderModal({
+      onAddHuman,
+      onUpdateHuman,
+      findHumanByFullName: vi.fn().mockResolvedValue(null),
+    });
+
+    const panel = screen.getByRole("region", { name: "Trusted humans" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Add" }));
+    fireEvent.click(
+      within(panel).getByRole("button", { name: /Create new human/i }),
+    );
+    fireEvent.change(within(panel).getByPlaceholderText("First name"), {
+      target: { value: "Mark" },
+    });
+    fireEvent.change(within(panel).getByPlaceholderText("Surname"), {
+      target: { value: "Smith" },
+    });
+    fireEvent.change(within(panel).getByPlaceholderText("Phone number"), {
+      target: { value: "07700900222" },
+    });
+    fireEvent.click(within(panel).getByRole("button", { name: "Add" }));
+
+    expect(await screen.findByText("Trusted human added")).toBeInTheDocument();
+  });
+
+  it("hydrates the owner's shared trusted-human record when the appointment opens", async () => {
+    const fetchHumanById = vi.fn().mockResolvedValue(human);
+
+    renderModal({ fetchHumanById });
+
+    await waitFor(() =>
+      expect(fetchHumanById).toHaveBeenCalledWith("human-1"),
+    );
+  });
+
   it("Close button fires onClose when there are no unsaved edits", () => {
     const { onClose } = renderModal();
     fireEvent.click(screen.getByRole("button", { name: "Close booking details" }));

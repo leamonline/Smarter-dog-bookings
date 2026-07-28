@@ -9,7 +9,7 @@ export { NotesPanel } from "./NotesPanel.jsx";
 export { AtAGlanceStrip } from "./AtAGlanceStrip.jsx";
 export { DogsPanel } from "./DogsPanel.jsx";
 export { LinkDogActions } from "./LinkDogActions.jsx";
-export { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
+export { TrustedHumansPanel } from "../shared/TrustedHumansPanel.jsx";
 export { RemindersPanel } from "./RemindersPanel.jsx";
 export { AiMessagingPanel } from "./AiMessagingPanel.jsx";
 export { BookingRulesPanel } from "./BookingRulesPanel.jsx";
