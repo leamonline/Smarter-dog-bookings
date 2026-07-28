@@ -46,6 +46,42 @@ describe("useOfflineState updateDog", () => {
   });
 });
 
+describe("useOfflineState updateHuman", () => {
+  it("returns the merged human and applies the update", () => {
+    const { result } = renderOffline();
+
+    let saved;
+    act(() => {
+      saved = result.current.updateHuman("h1", {
+        trustedContacts: [{ id: "h2", relationship: "Partner" }],
+      });
+    });
+
+    expect(saved).toMatchObject({
+      id: "h1",
+      fullName: "Sarah Jones",
+      trustedContacts: [{ id: "h2", relationship: "Partner" }],
+    });
+    expect(result.current.humans["Sarah Jones"].trustedContacts).toEqual([
+      { id: "h2", relationship: "Partner" },
+    ]);
+  });
+
+  it("returns null for an unknown human so editors can stop", () => {
+    const { result } = renderOffline();
+
+    let saved;
+    act(() => {
+      saved = result.current.updateHuman("nobody", {
+        trustedContacts: [],
+      });
+    });
+
+    expect(saved).toBeNull();
+    expect(result.current.humans.nobody).toBeUndefined();
+  });
+});
+
 describe("useOfflineState handleUpdate", () => {
   it("resolves to the updated booking on a same-date edit", async () => {
     const { result } = renderOffline();

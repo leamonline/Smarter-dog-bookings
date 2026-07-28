@@ -34,6 +34,7 @@ import { ReminderCard } from "./booking-detail/ReminderCard.jsx";
 import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
+import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
 import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
@@ -62,6 +63,10 @@ export function BookingDetailModal({
   humans,
   onUpdateDog,
   onUpdateHuman,
+  onAddHuman,
+  findHumanByFullName,
+  searchHumansByTerm,
+  fetchHumanById,
   daySettings = {},
 }) {
   const configPricing = useSalonPricing();
@@ -93,6 +98,13 @@ export function BookingDetailModal({
     () => getHumanByIdOrName(humans, booking._ownerId || booking.owner) || null,
     [humans, booking._ownerId, booking.owner],
   );
+
+  const primaryHumanId = primaryHuman?.id || booking._ownerId || null;
+  useEffect(() => {
+    if (primaryHumanId && fetchHumanById) {
+      fetchHumanById(primaryHumanId);
+    }
+  }, [primaryHumanId, fetchHumanById]);
 
   const pickupHuman = useMemo(
     () =>
@@ -389,6 +401,20 @@ export function BookingDetailModal({
             otherBookings={otherBookings}
             editSettings={editSettings}
             sizeTheme={sizeTheme}
+          />
+
+          <TrustedHumansPanel
+            human={primaryHuman}
+            humanFullName={primaryHuman?.fullName || booking.owner}
+            humans={humans}
+            onClose={onClose}
+            onOpenHuman={onOpenHuman}
+            onUpdateHuman={onUpdateHuman}
+            onAddHuman={onAddHuman}
+            findHumanByFullName={findHumanByFullName}
+            searchHumansByTerm={searchHumansByTerm}
+            className="mb-3"
+            missingHumanMessage="Link an owner to manage trusted humans."
           />
 
           {/* Awaiting-deposit strip: reference + copy line + one-tap

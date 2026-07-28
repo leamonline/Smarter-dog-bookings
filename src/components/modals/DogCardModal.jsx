@@ -1,5 +1,6 @@
 // Layout shell for the dog card. State and behaviour live in the
-// dog-card/ hooks (useResolvedDog, useDogEditForm, useTrustedHumans);
+// dog-card/ hooks (useResolvedDog, useDogEditForm); trusted-human state and
+// mutations live in the shared panel used by all profile cards.
 // the heavyweight flows (chain booking, photo gallery) are sibling
 // modals that only mount when staff open them.
 import { useState, useMemo, useEffect } from "react";
@@ -11,7 +12,6 @@ import {
   GroomingHistory,
   DogCardHeader,
   DogDetailsSection,
-  TrustedHumansSection,
   DogCardActions,
   DogChainBooking,
   DogPhotoGallery,
@@ -20,9 +20,9 @@ import {
   findLastBooking,
   useResolvedDog,
   useDogEditForm,
-  useTrustedHumans,
   calcAge,
 } from "./dog-card/index.js";
+import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
@@ -140,39 +140,6 @@ export function DogCardModal({
     handleSave,
     handleCancel,
   } = useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDog });
-
-  const {
-    trustedContacts,
-    trustedSearchResults,
-    showTrustedSearch,
-    setShowTrustedSearch,
-    trustedSearchQuery,
-    setTrustedSearchQuery,
-    showNewTrustedForm,
-    setShowNewTrustedForm,
-    newTrustedName,
-    setNewTrustedName,
-    newTrustedSurname,
-    setNewTrustedSurname,
-    newTrustedPhone,
-    setNewTrustedPhone,
-    newTrustedRelationship,
-    setNewTrustedRelationship,
-    handleAddTrusted,
-    handleAddNewTrusted,
-    handleUpdateTrustedRelationship,
-    handleRemoveTrusted,
-    trustedToRemove,
-    confirmRemoveTrusted,
-    cancelRemoveTrusted,
-  } = useTrustedHumans({
-    owner,
-    humans,
-    onUpdateHuman,
-    onAddHuman,
-    findHumanByFullName,
-    searchHumansByTerm,
-  });
 
   const sizeTheme = SIZE_THEME[resolvedDog.size] || SIZE_FALLBACK;
 
@@ -314,35 +281,18 @@ export function DogCardModal({
           sizeOverridden={sizeOverridden}
         />
 
-        <TrustedHumansSection
-          isEditing={isEditing}
-          trustedContacts={trustedContacts}
+        <TrustedHumansPanel
+          human={owner}
+          humanFullName={ownerLabel}
           humans={humans}
-          owner={owner}
           onClose={onClose}
           onOpenHuman={onOpenHuman}
           onUpdateHuman={onUpdateHuman}
           onAddHuman={onAddHuman}
-          showTrustedSearch={showTrustedSearch}
-          setShowTrustedSearch={setShowTrustedSearch}
-          trustedSearchQuery={trustedSearchQuery}
-          setTrustedSearchQuery={setTrustedSearchQuery}
-          trustedSearchResults={trustedSearchResults}
-          handleAddTrusted={handleAddTrusted}
-          handleRemoveTrusted={handleRemoveTrusted}
-          showNewTrustedForm={showNewTrustedForm}
-          setShowNewTrustedForm={setShowNewTrustedForm}
-          newTrustedName={newTrustedName}
-          setNewTrustedName={setNewTrustedName}
-          newTrustedSurname={newTrustedSurname}
-          setNewTrustedSurname={setNewTrustedSurname}
-          newTrustedPhone={newTrustedPhone}
-          setNewTrustedPhone={setNewTrustedPhone}
-          newTrustedRelationship={newTrustedRelationship}
-          setNewTrustedRelationship={setNewTrustedRelationship}
-          handleAddNewTrusted={handleAddNewTrusted}
-          handleUpdateTrustedRelationship={handleUpdateTrustedRelationship}
-          getHumanByIdOrName={getHumanByIdOrName}
+          findHumanByFullName={findHumanByFullName}
+          searchHumansByTerm={searchHumansByTerm}
+          className="mb-3"
+          missingHumanMessage="Set an owner on this dog before adding a trusted human."
         />
 
         <GroomingHistory
@@ -391,17 +341,6 @@ export function DogCardModal({
         onClose={() => setShowChainBooking(false)}
         onUpdateDog={onUpdateDog}
         handleAdd={handleAdd}
-      />
-    )}
-
-    {trustedToRemove && (
-      <ConfirmDialog
-        title="Unlink trusted human?"
-        message="They won't be linked as a trusted human any more."
-        confirmLabel="Remove"
-        variant="danger"
-        onConfirm={confirmRemoveTrusted}
-        onCancel={cancelRemoveTrusted}
       />
     )}
 

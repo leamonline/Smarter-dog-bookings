@@ -4,9 +4,22 @@
 // inserting a second record. (DogCardModal.handleAddNewTrusted uses the same
 // pattern.)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
-import { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
+import { TrustedHumansPanel } from "../shared/TrustedHumansPanel.jsx";
+
+const trustedContactMocks = vi.hoisted(() => ({
+  fetchTrustedContactsForHuman: vi.fn().mockResolvedValue({
+    trustedContacts: [],
+    trustedIds: [],
+  }),
+}));
+
+vi.mock("../../../supabase/hooks/humans/useTrustedContacts", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchTrustedContactsForHuman:
+    trustedContactMocks.fetchTrustedContactsForHuman,
+}));
 
 const owner = {
   id: "owner-1",
@@ -18,7 +31,7 @@ const owner = {
 
 function renderPanel(overrides = {}) {
   const onAddHuman = vi.fn().mockResolvedValue({ id: "new-1", fullName: "Sarah Jones" });
-  const onUpdateHuman = vi.fn().mockResolvedValue(undefined);
+  const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
   const findHumanByFullName = vi.fn().mockResolvedValue(null);
   const props = {
     human: owner,
@@ -51,7 +64,7 @@ function openAndFillNewTrustedForm() {
   });
 }
 
-describe("TrustedHumansPanel — duplicate guard on 'create new trusted human'", () => {
+describe("TrustedHumansPanel", () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
@@ -95,5 +108,225 @@ describe("TrustedHumansPanel — duplicate guard on 'create new trusted human'",
       // The typed national number is normalised to E.164 before it's stored.
       expect.objectContaining({ name: "Sarah", surname: "Jones", phone: "+447700900111" }),
     );
+  });
+
+  it("does not report success when a newly-created human cannot be linked to the owner", async () => {
+    const onUpdateHuman = vi.fn().mockResolvedValue(null);
+    renderPanel({ onUpdateHuman });
+
+    openAndFillNewTrustedForm();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(
+      await screen.findByText("Couldn't add trusted human — please try again."),
+    ).toBeInTheDocument();
+    expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Trusted human added")).not.toBeInTheDocument();
+  });
+
+  it("removes the shared relationship from both humans after confirmation", async () => {
+    const linkedOwner = {
+      ...owner,
+      trustedContacts: [
+        {
+          id: "trusted-1",
+          fullName: "Mark Smith",
+          relationship: "Dog walker",
+        },
+      ],
+    };
+    const linkedTrustedHuman = {
+      id: "trusted-1",
+      fullName: "Mark Smith",
+      name: "Mark",
+      surname: "Smith",
+      phone: "07700900222",
+      trustedContacts: [
+        {
+          id: "owner-1",
+          fullName: "Alice Owner",
+          relationship: "",
+        },
+      ],
+    };
+    const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
+
+    renderPanel({
+      human: linkedOwner,
+      humans: {
+        "Alice Owner": linkedOwner,
+        "Mark Smith": linkedTrustedHuman,
+      },
+      onUpdateHuman,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Remove Mark Smith as trusted human",
+      }),
+    );
+
+    expect(await screen.findByText("Unlink trusted human?")).toBeInTheDocument();
+    expect(onUpdateHuman).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
+    expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "owner-1", {
+      trustedContacts: [],
+    });
+    expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "trusted-1", {
+      trustedContacts: [],
+    });
+  });
+
+  it("saves a relationship edit back to the shared human record", async () => {
+    const linkedOwner = {
+      ...owner,
+      trustedContacts: [
+        {
+          id: "trusted-1",
+          fullName: "Mark Smith",
+          relationship: "Friend",
+        },
+      ],
+    };
+    const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
+
+    renderPanel({
+      human: linkedOwner,
+      humans: {
+        "Alice Owner": linkedOwner,
+        "Mark Smith": {
+          id: "trusted-1",
+          fullName: "Mark Smith",
+          name: "Mark",
+          surname: "Smith",
+          trustedContacts: [],
+        },
+      },
+      onUpdateHuman,
+    });
+
+    const relationship = screen.getByRole("textbox", {
+      name: "Relationship for Mark Smith",
+    });
+    fireEvent.change(relationship, { target: { value: "Dog walker" } });
+    fireEvent.blur(relationship);
+
+    await waitFor(() =>
+      expect(onUpdateHuman).toHaveBeenCalledWith("owner-1", {
+        trustedContacts: [
+          {
+            id: "trusted-1",
+            fullName: "Mark Smith",
+            relationship: "Dog walker",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("keeps the section visible when a card has no linked owner", () => {
+    renderPanel({
+      human: null,
+      humanFullName: "",
+      missingHumanMessage: "Link an owner to manage trusted humans.",
+    });
+
+    expect(
+      screen.getByRole("region", { name: "Trusted humans" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Link an owner to manage trusted humans."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /add a trusted human/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("stops after a failed owner update instead of showing a false success", async () => {
+    const candidate = {
+      id: "trusted-1",
+      fullName: "Mark Smith",
+      name: "Mark",
+      surname: "Smith",
+      phone: "07700900222",
+      trustedContacts: [],
+    };
+    const onUpdateHuman = vi.fn().mockResolvedValue(null);
+    renderPanel({
+      humans: {
+        "Alice Owner": owner,
+        "Mark Smith": candidate,
+      },
+      onUpdateHuman,
+    });
+
+    const panel = screen.getByRole("region", { name: "Trusted humans" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Add" }));
+    fireEvent.change(
+      within(panel).getByPlaceholderText("Search by name or phone..."),
+      { target: { value: "Mark" } },
+    );
+    fireEvent.click(within(panel).getByRole("button", { name: /Mark Smith/ }));
+
+    expect(
+      await screen.findByText("Couldn't add trusted human — please try again."),
+    ).toBeInTheDocument();
+    expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Trusted human linked")).not.toBeInTheDocument();
+  });
+
+  it("preserves the trusted human’s other links when adding the reciprocal relationship", async () => {
+    const candidate = {
+      id: "trusted-1",
+      fullName: "Mark Smith",
+      name: "Mark",
+      surname: "Smith",
+      phone: "07700900222",
+      trustedContacts: [],
+    };
+    trustedContactMocks.fetchTrustedContactsForHuman.mockResolvedValueOnce({
+      trustedContacts: [
+        {
+          id: "third-1",
+          fullName: "Charlie Friend",
+          relationship: "Friend",
+        },
+      ],
+      trustedIds: ["Charlie Friend"],
+    });
+    const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
+    renderPanel({
+      humans: {
+        "Alice Owner": owner,
+        "Mark Smith": candidate,
+      },
+      onUpdateHuman,
+    });
+
+    const panel = screen.getByRole("region", { name: "Trusted humans" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Add" }));
+    fireEvent.change(
+      within(panel).getByPlaceholderText("Search by name or phone..."),
+      { target: { value: "Mark" } },
+    );
+    fireEvent.click(within(panel).getByRole("button", { name: /Mark Smith/ }));
+
+    await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
+    expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "trusted-1", {
+      trustedContacts: [
+        {
+          id: "third-1",
+          fullName: "Charlie Friend",
+          relationship: "Friend",
+        },
+        {
+          id: "owner-1",
+          relationship: "",
+        },
+      ],
+    });
   });
 });

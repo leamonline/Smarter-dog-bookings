@@ -5,7 +5,7 @@
 // pre-split behaviour and kept green through the refactor — these are
 // behaviour pins, not aspirational specs.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
 
@@ -126,6 +126,16 @@ function renderModal(overrides = {}) {
 
 function enterEdit(name = "Bella") {
   fireEvent.click(screen.getByRole("button", { name: `Edit ${name}` }));
+}
+
+function openTrustedHumanPicker() {
+  const panel = screen.getByRole("region", { name: "Trusted humans" });
+  fireEvent.click(
+    within(panel).getByRole("button", {
+      name: /^(?:add|add a trusted human)$/i,
+    }),
+  );
+  return panel;
 }
 
 describe("DogCardModal characterisation", () => {
@@ -388,12 +398,21 @@ describe("DogCardModal characterisation", () => {
   });
 
   describe("trusted humans", () => {
+    it("offers trusted-human changes without putting the dog card into edit mode", () => {
+      renderModal();
+
+      expect(
+        within(screen.getByRole("region", { name: "Trusted humans" }))
+          .getByRole("button", { name: "Add" }),
+      ).toBeInTheDocument();
+    });
+
     it("debounces a server-side search alongside the local one", async () => {
       const searchHumansByTerm = vi.fn(() => Promise.resolve([]));
       renderModal({ searchHumansByTerm });
       enterEdit();
 
-      fireEvent.click(screen.getByRole("button", { name: "+ Add a trusted human" }));
+      openTrustedHumanPicker();
       fireEvent.change(screen.getByPlaceholderText("Search by name or phone..."), {
         target: { value: "Jo" },
       });
@@ -406,20 +425,20 @@ describe("DogCardModal characterisation", () => {
       renderModal({ onUpdateHuman });
       enterEdit();
 
-      fireEvent.click(screen.getByRole("button", { name: "+ Add a trusted human" }));
+      openTrustedHumanPicker();
       fireEvent.change(screen.getByPlaceholderText("Search by name or phone..."), {
         target: { value: "mark" },
       });
       fireEvent.click(screen.getByRole("button", { name: /Mark Smith/ }));
 
       await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "Sarah Jones", {
+      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "human-1", {
         trustedContacts: [{ id: "human-2", relationship: "" }],
       });
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "Mark Smith", {
+      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "human-2", {
         trustedContacts: [{ id: "human-1", relationship: "" }],
       });
-      expect(await screen.findByText("Trusted human added")).toBeInTheDocument();
+      expect(await screen.findByText("Trusted human linked")).toBeInTheDocument();
     });
 
     it("reuses an existing human by full name instead of creating a duplicate", async () => {
@@ -429,8 +448,8 @@ describe("DogCardModal characterisation", () => {
       renderModal({ onAddHuman, onUpdateHuman, findHumanByFullName });
       enterEdit();
 
-      fireEvent.click(screen.getByRole("button", { name: "+ Add a trusted human" }));
-      fireEvent.click(screen.getByRole("button", { name: "+ Add new human" }));
+      openTrustedHumanPicker();
+      fireEvent.click(screen.getByRole("button", { name: "+ Create new human" }));
       fireEvent.change(screen.getByPlaceholderText("First name"), { target: { value: "Mark" } });
       fireEvent.change(screen.getByPlaceholderText("Surname"), { target: { value: "Smith" } });
       fireEvent.change(screen.getByPlaceholderText("Phone number"), { target: { value: "07700900222" } });
@@ -439,7 +458,7 @@ describe("DogCardModal characterisation", () => {
       await waitFor(() => expect(findHumanByFullName).toHaveBeenCalledWith("Mark", "Smith"));
       await screen.findByText("Linked existing Mark Smith as trusted human");
       expect(onAddHuman).not.toHaveBeenCalled();
-      expect(onUpdateHuman).toHaveBeenCalledWith("Sarah Jones", {
+      expect(onUpdateHuman).toHaveBeenCalledWith("human-1", {
         trustedContacts: [{ id: "human-2", relationship: "" }],
       });
     });
@@ -450,8 +469,8 @@ describe("DogCardModal characterisation", () => {
       renderModal({ onAddHuman });
       enterEdit();
 
-      fireEvent.click(screen.getByRole("button", { name: "+ Add a trusted human" }));
-      fireEvent.click(screen.getByRole("button", { name: "+ Add new human" }));
+      openTrustedHumanPicker();
+      fireEvent.click(screen.getByRole("button", { name: "+ Create new human" }));
       fireEvent.change(screen.getByPlaceholderText("First name"), { target: { value: "New" } });
       fireEvent.change(screen.getByPlaceholderText("Surname"), { target: { value: "Person" } });
       fireEvent.change(screen.getByPlaceholderText("Phone number"), { target: { value: "07700900333" } });
@@ -477,13 +496,17 @@ describe("DogCardModal characterisation", () => {
       });
       enterEdit();
 
-      fireEvent.click(screen.getByTitle("Remove trusted human"));
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Remove Mark Smith as trusted human",
+        }),
+      );
       expect(await screen.findByText("Unlink trusted human?")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
       await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "Sarah Jones", { trustedContacts: [] });
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "Mark Smith", { trustedContacts: [] });
+      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "human-1", { trustedContacts: [] });
+      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "human-2", { trustedContacts: [] });
       expect(await screen.findByText("Trusted human removed")).toBeInTheDocument();
     });
   });

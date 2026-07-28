@@ -54,7 +54,7 @@ function bookingFixture(overrides = {}) {
   };
 }
 
-function renderCard(onUpdateHuman) {
+function renderCard(onUpdateHuman, trustedHumanCallbacks = {}) {
   return render(
     <ToastProvider>
       <SalonProvider
@@ -72,6 +72,7 @@ function renderCard(onUpdateHuman) {
         onUpdateHuman={onUpdateHuman}
         onOpenHuman={vi.fn()}
         onOpenDog={vi.fn()}
+        {...trustedHumanCallbacks}
       >
         <BookingCardNew booking={bookingFixture()} currentDateStr="2026-06-01" />
       </SalonProvider>
@@ -91,5 +92,24 @@ describe("BookingCardNew → BookingDetailModal delivery-failure wiring", () => 
     // The bug: onUpdateHuman never reached the modal, so the inline number fix
     // failed with "Can't update this customer's number here."
     expect(capturedProps.onUpdateHuman).toBe(onUpdateHuman);
+  });
+
+  it("threads every trusted-human callback into week-calendar appointment cards", async () => {
+    capturedProps = null;
+    const callbacks = {
+      onAddHuman: vi.fn(),
+      fetchHumanById: vi.fn(),
+      findHumanByFullName: vi.fn(),
+      searchHumansByTerm: vi.fn(),
+    };
+    renderCard(vi.fn(), callbacks);
+
+    fireEvent.click(screen.getByRole("button", { name: /open booking for bella/i }));
+    await screen.findByTestId("booking-detail-modal");
+
+    expect(capturedProps.onAddHuman).toBe(callbacks.onAddHuman);
+    expect(capturedProps.fetchHumanById).toBe(callbacks.fetchHumanById);
+    expect(capturedProps.findHumanByFullName).toBe(callbacks.findHumanByFullName);
+    expect(capturedProps.searchHumansByTerm).toBe(callbacks.searchHumansByTerm);
   });
 });
