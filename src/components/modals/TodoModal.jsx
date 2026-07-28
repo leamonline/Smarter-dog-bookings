@@ -112,7 +112,106 @@ export function RescheduleRequestTodo({
   );
 }
 
-export function TodoModal({ onClose }) {
+export function ClosureRearrangementTodo({
+  todo,
+  completeClosureTask,
+  onOpenClosureVisit,
+  onOpened,
+  reportFailure,
+}) {
+  const [inFlight, setInFlight] = useState(null);
+
+  const handleOpen = async () => {
+    if (!onOpenClosureVisit) {
+      reportFailure(
+        { ok: false, error: "Couldn't open that appointment from here." },
+        "Couldn't open that appointment from here.",
+      );
+      return;
+    }
+    setInFlight("open");
+    try {
+      const result = await onOpenClosureVisit(todo.booking_visit_id);
+      reportFailure(result, "Couldn't open that appointment from here.");
+      if (result?.ok === true) onOpened?.();
+    } catch (error) {
+      reportFailure(
+        {
+          ok: false,
+          error: error?.message || "Couldn't open that appointment from here.",
+        },
+        "Couldn't open that appointment from here.",
+      );
+    } finally {
+      setInFlight(null);
+    }
+  };
+
+  const handleComplete = async () => {
+    setInFlight("complete");
+    try {
+      const result = await completeClosureTask(todo.id);
+      reportFailure(result, "Couldn't check that closure task.");
+    } catch (error) {
+      reportFailure(
+        {
+          ok: false,
+          error: error?.message || "Couldn't check that closure task.",
+        },
+        "Couldn't check that closure task.",
+      );
+    } finally {
+      setInFlight(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs leading-relaxed break-words text-slate-700">
+        {todo.text}
+      </span>
+      {todo.done ? (
+        <span className="text-[11px] font-semibold text-slate-500">
+          Rearrangement recorded
+        </span>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleOpen}
+            disabled={inFlight !== null}
+            className="portal-btn portal-btn--secondary portal-btn--small"
+          >
+            {inFlight === "open" ? "Opening…" : "Open appointment"}
+          </button>
+          <button
+            type="button"
+            onClick={handleComplete}
+            disabled={inFlight !== null}
+            className="portal-btn portal-btn--primary portal-btn--small"
+          >
+            {inFlight === "complete" ? "Checking…" : "Check and complete"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function UnavailableTypedTodo({ todo }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs leading-relaxed break-words text-slate-700">
+        {todo.text}
+      </span>
+      <span className="text-[11px] font-semibold text-slate-500">
+        Complete this from its linked workflow.
+      </span>
+    </div>
+  );
+}
+
+export function TodoModal({ onClose, onOpenClosureVisit }) {
   const toast = useToast();
   const {
     todos,
@@ -123,6 +222,7 @@ export function TodoModal({ onClose }) {
     removeTodo,
     moveTodo,
     decideRescheduleRequest,
+    completeClosureTask,
   } = useTodos();
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
@@ -228,6 +328,18 @@ export function TodoModal({ onClose }) {
                     decideRescheduleRequest={decideRescheduleRequest}
                     reportFailure={reportFailure}
                   />
+                ) : todo.kind === "closure_rearrangement" &&
+                  todo.booking_visit_id &&
+                  todo.closure_date ? (
+                  <ClosureRearrangementTodo
+                    todo={todo}
+                    completeClosureTask={completeClosureTask}
+                    onOpenClosureVisit={onOpenClosureVisit}
+                    onOpened={onClose}
+                    reportFailure={reportFailure}
+                  />
+                ) : todo.kind && todo.kind !== "general" ? (
+                  <UnavailableTypedTodo todo={todo} />
                 ) : (
                   <div className="flex items-start gap-1.5">
                     <button

@@ -19,6 +19,7 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "danger",
+  pending = false,
   onConfirm,
   onCancel,
 }) {
@@ -44,10 +45,11 @@ export function ConfirmDialog({
         </p>
       )}
 
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-2 justify-end" aria-busy={pending}>
         <button
           type="button"
           onClick={onCancel}
+          disabled={pending}
           className="btn btn-ghost"
         >
           {cancelLabel}
@@ -55,6 +57,7 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onConfirm}
+          disabled={pending}
           autoFocus
           className={`btn ${isDanger ? "btn-danger" : "btn-primary"}`}
         >

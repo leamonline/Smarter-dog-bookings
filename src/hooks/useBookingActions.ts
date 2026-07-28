@@ -38,6 +38,7 @@ interface SupabaseFns {
   // `result?.ok === false` to dismiss its optimistic toast.
   sbToggleDayOpen: (
     dateStr: string,
+    nextIsOpen?: boolean,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   sbSetOverride: (
     dateStr: string,
@@ -101,7 +102,7 @@ interface OfflineFns {
     fromDateStr: string,
     toDateStr: string,
   ) => Promise<Booking>;
-  toggleDayOpen: () => void;
+  toggleDayOpen: (nextIsOpen?: boolean) => void;
   // Synchronous and infallible: applies the override locally and returns
   // { ok: true } — never a Promise and never ok: false (the Promise half
   // of the old declared union belonged to the ONLINE setOverride, which is
@@ -206,7 +207,7 @@ export function useBookingActions({
     [sbRemoveBooking, currentDateStr],
   );
   const onlineToggleDayOpen = useCallback(
-    () => sbToggleDayOpen(currentDateStr),
+    (nextIsOpen?: boolean) => sbToggleDayOpen(currentDateStr, nextIsOpen),
     [sbToggleDayOpen, currentDateStr],
   );
   const onlineHandleOverride = useCallback(

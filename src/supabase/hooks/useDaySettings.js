@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { takeBootPrefetch } from "../bootPrefetch.js";
@@ -6,6 +6,7 @@ import { fetchDaySettingsWeek } from "../queries/bootQueries.js";
 import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
+import { closeDayWithRearrangementTasks } from "../rpc";
 
 function getDefaultOpen(dateObj) {
   const dayOfWeek = dateObj.getDay(); // 0=Sun
@@ -41,11 +42,24 @@ function mergeSetting(current = {}, updates = {}) {
 export function useDaySettings(weekStart) {
   // daySettings: { "2026-03-25": { isOpen, overrides, extraSlots }, ... }
   const [daySettings, setDaySettings] = useState({});
+  // Mutations need the latest setting synchronously. Reading a value assigned
+  // inside React's functional state updater is racy because React may defer
+  // that updater until after the async persistence path has already started.
+  const daySettingsRef = useRef({});
   const [loading, setLoading] = useState(true);
+
+  const commitDaySettings = useCallback((updater) => {
+    const next =
+      typeof updater === "function"
+        ? updater(daySettingsRef.current)
+        : updater;
+    daySettingsRef.current = next;
+    setDaySettings(next);
+  }, []);
 
   useEffect(() => {
     if (!weekStart) {
-      setDaySettings({});
+      commitDaySettings({});
       setLoading(false);
       return;
     }
@@ -53,7 +67,7 @@ export function useDaySettings(weekStart) {
     const defaults = buildWeekDefaults(weekStart);
 
     if (!supabase) {
-      setDaySettings(defaults);
+      commitDaySettings(defaults);
       setLoading(false);
       return;
     }
@@ -82,7 +96,7 @@ export function useDaySettings(weekStart) {
         logger.error("Failed to fetch day settings", error, {
           tags: { hook: "useDaySettings", op: "fetch" },
         });
-        setDaySettings(defaults);
+        commitDaySettings(defaults);
         setLoading(false);
         return;
       }
@@ -97,7 +111,7 @@ export function useDaySettings(weekStart) {
         };
       }
 
-      setDaySettings(merged);
+      commitDaySettings(merged);
       setLoading(false);
     }
 
@@ -112,7 +126,7 @@ export function useDaySettings(weekStart) {
         (payload) => {
           const row = payload.new;
           if (!row || row.setting_date < startStr || row.setting_date > endStr) return;
-          setDaySettings((prev) => ({
+          commitDaySettings((prev) => ({
             ...prev,
             [row.setting_date]: {
               isOpen: row.is_open,
@@ -129,58 +143,70 @@ export function useDaySettings(weekStart) {
       controller.abort();
       supabase.removeChannel(channel);
     };
-  }, [weekStart]);
+  }, [weekStart, commitDaySettings]);
 
-  const upsertSetting = useCallback(async (dateStr, updater) => {
-    let nextSetting;
-    let prevSetting;
+  const upsertSetting = useCallback(async (dateStr, updater, persistence = "settings") => {
+    const prevSetting = daySettingsRef.current[dateStr] || {
+      isOpen: false,
+      overrides: {},
+      extraSlots: [],
+      immediateSlots: [],
+    };
+    const updates =
+      typeof updater === "function" ? updater(prevSetting) : updater;
+    const nextSetting = mergeSetting(prevSetting, updates);
 
-    setDaySettings((prev) => {
-      const current = prev[dateStr] || {
-        isOpen: false,
-        overrides: {},
-        extraSlots: [],
-        immediateSlots: [],
-      };
-      prevSetting = current;
-      const updates =
-        typeof updater === "function" ? updater(current) : updater;
-      nextSetting = mergeSetting(current, updates);
-      return {
-        ...prev,
-        [dateStr]: nextSetting,
-      };
-    });
+    commitDaySettings((prev) => ({
+      ...prev,
+      [dateStr]: nextSetting,
+    }));
 
     if (!supabase) return { ok: true, value: nextSetting };
 
-    const { error } = await supabase.from("day_settings").upsert(
-      {
-        setting_date: dateStr,
-        is_open: nextSetting.isOpen,
-        overrides: nextSetting.overrides,
-        extra_slots: nextSetting.extraSlots,
-        immediate_slots: nextSetting.immediateSlots,
-      },
-      { onConflict: "setting_date" },
-    );
+    const useAtomicClosure =
+      persistence === "atomic-closure" && nextSetting.isOpen === false;
+    const { error } =
+      useAtomicClosure
+        ? await closeDayWithRearrangementTasks(supabase, { date: dateStr })
+        : await supabase.from("day_settings").upsert(
+            {
+              setting_date: dateStr,
+              is_open: nextSetting.isOpen,
+              overrides: nextSetting.overrides,
+              extra_slots: nextSetting.extraSlots,
+              immediate_slots: nextSetting.immediateSlots,
+            },
+            { onConflict: "setting_date" },
+          );
 
     if (error) {
       logger.error("Failed to upsert day setting", error, {
-        tags: { hook: "useDaySettings", op: "upsert" },
+        tags: {
+          hook: "useDaySettings",
+          op: useAtomicClosure ? "closeDay" : "upsert",
+        },
       });
       // Roll back the optimistic mutation so the UI matches the
       // server's authoritative state. Caller can toast the error.
-      setDaySettings((prev) => ({ ...prev, [dateStr]: prevSetting }));
+      commitDaySettings((prev) => ({ ...prev, [dateStr]: prevSetting }));
       return { ok: false, error: error.message || "Couldn't save change." };
     }
 
     return { ok: true, value: nextSetting };
-  }, []);
+  }, [commitDaySettings]);
 
   const toggleDayOpen = useCallback(
-    (dateStr) =>
-      upsertSetting(dateStr, (current) => ({ isOpen: !current.isOpen })),
+    (dateStr, nextIsOpen) =>
+      upsertSetting(
+        dateStr,
+        (current) => ({
+          isOpen:
+            typeof nextIsOpen === "boolean"
+              ? nextIsOpen
+              : !current.isOpen,
+        }),
+        "atomic-closure",
+      ),
     [upsertSetting],
   );
 

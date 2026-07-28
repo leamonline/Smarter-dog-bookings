@@ -533,6 +533,61 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     }));
   }, [dogsById, humansById]);
 
+  const fetchBookingForVisit = useCallback(async (visitId) => {
+    if (!supabase || !visitId) {
+      return {
+        ok: false,
+        error: "Couldn't open that appointment from here.",
+      };
+    }
+
+    const { data, error: err } = await supabase
+      .from("bookings")
+      .select("*, notification_log(trigger_type, status, sent_at, channel)")
+      .eq("visit_id", visitId)
+      .eq("visit_membership_state", "included")
+      .order("booking_date", { ascending: true })
+      .order("slot")
+      .limit(20);
+
+    if (err) {
+      logger.error("Failed to fetch booking for closure task", err, {
+        tags: { hook: "useBookings", op: "fetchBookingForVisit" },
+      });
+      return {
+        ok: false,
+        error: err.message || "Couldn't open that appointment from here.",
+      };
+    }
+
+    const activeRow = (data || []).find(
+      (row) =>
+        row.status !== BOOKING_STATUS.CANCELLED &&
+        row.status !== BOOKING_STATUS.COMPLETED,
+    );
+    if (!activeRow) {
+      return {
+        ok: false,
+        error:
+          "That appointment has moved or been cancelled. You can check and complete the task.",
+      };
+    }
+
+    const booking = dbBookingsToArray(
+      [activeRow],
+      dogsById,
+      humansById,
+    )[0];
+    if (!booking) {
+      return {
+        ok: false,
+        error: "Couldn't open that appointment from here.",
+      };
+    }
+
+    return { ok: true, booking };
+  }, [dogsById, humansById]);
+
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   // On resume (tab visible again / reconnect) refetch the week so a
@@ -549,6 +604,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     removeBooking,
     updateBooking,
     fetchBookingHistoryForDog,
+    fetchBookingForVisit,
     refetch,
   };
 }

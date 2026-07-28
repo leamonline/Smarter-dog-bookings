@@ -10,14 +10,17 @@
 // each issuing its own salon_todos query. Same shape as
 // useWhatsAppUnread / useWhatsAppSummary.
 //
-// Returns the same surface as before:
-//   { todos, loading, error, addTodo, addTodos, toggleTodo, removeTodo,
-//     moveTodo, decideRescheduleRequest }
+// Shared mutation surface:
+//   { todos, loading, error, addTodo, toggleTodo, removeTodo,
+//     moveTodo, decideRescheduleRequest, completeClosureTask }
 // ============================================================
 
 import { useSyncExternalStore, useMemo } from "react";
 import { supabase } from "../client.js";
-import { decideCustomerOverrideRescheduleRequest } from "../rpc";
+import {
+  completeClosureRearrangementTask,
+  decideCustomerOverrideRescheduleRequest,
+} from "../rpc";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 
@@ -123,33 +126,15 @@ async function addTodo(text) {
   return { ok: true };
 }
 
-async function addTodos(items) {
-  if (!supabase || items.length === 0) return { ok: true };
-  const maxOrder =
-    state.todos.length > 0
-      ? Math.max(...state.todos.map((t) => t.sort_order)) + 1
-      : 0;
-
-  const rows = items.map((text, i) => ({
-    text: text.trim(),
-    sort_order: maxOrder + i,
-  }));
-
-  const { data, error: insertErr } = await supabase
-    .from("salon_todos")
-    .insert(rows)
-    .select();
-
-  if (insertErr) {
-    return { ok: false, error: insertErr.message || "Couldn't add tasks." };
-  }
-  if (data) setState({ todos: [...state.todos, ...data] });
-  return { ok: true };
-}
-
 async function toggleTodo(id) {
   const todo = state.todos.find((t) => t.id === id);
   if (!supabase || !todo) return { ok: true };
+  if ((todo.kind || "general") !== "general") {
+    return {
+      ok: false,
+      error: "Complete this task from its linked workflow.",
+    };
+  }
 
   const prev = state.todos;
   setState({ todos: prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) });
@@ -168,6 +153,13 @@ async function toggleTodo(id) {
 
 async function removeTodo(id) {
   if (!supabase) return { ok: true };
+  const todo = state.todos.find((candidate) => candidate.id === id);
+  if (todo && (todo.kind || "general") !== "general") {
+    return {
+      ok: false,
+      error: "Complete this task from its linked workflow.",
+    };
+  }
 
   const prev = state.todos;
   setState({ todos: prev.filter((t) => t.id !== id) });
@@ -237,15 +229,43 @@ async function decideRescheduleRequest(requestId, decision, reason) {
   return { ok: true };
 }
 
+async function completeClosureTask(taskId) {
+  if (!supabase) {
+    return { ok: false, error: "Couldn't check that closure task." };
+  }
+
+  const { error } = await completeClosureRearrangementTask(supabase, {
+    taskId,
+  });
+  if (error) {
+    const stillBooked =
+      error.code === "SCL01" ||
+      error.message?.includes("closure_visit_still_booked");
+    return {
+      ok: false,
+      error: stillBooked
+        ? "This appointment is still booked on the closed day. Move or cancel it first."
+        : error.message || "Couldn't check that closure task.",
+    };
+  }
+
+  setState({
+    todos: state.todos.map((todo) =>
+      todo.id === taskId ? { ...todo, done: true } : todo,
+    ),
+  });
+  return { ok: true };
+}
+
 // Module-level refs — stable identity so consumers can pass them to
 // effect/memo deps without re-triggering.
 const actions = {
   addTodo,
-  addTodos,
   toggleTodo,
   removeTodo,
   moveTodo,
   decideRescheduleRequest,
+  completeClosureTask,
 };
 
 export function useTodos() {

@@ -588,6 +588,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     removeBooking: sbRemoveBooking,
     updateBooking: sbUpdateBooking,
     fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
+    fetchBookingForVisit: sbFetchBookingForVisit,
     refetch: refetchBookings,
   } = useBookings(weekStart, dogsById, humansById, {
     onReadyForPickup: (booking) =>
@@ -762,6 +763,21 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       }
     },
     [bookingsByDate, setSelectedBooking],
+  );
+
+  const handleOpenClosureVisit = useCallback(
+    async (visitId) => {
+      const result = await sbFetchBookingForVisit(visitId);
+      if (result?.ok === false || !result?.booking) return result;
+
+      const booking = result.booking;
+      if (booking._bookingDate) {
+        handleDatePick(new Date(`${booking._bookingDate}T12:00:00`));
+      }
+      handleOpenBooking(booking.id, booking);
+      return { ok: true };
+    },
+    [sbFetchBookingForVisit, handleDatePick, handleOpenBooking],
   );
 
   // ── New-customer cold start: park & resume the in-progress booking ──────
@@ -1153,6 +1169,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       setShowNewBooking={requestNewBooking}
                       draftPick={showNewBooking ? draftTarget : null}
                       onOpenHuman={handleOpenHuman}
+                      onOpenClosureVisit={handleOpenClosureVisit}
                       onRefresh={refetchBookings}
                     />
                   } />
