@@ -131,6 +131,34 @@ describe("SlotGrid — cancelled bookings", () => {
   });
 });
 
+describe("SlotGrid — staff capacity overrides", () => {
+  it("renders every large dog when staff overbook a single slot", () => {
+    renderGrid(
+      "2026-07-29",
+      [
+        sampleBooking({
+          id: "mabel",
+          slot: "11:00",
+          size: "large",
+          dogName: "Mabel",
+          staffCapacityOverride: true,
+        }),
+        sampleBooking({
+          id: "mollie",
+          slot: "11:00",
+          size: "large",
+          dogName: "Mollie",
+          staffCapacityOverride: true,
+        }),
+      ],
+      { activeSlots: ["11:00"] },
+    );
+
+    expect(screen.getByText("Mabel")).toBeInTheDocument();
+    expect(screen.getByText("Mollie")).toBeInTheDocument();
+  });
+});
+
 describe("SlotGrid — live booking-draft marker", () => {
   it("marks the slot row the open booking draft is targeting", () => {
     renderGrid("2026-06-02", [], {

@@ -136,11 +136,9 @@ export function getSeatStatesForSlot(
     if (overrides?.[key] === "blocked" && key !== selectedSeatIndex) blockedIdx.add(key);
   }
 
-  // Total seats rendered = the normal 2-seat capacity, but expanded when
-  // staff overbooks (or a block coexists with a full slot) so every booking
-  // AND every block has its own seat to render in. A 3-dog overbook
-  // produces 3 seats; the extra ones are "booking" type and don't get the
-  // available/blocked treatment below.
+  // The normal two cells expand for overbooks and staff blocks so every real
+  // booking remains visible. Capacity reservations use only cells left after
+  // those booking cards have been allocated.
   const totalSeats = Math.max(2, slotBookings.length + blockedIdx.size);
 
   const states: SeatState[] = [];
@@ -148,28 +146,35 @@ export function getSeatStatesForSlot(
     states.push({ type: "blocked", seatIndex: i });
   }
 
+  const bookingAnchors: Array<{ booking: Booking; seatIndex: number }> = [];
   let cursor = 0;
   for (const booking of slotBookings) {
-    const seatsNeeded = getSeatsNeeded(booking.size, slot);
     while (
       cursor < totalSeats &&
-      (states[cursor].type === "booking" ||
-        states[cursor].type === "reserved" ||
-        blockedIdx.has(cursor))
+      (states[cursor].type === "booking" || blockedIdx.has(cursor))
     ) {
       cursor += 1;
     }
     if (cursor >= totalSeats) break;
 
     states[cursor] = { type: "booking", seatIndex: cursor, booking };
+    bookingAnchors.push({ booking, seatIndex: cursor });
+    cursor += 1;
+  }
 
-    for (let used = 1, j = cursor + 1; used < seatsNeeded && j < totalSeats; j++) {
-      if (blockedIdx.has(j)) continue;
+  for (const { booking, seatIndex } of bookingAnchors) {
+    const seatsNeeded = getSeatsNeeded(booking.size, slot);
+    for (let used = 1, j = seatIndex + 1; used < seatsNeeded && j < totalSeats; j++) {
+      if (
+        blockedIdx.has(j) ||
+        states[j].type === "booking" ||
+        states[j].type === "reserved"
+      ) {
+        continue;
+      }
       states[j] = { type: "reserved", seatIndex: j, booking };
       used += 1;
     }
-
-    cursor += 1;
   }
 
   for (let i = 0; i < totalSeats; i++) {
