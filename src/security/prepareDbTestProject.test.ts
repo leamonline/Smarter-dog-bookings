@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 describe("prepare-db-test-project", () => {
-  it("copies the project and inserts the inert Vault prerequisite in migration order", () => {
+  it("copies the project and inserts its CI-only legacy prerequisites in migration order", () => {
     const sourceRoot = makeSourceProject();
     const outputRoot = join(
       mkdtempSync(join(tmpdir(), "smarter-dog-db-test-output-parent-")),
@@ -70,6 +70,7 @@ describe("prepare-db-test-project", () => {
     expect(
       readdirSync(join(outputRoot, "supabase", "migrations")).sort(),
     ).toEqual([
+      "20260330000000_ci_legacy_api_default_privileges.sql",
       "20260507132400_before.sql",
       "20260510235859_ci_local_vault_prerequisite.sql",
       "20260510235900_after.sql",
@@ -90,6 +91,21 @@ describe("prepare-db-test-project", () => {
     ).toMatch(
       /vault\.create_secret\(\s*'http:\/\/localhost:54321',\s*'supabase_url'/,
     );
+    const legacyPrivileges = readFileSync(
+      join(
+        outputRoot,
+        "supabase",
+        "migrations",
+        "20260330000000_ci_legacy_api_default_privileges.sql",
+      ),
+      "utf8",
+    );
+    expect(legacyPrivileges).toMatch(
+      /alter default privileges for role postgres in schema public\s+grant select, insert, update, delete on tables\s+to anon, authenticated, service_role/i,
+    );
+    expect(legacyPrivileges).toMatch(
+      /alter default privileges for role postgres in schema public\s+grant usage, select on sequences\s+to anon, authenticated, service_role/i,
+    );
     expect(
       existsSync(
         join(
@@ -97,6 +113,16 @@ describe("prepare-db-test-project", () => {
           "supabase",
           "migrations",
           "20260510235859_ci_local_vault_prerequisite.sql",
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(
+          sourceRoot,
+          "supabase",
+          "migrations",
+          "20260330000000_ci_legacy_api_default_privileges.sql",
         ),
       ),
     ).toBe(false);

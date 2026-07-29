@@ -14,6 +14,25 @@ import {
   resolve,
 } from "node:path";
 
+const LEGACY_API_PRIVILEGES_MIGRATION =
+  "20260330000000_ci_legacy_api_default_privileges.sql";
+const LEGACY_API_PRIVILEGES_SQL = `-- CI-only prerequisite for a disposable local database.
+--
+-- This project predates Supabase's May 2026 switch to closed-by-default Data
+-- API table privileges. Its historical migrations therefore rely on the
+-- legacy project default: public tables receive CRUD grants, then RLS and
+-- later explicit REVOKEs narrow access. Modern disposable projects no longer
+-- inherit that default, so reproduce the original project environment before
+-- replaying history. This file exists only in the copied test project.
+alter default privileges for role postgres in schema public
+  grant select, insert, update, delete on tables
+  to anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  grant usage, select on sequences
+  to anon, authenticated, service_role;
+`;
+
 const LOCAL_VAULT_MIGRATION =
   "20260510235859_ci_local_vault_prerequisite.sql";
 const LOCAL_VAULT_SQL = `-- CI-only prerequisite for a disposable local database.
@@ -36,6 +55,11 @@ begin
 end;
 $ci_local_vault$;
 `;
+
+const CI_ONLY_MIGRATIONS = [
+  [LEGACY_API_PRIVILEGES_MIGRATION, LEGACY_API_PRIVILEGES_SQL],
+  [LOCAL_VAULT_MIGRATION, LOCAL_VAULT_SQL],
+];
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -74,33 +98,34 @@ if (!outputArgument || process.argv.length !== 3) {
     fail(`Supabase project not found at ${sourceSupabase}`);
   } else if (existsSync(outputRoot)) {
     fail(`Output already exists: ${outputRoot}`);
-  } else if (
-    existsSync(join(sourceSupabase, "migrations", LOCAL_VAULT_MIGRATION))
-  ) {
-    fail(
-      `${LOCAL_VAULT_MIGRATION} must remain CI-only and must not be committed`,
-    );
   } else {
-    mkdirSync(dirname(outputRoot), { recursive: true });
-    mkdirSync(outputRoot);
-    cpSync(sourceSupabase, join(outputRoot, "supabase"), {
-      recursive: true,
-      filter(source) {
-        const sourceRelative = relative(sourceSupabase, source);
-        return !sourceRelative
-          .split("/")
-          .some((part) => part === ".temp" || part === ".branches");
-      },
-    });
-    writeFileSync(
-      join(
-        outputRoot,
-        "supabase",
-        "migrations",
-        LOCAL_VAULT_MIGRATION,
-      ),
-      LOCAL_VAULT_SQL,
+    const committedCiMigration = CI_ONLY_MIGRATIONS.find(([name]) =>
+      existsSync(join(sourceSupabase, "migrations", name)),
     );
-    process.stdout.write(`${outputRoot}\n`);
+
+    if (committedCiMigration) {
+      fail(
+        `${committedCiMigration[0]} must remain CI-only and must not be committed`,
+      );
+    } else {
+      mkdirSync(dirname(outputRoot), { recursive: true });
+      mkdirSync(outputRoot);
+      cpSync(sourceSupabase, join(outputRoot, "supabase"), {
+        recursive: true,
+        filter(source) {
+          const sourceRelative = relative(sourceSupabase, source);
+          return !sourceRelative
+            .split("/")
+            .some((part) => part === ".temp" || part === ".branches");
+        },
+      });
+      for (const [name, sql] of CI_ONLY_MIGRATIONS) {
+        writeFileSync(
+          join(outputRoot, "supabase", "migrations", name),
+          sql,
+        );
+      }
+      process.stdout.write(`${outputRoot}\n`);
+    }
   }
 }

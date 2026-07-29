@@ -11,14 +11,18 @@ credentials and never reads or dumps production. It:
 
 1. copies the committed `supabase/` project into the CI runner's temporary
    directory;
-2. inserts one CI-only migration containing an inert loopback `supabase_url`
-   Vault secret immediately before the historical migration that deliberately
-   requires this project-specific value;
-3. boots a local Supabase stack from every committed migration; and
-4. runs every `*.test.sql` file here through pgTAP.
+2. inserts a CI-only prerequisite that reproduces the legacy Data API grants
+   this pre-May-2026 Supabase project received before its first migration;
+3. inserts a second CI-only prerequisite containing an inert loopback
+   `supabase_url` Vault secret immediately before the historical migration that
+   deliberately requires this project-specific value;
+4. boots a local Supabase stack from every committed migration; and
+5. runs every `*.test.sql` file here through pgTAP.
 
-The injected migration exists only in the disposable copy. It is never added
-to production migration history and the source checkout remains unchanged.
+The injected prerequisites exist only in the disposable copy. They are never
+added to production migration history and the source checkout remains
+unchanged. Later committed RLS policies and explicit `REVOKE` statements still
+run normally, so the resulting access model is exercised rather than bypassed.
 
 Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 `supabase/config.toml`.
