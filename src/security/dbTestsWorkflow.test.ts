@@ -21,14 +21,13 @@ describe("DB Tests workflow production isolation", () => {
 
   it("prepares and exercises only a disposable local Supabase project", () => {
     const prepare =
-      'node scripts/prepare-db-test-project.mjs "$DB_TEST_PROJECT_ROOT"';
+      'node scripts/prepare-db-test-project.mjs "$RUNNER_TEMP/db-test-project"';
     const start =
-      'supabase --workdir "$DB_TEST_PROJECT_ROOT" start';
-    const test = 'supabase --workdir "$DB_TEST_PROJECT_ROOT" test db';
+      'supabase --workdir "$RUNNER_TEMP/db-test-project" start';
+    const test =
+      'supabase --workdir "$RUNNER_TEMP/db-test-project" test db';
 
-    expect(workflow).toContain(
-      "DB_TEST_PROJECT_ROOT: ${{ runner.temp }}/db-test-project",
-    );
+    expect(workflow).not.toContain("${{ runner.temp }}");
     expect(workflow).toContain(prepare);
     expect(workflow).toContain(start);
     expect(workflow).toContain(test);

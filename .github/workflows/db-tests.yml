@@ -35,8 +35,6 @@ permissions:
 jobs:
   db-tests:
     runs-on: ubuntu-latest
-    env:
-      DB_TEST_PROJECT_ROOT: ${{ runner.temp }}/db-test-project
     steps:
       - name: Check out repo
         uses: actions/checkout@v7
@@ -52,15 +50,15 @@ jobs:
           version: 2.109.1
 
       - name: Prepare isolated local project
-        run: node scripts/prepare-db-test-project.mjs "$DB_TEST_PROJECT_ROOT"
+        run: node scripts/prepare-db-test-project.mjs "$RUNNER_TEMP/db-test-project"
 
       - name: Rebuild local database from committed migrations
         timeout-minutes: 10
-        run: supabase --workdir "$DB_TEST_PROJECT_ROOT" start
+        run: supabase --workdir "$RUNNER_TEMP/db-test-project" start
 
       - name: Run pgTAP database tests
         timeout-minutes: 5
-        run: supabase --workdir "$DB_TEST_PROJECT_ROOT" test db
+        run: supabase --workdir "$RUNNER_TEMP/db-test-project" test db
 
       - name: Prove atomic reschedule concurrency
         timeout-minutes: 5
@@ -70,8 +68,8 @@ jobs:
 
       - name: Dump diagnostics on failure
         if: failure()
-        run: supabase --workdir "$DB_TEST_PROJECT_ROOT" status || true
+        run: supabase --workdir "$RUNNER_TEMP/db-test-project" status || true
 
       - name: Remove disposable database
         if: always()
-        run: supabase --workdir "$DB_TEST_PROJECT_ROOT" stop --no-backup || true
+        run: supabase --workdir "$RUNNER_TEMP/db-test-project" stop --no-backup || true
