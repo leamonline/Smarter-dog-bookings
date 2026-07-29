@@ -476,6 +476,32 @@ export function decideCustomerOverrideRescheduleRequest(
   });
 }
 
+// Staff day closures ---------------------------------------------------
+
+// Closing the authoritative day and creating one linked task per affected
+// visit is a single database transaction. The function is staff-gated in
+// Postgres; browser callers supply only the date.
+export function closeDayWithRearrangementTasks(
+  client: SupabaseClient,
+  params: { date: string },
+) {
+  return client.rpc("close_day_with_rearrangement_tasks", {
+    p_date: params.date,
+  });
+}
+
+// Closure tasks are completed through a diary-aware command rather than a
+// generic salon_todos update. Postgres refuses while an active booking remains
+// on the closed date (unless staff reopened the date).
+export function completeClosureRearrangementTask(
+  client: SupabaseClient,
+  params: { taskId: string },
+) {
+  return client.rpc("complete_closure_rearrangement_task", {
+    p_task_id: params.taskId,
+  });
+}
+
 // Staff booking creation ------------------------------------------------
 
 // One row per dog in a same-date staff booking group. Unlike the customer

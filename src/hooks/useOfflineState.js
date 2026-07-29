@@ -232,7 +232,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
 
   // --- Day settings ---
 
-  const offlineToggleDayOpen = useCallback(() => {
+  const offlineToggleDayOpen = useCallback((nextIsOpen) => {
     setOfflineDaySettings((prev) => ({
       ...prev,
       [currentDateStr]: {
@@ -242,9 +242,13 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
           extraSlots: [],
           immediateSlots: [],
         }),
-        isOpen: !(
-          prev[currentDateStr]?.isOpen ?? getDefaultOpenForDate(currentDateObj)
-        ),
+        isOpen:
+          typeof nextIsOpen === "boolean"
+            ? nextIsOpen
+            : !(
+                prev[currentDateStr]?.isOpen ??
+                getDefaultOpenForDate(currentDateObj)
+              ),
       },
     }));
   }, [currentDateStr, currentDateObj]);

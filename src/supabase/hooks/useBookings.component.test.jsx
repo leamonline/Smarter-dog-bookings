@@ -314,6 +314,84 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("booking-1");
   });
 
+  it("fetches the active booking behind a linked closure visit", async () => {
+    const visitRow = {
+      id: "booking-visit-1",
+      visit_id: "visit-1",
+      visit_membership_state: "included",
+      booking_date: "2026-08-10",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [], error: null },
+        historyResult: { data: [visitRow], error: null },
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.fetchBookingForVisit("visit-1");
+    });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      booking: {
+        id: "booking-visit-1",
+        _bookingDate: "2026-08-10",
+      },
+    });
+  });
+
+  it("does not route a resolved closure task to a terminal appointment", async () => {
+    const cancelledRow = {
+      id: "booking-visit-1",
+      visit_id: "visit-1",
+      visit_membership_state: "included",
+      booking_date: "2026-08-10",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: BOOKING_STATUS.CANCELLED,
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [], error: null },
+        historyResult: { data: [cancelledRow], error: null },
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.fetchBookingForVisit("visit-1");
+    });
+
+    expect(outcome).toEqual({
+      ok: false,
+      error:
+        "That appointment has moved or been cancelled. You can check and complete the task.",
+    });
+  });
+
   it("addBooking optimistically inserts and replaces with server row on success", async () => {
     const insertedRow = {
       id: "booking-99",

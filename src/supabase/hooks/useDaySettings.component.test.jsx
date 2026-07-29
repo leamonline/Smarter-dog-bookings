@@ -1,6 +1,6 @@
 // Boot-prefetch consumption tests for useDaySettings (consume + fallback).
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 function setSupabase(value) {
   globalThis.__supabaseMockDaySettings = value;
@@ -33,7 +33,7 @@ const ROW = {
 
 // Realtime channel + the fallback week select, whose terminal is
 // .abortSignal().
-function makeStub({ selectResult } = {}) {
+function makeStub({ selectResult, upsertResult, rpcResult } = {}) {
   const channel = {
     on: vi.fn(() => channel),
     subscribe: vi.fn(() => channel),
@@ -45,10 +45,17 @@ function makeStub({ selectResult } = {}) {
   builder.abortSignal = vi.fn(() =>
     Promise.resolve(selectResult ?? { data: [], error: null }),
   );
+  builder.upsert = vi.fn(() =>
+    Promise.resolve(upsertResult ?? { data: null, error: null }),
+  );
   return {
     from: vi.fn(() => builder),
+    rpc: vi.fn(() =>
+      Promise.resolve(rpcResult ?? { data: { status: "closed" }, error: null }),
+    ),
     channel: vi.fn(() => channel),
     removeChannel: vi.fn(),
+    builder,
   };
 }
 
@@ -100,5 +107,110 @@ describe("useDaySettings boot prefetch", () => {
     expect(result.current.daySettings["2026-05-18"].extraSlots).toEqual([
       "13:30",
     ]);
+  });
+});
+
+describe("useDaySettings closure integrity", () => {
+  it("closes a day through the atomic closure RPC rather than a plain settings upsert", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({ data: [ROW], error: null }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.toggleDayOpen("2026-05-18");
+    });
+
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "close_day_with_rearrangement_tasks",
+      { p_date: "2026-05-18" },
+    );
+    expect(stub.builder.upsert).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ ok: true });
+    expect(result.current.daySettings["2026-05-18"].isOpen).toBe(false);
+  });
+
+  it("rolls the optimistic closure back when the atomic command fails", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({ data: [ROW], error: null }),
+    );
+    const stub = makeStub({
+      rpcResult: {
+        data: null,
+        error: { message: "closure could not be saved" },
+      },
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.toggleDayOpen("2026-05-18");
+    });
+
+    expect(outcome).toEqual({
+      ok: false,
+      error: "closure could not be saved",
+    });
+    expect(result.current.daySettings["2026-05-18"].isOpen).toBe(true);
+  });
+
+  it("keeps an ordinary day-settings upsert for reopening", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({
+        data: [{ ...ROW, is_open: false }],
+        error: null,
+      }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.toggleDayOpen("2026-05-18");
+    });
+
+    expect(stub.rpc).not.toHaveBeenCalled();
+    expect(stub.builder.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        setting_date: "2026-05-18",
+        is_open: true,
+      }),
+      { onConflict: "setting_date" },
+    );
+  });
+
+  it("honours an explicit close target instead of reopening stale state", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({
+        data: [{ ...ROW, is_open: false }],
+        error: null,
+      }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.toggleDayOpen("2026-05-18", false);
+    });
+
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "close_day_with_rearrangement_tasks",
+      { p_date: "2026-05-18" },
+    );
+    expect(stub.builder.upsert).not.toHaveBeenCalled();
+    expect(result.current.daySettings["2026-05-18"].isOpen).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import { excludeCancelled } from "../../engine/occupancy";
@@ -12,6 +12,7 @@ import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
+import { BOOKING_STATUS } from "../../constants/index";
 
 import { DashboardShell } from "../dashboard/DashboardShell.jsx";
 import { LeftSidebar } from "../dashboard/LeftSidebar.jsx";
@@ -77,11 +78,14 @@ export function WeekCalendarView({
   setShowNewBooking,
   draftPick,
   onOpenHuman,
+  onOpenClosureVisit,
   onRefresh,
 }) {
   const [searchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
   const [confirmDayToggle, setConfirmDayToggle] = useState(null);
+  const [dayTogglePending, setDayTogglePending] = useState(false);
+  const dayTogglePendingRef = useRef(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [showTodos, setShowTodos] = useState(false);
   const [showDaySettings, setShowDaySettings] = useState(false);
@@ -101,7 +105,7 @@ export function WeekCalendarView({
   }, []);
 
   const toast = useToast();
-  const { todos, addTodos } = useTodos();
+  const { todos } = useTodos();
   const openTodoCount = todos.filter((t) => !t.done).length;
   const {
     waitlist,
@@ -120,9 +124,15 @@ export function WeekCalendarView({
 
   const isOpen = currentSettings.isOpen;
   // Cancelled rows are soft-deletes that free their seat. Strip them here so
-  // the grid, the booking count and the close-day to-do builder all treat the
-  // day as non-cancelled occupancy (what the capacity engine expects).
+  // the grid and booking count treat the day as non-cancelled occupancy (what
+  // the capacity engine expects).
   const dayBookings = excludeCancelled(bookingsByDate[currentDateStr] || []);
+  // The database creates closure work only for non-terminal visits. Keep the
+  // confirmation copy aligned: a completed appointment happened and does not
+  // need rearranging.
+  const bookingsNeedingRearrangement = dayBookings.filter(
+    (booking) => booking.status !== BOOKING_STATUS.COMPLETED,
+  );
 
   // Clicking a delivery-failure row jumps the calendar to that booking's day
   // (noon-anchored to dodge TZ rollover) so staff can open it and resend.
@@ -152,31 +162,40 @@ export function WeekCalendarView({
   };
 
   const handleConfirmDayToggle = async (mode) => {
-    if (mode === "close" && dayBookings.length > 0) {
-      const dateLabel = currentDateObj.toLocaleDateString("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      });
-      const items = dayBookings.map((b) => {
-        const dogName = (b.dogName || "").trim();
-        const owner = (b.ownerName || b.owner || "").trim();
-        let label;
-        if (dogName && owner) label = `${dogName} (${owner})`;
-        else if (dogName) label = dogName;
-        else if (owner) label = `${owner}'s dog`;
-        else label = "Booking";
-        return `Rearrange: ${label} — was ${dateLabel} ${b.slot}`;
-      });
-      // Toast on failure so staff aren't left thinking the rearrange
-      // reminders went onto the to-do list when they actually didn't.
-      const result = await addTodos(items);
+    if (dayTogglePendingRef.current) return;
+    dayTogglePendingRef.current = true;
+    setDayTogglePending(true);
+    try {
+      // The online path closes day_settings and creates linked, one-per-visit
+      // tasks in a single RPC. Offline/sample mode returns no result and keeps
+      // its existing local-only toggle.
+      // Send the confirmed target state, not merely "toggle". A realtime
+      // update from another device while this dialog is open must not turn a
+      // stale "Close" confirmation into an accidental reopen.
+      const result = await toggleDayOpen(mode === "open");
       if (result?.ok === false) {
-        toast.show(result.error || "Couldn't save the rearrange notes — give it another go", "error");
+        toast.show(
+          result.error ||
+            (mode === "close"
+              ? "Couldn't close that day — give it another go"
+              : "Couldn't open that day — give it another go"),
+          "error",
+        );
+        return;
       }
+      setConfirmDayToggle(null);
+    } catch (error) {
+      toast.show(
+        error?.message ||
+          (mode === "close"
+            ? "Couldn't close that day — give it another go"
+            : "Couldn't open that day — give it another go"),
+        "error",
+      );
+    } finally {
+      dayTogglePendingRef.current = false;
+      setDayTogglePending(false);
     }
-    toggleDayOpen();
-    setConfirmDayToggle(null);
   };
 
   return (
@@ -425,7 +444,10 @@ export function WeekCalendarView({
 
       {showTodos && (
         <Suspense fallback={<LoadingSpinner />}>
-          <TodoModal onClose={() => setShowTodos(false)} />
+          <TodoModal
+            onClose={() => setShowTodos(false)}
+            onOpenClosureVisit={onOpenClosureVisit}
+          />
         </Suspense>
       )}
 
@@ -463,12 +485,21 @@ export function WeekCalendarView({
           title={confirmDayToggle === "close" ? "Close this day?" : "Open this day?"}
           message={
             confirmDayToggle === "close"
-              ? dayBookings.length > 0
-                ? `This will mark the day as closed. ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"} will need rearranging — to-do items will be created for each one.`
+              ? bookingsNeedingRearrangement.length > 0
+                ? "This will mark the day as closed. Linked to-do items will be created for the visits that need rearranging."
                 : "This will mark the day as closed. No bookings to rearrange."
               : "This will open the day for appointments."
           }
-          confirmLabel={confirmDayToggle === "close" ? "Yes, close it" : "Yes, open it"}
+          confirmLabel={
+            dayTogglePending
+              ? confirmDayToggle === "close"
+                ? "Closing…"
+                : "Opening…"
+              : confirmDayToggle === "close"
+                ? "Yes, close it"
+                : "Yes, open it"
+          }
+          pending={dayTogglePending}
           variant={confirmDayToggle === "close" ? "danger" : "primary"}
           onConfirm={() => handleConfirmDayToggle(confirmDayToggle)}
           onCancel={() => setConfirmDayToggle(null)}
