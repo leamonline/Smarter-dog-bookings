@@ -1,12 +1,11 @@
--- Structural smoke test for the schema baseline.
+-- Structural smoke test for complete local migration replay.
 --
 -- This is the foundation of the DB-test harness: it runs after the local stack
--- has booted from the prod public-schema baseline (see db-tests.yml), so a PASS
--- confirms the baseline applied cleanly AND the booking write-path objects exist
--- as expected. Deterministic (no fixtures, dates, or role/JWT setup), so a
--- failure here points at the schema/baseline, not at test plumbing. Behavioural
--- tests (the gates raising P0001, RLS isolation) build on top of this once it is
--- green.
+-- has rebuilt every committed migration (see db-tests.yml), so a PASS confirms
+-- the history applied cleanly AND the booking write-path objects exist as
+-- expected. Deterministic (no fixtures, dates, or role/JWT setup), so a failure
+-- here points at schema replay, not test plumbing. Behavioural tests build on
+-- top of this once it is green.
 
 begin;
 create extension if not exists pgtap with schema extensions;

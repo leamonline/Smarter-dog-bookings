@@ -4,7 +4,7 @@
 -- and is_staff() returns false → the non-staff gate paths fire. Every case here
 -- expects the gate to RAISE (P0001) *before* the row is inserted, so the
 -- AFTER-insert notify triggers (pg_net / Vault) never run — keeping the tests
--- self-contained on the schema baseline. The whole file is one transaction,
+-- self-contained on the rebuilt schema. The whole file is one transaction,
 -- rolled back at the end; pgTAP rolls each throwing statement back to a
 -- savepoint so the fixtures below survive between assertions.
 --

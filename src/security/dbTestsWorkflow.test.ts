@@ -7,30 +7,32 @@ const workflow = readFileSync(
   "utf8",
 );
 
-describe("DB Tests workflow authentication", () => {
-  it("uses the access token for its schema-only dump without a database password", () => {
-    expect(workflow).toContain(
-      "SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}",
+describe("DB Tests workflow production isolation", () => {
+  it("cannot authenticate to or read from a hosted Supabase project", () => {
+    expect(workflow).not.toMatch(
+      /SUPABASE_(?:ACCESS_TOKEN|DB_PASSWORD|PROJECT_REF)/,
     );
-    expect(workflow).toContain(
-      'supabase link --project-ref "$SUPABASE_PROJECT_REF"',
+    expect(workflow).not.toMatch(
+      /api\.supabase\.com|supabase link|supabase db dump|--linked\b/,
     );
-    expect(workflow).toContain("supabase db dump --linked");
-    expect(workflow).not.toContain("SUPABASE_DB_PASSWORD");
-    expect(workflow).not.toContain("steps.gate.outputs.run");
+    expect(workflow).not.toContain("nlzhllhkigmsvrzduefz");
+    expect(workflow).not.toContain("btjnxvgkpdbfrrqxvkfj");
   });
 
-  it("removes target default table grants before restoring the schema dump", () => {
-    const revoke =
-      "alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;";
-    const aclBaseline =
-      "supabase/migrations/00000000000000_target_acl_baseline.sql";
-    const schemaBaseline =
-      "supabase/migrations/00000000000001_prod_baseline.sql";
+  it("prepares and exercises only a disposable local Supabase project", () => {
+    const prepare =
+      'node scripts/prepare-db-test-project.mjs "$DB_TEST_PROJECT_ROOT"';
+    const start =
+      'supabase --workdir "$DB_TEST_PROJECT_ROOT" start';
+    const test = 'supabase --workdir "$DB_TEST_PROJECT_ROOT" test db';
 
-    expect(workflow).toContain(revoke);
-    expect(workflow.indexOf(aclBaseline)).toBeLessThan(
-      workflow.indexOf(schemaBaseline),
+    expect(workflow).toContain(
+      "DB_TEST_PROJECT_ROOT: ${{ runner.temp }}/db-test-project",
     );
+    expect(workflow).toContain(prepare);
+    expect(workflow).toContain(start);
+    expect(workflow).toContain(test);
+    expect(workflow.indexOf(prepare)).toBeLessThan(workflow.indexOf(start));
+    expect(workflow.indexOf(start)).toBeLessThan(workflow.indexOf(test));
   });
 });
