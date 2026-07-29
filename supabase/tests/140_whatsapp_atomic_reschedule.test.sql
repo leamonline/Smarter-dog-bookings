@@ -6,8 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(77);
 
-select vault.create_secret('http://localhost:54321', 'supabase_url');
-select vault.create_secret('pgtap-test-secret', 'webhook_secret');
+\ir fixtures/ensure_local_vault_secrets.psql
 
 insert into auth.users (id) values ('14000000-0000-4000-8000-0000000000a1');
 insert into public.staff_profiles (user_id, role, display_name) values

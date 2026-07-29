@@ -4,7 +4,7 @@
 -- and is_staff() returns false → the non-staff gate paths fire. Every case here
 -- expects the gate to RAISE (P0001) *before* the row is inserted, so the
 -- AFTER-insert notify triggers (pg_net / Vault) never run — keeping the tests
--- self-contained on the schema baseline. The whole file is one transaction,
+-- self-contained on the rebuilt schema. The whole file is one transaction,
 -- rolled back at the end; pgTAP rolls each throwing statement back to a
 -- savepoint so the fixtures below survive between assertions.
 --
@@ -16,8 +16,8 @@ create extension if not exists pgtap with schema extensions;
 select plan(4);
 
 -- Fixtures: one owner, a normal dog, and a pregnant dog.
-insert into public.humans (id, name)
-  values ('aaaaaaaa-0000-4000-8000-000000000001', 'pgTAP Gate Owner');
+insert into public.humans (id, name, surname)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'pgTAP Gate', 'Owner');
 insert into public.dogs (id, name, human_id, is_pregnant)
   values ('bbbbbbbb-0000-4000-8000-000000000001', 'TestPup', 'aaaaaaaa-0000-4000-8000-000000000001', false),
          ('bbbbbbbb-0000-4000-8000-000000000002', 'BumpPup', 'aaaaaaaa-0000-4000-8000-000000000001', true);

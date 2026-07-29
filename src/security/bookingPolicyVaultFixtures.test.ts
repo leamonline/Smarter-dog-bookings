@@ -1,9 +1,15 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const fixturePath =
   "supabase/tests/fixtures/ensure_local_vault_secrets.psql";
 const fixture = readFileSync(fixturePath, "utf8");
+const allDbTestSql = readdirSync("supabase/tests")
+  .filter((file) => file.endsWith(".test.sql"))
+  .map((file) => ({
+    file,
+    sql: readFileSync(`supabase/tests/${file}`, "utf8"),
+  }));
 const policyTests = [
   "140_booking_visit_foundation.test.sql",
   "145_booking_policy_rules.test.sql",
@@ -39,5 +45,27 @@ describe("booking policy pgTAP Vault fixtures", () => {
     expect(plan).toBeGreaterThanOrEqual(0);
     expect(include).toBeGreaterThan(plan);
     expect(firstInsert).toBeGreaterThan(include);
+  });
+});
+
+describe("pgTAP fixture contracts", () => {
+  it("uses the idempotent Vault fixture instead of creating duplicate secrets", () => {
+    for (const { file, sql } of allDbTestSql) {
+      expect(sql, file).not.toMatch(/select\s+vault\.create_secret/i);
+    }
+  });
+
+  it("provides the required surname in every humans insert", () => {
+    for (const { file, sql } of allDbTestSql) {
+      for (const match of sql.matchAll(
+        /insert\s+into\s+public\.humans\s*\(([^)]+)\)/gi,
+      )) {
+        const columns = match[1]
+          .split(",")
+          .map((column) => column.trim().toLowerCase());
+
+        expect(columns, file).toContain("surname");
+      }
+    }
   });
 });

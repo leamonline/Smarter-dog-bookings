@@ -20,8 +20,15 @@
 -- variant has NO legitimate caller. It is prod-only drift.
 -- TODO (permanent fix): DROP this function, or rewrite it to ignore the phone
 -- argument and read auth.users.phone for the calling auth.uid().
-REVOKE EXECUTE ON FUNCTION public.link_or_create_customer_human(text, text, text)
-  FROM authenticated, anon, public;
+do $revoke_prod_drift$
+begin
+  if to_regprocedure(
+    'public.link_or_create_customer_human(text,text,text)'
+  ) is not null then
+    execute 'revoke execute on function public.link_or_create_customer_human(text,text,text) from authenticated, anon, public';
+  end if;
+end
+$revoke_prod_drift$;
 
 -- HIGH — anon/cross-customer PII leak. Returns a customer's full name + dog
 -- name + breed by dog_id, bypassing RLS (SECURITY DEFINER). Internal helper

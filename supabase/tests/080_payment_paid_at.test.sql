@@ -10,12 +10,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(4);
 
-select vault.create_secret('http://localhost:54321', 'supabase_url');
-select vault.create_secret('pgtap-test-secret', 'webhook_secret');
+\ir fixtures/ensure_local_vault_secrets.psql
 
 set local session_replication_role = replica;
-insert into public.humans (id, name)
-  values ('aaaaaaaa-0000-4000-8000-00000000008a', 'pgTAP Pay Owner');
+insert into public.humans (id, name, surname)
+  values ('aaaaaaaa-0000-4000-8000-00000000008a', 'pgTAP Pay', 'Owner');
 insert into public.dogs (id, name, human_id, is_pregnant)
   values ('bbbbbbbb-0000-4000-8000-00000000008b', 'PayPup',
           'aaaaaaaa-0000-4000-8000-00000000008a', false);

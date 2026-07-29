@@ -7,8 +7,7 @@ select plan(32);
 
 -- Live booking/cancellation triggers enqueue notifications and therefore need
 -- throwaway local Vault values, matching the other trigger-level pgTAP tests.
-select vault.create_secret('http://localhost:54321', 'supabase_url');
-select vault.create_secret('pgtap-test-secret', 'webhook_secret');
+\ir fixtures/ensure_local_vault_secrets.psql
 
 set local session_replication_role = replica;
 

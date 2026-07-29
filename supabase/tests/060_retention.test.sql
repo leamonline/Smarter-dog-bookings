@@ -15,8 +15,8 @@ set local session_replication_role = replica;
 insert into public.staff_profiles (user_id)
   values ('f0000000-0000-4000-8000-00000000006f');
 
-insert into public.humans (id, name)
-  values ('aaaaaaaa-0000-4000-8000-00000000006a', 'pgTAP Retention Owner');
+insert into public.humans (id, name, surname)
+  values ('aaaaaaaa-0000-4000-8000-00000000006a', 'pgTAP Retention', 'Owner');
 insert into public.dogs (id, name, human_id, is_pregnant)
   values ('bbbbbbbb-0000-4000-8000-00000000006b', 'RetPup',
           'aaaaaaaa-0000-4000-8000-00000000006a', false);
