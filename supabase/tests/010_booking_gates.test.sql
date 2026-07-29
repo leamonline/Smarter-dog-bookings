@@ -16,8 +16,8 @@ create extension if not exists pgtap with schema extensions;
 select plan(4);
 
 -- Fixtures: one owner, a normal dog, and a pregnant dog.
-insert into public.humans (id, name)
-  values ('aaaaaaaa-0000-4000-8000-000000000001', 'pgTAP Gate Owner');
+insert into public.humans (id, name, surname)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'pgTAP Gate', 'Owner');
 insert into public.dogs (id, name, human_id, is_pregnant)
   values ('bbbbbbbb-0000-4000-8000-000000000001', 'TestPup', 'aaaaaaaa-0000-4000-8000-000000000001', false),
          ('bbbbbbbb-0000-4000-8000-000000000002', 'BumpPup', 'aaaaaaaa-0000-4000-8000-000000000001', true);

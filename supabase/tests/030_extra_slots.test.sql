@@ -15,15 +15,13 @@ select plan(8);
 -- Unlike the gate tests (010), several assertions here let an insert SUCCEED
 -- — which fires the AFTER-INSERT notify triggers. Those call
 -- get_supabase_url(), which RAISES unless the 'supabase_url' Vault secret
--- exists (provisioned out-of-band on prod, absent on the CI baseline stack).
--- Provision throwaway secrets inside this rolled-back transaction so the
--- notify calls enqueue harmlessly into pg_net's queue (also rolled back).
-select vault.create_secret('http://localhost:54321', 'supabase_url');
-select vault.create_secret('pgtap-test-secret', 'webhook_secret');
+-- exists. Use the idempotent local fixture so the test works both when the
+-- clean-replay bootstrap already supplied it and when the database is empty.
+\ir fixtures/ensure_local_vault_secrets.psql
 
 -- Fixtures: one owner and six non-pregnant dogs.
-insert into public.humans (id, name)
-  values ('aaaaaaaa-0000-4000-8000-000000000002', 'pgTAP Extra Owner');
+insert into public.humans (id, name, surname)
+  values ('aaaaaaaa-0000-4000-8000-000000000002', 'pgTAP Extra', 'Owner');
 insert into public.dogs (id, name, human_id, is_pregnant)
   select ('bbbbbbbb-0000-4000-8000-00000000001' || i)::uuid,
          'ExtraPup' || i,

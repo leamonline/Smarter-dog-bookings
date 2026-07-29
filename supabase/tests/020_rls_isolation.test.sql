@@ -15,9 +15,9 @@ select plan(7);
 
 set local session_replication_role = replica;
 
-insert into public.humans (id, name, customer_user_id) values
-  ('11111111-1111-4111-8111-111111111111', 'Cust A', 'a0000000-0000-4000-8000-00000000000a'),
-  ('22222222-2222-4222-8222-222222222222', 'Cust B', 'b0000000-0000-4000-8000-00000000000b');
+insert into public.humans (id, name, surname, customer_user_id) values
+  ('11111111-1111-4111-8111-111111111111', 'Cust', 'A', 'a0000000-0000-4000-8000-00000000000a'),
+  ('22222222-2222-4222-8222-222222222222', 'Cust', 'B', 'b0000000-0000-4000-8000-00000000000b');
 
 insert into public.dogs (id, name, human_id) values
   ('d1111111-1111-4111-8111-111111111111', 'DogA', '11111111-1111-4111-8111-111111111111'),
