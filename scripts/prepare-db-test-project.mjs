@@ -56,9 +56,27 @@ end;
 $ci_local_vault$;
 `;
 
+const EXPLICIT_API_PRIVILEGES_MIGRATION =
+  "20260729000000_ci_require_explicit_api_privileges.sql";
+const EXPLICIT_API_PRIVILEGES_SQL = `-- CI-only boundary for future migrations.
+--
+-- Historical migrations above this point are replayed with the legacy Data
+-- API defaults the production project received. Stop inheriting those defaults
+-- after the history present when isolated CI was adopted: every later table
+-- must declare its intended API privileges explicitly alongside its RLS.
+alter default privileges for role postgres in schema public
+  revoke select, insert, update, delete on tables
+  from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke usage, select on sequences
+  from anon, authenticated, service_role;
+`;
+
 const CI_ONLY_MIGRATIONS = [
   [LEGACY_API_PRIVILEGES_MIGRATION, LEGACY_API_PRIVILEGES_SQL],
   [LOCAL_VAULT_MIGRATION, LOCAL_VAULT_SQL],
+  [EXPLICIT_API_PRIVILEGES_MIGRATION, EXPLICIT_API_PRIVILEGES_SQL],
 ];
 
 function fail(message) {

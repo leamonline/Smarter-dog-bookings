@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 describe("prepare-db-test-project", () => {
-  it("copies the project and inserts its CI-only legacy prerequisites in migration order", () => {
+  it("copies the project and inserts its CI-only privilege boundaries in migration order", () => {
     const sourceRoot = makeSourceProject();
     const outputRoot = join(
       mkdtempSync(join(tmpdir(), "smarter-dog-db-test-output-parent-")),
@@ -74,6 +74,7 @@ describe("prepare-db-test-project", () => {
       "20260507132400_before.sql",
       "20260510235859_ci_local_vault_prerequisite.sql",
       "20260510235900_after.sql",
+      "20260729000000_ci_require_explicit_api_privileges.sql",
     ]);
     expect(
       readFileSync(join(outputRoot, "supabase", "config.toml"), "utf8"),
@@ -106,6 +107,21 @@ describe("prepare-db-test-project", () => {
     expect(legacyPrivileges).toMatch(
       /alter default privileges for role postgres in schema public\s+grant usage, select on sequences\s+to anon, authenticated, service_role/i,
     );
+    const explicitPrivileges = readFileSync(
+      join(
+        outputRoot,
+        "supabase",
+        "migrations",
+        "20260729000000_ci_require_explicit_api_privileges.sql",
+      ),
+      "utf8",
+    );
+    expect(explicitPrivileges).toMatch(
+      /alter default privileges for role postgres in schema public\s+revoke select, insert, update, delete on tables\s+from anon, authenticated, service_role/i,
+    );
+    expect(explicitPrivileges).toMatch(
+      /alter default privileges for role postgres in schema public\s+revoke usage, select on sequences\s+from anon, authenticated, service_role/i,
+    );
     expect(
       existsSync(
         join(
@@ -123,6 +139,16 @@ describe("prepare-db-test-project", () => {
           "supabase",
           "migrations",
           "20260330000000_ci_legacy_api_default_privileges.sql",
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(
+          sourceRoot,
+          "supabase",
+          "migrations",
+          "20260729000000_ci_require_explicit_api_privileges.sql",
         ),
       ),
     ).toBe(false);

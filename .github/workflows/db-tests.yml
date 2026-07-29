@@ -6,9 +6,10 @@ name: DB Tests (pgTAP)
 # The job has no hosted Supabase credentials and never links, queries, or dumps
 # production. It copies the committed Supabase project into the runner's
 # temporary directory, injects only the legacy project-default grants and inert
-# local Vault value required by historical migration replay, and builds the
-# database from every committed migration. The source checkout and production
-# migration history are unchanged.
+# local Vault value required by historical migration replay, restores
+# closed-by-default grants for future migrations, and builds the database from
+# every committed migration. The source checkout and production history are
+# unchanged.
 
 on:
   push:

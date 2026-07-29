@@ -16,13 +16,17 @@ credentials and never reads or dumps production. It:
 3. inserts a second CI-only prerequisite containing an inert loopback
    `supabase_url` Vault secret immediately before the historical migration that
    deliberately requires this project-specific value;
-4. boots a local Supabase stack from every committed migration; and
-5. runs every `*.test.sql` file here through pgTAP.
+4. switches the disposable project's default privileges back to
+   closed-by-default immediately after the migration history present when this
+   workflow was adopted, so later migrations must state their Data API grants;
+5. boots a local Supabase stack from every committed migration; and
+6. runs every `*.test.sql` file here through pgTAP.
 
 The injected prerequisites exist only in the disposable copy. They are never
 added to production migration history and the source checkout remains
 unchanged. Later committed RLS policies and explicit `REVOKE` statements still
 run normally, so the resulting access model is exercised rather than bypassed.
+New migrations cannot inherit the emulated legacy grants.
 
 Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 `supabase/config.toml`.
