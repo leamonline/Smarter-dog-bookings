@@ -202,6 +202,21 @@ describe("Supabase security review regressions", () => {
     expect(migration).toMatch(/grant\s+execute\s+on\s+function\s+public\.link_customer_to_human\(\)\s+to\s+authenticated/i);
   });
 
+  it("keeps the prod-only link helper containment replay-safe when the helper is absent", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes(
+        "SECURITY containment — revoke EXECUTE on three SECURITY DEFINER functions",
+      ),
+    );
+
+    expect(migration).toMatch(
+      /to_regprocedure\(\s*'public\.link_or_create_customer_human\(text,text,text\)'\s*\)\s+is not null/i,
+    );
+    expect(migration).toMatch(
+      /execute\s+'revoke execute on function public\.link_or_create_customer_human\(text,text,text\) from authenticated, anon, public'/i,
+    );
+  });
+
   it("does not pass a phone argument from the customer portal RPC call", () => {
     // The customer hook routes through the typed RPC wrapper in
     // src/supabase/rpc.ts; assert both the call site and the wrapper
