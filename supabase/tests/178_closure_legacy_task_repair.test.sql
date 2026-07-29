@@ -1,11 +1,11 @@
--- Legacy closure work that still contradicts the diary is converted in place:
+-- Legacy closure work that still contradicts the diary is reconciled into
 -- one durable task per active visit, reopened and protected by the closure
 -- completion command. Historical work without an authoritative visit link is
 -- deliberately left alone.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 \ir fixtures/ensure_local_vault_secrets.psql
 
 insert into auth.users (id) values
@@ -95,7 +95,11 @@ insert into public.salon_todos (
     '2098-12-06 09:00:00+00', '2098-12-07 09:00:00+00'
   );
 
-\ir ../migrations/20260729062815_closure_legacy_active_task_repair.sql
+select is(
+  smarter_dog_private.repair_legacy_active_closure_tasks(),
+  2,
+  'the repair reports one conversion per authoritative visit'
+);
 
 select is(
   (
@@ -123,25 +127,21 @@ select ok(
 );
 
 select ok(
-  exists (
+  not exists (
     select 1
       from public.salon_todos
      where id = '17800000-0000-4000-8000-000000000202'
-       and kind = 'closure_rearrangement'
-       and not done
   ),
-  'the existing open duplicate is the task preserved for the visit'
+  'the existing open generic task is replaced by its linked task'
 );
 
 select ok(
-  exists (
+  not exists (
     select 1
       from public.salon_todos
      where id = '17800000-0000-4000-8000-000000000203'
-       and kind = 'closure_rearrangement'
-       and not done
   ),
-  'a falsely completed task is reopened in place'
+  'the falsely completed generic task is replaced rather than retained'
 );
 
 select is(
@@ -177,11 +177,21 @@ select ok(
 );
 
 select throws_ok(
-  $$
+  format(
+    $$
     select public.complete_closure_rearrangement_task(
-      '17800000-0000-4000-8000-000000000203'
+      %L::uuid
     )
-  $$,
+    $$,
+    (
+      select id
+        from public.salon_todos
+       where kind = 'closure_rearrangement'
+         and closure_date = '2099-01-05'
+         and text like '%Bravo Legacy%'
+       limit 1
+    )
+  ),
   'SCL01', null,
   'the repaired false completion cannot recur while its visit remains booked'
 );
