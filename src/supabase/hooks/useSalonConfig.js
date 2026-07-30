@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchSalonConfigRow } from "../queries/bootQueries.js";
@@ -14,6 +14,28 @@ export function useSalonConfig({ canSeed = false } = {}) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const configRef = useRef(null);
+  const rowRef = useRef(null);
+  const saveQueueRef = useRef(Promise.resolve());
+
+  const installConfig = useCallback((nextConfig) => {
+    configRef.current = nextConfig;
+    setConfig(nextConfig);
+  }, []);
+
+  const installAuthoritativeRow = useCallback((row) => {
+    const nextConfig = dbConfigToApp(row);
+    const hasIdentityAndVersion =
+      typeof row?.id === "string" &&
+      row.id.length > 0 &&
+      Object.prototype.hasOwnProperty.call(row, "updated_at") &&
+      row.updated_at !== undefined;
+
+    rowRef.current = hasIdentityAndVersion
+      ? { id: row.id, updatedAt: row.updated_at }
+      : null;
+    installConfig(nextConfig);
+  }, [installConfig]);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -35,7 +57,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
         }
 
         if (data) {
-          setConfig(dbConfigToApp(data));
+          installAuthoritativeRow(data);
           return;
         }
 
@@ -53,12 +75,12 @@ export function useSalonConfig({ canSeed = false } = {}) {
           if (controller.signal.aborted) return;
           if (insErr) {
             setError(insErr.message);
-            setConfig(defaultConfig);
+            installConfig(defaultConfig);
           } else {
-            setConfig(dbConfigToApp(inserted));
+            installAuthoritativeRow(inserted);
           }
         } else {
-          setConfig(createDefaultSalonConfig());
+          installConfig(createDefaultSalonConfig());
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -66,37 +88,80 @@ export function useSalonConfig({ canSeed = false } = {}) {
     }
     fetch();
     return () => { controller.abort(); };
-  }, [canSeed]);
+  }, [canSeed, installAuthoritativeRow, installConfig]);
 
   // Returns { ok: true } on success, or { ok: false, error } on failure.
-  // Optimistically updates local state, then rolls back on supabase error
-  // so the caller can surface a toast without the UI lying about the
-  // committed value.
+  // Turns are serialised so functional updates always start from the last
+  // accepted config, rather than from a possibly stale render snapshot.
   const updateConfig = useCallback(
-    async (updaterOrValue) => {
-      const safeConfig = config || createDefaultSalonConfig();
-      const newConfig =
-        typeof updaterOrValue === "function"
-          ? updaterOrValue(safeConfig)
-          : updaterOrValue;
-      const prev = config;
-      setConfig(newConfig);
+    (updaterOrValue) => {
+      const turn = saveQueueRef.current.then(async () => {
+        const previousConfig = configRef.current || createDefaultSalonConfig();
+        const nextConfig =
+          typeof updaterOrValue === "function"
+            ? updaterOrValue(previousConfig)
+            : updaterOrValue;
+        installConfig(nextConfig);
 
-      if (!supabase) return { ok: true };
-      const { error: err } = await supabase
-        .from("salon_config")
-        .update(appConfigToDb(newConfig))
-        .not("id", "is", null); // update the single row
-      if (err) {
-        logger.error("Failed to update config", err, {
-          tags: { hook: "useSalonConfig", op: "updateConfig" },
-        });
-        setConfig(prev);
-        return { ok: false, error: err.message || "Couldn't save settings." };
-      }
-      return { ok: true };
+        if (!supabase) return { ok: true };
+
+        const authoritativeRow = rowRef.current;
+        if (!authoritativeRow) {
+          installConfig(previousConfig);
+          return {
+            ok: false,
+            error: "Couldn't save settings because the latest settings could not be verified. Please reload and try again.",
+          };
+        }
+
+        try {
+          let query = supabase
+            .from("salon_config")
+            .update(appConfigToDb(nextConfig))
+            .eq("id", authoritativeRow.id);
+          query = authoritativeRow.updatedAt === null
+            ? query.is("updated_at", null)
+            : query.eq("updated_at", authoritativeRow.updatedAt);
+
+          const { data: updated, error: err } = await query.select().maybeSingle();
+          if (err) {
+            logger.error("Failed to update config", err, {
+              tags: { hook: "useSalonConfig", op: "updateConfig" },
+            });
+            installConfig(previousConfig);
+            return { ok: false, error: err.message || "Couldn't save settings." };
+          }
+
+          if (!updated) {
+            const { data: latest } = await fetchSalonConfigRow(supabase);
+            if (latest) installAuthoritativeRow(latest);
+            else installConfig(previousConfig);
+            return {
+              ok: false,
+              error: "Settings changed elsewhere. The latest settings have been reloaded; please try your change again.",
+            };
+          }
+
+          installAuthoritativeRow(updated);
+          return { ok: true };
+        } catch (err) {
+          logger.error("Failed to update config", err, {
+            tags: { hook: "useSalonConfig", op: "updateConfig" },
+          });
+          installConfig(previousConfig);
+          return {
+            ok: false,
+            error: err?.message || "Couldn't save settings.",
+          };
+        }
+      });
+
+      // A failed turn is returned to its caller, but must not block later
+      // settings changes queued from the same hook instance.
+      saveQueueRef.current = turn.catch(() => undefined);
+      return turn;
     },
-    [config]
+    [installAuthoritativeRow, installConfig]
   );
 
   return {
