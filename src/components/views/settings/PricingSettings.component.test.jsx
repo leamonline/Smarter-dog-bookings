@@ -21,6 +21,8 @@ describe("PricingSettings read-only service matrix", () => {
       />,
     );
 
+    expect(screen.getByText("Saved guide prices by dog size")).toBeInTheDocument();
+    expect(screen.queryByText('Base prices per size — shown as "from" on the booking portal')).not.toBeInTheDocument();
     expect(screen.getByText("Full groom")).toBeInTheDocument();
     const [smallPrice, mediumPrice, largePrice] = screen.getAllByRole("spinbutton");
     expect(smallPrice).toHaveValue(42.5);

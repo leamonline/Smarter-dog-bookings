@@ -11,7 +11,7 @@ export function BusinessSettings({ config }) {
 
   return (
     <Card id="settings-business">
-      <CardHead variant="teal" title="Your Business" desc="Details shown to customers on the booking portal" />
+      <CardHead variant="teal" title="Your Business" desc="Saved business details — reference only" />
       <CardBody>
         <ReadOnlyNotice>
           These details are read-only for now because this screen does not update every customer-facing place. Ask the owner for a coordinated app update.

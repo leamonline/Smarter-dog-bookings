@@ -48,6 +48,8 @@ describe("BusinessSettings read-only details", () => {
   it("keeps persisted customer details visible and directs staff to a coordinated update", () => {
     render(<BusinessSettings config={config} onUpdateConfig={vi.fn()} canEdit />);
 
+    expect(screen.getByText("Saved business details — reference only")).toBeInTheDocument();
+    expect(screen.queryByText("Details shown to customers on the booking portal")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("My Salon")).toBeDisabled();
     expect(screen.getByDisplayValue("0161 123 4567")).toBeDisabled();
     expect(screen.getByDisplayValue("hello@mysalon.co.uk")).toBeDisabled();

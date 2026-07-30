@@ -75,12 +75,12 @@ Current rules: **08:30** and **09:00** take 1 seat and can share
 early-closes 13:00; **12:30** and **13:00** are 2-seat full
 takeovers with no sharing.
 
-> ⚠️ **`salon_config.large_dog_slots` is decorative.** The
-> Settings → Capacity Engine card writes that jsonb column, but no
-> enforcement path reads it — removing a chip in Settings changes
-> nothing (audit finding AUDIT-1, 2026-07-01). Changing the real
-> rules means changing all three hardcoded copies above **together**
-> and extending the parity test
+> ⚠️ **`salon_config.large_dog_slots` is decorative.** Earlier editable
+> versions of the Settings → Capacity Engine card wrote that jsonb column,
+> but no enforcement path read it — removing a chip in Settings changed
+> nothing (audit finding AUDIT-1, 2026-07-01). The current card is read-only
+> and cannot change that column. Changing the real rules means changing all
+> three hardcoded copies above **together** and extending the parity test
 > (`src/lib/whatsapp/capacityParity.test.ts`).
 
 ## Disabling the rule
@@ -90,11 +90,12 @@ The server-side kill switch is **`salon_config.enforce_server_capacity`**
 `true`) and skips validation when it is `false`. There is no UI for
 it; flip it via SQL for one-off events, and flip it back.
 
-Two things that look like off-switches but aren't:
+Two things that could look like off-switches but are not:
 
-- The toggle on the Capacity Engine settings card writes a
-  **different** column (`salon_config.enforce_capacity`) that nothing
-  reads — it is currently a no-op (AUDIT-1).
+- The former Capacity Engine settings toggle wrote a **different** column
+  (`salon_config.enforce_capacity`) that nothing read — it was a no-op
+  (AUDIT-1). That toggle has been removed: the current card is read-only and
+  there is no UI kill switch.
 - Per-booking, staff can set `bookings.staff_capacity_override` to
   bypass capacity for that row only; the trigger honours it for
   staff inserts and forces it off for non-staff.

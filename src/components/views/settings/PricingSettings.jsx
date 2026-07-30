@@ -13,7 +13,7 @@ export function PricingSettings({ config }) {
       <CardHead
         variant="yellow"
         title="Services & Pricing"
-        desc='Base prices per size — shown as "from" on the booking portal'
+        desc="Saved guide prices by dog size"
       />
       <CardBody>
         <ReadOnlyNotice>
