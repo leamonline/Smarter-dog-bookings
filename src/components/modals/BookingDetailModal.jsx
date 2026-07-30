@@ -405,7 +405,6 @@ export function BookingDetailModal({
 
           <TrustedHumansPanel
             human={primaryHuman}
-            humanFullName={primaryHuman?.fullName || booking.owner}
             humans={humans}
             onClose={onClose}
             onOpenHuman={onOpenHuman}

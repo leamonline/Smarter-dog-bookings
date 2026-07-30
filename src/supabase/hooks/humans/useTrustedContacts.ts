@@ -37,6 +37,39 @@ async function fetchHumanNamesByIds(
   return names;
 }
 
+// Load the inverse side of the one-way trust relationship: the owners who
+// selected this person as a trusted human. A row is stored as
+// { human_id: owner, trusted_id: trusted person }; it must not be inferred
+// from the viewed person's outgoing trustedContacts because that reverses
+// the relationship and fails for legitimate one-way links.
+export async function fetchTrustedOwnerIdsForHuman(
+  humanId: string,
+): Promise<string[]> {
+  if (!supabase || !humanId) return [];
+
+  const { data, error } = await supabase
+    .from("human_trusted_contacts")
+    .select("human_id")
+    .eq("trusted_id", humanId);
+
+  if (error) {
+    logger.error("Failed to load owners for trusted human", error, {
+      tags: { hook: "useHumans", op: "fetchTrustedOwnerIdsForHuman" },
+    });
+    return [];
+  }
+
+  const ownerRows = (data || []) as Array<{ human_id?: unknown }>;
+
+  return Array.from(
+    new Set(
+      ownerRows
+        .map((row) => row.human_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
+}
+
 // Load a single human's trusted contacts, fully resolving each trusted
 // human's display name. buildHumanMapEntry leaves trustedContacts empty,
 // so any on-demand human fetch (fetchHumanById / findHumanByFullName)

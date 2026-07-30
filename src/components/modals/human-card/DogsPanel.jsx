@@ -64,9 +64,9 @@ function DogRow({ dog, lastGroom, onClose, onOpenDog }) {
 
 export function DogsPanel({
   human,
-  humanFullName,
   dogs,
   dogsByHumanId,
+  trustedOwnerIds = [],
   bookingsByDate,
   onClose,
   onOpenDog,
@@ -99,32 +99,16 @@ export function DogsPanel({
 
     const trusted = [];
     const seen = new Set();
-    // Primary path: pull each trusted contact's dogs straight from
-    // dogsByHumanId (populated by ensureDogsForHumans for the trusted ids in
-    // HumanCardModal). id-based, so it doesn't hinge on owner-name string
-    // matching the way the legacy fallback below does.
-    for (const contact of human.trustedContacts || []) {
-      if (!contact.id || contact.id === human.id) continue;
-      for (const dog of dogsByHumanId[contact.id] || []) {
+    // Incoming trust rows identify the owners who selected this person as a
+    // trusted human. Pull those owners' dogs from the pagination-proof cache;
+    // outgoing human.trustedContacts describes the opposite relationship and
+    // must never be used here.
+    for (const ownerId of trustedOwnerIds) {
+      if (!ownerId || ownerId === human.id) continue;
+      for (const dog of dogsByHumanId[ownerId] || []) {
         if (seen.has(dog.id)) continue;
         seen.add(dog.id);
         trusted.push(dog);
-      }
-    }
-    // Fallback: legacy name/id match over the paginated dogs map, covering
-    // links present in trustedIds whose owner's dogs weren't pre-fetched.
-    const trustedSet = new Set(human.trustedIds || []);
-    if (trustedSet.size > 0) {
-      for (const dog of Object.values(dogs || {})) {
-        if (seen.has(dog.id)) continue;
-        const ownerId = dog._humanId || null;
-        const ownerName = dog.humanId || "";
-        // Skip dogs already owned by this human.
-        if (ownerId === human.id || ownerName === humanFullName) continue;
-        if (trustedSet.has(ownerId) || trustedSet.has(ownerName)) {
-          seen.add(dog.id);
-          trusted.push(dog);
-        }
       }
     }
     const ownedSorted = [...owned].sort((a, b) =>
@@ -132,7 +116,7 @@ export function DogsPanel({
     );
     trusted.sort((a, b) => a.name.localeCompare(b.name));
     return { ownedDogs: ownedSorted, trustedDogs: trusted };
-  }, [dogs, dogsByHumanId, human, humanFullName]);
+  }, [dogs, dogsByHumanId, human, trustedOwnerIds]);
 
   return (
     <PanelShell eyebrow="Dogs" icon={DogIcon} accent="teal">

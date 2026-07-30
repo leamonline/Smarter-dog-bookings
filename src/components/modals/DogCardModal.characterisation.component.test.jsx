@@ -50,17 +50,6 @@ vi.mock("./ChainBookingModal.jsx", () => ({
   ),
 }));
 
-// The reciprocal trusted-link write now hydrates the OTHER person's current
-// links from the DB (via fetchTrustedContactsForHuman) before replacing them,
-// so they can't be wiped by a stale in-memory copy. Stub it to an empty set so
-// the reciprocal merge stays deterministic and offline in these tests.
-vi.mock("../../supabase/hooks/humans/useTrustedContacts", async (importOriginal) => ({
-  ...(await importOriginal()),
-  fetchTrustedContactsForHuman: vi.fn(() =>
-    Promise.resolve({ trustedContacts: [], trustedIds: [] }),
-  ),
-}));
-
 const { DogCardModal } = await import("./DogCardModal.jsx");
 
 const baseDog = {
@@ -103,8 +92,7 @@ function renderModal(overrides = {}) {
     humans: { "Sarah Jones": sarah, "Mark Smith": mark },
     onUpdateDog: vi.fn(() => Promise.resolve()),
     // updateHuman resolves the saved human (truthy) on success / null on
-    // failure; the dog card now only writes the reciprocal link and shows
-    // success when the primary save actually landed.
+    // failure; success is shown only when the owner's one-way link landed.
     onUpdateHuman: vi.fn(() => Promise.resolve({ ok: true })),
     onAddHuman: vi.fn(() => Promise.resolve(null)),
     onDeleteDog: vi.fn(),
@@ -420,7 +408,7 @@ describe("DogCardModal characterisation", () => {
       await waitFor(() => expect(searchHumansByTerm).toHaveBeenCalledWith("Jo"));
     });
 
-    it("links a search result reciprocally on both humans", async () => {
+    it("links a search result from the owner to the trusted human only", async () => {
       const onUpdateHuman = vi.fn(() => Promise.resolve({ ok: true }));
       renderModal({ onUpdateHuman });
       enterEdit();
@@ -431,14 +419,11 @@ describe("DogCardModal characterisation", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: /Mark Smith/ }));
 
-      await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "human-1", {
+      expect(await screen.findByText("Trusted human linked")).toBeInTheDocument();
+      expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+      expect(onUpdateHuman).toHaveBeenCalledWith("human-1", {
         trustedContacts: [{ id: "human-2", relationship: "" }],
       });
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "human-2", {
-        trustedContacts: [{ id: "human-1", relationship: "" }],
-      });
-      expect(await screen.findByText("Trusted human linked")).toBeInTheDocument();
     });
 
     it("reuses an existing human by full name instead of creating a duplicate", async () => {
@@ -480,7 +465,7 @@ describe("DogCardModal characterisation", () => {
       consoleSpy.mockRestore();
     });
 
-    it("removes a trusted human reciprocally after the confirm dialog", async () => {
+    it("removes the owner's one-way trusted relationship after the confirm dialog", async () => {
       const linkedSarah = {
         ...sarah,
         trustedContacts: [{ id: "human-2", relationship: "walker" }],
@@ -504,10 +489,9 @@ describe("DogCardModal characterisation", () => {
       expect(await screen.findByText("Unlink trusted human?")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
-      await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "human-1", { trustedContacts: [] });
-      expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "human-2", { trustedContacts: [] });
       expect(await screen.findByText("Trusted human removed")).toBeInTheDocument();
+      expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+      expect(onUpdateHuman).toHaveBeenCalledWith("human-1", { trustedContacts: [] });
     });
   });
 });

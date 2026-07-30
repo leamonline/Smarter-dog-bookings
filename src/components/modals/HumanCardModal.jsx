@@ -28,7 +28,10 @@ import {
   useResolvedHuman,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
-import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
+import {
+  fetchTrustedContactsForHuman,
+  fetchTrustedOwnerIdsForHuman,
+} from "../../supabase/hooks/humans/useTrustedContacts";
 
 export function HumanCardModal({
   humanId,
@@ -86,20 +89,41 @@ export function HumanCardModal({
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
-  // Also fetch the dogs of anyone this person is trusted on, so the Dogs
-  // panel can list them under "Trusted to drop off / pick up". The effect
-  // above only loads the viewed human's OWN dogs; a dog they're trusted on
-  // is owned by someone else, so without this it never enters the cache.
-  // Joined into a stable key so the effect doesn't re-run on array identity
-  // churn; ensureDogsForHumans dedupes already-fetched ids itself.
-  const trustedContactIdsKey = (human.trustedContacts || [])
-    .map((c) => c.id)
-    .filter(Boolean)
-    .join(",");
+  // Trust is one-way in the database: { human_id: owner, trusted_id: person }.
+  // Load the incoming owner ids separately from human.trustedContacts, which
+  // is the outgoing set ("people this human trusts"). Keeping both directions
+  // distinct lets the Dogs panel show dogs this person may drop off / collect
+  // without inventing a reciprocal trust row.
+  const [trustedOwnerIds, setTrustedOwnerIds] = useState([]);
+  const trustedHumanId = human.id || humanId;
   useEffect(() => {
-    if (!ensureDogsForHumans || !trustedContactIdsKey) return;
-    ensureDogsForHumans(trustedContactIdsKey.split(","));
-  }, [ensureDogsForHumans, trustedContactIdsKey]);
+    let cancelled = false;
+    setTrustedOwnerIds([]);
+    if (!trustedHumanId) return () => {
+      cancelled = true;
+    };
+
+    fetchTrustedOwnerIdsForHuman(trustedHumanId)
+      .then((ownerIds) => {
+        if (!cancelled) setTrustedOwnerIds(ownerIds);
+      })
+      .catch(() => {
+        if (!cancelled) setTrustedOwnerIds([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trustedHumanId]);
+
+  // Owner ids are joined into a primitive dependency so this effect does not
+  // re-run on equivalent array identities. ensureDogsForHumans already
+  // deduplicates ids that are cached or in flight.
+  const trustedOwnerIdsKey = trustedOwnerIds.join(",");
+  useEffect(() => {
+    if (!ensureDogsForHumans || !trustedOwnerIdsKey) return;
+    ensureDogsForHumans(trustedOwnerIdsKey.split(","));
+  }, [ensureDogsForHumans, trustedOwnerIdsKey]);
 
   const [showAddDog, setShowAddDog] = useState(false);
 
@@ -117,9 +141,9 @@ export function HumanCardModal({
     }
   }, []);
 
-  // Link THIS human as a trusted contact on an existing dog — i.e. add them to
-  // that dog's owner's trusted set, plus the reciprocal back-link, exactly as
-  // the dog card does when adding a trusted human.
+  // Link THIS human as a trusted contact on an existing dog by updating the
+  // dog's owner only. Trust is directional; adding a reverse row would mean
+  // the trusted person also chose the owner as their own trusted human.
   const handleLinkTrustedOnDog = useCallback(
     async (dog) => {
       if (!onUpdateHuman || !human?.id) return;
@@ -134,6 +158,9 @@ export function HumanCardModal({
       }
       const ownerContacts = await loadTrusted(owner);
       if (ownerContacts.some((c) => c.id === human.id || c.fullName === humanFullName)) {
+        setTrustedOwnerIds((current) =>
+          current.includes(owner.id) ? current : [...current, owner.id],
+        );
         toast.show(`${humanFullName} is already linked to ${dog.name}.`, "success");
         return;
       }
@@ -145,12 +172,9 @@ export function HumanCardModal({
         toast.show("Couldn't link that person to the dog — let's try again.", "error");
         return;
       }
-      const myContacts = await loadTrusted(human);
-      if (!myContacts.some((c) => c.id === owner.id || c.fullName === owner.fullName)) {
-        await onUpdateHuman(humanFullName || human.id, {
-          trustedContacts: [...myContacts, { id: owner.id, relationship: "" }],
-        });
-      }
+      setTrustedOwnerIds((current) =>
+        current.includes(owner.id) ? current : [...current, owner.id],
+      );
       toast.show(`Linked ${humanFullName} to ${dog.name}`, "success");
     },
     [onUpdateHuman, human, humans, humanFullName, toast, loadTrusted],
@@ -314,9 +338,9 @@ export function HumanCardModal({
             <div className="flex flex-col gap-3 min-h-0">
               <DogsPanel
                 human={human}
-                humanFullName={humanFullName}
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
+                trustedOwnerIds={trustedOwnerIds}
                 bookingsByDate={bookingsByDate}
                 onClose={onClose}
                 onOpenDog={onOpenDog}
@@ -365,7 +389,6 @@ export function HumanCardModal({
             <div className="flex flex-col gap-3 min-h-0">
               <TrustedHumansPanel
                 human={human}
-                humanFullName={humanFullName}
                 humans={humans}
                 onClose={onClose}
                 onOpenHuman={onOpenHuman}

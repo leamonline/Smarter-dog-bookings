@@ -7,6 +7,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
 
+const trustedRelationshipMocks = vi.hoisted(() => ({
+  fetchTrustedContactsForHuman: vi.fn().mockResolvedValue({
+    trustedContacts: [],
+    trustedIds: [],
+  }),
+  fetchTrustedOwnerIdsForHuman: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../../supabase/hooks/humans/useTrustedContacts", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchTrustedContactsForHuman:
+    trustedRelationshipMocks.fetchTrustedContactsForHuman,
+  fetchTrustedOwnerIdsForHuman:
+    trustedRelationshipMocks.fetchTrustedOwnerIdsForHuman,
+}));
+
 const { HumanCardModal } = await import("./HumanCardModal.jsx");
 
 // A completed booking owned by human-1, dated well in the past so it always
@@ -73,6 +89,11 @@ function renderModal(overrides = {}) {
 describe("HumanCardModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    trustedRelationshipMocks.fetchTrustedContactsForHuman.mockResolvedValue({
+      trustedContacts: [],
+      trustedIds: [],
+    });
+    trustedRelationshipMocks.fetchTrustedOwnerIdsForHuman.mockResolvedValue([]);
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -207,6 +228,97 @@ describe("HumanCardModal", () => {
       _dogId: "dog-1",
       service: "full-groom",
     });
+  });
+
+  it("shows a dog whose owner selected this person as a trusted human", async () => {
+    const andy = {
+      ...human,
+      id: "trusted-1",
+      fullName: "Andy",
+      name: "Andy",
+      surname: "",
+      trustedContacts: [],
+      trustedIds: [],
+    };
+    const ruby = {
+      id: "ruby-1",
+      name: "Ruby",
+      breed: "Miniature Schnauzer",
+      size: "small",
+      _humanId: "owner-1",
+      humanId: "Ruby Owner",
+    };
+    trustedRelationshipMocks.fetchTrustedOwnerIdsForHuman.mockResolvedValueOnce([
+      "owner-1",
+    ]);
+
+    renderModal({
+      humanId: andy.id,
+      humans: { Andy: andy },
+      dogs: {},
+      dogsByHumanId: { "owner-1": [ruby] },
+      ensureDogsForHumans: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(await screen.findByText("Ruby")).toBeInTheDocument();
+    expect(screen.getByText(/Trusted to drop off/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No dogs linked yet/i)).not.toBeInTheDocument();
+  });
+
+  it("links this person to a dog with one owner-to-trusted relationship", async () => {
+    const andy = {
+      ...human,
+      id: "trusted-1",
+      fullName: "Andy",
+      name: "Andy",
+      surname: "",
+      trustedContacts: [],
+      trustedIds: [],
+    };
+    const owner = {
+      ...human,
+      id: "owner-1",
+      fullName: "Ruby Owner",
+      name: "Ruby",
+      surname: "Owner",
+      trustedContacts: [],
+      trustedIds: [],
+    };
+    const ruby = {
+      id: "ruby-1",
+      name: "Ruby",
+      breed: "Miniature Schnauzer",
+      size: "small",
+      _humanId: owner.id,
+      humanId: owner.fullName,
+    };
+    const onUpdateHuman = vi.fn().mockResolvedValue({ id: owner.id });
+
+    renderModal({
+      humanId: andy.id,
+      humans: { Andy: andy, "Ruby Owner": owner },
+      dogs: { Ruby: ruby },
+      dogsByHumanId: { [owner.id]: [ruby] },
+      ensureDogsForHumans: vi.fn().mockResolvedValue(undefined),
+      onUpdateHuman,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Link to a dog" }));
+    fireEvent.change(
+      screen.getByRole("textbox", {
+        name: "Search for a dog to link this person to",
+      }),
+      { target: { value: "Ruby" } },
+    );
+    const rubyResult = await screen.findByText("Ruby");
+    fireEvent.click(rubyResult.closest("button"));
+
+    expect(await screen.findByText("Linked Andy to Ruby")).toBeInTheDocument();
+    expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+    expect(onUpdateHuman).toHaveBeenCalledWith("Ruby Owner", {
+      trustedContacts: [{ id: "trusted-1", relationship: "" }],
+    });
+    expect(await screen.findByText("Ruby")).toBeInTheDocument();
   });
 
   it("Archive asks for confirmation before calling onArchiveHuman", () => {

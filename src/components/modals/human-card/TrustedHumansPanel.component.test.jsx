@@ -124,7 +124,7 @@ describe("TrustedHumansPanel", () => {
     expect(screen.queryByText("Trusted human added")).not.toBeInTheDocument();
   });
 
-  it("removes the shared relationship from both humans after confirmation", async () => {
+  it("removes only the owner's one-way trusted relationship after confirmation", async () => {
     const linkedOwner = {
       ...owner,
       trustedContacts: [
@@ -171,11 +171,9 @@ describe("TrustedHumansPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
-    await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-    expect(onUpdateHuman).toHaveBeenNthCalledWith(1, "owner-1", {
-      trustedContacts: [],
-    });
-    expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "trusted-1", {
+    expect(await screen.findByText("Trusted human removed")).toBeInTheDocument();
+    expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+    expect(onUpdateHuman).toHaveBeenCalledWith("owner-1", {
       trustedContacts: [],
     });
   });
@@ -278,7 +276,7 @@ describe("TrustedHumansPanel", () => {
     expect(screen.queryByText("Trusted human linked")).not.toBeInTheDocument();
   });
 
-  it("preserves the trusted human’s other links when adding the reciprocal relationship", async () => {
+  it("does not create a reverse relationship when linking a trusted human", async () => {
     const candidate = {
       id: "trusted-1",
       fullName: "Mark Smith",
@@ -287,16 +285,6 @@ describe("TrustedHumansPanel", () => {
       phone: "07700900222",
       trustedContacts: [],
     };
-    trustedContactMocks.fetchTrustedContactsForHuman.mockResolvedValueOnce({
-      trustedContacts: [
-        {
-          id: "third-1",
-          fullName: "Charlie Friend",
-          relationship: "Friend",
-        },
-      ],
-      trustedIds: ["Charlie Friend"],
-    });
     const onUpdateHuman = vi.fn().mockResolvedValue({ id: "saved" });
     renderPanel({
       humans: {
@@ -314,19 +302,13 @@ describe("TrustedHumansPanel", () => {
     );
     fireEvent.click(within(panel).getByRole("button", { name: /Mark Smith/ }));
 
-    await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));
-    expect(onUpdateHuman).toHaveBeenNthCalledWith(2, "trusted-1", {
-      trustedContacts: [
-        {
-          id: "third-1",
-          fullName: "Charlie Friend",
-          relationship: "Friend",
-        },
-        {
-          id: "owner-1",
-          relationship: "",
-        },
-      ],
+    expect(await screen.findByText("Trusted human linked")).toBeInTheDocument();
+    expect(onUpdateHuman).toHaveBeenCalledTimes(1);
+    expect(onUpdateHuman).toHaveBeenCalledWith("owner-1", {
+      trustedContacts: [{ id: "trusted-1", relationship: "" }],
     });
+    expect(
+      trustedContactMocks.fetchTrustedContactsForHuman,
+    ).not.toHaveBeenCalled();
   });
 });

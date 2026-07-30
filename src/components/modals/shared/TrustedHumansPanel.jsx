@@ -7,7 +7,6 @@ import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { validateContactPhone } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { logger } from "../../../lib/logger";
-import { fetchTrustedContactsForHuman } from "../../../supabase/hooks/humans/useTrustedContacts";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 
 const EMPTY_TRUSTED_CONTACTS = [];
@@ -80,7 +79,6 @@ function TrustedRow({
 
 export function TrustedHumansPanel({
   human,
-  humanFullName,
   humans,
   onClose,
   onOpenHuman,
@@ -151,38 +149,9 @@ export function TrustedHumansPanel({
       return;
     }
 
-    const selected = getHumanByIdOrName(humans, selectedHumanId);
-    if (selected) {
-      const theirs = await loadTrustedContacts(selected);
-      if (!theirs.some((c) => c.id === myId || c.fullName === humanFullName)) {
-        try {
-          await onUpdateHuman(selected.id || selectedHumanId, {
-            trustedContacts: [...theirs, { id: myId, relationship: "" }],
-          });
-        } catch {
-          onUpdateHuman(myId, { trustedContacts: current });
-          logger.error("Failed to create bidirectional trust; rolled back.");
-        }
-      }
-    }
-
     setSearchQuery("");
     setShowAdd(false);
     toast.show("Trusted human linked", "success");
-  };
-
-  const loadTrustedContacts = async (targetHuman) => {
-    const inMemory = targetHuman?.trustedContacts || [];
-    if (!targetHuman?.id) return inMemory;
-    try {
-      const { trustedContacts } = await fetchTrustedContactsForHuman(
-        targetHuman.id,
-      );
-      return trustedContacts.length ? trustedContacts : inMemory;
-    } catch (err) {
-      logger.error("Failed to hydrate trusted contacts before unlinking", err);
-      return inMemory;
-    }
   };
 
   const handleRemoveTrusted = (target) => {
@@ -205,20 +174,6 @@ export function TrustedHumansPanel({
       return;
     }
 
-    const removedHuman = getHumanByIdOrName(humans, targetKey);
-    if (removedHuman) {
-      const theirContacts = await loadTrustedContacts(removedHuman);
-      const nextTheirContacts = theirContacts.filter(
-        (contact) =>
-          contact.id !== myId && contact.fullName !== humanFullName,
-      );
-      if (nextTheirContacts.length !== theirContacts.length) {
-        await onUpdateHuman(removedHuman.id || targetKey, {
-          trustedContacts: nextTheirContacts,
-        });
-      }
-    }
-
     toast.show("Trusted human removed", "success");
   };
 
@@ -234,16 +189,6 @@ export function TrustedHumansPanel({
     if (!saved) {
       toast.show("Couldn't add trusted human — please try again.", "error");
       return;
-    }
-    try {
-      const theirs = await loadTrustedContacts(trustedHuman);
-      if (!theirs.some((c) => c.id === myId || c.fullName === humanFullName)) {
-        await onUpdateHuman(trustedHuman.id, {
-          trustedContacts: [...theirs, { id: myId, relationship: "" }],
-        });
-      }
-    } catch {
-      logger.error("Failed to add bidirectional trust for new human");
     }
     setShowNewForm(false);
     setNewName("");

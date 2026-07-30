@@ -10,10 +10,8 @@ import { DogsPanel } from "./DogsPanel.jsx";
 const steve = {
   id: "steve-1",
   fullName: "Steve Hughes",
-  trustedContacts: [
-    { id: "natalie-1", fullName: "Natalie Hughes", relationship: "" },
-  ],
-  trustedIds: ["Natalie Hughes"],
+  trustedContacts: [],
+  trustedIds: [],
 };
 
 const shelby = {
@@ -26,13 +24,13 @@ const shelby = {
 };
 
 describe("DogsPanel trusted dogs", () => {
-  it("lists a trusted owner's dog from dogsByHumanId under the trusted heading", () => {
+  it("lists a dog from an incoming trusted-human link without a reciprocal contact", () => {
     render(
       <DogsPanel
         human={steve}
-        humanFullName="Steve Hughes"
         dogs={{}}
         dogsByHumanId={{ "natalie-1": [shelby] }}
+        trustedOwnerIds={["natalie-1"]}
         bookingsByDate={{}}
       />,
     );
@@ -47,7 +45,6 @@ describe("DogsPanel trusted dogs", () => {
     render(
       <DogsPanel
         human={{ id: "x", fullName: "Nobody", trustedContacts: [], trustedIds: [] }}
-        humanFullName="Nobody"
         dogs={{}}
         dogsByHumanId={{}}
         bookingsByDate={{}}
