@@ -165,7 +165,11 @@ export function DateSelection({
           occupancyByDate,
           blockedByDate: blockedRes.byDate,
         };
-        pageCache.current.set(rangeKey, nextPage);
+        // A degraded page remains usable, but it is not a completed cache
+        // entry: returning to it must retry either required availability read.
+        if (!openRes.error && !occRes.error) {
+          pageCache.current.set(rangeKey, nextPage);
+        }
         setPageAvailability(nextPage);
       } finally {
         if (!cancelled) setLoading(false);

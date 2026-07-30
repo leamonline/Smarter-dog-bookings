@@ -120,6 +120,22 @@ describe("DateSelection horizon paging", () => {
     expect(availability.listImmediateSlots).toHaveBeenCalledTimes(1);
   });
 
+  it("retries a previously degraded page when the customer returns to it", async () => {
+    arrangeAvailability();
+    availability.getOpenDays
+      .mockResolvedValueOnce({ data: null, error: new Error("temporarily unavailable") })
+      .mockResolvedValue({ data: [], error: null });
+    const user = userEvent.setup();
+    renderDateSelection();
+
+    await waitFor(() => expect(screen.queryByText("Loading availability…")).toBeNull());
+    await user.click(screen.getByRole("button", { name: "Next dates" }));
+    await waitFor(() => expect(availability.getOpenDays).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: "Previous dates" }));
+
+    await waitFor(() => expect(availability.getOpenDays).toHaveBeenCalledTimes(3));
+  });
+
   it("keeps each page query within its customer-facing range", async () => {
     arrangeAvailability();
     const user = userEvent.setup();
