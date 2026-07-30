@@ -138,7 +138,7 @@ export function DateSelection({
         ]);
         if (cancelled) return;
 
-        let daySettings: Record<string, { is_open: boolean }> = {};
+        const daySettings: Record<string, { is_open: boolean }> = {};
         if (openRes.error) {
           logger.error("Failed to fetch day closures", openRes.error, {
             tags: { component: "DateSelection", op: "get_open_days" },
