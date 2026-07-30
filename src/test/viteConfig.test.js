@@ -17,7 +17,7 @@ describe("vite config", () => {
   it("keeps vendor groups path-anchored and per-package", () => {
     const manualChunks = config.build.rollupOptions.output.manualChunks;
     expect(manualChunks("/x/node_modules/react/index.js")).toBe("react-vendor");
-    expect(manualChunks("/x/node_modules/react-dom/client")).toBe("react-vendor");
+    expect(manualChunks("/x/node_modules/react-dom/client.js")).toBe("react-vendor");
     // Substring matching on "node_modules/react" used to swallow these:
     expect(manualChunks("/x/node_modules/react-router/dist/main.js")).toBe("router");
     expect(manualChunks("/x/node_modules/react-aria/dist/main.js")).toBeUndefined();
