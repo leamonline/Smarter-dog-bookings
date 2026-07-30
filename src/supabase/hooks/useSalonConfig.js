@@ -35,6 +35,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
       ? { id: row.id, updatedAt: row.updated_at }
       : null;
     installConfig(nextConfig);
+    return hasIdentityAndVersion;
   }, [installConfig]);
 
   useEffect(() => {
@@ -133,9 +134,28 @@ export function useSalonConfig({ canSeed = false } = {}) {
           }
 
           if (!updated) {
-            const { data: latest } = await fetchSalonConfigRow(supabase);
-            if (latest) installAuthoritativeRow(latest);
-            else installConfig(previousConfig);
+            let latest;
+            let reloadError;
+            try {
+              ({ data: latest, error: reloadError } = await fetchSalonConfigRow(supabase));
+            } catch (err) {
+              reloadError = err;
+            }
+
+            if (reloadError || !latest || !installAuthoritativeRow(latest)) {
+              rowRef.current = null;
+              installConfig(previousConfig);
+              if (reloadError) {
+                logger.error("Failed to reload config after a stale write", reloadError, {
+                  tags: { hook: "useSalonConfig", op: "updateConfig" },
+                });
+              }
+              return {
+                ok: false,
+                error: "Couldn't reload the latest settings. Please reload before trying your change again.",
+              };
+            }
+
             return {
               ok: false,
               error: "Settings changed elsewhere. The latest settings have been reloaded; please try your change again.",

@@ -102,7 +102,10 @@ function makeWriteStub({
       let operation = "read";
       let currentUpdate = null;
       const builder = {
-        select: vi.fn(() => builder),
+        select: vi.fn(() => {
+          if (operation === "update") currentUpdate.selected = true;
+          return builder;
+        }),
         limit: vi.fn(() => builder),
         abortSignal: vi.fn(() => builder),
         eq: vi.fn((column, value) => {
@@ -116,15 +119,25 @@ function makeWriteStub({
         not: vi.fn(() => builder),
         update: vi.fn((payload) => {
           operation = "update";
-          currentUpdate = { payload, filters: [] };
+          currentUpdate = { payload, filters: [], selected: false, terminal: null };
           updates.push(currentUpdate);
           return builder;
         }),
-        maybeSingle: vi.fn(() =>
-          operation === "update"
-            ? (updateResults[updateIndex++] ?? Promise.resolve({ data: null, error: null }))
-            : Promise.resolve(readResults[readIndex++] ?? { data: null, error: null }),
-        ),
+        maybeSingle: vi.fn(() => {
+          if (operation === "update") {
+            currentUpdate.terminal = currentUpdate.selected
+              ? "select().maybeSingle()"
+              : "maybeSingle()";
+            if (!currentUpdate.selected) {
+              return Promise.resolve({
+                data: null,
+                error: { message: "Update response must select the returned row." },
+              });
+            }
+            return updateResults[updateIndex++] ?? Promise.resolve({ data: null, error: null });
+          }
+          return Promise.resolve(readResults[readIndex++] ?? { data: null, error: null });
+        }),
       };
       return builder;
     }),
@@ -267,6 +280,13 @@ describe("useSalonConfig guarded saves", () => {
       default_pickup_offset: 8,
       enforce_capacity: false,
     });
+    expect(updates[1]).toMatchObject({
+      filters: [
+        { op: "eq", column: "id", value: "cfg-1" },
+        { op: "eq", column: "updated_at", value: "2026-07-30T10:00:01.000Z" },
+      ],
+      terminal: "select().maybeSingle()",
+    });
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 8,
       enforceCapacity: false,
@@ -392,8 +412,56 @@ describe("useSalonConfig guarded saves", () => {
           { op: "eq", column: "id", value: "cfg-1" },
           { op: "eq", column: "updated_at", value: "2026-07-30T10:00:00.000Z" },
         ],
+        terminal: "select().maybeSingle()",
       }),
     ]);
+  });
+
+  it.each([
+    ["returns an error", { data: null, error: { message: "read denied" } }],
+    ["finds no row", { data: null, error: null }],
+  ])("does not claim a reload when conflict recovery %s", async (_case, reloadResult) => {
+    // Production break caught: failed conflict recovery claims the latest
+    // settings were reloaded, then lets the stale row version be reused.
+    takeBootPrefetch.mockReturnValue(null);
+    const { client, updates } = makeWriteStub({
+      readResults: [
+        { data: CONFIG_ROW, error: null },
+        reloadResult,
+      ],
+      updateResults: [Promise.resolve({ data: null, error: null })],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let conflictResult;
+    await act(async () => {
+      conflictResult = await result.current.updateConfig((config) => ({
+        ...config,
+        defaultPickupOffset: 8,
+      }));
+    });
+
+    expect(conflictResult).toEqual({
+      ok: false,
+      error: "Couldn't reload the latest settings. Please reload before trying your change again.",
+    });
+    expect(result.current.config.defaultPickupOffset).toBe(4);
+
+    let laterResult;
+    await act(async () => {
+      laterResult = await result.current.updateConfig((config) => ({
+        ...config,
+        enforceCapacity: false,
+      }));
+    });
+    expect(laterResult).toEqual({
+      ok: false,
+      error: "Couldn't save settings because the latest settings could not be verified. Please reload and try again.",
+    });
+    expect(updates).toHaveLength(1);
   });
 
   it("uses an IS NULL version guard when the authoritative timestamp is null", async () => {
