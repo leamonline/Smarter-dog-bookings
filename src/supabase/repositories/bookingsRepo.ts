@@ -115,14 +115,19 @@ export async function listRangeForCapacity(
 // staff-only via RLS). Degrades gracefully: on any error — including the RPC
 // not yet existing in an environment where the migration hasn't been applied —
 // it returns an empty map so the wizard behaves exactly as before rather than
-// breaking. Pass startDate === endDate for a single day.
+// breaking. The accompanying error lets range callers label the degradation
+// honestly and avoid caching an incomplete result. Pass startDate === endDate
+// for a single day.
 export async function listBlockedSeats(
   client: SupabaseClient,
   startDate: string,
   endDate: string,
-): Promise<{ byDate: Record<string, Record<string, SlotOverrides>> }> {
+): Promise<{
+  byDate: Record<string, Record<string, SlotOverrides>>;
+  error: Error | null;
+}> {
   const { data, error } = await getBlockedSeats(client, { startDate, endDate });
-  if (error) return { byDate: {} };
+  if (error) return { byDate: {}, error: new Error(error.message) };
   const rows = (data ?? []) as Array<{
     setting_date: string;
     slot: string;
@@ -134,7 +139,7 @@ export async function listBlockedSeats(
     const slot = (day[row.slot] ??= {});
     slot[row.seat_index] = "blocked";
   }
-  return { byDate };
+  return { byDate, error: null };
 }
 
 // Today's last-minute ("immediate") slots, from get_immediate_slots. The RPC

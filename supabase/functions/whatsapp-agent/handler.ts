@@ -151,6 +151,8 @@ const WHATSAPP_BOOK_ENTRY_ENABLED =
 const WHATSAPP_BOOKING_FLOW_ID = Deno.env.get("WHATSAPP_BOOKING_FLOW_ID") ?? "";
 // Customer self-service portal sign-in/sign-up URL (env override → shared default).
 const CUSTOMER_PORTAL_URL = Deno.env.get("CUSTOMER_PORTAL_URL") ?? PORTAL_URL_DEFAULT;
+const APPROVED_FURTHER_AHEAD_WORDING =
+  `I can show you the next couple of months here. If you’re looking further ahead, your account has everything up to six months — ${CUSTOMER_PORTAL_URL} 🐾`;
 // Master switch for WhatsApp self-service cancel/reschedule (Flow C). Off by
 // default; independent of WHATSAPP_BOOK_ENTRY_ENABLED so it can roll out
 // separately. When off, cancel/reschedule fall through to the staff gate.
@@ -308,6 +310,8 @@ HARD RULES — always
 - Do not propose more than 3 candidate slots in a single message. If you want to offer more, ask the customer for a narrower preference first.
 - NEVER quote prices as fixed guarantees. Guide prices labelled "starts from" or "guide price" are fine.
 - NEVER invent appointment slots or days. SMALL/MEDIUM cite times only from "--- Availability ---"; LARGE cite days only from "--- Large-dog availability ---". If a block is missing or empty, say "let me just check the diary and come back to you".
+- Within every non-empty small/medium availability block, only the listed date-and-slot combinations are verified. A missing date is unverified; do NOT infer it is closed, full, or unavailable.
+- A requested date beyond an availability block's stated window is unverified, not unavailable. Do NOT say it is closed, full, or unavailable, and do NOT invent availability. Use this exact customer wording: "${APPROVED_FURTHER_AHEAD_WORDING}" followed by the normal 🎓🐶❤️ X sign-off. Do not promise a staff hand-off or invite a reply as the path to a human.
 - NEVER promise same-day turnaround or specific groomer assignments.
 - If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply, no booking_action.
 - If a message seems medical or safety-related → intent "escalate", brief holding reply, no booking_action.
@@ -613,20 +617,15 @@ async function insertInboundMessage(
 //   Mon 27 Apr: 08:30 09:00 10:30 11:00 12:30
 //   Tue 28 Apr: (all open)
 //   Wed 29 Apr: 09:00 10:30
-//   Mon 04 May: (closed)
 //
 // - "(all open)" when all 10 slots in active_slots() are free
-// - "(closed)" only for default-open days (Mon/Tue/Wed) where
-//   day_settings marks them closed; other closed days are omitted.
-// - On error, returns a block that tells the agent to defer to staff.
+// - Dates appear only when the RPC returned one or more verified slots.
+// - Missing rows are unverified: they must not be translated into a closure,
+//   a full day, or unavailable availability.
 const ACTIVE_SLOT_COUNT = 10; // matches active_slots() from migration 006
 const AVAILABILITY_WINDOW_DAYS = 30;
-
-function isDefaultOpenDay(isoDate: string): boolean {
-  // isoDate = "YYYY-MM-DD"; getUTCDay: Sun=0, Mon=1, ..., Sat=6
-  const dow = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
-  return dow === 1 || dow === 2 || dow === 3;
-}
+const VERIFIED_SMALL_MEDIUM_NOTE =
+  "Only the date-and-slot combinations listed above are verified. Any missing date is unverified — do NOT infer it is closed, full, or unavailable.";
 
 function formatShortDate(isoDate: string): string {
   // "Mon 27 Apr" — matches the UK audience's natural reading
@@ -653,7 +652,7 @@ async function buildAvailabilityBlock(
 
   if (error) {
     console.warn("buildAvailabilityBlock RPC error:", error.message);
-    return `--- Availability ---\n(unavailable — tell the customer the team will check the diary)`;
+    return `--- Availability ---\n(no verified availability was returned — do NOT infer that any date is closed, full, or unavailable)`;
   }
 
   // Group slots by date
@@ -664,35 +663,21 @@ async function buildAvailabilityBlock(
     byDate.set(row.booking_date, list);
   }
 
-  // Walk every day in the window so we can render "(closed)" for default-open days
   const lines: string[] = [];
-  for (let offset = 0; offset <= AVAILABILITY_WINDOW_DAYS; offset++) {
-    const d = new Date(Date.now() + offset * 24 * 3600 * 1000);
-    const iso = d.toISOString().slice(0, 10);
-    const slots = byDate.get(iso);
-
-    if (slots && slots.length > 0) {
-      const label = formatShortDate(iso);
-      const slotList = slots.length >= ACTIVE_SLOT_COUNT
-        ? "(all open)"
-        : slots.join(" ");
-      lines.push(`${label}: ${slotList}`);
-      continue;
-    }
-
-    // No slots returned → either closed or fully booked.
-    // Only annotate "(closed)" for default-open days; otherwise skip as noise.
-    if (isDefaultOpenDay(iso)) {
-      const label = formatShortDate(iso);
-      lines.push(`${label}: (closed)`);
-    }
+  for (const [iso, slots] of byDate) {
+    if (slots.length === 0) continue;
+    const label = formatShortDate(iso);
+    const slotList = slots.length >= ACTIVE_SLOT_COUNT
+      ? "(all open)"
+      : slots.join(" ");
+    lines.push(`${label}: ${slotList}`);
   }
 
   const header = `--- Availability (next ${AVAILABILITY_WINDOW_DAYS} days, small/medium dogs only) ---`;
   if (lines.length === 0) {
-    return `${header}\n(no open days in the next ${AVAILABILITY_WINDOW_DAYS} days — tell the customer the team will check the diary)`;
+    return `${header}\n(no verified availability was returned — do NOT infer that any date is closed, full, or unavailable)`;
   }
-  return `${header}\n${lines.join("\n")}`;
+  return `${header}\n${lines.join("\n")}\n(${VERIFIED_SMALL_MEDIUM_NOTE})`;
 }
 
 // ── Large-dog availability block ──────────────────────────────
@@ -918,7 +903,7 @@ async function buildContext(
         `When the latest message is booking-related (intents: booking_query, booking_propose, booking_confirm, booking_change), do NOT propose a booking_action. Instead, draft a warm, on-brand reply that:`,
         `  1. Acknowledges what the customer asked for.`,
         `  2. Tells them they can book themselves at ${CUSTOMER_PORTAL_URL} (it's quicker and they'll see live availability).`,
-        `  3. Reassures them you'll happily handle it if they prefer — just ask.`,
+        `  3. Keeps the next step in their account; do not promise staff hand-off or invite a reply as a route to help.`,
         `Keep the brand sign-off (🎓🐶❤️ X) on the final line as normal. Don't paste the URL more than once. For non-booking intents (faq, greeting, smalltalk, escalate, etc.) this block doesn't apply — reply normally without the self-service link.`,
       ].join("\n"),
     );

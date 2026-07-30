@@ -449,6 +449,105 @@ Deno.test("runs the Claude path for an unknown customer and saves a pending draf
   assertEquals(lastEventPatch()?.processing_status, "processed");
 });
 
+Deno.test("keeps later dates honest and only shows RPC-verified small-dog slots to Claude", async () => {
+  // Monday and Tuesday are default-open salon days. Return a Monday slot but
+  // deliberately omit the Tuesday row: a missing row is not proof of closure.
+  const verifiedDate = new Date();
+  verifiedDate.setUTCHours(0, 0, 0, 0);
+  while (verifiedDate.getUTCDay() !== 1) verifiedDate.setUTCDate(verifiedDate.getUTCDate() + 1);
+  const missingDefaultOpenDate = new Date(verifiedDate);
+  missingDefaultOpenDate.setUTCDate(missingDefaultOpenDate.getUTCDate() + 1);
+  const verifiedIso = verifiedDate.toISOString().slice(0, 10);
+  const missingIso = missingDefaultOpenDate.toISOString().slice(0, 10);
+  const promptDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+  let anthropicRequest: RecordedCall | null = null;
+
+  resetStub(
+    eventSelect(eventRow({ payload: inboundPayload, processing_status: "processed" })),
+    eventUpdate,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/humans"
+        ? call.search.has("phone")
+          ? json([{ id: "human-1", phone: "07700900111" }])
+          : json({ name: "Alex", surname: "Taylor", notes: null, history_flag: null })
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_conversations"
+        ? json(conversationRow({ state: "human_takeover" }), 201)
+        : undefined,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/whatsapp_messages"
+        ? json([])
+        : undefined,
+    (call) =>
+      call.method === "GET" && (call.path === "/rest/v1/dogs" || call.path === "/rest/v1/bookings")
+        ? json([])
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/rpc/get_small_medium_availability"
+        ? json([{ booking_date: verifiedIso, slot: "09:00" }])
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/rpc/get_large_dog_day_availability"
+        ? json([])
+        : undefined,
+    (call) =>
+      call.path === "/v1/messages" && call.headers.get("x-api-key") === "anthropic-test-key"
+        ? (anthropicRequest = call, json({
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              intent: "booking_query",
+              confidence: 0.9,
+              proposed_text: "Please use your account to see the later dates. 🎓🐶❤️ X",
+            }),
+          }],
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }))
+        : undefined,
+  );
+
+  const res = await handleAgentRequest(
+    agentRequest({ event_id: "event-1", suggest_only: true }),
+  );
+  assertEquals(res.status, 200);
+  assert(anthropicRequest, "expected an Anthropic request through the real handler path");
+
+  // The route callback mutates this after TypeScript's control-flow pass, so
+  // retain the runtime assertion above and widen it for the captured request.
+  const requestBody = (anthropicRequest as unknown as RecordedCall).body as {
+    system: string;
+    messages: Array<{ content: string }>;
+  };
+  const context = requestBody.messages[0]?.content ?? "";
+  const approvedFurtherAheadWording =
+    "I can show you the next couple of months here. If you’re looking further ahead, your account has everything up to six months — https://smarterdog.vercel.app/customer/login 🐾";
+  const positiveVerificationRule =
+    "Within every non-empty small/medium availability block, only the listed date-and-slot combinations are verified.";
+
+  assertStringIncludes(requestBody.system, "unverified, not unavailable");
+  assertStringIncludes(requestBody.system, positiveVerificationRule);
+  assertStringIncludes(requestBody.system, approvedFurtherAheadWording);
+  assertStringIncludes(requestBody.system, "🎓🐶❤️ X");
+  assertStringIncludes(context, "https://smarterdog.vercel.app/customer/login");
+  assertStringIncludes(context, `${promptDate(verifiedIso)}: 09:00`);
+  assertStringIncludes(context, "Only the date-and-slot combinations listed above are verified.");
+  assertStringIncludes(context, "Any missing date is unverified");
+  assert(
+    !context.includes(`${promptDate(missingIso)}: (closed)`),
+    "a default-open date missing from RPC rows must not be labelled closed",
+  );
+  assert(
+    !context.includes("you'll happily handle it if they prefer — just ask."),
+    "the recognised-customer portal nudge must not promise reply-based handling",
+  );
+});
+
 Deno.test("suggest_only re-draft does not re-insert the already-ingested inbound message", async () => {
   // Regression: the staff "Generate reply" button re-invokes the agent in
   // suggest_only mode (⇒ force_draft) for an event the webhook already

@@ -1,9 +1,9 @@
 import { render } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
-// Avoid initialising a real Supabase client at import time. The hint under
-// test renders independently of the get_open_days fetch, so a null client
-// (the component's own `if (!supabase) return` guard) is enough.
+// Avoid initialising a real Supabase client at import time. A null client is
+// deliberately incomplete, so this fixture exercises the truthful degraded
+// hint rather than pretending closure and capacity reads succeeded.
 vi.mock("../../../supabase/customerClient.js", () => ({ customerSupabase: null }));
 
 import { DateSelection } from "./DateSelection";
@@ -23,8 +23,11 @@ describe("DateSelection calendar hint", () => {
     return container.querySelector(".wizard-calendar-hint")?.textContent ?? "";
   }
 
-  it("explains that closed days are dimmed", () => {
-    expect(renderHint()).toMatch(/dimmed/i);
+  it("does not claim complete dimming when availability could not be read", () => {
+    const hint = renderHint();
+    expect(hint).toMatch(/preview is incomplete/i);
+    expect(hint).toMatch(/next step/i);
+    expect(hint).not.toMatch(/dimmed/i);
   });
 
   // Regression guard: the hint must NOT make a static claim about which
