@@ -14,7 +14,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { logger } from "../../lib/logger";
 

@@ -2,7 +2,7 @@
 // Staff settings tab for calendar sync — subscribe to a feed of all bookings.
 
 import { useState, useCallback, useEffect } from "react";
-import { supabase } from "../../../supabase/client.js";
+import { supabase } from "../../../supabase/client";
 import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,

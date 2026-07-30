@@ -6,7 +6,7 @@ function setSupabase(value) {
   globalThis.__supabaseMockHumanMutations = value;
 }
 
-vi.mock("../../client.js", () => ({
+vi.mock("../../client", () => ({
   get supabase() {
     return globalThis.__supabaseMockHumanMutations;
   },

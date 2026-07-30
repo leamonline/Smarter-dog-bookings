@@ -3,7 +3,7 @@
 // Supabase client directly (Debt #12). `enabled` gates the fetch — the
 // booking detail modal only needs it while a booking is awaiting.
 import { useEffect, useState } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { getDepositSettings } from "../repositories/bookingsRepo";
 
 export function useDepositSettings(enabled = true) {

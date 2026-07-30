@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
-import { supabase } from "../../../supabase/client.js";
+import { supabase } from "../../../supabase/client";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";

@@ -8,7 +8,7 @@ const immediateRows = vi.hoisted(() => ({
   rows: [] as Array<{ setting_date: string; slot: string }>,
 }));
 
-vi.mock("../../../supabase/customerClient.js", () => {
+vi.mock("../../../supabase/customerClient", () => {
   const t = new Date();
   t.setHours(0, 0, 0, 0);
   const toStr = (d: Date) =>

@@ -13,7 +13,7 @@
 import { useMemo, useState } from "react";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { supabase } from "../../supabase/client.js";
+import { supabase } from "../../supabase/client";
 import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveRemindersTone } from "./tone/reminders";

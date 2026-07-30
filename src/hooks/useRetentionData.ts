@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { getDogGroomingIntervals } from "../supabase/rpc";
 import {
   computeRetentionCandidates,

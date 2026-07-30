@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client.js";
+import { supabase } from "../../../../supabase/client";
 import { SALON_SLOTS, BOOKING_STATUS } from "../../../../constants/index.ts";
 import { classifyProposedBooking } from "./slotCapacityPreview.js";
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import {
   createMany,
   joinWaitlist,

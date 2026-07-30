@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchSalonConfigRow } from "../queries/bootQueries.js";
 import { dbConfigToApp, appConfigToDb } from "../transforms";

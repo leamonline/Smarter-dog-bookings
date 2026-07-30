@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 
 export function useConversationNotes({ selectedId, setConversations }) {

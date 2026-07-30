@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchBookingsWeek } from "../queries/bootQueries.js";

@@ -7,7 +7,7 @@ function setSupabase(value) {
   globalThis.__supabaseMockAuth = value;
 }
 
-vi.mock("../client.js", () => ({
+vi.mock("../client", () => ({
   get supabase() {
     return globalThis.__supabaseMockAuth;
   },

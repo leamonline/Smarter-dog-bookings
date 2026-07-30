@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";

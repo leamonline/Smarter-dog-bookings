@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient";
 import { cancelCustomerBooking, getDepositSettings } from "../../supabase/repositories/bookingsRepo";
 import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";

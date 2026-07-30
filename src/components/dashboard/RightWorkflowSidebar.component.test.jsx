@@ -39,7 +39,7 @@ vi.mock("../../supabase/hooks/useTodos.js", () => ({
 // supabase client is touched by the cards via the lifted hooks above;
 // since we've mocked those hooks the client itself is unreachable, but
 // the import still needs to resolve.
-vi.mock("../../supabase/client.js", () => ({ supabase: null }));
+vi.mock("../../supabase/client", () => ({ supabase: null }));
 
 import { RightWorkflowSidebar } from "./RightWorkflowSidebar.jsx";
 

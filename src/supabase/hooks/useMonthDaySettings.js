@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";

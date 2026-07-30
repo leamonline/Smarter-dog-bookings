@@ -4,7 +4,7 @@
 
 import { useState, useCallback } from "react";
 import { Calendar } from "lucide-react";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient";
 import { getOrCreateCalendarFeedToken } from "../../supabase/rpc";
 import { logger } from "../../lib/logger";
 

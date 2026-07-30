@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
 
-vi.mock("../client.js", () => ({
+vi.mock("../client", () => ({
   bookingPolicyClient: { rpc },
 }));
 

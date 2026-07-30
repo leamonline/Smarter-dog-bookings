@@ -15,7 +15,7 @@
 // isolation against a stubbed supabase client, and so the monolith
 // shrinks without the InboxView consumer noticing.
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 
 export function useConversationLifecycle({

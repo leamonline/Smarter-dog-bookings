@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient";
 import { useDraftPersistence } from "../../hooks/useDraftPersistence.js";
 import { toDateStr } from "../../supabase/transforms";
 import { MyDetailsCard } from "./MyDetailsCard.jsx";

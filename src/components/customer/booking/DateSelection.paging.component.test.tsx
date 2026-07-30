@@ -10,7 +10,7 @@ const availability = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../../supabase/customerClient.js", () => ({ customerSupabase: {} }));
+vi.mock("../../../supabase/customerClient", () => ({ customerSupabase: {} }));
 vi.mock("../../../supabase/rpc", () => ({ getOpenDays: availability.getOpenDays }));
 vi.mock("../../../supabase/repositories/bookingsRepo", () => ({
   listRangeForCapacity: availability.listRangeForCapacity,

@@ -65,7 +65,7 @@ const supabase = {
   functions: { invoke: (...args) => invoke(...args) },
 };
 
-vi.mock("../../../supabase/client.js", () => ({ supabase }));
+vi.mock("../../../supabase/client", () => ({ supabase }));
 
 const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 

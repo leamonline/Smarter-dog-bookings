@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   listForHuman: vi.fn(),
 }));
 
-vi.mock("../../../supabase/customerClient.js", () => ({
+vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: { rpc: mocks.rpc },
 }));
 

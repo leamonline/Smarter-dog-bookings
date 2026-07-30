@@ -10,7 +10,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
 import { listOnDateForCapacity } from "../../supabase/repositories/bookingsRepo";
-import { supabase } from "../../supabase/client.js";
+import { supabase } from "../../supabase/client";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 

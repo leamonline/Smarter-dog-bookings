@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Send } from "lucide-react";
-import { supabase } from "../../../supabase/client.js";
+import { supabase } from "../../../supabase/client";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures.js";

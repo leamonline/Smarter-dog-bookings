@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../constants/index";
 import { getDefaultOpenForDate } from "../engine/utils";
 import { computeBookingPricing, isCountableBooking } from "../engine/bookingRules";

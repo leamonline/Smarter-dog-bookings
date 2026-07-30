@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingPolicyRules, BookingPolicyRuntimeStatus } from "../../types";
 import { createDefaultBookingRules } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
-import { bookingPolicyClient } from "../client.js";
+import { bookingPolicyClient } from "../client";
 import {
   getBookingPolicyRuntimeStatus,
   getBookingRules,
@@ -16,8 +15,8 @@ import {
 import { registerResume } from "../refreshOnResume.js";
 
 // The Playwright transport deliberately implements only the RPC surface this
-// hook calls. Production receives the full Supabase client.
-const policyClient = bookingPolicyClient as SupabaseClient | null;
+// hook calls. Production receives a structurally compatible typed client.
+const policyClient = bookingPolicyClient;
 
 export type BookingRulesPatch = Partial<
   Omit<BookingPolicyRules, "customerPortal" | "depositBank">

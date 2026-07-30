@@ -15,7 +15,7 @@
 // but the explicit refetch keeps the post-send navigation
 // synchronous).
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { buildTemplateParams } from "../../../constants/whatsappTemplates.js";
 import { SEND_FUNCTION_PATH, parseSupabaseFunctionError } from "./helpers.js";
 

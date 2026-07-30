@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { getOpenDays } from "../../../supabase/rpc";
 import { listRangeForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
 import { getDefaultOpenForDate } from "../../../engine/utils";

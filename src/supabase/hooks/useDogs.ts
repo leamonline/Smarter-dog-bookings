@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { searchDogsDirectory } from "../rpc";
 import {
@@ -10,6 +10,7 @@ import {
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
 import { logger } from "../../lib/logger";
 import { safeGet, safeSet } from "../../lib/storage";
+import type { Database } from "../database.types";
 
 const PAGE_SIZE = 50;
 
@@ -395,7 +396,7 @@ export function useDogs(
       // Translate the app-shape patch to row shape FIRST: the optimistic
       // write goes into dogsById (the single source of truth) and the
       // derived `dogs` map picks it up on the same render.
-      const dbUpdates: Record<string, any> = {};
+      const dbUpdates: Database["public"]["Tables"]["dogs"]["Update"] = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.breed !== undefined) dbUpdates.breed = updates.breed;
       if (updates.age !== undefined) dbUpdates.age = updates.age;

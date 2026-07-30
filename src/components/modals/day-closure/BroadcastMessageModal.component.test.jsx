@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
 const invoke = vi.fn();
-vi.mock("../../../supabase/client.js", () => ({
+vi.mock("../../../supabase/client", () => ({
   supabase: { functions: { invoke: (...args) => invoke(...args) } },
 }));
 

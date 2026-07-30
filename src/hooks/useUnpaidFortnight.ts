@@ -5,7 +5,7 @@
 // the query and the app can't disagree about what "unpaid" means.
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { BOOKING_STATUS } from "../constants/salon";
 import { logger } from "../lib/logger";
 

@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { OverlayProvider } from "react-aria";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
-import { supabaseConfigError } from "./supabase/client.js";
+import { supabaseConfigError } from "./supabase/client";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
 import { initSentry } from "./lib/sentry.js";

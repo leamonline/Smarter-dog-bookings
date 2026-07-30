@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { getSizeForBreed } from "../../../constants/breeds";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";

@@ -21,7 +21,7 @@ const allocation = {
   groupId: "replacement-group",
 };
 
-vi.mock("../../../supabase/customerClient.js", () => ({
+vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: { rpc: vi.fn() },
 }));
 

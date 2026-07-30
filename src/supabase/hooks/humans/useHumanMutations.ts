@@ -5,12 +5,13 @@
 // useTrustedContacts.replaceTrustedLinks; this hook still owns the
 // optimistic state and the rollback on failure.
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { findHumanByIdOrName } from "../../transforms";
 import { stripFormatChars } from "../../../utils/phone.js";
 import { isRealPersonName } from "../../../utils/text";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
+import type { Database } from "../../database.types";
 import type { HumansMap, SetHumansMap, TrustedContact } from "./helpers";
 import type { ReplaceTrustedLinks } from "./useTrustedContacts";
 import type { Dispatch, SetStateAction } from "react";
@@ -88,7 +89,7 @@ export function useHumanMutations({
 
       setError(null);
 
-      const dbUpdates: Record<string, any> = {};
+      const dbUpdates: Database["public"]["Tables"]["humans"]["Update"] = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.surname !== undefined) dbUpdates.surname = updates.surname;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;

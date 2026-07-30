@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 
 /**
  * useGroupBookings — fetches and manages bookings in a recurring group chain.

@@ -18,7 +18,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client.js";
+import { supabase } from "../../../../supabase/client";
 import { registerResume } from "../../../../supabase/refreshOnResume.js";
 import { logger } from "../../../../lib/logger";
 import { buildCustomerSummary } from "./customerContextSummary.js";

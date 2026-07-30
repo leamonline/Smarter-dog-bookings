@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { submitCustomerSignup } from "../../../supabase/rpc";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
