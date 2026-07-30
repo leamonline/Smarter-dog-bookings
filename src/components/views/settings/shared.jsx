@@ -39,6 +39,14 @@ export function CardBody({ children }) {
   return <div className="p-4">{children}</div>;
 }
 
+export function ReadOnlyNotice({ children }) {
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] leading-relaxed text-slate-700">
+      {children}
+    </div>
+  );
+}
+
 let settingRowIdCounter = 0;
 const nextSettingRowId = () => `setting-row-${++settingRowIdCounter}`;
 

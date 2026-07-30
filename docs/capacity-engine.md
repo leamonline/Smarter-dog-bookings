@@ -8,30 +8,29 @@ can't slip past).
 
 ## The rule, in one line
 
-At any given time block, the salon will hold at most:
+Each slot normally has **two seats**. The engine lowers a slot to **one
+seat** when either the two slots immediately before it, the slots on either
+side, or the two slots immediately after it are already using two seats each.
+That 2-2-1 pattern prevents a run of fully occupied neighbouring slots; it is
+not a quota of two small dogs, two medium dogs, and one large dog in the same
+slot.
 
-- **2 small dogs**
-- **2 medium dogs**
-- **1 large dog**
-
-…hence "2-2-1". Large dogs may only be booked into a fixed set of
-approved slots (see "Approved large-dog slots" below); outside
-those slots the seat count for large is zero, not one.
+Large dogs have separate approved-slot and sharing rules (see "Approved
+large-dog slots" below). Those rules decide whether a large dog can use one or
+two seats; they do not create a third size-specific seat pool.
 
 ## Worked example
 
-A Monday at 09:00 with two cockapoos and a Frenchie already booked:
+A Monday where 09:00 and 09:30 each already use both seats:
 
-| Dog | Size | Allowed? |
+| Proposed booking at 10:00 | Seats needed | Allowed? |
 |---|---|---|
-| Cockapoo #3 | small | ❌ — small seats full (2 / 2) |
-| Standard Poodle | medium | ✅ — medium has 1 / 2 used |
-| Labrador (if 09:00 is an approved large slot) | large | ✅ — large has 0 / 1 used |
-| Labrador (if 09:00 is **not** an approved large slot) | large | ❌ — no large seat at this time |
+| One-seat booking | 1 | ✅ — the 2-2-1 rule caps 10:00 at one seat, which remains free |
+| Two-seat full-takeover booking | 2 | ❌ — 10:00 is capped at one seat |
 
-The detail modal will tell staff exactly which constraint blocked a
-booking ("Small seats full", "Not a large-dog slot", etc.) so the
-"why not" is never a mystery.
+The engine evaluates the same rule around the target slot in both directions,
+so the limit also applies if 10:00 sits between two fully occupied neighbours.
+The detail modal will tell staff which constraint blocked a booking.
 
 ## Where the rule lives in code
 
@@ -76,12 +75,12 @@ Current rules: **08:30** and **09:00** take 1 seat and can share
 early-closes 13:00; **12:30** and **13:00** are 2-seat full
 takeovers with no sharing.
 
-> ⚠️ **`salon_config.large_dog_slots` is decorative.** The
-> Settings → Capacity Engine card writes that jsonb column, but no
-> enforcement path reads it — removing a chip in Settings changes
-> nothing (audit finding AUDIT-1, 2026-07-01). Changing the real
-> rules means changing all three hardcoded copies above **together**
-> and extending the parity test
+> ⚠️ **`salon_config.large_dog_slots` is decorative.** Earlier editable
+> versions of the Settings → Capacity Engine card wrote that jsonb column,
+> but no enforcement path read it — removing a chip in Settings changed
+> nothing (audit finding AUDIT-1, 2026-07-01). The current card is read-only
+> and cannot change that column. Changing the real rules means changing all
+> three hardcoded copies above **together** and extending the parity test
 > (`src/lib/whatsapp/capacityParity.test.ts`).
 
 ## Disabling the rule
@@ -91,11 +90,12 @@ The server-side kill switch is **`salon_config.enforce_server_capacity`**
 `true`) and skips validation when it is `false`. There is no UI for
 it; flip it via SQL for one-off events, and flip it back.
 
-Two things that look like off-switches but aren't:
+Two things that could look like off-switches but are not:
 
-- The toggle on the Capacity Engine settings card writes a
-  **different** column (`salon_config.enforce_capacity`) that nothing
-  reads — it is currently a no-op (AUDIT-1).
+- The former Capacity Engine settings toggle wrote a **different** column
+  (`salon_config.enforce_capacity`) that nothing read — it was a no-op
+  (AUDIT-1). That toggle has been removed: the current card is read-only and
+  there is no UI kill switch.
 - Per-booking, staff can set `bookings.staff_capacity_override` to
   bypass capacity for that row only; the trigger honours it for
   staff inserts and forces it off for non-staff.

@@ -21,4 +21,11 @@ describe("CapacitySettings", () => {
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
+
+  it("explains the seat sequence rather than size quotas", () => {
+    render(<CapacitySettings />);
+
+    expect(screen.getByText(/Each time slot normally has two seats/i)).toBeInTheDocument();
+    expect(screen.getByText(/not quotas by dog size/i)).toBeInTheDocument();
+  });
 });

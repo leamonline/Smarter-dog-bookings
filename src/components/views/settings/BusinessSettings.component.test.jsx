@@ -1,5 +1,4 @@
-// Validation + autosave-status tests for the explicit-save Business tab and an
-// autosave tab (P1 batch C).
+// Behavioural coverage for the Settings panels that retain real write paths.
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -38,31 +37,27 @@ const INACTIVE_RUNTIME = {
   scheduledEffectiveAt: null,
 };
 
-describe("BusinessSettings email validation", () => {
-  const config = { businessName: "My Salon", businessPhone: "", businessEmail: "", businessAddress: "" };
+describe("BusinessSettings read-only details", () => {
+  const config = {
+    businessName: "My Salon",
+    businessPhone: "0161 123 4567",
+    businessEmail: "hello@mysalon.co.uk",
+    businessAddress: "42 Market Street, Manchester",
+  };
 
-  it("blocks save and shows an error for an invalid email", async () => {
-    const user = userEvent.setup();
-    const onUpdateConfig = vi.fn().mockResolvedValue({ ok: true });
-    render(<BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit />);
+  it("keeps persisted customer details visible and directs staff to a coordinated update", () => {
+    render(<BusinessSettings config={config} onUpdateConfig={vi.fn()} canEdit />);
 
-    await user.type(screen.getByPlaceholderText(/hello@smarterdog/i), "not-an-email");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/email doesn't look right/i);
-    expect(onUpdateConfig).not.toHaveBeenCalled();
-  });
-
-  it("saves once the email is valid", async () => {
-    const user = userEvent.setup();
-    const onUpdateConfig = vi.fn().mockResolvedValue({ ok: true });
-    render(<BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit />);
-
-    await user.type(screen.getByPlaceholderText(/hello@smarterdog/i), "hi@smarterdog.co.uk");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    await waitFor(() => expect(onUpdateConfig).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Saved business details — reference only")).toBeInTheDocument();
+    expect(screen.queryByText("Details shown to customers on the booking portal")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("My Salon")).toBeDisabled();
+    expect(screen.getByDisplayValue("0161 123 4567")).toBeDisabled();
+    expect(screen.getByDisplayValue("hello@mysalon.co.uk")).toBeDisabled();
+    expect(screen.getByDisplayValue("42 Market Street, Manchester")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/These details are read-only for now/i)).toHaveTextContent(
+      "These details are read-only for now because this screen does not update every customer-facing place. Ask the owner for a coordinated app update.",
+    );
   });
 });
 
@@ -159,11 +154,11 @@ describe("BookingRulesSettings authoritative controls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the current pick-up offset wired to legacy config while v1 is inactive", async () => {
+  it("keeps calendar appointment duration/end time wired to legacy config while v1 is inactive", async () => {
     const { onUpdateConfig } = renderRules();
 
     const pickupOffset = screen.getByRole("spinbutton", {
-      name: /default pick-up offset/i,
+      name: "Calendar appointment duration/end time",
     });
     fireEvent.change(pickupOffset, { target: { value: "150" } });
 

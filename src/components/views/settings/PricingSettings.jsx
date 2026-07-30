@@ -1,54 +1,10 @@
-import { useState } from "react";
 import { SERVICES, DOG_SIZES } from "../../../constants/index";
-import { parseGBPInput, penceToPounds, pricePenceFromTableValue } from "../../../utils/money";
-import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useAutosaveStatus, SaveStatus } from "./shared.jsx";
+import { penceToPounds, pricePenceFromTableValue } from "../../../utils/money";
+import { Card, CardHead, CardBody, ReadOnlyNotice, SECTION_LABEL_CLS } from "./shared.jsx";
 
-export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
-  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServiceIcon, setNewServiceIcon] = useState("");
-
+export function PricingSettings({ config }) {
   const currentServices = config?.services || SERVICES;
   const currentPricing = config?.pricing || {};
-
-  const updatePricing = (serviceId, size, rawValue) => {
-    if (!canEdit) return;
-    // Staff type pounds ("42" / "42.50"); the config stores INTEGER PENCE.
-    // Blank (or junk) stores null — the app falls back to the built-in
-    // guide price for that service+size.
-    const pence = parseGBPInput(rawValue);
-    save((prev) => ({
-      ...prev,
-      pricing: {
-        ...prev.pricing,
-        [serviceId]: { ...(prev.pricing?.[serviceId] || {}), [size]: pence },
-      },
-    }));
-  };
-
-  const deleteService = (serviceId) => {
-    if (!canEdit) return;
-    save((prev) => {
-      const updatedServices = (prev.services || SERVICES).filter((s) => s.id !== serviceId);
-      const updatedPricing = { ...prev.pricing };
-      delete updatedPricing[serviceId];
-      return { ...prev, services: updatedServices, pricing: updatedPricing };
-    });
-  };
-
-  const addService = () => {
-    if (!canEdit) return;
-    const name = newServiceName.trim();
-    if (!name) return;
-    const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    save((prev) => ({
-      ...prev,
-      services: [...(prev.services || SERVICES), { id, name, icon: newServiceIcon || "\u2702\uFE0F" }],
-      pricing: { ...prev.pricing, [id]: { small: null, medium: null, large: null } },
-    }));
-    setNewServiceName("");
-    setNewServiceIcon("");
-  };
 
   const priceInputCls = "w-full py-2 px-2 pl-10 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 outline-none transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";
 
@@ -57,10 +13,12 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
       <CardHead
         variant="yellow"
         title="Services & Pricing"
-        desc='Base prices per size — shown as "from" on the booking portal'
-        right={<SaveStatus status={status} />}
+        desc="Saved guide prices by dog size"
       />
       <CardBody>
+        <ReadOnlyNotice>
+          Prices are read-only for now. Changes need a coordinated release; ask the owner and allow half a working day. Adding or removing a service uses that same process.
+        </ReadOnlyNotice>
         {/* Header + rows scroll together on narrow screens so the price
             columns stay aligned and legible instead of crushing the layout. */}
         <div className="overflow-x-auto">
@@ -107,9 +65,9 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
                     type="number"
                     min="0"
                     step="0.5"
-                    disabled={!canEdit}
+                    disabled
                     value={val}
-                    onChange={(e) => updatePricing(s.id, size, e.target.value)}
+                    readOnly
                     className={priceInputCls}
                   />
                 </div>
@@ -117,14 +75,9 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
             })}
             <button
               type="button"
-              onClick={() => deleteService(s.id)}
-              disabled={!canEdit}
+              disabled
               aria-label={`Delete ${s.name} service`}
-              className={`tap-target w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all ${
-                canEdit
-                  ? "cursor-pointer hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
-                  : "cursor-not-allowed opacity-60"
-              }`}
+              className="tap-target w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all cursor-not-allowed opacity-60"
             >
               {"\u2715"}
             </button>
@@ -136,15 +89,14 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
         <div className="flex gap-2 mt-3 items-center">
           <input
             type="text"
-            disabled={!canEdit}
-            value={newServiceName}
-            onChange={(e) => setNewServiceName(e.target.value)}
+            disabled
+            value=""
+            readOnly
             placeholder="Service name"
             className="flex-1 py-2 px-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
           />
           <button
-            onClick={addService}
-            disabled={!canEdit}
+            disabled
             className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-4 py-2 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all whitespace-nowrap hover:border-brand-teal hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-slate-200 disabled:hover:text-slate-500"
           >
             + Add service

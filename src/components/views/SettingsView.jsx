@@ -43,8 +43,8 @@ export function SettingsView({
   const tablistRef = useRef(null);
   const keyboardNav = useRef(false);
 
-  // The explicit-save tabs (Business, Hours, Account) report unsaved edits up
-  // here so we can guard against losing them on a tab switch or page unload.
+  // The editable Account tab reports unsaved edits up here so we can guard
+  // against losing them on a tab switch or page unload.
   const [dirty, setDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
 

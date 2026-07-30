@@ -41,22 +41,24 @@ describe("SettingsView unsaved-changes guard", () => {
     const user = userEvent.setup();
     render(<SettingsView {...baseProps()} />);
 
-    await user.type(screen.getByDisplayValue("My Salon"), "!");
+    await user.click(screen.getByRole("tab", { name: "Your Account" }));
+    await user.type(screen.getByPlaceholderText("e.g. Sarah"), "!");
     await user.click(screen.getByRole("tab", { name: /booking rules/i }));
 
     expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /keep editing/i }));
     expect(screen.queryByText(/discard unsaved changes/i)).not.toBeInTheDocument();
-    // still on Business with the edit intact
-    expect(screen.getByDisplayValue("My Salon!")).toBeInTheDocument();
+    // still on Account with the edit intact
+    expect(screen.getByDisplayValue("Sarah!")).toBeInTheDocument();
   });
 
   it("'Discard changes' leaves the dirty tab and switches", async () => {
     const user = userEvent.setup();
     render(<SettingsView {...baseProps()} />);
 
-    await user.type(screen.getByDisplayValue("My Salon"), "!");
+    await user.click(screen.getByRole("tab", { name: "Your Account" }));
+    await user.type(screen.getByPlaceholderText("e.g. Sarah"), "!");
     await user.click(screen.getByRole("tab", { name: /booking rules/i }));
     await user.click(screen.getByRole("button", { name: /discard changes/i }));
 
@@ -102,11 +104,12 @@ describe("SettingsView unsaved-changes guard", () => {
     render(<SettingsView {...baseProps()} />);
 
     expect(screen.getByRole("tablist", { name: "Settings sections" })).toBeInTheDocument();
-    await user.type(screen.getByDisplayValue("My Salon"), "!");
+    await user.click(screen.getByRole("tab", { name: "Your Account" }));
+    await user.type(screen.getByPlaceholderText("e.g. Sarah"), "!");
     await user.click(screen.getByRole("tab", { name: "Booking Rules" }));
     expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByRole("tab", { name: "Your Business" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveAttribute("aria-selected", "true");
   });
 });

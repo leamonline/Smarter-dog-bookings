@@ -321,7 +321,7 @@ export function BookingRulesSettings({
           <>
             <div className={SECTION_LABEL_CLS}>Current booking setup</div>
             <InlineField
-              label="Default pick-up offset"
+              label="Calendar appointment duration/end time"
               sublabel="Estimated minutes after drop-off for collection"
               suffix="mins"
               value={config?.defaultPickupOffset ?? 120}
