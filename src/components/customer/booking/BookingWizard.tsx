@@ -19,8 +19,10 @@ import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
+import { LEGACY_BOOKING_HORIZON_DAYS, resolveCustomerBookingHorizonDays } from "../../../supabase/customerBookingRules";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
+import { logger } from "../../../lib/logger";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
 import { ServiceSelection } from "./ServiceSelection";
@@ -187,6 +189,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
+  const [bookingHorizonDays, setBookingHorizonDays] = useState(LEGACY_BOOKING_HORIZON_DAYS);
   // Deposit-required owners: the DB stamps reference + due-by at insert;
   // we read them back after creation so the success screen can show the
   // payment instructions. Null = no deposit needed (or lookup failed —
@@ -199,6 +202,26 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   } | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  // This customer-safe read is advisory UI configuration only. The legacy
+  // 28-day state remains in place for a missing client, an RPC failure, or an
+  // unmounted wizard, so a transient read never blocks a customer booking.
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase) return;
+    void resolveCustomerBookingHorizonDays(supabase, (rpcError) => {
+      logger.error("Failed to fetch customer booking rules", rpcError, {
+        tags: { component: "BookingWizard", op: "current_customer_booking_rules" },
+      });
+    }).then((horizon) => {
+      if (!cancelled) setBookingHorizonDays(horizon);
+    }).catch((rpcError) => {
+      logger.error("Failed to fetch customer booking rules", rpcError, {
+        tags: { component: "BookingWizard", op: "current_customer_booking_rules" },
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Focus the step heading when the step changes (A2: focus management)
   useEffect(() => {
@@ -844,6 +867,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
         {step === 3 && (
           <DateSelection
+            bookingHorizonDays={bookingHorizonDays}
             selectedDogs={selectedDogs}
             selectedDate={selectedDate}
             onSelect={setSelectedDate}

@@ -242,6 +242,21 @@
   text-align: center;
   margin: 0 0 10px;
 }
+.wizard-calendar-range {
+  font-size: 12px;
+  color: var(--sd-navy-soft);
+  text-align: center;
+  margin: 0 0 4px;
+}
+.wizard-calendar-pages {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+.wizard-calendar-pages .wizard-btn {
+  flex: 1;
+}
 .wizard-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
