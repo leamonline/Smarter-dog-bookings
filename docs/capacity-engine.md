@@ -8,30 +8,29 @@ can't slip past).
 
 ## The rule, in one line
 
-At any given time block, the salon will hold at most:
+Each slot normally has **two seats**. The engine lowers a slot to **one
+seat** when either the two slots immediately before it, the slots on either
+side, or the two slots immediately after it are already using two seats each.
+That 2-2-1 pattern prevents a run of fully occupied neighbouring slots; it is
+not a quota of two small dogs, two medium dogs, and one large dog in the same
+slot.
 
-- **2 small dogs**
-- **2 medium dogs**
-- **1 large dog**
-
-…hence "2-2-1". Large dogs may only be booked into a fixed set of
-approved slots (see "Approved large-dog slots" below); outside
-those slots the seat count for large is zero, not one.
+Large dogs have separate approved-slot and sharing rules (see "Approved
+large-dog slots" below). Those rules decide whether a large dog can use one or
+two seats; they do not create a third size-specific seat pool.
 
 ## Worked example
 
-A Monday at 09:00 with two cockapoos and a Frenchie already booked:
+A Monday where 09:00 and 09:30 each already use both seats:
 
-| Dog | Size | Allowed? |
+| Proposed booking at 10:00 | Seats needed | Allowed? |
 |---|---|---|
-| Cockapoo #3 | small | ❌ — small seats full (2 / 2) |
-| Standard Poodle | medium | ✅ — medium has 1 / 2 used |
-| Labrador (if 09:00 is an approved large slot) | large | ✅ — large has 0 / 1 used |
-| Labrador (if 09:00 is **not** an approved large slot) | large | ❌ — no large seat at this time |
+| One-seat booking | 1 | ✅ — the 2-2-1 rule caps 10:00 at one seat, which remains free |
+| Two-seat full-takeover booking | 2 | ❌ — 10:00 is capped at one seat |
 
-The detail modal will tell staff exactly which constraint blocked a
-booking ("Small seats full", "Not a large-dog slot", etc.) so the
-"why not" is never a mystery.
+The engine evaluates the same rule around the target slot in both directions,
+so the limit also applies if 10:00 sits between two fully occupied neighbours.
+The detail modal will tell staff which constraint blocked a booking.
 
 ## Where the rule lives in code
 

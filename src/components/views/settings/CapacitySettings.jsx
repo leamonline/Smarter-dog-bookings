@@ -22,7 +22,7 @@ export function CapacitySettings() {
       <CardHead
         variant="coral"
         title="Capacity Engine"
-        desc="The 2-2-1 rule controls how many dogs can be booked at once"
+        desc="The 2-2-1 rule is a seat-capacity pattern across neighbouring slots"
       />
       <CardBody>
         <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-700 leading-relaxed">
@@ -30,16 +30,15 @@ export function CapacitySettings() {
             What the 2-2-1 rule means
           </p>
           <p className="m-0 mb-1.5">
-            Up to <strong>2 small dogs</strong>, <strong>2 medium dogs</strong>,
-            and <strong>1 large dog</strong> can be in the salon in the same
-            time block. Large dogs may only be booked into the approved slots
-            listed below.
+            Each time slot normally has two seats. The 2-2-1 rule lowers a
+            slot to one seat when an adjacent pair of slots is already using
+            two seats each. It is a seat-capacity pattern, not quotas by dog
+            size.
           </p>
           <p className="m-0 mb-1.5 text-slate-600">
-            <em>Worked example:</em> at 09:00 with two cockapoos already booked,
-            a third small dog is blocked, a standard poodle (medium) is allowed,
-            and a labrador is allowed only if 09:00 is in the approved-slot
-            list.
+            <em>Worked example:</em> if 09:00 and 09:30 are each using two
+            seats, 10:00 is limited to one seat. A one-seat booking can use it
+            if its own rules allow; a two-seat full-takeover booking cannot.
           </p>
           <p className="m-0 text-slate-600">
             Full details + the underlying check function are in{" "}
