@@ -527,12 +527,17 @@ Deno.test("keeps later dates honest and only shows RPC-verified small-dog slots 
   const context = requestBody.messages[0]?.content ?? "";
   const approvedFurtherAheadWording =
     "I can show you the next couple of months here. If you’re looking further ahead, your account has everything up to six months — https://smarterdog.vercel.app/customer/login 🐾";
+  const positiveVerificationRule =
+    "Within every non-empty small/medium availability block, only the listed date-and-slot combinations are verified.";
 
   assertStringIncludes(requestBody.system, "unverified, not unavailable");
+  assertStringIncludes(requestBody.system, positiveVerificationRule);
   assertStringIncludes(requestBody.system, approvedFurtherAheadWording);
   assertStringIncludes(requestBody.system, "🎓🐶❤️ X");
   assertStringIncludes(context, "https://smarterdog.vercel.app/customer/login");
   assertStringIncludes(context, `${promptDate(verifiedIso)}: 09:00`);
+  assertStringIncludes(context, "Only the date-and-slot combinations listed above are verified.");
+  assertStringIncludes(context, "Any missing date is unverified");
   assert(
     !context.includes(`${promptDate(missingIso)}: (closed)`),
     "a default-open date missing from RPC rows must not be labelled closed",

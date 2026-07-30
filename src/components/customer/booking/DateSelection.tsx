@@ -20,22 +20,23 @@ interface DateSelectionProps {
   onSelect: (date: string) => void;
   onNext: () => void;
   onBack: () => void;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  pageCache?: Map<string, DatePageAvailability>;
 }
 
-interface PageAvailability {
+export interface DatePageAvailability {
+  rangeKey: string;
   daySettings: Record<string, { is_open: boolean }>;
   occupancyByDate: Record<string, Booking[]> | null;
   blockedByDate: Record<string, Record<string, SlotOverrides>>;
+  complete: boolean;
 }
 
 type DayState = "closed" | "full" | "open";
 
 const PAGE_SIZE = 28;
-const EMPTY_PAGE: PageAvailability = {
-  daySettings: {},
-  occupancyByDate: null,
-  blockedByDate: {},
-};
+const BLOCKED_SEAT_CHUNK_DAYS = 14;
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function toDateStr(d: Date): string {
@@ -43,6 +44,38 @@ function toDateStr(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function incompletePage(rangeKey: string): DatePageAvailability {
+  return {
+    rangeKey,
+    daySettings: {},
+    occupancyByDate: null,
+    blockedByDate: {},
+    complete: false,
+  };
+}
+
+function blockedSeatChunks(
+  startDate: string,
+  endDate: string,
+): Array<{ startDate: string; endDate: string }> {
+  const chunks: Array<{ startDate: string; endDate: string }> = [];
+  const cursor = new Date(`${startDate}T00:00:00`);
+  const finalDate = new Date(`${endDate}T00:00:00`);
+  while (cursor <= finalDate) {
+    const chunkStart = new Date(cursor);
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setDate(chunkEnd.getDate() + BLOCKED_SEAT_CHUNK_DAYS - 1);
+    if (chunkEnd > finalDate) chunkEnd.setTime(finalDate.getTime());
+    chunks.push({
+      startDate: toDateStr(chunkStart),
+      endDate: toDateStr(chunkEnd),
+    });
+    cursor.setTime(chunkEnd.getTime());
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return chunks;
 }
 
 function startOfToday(): Date {
@@ -71,19 +104,27 @@ export function DateSelection({
   onSelect,
   onNext,
   onBack,
+  page: controlledPage,
+  onPageChange,
+  pageCache: controlledPageCache,
 }: DateSelectionProps) {
   const [today] = useState(startOfToday);
   const pageCount = Math.max(1, Math.ceil(bookingHorizonDays / PAGE_SIZE));
-  const [page, setPage] = useState(0);
-  const currentPage = Math.min(page, pageCount - 1);
-  const [pageAvailability, setPageAvailability] = useState<PageAvailability>(EMPTY_PAGE);
+  const [internalPage, setInternalPage] = useState(0);
+  const requestedPage = controlledPage ?? internalPage;
+  const currentPage = Math.min(requestedPage, pageCount - 1);
+  const [pageAvailability, setPageAvailability] = useState<DatePageAvailability | null>(null);
   const [immediate, setImmediate] = useState<{ date: string | null; slots: string[] }>({ date: null, slots: [] });
   const [loading, setLoading] = useState(true);
-  const pageCache = useRef(new Map<string, PageAvailability>());
+  const internalPageCache = useRef(new Map<string, DatePageAvailability>());
+  const pageCache = controlledPageCache ?? internalPageCache.current;
 
   useEffect(() => {
-    setPage((current) => Math.min(current, pageCount - 1));
-  }, [pageCount]);
+    if (requestedPage <= pageCount - 1) return;
+    const clampedPage = pageCount - 1;
+    if (onPageChange) onPageChange(clampedPage);
+    else setInternalPage(clampedPage);
+  }, [onPageChange, pageCount, requestedPage]);
 
   const firstOffset = currentPage * PAGE_SIZE + 1;
   const lastOffset = Math.min(bookingHorizonDays, firstOffset + PAGE_SIZE - 1);
@@ -113,7 +154,7 @@ export function DateSelection({
 
   useEffect(() => {
     let cancelled = false;
-    const cached = pageCache.current.get(rangeKey);
+    const cached = pageCache.get(rangeKey);
     if (cached) {
       setPageAvailability(cached);
       setLoading(false);
@@ -122,19 +163,24 @@ export function DateSelection({
 
     void (async () => {
       setLoading(true);
-      if (!supabase) {
+      const client = supabase;
+      if (!client) {
         if (!cancelled) {
-          setPageAvailability(EMPTY_PAGE);
+          setPageAvailability(incompletePage(rangeKey));
           setLoading(false);
         }
         return;
       }
 
       try {
-        const [openRes, occRes, blockedRes] = await Promise.all([
-          getOpenDays(supabase, { startDate: rangeStart, endDate: rangeEnd }),
-          listRangeForCapacity(supabase, rangeStart, rangeEnd),
-          listBlockedSeats(supabase, rangeStart, rangeEnd),
+        const [openRes, occRes, blockedResults] = await Promise.all([
+          getOpenDays(client, { startDate: rangeStart, endDate: rangeEnd }),
+          listRangeForCapacity(client, rangeStart, rangeEnd),
+          Promise.all(
+            blockedSeatChunks(rangeStart, rangeEnd).map((chunk) =>
+              listBlockedSeats(client, chunk.startDate, chunk.endDate)
+            ),
+          ),
         ]);
         if (cancelled) return;
 
@@ -160,29 +206,51 @@ export function DateSelection({
           occupancyByDate = occRes.byDate;
         }
 
-        const nextPage = {
+        const blockedByDate: Record<string, Record<string, SlotOverrides>> = {};
+        let blockedSeatsComplete = true;
+        for (const blockedResult of blockedResults) {
+          Object.assign(blockedByDate, blockedResult.byDate);
+          if (blockedResult.error) {
+            blockedSeatsComplete = false;
+            logger.error("Failed to fetch blocked seats", blockedResult.error, {
+              tags: { component: "DateSelection", op: "get_blocked_seats" },
+            });
+          }
+        }
+
+        const complete = !openRes.error && !occRes.error && blockedSeatsComplete;
+        const nextPage: DatePageAvailability = {
+          rangeKey,
           daySettings,
           occupancyByDate,
-          blockedByDate: blockedRes.byDate,
+          blockedByDate,
+          complete,
         };
         // A degraded page remains usable, but it is not a completed cache
-        // entry: returning to it must retry either required availability read.
-        if (!openRes.error && !occRes.error) {
-          pageCache.current.set(rangeKey, nextPage);
-        }
+        // entry: returning to it must retry every required availability read.
+        if (complete) pageCache.set(rangeKey, nextPage);
         setPageAvailability(nextPage);
+      } catch (requestError) {
+        logger.error("Failed to fetch availability page", requestError, {
+          tags: { component: "DateSelection", op: "get_page_availability" },
+        });
+        if (!cancelled) setPageAvailability(incompletePage(rangeKey));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [rangeEnd, rangeKey, rangeStart]);
+  }, [pageCache, rangeEnd, rangeKey, rangeStart]);
+
+  const visibleAvailability =
+    pageAvailability?.rangeKey === rangeKey ? pageAvailability : null;
+  const displayLoading = loading || visibleAvailability === null;
 
   const isOpen = (date: Date): boolean => {
     const dateStr = toDateStr(date);
-    if (pageAvailability.daySettings[dateStr] !== undefined) {
-      return pageAvailability.daySettings[dateStr].is_open;
+    if (visibleAvailability?.daySettings[dateStr] !== undefined) {
+      return visibleAvailability.daySettings[dateStr].is_open;
     }
     return getDefaultOpenForDate(date);
   };
@@ -190,9 +258,9 @@ export function DateSelection({
   const dogsForEngine = selectedDogs.map((dog) => ({ id: dog.dogId, size: dog.size }));
   const dayStateFor = (date: Date): DayState => {
     if (!isOpen(date)) return "closed";
-    if (pageAvailability.occupancyByDate && dogsForEngine.length > 0) {
-      const dayBookings = pageAvailability.occupancyByDate[toDateStr(date)] ?? [];
-      const dayOverrides = pageAvailability.blockedByDate[toDateStr(date)] || {};
+    if (visibleAvailability?.occupancyByDate && dogsForEngine.length > 0) {
+      const dayBookings = visibleAvailability.occupancyByDate[toDateStr(date)] ?? [];
+      const dayOverrides = visibleAvailability.blockedByDate[toDateStr(date)] || {};
       if (findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY, dayOverrides).length === 0) {
         return "full";
       }
@@ -201,10 +269,10 @@ export function DateSelection({
   };
 
   const todayAvailable = (() => {
-    if (currentPage !== 0 || !immediate.date || immediate.slots.length === 0) return false;
-    if (pageAvailability.occupancyByDate && dogsForEngine.length > 0) {
-      const dayBookings = pageAvailability.occupancyByDate[immediate.date] ?? [];
-      const dayOverrides = pageAvailability.blockedByDate[immediate.date] || {};
+    if (displayLoading || currentPage !== 0 || !immediate.date || immediate.slots.length === 0) return false;
+    if (visibleAvailability?.occupancyByDate && dogsForEngine.length > 0) {
+      const dayBookings = visibleAvailability.occupancyByDate[immediate.date] ?? [];
+      const dayOverrides = visibleAvailability.blockedByDate[immediate.date] || {};
       const flagged = new Set(immediate.slots);
       return findGroupedSlots(dogsForEngine, dayBookings, buildSlotGrid(immediate.slots), DAY_CAPACITY, dayOverrides)
         .some((allocation) => allocationIsImmediate(allocation, flagged));
@@ -217,6 +285,10 @@ export function DateSelection({
   const offset = jsDay === 0 ? 6 : jsDay - 1;
   const gridCells: (Date | null)[] = [...Array(offset).fill(null), ...days];
   while (gridCells.length % 7 !== 0) gridCells.push(null);
+  const changePage = (nextPage: number) => {
+    if (onPageChange) onPageChange(nextPage);
+    else setInternalPage(nextPage);
+  };
 
   return (
     <>
@@ -244,14 +316,24 @@ export function DateSelection({
 
       <div className="wizard-calendar">
         <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
-        <p className="wizard-calendar-range" aria-live="polite">Days {firstOffset}–{lastOffset} of {bookingHorizonDays}</p>
-        <p className="wizard-calendar-hint">Closed and fully-booked days are dimmed — pick any available day.</p>
+        <p className="wizard-calendar-range" aria-live="polite">
+          {bookingHorizonDays === 180
+            ? `Days ${firstOffset}–${lastOffset}. Bookings are available up to six months ahead.`
+            : `Days ${firstOffset}–${lastOffset} of ${bookingHorizonDays}.`}
+        </p>
+        {!displayLoading && visibleAvailability.complete ? (
+          <p className="wizard-calendar-hint">Closed and fully-booked days are dimmed — pick any available day.</p>
+        ) : !displayLoading ? (
+          <p className="wizard-calendar-hint" role="status">
+            We couldn’t check every date completely. This preview is incomplete, and we’ll check your chosen date again at the next step.
+          </p>
+        ) : null}
 
         <div className="wizard-calendar-grid">
           {DAY_HEADERS.map((header) => <div key={header} className="wizard-day-header">{header}</div>)}
         </div>
 
-        {loading ? (
+        {displayLoading ? (
           <div className="wizard-calendar-grid mt-1" aria-busy="true" aria-live="polite">
             {Array.from({ length: days.length }).map((_, index) => <div key={index} className="skeleton-row skeleton-row--sm" />)}
             <span className="sr-only">Loading availability…</span>
@@ -284,10 +366,10 @@ export function DateSelection({
         )}
 
         <div className="wizard-calendar-pages" aria-label="Date pages">
-          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => setPage((current) => Math.max(0, current - 1))} disabled={currentPage === 0} aria-label="Previous dates">
+          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => changePage(Math.max(0, currentPage - 1))} disabled={currentPage === 0} aria-label="Previous dates">
             <ArrowLeft size={16} aria-hidden="true" /> Previous
           </button>
-          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))} disabled={currentPage === pageCount - 1} aria-label="Next dates">
+          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => changePage(Math.min(pageCount - 1, currentPage + 1))} disabled={currentPage === pageCount - 1} aria-label="Next dates">
             Next <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>

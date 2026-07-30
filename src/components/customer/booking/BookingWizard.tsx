@@ -26,7 +26,7 @@ import { logger } from "../../../lib/logger";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
 import { ServiceSelection } from "./ServiceSelection";
-import { DateSelection } from "./DateSelection";
+import { DateSelection, type DatePageAvailability } from "./DateSelection";
 import { SlotSelection } from "./SlotSelection";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { AddToCalendarButton } from "../AddToCalendarButton";
@@ -190,6 +190,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
   const [bookingHorizonDays, setBookingHorizonDays] = useState(LEGACY_BOOKING_HORIZON_DAYS);
+  const [datePage, setDatePage] = useState(0);
+  const datePageCache = useRef(new Map<string, DatePageAvailability>());
   // Deposit-required owners: the DB stamps reference + due-by at insert;
   // we read them back after creation so the success screen can show the
   // payment instructions. Null = no deposit needed (or lookup failed —
@@ -873,6 +875,9 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onSelect={setSelectedDate}
             onNext={() => setStep(4)}
             onBack={() => setStep(2)}
+            page={datePage}
+            onPageChange={setDatePage}
+            pageCache={datePageCache.current}
           />
         )}
 

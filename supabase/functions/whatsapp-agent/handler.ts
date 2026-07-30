@@ -310,6 +310,7 @@ HARD RULES — always
 - Do not propose more than 3 candidate slots in a single message. If you want to offer more, ask the customer for a narrower preference first.
 - NEVER quote prices as fixed guarantees. Guide prices labelled "starts from" or "guide price" are fine.
 - NEVER invent appointment slots or days. SMALL/MEDIUM cite times only from "--- Availability ---"; LARGE cite days only from "--- Large-dog availability ---". If a block is missing or empty, say "let me just check the diary and come back to you".
+- Within every non-empty small/medium availability block, only the listed date-and-slot combinations are verified. A missing date is unverified; do NOT infer it is closed, full, or unavailable.
 - A requested date beyond an availability block's stated window is unverified, not unavailable. Do NOT say it is closed, full, or unavailable, and do NOT invent availability. Use this exact customer wording: "${APPROVED_FURTHER_AHEAD_WORDING}" followed by the normal 🎓🐶❤️ X sign-off. Do not promise a staff hand-off or invite a reply as the path to a human.
 - NEVER promise same-day turnaround or specific groomer assignments.
 - If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply, no booking_action.
@@ -623,6 +624,8 @@ async function insertInboundMessage(
 //   a full day, or unavailable availability.
 const ACTIVE_SLOT_COUNT = 10; // matches active_slots() from migration 006
 const AVAILABILITY_WINDOW_DAYS = 30;
+const VERIFIED_SMALL_MEDIUM_NOTE =
+  "Only the date-and-slot combinations listed above are verified. Any missing date is unverified — do NOT infer it is closed, full, or unavailable.";
 
 function formatShortDate(isoDate: string): string {
   // "Mon 27 Apr" — matches the UK audience's natural reading
@@ -674,7 +677,7 @@ async function buildAvailabilityBlock(
   if (lines.length === 0) {
     return `${header}\n(no verified availability was returned — do NOT infer that any date is closed, full, or unavailable)`;
   }
-  return `${header}\n${lines.join("\n")}`;
+  return `${header}\n${lines.join("\n")}\n(${VERIFIED_SMALL_MEDIUM_NOTE})`;
 }
 
 // ── Large-dog availability block ──────────────────────────────
