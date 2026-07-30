@@ -29,7 +29,7 @@
 // ============================================================
 
 import { useSyncExternalStore } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";

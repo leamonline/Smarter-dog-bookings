@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient";
 import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,

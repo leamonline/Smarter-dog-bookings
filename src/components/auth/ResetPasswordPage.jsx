@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../supabase/client.js";
+import { supabase } from "../../supabase/client";
 import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 import { isPasswordPwned } from "../../utils/pwnedPassword";
 

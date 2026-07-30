@@ -18,7 +18,7 @@
 // setConversations as setters — same plumbing pattern as
 // useAIModeControls.
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { applyWhatsappBookingAction } from "../../rpc";
 

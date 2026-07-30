@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
   const resetPasswordForEmail = vi.fn().mockResolvedValue({ data: {}, error: null });
   return { eq, update, from, updateUser, resetPasswordForEmail };
 });
-vi.mock("../client.js", () => ({
+vi.mock("../client", () => ({
   supabase: { from: mocks.from, auth: { updateUser: mocks.updateUser, resetPasswordForEmail: mocks.resetPasswordForEmail } },
 }));
 

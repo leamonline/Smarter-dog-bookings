@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 
-import { supabase } from "./supabase/client.js";
+import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";

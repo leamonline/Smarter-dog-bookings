@@ -16,7 +16,7 @@ vi.mock("../../supabase/hooks/useMonthBookings.js", () => ({
 vi.mock("../../supabase/hooks/useMonthDaySettings.js", () => ({
   useMonthDaySettings: () => ({ monthDaySettings: {}, monthDayOpenState: monthState.openState, monthDaySettingsLoading: false }),
 }));
-vi.mock("../../supabase/client.js", () => ({ supabase: {} }));
+vi.mock("../../supabase/client", () => ({ supabase: {} }));
 vi.mock("../../supabase/repositories/bookingsRepo", () => ({
   listOnDateForCapacity: vi.fn().mockResolvedValue({ bookings: [], error: null }),
 }));

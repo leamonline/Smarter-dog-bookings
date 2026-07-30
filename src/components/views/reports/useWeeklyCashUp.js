@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../../supabase/client.js";
+import { supabase } from "../../../supabase/client";
 import { fetchBookingsWeek } from "../../../supabase/queries/bootQueries.js";
 import {
   buildDogsById,

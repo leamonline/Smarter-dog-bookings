@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
 }));
-vi.mock("../../supabase/client.js", () => ({ supabase: null }));
+vi.mock("../../supabase/client", () => ({ supabase: null }));
 
 import { SettingsView } from "./SettingsView.jsx";
 

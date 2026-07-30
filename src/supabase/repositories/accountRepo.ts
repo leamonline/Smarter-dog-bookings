@@ -2,7 +2,7 @@
 // for a staff member's own profile + auth credentials. Keeps these queries out
 // of AccountSettings.jsx (Debt #12): the client is owned here, and the query
 // shapes are testable rather than hand-built in JSX.
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 
 /** Whether the account backend is reachable (false in offline/sample mode). */
 export function isAccountBackendAvailable(): boolean {

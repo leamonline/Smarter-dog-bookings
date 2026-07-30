@@ -5,7 +5,7 @@ function setSupabase(value) {
   globalThis.__supabaseMockOwnerEvents = value;
 }
 
-vi.mock("../client.js", () => ({
+vi.mock("../client", () => ({
   get supabase() {
     return globalThis.__supabaseMockOwnerEvents;
   },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";

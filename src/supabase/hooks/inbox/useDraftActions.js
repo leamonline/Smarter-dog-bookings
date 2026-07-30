@@ -19,7 +19,7 @@
 // isolation. Takes setters + refs from the monolith — same plumbing
 // pattern as useAIModeControls / useBookingActionDecisions.
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { SEND_FUNCTION_PATH } from "./helpers.js";
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { MapPin, Loader2, Search } from "lucide-react";
 
 /**

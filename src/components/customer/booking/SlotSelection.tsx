@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";

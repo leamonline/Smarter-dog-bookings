@@ -8,7 +8,7 @@
 // permanently lose every link when the insert failed after the delete had
 // committed.
 import { useCallback, useRef } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { replaceTrustedContacts } from "../../rpc";
 import { findHumanByIdOrName } from "../../transforms";
 import { looksLikeUuid } from "../../../engine/bookingRules";

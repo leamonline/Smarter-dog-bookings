@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient";
 import { updateCustomerDog } from "../../supabase/rpc";
 import { getSizeForBreed } from "../../constants/breeds";
 import { cardAnim } from "./dashboardConstants.js";

@@ -16,7 +16,7 @@
 // ============================================================
 
 import { useSyncExternalStore, useMemo } from "react";
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 import {
   completeClosureRearrangementTask,
   decideCustomerOverrideRescheduleRequest,

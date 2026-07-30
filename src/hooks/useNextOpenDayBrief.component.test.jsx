@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mutable mock: null = offline; an object = a stub client.
 const clientRef = { current: null };
-vi.mock("../supabase/client.js", () => ({
+vi.mock("../supabase/client", () => ({
   get supabase() {
     return clientRef.current;
   },

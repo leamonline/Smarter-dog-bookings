@@ -13,7 +13,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client.js";
+import { supabase } from "../../../../supabase/client";
 import { logger } from "../../../../lib/logger";
 
 const MIN_QUERY_LENGTH = 2;

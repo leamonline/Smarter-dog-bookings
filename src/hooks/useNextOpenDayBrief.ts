@@ -5,7 +5,7 @@
 // isn't in it. Read-only: rows carry just what the brief renders.
 import { useCallback, useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { BOOKING_STATUS } from "../constants/salon";
 import { getDefaultOpenForDate } from "../engine/utils";
 import { logger } from "../lib/logger";

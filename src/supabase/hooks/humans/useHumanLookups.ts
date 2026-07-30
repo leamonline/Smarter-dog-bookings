@@ -6,7 +6,7 @@
 // rows directly and fold them into the caches so subsequent lookups are
 // instant.
 import { useCallback, useRef } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
 import { fetchTrustedContactsForHuman } from "./useTrustedContacts";

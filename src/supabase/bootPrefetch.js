@@ -9,7 +9,7 @@
 // The auth gate itself is untouched: nothing renders earlier, the responses
 // just arrive sooner. NO caching layer — each primed promise is handed out
 // at most once, only for matching params, and only within a short TTL.
-import { supabase } from "./client.js";
+import { supabase } from "./client";
 import { toDateStr } from "./transforms";
 import {
   fetchBookingsWeek,

@@ -5,7 +5,7 @@
 // and optimistically update the shared caches while realtime reconciles
 // the canonical rows.
 import { useCallback } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import {
   approveCustomerSignup,
   rejectCustomerSignup,

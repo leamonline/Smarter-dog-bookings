@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
-import { supabase } from "../../supabase/client.js";
+import { supabase } from "../../supabase/client";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 

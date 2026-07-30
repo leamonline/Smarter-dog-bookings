@@ -8,7 +8,7 @@
 // iOS only delivers push to a Home-Screen-installed PWA (display: standalone),
 // so the UI gates the enable button on `isStandalone`.
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { logger } from "../lib/logger";
 import { urlBase64ToUint8Array } from "../lib/push/urlBase64";
 import {

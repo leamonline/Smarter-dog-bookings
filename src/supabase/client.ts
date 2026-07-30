@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 import { logger } from "../lib/logger";
 
 // VITE_FORCE_OFFLINE=1 forces the app into offline/sample-data mode regardless
@@ -35,9 +36,24 @@ if (supabaseConfigError) {
 
 // Use a simple in-memory lock instead of navigator.locks, which causes
 // deadlocks when multiple Supabase hooks mount simultaneously.
-const navigatorLockFallback = async (name, _opts, fn) => {
+type LockQueue = Record<string, Promise<unknown>>;
+
+interface NavigatorLockFallback {
+  <Result>(
+    name: string,
+    _opts: number,
+    fn: () => Promise<Result>,
+  ): Promise<Result>;
+  _q?: LockQueue;
+}
+
+const navigatorLockFallback: NavigatorLockFallback = async <Result>(
+  name: string,
+  _opts: number,
+  fn: () => Promise<Result>,
+) => {
   // Serialise callers with a promise queue per lock name.
-  navigatorLockFallback._q = navigatorLockFallback._q || {};
+  navigatorLockFallback._q ??= {};
   const prev = navigatorLockFallback._q[name] || Promise.resolve();
   const next = prev.catch(() => {}).then(() => fn());
   navigatorLockFallback._q[name] = next;
@@ -46,7 +62,7 @@ const navigatorLockFallback = async (name, _opts, fn) => {
 
 export const supabase =
   supabaseUrl && supabaseKey
-    ? createClient(supabaseUrl, supabaseKey, {
+    ? createClient<Database>(supabaseUrl, supabaseKey, {
         auth: {
           lock: navigatorLockFallback,
         },
@@ -58,24 +74,40 @@ export const supabase =
 // a real page reload must refetch a server-shaped projection instead of merely
 // preserving React memory. This transport is absent from normal dev and
 // production builds.
-const e2eBookingPolicyRpc =
+export interface BookingPolicyRpcTransport {
+  rpc(
+    name: "current_booking_rules" | "booking_policy_runtime_status",
+  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  rpc(
+    name: "update_booking_rules",
+    args: { p_rules: Record<string, unknown> },
+  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+}
+
+async function e2eBookingPolicyRpcCall(
+  name: string,
+  args?: Record<string, unknown>,
+) {
+  const response = await fetch("/__e2e/booking-policy-rpc", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, args }),
+  });
+  if (!response.ok) {
+    return {
+      data: null,
+      error: { message: "E2E booking-policy RPC failed." },
+    };
+  }
+  return response.json();
+}
+
+const e2eBookingPolicyRpc: BookingPolicyRpcTransport | null =
   forceOffline && import.meta.env.VITE_E2E_BOOKING_POLICY_RPC === "1"
     ? {
-        rpc: async (name, args) => {
-          const response = await fetch("/__e2e/booking-policy-rpc", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, args }),
-          });
-          if (!response.ok) {
-            return {
-              data: null,
-              error: { message: "E2E booking-policy RPC failed." },
-            };
-          }
-          return response.json();
-        },
+        rpc: e2eBookingPolicyRpcCall,
       }
     : null;
 
-export const bookingPolicyClient = supabase || e2eBookingPolicyRpc;
+export const bookingPolicyClient: BookingPolicyRpcTransport | null =
+  supabase || e2eBookingPolicyRpc;

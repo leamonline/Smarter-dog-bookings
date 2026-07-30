@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
-vi.mock("../../../supabase/client.js", () => ({ supabase: null }));
+vi.mock("../../../supabase/client", () => ({ supabase: null }));
 
 const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 

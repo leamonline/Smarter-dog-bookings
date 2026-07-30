@@ -7,6 +7,7 @@
 // surfaces — both share the same RPC functions but operate under
 // different RLS contexts.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { BookingPolicyRpcTransport } from "./client";
 
 export type CalendarFeedType = "customer" | "staff";
 
@@ -774,12 +775,12 @@ export function getCustomerBookingRules(client: SupabaseClient) {
 }
 
 // Staff-only full Booking Rules, and the audited owner-only save.
-export function getBookingRules(client: SupabaseClient) {
+export function getBookingRules(client: BookingPolicyRpcTransport) {
   return client.rpc("current_booking_rules");
 }
 
 export function updateBookingRules(
-  client: SupabaseClient,
+  client: BookingPolicyRpcTransport,
   params: { rules: Record<string, unknown> },
 ) {
   return client.rpc("update_booking_rules", { p_rules: params.rules });
@@ -787,7 +788,7 @@ export function updateBookingRules(
 
 // The policy runtime status a client may poll to know when to refetch.
 // Browser time never authorises a mutation; the server decides.
-export function getBookingPolicyRuntimeStatus(client: SupabaseClient) {
+export function getBookingPolicyRuntimeStatus(client: BookingPolicyRpcTransport) {
   return client.rpc("booking_policy_runtime_status");
 }
 

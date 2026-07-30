@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { customerSupabase as supabase } from "../customerClient.js";
+import { customerSupabase as supabase } from "../customerClient";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
 import { logger } from "../../lib/logger";
@@ -21,7 +21,7 @@ const PASSWORD_LOGIN_ERROR =
  * Customer authentication: phone + password, with SMS OTP as the
  * first-login / forgot-password path.
  *
- * Uses a SEPARATE Supabase client (customerClient.js) with its own
+ * Uses a SEPARATE Supabase client (customerClient) with its own
  * storage key so staff and customer sessions don't conflict.
  *
  * The login page is phone-first:

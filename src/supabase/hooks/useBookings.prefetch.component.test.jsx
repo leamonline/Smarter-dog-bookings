@@ -8,7 +8,7 @@ function setSupabase(value) {
   globalThis.__supabaseMockBookingsPrefetch = value;
 }
 
-vi.mock("../client.js", () => ({
+vi.mock("../client", () => ({
   get supabase() {
     return globalThis.__supabaseMockBookingsPrefetch;
   },

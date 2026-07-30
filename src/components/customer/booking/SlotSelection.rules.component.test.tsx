@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 
 // Empty occupancy + no blocked seats + no immediate slots: the whole grid is
 // on offer for a future date, so the per-human rules are the only filter.
-vi.mock("../../../supabase/customerClient.js", () => ({
+vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: {
     rpc: () => Promise.resolve({ data: [], error: null }),
   },

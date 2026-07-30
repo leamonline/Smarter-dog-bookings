@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../supabase/customerClient.js", () => ({
+vi.mock("../../supabase/customerClient", () => ({
   customerSupabase: { rpc: vi.fn() },
 }));
 

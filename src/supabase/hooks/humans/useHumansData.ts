@@ -5,7 +5,7 @@
 // from useHumans (Debt #5); the setters are returned so the sibling hooks
 // (mutations, lifecycle, lookups) can keep the caches coherent.
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../../client.js";
+import { supabase } from "../../client";
 import { CHANNELS, uniqueChannelName } from "../../realtimeChannels";
 import { searchHumansDirectory } from "../../rpc";
 import { logger } from "../../../lib/logger";

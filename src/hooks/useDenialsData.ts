@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { computeDenialStats, type DenialRow, type DenialStats } from "../engine/denials";
 import { logger } from "../lib/logger";
 

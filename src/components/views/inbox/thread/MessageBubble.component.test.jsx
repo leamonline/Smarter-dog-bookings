@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { MessageBubble } from "./MessageBubble.jsx";
 
-vi.mock("../../../../supabase/client.js", () => ({
+vi.mock("../../../../supabase/client", () => ({
   supabase: {
     storage: {
       from: () => ({

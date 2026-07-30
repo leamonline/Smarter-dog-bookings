@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 // Avoid initialising a real Supabase client at import time. A null client is
 // deliberately incomplete, so this fixture exercises the truthful degraded
 // hint rather than pretending closure and capacity reads succeeded.
-vi.mock("../../../supabase/customerClient.js", () => ({ customerSupabase: null }));
+vi.mock("../../../supabase/customerClient", () => ({ customerSupabase: null }));
 
 import { DateSelection } from "./DateSelection";
 

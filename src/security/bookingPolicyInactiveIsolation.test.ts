@@ -27,6 +27,7 @@ function productionSources(): Array<{ path: string; text: string }> {
   return sourceFiles("src")
     .filter((p) => !/\.test\.|\.component\.test\./.test(p))
     .filter((p) => p !== join("src", "supabase", "rpc.ts"))
+    .filter((p) => p !== join("src", "supabase", "database.types.ts"))
     .map((p) => ({ path: p, text: readFileSync(join(root, p), "utf8") }));
 }
 

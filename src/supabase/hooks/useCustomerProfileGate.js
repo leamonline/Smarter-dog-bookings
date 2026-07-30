@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { customerSupabase as supabase } from "../customerClient.js";
+import { customerSupabase as supabase } from "../customerClient";
 import { logger } from "../../lib/logger";
 
 /**

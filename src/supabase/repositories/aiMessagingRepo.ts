@@ -1,6 +1,6 @@
 // Staff-only persistence for the global AI WhatsApp safety switch.
 // Components deliberately do not touch the Supabase client directly.
-import { supabase } from "../client.js";
+import { supabase } from "../client";
 
 export interface AiWhatsAppSetting {
   enabled: boolean;

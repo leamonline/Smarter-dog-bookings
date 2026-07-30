@@ -6,7 +6,7 @@ import { searchHumansAndDogs } from "../../../../supabase/repositories/humansRep
 import { listForHuman } from "../../../../supabase/repositories/dogsRepo";
 import { logger } from "../../../../lib/logger";
 
-vi.mock("../../../../supabase/client.js", () => ({
+vi.mock("../../../../supabase/client", () => ({
   supabase: {
     from: vi.fn(),
   },

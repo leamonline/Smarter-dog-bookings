@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { latestOnTheWaySignal, ON_THE_WAY_WINDOW_MINUTES, type OnTheWaySignal, type InboundMessage } from "../engine/onTheWay";
 import { logger } from "../lib/logger";
 

@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 //  - 14 dogs (the daily cap) on "tomorrow", so a 15th can't fit there.
 // The factory is hoisted, so it computes the window itself rather than
 // capturing outer scope.
-vi.mock("../../../supabase/customerClient.js", () => {
+vi.mock("../../../supabase/customerClient", () => {
   const t = new Date();
   t.setHours(0, 0, 0, 0);
   const tom = new Date(t);

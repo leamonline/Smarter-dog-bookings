@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
-import { supabase } from "../../../../supabase/client.js";
+import { supabase } from "../../../../supabase/client";
 import { logger } from "../../../../lib/logger";
 import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";

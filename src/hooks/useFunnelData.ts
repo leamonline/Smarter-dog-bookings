@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { computeFunnelStats, type FunnelEventRow, type FunnelStats } from "../engine/funnel";
 import { logger } from "../lib/logger";
 

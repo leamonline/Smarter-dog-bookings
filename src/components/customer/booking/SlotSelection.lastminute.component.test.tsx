@@ -7,7 +7,7 @@ const immediateRows = vi.hoisted(() => ({
   rows: [] as Array<{ setting_date: string; slot: string }>,
 }));
 
-vi.mock("../../../supabase/customerClient.js", () => ({
+vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: {
     rpc: (name: string) => {
       if (name === "get_immediate_slots") {

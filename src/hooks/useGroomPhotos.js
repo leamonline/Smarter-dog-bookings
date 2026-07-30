@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { supabase } from "../supabase/client.js";
+import { supabase } from "../supabase/client";
 import { resizeImage } from "../utils/imageResize.js";
 import { logger } from "../lib/logger";
 
