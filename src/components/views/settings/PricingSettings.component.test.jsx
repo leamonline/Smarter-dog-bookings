@@ -8,7 +8,7 @@ vi.mock("../../../contexts/ToastContext.jsx", () => ({
 import { PricingSettings } from "./PricingSettings.jsx";
 
 describe("PricingSettings read-only service matrix", () => {
-  it("shows configured prices but disables edits without autosaving", () => {
+  it("shows the persisted price matrix and gives staff the coordinated release path", () => {
     const onUpdateConfig = vi.fn();
     render(
       <PricingSettings
@@ -22,13 +22,18 @@ describe("PricingSettings read-only service matrix", () => {
     );
 
     expect(screen.getByText("Full groom")).toBeInTheDocument();
-    for (const input of screen.getAllByRole("spinbutton")) expect(input).toBeDisabled();
+    const [smallPrice, mediumPrice, largePrice] = screen.getAllByRole("spinbutton");
+    expect(smallPrice).toHaveValue(42.5);
+    expect(mediumPrice).toHaveValue(50);
+    expect(largePrice).toHaveValue(60);
+    for (const input of [smallPrice, mediumPrice, largePrice]) expect(input).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete Full groom service" })).toBeDisabled();
     expect(screen.getByPlaceholderText("Service name")).toBeDisabled();
     expect(screen.getByRole("button", { name: /add service/i })).toBeDisabled();
-    fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "45" } });
+    fireEvent.change(smallPrice, { target: { value: "45" } });
     expect(onUpdateConfig).not.toHaveBeenCalled();
-    expect(screen.getByText(/Prices are read-only for now. Changes need a coordinated release/i)).toBeInTheDocument();
-    expect(screen.getByText(/adding or removing a service uses that same process/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prices are read-only for now/i)).toHaveTextContent(
+      "Prices are read-only for now. Changes need a coordinated release; ask the owner and allow half a working day. Adding or removing a service uses that same process.",
+    );
   });
 });

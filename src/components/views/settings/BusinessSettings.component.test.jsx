@@ -38,17 +38,24 @@ const INACTIVE_RUNTIME = {
 };
 
 describe("BusinessSettings read-only details", () => {
-  const config = { businessName: "My Salon", businessPhone: "", businessEmail: "", businessAddress: "" };
+  const config = {
+    businessName: "My Salon",
+    businessPhone: "0161 123 4567",
+    businessEmail: "hello@mysalon.co.uk",
+    businessAddress: "42 Market Street, Manchester",
+  };
 
-  it("shows stored business details without offering a placebo save", () => {
+  it("keeps persisted customer details visible and directs staff to a coordinated update", () => {
     render(<BusinessSettings config={config} onUpdateConfig={vi.fn()} canEdit />);
 
     expect(screen.getByDisplayValue("My Salon")).toBeDisabled();
-    expect(screen.getByPlaceholderText("07700 900123")).toBeDisabled();
-    expect(screen.getByPlaceholderText("hello@smarterdog.co.uk")).toBeDisabled();
-    expect(screen.getByPlaceholderText("123 High Street, Exampletown")).toBeDisabled();
+    expect(screen.getByDisplayValue("0161 123 4567")).toBeDisabled();
+    expect(screen.getByDisplayValue("hello@mysalon.co.uk")).toBeDisabled();
+    expect(screen.getByDisplayValue("42 Market Street, Manchester")).toBeDisabled();
     expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/These details are read-only for now because this screen does not update every customer-facing place/i)).toBeInTheDocument();
+    expect(screen.getByText(/These details are read-only for now/i)).toHaveTextContent(
+      "These details are read-only for now because this screen does not update every customer-facing place. Ask the owner for a coordinated app update.",
+    );
   });
 });
 
