@@ -7,6 +7,15 @@ import { createDefaultSalonConfig } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
 import { useBookingPolicyRuntime } from "./useBookingPolicyRuntime";
 
+function isValidAuthoritativeRow(row, expectedId) {
+  return (
+    typeof row?.id === "string" &&
+    row.id.length > 0 &&
+    (expectedId === undefined || row.id === expectedId) &&
+    (typeof row.updated_at === "string" || row.updated_at === null)
+  );
+}
+
 // `canSeed` is true when the caller is an owner — only owners pass the
 // owner_insert_salon_config RLS check, so we only attempt the seed in that case.
 export function useSalonConfig({ canSeed = false } = {}) {
@@ -17,6 +26,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
   const configRef = useRef(null);
   const rowRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
+  const externalAuthorityGenerationRef = useRef(0);
 
   const installConfig = useCallback((nextConfig) => {
     configRef.current = nextConfig;
@@ -25,11 +35,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
 
   const installAuthoritativeRow = useCallback((row) => {
     const nextConfig = dbConfigToApp(row);
-    const hasIdentityAndVersion =
-      typeof row?.id === "string" &&
-      row.id.length > 0 &&
-      Object.prototype.hasOwnProperty.call(row, "updated_at") &&
-      row.updated_at !== undefined;
+    const hasIdentityAndVersion = isValidAuthoritativeRow(row);
 
     rowRef.current = hasIdentityAndVersion
       ? { id: row.id, updatedAt: row.updated_at }
@@ -37,6 +43,31 @@ export function useSalonConfig({ canSeed = false } = {}) {
     installConfig(nextConfig);
     return hasIdentityAndVersion;
   }, [installConfig]);
+
+  const recoverAuthoritativeConfig = useCallback(async (previousConfig) => {
+    let latest;
+    let reloadError;
+    try {
+      ({ data: latest, error: reloadError } = await fetchSalonConfigRow(supabase));
+    } catch (err) {
+      reloadError = err;
+    }
+
+    if (reloadError || !isValidAuthoritativeRow(latest)) {
+      rowRef.current = null;
+      installConfig(previousConfig);
+      if (reloadError) {
+        logger.error("Failed to reload config after an unverifiable write", reloadError, {
+          tags: { hook: "useSalonConfig", op: "updateConfig" },
+        });
+      }
+      return false;
+    }
+
+    installAuthoritativeRow(latest);
+    externalAuthorityGenerationRef.current += 1;
+    return true;
+  }, [installAuthoritativeRow, installConfig]);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -96,12 +127,23 @@ export function useSalonConfig({ canSeed = false } = {}) {
   // accepted config, rather than from a possibly stale render snapshot.
   const updateConfig = useCallback(
     (updaterOrValue) => {
+      const isUpdater = typeof updaterOrValue === "function";
+      const enqueuedAuthorityGeneration = externalAuthorityGenerationRef.current;
       const turn = saveQueueRef.current.then(async () => {
         const previousConfig = configRef.current || createDefaultSalonConfig();
-        const nextConfig =
-          typeof updaterOrValue === "function"
-            ? updaterOrValue(previousConfig)
-            : updaterOrValue;
+        if (
+          !isUpdater &&
+          enqueuedAuthorityGeneration !== externalAuthorityGenerationRef.current
+        ) {
+          return {
+            ok: false,
+            error: "Settings changed while this save was queued. Please review the latest settings and try your change again.",
+          };
+        }
+
+        const nextConfig = isUpdater
+          ? updaterOrValue(previousConfig)
+          : updaterOrValue;
         installConfig(nextConfig);
 
         if (!supabase) return { ok: true };
@@ -134,22 +176,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
           }
 
           if (!updated) {
-            let latest;
-            let reloadError;
-            try {
-              ({ data: latest, error: reloadError } = await fetchSalonConfigRow(supabase));
-            } catch (err) {
-              reloadError = err;
-            }
-
-            if (reloadError || !latest || !installAuthoritativeRow(latest)) {
-              rowRef.current = null;
-              installConfig(previousConfig);
-              if (reloadError) {
-                logger.error("Failed to reload config after a stale write", reloadError, {
-                  tags: { hook: "useSalonConfig", op: "updateConfig" },
-                });
-              }
+            if (!await recoverAuthoritativeConfig(previousConfig)) {
               return {
                 ok: false,
                 error: "Couldn't reload the latest settings. Please reload before trying your change again.",
@@ -159,6 +186,19 @@ export function useSalonConfig({ canSeed = false } = {}) {
             return {
               ok: false,
               error: "Settings changed elsewhere. The latest settings have been reloaded; please try your change again.",
+            };
+          }
+
+          if (!isValidAuthoritativeRow(updated, authoritativeRow.id)) {
+            if (await recoverAuthoritativeConfig(previousConfig)) {
+              return {
+                ok: false,
+                error: "Couldn't verify the saved settings. The latest settings have been reloaded; please review them before trying again.",
+              };
+            }
+            return {
+              ok: false,
+              error: "Couldn't verify the saved settings. Please reload before trying another change.",
             };
           }
 
@@ -181,7 +221,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
       saveQueueRef.current = turn.catch(() => undefined);
       return turn;
     },
-    [installAuthoritativeRow, installConfig]
+    [installAuthoritativeRow, installConfig, recoverAuthoritativeConfig]
   );
 
   return {

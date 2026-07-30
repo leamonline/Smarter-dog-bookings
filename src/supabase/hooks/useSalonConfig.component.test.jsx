@@ -92,18 +92,23 @@ function deferred() {
 function makeWriteStub({
   readResults = [{ data: CONFIG_ROW, error: null }],
   updateResults = [],
+  insertResults = [],
 } = {}) {
   const updates = [];
+  const inserts = [];
   let readIndex = 0;
   let updateIndex = 0;
+  let insertIndex = 0;
 
   const client = {
     from: vi.fn(() => {
       let operation = "read";
       let currentUpdate = null;
+      let currentInsert = null;
       const builder = {
         select: vi.fn(() => {
           if (operation === "update") currentUpdate.selected = true;
+          if (operation === "insert") currentInsert.selected = true;
           return builder;
         }),
         limit: vi.fn(() => builder),
@@ -123,6 +128,12 @@ function makeWriteStub({
           updates.push(currentUpdate);
           return builder;
         }),
+        insert: vi.fn((payload) => {
+          operation = "insert";
+          currentInsert = { payload, selected: false };
+          inserts.push(currentInsert);
+          return builder;
+        }),
         maybeSingle: vi.fn(() => {
           if (operation === "update") {
             currentUpdate.terminal = currentUpdate.selected
@@ -137,6 +148,15 @@ function makeWriteStub({
             return updateResults[updateIndex++] ?? Promise.resolve({ data: null, error: null });
           }
           return Promise.resolve(readResults[readIndex++] ?? { data: null, error: null });
+        }),
+        single: vi.fn(() => {
+          if (operation !== "insert" || !currentInsert.selected) {
+            return Promise.resolve({
+              data: null,
+              error: { message: "Insert response must select the returned row." },
+            });
+          }
+          return insertResults[insertIndex++] ?? Promise.resolve({ data: null, error: null });
         }),
       };
       return builder;
@@ -155,7 +175,7 @@ function makeWriteStub({
     }),
   };
 
-  return { client, updates };
+  return { client, updates, inserts };
 }
 
 beforeEach(() => {
@@ -342,6 +362,66 @@ describe("useSalonConfig guarded saves", () => {
     });
   });
 
+  it("does not overwrite after an update commits but its acknowledgement is lost", async () => {
+    // Production break caught: after an ambiguous network error, the next
+    // queued save widens or advances its guard and overwrites the committed row.
+    takeBootPrefetch.mockReturnValue(null);
+    const committedRow = {
+      ...CONFIG_ROW,
+      updated_at: "2026-07-30T10:00:01.000Z",
+      default_pickup_offset: 8,
+    };
+    const { client, updates } = makeWriteStub({
+      readResults: [
+        { data: CONFIG_ROW, error: null },
+        { data: committedRow, error: null },
+      ],
+      updateResults: [
+        Promise.resolve({ data: null, error: { message: "connection reset" } }),
+        Promise.resolve({ data: null, error: null }),
+      ],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let firstResult;
+    let secondResult;
+    await act(async () => {
+      const first = result.current.updateConfig((config) => ({
+        ...config,
+        defaultPickupOffset: 8,
+      }));
+      const second = result.current.updateConfig((config) => ({
+        ...config,
+        enforceCapacity: false,
+      }));
+      [firstResult, secondResult] = await Promise.all([first, second]);
+    });
+
+    expect(firstResult).toEqual({ ok: false, error: "connection reset" });
+    expect(secondResult).toEqual({
+      ok: false,
+      error: "Settings changed elsewhere. The latest settings have been reloaded; please try your change again.",
+    });
+    expect(updates).toHaveLength(2);
+    expect(updates[1]).toMatchObject({
+      payload: {
+        default_pickup_offset: 4,
+        enforce_capacity: false,
+      },
+      filters: [
+        { op: "eq", column: "id", value: "cfg-1" },
+        { op: "eq", column: "updated_at", value: "2026-07-30T10:00:00.000Z" },
+      ],
+    });
+    expect(result.current.config).toMatchObject({
+      defaultPickupOffset: 8,
+      enforceCapacity: true,
+    });
+  });
+
   it("reloads the authoritative config and asks the owner to retry after a version conflict", async () => {
     // Production break caught: a zero-row guarded update is reported as a
     // success, or a conflicting change remains displayed as if it committed.
@@ -383,6 +463,85 @@ describe("useSalonConfig guarded saves", () => {
     });
   });
 
+  it("rejects a queued raw value made stale by conflict recovery while a queued updater uses the reload", async () => {
+    // Production break caught: a raw full-config value captured before a
+    // conflict uses the reloaded version and erases the external changes.
+    takeBootPrefetch.mockReturnValue(null);
+    const externalRow = {
+      ...CONFIG_ROW,
+      updated_at: "2026-07-30T10:00:03.000Z",
+      default_pickup_offset: 11,
+      enforce_capacity: false,
+      settings: { businessName: "External authority" },
+    };
+    const { client, updates } = makeWriteStub({
+      readResults: [
+        { data: CONFIG_ROW, error: null },
+        { data: externalRow, error: null },
+      ],
+      updateResults: [
+        Promise.resolve({ data: null, error: null }),
+        Promise.resolve({
+          data: {
+            ...externalRow,
+            updated_at: "2026-07-30T10:00:04.000Z",
+            enforce_capacity: true,
+          },
+          error: null,
+        }),
+      ],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const staleValue = {
+      ...result.current.config,
+      businessName: "Queued stale raw value",
+    };
+
+    let conflictResult;
+    let rawResult;
+    let updaterResult;
+    await act(async () => {
+      const conflictSave = result.current.updateConfig((config) => ({
+        ...config,
+        defaultPickupOffset: 8,
+      }));
+      const rawSave = result.current.updateConfig(staleValue);
+      const updaterSave = result.current.updateConfig((config) => ({
+        ...config,
+        enforceCapacity: true,
+      }));
+      [conflictResult, rawResult, updaterResult] = await Promise.all([
+        conflictSave,
+        rawSave,
+        updaterSave,
+      ]);
+    });
+
+    expect(conflictResult).toEqual({
+      ok: false,
+      error: "Settings changed elsewhere. The latest settings have been reloaded; please try your change again.",
+    });
+    expect(rawResult).toEqual({
+      ok: false,
+      error: "Settings changed while this save was queued. Please review the latest settings and try your change again.",
+    });
+    expect(updaterResult).toEqual({ ok: true });
+    expect(updates).toHaveLength(2);
+    expect(updates[1].payload).toMatchObject({
+      default_pickup_offset: 11,
+      enforce_capacity: true,
+      settings: { businessName: "External authority" },
+    });
+    expect(result.current.config).toMatchObject({
+      defaultPickupOffset: 11,
+      enforceCapacity: true,
+      businessName: "External authority",
+    });
+  });
+
   it("writes only the fetched row at its observed timestamp", async () => {
     // Production break caught: an update uses a broad singleton predicate,
     // allowing a write to overwrite another row or a newer version.
@@ -415,6 +574,69 @@ describe("useSalonConfig guarded saves", () => {
         terminal: "select().maybeSingle()",
       }),
     ]);
+  });
+
+  it.each([
+    [
+      "omits row metadata",
+      {
+        default_pickup_offset: 9,
+        pricing: null,
+        enforce_capacity: false,
+        large_dog_slots: null,
+        settings: null,
+      },
+    ],
+    [
+      "returns a different row id",
+      {
+        ...CONFIG_ROW,
+        id: "cfg-other",
+        updated_at: "2026-07-30T10:00:01.000Z",
+        default_pickup_offset: 9,
+      },
+    ],
+  ])("fails closed when an update response %s", async (_case, malformedResponse) => {
+    // Production break caught: an unverifiable update response is installed
+    // and reported as saved instead of reloading authoritative state.
+    takeBootPrefetch.mockReturnValue(null);
+    const recoveredRow = {
+      ...CONFIG_ROW,
+      updated_at: "2026-07-30T10:00:02.000Z",
+      default_pickup_offset: 12,
+      enforce_capacity: false,
+    };
+    const { client, updates } = makeWriteStub({
+      readResults: [
+        { data: CONFIG_ROW, error: null },
+        { data: recoveredRow, error: null },
+      ],
+      updateResults: [
+        Promise.resolve({ data: malformedResponse, error: null }),
+      ],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saveResult;
+    await act(async () => {
+      saveResult = await result.current.updateConfig((config) => ({
+        ...config,
+        defaultPickupOffset: 9,
+      }));
+    });
+
+    expect(saveResult).toEqual({
+      ok: false,
+      error: "Couldn't verify the saved settings. The latest settings have been reloaded; please review them before trying again.",
+    });
+    expect(updates).toHaveLength(1);
+    expect(result.current.config).toMatchObject({
+      defaultPickupOffset: 12,
+      enforceCapacity: false,
+    });
   });
 
   it.each([
@@ -519,6 +741,80 @@ describe("useSalonConfig guarded saves", () => {
     });
     expect(updates).toHaveLength(0);
     expect(result.current.config.defaultPickupOffset).toBe(4);
+  });
+
+  it("uses an owner-seeded row identity and version for the next save", async () => {
+    // Production break caught: seeding displays defaults but drops the
+    // inserted row metadata, so the owner's first save is broad or rejected.
+    takeBootPrefetch.mockReturnValue(null);
+    const seededRow = {
+      ...CONFIG_ROW,
+      id: "cfg-seeded",
+      updated_at: "2026-07-30T10:00:05.000Z",
+    };
+    const { client, updates, inserts } = makeWriteStub({
+      readResults: [{ data: null, error: null }],
+      insertResults: [Promise.resolve({ data: seededRow, error: null })],
+      updateResults: [
+        Promise.resolve({
+          data: {
+            ...seededRow,
+            updated_at: "2026-07-30T10:00:06.000Z",
+            enforce_capacity: false,
+          },
+          error: null,
+        }),
+      ],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig({ canSeed: true }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saveResult;
+    await act(async () => {
+      saveResult = await result.current.updateConfig((config) => ({
+        ...config,
+        enforceCapacity: false,
+      }));
+    });
+
+    expect(inserts).toHaveLength(1);
+    expect(saveResult).toEqual({ ok: true });
+    expect(updates).toHaveLength(1);
+    expect(updates[0].filters).toEqual([
+      { op: "eq", column: "id", value: "cfg-seeded" },
+      { op: "eq", column: "updated_at", value: "2026-07-30T10:00:05.000Z" },
+    ]);
+  });
+
+  it("fails closed online when no row exists and the caller cannot seed", async () => {
+    // Production break caught: in-memory defaults without an authoritative
+    // row are allowed to widen an online update across salon_config.
+    takeBootPrefetch.mockReturnValue(null);
+    const { client, updates, inserts } = makeWriteStub({
+      readResults: [{ data: null, error: null }],
+    });
+    setSupabase(client);
+
+    const { result } = renderHook(() => useSalonConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saveResult;
+    await act(async () => {
+      saveResult = await result.current.updateConfig((config) => ({
+        ...config,
+        defaultPickupOffset: 9,
+      }));
+    });
+
+    expect(saveResult).toEqual({
+      ok: false,
+      error: "Couldn't save settings because the latest settings could not be verified. Please reload and try again.",
+    });
+    expect(updates).toHaveLength(0);
+    expect(inserts).toHaveLength(0);
+    expect(result.current.config.defaultPickupOffset).toBe(120);
   });
 
   it("keeps in-memory saves working without a Supabase client", async () => {
