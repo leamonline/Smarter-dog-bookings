@@ -18,6 +18,8 @@ export default [
       "archive/**",
       "docs/**",
       "coverage/**",
+      ".ds-sync/**",
+      "ds-bundle/**",
       ".firecrawl/**",
       ".claude/**",
       "playwright-report/**",

@@ -11,9 +11,9 @@ vi.mock("../../client.js", () => ({
   },
 }));
 
-const { useTrustedContacts, fetchTrustedContactsForHuman } = await import(
-  "./useTrustedContacts"
-);
+const trustedContactsModule = await import("./useTrustedContacts");
+const { useTrustedContacts, fetchTrustedContactsForHuman } =
+  trustedContactsModule;
 
 // Chainable thenable from() stub (trimmed from the useHumans anchor
 // harness): every query method records itself and returns the builder; the
@@ -121,6 +121,37 @@ describe("fetchTrustedContactsForHuman", () => {
       trustedContacts: [],
       trustedIds: [],
     });
+  });
+});
+
+describe("fetchTrustedOwnerIdsForHuman", () => {
+  it("loads the owners who selected this person as their trusted human", async () => {
+    const stub = makeStub((ctx) => {
+      if (
+        ctx.table === "human_trusted_contacts" &&
+        ctx.arg("eq")?.[0] === "trusted_id"
+      ) {
+        return {
+          data: [
+            { human_id: "owner-1" },
+            { human_id: "owner-1" },
+            { human_id: "owner-2" },
+          ],
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    });
+    setSupabase(stub);
+
+    expect(
+      trustedContactsModule.fetchTrustedOwnerIdsForHuman,
+    ).toBeTypeOf("function");
+
+    const ownerIds =
+      await trustedContactsModule.fetchTrustedOwnerIdsForHuman("trusted-1");
+
+    expect(ownerIds).toEqual(["owner-1", "owner-2"]);
   });
 });
 

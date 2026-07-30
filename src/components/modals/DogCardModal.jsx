@@ -283,7 +283,6 @@ export function DogCardModal({
 
         <TrustedHumansPanel
           human={owner}
-          humanFullName={ownerLabel}
           humans={humans}
           onClose={onClose}
           onOpenHuman={onOpenHuman}
