@@ -4,6 +4,7 @@ import {
   assertEquals,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
+  bookingConfirmationSkipReason,
   channelAvailableFor,
   pickChannel,
   resolveConfirmationChannel,
@@ -89,5 +90,35 @@ Deno.test("resolveConfirmationChannel: 'auto' with no usable channel skips", () 
   assertEquals(
     resolveConfirmationChannel("auto", human({ whatsapp: false, sms: false, email: null })),
     { channel: null, skip: "no contact method" },
+  );
+});
+
+Deno.test("pending deposits suppress the ordinary booking confirmation until matched", () => {
+  assertEquals(
+    bookingConfirmationSkipReason({
+      confirmation_channel: "auto",
+      deposit_required: true,
+      deposit_received_at: null,
+      payment: "Due at Pick-up",
+    }),
+    "booking is awaiting deposit",
+  );
+  assertEquals(
+    bookingConfirmationSkipReason({
+      confirmation_channel: "auto",
+      deposit_required: true,
+      deposit_received_at: null,
+      payment: "Deposit Paid",
+    }),
+    null,
+  );
+  assertEquals(
+    bookingConfirmationSkipReason({
+      confirmation_channel: "auto",
+      deposit_required: false,
+      deposit_received_at: null,
+      payment: "Due at Pick-up",
+    }),
+    null,
   );
 });

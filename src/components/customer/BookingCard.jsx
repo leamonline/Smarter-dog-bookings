@@ -5,6 +5,7 @@ import { cancelCustomerBooking, getDepositSettings } from "../../supabase/reposi
 import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
+import { DepositHoldInstructions } from "./DepositHoldInstructions";
 import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 
@@ -43,15 +44,6 @@ function friendlyCancellationError(error) {
     return "It’s too close to your appointment to cancel online. Please contact us and we’ll help.";
   }
   return "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.";
-}
-
-function formatDueBy(dueBy) {
-  if (!dueBy) return null;
-  return new Date(dueBy).toLocaleString("en-GB", {
-    weekday: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
@@ -230,19 +222,14 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
             aria-label="Deposit needed"
             className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--sd-navy)]"
           >
-            <strong>Deposit needed to hold this booking.</strong>{" "}
-            Send £{next.deposit_amount ?? 10}
-            {depositBank ? (
-              <>
-                {" "}to {depositBank.accountName} (sort code {depositBank.sortCode}, account{" "}
-                {depositBank.accountNumber})
-              </>
-            ) : null}{" "}
-            with reference <strong>{next.deposit_reference}</strong>
-            {next.deposit_due_by ? <> by {formatDueBy(next.deposit_due_by)}</> : null}.{" "}
-            Your booking is confirmed once your deposit arrives. Deposits are
-            non-refundable and can&apos;t be transferred to another date if you
-            don&apos;t show.
+            <strong>Deposit needed to hold this booking.</strong>
+            <DepositHoldInstructions
+              amount={next.deposit_amount ?? 10}
+              reference={next.deposit_reference ?? null}
+              dueBy={next.deposit_due_by ?? null}
+              bank={depositBank}
+              compact
+            />
           </div>
         )}
 

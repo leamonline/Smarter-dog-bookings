@@ -6,6 +6,7 @@ import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "
 import {
   recipientIdsForBooking,
   fetchHumansByIds,
+  bookingConfirmationSkipReason,
   resolveConfirmationChannel,
 } from "../_shared/recipients.ts";
 
@@ -64,19 +65,23 @@ serve(async (req) => {
       return new Response("No record in payload", { status: 400 });
     }
 
-    // 1. Only process active booked appointments.
+    // 1. Only process active booked appointments. Keep this boundary explicit
+    // in the webhook handler as well as the shared confirmation policy.
     if (booking.status !== "Booked") {
       return new Response("Skipped: status is not 'Booked'", { status: 200 });
     }
 
-    // 1b. Per-booking confirmation choice (staff pick this in the New Booking
-    //     dialog; everything else defaults to 'auto'). 'none' suppresses the
-    //     confirmation entirely; a specific channel forces that method per
-    //     recipient (see resolveConfirmationChannel in the loop below).
-    const confirmationChoice: string = booking.confirmation_channel ?? "auto";
-    if (confirmationChoice === "none") {
-      return new Response("Skipped: confirmation suppressed for this booking", { status: 200 });
+    // 1b. Only send the ordinary confirmation when it is truthful. Alongside
+    // an explicit staff suppression, this keeps a deposit-held appointment
+    // from receiving "booked in / see you then" before staff match payment.
+    const skipReason = bookingConfirmationSkipReason(booking);
+    if (skipReason) {
+      return new Response(`Skipped: ${skipReason}`, { status: 200 });
     }
+
+    // 1c. A specific channel forces that method per recipient; everything
+    //     else defaults to 'auto' (see resolveConfirmationChannel below).
+    const confirmationChoice: string = booking.confirmation_channel ?? "auto";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

@@ -30,6 +30,7 @@ import { DateSelection, type DatePageAvailability } from "./DateSelection";
 import { SlotSelection } from "./SlotSelection";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { AddToCalendarButton } from "../AddToCalendarButton";
+import { DepositHoldInstructions } from "../DepositHoldInstructions";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
 import { Clipboard, PawPrint, Check, ChevronLeft, ArrowRight } from "lucide-react";
 import "./booking-wizard.css";
@@ -202,6 +203,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     dueBy: string | null;
     bank: { accountName: string; sortCode: string; accountNumber: string } | null;
   } | null>(null);
+  const [depositStatusUnknown, setDepositStatusUnknown] = useState(false);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -497,18 +499,22 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       // Deposit-tagged owner? The stamping trigger has already written the
       // reference + due-by onto the new rows (one shared reference per
-      // visit) — read them back for the success screen. Best-effort: a
-      // failure here never blocks the booking.
+      // visit) — read them back for the success screen. The booking itself
+      // remains committed if this read fails, but the success screen then
+      // fails honest instead of guessing that the appointment is confirmed.
+      setDepositInfo(null);
+      setDepositStatusUnknown(false);
       try {
-        const [{ data: depRow }, depositSettings] = await Promise.all([
-          supabase
-            .from("bookings")
-            .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
-            .eq("id", insertedIds[0])
-            .maybeSingle(),
-          getDepositSettings(supabase),
-        ]);
+        const { data: depRow, error: depositReadError } = await supabase
+          .from("bookings")
+          .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
+          .eq("id", insertedIds[0])
+          .maybeSingle();
+        if (depositReadError || !depRow) {
+          throw depositReadError ?? new Error("New booking could not be read back");
+        }
         if (depRow?.deposit_required) {
+          const depositSettings = await getDepositSettings(supabase);
           setDepositInfo({
             amount: depRow.deposit_amount ?? 10,
             reference: depRow.deposit_reference ?? null,
@@ -517,7 +523,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           });
         }
       } catch {
-        /* non-fatal — the dashboard shows the same instructions */
+        setDepositStatusUnknown(true);
       }
 
       setBookedIds(insertedIds);
@@ -682,11 +688,33 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           </div>
         </div>
         <h1 className="booking-success-title">
-          All booked in!
+          {depositInfo
+            ? "Deposit needed"
+            : depositStatusUnknown
+              ? "Appointment saved"
+              : "All booked in!"}
           <ScribbleUnderline />
         </h1>
         <p className="booking-success-subtitle">
-          Can&apos;t wait to see {dogNameStr} on <strong>{dateLabel}</strong> at <strong>{fmtTime(dropOff)}</strong>.
+          {depositInfo ? (
+            <>
+              We&apos;re holding {dogNameStr}&apos;s appointment on{" "}
+              <strong>{dateLabel}</strong> at{" "}
+              <strong>{fmtTime(dropOff)}</strong> until the deposit deadline
+              below.
+            </>
+          ) : depositStatusUnknown ? (
+            <>
+              Your appointment has been saved. Please check your dashboard for
+              any deposit step before treating it as confirmed.
+            </>
+          ) : (
+            <>
+              Can&apos;t wait to see {dogNameStr} on{" "}
+              <strong>{dateLabel}</strong> at{" "}
+              <strong>{fmtTime(dropOff)}</strong>.
+            </>
+          )}
         </p>
         {depositInfo && (
           <div
@@ -696,37 +724,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             style={{ textAlign: "left", marginTop: 12 }}
           >
             <h2 style={{ fontSize: 16, marginTop: 0 }}>
-              One last step — your £{depositInfo.amount} deposit
+              Your £{depositInfo.amount} deposit
             </h2>
-            {depositInfo.bank && (
-              <p style={{ margin: "6px 0" }}>
-                Please send £{depositInfo.amount} to{" "}
-                <strong>{depositInfo.bank.accountName}</strong>, sort code{" "}
-                <strong>{depositInfo.bank.sortCode}</strong>, account{" "}
-                <strong>{depositInfo.bank.accountNumber}</strong>.
-              </p>
-            )}
-            <p style={{ margin: "6px 0" }}>
-              Use the reference <strong>{depositInfo.reference}</strong>
-              {depositInfo.dueBy ? (
-                <>
-                  {" "}by{" "}
-                  <strong>
-                    {new Date(depositInfo.dueBy).toLocaleString("en-GB", {
-                      weekday: "long",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </strong>
-                </>
-              ) : null}
-              .
-            </p>
-            <p style={{ margin: "6px 0", fontSize: 13 }}>
-              Your booking is confirmed once your deposit arrives. Deposits are
-              non-refundable and can&apos;t be transferred to another date if you
-              don&apos;t show.
-            </p>
+            <DepositHoldInstructions
+              amount={depositInfo.amount}
+              reference={depositInfo.reference}
+              dueBy={depositInfo.dueBy}
+              bank={depositInfo.bank}
+              compact
+            />
           </div>
         )}
         {bookingRef && (

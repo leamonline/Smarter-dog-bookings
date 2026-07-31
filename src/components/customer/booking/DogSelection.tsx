@@ -6,6 +6,7 @@ import { AddDogInline } from "./AddDogInline";
 import { PawPrint, ArrowRight } from "lucide-react";
 import { WizardTick } from "./WizardTick";
 import { titleCase } from "../../../utils/text";
+import { SALON_WHATSAPP_URL } from "../../../constants/salonContact";
 
 interface DogSelectionProps {
   dogs: CustomerDog[];
@@ -91,7 +92,7 @@ export function DogSelection({
                   )}
                   {dog.isPregnant && (
                     <span className="text-[12px] font-semibold text-[var(--sd-coral)]">
-                      Can't book online while pregnant — please call us
+                      Pregnant — message us below
                     </span>
                   )}
                 </div>
@@ -99,6 +100,24 @@ export function DogSelection({
               </button>
             );
           })}
+
+          {dogs.some((dog) => dog.isPregnant) && (
+            <p
+              role="note"
+              className="m-0 px-1 text-[12px] font-semibold text-[var(--sd-coral)]"
+            >
+              Pregnant dogs need a quick chat first —{" "}
+              <a
+                href={SALON_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                message us on WhatsApp 🐾
+              </a>
+              .
+            </p>
+          )}
 
           {!showAddDog && (
             <button

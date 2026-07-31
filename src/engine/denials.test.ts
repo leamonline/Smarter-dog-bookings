@@ -74,7 +74,9 @@ describe("friendlyDenialMessage", () => {
     expect(friendlyDenialMessage("The salon is closed on that date")).toMatch(/closed/i);
     expect(friendlyDenialMessage("Cannot book a date in the past")).toMatch(/passed|upcoming/i);
     expect(friendlyDenialMessage("Same-day booking isn't available for that time")).toMatch(/notice|later time/i);
-    expect(friendlyDenialMessage("We can't book a pregnant dog online — please call the salon.")).toMatch(/call the salon/i);
+    expect(
+      friendlyDenialMessage("We can't book a pregnant dog online — please call the salon."),
+    ).toMatch(/message us on WhatsApp/i);
   });
 
   it("falls back to a safe generic for unknown / empty messages", () => {
