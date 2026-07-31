@@ -24,7 +24,7 @@ describe("offline test guard", () => {
   });
 
   it("builds no Supabase client, so nothing can reach production", async () => {
-    const { supabase, supabaseConfigError } = await import("../supabase/client");
+    const { supabase, supabaseConfigError } = await import("./client");
     expect(supabase).toBeNull();
     // Offline is deliberate in tests, not a broken deploy.
     expect(supabaseConfigError).toBeNull();

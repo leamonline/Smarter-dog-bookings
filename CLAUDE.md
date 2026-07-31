@@ -173,7 +173,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   even though your `.env.local` holds real production credentials (Vitest loads `.env` files exactly
   like Vite). This lives in committed config on purpose — it replaced an untracked `.env.test.local`
   that silently went missing. Don't add per-file overrides or a new project without `env: offlineEnv`;
-  [src/security/offlineTestGuard.test.ts](src/security/offlineTestGuard.test.ts) fails if you do.
+  [src/supabase/offlineTestGuard.test.ts](src/supabase/offlineTestGuard.test.ts) fails if you do.
 - **Customers cannot raw-INSERT bookings.** The only customer write path is the
   `create_customer_booking_group` RPC (SECURITY DEFINER; validates ownership + takes authoritative size
   from `dogs.size`). Staff INSERT directly via RLS. Don't re-add a customer INSERT policy.
