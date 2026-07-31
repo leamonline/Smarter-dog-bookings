@@ -25,7 +25,13 @@ describe("DogSelection blocks a pregnant dog (preflight UX)", () => {
 
     const bella = screen.getByRole("button", { name: /Bella/i });
     expect(bella).toBeDisabled();
-    expect(screen.getByText(/can't book online while pregnant/i)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      /pregnant dogs need a quick chat first/i,
+    );
+    expect(
+      screen.getByRole("link", { name: /message us on WhatsApp/i }),
+    ).toHaveAttribute("href", "https://wa.me/447873329440");
+    expect(screen.queryByText(/call us/i)).not.toBeInTheDocument();
 
     const alfie = screen.getByRole("button", { name: /Alfie/i });
     expect(alfie).not.toBeDisabled();

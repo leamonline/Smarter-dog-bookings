@@ -24,6 +24,33 @@ export interface RecipientHuman {
 export const HUMAN_CONTACT_COLUMNS =
   "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";
 
+export interface BookingConfirmationRecord {
+  confirmation_channel?: unknown;
+  deposit_required?: unknown;
+  deposit_received_at?: unknown;
+  payment?: unknown;
+}
+
+/**
+ * After the caller has checked the booking is active, decide whether the
+ * ordinary "booked in / see you then" confirmation is truthful. Deposit-held
+ * appointments must wait for the dedicated deposit message project rather
+ * than receive the ordinary confirmation template.
+ */
+export function bookingConfirmationSkipReason(
+  booking: BookingConfirmationRecord,
+): string | null {
+  if (booking.confirmation_channel === "none") {
+    return "confirmation suppressed for this booking";
+  }
+  const awaitingDeposit =
+    booking.deposit_required === true &&
+    booking.deposit_received_at == null &&
+    booking.payment !== "Deposit Paid" &&
+    booking.payment !== "Paid in Full";
+  return awaitingDeposit ? "booking is awaiting deposit" : null;
+}
+
 // Resolve the human ids to notify for a booking: the explicit notify_human_ids
 // list when present, else just the owner. De-duped; preserves the requested
 // order (so a list staff built owner-first stays owner-first).

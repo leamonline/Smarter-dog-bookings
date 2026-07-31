@@ -56,14 +56,19 @@ function renderCard(next) {
 }
 
 describe("BookingCard — awaiting deposit", () => {
-  it("shows amount, bank details, reference, due time and the policy line", async () => {
+  it("states the payment deadline and automatic-release consequence", async () => {
     renderCard(awaiting);
     expect(await screen.findByText(/deposit needed to hold this booking/i)).toBeInTheDocument();
     expect(screen.getByText("SDG-7K3M")).toBeInTheDocument();
     expect(await screen.findByText(/01-02-03/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/confirmed once your deposit arrives/i),
-    ).toBeInTheDocument();
+    const notice = screen.getByRole("status", { name: "Deposit needed" });
+    expect(notice).toHaveTextContent(
+      /please send the £10 deposit by .* using reference SDG-7K3M to hold this appointment/i,
+    );
+    expect(notice).toHaveTextContent(
+      /if we can.t match it by then, the appointment will be released automatically/i,
+    );
+    expect(screen.queryByText(/confirmed once your deposit arrives/i)).toBeNull();
     expect(screen.getByText(/non-refundable/i)).toBeInTheDocument();
   });
 

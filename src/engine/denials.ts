@@ -70,7 +70,7 @@ export function friendlyDenialMessage(message?: string | null): string {
     case "pregnant":
       // Kept close to the trigger's own wording — this one is a clinical/policy
       // message, not capacity jargon, so we don't soften its meaning.
-      return "We can’t book a pregnant dog online — please call the salon so we can look after her properly.";
+      return "Pregnant dogs need a quick chat first — please message us on WhatsApp so we can look after her properly. 🐾";
     case "daily_cap":
       return "That day’s now fully booked. Try another day, or join the waitlist and we’ll text you the moment a space opens up.";
     case "past_cutoff":
