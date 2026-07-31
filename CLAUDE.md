@@ -168,6 +168,12 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **Local dev hits the LIVE cloud Supabase** (real PII) unless offline. Offline mode
   (`VITE_FORCE_OFFLINE=1`, or missing creds in dev) serves `src/data/sample.js` — use it for visual
   checks and E2E so you never touch real customer data.
+- **Tests are forced offline and must stay that way.** `vitest.config.ts` sets
+  `VITE_FORCE_OFFLINE: "1"` on **every** project, so `npm run test` never builds a Supabase client
+  even though your `.env.local` holds real production credentials (Vitest loads `.env` files exactly
+  like Vite). This lives in committed config on purpose — it replaced an untracked `.env.test.local`
+  that silently went missing. Don't add per-file overrides or a new project without `env: offlineEnv`;
+  [src/security/offlineTestGuard.test.ts](src/security/offlineTestGuard.test.ts) fails if you do.
 - **Customers cannot raw-INSERT bookings.** The only customer write path is the
   `create_customer_booking_group` RPC (SECURITY DEFINER; validates ownership + takes authoritative size
   from `dogs.size`). Staff INSERT directly via RLS. Don't re-add a customer INSERT policy.
