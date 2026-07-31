@@ -32,8 +32,17 @@ design-alignment/
 .env*
 
 # design-sync: staged converter scripts + regenerated build output + machine state
+# NOTE: .design-sync/ itself stays TRACKED — config.json, NOTES.md,
+# conventions.md, previews/ and docs-stubs/ are hand-maintained source. The
+# sync tool never writes there (see .ds-sync/lib/previews.mjs); everything it
+# generates goes under .design-sync/.cache/.
 .ds-sync/
 ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# Launch-kit marketing collateral — regenerate with
+# `node scripts/generate-launch-kit.mjs` / `generate-premium-launch-kit.mjs`.
+# Nothing in the app or the build reads these.
+outputs/
