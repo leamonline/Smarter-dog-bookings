@@ -19,7 +19,7 @@
     "e2e:ui": "playwright test --ui",
     "e2e:bootprobe": "playwright test -c playwright.bootprobe.config.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node-tests.json",
-    "lint": "eslint . && node scripts/check-import-extensions.mjs && node scripts/check-duplicate-files.mjs",
+    "lint": "eslint . && node scripts/check-import-extensions.mjs && node scripts/check-duplicate-files.mjs && node scripts/check-lockfile-platform.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
     "vapid:generate": "node scripts/generate-vapid-keys.mjs",
