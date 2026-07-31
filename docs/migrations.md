@@ -54,6 +54,21 @@ revoke execute on function public.<fn>(<args>) from public, anon, authenticated;
 Trigger functions still fire after the revoke — triggers don't check
 EXECUTE privilege — so there is never a reason to skip this.
 
+The class regressed again across the booking-policy visit batch
+(`20260726144000` .. `20260726144013`), which created 21 trigger
+functions with no revoke block. A wider audit then found something
+worse: several older trigger functions (`fire_whatsapp_agent`,
+`notify_on_booking_*`, `bump_conversation_unread` and others) were
+hardened **directly against production and never in a migration**, so a
+database rebuilt from committed history alone came out *less* locked
+down than production. `20260731100000_revoke_anon_trigger_function_grants.sql`
+closes both gaps and makes the committed history the whole truth.
+
+`supabase/tests/179_trigger_function_grants.test.sql` now fails the
+moment any `public` trigger function is executable by `anon` or
+`authenticated`, so this cannot regress silently again. If that suite
+fails, the fix is always the missing revoke block — never a grant.
+
 ## ⚠️ Don't blindly re-run old migrations
 
 Some early migrations are not idempotent. If you are setting up a
@@ -108,8 +123,16 @@ Deployment gates, verification queries and the activation blockers are in
 Backfill reconciliation is in
 [docs/superpowers/runbooks/2026-07-22-booking-policy-backfill-reconciliation.md](superpowers/runbooks/2026-07-22-booking-policy-backfill-reconciliation.md).
 
-Every new function ends with an explicit revoke block, per the convention
-above. The private `smarter_dog_private` schema — the runtime/time dispatch
-seam, the confirmation core and the review tokens — is revoked from `public`,
-`anon`, `authenticated` **and** `service_role`, so no application or Edge
-caller can inject a decision instant or claim the policy is active.
+Every RPC in this batch ends with an explicit revoke block, per the convention
+above. The **trigger** functions did not — that gap was closed retrospectively
+by `20260731100000_revoke_anon_trigger_function_grants.sql` and is now held by
+`supabase/tests/179_trigger_function_grants.test.sql`. The private
+`smarter_dog_private` schema — the runtime/time dispatch seam, the confirmation
+core and the review tokens — is revoked from `public`, `anon`, `authenticated`
+**and** `service_role`, so no application or Edge caller can inject a decision
+instant or claim the policy is active.
+
+Two functions here are deliberately reachable by `anon` and must stay that way:
+`booking_policy_runtime()` and `booking_policy_runtime_status()` are revoked and
+then intentionally re-granted in `20260726144001`, returning only
+`{ state, scheduledEffectiveAt }` so the portal knows when to refetch.
