@@ -93,13 +93,17 @@ describe("DateSelection horizon paging", () => {
 
   it("renders and selects day 180 but never offers day 181", async () => {
     arrangeAvailability();
+    const finalDay = customerDate(180);
+    const dayAfterHorizon = customerDate(181);
+    availability.getOpenDays.mockResolvedValue({
+      data: [{ setting_date: toDateStr(finalDay), is_open: true }],
+      error: null,
+    });
     const onSelect = vi.fn();
     const user = userEvent.setup();
     renderDateSelection(onSelect);
 
     await goToLastPage(user);
-    const finalDay = customerDate(180);
-    const dayAfterHorizon = customerDate(181);
     await screen.findByRole("button", { name: ariaDate(finalDay) });
 
     await user.click(screen.getByRole("button", { name: ariaDate(finalDay) }));
