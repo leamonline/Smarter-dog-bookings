@@ -101,9 +101,18 @@ export function mergeFailedMessageFlags(conversations, failedMessages) {
 }
 
 // ── Fetchers ─────────────────────────────────────────────────
-async function fetchConversationsList() {
+async function fetchConversationsList({ includeBookingWorkspaceData = false } = {}) {
   // We denormalise unread_count, last_customer_text, last_inbound_at
   // onto the conversation row specifically so this query is cheap.
+  const humanSelection = includeBookingWorkspaceData
+    ? "humans:human_id ( name, surname, dogs ( id, name, breed, size ) )"
+    : "humans:human_id ( name, surname )";
+  const draftSelection = includeBookingWorkspaceData
+    ? "whatsapp_drafts ( id, state, intent, risk_level, handoff_required, created_at )"
+    : "whatsapp_drafts ( id, state, risk_level, handoff_required )";
+  const bookingActionSelection = includeBookingWorkspaceData
+    ? "whatsapp_booking_actions ( id, state, action, payload, created_at )"
+    : "whatsapp_booking_actions ( id, state )";
   const { data, error } = await supabase
     .from("whatsapp_conversations")
     .select(
@@ -122,6 +131,7 @@ async function fetchConversationsList() {
       unread_count,
       auto_send_enabled,
       autonomous_booking_enabled,
+      ${includeBookingWorkspaceData ? "agent_state," : ""}
       lead_status,
       lead_payload,
       closed_at,
@@ -130,9 +140,9 @@ async function fetchConversationsList() {
       closure_suggested_at,
       closure_suggested_reason,
       notes,
-      humans:human_id ( name, surname ),
-      whatsapp_drafts ( id, state, risk_level, handoff_required ),
-      whatsapp_booking_actions ( id, state )
+      ${humanSelection},
+      ${draftSelection},
+      ${bookingActionSelection}
       `,
     )
     // Sort by the same "last activity" value the row now displays
@@ -153,11 +163,18 @@ async function fetchConversationsList() {
     const pendingDrafts = Array.isArray(c.whatsapp_drafts)
       ? c.whatsapp_drafts.filter((d) => d.state === "pending")
       : [];
+    const pendingBookingActions = Array.isArray(c.whatsapp_booking_actions)
+      ? c.whatsapp_booking_actions.filter((a) => a.state === "pending")
+      : [];
+    const newestFirst = (a, b) =>
+      String(b?.created_at || "").localeCompare(String(a?.created_at || ""));
     return {
       ...c,
       has_pending_draft: pendingDrafts.length > 0,
-      has_pending_booking_action: Array.isArray(c.whatsapp_booking_actions) &&
-        c.whatsapp_booking_actions.some((a) => a.state === "pending"),
+      pending_draft: [...pendingDrafts].sort(newestFirst)[0] ?? null,
+      has_pending_booking_action: pendingBookingActions.length > 0,
+      pending_booking_action:
+        [...pendingBookingActions].sort(newestFirst)[0] ?? null,
       needs_human_review: pendingDrafts.some(
         (d) => d.handoff_required === true || d.risk_level === "high",
       ),
@@ -231,7 +248,7 @@ async function fetchConversationDetail(conversationId, signal) {
 }
 
 // ── The hook ─────────────────────────────────────────────────
-export function useWhatsAppInbox() {
+export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
   const [conversations, setConversations] = useState([]);
   // `dogNames` is the array used by the template picker (it auto-fills the
   // first dog when staff picks a templated reply). `dogNamesById` is the
@@ -270,7 +287,7 @@ export function useWhatsAppInbox() {
       return null;
     }
     try {
-      const list = await fetchConversationsList();
+      const list = await fetchConversationsList({ includeBookingWorkspaceData });
       setConversations(list);
       setListError(null);
       return list;
@@ -283,7 +300,7 @@ export function useWhatsAppInbox() {
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [includeBookingWorkspaceData]);
 
   // Coalesce realtime list refreshes. A single inbound can fan out into
   // several postgres_changes events (conversation row + draft + booking
@@ -458,7 +475,8 @@ export function useWhatsAppInbox() {
     refreshList,
   });
 
-  const selectConversation = useCallback(async (conversationId) => {
+  const selectConversation = useCallback(async (conversationId, options = {}) => {
+    const markRead = options.markRead !== false;
     setSelectedId(conversationId);
     setMessages([]);
     setDraft(null);
@@ -472,31 +490,34 @@ export function useWhatsAppInbox() {
       return;
     }
 
-    // Optimistic: zero out the unread badge for this conversation
-    // immediately. The RPC below + realtime echo will confirm, but
-    // without this the list badge stays "2" for the round-trip and
-    // looks broken. Only touch the one row — leave other counts alone.
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conversationId && (c.unread_count ?? 0) > 0
-          ? { ...c, unread_count: 0 }
-          : c,
-      ),
-    );
-
     setLoadingDetail(true);
-    // Mark as read via RPC (migration 029). Fire and forget; realtime
-    // (migration 031) will reconcile any drift with the actual DB state.
-    markWhatsappConversationRead(supabase, { conversationId }).then(
-      ({ error }) => {
-        if (error) {
-          logger.warn("mark_whatsapp_conversation_read RPC error", {
-            tags: { hook: "useWhatsAppInbox", op: "markRead" },
-            extra: { message: error.message },
-          });
-        }
-      },
-    );
+    if (markRead) {
+      // Optimistic: zero out the unread badge for this conversation
+      // immediately. The RPC below + realtime echo will confirm, but
+      // without this the list badge stays "2" for the round-trip and
+      // looks broken. Booking Desk passes markRead:false because its
+      // read-only pilot must not change Inbox state merely by previewing.
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId && (c.unread_count ?? 0) > 0
+            ? { ...c, unread_count: 0 }
+            : c,
+        ),
+      );
+
+      // Mark as read via RPC (migration 029). Fire and forget; realtime
+      // (migration 031) will reconcile any drift with the actual DB state.
+      markWhatsappConversationRead(supabase, { conversationId }).then(
+        ({ error }) => {
+          if (error) {
+            logger.warn("mark_whatsapp_conversation_read RPC error", {
+              tags: { hook: "useWhatsAppInbox", op: "markRead" },
+              extra: { message: error.message },
+            });
+          }
+        },
+      );
+    }
 
     await refreshDetail(conversationId);
     if (selectedIdRef.current !== conversationId) return;

@@ -8,7 +8,7 @@ import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 // carries a visible text label — staff should never have to guess what a
 // glyph means — and the active tab is a solid per-section accent pill.
 // Badges (Inbox unread, Humans approvals) ride on the icon.
-export function MobileNavStrip({ currentDateStr }) {
+export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false }) {
   const { unread: waUnread } = useWhatsAppUnread();
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
   const { count: pendingSignups } = usePendingSignupsCount();
@@ -20,7 +20,9 @@ export function MobileNavStrip({ currentDateStr }) {
       className="lg:hidden -mx-4 sm:-mx-6 px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-brand-purple shadow-md"
       aria-label="Primary"
     >
-      {MOBILE_NAV.map((item) => {
+      {MOBILE_NAV.filter(
+        (item) => !item.ownerFeature || showBookingWorkspace,
+      ).map((item) => {
         const ariaLabel =
           item.to === "/inbox" && waUnread > 0
             ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} to reply`

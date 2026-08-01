@@ -22,7 +22,7 @@ const PawIcon = (
   </svg>
 );
 
-export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview, currentDateStr }) {
+export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview, currentDateStr, showBookingWorkspace = false }) {
   // openMenu is null | "tools" | "account" | "mobile" — only one dropdown
   // is open at a time, and outside-click clears whichever one is showing.
   const [openMenu, setOpenMenu] = useState(null);
@@ -53,16 +53,18 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
   return (
     <>
       {/* ── Desktop header (lg+) ── */}
-      <div className="hidden lg:flex items-center gap-2 xl:gap-3 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white">
+      <div className="hidden lg:flex items-center gap-2 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
-          <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-9 w-auto" />
+          <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-8 w-auto xl:h-9" />
         </NavLink>
 
         {/* Primary nav — sits inline next to the logo to keep the right
             side clear for the New booking CTA. Each section keeps its own
             accent so staff recognise it by colour. */}
-        <nav className="flex items-center gap-1 ml-1 xl:ml-3" aria-label="Primary">
-          {PRIMARY_NAV.map((item) => {
+        <nav className="flex items-center gap-0.5 ml-1 xl:ml-2" aria-label="Primary">
+          {PRIMARY_NAV.filter(
+            (item) => !item.ownerFeature || showBookingWorkspace,
+          ).map((item) => {
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} to reply`
@@ -76,7 +78,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 end={item.to === "/"}
                 aria-label={ariaLabel}
                 className={({ isActive }) =>
-                  `group relative inline-flex items-center gap-1 xl:gap-1.5 h-10 px-0.5 xl:px-3 rounded-xl no-underline transition-all duration-150 ${
+                  `group relative inline-flex shrink-0 items-center gap-1 h-10 px-0.5 xl:px-2.5 rounded-xl no-underline transition-all duration-150 ${
                     isActive
                       ? `${item.activeBg} font-bold`
                       : "bg-transparent text-white/85 hover:bg-white/10 hover:text-white font-semibold"
@@ -87,7 +89,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 <span className="transition-transform duration-150 group-hover:scale-110 shrink-0" aria-hidden="true">
                   {item.icon}
                 </span>
-                <span className="text-sm leading-none tracking-tight">{item.label}</span>
+                <span className="whitespace-nowrap text-[13px] leading-none tracking-tight xl:text-sm">{item.label}</span>
                 {item.to === "/inbox" && waBadge && (
                   <span
                     className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
@@ -117,7 +119,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           <button
             type="button"
             onClick={onNewBooking}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
+            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
             aria-label="New booking (press N)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -135,7 +137,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           <button
             type="button"
             onClick={onNewClient}
-            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 font-[inherit] focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold whitespace-nowrap bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 font-[inherit] focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
             aria-label="New client"
           >
             <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />

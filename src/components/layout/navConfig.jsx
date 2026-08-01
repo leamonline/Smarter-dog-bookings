@@ -36,6 +36,20 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    to: "/booking-workspace",
+    label: "Booking Desk",
+    ownerFeature: "booking_workspace_enabled",
+    activeBg: "bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.45)]",
+    activeText: "text-brand-coral",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z" />
+        <path d="M9 3v4h6V3" />
+        <path d="M8 12h8M8 16h5" />
+      </svg>
+    ),
+  },
+  {
     to: "/dogs",
     label: "Dogs",
     activeBg: "bg-brand-cyan text-white shadow-[0_2px_8px_rgba(0,184,224,0.5)]",
@@ -112,6 +126,7 @@ export function navTargetFor(item, currentDateStr) {
 // Handles profile sub-routes (/dogs/:id, /humans/:id) too.
 export function sectionTitleFor(pathname) {
   if (pathname.startsWith("/today")) return "Daily Brief";
+  if (pathname.startsWith("/booking-workspace")) return "Booking Desk";
   if (pathname === "/" || pathname === "") return "Bookings";
   if (pathname.startsWith("/dogs")) return "Dogs";
   if (pathname.startsWith("/humans")) return "Humans";
