@@ -1,5 +1,17 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { formatDayToken, formatTime, findOpenWindowConversation } from "./helpers.js";
+import {
+  findOpenWindowConversation,
+  formatConversationalDate,
+  formatDayToken,
+  formatTime,
+} from "./helpers.js";
+
+describe("formatConversationalDate", () => {
+  it("uses the established long conversational weekday and month forms", () => {
+    expect(formatConversationalDate("2025-08-06")).toBe("Weds 6 Aug");
+    expect(formatConversationalDate("2025-09-02")).toBe("Tues 2 Sept");
+  });
+});
 
 describe("formatDayToken", () => {
   afterEach(() => {

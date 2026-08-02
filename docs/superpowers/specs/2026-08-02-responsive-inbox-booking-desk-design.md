@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-02
 
-**Status:** Design capture for review
+**Status:** Approved for implementation planning
 
 **Branch:** `codex/booking-desk-inbox-replacement`
 
@@ -93,7 +93,7 @@ Modify:
 - `src/components/views/inbox/conversation-list/ConversationListItem.jsx` —
   compact row and single winning status.
 - `src/components/views/inbox/thread/ComposePanel.jsx` — controlled draft,
-  five-line growth, focus handle and keyboard send shortcut.
+  five-line growth and focus handle.
 - `src/components/views/inbox/thread/MessageBubble.jsx` — failed-send Retry
   presentation using the existing manual-send callback.
 - `src/components/views/inbox/hooks/useFillViewportHeight.js` — `100dvh`
@@ -119,6 +119,33 @@ Create:
 - Focused tests beside the new shell, state hook and pure model.
 
 No file is deleted.
+
+### Dependencies on Booking Desk PR #579
+
+This branch deliberately starts from Booking Desk phase 1–3 commit `39451c9e`.
+The planned presentation extraction from
+`src/components/views/booking-workspace/BookingWorkspaceView.jsx` is preferable
+to copying its diary and proposed-slot UI into Inbox: extraction leaves one
+presentation consuming the existing capacity and slot-selection results,
+whereas copying would create two implementations that could drift while both
+appear to offer the same booking workflow.
+
+That reuse makes PR #579 an explicit dependency. This branch must stay stacked
+on it and cannot merge independently first. If PR #579 changes, rebase this
+branch onto the revised #579 head, review the extraction against those changes
+and rerun its focused model/component tests before continuing. Do not preserve
+the old presentation by copying it around an upstream conflict.
+
+Booking suggestions intentionally use the request/intent data already derived
+by `bookingWorkspaceModel.js`. `src/utils/parseBookingHintsFromMessage.js` has a
+different, narrower job: it extracts a possible date and time from one message
+to pre-fill a booking form; it does not decide whether a conversation is an
+active new-booking request or distinguish that request from a cancellation,
+reschedule, closed conversation, pending create action or structured draft
+intent. Reusing `bookingWorkspaceModel.js` therefore avoids adding a second
+intent classifier and keeps the suggestion consistent with Booking Desk's
+request queue. This is a second dependency on PR #579 and follows the same
+rebase-and-review rule if that PR changes.
 
 ## Boundaries
 
@@ -227,22 +254,61 @@ Each 64–72px row contains only:
 
 - customer name;
 - one-line, truncated latest-message preview;
-- relative age; and
-- exactly one winning status badge.
+- relative age;
+- exactly one winning status badge; and
+- when applicable, the separate WhatsApp reply-window constraint described
+  below.
 
 Status is a pure presentation selection in this order:
 
 1. `has_failed_message` -> **Failed send**;
-2. `unread_count > 0` -> **Unread** (include the count in accessible text);
-3. an existing awaiting-deposit field -> **Awaiting deposit**;
-4. `needs_human_review` -> **Action needed**.
+2. `needs_human_review` -> **Action needed**;
+3. `has_pending_draft` -> **Draft pending**;
+4. `has_pending_booking_action` -> **Booking action pending**;
+5. `unread_count > 0` -> **Unread** (include the count in accessible text);
+6. existing lifecycle state -> **Closed** when `closed_at` is present,
+   otherwise **Snoozed** for `state === "snoozed"` or **Taken over** for
+   `state === "human_takeover"`.
 
-No current Inbox conversation field represents awaiting deposit, so that state
-is omitted in this tranche. `has_pending_booking_action` is used for the
-Booking suggestion, not as an extra row badge. Draft, booking, closing-soon and
-other dots/pills are removed from the row so the one-badge rule is literal.
-When none of the four source statuses is present, the row shows no badge rather
-than inventing a neutral state.
+For the **Action needed** winner, the visible label stays compact but its
+`title` and `aria-label` carry the existing decoded `reviewTitle` unchanged.
+That preserves the current distinction between an AI-requested handoff, a
+high-risk draft, both conditions together, and the approval fallback. This
+tranche authors no replacement reason strings.
+
+The same `has_pending_booking_action` field intentionally earns a conversation
+row badge and contributes to the Booking suggestion: the row communicates that
+staff action is waiting, while the Booking header provides the contextual way
+to act on it. They are two surfaces for one existing fact, not two detectors.
+Other competing dots/pills are removed so the one-badge rule is literal. When
+none of these source statuses is present, the row shows no badge rather than
+inventing a neutral state.
+
+`state` already reaches the row: `useWhatsAppInbox` selects it from
+`whatsapp_conversations`, retains it when spreading each result into the list
+model, and `InboxView` passes that complete conversation object as `conv`.
+Rendering takeover or snoozed therefore requires no Supabase selection change.
+
+### Row signals outside status precedence
+
+The one-badge rule applies to competing **statuses**, not to the existing
+WhatsApp reply-window constraint. Keep `inboxWindowBadge(conv)` as a separate,
+compact row element for both `closing_soon` and `template_needed`. It may appear
+beside the winning status because it answers a different question: how staff
+are still allowed to reply. Removing it would make staff discover the closing
+or closed free-form window only when a send is refused and a template is
+required.
+
+Two current signals are deliberately removed from the compact row:
+
+- `lead_status === "records_created"` no longer renders the **New** pill. Staff
+  lose the list-level prompt to spot-check an autonomously created customer and
+  dog before approving the first booking; the underlying records and customer
+  context remain available in the workspace.
+- `closure_suggested_at` / `closure_suggested_reason` no longer render the
+  suggested-close chip. Staff lose the daily background pass's list-level
+  recommendation, but the conversation remains active and the existing manual
+  completion control remains available in the thread.
 
 The relative timestamp has the absolute timestamp on both `title` and an
 explicit `aria-label`. Up/Down moves the roving selection through visible rows,
@@ -267,8 +333,8 @@ Its textarea:
 - starts at one line;
 - grows to five computed line heights;
 - then uses internal vertical scrolling;
-- sends on Command+Enter or Control+Enter;
-- keeps plain Enter as a newline; and
+- sends on Enter, preserving the existing WhatsApp-style binding;
+- inserts a newline on Shift+Enter; and
 - retains the current draft on send failure.
 
 When iOS changes `window.visualViewport.height` or `offsetTop`, the shell height
@@ -311,7 +377,7 @@ When at least one existing proposed slot is selected, **Insert into reply**:
 
 1. groups the choices by date in their displayed order;
 2. formats each line as `Weds 6 Aug — 9:00am / 10:30am`, using the established
-   UK date/time display and joining specific times with ` / `;
+   conversational date/time voice and joining specific times with ` / `;
 3. appends the result to the selected conversation's draft, separated by one
    blank line when the draft is non-empty;
 4. focuses the composer; and
@@ -320,6 +386,11 @@ When at least one existing proposed slot is selected, **Insert into reply**:
 It does not send, save a booking, clear the chosen slots or modify availability.
 Repeated taps append again because the requested behaviour is append, not
 replace or deduplicate.
+
+This date wording has one deliberate owner in the shared Inbox helpers.
+Customer-facing message text uses the long conversational forms `Tues`, `Weds`
+and `Sept`; UI chrome continues to use `en-GB` locale formatting. The long form
+is intentional brand voice, not a locale bug.
 
 ## Safety and failure presentation
 
@@ -338,15 +409,44 @@ derive, query or persist a new one.
   only if an existing presentation flag supplies it. Do not infer either state
   from the clock, date or schedule in this tranche.
 - **Failed send:** the list's winning badge and the failed message's inline
-  error use the existing `status === "failed"` and error text. Retry calls the
-  existing manual reply sender with the failed message's displayed text; it
-  introduces no resend endpoint or message query. If the existing sender
-  rejects it (for example, the WhatsApp reply window requires a template), the
-  inline failure remains and the current template controls remain available.
+  error use the existing `status === "failed"` and error text. Selecting Retry
+  first opens an inline confirmation with **Send again** and **Cancel**; nothing
+  is sent on the first tap. Confirmation is required because the original may
+  have reached Meta while only its status callback failed, in which case an
+  immediate retry could send the customer the same message twice. Confirming
+  calls the existing manual reply sender with the failed message's displayed
+  text. This is explicitly a new outbound send and a new message row, not a
+  resend or status change on the original row, and it introduces no resend
+  endpoint or message query. On success, the original bubble remains as an
+  accurate historical failed attempt but replaces its actionable error with
+  **Original send failed · Sent again successfully** and removes Retry; the new
+  outbound message renders as its own bubble. If the sender rejects the new
+  send (for example, the WhatsApp reply window requires a template), the
+  original inline failure and Retry remain and the current template controls
+  remain available.
 
 The opt-out and warning omissions are deliberate consequences of the brief's
 “existing flags only” and “no query changes” constraints, not invented safe
 defaults.
+
+## Deferred follow-ups
+
+These omissions are accepted for this presentation-only tranche but are logged
+as explicit follow-up work:
+
+- **Pre-send WhatsApp opt-out warning:** unblock by adding
+  `whatsapp_opted_out` to the joined human fields in the conversation select
+  and passing that trusted value to the composer. Until then, staff discover
+  the server-side block only after pressing Send instead of seeing it before
+  composing or confirming a retry.
+- **Outside-salon-hours warning:** unblock when the existing messaging/send
+  boundary exposes a stable outside-hours eligibility flag for presentation.
+  Until then, staff receive no proactive amber timing warning in Inbox and see
+  only the existing send-boundary result.
+- **Past-slot warning:** unblock when the existing booking/slot source exposes
+  an authoritative past-slot flag alongside a proposed slot. Until then, staff
+  receive no amber warning before inserting a stale proposed time into a reply;
+  existing booking and capacity enforcement remains unchanged.
 
 ## Accessibility and interaction details
 
@@ -378,8 +478,17 @@ CSS custom properties needed for pane widths, shell height and the keyboard.
 
 ### Automated behaviour
 
-- Pure status precedence renders one badge and omits awaiting deposit without a
-  source field.
+- Pure status precedence renders exactly one winner in this order: failed send,
+  needs human review, draft pending, booking action pending, unread, then
+  takeover/snoozed/closed conversation state; no source status renders no
+  badge.
+- The Action needed winner preserves the existing decoded `reviewTitle` in both
+  `title` and `aria-label` without adding reason copy.
+- `inboxWindowBadge(conv)` remains independent of status precedence and renders
+  `closing_soon` or `template_needed` alongside a winning status when both are
+  present.
+- The row deliberately omits the autonomous-onboarding **New** pill and the
+  suggested-close chip while leaving their underlying data and actions intact.
 - Conversation-row timestamp exposes relative visible and absolute accessible
   values.
 - Up/Down/Enter selection works across a filtered list.
@@ -392,10 +501,11 @@ CSS custom properties needed for pane widths, shell height and the keyboard.
   allowing route exit.
 - Slot insertion appends the exact grouped UK format, focuses the composer and
   closes the overlay below 1440px.
-- Composer grows through five lines, then scrolls, and only Cmd/Ctrl+Enter
-  sends.
-- Failed Retry uses the existing send callback and preserves the error on
-  failure.
+- Composer grows through five lines, then scrolls; Enter sends and Shift+Enter
+  inserts a newline.
+- Failed Retry requires confirmation, creates a new send, preserves the
+  original failure on rejection, and marks the original attempt as sent again
+  successfully when the new send succeeds.
 - `visualViewport` resize/scroll events update visible height and clean up
   listeners.
 

@@ -82,6 +82,17 @@ export function serviceLabel(service) {
   return labels[service] || service || "Service";
 }
 
+const CONVERSATIONAL_WEEKDAYS = ["Sun", "Mon", "Tues", "Weds", "Thurs", "Fri", "Sat"];
+const CONVERSATIONAL_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+
+// Customer-message date voice: deliberately conversational rather than the
+// locale-owned formatting used by Inbox chrome.
+export function formatConversationalDate(dateStr) {
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return `${CONVERSATIONAL_WEEKDAYS[date.getDay()]} ${date.getDate()} ${CONVERSATIONAL_MONTHS[date.getMonth()]}`;
+}
+
 // Compact UK-style "Mon 27 Apr" used by the booking-attached banner.
 // Year is omitted because the banner is showing imminent bookings.
 export function formatShortDate(dateStr) {
