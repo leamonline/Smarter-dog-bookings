@@ -12,6 +12,9 @@ const offlineEnv = { VITE_FORCE_OFFLINE: "1" };
 
 export default defineConfig({
   test: {
+    // Keep jsdom workers within the memory available on local and CI runners.
+    // Unbounded parallelism causes unrelated component tests to hit timeouts.
+    maxWorkers: 4,
     projects: [
       {
         test: {
