@@ -26,7 +26,10 @@ import { useEffect, useState } from "react";
 const MOBILE_BOTTOM_GAP = 72;
 const DESKTOP_BOTTOM_GAP = 16;
 const MOBILE_BREAKPOINT = 768; // Tailwind md
-const MIN_HEIGHT = 360; // never collapse below a usable height
+// Retain a usable minimum for the normal layout. When visualViewport reports
+// a keyboard-constrained surface, the real visible height takes precedence so
+// the composer is not pushed below the keyboard.
+const MIN_HEIGHT = 360;
 
 // The mobile nav also carries `pb-[env(safe-area-inset-bottom)]`, so on an
 // iPhone with a home indicator its true height is MOBILE_BOTTOM_GAP plus the
@@ -52,22 +55,53 @@ export function useFillViewportHeight(ref) {
     const el = ref.current;
     if (!el || typeof window === "undefined") return undefined;
 
+    const visualViewport = window.visualViewport;
+    let animationFrameId = null;
+
     const compute = () => {
       const top = el.getBoundingClientRect().top;
       const bottomGap =
         window.innerWidth < MOBILE_BREAKPOINT
           ? MOBILE_BOTTOM_GAP + safeAreaInsetBottom()
           : DESKTOP_BOTTOM_GAP;
-      const available = window.innerHeight - top - bottomGap;
-      setHeight(Math.max(MIN_HEIGHT, Math.round(available)));
+      const viewportBottom = visualViewport
+        ? visualViewport.offsetTop + visualViewport.height
+        : window.innerHeight;
+      const measured = Math.round(viewportBottom - top - bottomGap);
+      const keyboardConstrained = Boolean(
+        visualViewport && visualViewport.height < window.innerHeight,
+      );
+      const available = keyboardConstrained
+        ? Math.max(0, measured)
+        : Math.max(MIN_HEIGHT, measured);
+
+      el.style.setProperty("--inbox-shell-top", `${Math.round(top)}px`);
+      el.style.setProperty("--inbox-bottom-gap", `${Math.round(bottomGap)}px`);
+      el.style.setProperty("--inbox-visible-height", `${available}px`);
+      setHeight(available);
+    };
+
+    const scheduleCompute = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(() => {
+        animationFrameId = null;
+        compute();
+      });
     };
 
     compute();
-    window.addEventListener("resize", compute);
-    window.addEventListener("orientationchange", compute);
+    window.addEventListener("resize", scheduleCompute);
+    window.addEventListener("orientationchange", scheduleCompute);
+    visualViewport?.addEventListener("resize", scheduleCompute);
+    visualViewport?.addEventListener("scroll", scheduleCompute);
     return () => {
-      window.removeEventListener("resize", compute);
-      window.removeEventListener("orientationchange", compute);
+      window.removeEventListener("resize", scheduleCompute);
+      window.removeEventListener("orientationchange", scheduleCompute);
+      visualViewport?.removeEventListener("resize", scheduleCompute);
+      visualViewport?.removeEventListener("scroll", scheduleCompute);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
     };
   }, [ref]);
 
