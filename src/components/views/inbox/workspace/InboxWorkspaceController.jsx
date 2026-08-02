@@ -26,39 +26,40 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
-import { useToast } from "../../../contexts/ToastContext.jsx";
-import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
-import { Spinner } from "../../ui/Spinner.jsx";
+import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox.js";
+import { useToast } from "../../../../contexts/ToastContext.jsx";
+import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
+import { Spinner } from "../../../ui/Spinner.jsx";
 import {
   PageHeader,
   PageHeaderAction,
   PageHeaderSearch,
-} from "../../ui/index.js";
+} from "../../../ui/index.js";
 import {
   displayName,
   formatDayToken,
   isAwaitingReply,
-} from "./helpers.js";
-import { formatPhoneForDisplay } from "../../../utils/phone.js";
-import { InboxFilterChip } from "./InboxFilterChip.jsx";
-import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
-import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
-import { InitialsAvatar } from "./InitialsAvatar.jsx";
-import { MarkCompleteButton } from "./MarkCompleteButton.jsx";
-import { ComposeNewModal } from "./compose-new/ComposeNewModal.jsx";
-import { MessageBubble } from "./thread/MessageBubble.jsx";
-import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
-import { DraftPanel } from "./thread/DraftPanel.jsx";
-import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
-import { ComposePanel } from "./thread/ComposePanel.jsx";
-import { WindowClosedBanner } from "./thread/WindowClosedBanner.jsx";
-import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
-import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
-import { useCustomerContext } from "./hooks/useCustomerContext.js";
-import { useInboxMessageSearch } from "./hooks/useInboxMessageSearch.js";
-import { useFillViewportHeight } from "./hooks/useFillViewportHeight.js";
-import { BookAppointmentModal } from "./customer-context/BookAppointmentModal.jsx";
+} from "../helpers.js";
+import { formatPhoneForDisplay } from "../../../../utils/phone.js";
+import { InboxFilterChip } from "../InboxFilterChip.jsx";
+import { ThreadSkeleton } from "../../../ui/Skeleton.jsx";
+import { ConversationListItem } from "../conversation-list/ConversationListItem.jsx";
+import { InitialsAvatar } from "../InitialsAvatar.jsx";
+import { MarkCompleteButton } from "../MarkCompleteButton.jsx";
+import { ComposeNewModal } from "../compose-new/ComposeNewModal.jsx";
+import { MessageBubble } from "../thread/MessageBubble.jsx";
+import { BookingCreatedCard } from "../thread/BookingCreatedCard.jsx";
+import { DraftPanel } from "../thread/DraftPanel.jsx";
+import { BookingActionPanel } from "../thread/BookingActionPanel.jsx";
+import { ComposePanel } from "../thread/ComposePanel.jsx";
+import { WindowClosedBanner } from "../thread/WindowClosedBanner.jsx";
+import { CustomerContextPanel } from "../customer-context/CustomerContextPanel.jsx";
+import { useCustomerContext } from "../hooks/useCustomerContext.js";
+import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
+import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
+import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
+import { InboxWorkspaceShell } from "./InboxWorkspaceShell.jsx";
+import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 
 export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
@@ -95,6 +96,23 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     refreshList,
   } = useWhatsAppInbox();
   const toast = useToast();
+  const initialDateStr = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+  const { state: workspaceState, actions: workspaceActions } = useInboxWorkspaceState({
+    initialConversationId: selectedId,
+    initialDateStr,
+    onSelectConversation: selectConversation,
+  });
+  const contextTriggerRef = useRef(null);
+
+  useEffect(() => {
+    workspaceActions.syncSelectedConversation(selectedId);
+  }, [selectedId, workspaceActions]);
 
   // Wrap the hook actions with success toasts so screen-reader users
   // hear confirmation (errors stay inline in the panels — they need
@@ -236,16 +254,10 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [sendOutboundSMS, conversations, selectConversation, toast]);
 
-  // Customer-context panel: docked third column at xl, slide-over below xl.
-  // Track openness separately so the slide-over can close without
-  // resetting the docked view. The docked column is purely CSS — it
-  // shows whenever a conversation is selected.
-  const [contextOpen, setContextOpen] = useState(false);
-  // Close the slide-over AND the book-appointment modal when switching
-  // conversations, so a half-open panel (or a booking form still holding
-  // the previous customer's dog) doesn't follow staff to the new thread.
+  // Close the book-appointment modal when switching conversations so a
+  // booking form holding the previous customer's dog does not follow staff
+  // into the newly selected thread. Workspace state closes the context pane.
   useEffect(() => {
-    setContextOpen(false);
     setBookOpen(false);
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
@@ -463,9 +475,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setSearchParams(next, { replace: true });
   }, [targetHumanId, loadingList, conversations, selectedId, selectConversation, searchParams, setSearchParams]);
 
-  // Mobile: show detail when a conversation is selected
-  const showDetailOnMobile = !!selectedId;
-
   // Fill from the shell's real top edge to the viewport bottom rather
   // than guessing the top chrome with a magic number — robust to the
   // toolbar wrapping or a banner appearing. The h-[calc(...)] class
@@ -510,13 +519,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
         : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`;
 
-  return (
-    <div
-      ref={rootRef}
-      style={fillHeight ? { height: `${fillHeight}px` } : undefined}
-      className="flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
-    >
-      <div className="flex shrink-0 flex-col">
+  const pageHeader = (
+    <div className="flex shrink-0 flex-col">
         <PageHeader title="Inbox" className="xl:flex-nowrap">
           <div
           className="flex min-w-0 basis-full items-center gap-2 overflow-x-auto px-1 [scrollbar-width:thin] md:basis-auto md:flex-1"
@@ -590,15 +594,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           </PageHeaderAction>
           <span className="sr-only" role="status">{conversationSummary}</span>
         </PageHeader>
-      </div>
+    </div>
+  );
 
-      <div className="flex-1 flex bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden">
-        {/* List pane */}
-        <div
-          className={`w-full md:w-[320px] border-r border-slate-200 flex flex-col ${
-            showDetailOnMobile ? "hidden md:flex" : "flex"
-          }`}
-        >
+  const conversationPane = (
+    <div className="flex h-full min-h-0 flex-col">
           {loadingList ? (
             <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
           ) : listError ? (
@@ -665,19 +665,18 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   key={c.id}
                   conv={c}
                   isSelected={c.id === selectedId}
-                  onSelect={selectConversation}
+                  onSelect={workspaceActions.selectConversation}
                   isChecked={selectedIds.has(c.id)}
                   onToggleSelect={toggleSelect}
                 />
               ))}
             </div>
           )}
-        </div>
+    </div>
+  );
 
-        {/* Detail pane */}
-        <div
-          className={`flex-1 flex flex-col min-w-0 ${showDetailOnMobile ? "flex" : "hidden md:flex"}`}
-        >
+  const threadPane = (
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
           {!selectedId ? (
             <div className="flex-1 flex items-center justify-center text-slate-500 text-[14px] px-6 text-center">
               {conversations.length === 0
@@ -691,7 +690,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-3 min-w-0">
                     <button
-                      onClick={() => selectConversation(null)}
+                      onClick={workspaceActions.paneBack}
                       className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
                       aria-label="Back to inbox"
                     >←</button>
@@ -742,8 +741,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     {/* Customer info — slide-over below xl, redundant
                         at xl (the docked column is already visible). */}
                     <button
+                      ref={contextTriggerRef}
                       type="button"
-                      onClick={() => setContextOpen(true)}
+                      onClick={() => workspaceActions.openContext("customer")}
                       title="Show this customer's dogs, last groom, and trusted contacts."
                       className="lg:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
@@ -900,52 +900,36 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               />
             </>
           )}
-        </div>
+    </div>
+  );
 
-        {/* Customer context — docked third column at xl+. Hidden on
-            smaller breakpoints (the slide-over below replaces it). */}
-        {selectedId && (
-          <div className="hidden lg:flex lg:w-[280px] xl:w-[300px] lg:flex-col border-l border-slate-200 bg-white">
-            <CustomerContextPanel
-              context={customerContext}
-              conversation={selectedConversation}
-              onOpenHuman={onOpenHuman}
-              onOpenDog={onOpenDog}
-              onBookAppointment={() => setBookOpen(true)}
-              onUpdateNotes={handleUpdateNotes}
-            />
-          </div>
-        )}
-      </div>
+  const contextPane = selectedId ? (
+    <CustomerContextPanel
+      context={customerContext}
+      conversation={selectedConversation}
+      onOpenHuman={onOpenHuman}
+      onOpenDog={onOpenDog}
+      onBookAppointment={() => setBookOpen(true)}
+      onUpdateNotes={handleUpdateNotes}
+    />
+  ) : null;
 
-      {/* Slide-over for below xl. Mounted only when open so the
-          backdrop and focus trap don't sit dormant in the tree. */}
-      {selectedId && contextOpen && (
-        <SlideOverPanel
-          onClose={() => setContextOpen(false)}
-          titleId="inbox-customer-context-title"
-        >
-          <CustomerContextPanel
-            context={customerContext}
-            conversation={selectedConversation}
-            onOpenHuman={(id) => {
-              setContextOpen(false);
-              onOpenHuman?.(id);
-            }}
-            onOpenDog={(id) => {
-              setContextOpen(false);
-              onOpenDog?.(id);
-            }}
-            onClose={() => setContextOpen(false)}
-            titleId="inbox-customer-context-title"
-            onBookAppointment={() => {
-              setContextOpen(false);
-              setBookOpen(true);
-            }}
-            onUpdateNotes={handleUpdateNotes}
-          />
-        </SlideOverPanel>
-      )}
+  return (
+    <div className="flex min-h-0 flex-col gap-3">
+      {pageHeader}
+      <InboxWorkspaceShell
+        rootRef={rootRef}
+        fillHeight={fillHeight}
+        mobilePane={workspaceState.mobilePane}
+        contextOpen={workspaceState.contextOpen}
+        contextSection={workspaceState.contextSection}
+        conversationPane={conversationPane}
+        threadPane={threadPane}
+        contextPane={contextPane}
+        onPaneBack={workspaceActions.paneBack}
+        onDismissContext={workspaceActions.closeContext}
+        returnFocusRef={contextTriggerRef}
+      />
 
       {bookOpen && selectedId && (
         <BookAppointmentModal

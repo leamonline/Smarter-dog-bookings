@@ -101,6 +101,16 @@ describe("InboxView", () => {
     expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
   });
 
+  it("composes the Inbox through the three workspace regions", () => {
+    renderInbox();
+
+    expect(screen.getByRole("region", { name: "Conversations" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Message thread" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Booking and customer context" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the empty-state copy when there are zero conversations", () => {
     renderInbox(baseState({ conversations: [] }));
     expect(
