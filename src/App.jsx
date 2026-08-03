@@ -13,6 +13,7 @@ import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";
+import { FEATURE_FLAGS } from "./constants/features";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
@@ -137,6 +138,11 @@ const InboxView = lazy(() =>
     default: module.InboxView,
   })),
 );
+const BookingWorkspaceView = lazy(() =>
+  import("./components/views/booking-workspace/BookingWorkspaceView.jsx").then((module) => ({
+    default: module.BookingWorkspaceView,
+  })),
+);
 const NewBookingModal = lazy(() =>
   import("./components/modals/NewBookingModal.jsx").then((module) => ({
     default: module.NewBookingModal,
@@ -187,6 +193,7 @@ const appLoadingShell = (
 // "/" is the catch-all (the week calendar).
 const ROUTE_CHUNK_IMPORTS = [
   ["/today", () => import("./components/views/TodayView.jsx")],
+  ["/booking-workspace", () => import("./components/views/booking-workspace/BookingWorkspaceView.jsx")],
   ["/inbox", () => import("./components/views/inbox/InboxView.jsx")],
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
@@ -325,6 +332,9 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
 function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const canAccessBookingWorkspace =
+    FEATURE_FLAGS.booking_workspace_enabled &&
+    (isOwner || (import.meta.env.DEV && !isOnline));
   const {
     selectedHumanId, setSelectedHumanId,
     selectedDogId, setSelectedDogId,
@@ -907,6 +917,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           isOnline={isOnline}
           user={user}
           currentDateStr={currentDateStr}
+          showBookingWorkspace={canAccessBookingWorkspace}
           onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
           onNewClient={() => setShowNewClient(true)}
           onOpenOverview={() => {
@@ -916,7 +927,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           }}
         />
 
-        <MobileNavStrip currentDateStr={currentDateStr} />
+        <MobileNavStrip
+          currentDateStr={currentDateStr}
+          showBookingWorkspace={canAccessBookingWorkspace}
+        />
 
         <SalonProvider
           dogs={dogs}
@@ -1108,6 +1122,19 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onOpenDog={handleOpenDog}
                     />
+                  } />
+                  <Route path="/booking-workspace" element={
+                    canAccessBookingWorkspace ? (
+                      <BookingWorkspaceView
+                        isOnline={isOnline}
+                        dates={dates}
+                        currentDateStr={currentDateStr}
+                        onPickDate={handleDatePick}
+                        dailyDogCap={salonConfig?.dailyDogCap}
+                      />
+                    ) : (
+                      <Navigate to="/today" replace />
+                    )
                   } />
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
                   <Route path="/today" element={
