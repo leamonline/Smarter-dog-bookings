@@ -26,7 +26,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
+import { DAILY_DOG_CAP } from "../../../../constants/salon";
+import { useSalon } from "../../../../contexts/SalonContext";
 import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox.js";
+import { useSalonConfig } from "../../../../supabase/hooks/useSalonConfig.js";
 import { useToast } from "../../../../contexts/ToastContext.jsx";
 import { Spinner } from "../../../ui/Spinner.jsx";
 import {
@@ -43,10 +46,37 @@ import { useCustomerContext } from "../hooks/useCustomerContext.js";
 import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
 import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
 import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
+import { BookingPane } from "../../booking-workspace/BookingPane.jsx";
+import {
+  buildBookingRequest,
+  isActiveAppointmentRequest,
+  toggleDraftSlot,
+} from "../../booking-workspace/bookingWorkspaceModel.js";
+import { BookingCustomerPane } from "./BookingCustomerPane.jsx";
 import { ConversationPane } from "./ConversationPane.jsx";
 import { InboxWorkspaceShell } from "./InboxWorkspaceShell.jsx";
 import { ThreadPane } from "./ThreadPane.jsx";
+import { buildDiaryDates } from "./inboxWorkspaceModel.js";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
+
+const MAX_SLOT_CHOICES = 3;
+// At 1440px and above the context rail is permanently docked, so inserting
+// slots leaves it in place. Narrower, it is an overlay covering the thread and
+// must step aside once the times are in the reply.
+const DOCKED_RAIL_QUERY = "(min-width: 1440px)";
+
+function isRailDocked() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.(DOCKED_RAIL_QUERY)?.matches === true;
+}
+
+function toLocalDateStr(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
 
 export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
@@ -81,15 +111,14 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     dogNamesById,
     actionInFlight,
     refreshList,
-  } = useWhatsAppInbox();
+  } = useWhatsAppInbox({ includeBookingWorkspaceData: true });
   const toast = useToast();
-  const initialDateStr = useMemo(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }, []);
+  const salon = useSalon();
+  // The authoritative cap lives in salon_config; fall back to the shared
+  // constant only while that loads so the diary never over-offers.
+  const { config: salonConfig } = useSalonConfig();
+  const dailyDogCap = salonConfig?.dailyDogCap ?? DAILY_DOG_CAP;
+  const initialDateStr = useMemo(() => toLocalDateStr(new Date()), []);
   const { state: workspaceState, actions: workspaceActions } = useInboxWorkspaceState({
     initialConversationId: selectedId,
     initialDateStr,
@@ -105,6 +134,48 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   useEffect(() => {
     workspaceActions.syncSelectedConversation(selectedId);
+  }, [selectedId, workspaceActions]);
+
+  // Booking intent is derived from the same model the Booking Desk queue uses,
+  // so the two surfaces can never disagree about what counts as an active
+  // appointment request. It only ever labels the Booking header — nothing here
+  // opens, moves or focuses a panel on the customer's behalf.
+  const bookingRequest = useMemo(
+    () => (selectedConversation && isActiveAppointmentRequest(selectedConversation)
+      ? buildBookingRequest(selectedConversation)
+      : null),
+    [selectedConversation],
+  );
+  const diaryDates = useMemo(
+    () => buildDiaryDates(selectedWork.dateStr),
+    [selectedWork.dateStr],
+  );
+
+  const handleToggleSlot = useCallback((choice) => {
+    if (!selectedId) return;
+    const result = toggleDraftSlot(selectedWork.slots, choice, MAX_SLOT_CHOICES);
+    if (result.choices === selectedWork.slots) return;
+    workspaceActions.setSlots(selectedId, result.choices);
+  }, [selectedId, selectedWork.slots, workspaceActions]);
+
+  const handlePickDate = useCallback((date) => {
+    if (!selectedId) return;
+    workspaceActions.setDate(selectedId, toLocalDateStr(date));
+  }, [selectedId, workspaceActions]);
+
+  const handleClearSlots = useCallback(() => {
+    if (!selectedId) return;
+    workspaceActions.setSlots(selectedId, []);
+  }, [selectedId, workspaceActions]);
+
+  // Appends to whatever staff have already typed (never replaces it), then puts
+  // the caret back in the composer. Nothing is sent — the normal send path
+  // still applies.
+  const handleInsertSlots = useCallback(() => {
+    if (!selectedId) return;
+    workspaceActions.insertSlots(selectedId);
+    requestAnimationFrame(() => composerTextareaRef.current?.focus());
+    if (!isRailDocked()) workspaceActions.closeContext();
   }, [selectedId, workspaceActions]);
 
   // Wrap the hook actions with success toasts so screen-reader users
@@ -575,6 +646,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       onReopen={handleReopenConversation}
       onOpenBooking={() => workspaceActions.openContext("booking")}
       onOpenCustomer={() => workspaceActions.openContext("customer")}
+      bookingSuggested={
+        !!bookingRequest && !workspaceState.dismissedSuggestionIds[selectedId]
+      }
       contextTriggerRef={contextTriggerRef}
       onApproveDraft={handleApproveDraft}
       onRejectDraft={handleRejectDraft}
@@ -586,13 +660,39 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   );
 
   const contextPane = selectedId ? (
-    <CustomerContextPanel
-      context={customerContext}
-      conversation={selectedConversation}
-      onOpenHuman={onOpenHuman}
-      onOpenDog={onOpenDog}
-      onBookAppointment={() => setBookOpen(true)}
-      onUpdateNotes={handleUpdateNotes}
+    <BookingCustomerPane
+      expandedSection={workspaceState.contextSection}
+      bookingSuggested={!!bookingRequest}
+      suggestionDismissed={!!workspaceState.dismissedSuggestionIds[selectedId]}
+      onExpand={workspaceActions.openContext}
+      onDismissSuggestion={() => workspaceActions.dismissSuggestion(selectedId)}
+      bookingPane={
+        <BookingPane
+          request={bookingRequest}
+          dates={diaryDates}
+          currentDateStr={selectedWork.dateStr}
+          daySettings={salon.daySettings}
+          bookingsByDate={salon.bookingsByDate}
+          dailyDogCap={dailyDogCap}
+          choices={selectedWork.slots}
+          onToggleChoice={handleToggleSlot}
+          onPickDate={handlePickDate}
+          atLimit={selectedWork.slots.length >= MAX_SLOT_CHOICES}
+          onClear={handleClearSlots}
+          onInsertIntoReply={handleInsertSlots}
+          showInsertAction
+        />
+      }
+      customerPane={
+        <CustomerContextPanel
+          context={customerContext}
+          conversation={selectedConversation}
+          onOpenHuman={onOpenHuman}
+          onOpenDog={onOpenDog}
+          onBookAppointment={() => setBookOpen(true)}
+          onUpdateNotes={handleUpdateNotes}
+        />
+      }
     />
   ) : null;
 

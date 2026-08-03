@@ -52,7 +52,7 @@ export function InboxWorkspaceShell({
       style={fillHeight != null ? { "--inbox-visible-height": `${fillHeight}px` } : undefined}
       className={`h-[var(--inbox-visible-height,calc(100dvh-var(--inbox-shell-top)-var(--inbox-bottom-gap)))] ${minimumHeightClass} overflow-hidden bg-white`}
     >
-      <div className="relative grid h-full min-h-0 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] min-[1440px]:grid-cols-[300px_minmax(560px,1fr)_360px]">
+      <div className="relative grid h-full min-h-0 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] wide:grid-cols-[300px_minmax(560px,1fr)_360px]">
         <section
           role="region"
           aria-label="Conversations"
@@ -78,15 +78,17 @@ export function InboxWorkspaceShell({
           <button
             type="button"
             aria-label="Dismiss booking and customer context"
-            className="absolute inset-0 z-20 hidden bg-slate-950/25 transition-opacity duration-200 md:block min-[1440px]:hidden motion-reduce:transition-none motion-reduce:duration-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
+            className="absolute inset-0 z-20 hidden bg-slate-950/25 transition-opacity duration-200 md:block wide:hidden motion-reduce:transition-none motion-reduce:duration-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
             onClick={dismissContext}
           />
         )}
 
+        {/* The context pane keeps its own section headers pinned and scrolls
+            only the open body, so this frame must not become a second scroller. */}
         <section
           role="region"
           aria-label="Booking and customer context"
-          className={`${contextMobileVisibility} ${contextTabletVisibility} absolute inset-y-0 right-0 z-30 flex w-full min-h-0 flex-col overflow-y-auto overscroll-contain bg-white shadow-xl transition-transform duration-200 md:w-[min(520px,100%)] md:border-l md:border-slate-200 lg:w-[380px] min-[1440px]:static min-[1440px]:z-auto min-[1440px]:visible min-[1440px]:w-auto min-[1440px]:translate-x-0 min-[1440px]:pointer-events-auto min-[1440px]:shadow-none motion-reduce:transition-none motion-reduce:duration-0`}
+          className={`${contextMobileVisibility} ${contextTabletVisibility} absolute inset-y-0 right-0 z-30 flex w-full min-h-0 flex-col overflow-hidden overscroll-contain bg-white shadow-xl transition-transform duration-200 md:w-[min(520px,100%)] md:border-l md:border-slate-200 lg:w-[380px] wide:static wide:z-auto wide:visible wide:w-auto wide:translate-x-0 wide:pointer-events-auto wide:shadow-none motion-reduce:transition-none motion-reduce:duration-0`}
         >
           <FocusScope contain={contextOpen}>
             <div className="sticky top-0 z-10 flex min-h-11 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 md:hidden">

@@ -39,6 +39,7 @@ export function ThreadPane({
   onReopen,
   onOpenBooking,
   onOpenCustomer,
+  bookingSuggested = false,
   contextTriggerRef,
   onApproveDraft,
   onRejectDraft,
@@ -177,15 +178,19 @@ export function ThreadPane({
             <button
               type="button"
               onClick={onOpenBooking}
-              className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 min-[1440px]:hidden"
+              aria-label={bookingSuggested ? "Booking (suggested)" : undefined}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Booking
+              {bookingSuggested ? (
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-coral" />
+              ) : null}
             </button>
             <button
               ref={contextTriggerRef}
               type="button"
               onClick={onOpenCustomer}
-              className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 min-[1440px]:hidden"
+              className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Customer
             </button>

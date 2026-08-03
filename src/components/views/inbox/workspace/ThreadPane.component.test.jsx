@@ -55,6 +55,23 @@ function defaultProps(overrides = {}) {
 }
 
 describe("ThreadPane", () => {
+  it("flags a booking suggestion on the Booking trigger without opening anything", () => {
+    const props = defaultProps({ bookingSuggested: true });
+    render(<ThreadPane {...props} />);
+
+    const booking = screen.getByRole("button", { name: /^Booking/ });
+    expect(booking).toHaveAccessibleName("Booking (suggested)");
+    expect(props.onOpenBooking).not.toHaveBeenCalled();
+
+    fireEvent.click(booking);
+    expect(props.onOpenBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the Booking trigger unlabelled when nothing is suggested", () => {
+    render(<ThreadPane {...defaultProps({ bookingSuggested: false })} />);
+    expect(screen.getByRole("button", { name: /^Booking/ })).toHaveAccessibleName("Booking");
+  });
+
   it("renders the complete loaded message history in chronological order", () => {
     render(
       <ThreadPane

@@ -4,9 +4,10 @@
 // (register item #10) can be validated as a no-op rather than a
 // rewrite.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
+import { formatConversationalDate } from "./helpers.js";
 
 function setInboxState(value) {
   globalThis.__useWhatsAppInboxMock = value;
@@ -16,8 +17,30 @@ function setMessageSearch(value) {
   globalThis.__useInboxMessageSearchMock = value;
 }
 
+// The diary defaults to today, so pin the day settings to whatever "today"
+// resolves to in this run rather than a fixed calendar date.
+function todayStr() {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 vi.mock("../../../supabase/hooks/useWhatsAppInbox.js", () => ({
   useWhatsAppInbox: () => globalThis.__useWhatsAppInboxMock,
+}));
+
+vi.mock("../../../contexts/SalonContext", () => ({
+  useSalon: () => ({
+    daySettings: { [todayStr()]: { isOpen: true, extraSlots: [], overrides: {} } },
+    bookingsByDate: {},
+  }),
+}));
+
+vi.mock("../../../supabase/hooks/useSalonConfig.js", () => ({
+  useSalonConfig: () => ({ config: { dailyDogCap: 14 }, loading: false, error: null }),
 }));
 
 vi.mock("./hooks/useCustomerContext.js", () => ({
@@ -521,5 +544,163 @@ describe("InboxView", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Write a reply")).toHaveValue("Draft for Sarah"),
     );
+  });
+
+  describe("Booking context and slot insertion", () => {
+    function bookingConversation(id, name, dogId, dogName) {
+      return {
+        id,
+        human_id: `human-${id}`,
+        phone_e164: "+447700900111",
+        channel: "whatsapp",
+        closed_at: null,
+        unread_count: 0,
+        humans: {
+          name,
+          surname: "Jones",
+          dogs: [{ id: dogId, name: dogName, size: "small", breed: "Cockapoo" }],
+        },
+        last_customer_text: `Can I book ${dogName} in?`,
+        last_inbound_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        agent_state: { service: "full-groom", dogName, preferredDay: "Monday" },
+      };
+    }
+
+    const first = bookingConversation("conv-1", "Sarah", "dog-1", "Bella");
+    const second = bookingConversation("conv-2", "Mina", "dog-2", "Milo");
+
+    function contextRegion() {
+      return screen.getByRole("region", { name: "Booking and customer context" });
+    }
+
+    function openBookingSection() {
+      fireEvent.click(within(contextRegion()).getByRole("button", { name: /^Booking/ }));
+    }
+
+    function chooseSlot(slot) {
+      fireEvent.click(within(contextRegion()).getByRole("button", { name: new RegExp(slot) }));
+    }
+
+    function showConversation(view, conversation) {
+      setInboxState(baseState({
+        conversations: [first, second],
+        selectedId: conversation.id,
+        selectedConversation: conversation,
+      }));
+      view.rerender(
+        <MemoryRouter>
+          <ToastProvider>
+            <InboxView />
+          </ToastProvider>
+        </MemoryRouter>,
+      );
+    }
+
+    it("appends the chosen slots to the reply, focuses the composer and closes the overlay", async () => {
+      renderInbox(baseState({
+        conversations: [first, second],
+        selectedId: first.id,
+        selectedConversation: first,
+      }));
+
+      openBookingSection();
+      chooseSlot("08:30");
+      chooseSlot("09:00");
+
+      // The overlay is open while staff pick times.
+      expect(
+        screen.getByRole("button", { name: "Dismiss booking and customer context" }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(
+        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
+      );
+
+      const composer = screen.getByLabelText("Write a reply");
+      expect(composer).toHaveValue(
+        `${formatConversationalDate(todayStr())} — 8:30am / 9:00am`,
+      );
+      await waitFor(() => expect(composer).toHaveFocus());
+      expect(
+        screen.queryByRole("button", { name: "Dismiss booking and customer context" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("never overwrites reply text staff have already written", () => {
+      renderInbox(baseState({
+        conversations: [first, second],
+        selectedId: first.id,
+        selectedConversation: first,
+      }));
+
+      fireEvent.change(screen.getByLabelText("Write a reply"), {
+        target: { value: "Hiya Sarah, lovely to hear from you!" },
+      });
+
+      openBookingSection();
+      chooseSlot("08:30");
+      fireEvent.click(
+        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
+      );
+
+      expect(screen.getByLabelText("Write a reply")).toHaveValue(
+        `Hiya Sarah, lovely to hear from you!\n\n${formatConversationalDate(todayStr())} — 8:30am`,
+      );
+    });
+
+    it("keeps each conversation's slot choices and inserted reply to itself", async () => {
+      const view = renderInbox(baseState({
+        conversations: [first, second],
+        selectedId: first.id,
+        selectedConversation: first,
+      }));
+
+      openBookingSection();
+      chooseSlot("08:30");
+      chooseSlot("09:00");
+      fireEvent.click(
+        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
+      );
+      const sarahReply = `${formatConversationalDate(todayStr())} — 8:30am / 9:00am`;
+      expect(screen.getByLabelText("Write a reply")).toHaveValue(sarahReply);
+
+      // Mina starts clean — no draft and no slot choices carried over.
+      showConversation(view, second);
+      await waitFor(() => expect(screen.getByLabelText("Write a reply")).toHaveValue(""));
+      openBookingSection();
+      expect(
+        within(contextRegion()).getByRole("button", { name: /08:30/ }),
+      ).toHaveAttribute("aria-pressed", "false");
+
+      // Sarah's own work is intact on return.
+      showConversation(view, first);
+      await waitFor(() =>
+        expect(screen.getByLabelText("Write a reply")).toHaveValue(sarahReply),
+      );
+      openBookingSection();
+      expect(
+        within(contextRegion()).getByRole("button", { name: /08:30/ }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(
+        within(contextRegion()).getByRole("button", { name: /09:00/ }),
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("surfaces a booking suggestion without opening the Booking section", () => {
+      renderInbox(baseState({
+        conversations: [first, second],
+        selectedId: first.id,
+        selectedConversation: first,
+      }));
+
+      expect(within(contextRegion()).getByText("Booking suggested")).toBeInTheDocument();
+      // Customer stays the open section until staff choose otherwise.
+      expect(
+        within(contextRegion()).getByRole("button", { name: /^Customer/ }),
+      ).toHaveAttribute("aria-expanded", "true");
+
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss suggestion" }));
+      expect(screen.queryByText("Booking suggested")).not.toBeInTheDocument();
+    });
   });
 });

@@ -28,6 +28,7 @@ export const SAMPLE_BOOKING_WORKSPACE_CONVERSATIONS = [
     last_outbound_at: minutesAgo(180),
     unread_count: 1,
     closed_at: null,
+    has_pending_draft: true,
     whatsapp_drafts: [
       { id: "sample-draft-sarah", state: "pending", intent: "booking_query", created_at: minutesAgo(17) },
     ],
@@ -56,6 +57,8 @@ export const SAMPLE_BOOKING_WORKSPACE_CONVERSATIONS = [
     last_message_at: minutesAgo(64),
     unread_count: 0,
     closed_at: null,
+    has_failed_message: true,
+    latest_failed_message: { error_message: "Meta rejected the send (re-engagement window closed)." },
     whatsapp_drafts: [],
   },
   {
@@ -80,24 +83,48 @@ export const SAMPLE_BOOKING_WORKSPACE_CONVERSATIONS = [
     last_outbound_at: null,
     unread_count: 1,
     closed_at: null,
+    needs_human_review: true,
     whatsapp_drafts: [
-      { id: "sample-draft-priya", state: "pending", intent: "booking_query", created_at: minutesAgo(125) },
+      {
+        id: "sample-draft-priya",
+        state: "pending",
+        intent: "booking_query",
+        risk_level: "high",
+        handoff_required: true,
+        created_at: minutesAgo(125),
+      },
     ],
   },
 ];
 
+const sampleMessage = (id, direction, content, minutes, overrides = {}) => ({
+  id,
+  direction,
+  content,
+  sent_at: minutesAgo(minutes),
+  channel: "whatsapp",
+  status: direction === "inbound" ? "received" : "delivered",
+  ...overrides,
+});
+
 export const SAMPLE_BOOKING_WORKSPACE_MESSAGES = {
   "sample-request-sarah": [
-    { id: "s1", direction: "outbound", content: "Hi Sarah, thanks for getting in touch!", sent_at: minutesAgo(180) },
-    { id: "s2", direction: "inbound", content: "Any chance of a morning slot this week?", sent_at: minutesAgo(120) },
-    { id: "s3", direction: "inbound", content: "Would Wednesday morning work?", sent_at: minutesAgo(18) },
+    sampleMessage("s1", "outbound", "Hi Sarah, thanks for getting in touch!", 180),
+    sampleMessage("s2", "inbound", "Any chance of a morning slot this week?", 120),
+    sampleMessage("s3", "outbound", "Of course — let me have a look at the diary for you.", 100),
+    sampleMessage("s4", "inbound", "Would Wednesday morning work?", 18),
   ],
   "sample-request-david": [
-    { id: "d1", direction: "inbound", content: "Do you have any appointment times next week?", sent_at: minutesAgo(72) },
-    { id: "d2", direction: "outbound", content: "I can check a couple of mornings for you.", sent_at: minutesAgo(64) },
+    sampleMessage("d1", "inbound", "Do you have any appointment times next week?", 72),
+    sampleMessage("d2", "outbound", "I can check a couple of mornings for you.", 64),
+    // Exercises the failed-send bubble and its confirmed Retry.
+    sampleMessage("d3", "outbound", "Would Monday at 9:00am suit?", 40, {
+      status: "failed",
+      error_message: "Meta rejected the send (re-engagement window closed).",
+    }),
   ],
   "sample-request-priya": [
-    { id: "p1", direction: "inbound", content: "I'd like to book a puppy groom next week.", sent_at: minutesAgo(126) },
+    sampleMessage("p1", "inbound", "I'd like to book a puppy groom next week.", 126),
   ],
 };
 

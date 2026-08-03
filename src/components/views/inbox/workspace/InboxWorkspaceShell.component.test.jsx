@@ -30,9 +30,16 @@ describe("InboxWorkspaceShell", () => {
 
     for (const region of [conversations, thread, context]) {
       expect(region.className).toContain("min-h-0");
-      expect(region.className).toContain("overflow-y-auto");
       expect(region.className).toContain("overscroll-contain");
     }
+    // List and thread scroll themselves.
+    for (const region of [conversations, thread]) {
+      expect(region.className).toContain("overflow-y-auto");
+    }
+    // The context frame does not: its pane pins section headers and scrolls
+    // only the open body, so a second scroller here would double up.
+    expect(context.className).toContain("overflow-hidden");
+    expect(context.className).not.toContain("overflow-y-auto");
 
     rerender(<InboxWorkspaceShell {...props} mobilePane="context" contextOpen />);
     expect(screen.getByRole("region", { name: "Conversations" })).toBe(conversations);
@@ -55,11 +62,11 @@ describe("InboxWorkspaceShell", () => {
     expect(grid.className).toContain("md:grid-cols-[280px_minmax(0,1fr)]");
     expect(grid.className).toContain("lg:grid-cols-[300px_minmax(0,1fr)]");
     expect(grid.className).toContain(
-      "min-[1440px]:grid-cols-[300px_minmax(560px,1fr)_360px]",
+      "wide:grid-cols-[300px_minmax(560px,1fr)_360px]",
     );
     expect(context.className).toContain("md:w-[min(520px,100%)]");
     expect(context.className).toContain("lg:w-[380px]");
-    expect(context.className).toContain("min-[1440px]:w-auto");
+    expect(context.className).toContain("wide:w-auto");
     expect(context.className).toContain("motion-reduce:transition-none");
     expect(context.className).toContain("motion-reduce:duration-0");
   });
