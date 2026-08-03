@@ -19,6 +19,7 @@
 // for the same customer.
 // ============================================================
 
+import { useState } from "react";
 import { formatWhen, formatDayToken, formatTime } from "../helpers.js";
 import { parseMessageContent, presentTemplate, isReminderConfirm } from "./messageContent";
 import { ReactionLine } from "./ReactionLine.jsx";
@@ -29,7 +30,8 @@ const CHANNEL_LABEL = {
   sms: "SMS",
 };
 
-export function MessageBubble({ message }) {
+export function MessageBubble({ message, onRetry }) {
+  const [retryState, setRetryState] = useState("idle");
   const parsed = parseMessageContent(message.content);
 
   // Reactions aren't real messages — render a lightweight line, not a bubble.
@@ -93,6 +95,16 @@ export function MessageBubble({ message }) {
   const metaParts = [channelLabel, formatDayToken(message.sent_at), formatTime(message.sent_at)]
     .filter(Boolean)
     .join(" · ");
+
+  async function handleConfirmedRetry() {
+    setRetryState("sending");
+    try {
+      const result = await onRetry(message);
+      setRetryState(result?.ok ? "succeeded" : "failed");
+    } catch {
+      setRetryState("failed");
+    }
+  }
 
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}>
@@ -159,13 +171,53 @@ export function MessageBubble({ message }) {
             </span>
           )}
         </div>
-        {isFailed && (
+        {isFailed && retryState === "succeeded" && (
+          <div
+            role="status"
+            className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800"
+          >
+            Original send failed · Sent again successfully
+          </div>
+        )}
+        {isFailed && retryState !== "succeeded" && (
           <div
             role="alert"
             className="mt-2 rounded-lg border border-rose-200 bg-white/80 px-2 py-1.5 text-[11px] leading-snug text-rose-800"
           >
-            <span className="font-bold">Message failed</span>
-            {message.error_message ? `: ${message.error_message}` : ". Check provider logs before relying on this reply."}
+            <div>
+              <span className="font-bold">Message failed</span>
+              {message.error_message ? `: ${message.error_message}` : ". Check provider logs before relying on this reply."}
+            </div>
+            {onRetry && retryState === "confirm" ? (
+              <div className="mt-2">
+                <p>This message may already have arrived. Send it again?</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleConfirmedRetry}
+                    className="min-h-9 rounded-full bg-rose-700 px-3 font-bold text-white disabled:opacity-50"
+                  >
+                    Send again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRetryState("idle")}
+                    className="min-h-9 rounded-full border border-rose-300 bg-white px-3 font-bold text-rose-800"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : onRetry ? (
+              <button
+                type="button"
+                disabled={retryState === "sending"}
+                onClick={() => setRetryState("confirm")}
+                className="mt-2 min-h-9 rounded-full border border-rose-300 bg-white px-3 font-bold text-rose-800 disabled:opacity-50"
+              >
+                {retryState === "sending" ? "Sending…" : "Retry"}
+              </button>
+            ) : null}
           </div>
         )}
       </div>

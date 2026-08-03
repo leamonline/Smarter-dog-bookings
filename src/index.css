@@ -59,6 +59,22 @@
 }
 
 @theme {
+  /* Wide-desktop breakpoint for the Inbox workspace, where the Booking /
+     Customer rail docks beside the list and thread instead of overlaying them.
+     90rem === 1440px (rem in a media query always resolves against the initial
+     16px, never a changed root font-size).
+
+     Two things here are deliberate and load-bearing:
+       1. It is a NAMED breakpoint, not an arbitrary `min-[1440px]:` variant.
+          Tailwind v4 emits arbitrary min-width variants before the named ones,
+          so at 1440px an equal-specificity `md:`/`lg:` rule would win and the
+          docked-rail layout would silently never apply.
+       2. It is declared in REM, not px. Tailwind orders breakpoint variants by
+          resolved value, and cannot compare px against its rem-based defaults —
+          a px value falls back to an early slot and loses to `lg:` all over
+          again. In rem it sorts correctly, between xl (80rem) and 2xl (96rem). */
+  --breakpoint-wide: 90rem;
+
   /* Typography — matches smarterdog.co.uk: Montserrat for body/UI, Quicksand for display */
   --font-sans: "Montserrat", system-ui, -apple-system, sans-serif;
   --font-display: "Quicksand", "Montserrat", sans-serif;

@@ -44,3 +44,224 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
   ],
   thu: [], fri: [], sat: [], sun: [],
 };
+
+// ── WhatsApp inbox ────────────────────────────────────────────
+// Offline fixtures for the Inbox workspace. useWhatsAppInbox serves these
+// whenever there is no Supabase client (VITE_FORCE_OFFLINE=1, or missing creds
+// in dev), so /inbox and /booking-workspace both render populated at every
+// breakpoint without touching a real customer conversation.
+//
+// Timestamps are relative so the thread always looks current. Between them the
+// three conversations cover each row status the list can show — pending draft,
+// failed send and needs-review — plus a failed outbound bubble and a pending AI
+// draft in the thread.
+
+const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
+
+export const SAMPLE_WHATSAPP_CONVERSATIONS = [
+  {
+    id: "sample-request-sarah",
+    phone_e164: "+447700900123",
+    channel: "whatsapp",
+    human_id: "h1",
+    humans: {
+      name: "Sarah",
+      surname: "Jones",
+      dogs: [{ id: "sample-luna", name: "Luna", breed: "Cockapoo", size: "small" }],
+    },
+    agent_state: {
+      dogName: "Luna",
+      dogSize: "small",
+      breed: "Cockapoo",
+      dogAge: "4",
+      service: "full-groom",
+      preferredDay: "weekday",
+      preferredTime: "morning",
+    },
+    last_customer_text: "Would Wednesday morning work?",
+    last_message_text: "Would Wednesday morning work?",
+    last_message_direction: "inbound",
+    last_inbound_at: minutesAgo(18),
+    last_message_at: minutesAgo(18),
+    last_outbound_at: minutesAgo(180),
+    unread_count: 1,
+    closed_at: null,
+    has_pending_draft: true,
+    whatsapp_drafts: [
+      { id: "sample-draft-sarah", state: "pending", intent: "booking_query", created_at: minutesAgo(17) },
+    ],
+  },
+  {
+    id: "sample-request-david",
+    phone_e164: "+447700900124",
+    channel: "whatsapp",
+    human_id: "h2",
+    humans: {
+      name: "David",
+      surname: "Miller",
+      dogs: [{ id: "sample-milo", name: "Milo", breed: "Maltese", size: "small" }],
+    },
+    agent_state: {
+      dogName: "Milo",
+      dogSize: "small",
+      service: "bath-and-brush",
+      preferredDay: "Monday or Tuesday",
+    },
+    last_customer_text: "Do you have any appointment times next week?",
+    last_message_text: "I can check a couple of mornings for you.",
+    last_message_direction: "outbound",
+    last_inbound_at: minutesAgo(72),
+    last_outbound_at: minutesAgo(64),
+    last_message_at: minutesAgo(64),
+    unread_count: 0,
+    closed_at: null,
+    has_failed_message: true,
+    latest_failed_message: { error_message: "Meta rejected the send (re-engagement window closed)." },
+    whatsapp_drafts: [],
+  },
+  {
+    id: "sample-request-priya",
+    phone_e164: "+447700900125",
+    channel: "whatsapp",
+    human_id: null,
+    humans: null,
+    lead_status: "collecting",
+    lead_payload: {
+      customerName: "Priya",
+      customerSurname: "Taylor",
+      dogName: "Teddy",
+      service: "puppy-groom",
+      preferredDay: "next week",
+    },
+    last_customer_text: "I'd like to book a puppy groom next week.",
+    last_message_text: "I'd like to book a puppy groom next week.",
+    last_message_direction: "inbound",
+    last_inbound_at: minutesAgo(126),
+    last_message_at: minutesAgo(126),
+    last_outbound_at: null,
+    unread_count: 1,
+    closed_at: null,
+    needs_human_review: true,
+    whatsapp_drafts: [
+      {
+        id: "sample-draft-priya",
+        state: "pending",
+        intent: "booking_query",
+        risk_level: "high",
+        handoff_required: true,
+        created_at: minutesAgo(125),
+      },
+    ],
+  },
+];
+
+const sampleMessage = (id, direction, content, minutes, overrides = {}) => ({
+  id,
+  direction,
+  content,
+  sent_at: minutesAgo(minutes),
+  channel: "whatsapp",
+  status: direction === "inbound" ? "received" : "delivered",
+  ...overrides,
+});
+
+export const SAMPLE_WHATSAPP_MESSAGES = {
+  "sample-request-sarah": [
+    sampleMessage("s1", "outbound", "Hi Sarah, thanks for getting in touch!", 180),
+    sampleMessage("s2", "inbound", "Any chance of a morning slot this week?", 120),
+    sampleMessage("s3", "outbound", "Of course — let me have a look at the diary for you.", 100),
+    sampleMessage("s4", "inbound", "Would Wednesday morning work?", 18),
+  ],
+  "sample-request-david": [
+    sampleMessage("d1", "inbound", "Do you have any appointment times next week?", 72),
+    sampleMessage("d2", "outbound", "I can check a couple of mornings for you.", 64),
+    // Exercises the failed-send bubble and its confirmed Retry.
+    sampleMessage("d3", "outbound", "Would Monday at 9:00am suit?", 40, {
+      status: "failed",
+      error_message: "Meta rejected the send (re-engagement window closed).",
+    }),
+  ],
+  "sample-request-priya": [
+    sampleMessage("p1", "inbound", "I'd like to book a puppy groom next week.", 126),
+  ],
+};
+
+// One pending AI draft so the thread's DraftPanel renders offline. Keyed by
+// conversation; the others have no draft awaiting approval.
+export const SAMPLE_WHATSAPP_DRAFTS = {
+  "sample-request-sarah": {
+    id: "sample-draft-sarah",
+    state: "pending",
+    intent: "booking_query",
+    proposed_text:
+      "Hiya Sarah! Wednesday morning works nicely for Luna — I've got 9:30am or 11:00am free. Which would suit you best?",
+    confidence: 0.86,
+    risk_level: "low",
+    handoff_required: false,
+    auto_send_eligible: false,
+    model: "claude-sonnet-4-5",
+    created_at: minutesAgo(17),
+  },
+};
+
+export const SAMPLE_WHATSAPP_DOG_NAMES = {
+  "sample-request-sarah": [{ id: "sample-luna", name: "Luna" }],
+  "sample-request-david": [{ id: "sample-milo", name: "Milo" }],
+  "sample-request-priya": [],
+};
+
+// Customer context for the workspace's Customer section, keyed by human_id so
+// useCustomerContext can serve it offline. Priya has no human record on
+// purpose — it exercises the "no customer match yet" state.
+export const SAMPLE_CUSTOMER_CONTEXT = {
+  h1: {
+    human: {
+      id: "h1",
+      name: "Sarah",
+      surname: "Jones",
+      fullName: "Sarah Jones",
+      phone: "07700 900123",
+      email: "sarah.jones@example.com",
+      notes: "Prefers morning appointments.",
+    },
+    dogs: [
+      {
+        id: "sample-luna",
+        name: "Luna",
+        breed: "Cockapoo",
+        age: "4",
+        size: "small",
+        alerts: [],
+        groomNotes: "Not scared of the dryer. Prefers light scissoring on face.",
+      },
+    ],
+    lastBooking: null,
+    trustedContacts: [{ id: "h2", fullName: "David Miller", relationship: "Partner" }],
+    summary: "Sarah Jones · Luna (Cockapoo, small) · prefers morning appointments.",
+  },
+  h2: {
+    human: {
+      id: "h2",
+      name: "David",
+      surname: "Miller",
+      fullName: "David Miller",
+      phone: "07700 900124",
+      email: "david@example.com",
+      notes: "",
+    },
+    dogs: [
+      {
+        id: "sample-milo",
+        name: "Milo",
+        breed: "Maltese",
+        age: "6",
+        size: "small",
+        alerts: ["Nervous with clippers"],
+        groomNotes: "Leave ears slightly longer.",
+      },
+    ],
+    lastBooking: null,
+    trustedContacts: [],
+    summary: "David Miller · Milo (Maltese, small).",
+  },
+};

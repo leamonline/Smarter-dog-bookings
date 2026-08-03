@@ -27,6 +27,12 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
+import {
+  SAMPLE_WHATSAPP_CONVERSATIONS,
+  SAMPLE_WHATSAPP_DOG_NAMES,
+  SAMPLE_WHATSAPP_DRAFTS,
+  SAMPLE_WHATSAPP_MESSAGES,
+} from "../../data/sample.js";
 import { logger } from "../../lib/logger";
 import {
   SEND_FUNCTION_PATH,
@@ -399,6 +405,10 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
 
   useEffect(() => {
     if (!supabase) {
+      // Offline/sample mode (VITE_FORCE_OFFLINE=1, or missing creds in dev):
+      // serve the shared fixtures so the workspace renders populated for visual
+      // review. No query runs and no realtime channel opens.
+      setConversations(SAMPLE_WHATSAPP_CONVERSATIONS);
       setLoadingList(false);
       return;
     }
@@ -486,6 +496,14 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
     setDetailError(null);
 
     if (!conversationId || !supabase) {
+      if (conversationId && !supabase) {
+        // Offline/sample mode — hydrate the thread from the shared fixtures.
+        const dogs = SAMPLE_WHATSAPP_DOG_NAMES[conversationId] ?? [];
+        setMessages(SAMPLE_WHATSAPP_MESSAGES[conversationId] ?? []);
+        setDraft(SAMPLE_WHATSAPP_DRAFTS[conversationId] ?? null);
+        setDogNames(dogs.map((dog) => dog.name));
+        setDogNamesById(Object.fromEntries(dogs.map((dog) => [dog.id, dog.name])));
+      }
       setLoadingDetail(false);
       return;
     }

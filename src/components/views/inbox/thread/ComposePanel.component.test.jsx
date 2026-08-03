@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { ComposePanel } from "./ComposePanel.jsx";
@@ -11,6 +12,24 @@ function openWindowConversation(overrides = {}) {
     humans: { name: "Sarah" },
     ...overrides,
   };
+}
+
+function ControlledComposePanel(props) {
+  const [value, setValue] = useState(props.initialValue ?? "");
+  return (
+    <ComposePanel
+      conversation={openWindowConversation()}
+      dogNames={[]}
+      inFlight={false}
+      onSendTemplate={vi.fn()}
+      {...props}
+      value={value}
+      onChange={(nextValue) => {
+        setValue(nextValue);
+        props.onChange?.(nextValue);
+      }}
+    />
+  );
 }
 
 describe("ComposePanel", () => {
@@ -31,6 +50,8 @@ describe("ComposePanel", () => {
         }}
         dogNames={["Bella"]}
         inFlight={false}
+        value=""
+        onChange={vi.fn()}
         onSend={vi.fn()}
         onSendTemplate={vi.fn()}
       />,
@@ -52,12 +73,8 @@ describe("ComposePanel", () => {
     const onGenerateReply = vi.fn().mockResolvedValue({ ok: true });
 
     render(
-      <ComposePanel
-        conversation={openWindowConversation()}
-        dogNames={[]}
-        inFlight={false}
+      <ControlledComposePanel
         onSend={vi.fn()}
-        onSendTemplate={vi.fn()}
         hasInbound
         hasPendingDraft={false}
         onGenerateReply={onGenerateReply}
@@ -81,12 +98,8 @@ describe("ComposePanel", () => {
       .mockResolvedValue({ ok: true, replyText: "Hi Sarah 🐾 — happy to help!" });
 
     render(
-      <ComposePanel
-        conversation={openWindowConversation()}
-        dogNames={[]}
-        inFlight={false}
+      <ControlledComposePanel
         onSend={onSend}
-        onSendTemplate={vi.fn()}
         hasInbound
         hasPendingDraft={false}
         onGenerateReply={onGenerateReply}
@@ -111,6 +124,8 @@ describe("ComposePanel", () => {
         conversation={openWindowConversation()}
         dogNames={[]}
         inFlight={false}
+        value=""
+        onChange={vi.fn()}
         onSend={vi.fn()}
         onSendTemplate={vi.fn()}
         hasInbound
@@ -127,6 +142,8 @@ describe("ComposePanel", () => {
         conversation={openWindowConversation()}
         dogNames={[]}
         inFlight={false}
+        value=""
+        onChange={vi.fn()}
         onSend={vi.fn()}
         onSendTemplate={vi.fn()}
         hasInbound={false}
@@ -137,5 +154,49 @@ describe("ComposePanel", () => {
     expect(
       screen.queryByRole("button", { name: /generate reply/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps Enter to send and Shift+Enter for newline", () => {
+    const onSend = vi.fn();
+    const onChange = vi.fn();
+
+    render(
+      <ComposePanel
+        conversation={openWindowConversation()}
+        value="Hello"
+        onChange={onChange}
+        onSend={onSend}
+        onSendTemplate={vi.fn()}
+        dogNames={[]}
+        inFlight={false}
+      />,
+    );
+
+    const textarea = screen.getByLabelText("Write a reply");
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
+    expect(onSend).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(onSend).toHaveBeenCalledWith({ text: "Hello" });
+  });
+
+  it("grows from one to five lines before enabling internal scrolling", () => {
+    const originalGetComputedStyle = window.getComputedStyle;
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => ({
+      ...originalGetComputedStyle(element),
+      lineHeight: "20px",
+    }));
+
+    render(<ControlledComposePanel onSend={vi.fn()} />);
+    const textarea = screen.getByLabelText("Write a reply");
+    Object.defineProperty(textarea, "scrollHeight", {
+      configurable: true,
+      value: 140,
+    });
+
+    fireEvent.change(textarea, { target: { value: "One\nTwo\nThree\nFour\nFive\nSix" } });
+
+    expect(textarea.style.height).toBe("100px");
+    expect(textarea.style.overflowY).toBe("auto");
   });
 });
