@@ -111,6 +111,14 @@ describe("InboxView", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the compact conversation listbox through the route entry", () => {
+    renderInbox();
+
+    expect(
+      screen.getByRole("listbox", { name: "Conversations" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the empty-state copy when there are zero conversations", () => {
     renderInbox(baseState({ conversations: [] }));
     expect(

@@ -28,12 +28,10 @@ import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox.js";
 import { useToast } from "../../../../contexts/ToastContext.jsx";
-import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { Spinner } from "../../../ui/Spinner.jsx";
 import {
   PageHeader,
   PageHeaderAction,
-  PageHeaderSearch,
 } from "../../../ui/index.js";
 import {
   displayName,
@@ -41,9 +39,7 @@ import {
   isAwaitingReply,
 } from "../helpers.js";
 import { formatPhoneForDisplay } from "../../../../utils/phone.js";
-import { InboxFilterChip } from "../InboxFilterChip.jsx";
 import { ThreadSkeleton } from "../../../ui/Skeleton.jsx";
-import { ConversationListItem } from "../conversation-list/ConversationListItem.jsx";
 import { InitialsAvatar } from "../InitialsAvatar.jsx";
 import { MarkCompleteButton } from "../MarkCompleteButton.jsx";
 import { ComposeNewModal } from "../compose-new/ComposeNewModal.jsx";
@@ -58,6 +54,7 @@ import { useCustomerContext } from "../hooks/useCustomerContext.js";
 import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
 import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
 import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
+import { ConversationPane } from "./ConversationPane.jsx";
 import { InboxWorkspaceShell } from "./InboxWorkspaceShell.jsx";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 
@@ -520,159 +517,55 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`;
 
   const pageHeader = (
-    <div className="flex shrink-0 flex-col">
-        <PageHeader title="Inbox" className="xl:flex-nowrap">
-          <div
-          className="flex min-w-0 basis-full items-center gap-2 overflow-x-auto px-1 [scrollbar-width:thin] md:basis-auto md:flex-1"
-          role="group"
-          aria-label="Filter conversations"
-          >
-          <InboxFilterChip
-            label="All"
-            count={activeConversations.length}
-            active={listFilter === "all"}
-            onClick={() => setListFilter("all")}
-            color="slate"
-            clearable={false}
-            hint="Show every active conversation."
-          />
-          <InboxFilterChip
-            label="Awaiting reply"
-            count={awaitingReplyCount}
-            active={listFilter === "awaiting_reply"}
-            onClick={() => toggleFilter("awaiting_reply")}
-            color="purple"
-            hint="Show active conversations where the latest customer message is newer than the latest staff reply."
-          />
-          <InboxFilterChip
-            label="Failed sends"
-            count={failedSendCount}
-            active={listFilter === "failed_sends"}
-            onClick={() => toggleFilter("failed_sends")}
-            color="rose"
-            hint="Show conversations where the latest outbound send attempt failed."
-          />
-          <InboxFilterChip
-            label="Unread"
-            count={unreadCount}
-            active={listFilter === "unread"}
-            onClick={() => toggleFilter("unread")}
-            color="purple"
-            hint="Show only conversations with unread customer messages."
-          />
-          <InboxFilterChip
-            label="Drafts"
-            count={draftsCount}
-            active={listFilter === "drafts"}
-            onClick={() => toggleFilter("drafts")}
-            color="amber"
-            hint="Show only conversations with a pending AI draft waiting for staff approval."
-          />
-          <InboxFilterChip
-            label="Done"
-            count={doneCount}
-            active={listFilter === "done"}
-            onClick={() => toggleFilter("done")}
-            color="slate"
-            hint="Show conversations that have been marked complete. They reopen automatically if the customer messages again."
-          />
-          </div>
-          <PageHeaderSearch
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onClear={() => setSearchQuery("")}
-            placeholder="Search all messages…"
-            ariaLabel="Search all messages"
-          />
-          <PageHeaderAction
-            type="button"
-            onClick={() => setComposeOpen(true)}
-            title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
-            icon={Plus}
-          >
-            New message
-          </PageHeaderAction>
-          <span className="sr-only" role="status">{conversationSummary}</span>
-        </PageHeader>
-    </div>
+    <PageHeader
+      title="Inbox"
+      actions={
+        <PageHeaderAction
+          type="button"
+          onClick={() => setComposeOpen(true)}
+          title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
+          icon={Plus}
+        >
+          New message
+        </PageHeaderAction>
+      }
+    />
   );
 
   const conversationPane = (
-    <div className="flex h-full min-h-0 flex-col">
-          {loadingList ? (
-            <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
-          ) : listError ? (
-            <div role="alert" className="m-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <h2 className="text-sm font-bold text-amber-900">We can&apos;t load your messages right now</h2>
-              <p className="mt-1 text-xs text-amber-800">
-                The inbox is temporarily unavailable. This usually clears within a minute. If it keeps happening, the dashboard&apos;s WhatsApp widget may still show recent threads.
-              </p>
-              <button
-                type="button"
-                onClick={refreshList}
-                className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1.5 text-xs font-bold text-amber-50 hover:bg-amber-950"
-              >
-                Try again
-              </button>
-              {import.meta.env.DEV && (
-                <details className="mt-3 text-micro text-amber-700">
-                  <summary>Dev: error details</summary>
-                  <pre className="whitespace-pre-wrap mt-1">{String(listError?.message || listError)}</pre>
-                </details>
-              )}
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-600 text-body">
-              <p className="font-semibold text-brand-purple mb-1">No WhatsApp conversations yet</p>
-              <p className="text-xs text-slate-500">
-                When a customer messages your WhatsApp number, their thread will appear here.
-              </p>
-            </div>
-          ) : displayedConversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-600 text-body">
-              {isSearching ? (
-                <>
-                  <p className="mb-1">
-                    No messages match <span className="font-semibold">“{trimmedQuery}”</span>.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
-                  >
-                    Clear search
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="mb-1">
-                    No conversations match <span className="font-semibold">{FILTER_LABELS[listFilter] ?? listFilter}</span>.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setListFilter("all")}
-                    className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
-                  >
-                    Show all conversations
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-y-auto flex-1">
-              {displayedConversations.map((c) => (
-                <ConversationListItem
-                  key={c.id}
-                  conv={c}
-                  isSelected={c.id === selectedId}
-                  onSelect={workspaceActions.selectConversation}
-                  isChecked={selectedIds.has(c.id)}
-                  onToggleSelect={toggleSelect}
-                />
-              ))}
-            </div>
-          )}
-    </div>
+    <ConversationPane
+      conversations={conversations}
+      displayedConversations={displayedConversations}
+      loadingList={loadingList}
+      listError={listError}
+      refreshList={refreshList}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onClearSearch={() => setSearchQuery("")}
+      isSearching={isSearching}
+      trimmedQuery={trimmedQuery}
+      listFilter={listFilter}
+      filterCounts={{
+        all: activeConversations.length,
+        awaiting_reply: awaitingReplyCount,
+        failed_sends: failedSendCount,
+        unread: unreadCount,
+        drafts: draftsCount,
+        done: doneCount,
+      }}
+      onFilterChange={(nextFilter) => {
+        if (nextFilter === "all") {
+          setListFilter("all");
+          return;
+        }
+        toggleFilter(nextFilter);
+      }}
+      conversationSummary={conversationSummary}
+      selectedId={selectedId}
+      selectedIds={selectedIds}
+      onSelectConversation={workspaceActions.selectConversation}
+      onToggleSelect={toggleSelect}
+    />
   );
 
   const threadPane = (

@@ -76,6 +76,117 @@ describe("ConversationListItem", () => {
     );
   });
 
+  it("renders one winning status plus an independent closing-window constraint", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T12:00:00Z"));
+
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          has_pending_draft: true,
+          unread_count: 3,
+          last_inbound_at: "2026-06-11T12:30:00Z",
+          last_outbound_at: null,
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Draft pending")).toBeInTheDocument();
+    expect(screen.queryByText("3")).not.toBeInTheDocument();
+    expect(screen.getByText(/Closes/)).toBeInTheDocument();
+  });
+
+  it("drops New and suggested-close row chips deliberately", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          lead_status: "records_created",
+          closure_suggested_at: "2026-06-12T09:00:00Z",
+          closure_suggested_reason: "stale_30d",
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/New$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Suggest closing/)).not.toBeInTheDocument();
+  });
+
+  it("preserves the exact decoded review reason on the Action needed badge", () => {
+    const reviewTitle =
+      "Needs review: AI flagged a handoff AND the draft is high-risk. Open to see the reason.";
+
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          needs_human_review: true,
+          whatsapp_drafts: [
+            {
+              state: "pending",
+              handoff_required: true,
+              risk_level: "high",
+            },
+          ],
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Action needed")).toHaveAttribute("title", reviewTitle);
+    expect(screen.getByText("Action needed")).toHaveAttribute("aria-label", reviewTitle);
+  });
+
+  it.each([
+    ["Closed", { closed_at: "2026-06-12T10:00:00Z" }],
+    ["Snoozed", { state: "snoozed" }],
+    ["Taken over", { state: "human_takeover" }],
+  ])("renders the %s lifecycle status", (label, overrides) => {
+    render(
+      <ConversationListItem
+        conv={baseConversation(overrides)}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("exposes the absolute date on the relative timestamp", () => {
+    const lastAt = "2026-06-12T09:00:00Z";
+    const absolute = new Date(lastAt).toLocaleString("en-GB");
+
+    render(
+      <ConversationListItem
+        conv={baseConversation({ last_message_at: lastAt })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const timestamp = screen.getByText("12 Jun");
+    expect(timestamp).toHaveAttribute("title", absolute);
+    expect(timestamp).toHaveAttribute("aria-label", absolute);
+  });
+
+  it("keeps the compact row and checkbox target touch-safe", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation()}
+        isSelected={false}
+        onSelect={vi.fn()}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button").closest("div")).toHaveClass("min-h-16", "max-h-[72px]");
+    expect(screen.getByRole("checkbox").parentElement).toHaveClass("min-h-11", "min-w-11");
+  });
+
   it("tints unread rows yellow and leaves read rows white", () => {
     const { rerender } = render(
       <ConversationListItem
@@ -98,7 +209,7 @@ describe("ConversationListItem", () => {
     expect(readRow.className).not.toContain("brand-yellow");
   });
 
-  it("marks a closed conversation as done without striking through the name", () => {
+  it("marks a closed conversation without striking through the name", () => {
     render(
       <ConversationListItem
         conv={baseConversation({ closed_at: "2026-06-12T10:00:00Z" })}
@@ -106,9 +217,8 @@ describe("ConversationListItem", () => {
         onSelect={vi.fn()}
       />,
     );
-    // A screen-reader "Done:" cue is present…
-    expect(screen.getByText("Done:")).toBeInTheDocument();
-    // …and the name is muted, NOT struck through (strikethrough reads as deleted).
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+    // The name is muted, NOT struck through (strikethrough reads as deleted).
     const name = screen.getByText("Sarah Jones");
     expect(name.className).not.toContain("line-through");
     expect(name.className).toContain("text-brand-purple/55");
