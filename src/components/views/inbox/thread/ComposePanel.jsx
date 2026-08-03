@@ -9,13 +9,15 @@
 // Enter = send, Shift+Enter = newline. Matches WhatsApp.
 // ============================================================
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isWindowOpen, windowCountdown } from "../helpers.js";
 import { TemplatePicker } from "./TemplatePicker.jsx";
 import { GenerateReplyButton } from "./GenerateReplyButton.jsx";
 
 export function ComposePanel({
   conversation,
+  value = "",
+  onChange = () => {},
   onSend,
   onSendTemplate,
   dogNames,
@@ -33,19 +35,41 @@ export function ComposePanel({
   // meaningful inside the open window (there's no textarea to focus when the
   // template picker is shown).
   autoFocusSignal = null,
+  textareaRef: externalTextareaRef,
 }) {
-  const [text, setText] = useState("");
   const [error, setError] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const textareaRef = useRef(null);
+  const internalTextareaRef = useRef(null);
   const lastInboundAt = conversation?.last_inbound_at;
 
-  // Reset input when the user switches to a different conversation,
-  // so a half-typed message doesn't get sent to the wrong person.
+  const setTextareaRef = useCallback((node) => {
+    internalTextareaRef.current = node;
+    if (typeof externalTextareaRef === "function") externalTextareaRef(node);
+    else if (externalTextareaRef) externalTextareaRef.current = node;
+  }, [externalTextareaRef]);
+
+  const resizeTextarea = useCallback((textarea) => {
+    if (!textarea) return;
+    const computedLineHeight = Number.parseFloat(
+      window.getComputedStyle(textarea).lineHeight,
+    );
+    const lineHeight = Number.isFinite(computedLineHeight)
+      ? computedLineHeight
+      : 20;
+    const fiveLineHeight = lineHeight * 5;
+    textarea.style.height = "auto";
+    const contentHeight = Math.max(lineHeight, textarea.scrollHeight);
+    textarea.style.height = `${Math.min(contentHeight, fiveLineHeight)}px`;
+    textarea.style.overflowY = contentHeight > fiveLineHeight ? "auto" : "hidden";
+  }, []);
+
   useEffect(() => {
-    setText("");
     setError(null);
   }, [conversation?.id]);
+
+  useEffect(() => {
+    resizeTextarea(internalTextareaRef.current);
+  }, [resizeTextarea, value]);
 
   useEffect(() => {
     setNowMs(Date.now());
@@ -60,7 +84,7 @@ export function ComposePanel({
   useEffect(() => {
     if (!autoFocusSignal) return;
     const raf = requestAnimationFrame(() => {
-      const el = textareaRef.current;
+      const el = internalTextareaRef.current;
       if (el) {
         el.focus();
         el.setSelectionRange(el.value.length, el.value.length);
@@ -73,13 +97,11 @@ export function ComposePanel({
   const countdown = windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;
 
   async function handleSend() {
-    const trimmed = text.trim();
+    const trimmed = value.trim();
     if (!trimmed || inFlight) return;
     setError(null);
     const res = await onSend({ text: trimmed });
-    if (res?.ok) {
-      setText("");
-    } else {
+    if (!res?.ok) {
       setError(res?.reason ?? "Send failed");
     }
   }
@@ -100,9 +122,9 @@ export function ComposePanel({
   async function handleGenerate() {
     const res = await onGenerateReply?.();
     if (res?.ok && res.replyText) {
-      setText(res.replyText);
+      onChange(res.replyText);
       requestAnimationFrame(() => {
-        const el = textareaRef.current;
+        const el = internalTextareaRef.current;
         if (el) {
           el.focus();
           el.setSelectionRange(el.value.length, el.value.length);
@@ -141,16 +163,19 @@ export function ComposePanel({
           shrink in the row instead of shoving Send off-screen. */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          ref={setTextareaRef}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value);
+            resizeTextarea(event.target);
+          }}
           onKeyDown={handleKeyDown}
           aria-label="Write a reply"
           placeholder="Write a reply…"
           disabled={inFlight}
-          rows={2}
+          rows={1}
           maxLength={2000}
-          className="w-full sm:flex-1 min-w-0 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-y disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
+          className="w-full sm:flex-1 min-w-0 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <div className="flex gap-2 justify-end shrink-0 sm:self-stretch">
           <GenerateReplyButton
@@ -161,7 +186,7 @@ export function ComposePanel({
           />
           <button
             onClick={handleSend}
-            disabled={inFlight || !text.trim()}
+            disabled={inFlight || !value.trim()}
             className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
           >
             Send

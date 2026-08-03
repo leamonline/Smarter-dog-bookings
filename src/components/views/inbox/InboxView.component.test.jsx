@@ -467,4 +467,59 @@ describe("InboxView", () => {
       }
     }
   });
+
+  it("keeps a separate controlled reply draft for each conversation", async () => {
+    const conversation = (id, name) => ({
+      id,
+      human_id: `human-${id}`,
+      phone_e164: "+447700900123",
+      last_inbound_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      humans: { name },
+    });
+    const first = conversation("conv-1", "Sarah");
+    const second = conversation("conv-2", "Mina");
+    const view = renderInbox(baseState({
+      conversations: [first, second],
+      selectedId: first.id,
+      selectedConversation: first,
+    }));
+
+    fireEvent.change(screen.getByLabelText("Write a reply"), {
+      target: { value: "Draft for Sarah" },
+    });
+
+    setInboxState(baseState({
+      conversations: [first, second],
+      selectedId: second.id,
+      selectedConversation: second,
+    }));
+    view.rerender(
+      <MemoryRouter>
+        <ToastProvider>
+          <InboxView />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByLabelText("Write a reply")).toHaveValue(""));
+    fireEvent.change(screen.getByLabelText("Write a reply"), {
+      target: { value: "Draft for Mina" },
+    });
+
+    setInboxState(baseState({
+      conversations: [first, second],
+      selectedId: first.id,
+      selectedConversation: first,
+    }));
+    view.rerender(
+      <MemoryRouter>
+        <ToastProvider>
+          <InboxView />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Write a reply")).toHaveValue("Draft for Sarah"),
+    );
+  });
 });

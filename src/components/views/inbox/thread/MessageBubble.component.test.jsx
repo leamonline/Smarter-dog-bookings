@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { MessageBubble } from "./MessageBubble.jsx";
 
@@ -261,5 +261,68 @@ describe("MessageBubble — special message rendering", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Message failed");
     expect(screen.getByRole("alert")).toHaveTextContent("Meta rejected this template");
+  });
+
+  it("confirms before creating a new send and marks the original attempt", async () => {
+    const failedMessage = {
+      ...base,
+      id: "failed-1",
+      direction: "outbound",
+      content: "See you Tuesday",
+      status: "failed",
+      error_message: "Meta callback timed out",
+      sent_at: "2026-08-02T09:00:00Z",
+    };
+    const onRetry = vi.fn().mockResolvedValue({ ok: true });
+
+    render(<MessageBubble message={failedMessage} onRetry={onRetry} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send again" }));
+
+    await screen.findByText("Original send failed · Sent again successfully");
+    expect(onRetry).toHaveBeenCalledWith(failedMessage);
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
+  it("can cancel retry confirmation without sending", () => {
+    const failedMessage = {
+      ...base,
+      direction: "outbound",
+      content: "See you Tuesday",
+      status: "failed",
+    };
+    const onRetry = vi.fn();
+
+    render(<MessageBubble message={failedMessage} onRetry={onRetry} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send again" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the original failure and Retry available when the new send is rejected", async () => {
+    const failedMessage = {
+      ...base,
+      direction: "outbound",
+      content: "See you Tuesday",
+      status: "failed",
+      error_message: "Meta callback timed out",
+    };
+    const onRetry = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "The WhatsApp reply window is closed",
+    });
+
+    render(<MessageBubble message={failedMessage} onRetry={onRetry} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send again" }));
+
+    await waitFor(() => expect(onRetry).toHaveBeenCalledWith(failedMessage));
+    expect(screen.getByRole("alert")).toHaveTextContent("Meta callback timed out");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });

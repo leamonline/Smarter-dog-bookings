@@ -35,20 +35,9 @@ import {
 } from "../../../ui/index.js";
 import {
   displayName,
-  formatDayToken,
   isAwaitingReply,
 } from "../helpers.js";
-import { formatPhoneForDisplay } from "../../../../utils/phone.js";
-import { ThreadSkeleton } from "../../../ui/Skeleton.jsx";
-import { InitialsAvatar } from "../InitialsAvatar.jsx";
-import { MarkCompleteButton } from "../MarkCompleteButton.jsx";
 import { ComposeNewModal } from "../compose-new/ComposeNewModal.jsx";
-import { MessageBubble } from "../thread/MessageBubble.jsx";
-import { BookingCreatedCard } from "../thread/BookingCreatedCard.jsx";
-import { DraftPanel } from "../thread/DraftPanel.jsx";
-import { BookingActionPanel } from "../thread/BookingActionPanel.jsx";
-import { ComposePanel } from "../thread/ComposePanel.jsx";
-import { WindowClosedBanner } from "../thread/WindowClosedBanner.jsx";
 import { CustomerContextPanel } from "../customer-context/CustomerContextPanel.jsx";
 import { useCustomerContext } from "../hooks/useCustomerContext.js";
 import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
@@ -56,6 +45,7 @@ import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
 import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
 import { ConversationPane } from "./ConversationPane.jsx";
 import { InboxWorkspaceShell } from "./InboxWorkspaceShell.jsx";
+import { ThreadPane } from "./ThreadPane.jsx";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 
 export function InboxView({ onOpenHuman, onOpenDog } = {}) {
@@ -106,6 +96,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     onSelectConversation: selectConversation,
   });
   const contextTriggerRef = useRef(null);
+  const composerTextareaRef = useRef(null);
+  const selectedWork = workspaceState.workByConversation[selectedId] ?? {
+    draft: "",
+    dateStr: initialDateStr,
+    slots: [],
+  };
 
   useEffect(() => {
     workspaceActions.syncSelectedConversation(selectedId);
@@ -133,6 +129,17 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     if (res?.ok) toast.show("Reply sent", "success");
     return res;
   }, [sendManualReply, toast]);
+
+  const handleSendDraft = useCallback(async (opts) => {
+    const res = await handleSendManualReply(opts);
+    if (res?.ok) workspaceActions.clearDraft(selectedId);
+    return res;
+  }, [handleSendManualReply, selectedId, workspaceActions]);
+
+  const handleRetryMessage = useCallback(
+    (message) => handleSendManualReply({ text: message.content }),
+    [handleSendManualReply],
+  );
 
   const handleApplyBookingAction = useCallback(async (actionId, editedPayload) => {
     const res = await applyBookingAction(actionId, editedPayload);
@@ -479,33 +486,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const rootRef = useRef(null);
   const fillHeight = useFillViewportHeight(rootRef);
 
-  // Thread auto-scroll. Opening a conversation always lands on the newest
-  // message; new messages within the SAME conversation only scroll down
-  // when staff are already near the bottom, so reading back through
-  // history isn't yanked away when a reply or realtime message arrives.
-  const threadScrollRef = useRef(null);
-  const isNearBottomRef = useRef(true);
-  const lastScrolledConvRef = useRef(null);
-
-  const handleThreadScroll = useCallback(() => {
-    const el = threadScrollRef.current;
-    if (!el) return;
-    isNearBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId || loadingDetail || detailError) return;
-    const el = threadScrollRef.current;
-    if (!el) return;
-    const freshConversation = lastScrolledConvRef.current !== selectedId;
-    if (freshConversation || isNearBottomRef.current) {
-      el.scrollTop = el.scrollHeight;
-      isNearBottomRef.current = true;
-    }
-    lastScrolledConvRef.current = selectedId;
-  }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
-
   const conversationSummary = isSearching
     ? searchingMessages
       ? `Searching all messages for “${trimmedQuery}”…`
@@ -569,231 +549,40 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   );
 
   const threadPane = (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
-          {!selectedId ? (
-            <div className="flex-1 flex items-center justify-center text-slate-500 text-[14px] px-6 text-center">
-              {conversations.length === 0
-                ? "Nothing here yet — when a customer messages your WhatsApp number, the thread will open here."
-                : "Pick a conversation to see the thread."}
-            </div>
-          ) : (
-            <>
-              {/* Header */}
-              <div className="flex flex-col gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-brand-paper">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      onClick={workspaceActions.paneBack}
-                      className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
-                      aria-label="Back to inbox"
-                    >←</button>
-                    <InitialsAvatar
-                      name={displayName(selectedConversation)}
-                      seed={selectedConversation?.human_id || selectedConversation?.phone_e164 || selectedId}
-                      size={36}
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
-                          {displayName(selectedConversation)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-600 truncate">
-                        {formatPhoneForDisplay(selectedConversation?.phone_e164)}
-                        {customerContext.human?.email
-                          ? ` | ${customerContext.human.email}`
-                          : ""}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {selectedConversation?.closed_at && (
-                      // Plain-text status, not a pill — so it reads as the
-                      // conversation's state, not a tappable filter chip like
-                      // the ones in the toolbar above.
-                      <span
-                        className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-500"
-                        title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
-                          selectedConversation.closure_reason && selectedConversation.closure_reason !== "manual"
-                            ? ` · auto-reason: ${selectedConversation.closure_reason}`
-                            : ""
-                        }. A new customer message will reopen it automatically.`}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Closed
-                      </span>
-                    )}
-                    <MarkCompleteButton
-                      conversation={selectedConversation}
-                      onResolve={handleResolveConversation}
-                      onReopen={handleReopenConversation}
-                      disabled={actionInFlight}
-                    />
-                    {/* Customer info — slide-over below xl, redundant
-                        at xl (the docked column is already visible). */}
-                    <button
-                      ref={contextTriggerRef}
-                      type="button"
-                      onClick={() => workspaceActions.openContext("customer")}
-                      title="Show this customer's dogs, last groom, and trusted contacts."
-                      className="lg:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="16" x2="12" y2="12" />
-                        <line x1="12" y1="8" x2="12.01" y2="8" />
-                      </svg>
-                      Customer info
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* 24-hour reply-window notice — pinned directly under the
-                  header, before the thread, so staff see *why* free-form
-                  replies are unavailable before scrolling to the template
-                  picker below (which drops its own copy of this notice via
-                  hideTemplateBanner). */}
-              <WindowClosedBanner conversation={selectedConversation} />
-
-              {/* Thread — kept visible above any draft / booking / template
-                  panels via min-h, so staff can always read history while
-                  deciding how to reply.
-                  Inline "Booking created" cards are interleaved with the
-                  messages at the timestamp the action was applied — the
-                  inverse of the booking detail's "Created from WhatsApp"
-                  link, so staff can follow the loop both ways. */}
-              <div
-                ref={threadScrollRef}
-                onScroll={handleThreadScroll}
-                role="log"
-                aria-label="Conversation messages"
-                aria-live="polite"
-                className="flex-1 min-h-0 min-w-0 overflow-y-auto px-4 py-3 bg-brand-paper"
-              >
-                {loadingDetail ? (
-                  <ThreadSkeleton bubbles={5} />
-                ) : detailError ? (
-                  <div className="text-center text-slate-600 text-body py-8">
-                    Couldn&apos;t load the thread.
-                    <button
-                      type="button"
-                      onClick={() => selectConversation(selectedId)}
-                      className="ml-2 underline text-brand-purple font-semibold cursor-pointer bg-transparent border-none p-0 font-[inherit]"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-slate-500 text-body py-8">
-                    No messages yet.
-                  </div>
-                ) : (
-                  (() => {
-                    const items = [
-                      ...messages.map((m) => ({
-                        kind: "message",
-                        at: m.sent_at,
-                        key: `m-${m.id}`,
-                        data: m,
-                      })),
-                      ...bookingActions
-                        .filter((a) => a.state === "applied" || a.state === "auto_applied")
-                        .map((a) => ({
-                          kind: "booking_created",
-                          at: a.applied_at || a.created_at,
-                          key: `a-${a.id}`,
-                          data: a,
-                        })),
-                    ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
-
-                    // Interleave a centred day-divider whenever the calendar
-                    // day changes, so long threads stay easy to scan.
-                    const rendered = [];
-                    let lastDayKey = null;
-                    for (const item of items) {
-                      const dayKey = item.at ? new Date(item.at).toDateString() : "";
-                      if (dayKey && dayKey !== lastDayKey) {
-                        lastDayKey = dayKey;
-                        rendered.push(
-                          <div key={`day-${dayKey}`} className="flex justify-center my-3">
-                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                              {formatDayToken(item.at)}
-                            </span>
-                          </div>,
-                        );
-                      }
-                      rendered.push(
-                        item.kind === "message" ? (
-                          <MessageBubble key={item.key} message={item.data} />
-                        ) : (
-                          <BookingCreatedCard
-                            key={item.key}
-                            action={item.data}
-                            dogNamesById={dogNamesById}
-                          />
-                        ),
-                      );
-                    }
-                    return rendered;
-                  })()
-                )}
-              </div>
-
-              {/* Action dock — pending draft and booking proposal. Bounded
-                  height + internal scroll so a tall stack can't push the
-                  pinned composer off-screen. The generate-reply button now
-                  lives inside the compose row below. */}
-              <div className="shrink-0 max-h-[45%] overflow-y-auto">
-
-              {/* Pending AI draft — only rendered when there is one.
-                  Passing the conversation lets the WhyHeldExplainer inside
-                  the panel narrate why this draft is awaiting your nod
-                  (mode='AI drafts', risk_level='high', handoff_required,
-                  etc.). */}
-              {draft && (
-                <DraftPanel
-                  draft={draft}
-                  conversation={selectedConversation}
-                  attachedActions={attachedActions}
-                  onApprove={handleApproveDraft}
-                  onReject={handleRejectDraft}
-                  inFlight={actionInFlight}
-                />
-              )}
-
-              <BookingActionPanel
-                actions={bookingActions.filter((a) => a.state === "pending")}
-                onApply={handleApplyBookingAction}
-                onReject={handleRejectBookingAction}
-                inFlight={actionInFlight}
-              />
-              </div>
-
-              {/* Free-form compose box — always available when a
-                  conversation is selected, gated on the 24h window. Sits
-                  OUTSIDE the action dock above, so it stays pinned at the
-                  bottom of the detail pane and never scrolls away. The
-                  Generate-reply button (Phase G — AI on demand) sits inside
-                  this row between the textarea and Send; it only shows when
-                  there's an inbound message and no pending draft. */}
-              <ComposePanel
-                conversation={selectedConversation}
-                onSend={handleSendManualReply}
-                onSendTemplate={sendTemplate}
-                dogNames={dogNames}
-                inFlight={actionInFlight}
-                hasPendingDraft={!!draft}
-                hasInbound={messages.some((m) => m.direction === "inbound")}
-                onGenerateReply={handleGenerateReply}
-                hideTemplateBanner
-                autoFocusSignal={composeFocusSignal}
-              />
-            </>
-          )}
-    </div>
+    <ThreadPane
+      selectedId={selectedId}
+      hasConversations={conversations.length > 0}
+      conversation={selectedConversation}
+      customerEmail={customerContext.human?.email}
+      messages={messages}
+      draft={draft}
+      bookingActions={bookingActions}
+      attachedActions={attachedActions}
+      dogNamesById={dogNamesById}
+      dogNames={dogNames}
+      loadingDetail={loadingDetail}
+      detailError={detailError}
+      actionInFlight={actionInFlight}
+      draftValue={selectedWork.draft}
+      onDraftChange={(value) => workspaceActions.setDraft(selectedId, value)}
+      onSend={handleSendDraft}
+      onRetryMessage={handleRetryMessage}
+      onSendTemplate={sendTemplate}
+      onGenerateReply={handleGenerateReply}
+      onRetryLoad={() => selectConversation(selectedId)}
+      onBack={workspaceActions.paneBack}
+      onResolve={handleResolveConversation}
+      onReopen={handleReopenConversation}
+      onOpenBooking={() => workspaceActions.openContext("booking")}
+      onOpenCustomer={() => workspaceActions.openContext("customer")}
+      contextTriggerRef={contextTriggerRef}
+      onApproveDraft={handleApproveDraft}
+      onRejectDraft={handleRejectDraft}
+      onApplyBookingAction={handleApplyBookingAction}
+      onRejectBookingAction={handleRejectBookingAction}
+      autoFocusSignal={composeFocusSignal}
+      textareaRef={composerTextareaRef}
+    />
   );
 
   const contextPane = selectedId ? (
