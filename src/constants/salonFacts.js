@@ -18,4 +18,13 @@ export const SALON_FACTS_FALLBACK = {
     closures: [],
 };
 
-export const whatsAppUrl = (phone) => `https://wa.me/${String(phone || '').replace(/[^0-9]/g, '')}`;
+// Normalises to the international format wa.me requires. Handles both a
+// UK national number as typed into the Settings form (e.g. "07873 329440")
+// and an already-international one (e.g. "+447873329440") -- the owner's
+// free-text entry isn't guaranteed to be in either form specifically.
+export const toWhatsAppDigits = (phone) => {
+    const digits = String(phone || '').replace(/[^0-9]/g, '');
+    return digits.startsWith('0') ? `44${digits.slice(1)}` : digits;
+};
+
+export const whatsAppUrl = (phone) => `https://wa.me/${toWhatsAppDigits(phone)}`;
