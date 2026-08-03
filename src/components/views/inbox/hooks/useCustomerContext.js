@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../../supabase/client";
 import { registerResume } from "../../../../supabase/refreshOnResume.js";
+import { SAMPLE_CUSTOMER_CONTEXT } from "../../../../data/sample.js";
 import { logger } from "../../../../lib/logger";
 import { buildCustomerSummary } from "./customerContextSummary.js";
 
@@ -78,11 +79,12 @@ export function useCustomerContext(humanId) {
     }
 
     if (!supabase) {
-      // Offline / unconfigured client. Caller already shows an
-      // offline banner; we just surface the empty shape so the
-      // panel can render its "not connected" state without crashing.
+      // Offline / unconfigured client. Serve the shared fixture when there is
+      // one so the Customer section renders populated for visual review;
+      // otherwise fall back to the empty shape, which is what the panel's
+      // "not connected" / no-match state expects.
       window.clearTimeout(timeoutId);
-      setData(EMPTY_RESULT);
+      setData(SAMPLE_CUSTOMER_CONTEXT[humanId] ?? EMPTY_RESULT);
       setLoading(false);
       setError(null);
       return undefined;
