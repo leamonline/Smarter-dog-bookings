@@ -4,9 +4,18 @@ import { colors } from '../../constants/colors';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
+import { whatsAppUrl } from '../../constants/salonFacts';
+
+const toNationalDisplay = (e164) => {
+    const digits = String(e164 || '').replace(/[^0-9]/g, '');
+    const national = digits.startsWith('44') ? `0${digits.slice(2)}` : digits;
+    return national.length === 11 ? `${national.slice(0, 5)} ${national.slice(5)}` : national;
+};
 
 const PrivacyPolicyPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
+    const facts = useSalonFacts();
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -51,7 +60,7 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                                 Who We Are
                             </h2>
                             <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
-                                Smarter Dog Grooming Salon ("we", "us", or "our") operates at 183 Kings Road, Ashton-under-Lyne, OL6 8HD. We are the data controller for the personal information we collect about you and your dog.
+                                Smarter Dog Grooming Salon ("we", "us", or "our") operates at {facts.businessAddress}. We are the data controller for the personal information we collect about you and your dog.
                             </p>
                         </div>
 
@@ -238,15 +247,15 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                             <ul className="space-y-3">
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
-                                    <span><strong>Email:</strong> <a href="mailto:bookings@smarterdog.co.uk" className="underline hover:opacity-70" style={{ color: colors.teal }}>bookings@smarterdog.co.uk</a></span>
+                                    <span><strong>Email:</strong> <a href={`mailto:${facts.businessEmail}`} className="underline hover:opacity-70" style={{ color: colors.teal }}>{facts.businessEmail}</a></span>
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
-                                    <span><strong>WhatsApp:</strong> <a href="https://wa.me/447873329440" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70" style={{ color: colors.teal }}>07873 329440</a></span>
+                                    <span><strong>WhatsApp:</strong> <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70" style={{ color: colors.teal }}>{toNationalDisplay(facts.businessPhone)}</a></span>
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
-                                    <span><strong>Address:</strong> 183 Kings Road, Ashton-under-Lyne, OL6 8HD</span>
+                                    <span><strong>Address:</strong> {facts.businessAddress}</span>
                                 </li>
                             </ul>
                             <p className="body-font text-lg leading-relaxed mt-4" style={{ color: colors.teal }}>

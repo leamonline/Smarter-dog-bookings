@@ -49,7 +49,7 @@ const TEMPERAMENT_LABELS = TEMPERAMENT_OPTIONS.reduce((acc, option) => ({
 
 const getRecommendedService = ({ goal }) => {
     if (goal === 'first-groom') return 'Puppy Intro';
-    if (goal === 'de-shed') return 'De-Shedding Package';
+    if (goal === 'de-shed') return 'De-shedding Groom';
     if (goal === 'tidy-up') return 'Maintenance Groom';
     return 'Full Groom';
 };

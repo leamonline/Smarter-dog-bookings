@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../constants/colors';
+import { SALON_FACTS_FALLBACK, whatsAppUrl } from '../constants/salonFacts';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -53,7 +54,7 @@ class ErrorBoundary extends React.Component {
                         >
                             Or message us on{' '}
                             <a
-                                href="https://wa.me/447873329440"
+                                href={whatsAppUrl(SALON_FACTS_FALLBACK.businessPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="underline hover:opacity-80"

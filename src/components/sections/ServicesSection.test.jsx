@@ -14,7 +14,7 @@ describe('ServicesSection', () => {
 
     expect(screen.getByText('Full Groom')).toBeInTheDocument();
     expect(screen.getByText('Maintenance Groom')).toBeInTheDocument();
-    expect(screen.getByText('De-Shedding Package')).toBeInTheDocument();
+    expect(screen.getByText('De-shedding Groom')).toBeInTheDocument();
     expect(screen.getByText('Puppy Intro')).toBeInTheDocument();
   });
 
@@ -23,7 +23,7 @@ describe('ServicesSection', () => {
 
     expect(screen.getByText('Ear Cleaning')).toBeInTheDocument();
     expect(screen.getByText('Anal Gland Expression')).toBeInTheDocument();
-    expect(screen.getByText('Nail Trims')).toBeInTheDocument();
+    expect(screen.getByText('Nail Clipping')).toBeInTheDocument();
   });
 
   it('uses brand pink background on main section', () => {

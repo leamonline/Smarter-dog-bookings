@@ -1,8 +1,11 @@
 import React from 'react';
 import { colors } from '../constants/colors';
 import { trackEvent } from '../utils/analytics';
+import { useSalonFacts } from '../hooks/useSalonFacts';
+import { whatsAppUrl } from '../constants/salonFacts';
 
 const MobileQuickActions = ({ onBookClick }) => {
+    const facts = useSalonFacts();
     const handleWhatsAppClick = () => {
         trackEvent('Engagement', 'Click WhatsApp', 'Mobile Quick Actions');
     };
@@ -29,7 +32,7 @@ const MobileQuickActions = ({ onBookClick }) => {
                         Book now
                     </button>
                     <a
-                        href="https://wa.me/447873329440"
+                        href={whatsAppUrl(facts.businessPhone)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={handleWhatsAppClick}

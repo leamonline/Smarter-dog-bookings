@@ -3,9 +3,12 @@ import { colors } from '../../constants/colors';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
+import { whatsAppUrl } from '../../constants/salonFacts';
 
 const MattedCoatPolicyPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
+    const facts = useSalonFacts();
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -134,7 +137,7 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                         </p>
                         <p className="body-font text-base" style={{ color: colors.teal }}>
                             If you have questions about your dog's coat or how to care for it between grooms, please message us on{' '}
-                            <a href="https://wa.me/447873329440" target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
+                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
                                 WhatsApp
                             </a>
                         </p>

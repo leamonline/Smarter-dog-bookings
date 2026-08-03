@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
 import DogSilhouette from '../DogSilhouette';
 import BackgroundSticker from '../BackgroundSticker';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
+import { whatsAppUrl } from '../../constants/salonFacts';
 
 // Accessible SVG Social Icons
 const FacebookIcon = () => (
@@ -23,7 +25,45 @@ const TikTokIcon = () => (
     </svg>
 );
 
+const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_ABBR = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
+
+const formatTime12h = (hhmm) => {
+    const [h, m] = String(hhmm || '').split(':').map(Number);
+    if (Number.isNaN(h)) return '';
+    const period = h < 12 ? 'am' : 'pm';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
+};
+
+const formatDayRange = (days) => {
+    if (days.length === 0) return '';
+    if (days.length === 1) return DAY_ABBR[days[0]];
+    return `${DAY_ABBR[days[0]]}–${DAY_ABBR[days[days.length - 1]]}`;
+};
+
+// Contiguous runs of days sharing the same open/closed config, e.g.
+// Mon-Wed open 8:30-15:00, Thu-Sun closed.
+const groupWeeklyHours = (businessHours) => {
+    const groups = [];
+    let current = null;
+    for (const day of DAY_ORDER) {
+        const h = businessHours?.[day] || { closed: true };
+        const key = h.closed ? 'closed' : `${h.open}|${h.close}`;
+        if (current && current.key === key) {
+            current.days.push(day);
+        } else {
+            current = { key, closed: Boolean(h.closed), open: h.open, close: h.close, days: [day] };
+            groups.push(current);
+        }
+    }
+    return groups;
+};
+
 const FooterSection = () => {
+    const facts = useSalonFacts();
+    const hoursGroups = groupWeeklyHours(facts.businessHours);
+    const addressLines = facts.businessAddress.split(',').map((line) => line.trim()).filter(Boolean);
     const socialLinks = [
         { icon: <FacebookIcon />, label: 'Visit our Facebook page', href: 'https://facebook.com/smarterdog' },
         { icon: <InstagramIcon />, label: 'Follow us on Instagram', href: 'https://instagram.com/smarterdog' },
@@ -84,14 +124,14 @@ const FooterSection = () => {
                             className="body-font text-lg space-y-2"
                             style={{ color: 'rgba(255,255,255,0.9)' }}
                         >
-                            <p className="flex justify-between">
-                                <span>Mon–Wed</span>
-                                <span style={{ color: 'white', fontWeight: '600' }}>8:30am – 3:00pm</span>
-                            </p>
-                            <p className="flex justify-between">
-                                <span>Thu–Sun</span>
-                                <span style={{ color: colors.yellow, fontWeight: '600' }}>Closed</span>
-                            </p>
+                            {hoursGroups.map((group) => (
+                                <p className="flex justify-between" key={`${group.key}-${group.days[0]}`}>
+                                    <span>{formatDayRange(group.days)}</span>
+                                    <span style={{ color: group.closed ? colors.yellow : 'white', fontWeight: '600' }}>
+                                        {group.closed ? 'Closed' : `${formatTime12h(group.open)} – ${formatTime12h(group.close)}`}
+                                    </span>
+                                </p>
+                            ))}
                             <p className="text-base mt-3" style={{ opacity: 0.85 }}>
                                 * We close on bank holidays but open the Thursday after instead.
                             </p>
@@ -109,9 +149,9 @@ const FooterSection = () => {
                             className="body-font text-lg space-y-2"
                             style={{ color: 'rgba(255,255,255,0.9)' }}
                         >
-                            <p>183 Kings Road</p>
-                            <p>Ashton-under-Lyne</p>
-                            <p>OL6 8HD</p>
+                            {addressLines.map((line) => (
+                                <p key={line}>{line}</p>
+                            ))}
                         </div>
                     </div>
 
@@ -127,10 +167,10 @@ const FooterSection = () => {
                             style={{ color: 'rgba(255,255,255,0.9)' }}
                         >
                             <p>
-                                <a href="mailto:bookings@smarterdog.co.uk" className="hover:underline">bookings@smarterdog.co.uk</a>
+                                <a href={`mailto:${facts.businessEmail}`} className="hover:underline">{facts.businessEmail}</a>
                             </p>
                             <a
-                                href="https://wa.me/447873329440"
+                                href={whatsAppUrl(facts.businessPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full text-base transition-opacity hover:opacity-90"

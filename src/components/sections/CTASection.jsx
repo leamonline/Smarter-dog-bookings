@@ -1,10 +1,34 @@
 import React from 'react';
 import { colors } from '../../constants/colors';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
+import { whatsAppUrl } from '../../constants/salonFacts';
 
 import SectionDivider from '../SectionDivider';
 import FadeIn from '../FadeIn';
+import OpenDaysCalendar from '../OpenDaysCalendar';
+
+const formatTime12h = (hhmm) => {
+    const [h, m] = String(hhmm || '').split(':').map(Number);
+    if (Number.isNaN(h)) return '';
+    const period = h < 12 ? 'am' : 'pm';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
+};
+
+const OPEN_DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const openHoursSentence = (businessHours) => {
+    const openDays = OPEN_DAY_ORDER.filter((day) => businessHours?.[day] && !businessHours[day].closed);
+    if (openDays.length === 0) return "We're open — message us for hours and availability.";
+    const first = businessHours[openDays[0]];
+    const last = businessHours[openDays[openDays.length - 1]];
+    const range = openDays.length > 1 ? `${openDays[0]} to ${openDays[openDays.length - 1]}` : openDays[0];
+    return `We're open ${range}, ${formatTime12h(first.open)} – ${formatTime12h(last.close)} in Ashton-under-Lyne. Slots go fast — get yours booked in.`;
+};
 
 const CTASection = ({ onBookClick }) => {
+    const facts = useSalonFacts();
+
     return (
         <>
             <section
@@ -39,7 +63,7 @@ const CTASection = ({ onBookClick }) => {
                             className="body-font text-lg mb-8"
                             style={{ color: colors.plum }}
                         >
-                            We're open Monday to Wednesday, 8:30am – 3:00pm in Ashton-under-Lyne. Slots go fast — get yours booked in.
+                            {openHoursSentence(facts.businessHours)}
                         </p>
                         <div className="flex flex-wrap justify-center gap-4 mb-10">
                             <button
@@ -53,7 +77,7 @@ const CTASection = ({ onBookClick }) => {
                                 Book online
                             </button>
                             <a
-                                href="https://wa.me/447873329440"
+                                href={whatsAppUrl(facts.businessPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
@@ -62,6 +86,7 @@ const CTASection = ({ onBookClick }) => {
                                 <span>WhatsApp us</span>
                             </a>
                         </div>
+                        <OpenDaysCalendar />
                     </div>
                 </FadeIn>
             </section>
