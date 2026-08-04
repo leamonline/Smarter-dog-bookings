@@ -37,7 +37,7 @@ const INACTIVE_RUNTIME = {
   scheduledEffectiveAt: null,
 };
 
-describe("BusinessSettings read-only details", () => {
+describe("BusinessSettings editable details", () => {
   const config = {
     businessName: "My Salon",
     businessPhone: "0161 123 4567",
@@ -45,19 +45,49 @@ describe("BusinessSettings read-only details", () => {
     businessAddress: "42 Market Street, Manchester",
   };
 
-  it("keeps persisted customer details visible and directs staff to a coordinated update", () => {
-    render(<BusinessSettings config={config} onUpdateConfig={vi.fn()} canEdit />);
+  it("shows persisted business details and saves edits through onUpdateConfig", async () => {
+    const user = userEvent.setup();
+    const onUpdateConfig = vi.fn().mockResolvedValue({ ok: true });
+    render(<BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit />);
 
-    expect(screen.getByText("Saved business details — reference only")).toBeInTheDocument();
-    expect(screen.queryByText("Details shown to customers on the booking portal")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Shown on the public website and customer-facing pages"),
+    ).toBeInTheDocument();
+    const nameInput = screen.getByDisplayValue("My Salon");
+    expect(nameInput).not.toBeDisabled();
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Smarter Dog Grooming");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(onUpdateConfig).toHaveBeenCalled();
+    const updater = onUpdateConfig.mock.calls.at(-1)[0];
+    expect(updater(config).businessName).toBe("Smarter Dog Grooming");
+    expect(await screen.findByText("✓ Saved")).toBeInTheDocument();
+  });
+
+  it("rejects an invalid email without saving", async () => {
+    const user = userEvent.setup();
+    const onUpdateConfig = vi.fn().mockResolvedValue({ ok: true });
+    render(<BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit />);
+
+    const emailInput = screen.getByDisplayValue("hello@mysalon.co.uk");
+    await user.clear(emailInput);
+    await user.type(emailInput, "not-an-email");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/doesn't look right/i);
+    expect(onUpdateConfig).not.toHaveBeenCalled();
+  });
+
+  it("disables every field and the save button when the signed-in user can't edit settings", () => {
+    render(<BusinessSettings config={config} onUpdateConfig={vi.fn()} canEdit={false} />);
+
     expect(screen.getByDisplayValue("My Salon")).toBeDisabled();
     expect(screen.getByDisplayValue("0161 123 4567")).toBeDisabled();
     expect(screen.getByDisplayValue("hello@mysalon.co.uk")).toBeDisabled();
     expect(screen.getByDisplayValue("42 Market Street, Manchester")).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/These details are read-only for now/i)).toHaveTextContent(
-      "These details are read-only for now because this screen does not update every customer-facing place. Ask the owner for a coordinated app update.",
-    );
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
   });
 });
 
