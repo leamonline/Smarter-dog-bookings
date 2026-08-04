@@ -98,12 +98,15 @@ Monday 17 August
 • Alfie → 11:00
 • Bella → 11:30
 
-Deposit: required (£10, ref SMI-1708)
+Deposit:  ( ) Require deposit — £10, ref SMI-1708
+          ( ) Bypass deposit — reason required
 ```
 
 4. **Book** calls the existing staff booking pathway (`addBookingGroup` →
    `create_staff_booking_group`). The write is atomic: a rejection on any dog
-   rolls back every dog.
+   rolls back every dog. Where the customer is deposit-tagged, staff choose
+   **Require deposit** or **Bypass deposit**; bypass demands a reason and is
+   audited server-side (Prerequisite D). The choice is never made silently.
 5. On success the pane resets, a toast confirms, and the new bookings appear in
    the diary.
 
@@ -124,31 +127,135 @@ this pane — already fires a confirmation automatically.
 path directly.** Doing so double-messages the customer. A guard test asserts
 this (see Test plan). This is the single most important constraint in this spec.
 
-> **Known pre-existing behaviour, not introduced here:** the trigger is
-> per-row, so a 2-dog group booking sends 2 confirmation messages. This is
-> already true of the staff New Booking modal. Deliberately out of scope —
-> changing it means changing messaging behaviour for every existing booking
-> path, which deserves its own spec.
+### Required outcome: one booking operation → one grouped confirmation
 
-## Deposits — informational in Phase 2
+**Phase 2 must not ship duplicate confirmations.** The intended final behaviour
+is: one booking operation produces **one** customer confirmation naming all
+selected dogs and their allocated times.
+
+The machinery for this already exists and is proven on the customer portal path.
+`notify-booking-confirmed` is already group-aware and idempotent:
+
+- when the triggering booking has a `group_id`, it loads every booking in the
+  group and joins the dog names (`"Alfie and Tipi"`)
+- it writes a `notification_log` row for **every** `booking_id` in the group
+- the unique index on `(booking_id, trigger_type, human_id)`
+  `WHERE status IN ('pending','sent')` means the second dog's trigger fire hits
+  `23505` and is skipped as `"already sent"`
+
+The staff path duplicates for exactly one reason:
+[`create_staff_booking_group`](../supabase/migrations/20260701230000_staff_booking_group_rpc.sql)
+**deliberately does not assign a `group_id`** (see its comment: *"the staff flow
+has never grouped multi-dog bookings under a group_id"*).
+
+**Prerequisite G — group the staff write path.** Assign one `group_id` per
+staff booking group in the RPC. The existing group-aware, idempotent
+confirmation logic then produces a single grouped message with no new send path
+and no frontend change.
+
+Two details to resolve while implementing Prerequisite G:
+
+1. **Per-dog times in the message.** The current wording renders one
+   `date at time` from the *triggering* row, so a group whose dogs sit at 11:00
+   and 11:30 would state a single time. The `{{appointment_when}}` variable of
+   the approved `booking_confirmed_v1` Meta template must carry the per-dog
+   breakdown (e.g. `"Mon 17 Aug — Alfie at 11:00, Tipi at 11:30"`) so no new
+   template approval is needed. Verify the composed string against the
+   template's variable constraints before relying on it.
+2. **Blast radius.** Assigning `group_id` on the staff path also affects the
+   existing New Booking modal, which shares this RPC. That is the desired fix,
+   but it changes live messaging behaviour and must be called out at review.
+
+Prerequisite G is **not implemented in Phase 1**. Its migration and the
+`notify-booking-confirmed` wording change are brought for approval before Phase
+2 begins.
+
+## Deposits — audited staff bypass (Prerequisite D)
 
 `stamp_booking_deposit()` is a `BEFORE INSERT` trigger that sets
 `deposit_required := true` unconditionally whenever the dog's owner has
 `humans.deposit_required = true`, then derives the reference and due-by
 ([migration 20260714120000](../supabase/migrations/20260714120000_human_booking_rules_and_deposits.sql)).
-It **overwrites whatever the client sends**.
+It **overwrites whatever the client sends**, so a frontend-only bypass control
+would be dishonest.
 
-A "Bypass deposit" control is therefore **not implementable in the frontend** —
-the database would re-stamp the row and the button would silently do nothing.
+Bypass remains a **required Phase 2 capability**. It is delivered as a
+database-backed, audited staff override — not reduced to informational display.
 
-**Phase 2 ships the deposit panel as read-only**: when the customer is
-deposit-tagged, the preview states that a deposit will be required, with the
-amount. Staff are informed, never asked to choose something that cannot be
-honoured.
+### Schema
 
-Supporting a real bypass requires a migration giving the trigger an explicit
-staff-override path. That is a live money-handling change applied to prod by
-hand, and is tracked as a **separate decision outside this spec**.
+```sql
+alter table public.bookings
+  add column if not exists deposit_disposition text not null default 'required'
+    check (deposit_disposition in ('required', 'bypassed')),
+  add column if not exists deposit_bypass_by uuid references public.humans(id),
+  add column if not exists deposit_bypass_at timestamptz,
+  add column if not exists deposit_bypass_reason text;
+```
+
+An audit constraint makes an unaudited bypass unrepresentable:
+
+```sql
+alter table public.bookings
+  add constraint bookings_deposit_bypass_audited check (
+    (deposit_disposition = 'required'
+      and deposit_bypass_by is null
+      and deposit_bypass_at is null
+      and deposit_bypass_reason is null)
+    or
+    (deposit_disposition = 'bypassed'
+      and deposit_bypass_by is not null
+      and deposit_bypass_at is not null
+      and length(btrim(coalesce(deposit_bypass_reason, ''))) >= 3)
+  );
+```
+
+### Trigger behaviour
+
+`stamp_booking_deposit()` gains a bypass branch, ordered before the existing
+stamping:
+
+- `deposit_disposition = 'bypassed'` **and** `is_staff()` → set
+  `deposit_required := false`; **server-stamp** `deposit_bypass_by` from the
+  authenticated staff identity and `deposit_bypass_at := now()`, ignoring any
+  client-supplied values so one staff member cannot attribute a bypass to
+  another; require a non-empty reason (enforced by the constraint above).
+- `deposit_disposition = 'bypassed'` **and not** `is_staff()` → `raise
+  exception` with `errcode = 'P0001'`. Customers can never bypass.
+- `deposit_disposition = 'required'` (the default) → existing stamping
+  behaviour, byte-for-byte unchanged.
+
+The customer write path (`create_customer_booking_group`) and the WhatsApp Flow
+path never pass a disposition; they rely on the `'required'` default. The
+trigger's `is_staff()` check is the authority regardless of the caller.
+
+### Migration, rollback, deployment
+
+- **Migration** — additive and idempotent (`add column if not exists`,
+  `create or replace function`), ending with the mandatory revoke block per
+  [docs/migrations.md](superpowers/../migrations.md).
+- **Rollback** — restore the previous `stamp_booking_deposit()` body. The
+  columns stay: they are additive, defaulted, and harmless once the trigger
+  ignores them. No data is lost and no existing row changes meaning.
+- **Deployment** — applied to prod **by hand before** Phase 2 code merges, per
+  the repo's standing rule that migrations do not auto-apply. Staging first.
+
+### Database tests (pgTAP)
+
+- deposit-tagged owner, no disposition → `deposit_required` true, reference and
+  due-by stamped (proves ordinary bookings are unaffected)
+- untagged owner → row untouched
+- staff bypass with a reason → `deposit_required` false, audit fields
+  server-stamped, `deposit_bypass_by` matches the acting staff member
+- staff bypass with client-supplied `deposit_bypass_by` → server value wins
+- bypass without a reason → constraint violation
+- **non-staff caller attempting bypass → `P0001`** (unauthorised bypass is
+  impossible)
+- customer RPC path cannot set a disposition
+
+Prerequisite D is **not implemented in Phase 1**. The schema, RPC and trigger
+change are brought for explicit approval before any live deposit handling is
+touched.
 
 ---
 
@@ -343,8 +450,11 @@ on press to prevent double submission.
 - maximum 3 offered slots enforced; minimum 1 required to send
 - exactly 1 slot in booking mode
 - occupancy display and booked dogs remaining visible when a slot is selected
-- deposit panel renders for a deposit-tagged customer
+- deposit disposition is an explicit choice for a deposit-tagged customer;
+  bypass requires a reason before Book is enabled
 - booking failure surfaces inline and refreshes the diary
+- one booking operation results in exactly one grouped confirmation
+  (asserted against `notification_log` behaviour, not by sending)
 - **guard: booking mode never calls a notification/send path** — the trigger
   owns confirmations, so this prevents a future duplicate-message regression
 - stage navigation on narrow layouts preserves selections going backwards
@@ -385,9 +495,20 @@ before commit.
 Entry actions, dog picker, service selection, slot picker with occupancy, 1–3
 slot offers, draft-into-composer. No database writes, no new send path.
 
-**Phase 2 — `feat: add inbox booking action flow`**
-Single-slot selection, allocation preview, informational deposit panel, Book via
-`addBookingGroup`, failure handling.
+**Prerequisites for Phase 2** — both require explicit approval before any live
+handling is touched, and both are database changes applied to prod by hand:
 
-No database migration is required for either phase. Both use the existing
-`create_staff_booking_group` RPC and existing triggers.
+- **Prerequisite D — audited staff deposit bypass.** Schema, audit constraint,
+  trigger branch, pgTAP tests. See *Deposits* above.
+- **Prerequisite G — group the staff write path.** Assign `group_id` in
+  `create_staff_booking_group` so the existing group-aware idempotent
+  confirmation produces one grouped message; carry per-dog times in
+  `{{appointment_when}}`. See *Customer notifications* above.
+
+**Phase 2 — `feat: add inbox booking action flow`**
+Single-slot selection, allocation preview, deposit disposition (require /
+audited bypass), Book via `addBookingGroup`, failure handling. Blocked on D and
+G.
+
+**Phase 1 requires no database migration** — it performs no writes and uses no
+new RPC. Phase 2 requires the two prerequisite migrations above.
