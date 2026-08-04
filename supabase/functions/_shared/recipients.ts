@@ -9,7 +9,10 @@
 
 // deno-lint-ignore-file no-explicit-any
 
-import { WHATSAPP_RESCHEDULE_CANCEL_REASON } from "./cancelReasons.ts";
+import {
+  STAFF_RESCHEDULE_CANCEL_REASON,
+  WHATSAPP_RESCHEDULE_CANCEL_REASON,
+} from "./cancelReasons.ts";
 
 export interface RecipientHuman {
   id: string;
@@ -57,15 +60,22 @@ export interface BookingCancellationRecord {
   cancel_reason?: unknown;
 }
 
+// The skip strings themselves, exported so a caller can branch on which
+// reschedule path fired without re-typing the literal. notify-booking-cancelled
+// keys its replacement-lookup on SKIP_STAFF_RESCHEDULE; comparing against a
+// bare string there would silently stop matching if this wording were edited.
+export const SKIP_WHATSAPP_RESCHEDULE = "cancellation is a WhatsApp reschedule";
+export const SKIP_STAFF_RESCHEDULE = "cancellation is a staff reschedule";
+
 /**
  * After the caller has resolved the reason a cancellation fired, decide
  * whether the standalone "has been cancelled. Rebook anytime." message would
- * be misleading. A WhatsApp Flow reschedule cancels the old visit and
- * immediately inserts the replacement — the confirmation of the new
- * appointment is the customer's message, so this one is suppressed. Exact
- * string equality only: a prefix match would also catch staff-initiated
- * reschedules ('Rescheduled by staff'), which are a separate, unfixed bug
- * left out of scope here.
+ * be misleading. Both a WhatsApp Flow reschedule and a staff visit
+ * reschedule cancel the old visit and immediately insert the replacement —
+ * the confirmation of the new appointment is the customer's message, so this
+ * one is suppressed in either case. Exact string equality only (no prefix
+ * matching), and each case returns its own distinct skip string so the
+ * function logs stay diagnosable about which reschedule path fired.
  */
 export function bookingCancellationSkipReason(
   booking: BookingCancellationRecord,
@@ -73,9 +83,64 @@ export function bookingCancellationSkipReason(
   const reason = typeof booking.cancel_reason === "string"
     ? booking.cancel_reason.trim()
     : "";
-  return reason === WHATSAPP_RESCHEDULE_CANCEL_REASON
-    ? "cancellation is a WhatsApp reschedule"
-    : null;
+  if (reason === WHATSAPP_RESCHEDULE_CANCEL_REASON) {
+    return SKIP_WHATSAPP_RESCHEDULE;
+  }
+  if (reason === STAFF_RESCHEDULE_CANCEL_REASON) {
+    return SKIP_STAFF_RESCHEDULE;
+  }
+  return null;
+}
+
+// The deposit states the staff reschedule RPC itself treats as transferable
+// to the replacement visit (20260726144007:544:
+// `if d.state not in ('not_required','received')` blocks the move before it
+// writes anything). Mirrored here — not imported from SQL — so this stays a
+// pure, dependency-free decision usable from the edge function's warning
+// path.
+const SETTLED_DEPOSIT_STATES = ["not_required", "received"];
+
+export interface StaffRescheduleReplacement {
+  id: string;
+  depositState: string | null;
+  bookingCount: number;
+}
+
+/**
+ * Pure decision: after a staff visit reschedule cancels the source rows, is
+ * the replacement visit in a state worth a structured operator warning?
+ *
+ * This is defence-in-depth, not a live check today — `stamp_booking_deposit`
+ * leaves visit_v1 bookings' `deposit_required` false, and the RPC itself
+ * refuses to write anything unless the deposit is already 'not_required' or
+ * 'received' (20260726144007:539-548). If a future change loosens that
+ * guard, this still fires. Warn when the replacement is missing (the lookup
+ * found nothing to point the "has been cancelled" suppression at) or its
+ * deposit state isn't one of the settled ones the RPC itself allows through.
+ */
+export function staffRescheduleReplacementWarning(
+  input: {
+    sourceVisitId: string;
+    replacement: StaffRescheduleReplacement | null;
+  },
+): Record<string, unknown> | null {
+  const { sourceVisitId, replacement } = input;
+  if (!replacement) {
+    return {
+      reason: "staff reschedule replacement visit not found",
+      sourceVisitId,
+    };
+  }
+  if (!SETTLED_DEPOSIT_STATES.includes(replacement.depositState ?? "")) {
+    return {
+      reason: "staff reschedule replacement has an unsettled deposit state",
+      sourceVisitId,
+      replacementVisitId: replacement.id,
+      depositState: replacement.depositState,
+      bookingCount: replacement.bookingCount,
+    };
+  }
+  return null;
 }
 
 // Resolve the human ids to notify for a booking: the explicit notify_human_ids

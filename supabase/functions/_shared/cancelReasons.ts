@@ -7,3 +7,8 @@
  *  Must match `p_reason` default in
  *  supabase/migrations/20260723090000_whatsapp_atomic_reschedule.sql:80. */
 export const WHATSAPP_RESCHEDULE_CANCEL_REASON = "Rescheduled via WhatsApp";
+
+/** The exact cancel_reason stamped on the source rows of a staff visit
+ *  reschedule. Must match the UPDATE in
+ *  supabase/migrations/20260726144007_staff_visit_write_commands.sql:637. */
+export const STAFF_RESCHEDULE_CANCEL_REASON = "Rescheduled by staff";

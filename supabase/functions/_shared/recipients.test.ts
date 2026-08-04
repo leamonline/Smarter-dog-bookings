@@ -9,6 +9,7 @@ import {
   channelAvailableFor,
   pickChannel,
   resolveConfirmationChannel,
+  staffRescheduleReplacementWarning,
   type RecipientHuman,
 } from "./recipients.ts";
 
@@ -137,11 +138,28 @@ Deno.test("bookingCancellationSkipReason: skips a WhatsApp Flow reschedule cance
   );
 });
 
-Deno.test("bookingCancellationSkipReason: does not skip anything else", () => {
-  // Exact match only — 'Rescheduled by staff' is the same class of bug but
-  // explicitly out of scope, so a prefix match must not catch it.
+Deno.test("bookingCancellationSkipReason: skips a staff visit reschedule cancellation", () => {
   assertEquals(
     bookingCancellationSkipReason({ cancel_reason: "Rescheduled by staff" }),
+    "cancellation is a staff reschedule",
+  );
+  // Surrounding whitespace still matches — the trigger stamps the literal
+  // exactly, but trim() protects against incidental padding.
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "  Rescheduled by staff  " }),
+    "cancellation is a staff reschedule",
+  );
+});
+
+Deno.test("bookingCancellationSkipReason: exact match only, no prefix/case matching", () => {
+  // Trailing punctuation or a case difference must not match — exact
+  // equality only, same as the WhatsApp reason.
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "Rescheduled by staff!" }),
+    null,
+  );
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "rescheduled by staff" }),
     null,
   );
   assertEquals(
@@ -156,4 +174,48 @@ Deno.test("bookingCancellationSkipReason: does not skip anything else", () => {
   assertEquals(bookingCancellationSkipReason({ cancel_reason: undefined }), null);
   assertEquals(bookingCancellationSkipReason({ cancel_reason: "" }), null);
   assertEquals(bookingCancellationSkipReason({ cancel_reason: 42 }), null);
+});
+
+Deno.test("staffRescheduleReplacementWarning: settled deposit states return null", () => {
+  assertEquals(
+    staffRescheduleReplacementWarning({
+      sourceVisitId: "v-source",
+      replacement: { id: "v-new", depositState: "not_required", bookingCount: 2 },
+    }),
+    null,
+  );
+  assertEquals(
+    staffRescheduleReplacementWarning({
+      sourceVisitId: "v-source",
+      replacement: { id: "v-new", depositState: "received", bookingCount: 1 },
+    }),
+    null,
+  );
+});
+
+Deno.test("staffRescheduleReplacementWarning: unsettled deposit states warn", () => {
+  for (
+    const depositState of [
+      "awaiting_payment",
+      "reconciliation_required",
+      "received_liability",
+    ]
+  ) {
+    const warning = staffRescheduleReplacementWarning({
+      sourceVisitId: "v-source",
+      replacement: { id: "v-new", depositState, bookingCount: 1 },
+    });
+    assertEquals(warning?.sourceVisitId, "v-source");
+    assertEquals(warning?.replacementVisitId, "v-new");
+    assertEquals(warning?.depositState, depositState);
+  }
+});
+
+Deno.test("staffRescheduleReplacementWarning: missing replacement warns", () => {
+  const warning = staffRescheduleReplacementWarning({
+    sourceVisitId: "v-source",
+    replacement: null,
+  });
+  assertEquals(warning?.sourceVisitId, "v-source");
+  assertEquals(warning?.reason, "staff reschedule replacement visit not found");
 });
