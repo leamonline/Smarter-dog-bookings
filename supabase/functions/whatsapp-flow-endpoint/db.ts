@@ -25,6 +25,7 @@ import {
 } from "../_shared/flowBooking.ts";
 import type { SlotOverrides } from "../_shared/capacity.ts";
 import type { DogSize, PricingMap } from "../_shared/salonConstants.ts";
+import { WHATSAPP_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
 /** Pinned (server-resolved) per-dog identity for the booking group. */
 export interface FlowDogMeta {
@@ -260,7 +261,7 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_old_group_id: old.groupId ?? null,
         p_old_booking_id: old.bookingId ?? null,
         p_expected_old_ids: old.expectedOldIds?.length ? old.expectedOldIds : null,
-        p_reason: "Rescheduled via WhatsApp",
+        p_reason: WHATSAPP_RESCHEDULE_CANCEL_REASON,
         p_flow_token: old.flowToken ?? null,
         p_expected_old_date: old.expectedOldDate ?? null,
         p_expected_old_slot: old.expectedOldSlot ?? null,
@@ -416,7 +417,7 @@ export async function cancelOldBookingForReschedule(
   humanId: string,
   sel: { groupId?: string | null; bookingId?: string },
 ): Promise<{ cancelledCount: number; bookingIds: string[] }> {
-  const p_reason = "Rescheduled via WhatsApp";
+  const p_reason = WHATSAPP_RESCHEDULE_CANCEL_REASON;
   const rpc = sel.groupId ? "cancel_whatsapp_booking_group" : "cancel_whatsapp_booking_by_id";
   const args = sel.groupId
     ? { p_group_id: sel.groupId, p_human_id: humanId, p_reason }

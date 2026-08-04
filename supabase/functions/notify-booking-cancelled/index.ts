@@ -4,7 +4,12 @@ import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate } from "../_shared/format.ts";
-import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
+import {
+  recipientIdsForBooking,
+  fetchHumansByIds,
+  pickChannel,
+  bookingCancellationSkipReason,
+} from "../_shared/recipients.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -33,6 +38,20 @@ serve(async (req) => {
       return new Response("No old_record in payload", { status: 400 });
     }
 
+    // 0b. The cancel_reason that triggered this send lives on NEW, not OLD —
+    // it's set in the same UPDATE that flips status to 'Cancelled', so OLD's
+    // cancel_reason is still whatever it was before (usually null). A
+    // WhatsApp Flow reschedule cancels the old visit and immediately confirms
+    // the replacement, so the standalone "has been cancelled" message here
+    // would be redundant and misleading — skip it. Falls back to old_record's
+    // reason for robustness if a caller ever posts without a `record`.
+    const skipReason = bookingCancellationSkipReason({
+      cancel_reason: payload.record?.cancel_reason ?? booking.cancel_reason,
+    });
+    if (skipReason) {
+      return new Response(`Skipped: ${skipReason}`, { status: 200 });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 1. Look up the dog
@@ -52,9 +71,11 @@ serve(async (req) => {
     const recipientIds = recipientIdsForBooking(booking.notify_human_ids, dog.human_id);
     const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-    // 3. Message bits shared across recipients. We can't tell from the webhook
-    //    payload whether this was customer- or staff-initiated, so we use the
-    //    default customer-initiated tone.
+    // 3. Message bits shared across recipients. The WhatsApp-reschedule case is
+    //    now filtered out above; for everything that reaches here (customer
+    //    cancel, staff cancel, deposit not received, no-show, ...) we still
+    //    can't tell the specific cause from the webhook payload, so we use the
+    //    one generic customer-facing tone for all of them.
     const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
