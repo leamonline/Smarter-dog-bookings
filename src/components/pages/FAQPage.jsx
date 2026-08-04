@@ -3,10 +3,13 @@ import { colors } from '../../constants/colors';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
+import { whatsAppUrl } from '../../constants/salonFacts';
 
 const FAQPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [openIndex, setOpenIndex] = useState(null);
+    const facts = useSalonFacts();
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -127,7 +130,7 @@ const FAQPage = ({ onBookClick }) => {
                                 Book online
                             </button>
                             <a
-                                href="https://wa.me/447873329440"
+                                href={whatsAppUrl(facts.businessPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"

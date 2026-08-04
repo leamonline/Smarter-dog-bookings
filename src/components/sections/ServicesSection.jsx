@@ -105,7 +105,7 @@ const ServicesSection = () => {
                                         <img src="/assets/icons/deshedding.jpg" alt="De-Shedding" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                                     </picture>
                                 }
-                                title="De-Shedding Package"
+                                title="De-shedding Groom"
                                 desc="For the fluffier breeds who like to redecorate your house with fur. A proper deep clean and undercoat blowout."
                                 bestFor="double coats and heavy shedders"
                                 bgColor={'white'}
@@ -201,7 +201,7 @@ const ServicesSection = () => {
                                 >
                                     <picture>
                                         <source srcSet="/assets/icons/nail-trim.webp" type="image/webp" />
-                                        <img src="/assets/icons/nail-trim.jpg" alt="Nail Trims" width="80" height="80" loading="lazy" className="w-full h-full object-cover" />
+                                        <img src="/assets/icons/nail-trim.jpg" alt="Nail Clipping" width="80" height="80" loading="lazy" className="w-full h-full object-cover" />
                                     </picture>
                                 </div>
                                 <div>
@@ -209,7 +209,7 @@ const ServicesSection = () => {
                                         className="heading-font font-semibold text-xl mb-2"
                                         style={{ color: colors.pink }}
                                     >
-                                        Nail Trims
+                                        Nail Clipping
                                     </h4>
                                     <p
                                         className="body-font text-base"

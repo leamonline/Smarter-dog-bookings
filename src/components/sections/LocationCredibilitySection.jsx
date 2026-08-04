@@ -2,6 +2,7 @@ import React from 'react';
 import { colors } from '../../constants/colors';
 import FadeIn from '../FadeIn';
 import { MapPinTrailIcon, ParkingIcon, RouteClockIcon } from '../BrandIcons';
+import { useSalonFacts } from '../../hooks/useSalonFacts';
 
 const TRAVEL_NOTES = [
     { town: 'Ashton-under-Lyne', eta: '5 min' },
@@ -14,6 +15,8 @@ const TRAVEL_NOTES = [
 
 const LocationCredibilitySection = () => {
     const isTest = typeof window !== 'undefined' && window.IS_TEST;
+    const facts = useSalonFacts();
+    const encodedAddress = encodeURIComponent(facts.businessAddress);
 
     return (
         <section className="py-20 px-6 texture-speckle" style={{ backgroundColor: 'white' }}>
@@ -25,7 +28,7 @@ const LocationCredibilitySection = () => {
                             <h2 className="heading-font text-3xl md:text-4xl font-bold">Easy to find</h2>
                         </div>
                         <p className="body-font text-lg mb-4" style={{ color: colors.plum }}>
-                            183 Kings Road, Ashton-under-Lyne, OL6 8HD
+                            {facts.businessAddress}
                         </p>
                         {isTest ? (
                             <div
@@ -38,7 +41,7 @@ const LocationCredibilitySection = () => {
                             <div className="rounded-2xl overflow-hidden border border-black/10 shadow-sm mb-4">
                                 <iframe
                                     title="Smarter Dog Grooming Salon map location"
-                                    src="https://www.google.com/maps?q=183%20Kings%20Road%2C%20Ashton-under-Lyne%2C%20OL6%208HD&output=embed"
+                                    src={`https://www.google.com/maps?q=${encodedAddress}&output=embed`}
                                     className="w-full h-72"
                                     loading="lazy"
                                     referrerPolicy="no-referrer-when-downgrade"
@@ -46,7 +49,7 @@ const LocationCredibilitySection = () => {
                             </div>
                         )}
                         <a
-                            href="https://www.google.com/maps/dir/?api=1&destination=183+Kings+Road,+Ashton-under-Lyne,+OL6+8HD"
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-bold transition-all hover:scale-105"

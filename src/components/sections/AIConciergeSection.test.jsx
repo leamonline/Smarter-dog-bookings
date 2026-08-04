@@ -27,7 +27,7 @@ describe('AIConciergeSection', () => {
                 prefill: expect.objectContaining({
                     dogName: 'Milo',
                     breed: 'Golden Retriever',
-                    service: 'De-Shedding Package',
+                    service: 'De-shedding Groom',
                     visitPlan: 'every-8-weeks',
                     preferredTimes: ['mon-am', 'tue-am'],
                 }),
