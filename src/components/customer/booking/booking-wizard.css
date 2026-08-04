@@ -16,9 +16,47 @@
 .booking-wizard-inner {
   max-width: 560px;
   margin: 0 auto;
+}
+
+.booking-wizard-main {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
+}
+
+/* Live summary sidebar — hidden below the desktop breakpoint, where the
+   inline running total + step-5 confirm card already cover this job. */
+.booking-wizard-summary {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .booking-wizard { padding: 40px 24px 96px; }
+  .booking-wizard-inner { max-width: 640px; }
+}
+
+/* Desktop: two columns so the reclaimed width does something useful — a
+   sticky "your booking so far" summary — rather than just stretching a
+   560px flow across a much wider canvas. */
+@media (min-width: 1024px) {
+  .booking-wizard-inner {
+    max-width: 1000px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: 36px;
+  }
+  .booking-wizard-summary {
+    display: block;
+    position: sticky;
+    top: 32px;
+  }
+  /* The inline running total (shown from step 2) duplicates the sidebar's
+     own total once there's room for the sidebar — one figure, not two. */
+  .booking-wizard-inline-total {
+    display: none;
+  }
 }
 
 .booking-wizard-header {
@@ -228,13 +266,48 @@
   padding: 14px;
   border: 1px solid rgba(45, 0, 75, 0.06);
 }
+/* Prev/next month nav — a fixed-height header row above the grid, so
+   paging never moves these buttons regardless of how many rows the day
+   grid below ends up needing. */
+.wizard-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.wizard-calendar-nav-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(45, 0, 75, 0.14);
+  background: white;
+  color: var(--sd-navy-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.wizard-calendar-nav-btn:hover:not(:disabled) {
+  border-color: var(--sd-navy);
+  color: var(--sd-navy);
+  transform: translateY(-1px);
+}
+.wizard-calendar-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .wizard-calendar-month {
   font-family: 'Quicksand', 'Montserrat', sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--sd-navy);
   text-align: center;
-  margin: 0 0 8px;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 .wizard-calendar-hint {
   font-size: 12px;
@@ -248,14 +321,42 @@
   text-align: center;
   margin: 0 0 4px;
 }
-.wizard-calendar-pages {
+/* Open/closed/fully-booked key — shows the same visual language used by
+   the day cells below, so the colours + strikethrough aren't left to be
+   inferred. Purely a sighted-user aid: each day button already carries its
+   own accessible name ("...closed" / "...fully booked"), so this is
+   aria-hidden to avoid repeating that for screen readers. */
+.wizard-calendar-legend {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 14px;
+  margin: 0 0 10px;
 }
-.wizard-calendar-pages .wizard-btn {
-  flex: 1;
+.wizard-calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sd-navy-soft);
+}
+.wizard-calendar-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  background: white;
+  border: 1.5px solid rgba(45, 0, 75, 0.16);
+}
+.wizard-calendar-legend-swatch--full {
+  background: var(--sd-coral-tint);
+  border-color: rgba(231, 84, 108, 0.4);
+}
+.wizard-calendar-legend-swatch--closed {
+  background: rgba(45, 0, 75, 0.05);
+  border-color: transparent;
 }
 .wizard-calendar-grid {
   display: grid;
@@ -294,17 +395,25 @@
   font-weight: 800;
   box-shadow: var(--shadow-sd-card);
 }
-.wizard-day:disabled {
-  background: transparent;
-  color: rgba(45, 0, 75, 0.18);
+/* Closed — the salon isn't open that day. Quiet and receded: low contrast,
+   no border, nothing to press. */
+.wizard-day[data-state="closed"] {
+  background: rgba(45, 0, 75, 0.025);
+  color: rgba(45, 0, 75, 0.28);
   border-color: transparent;
   cursor: default;
 }
-/* Fully-booked days are dimmed like closed days, but struck through so the
-   reason reads as "full" rather than "closed". */
-.wizard-day--full:disabled {
-  color: rgba(45, 0, 75, 0.3);
+/* Fully booked — the salon IS open that day but there's no room for these
+   dogs. Deliberately distinct from "closed": a coral tint plus a
+   strikethrough (a non-colour cue) so it reads as "was bookable, now
+   taken" rather than "not part of the week". */
+.wizard-day[data-state="full"] {
+  background: var(--sd-coral-tint);
+  color: var(--color-brand-coral-text);
+  border-color: rgba(231, 84, 108, 0.16);
   text-decoration: line-through;
+  text-decoration-color: rgba(201, 61, 99, 0.55);
+  cursor: default;
 }
 
 /* Slot group header */
@@ -344,6 +453,96 @@
   background: var(--color-sd-tape-yellow);
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(45, 0, 75, 0.12);
+}
+
+/* Summary sidebar (desktop only — see .booking-wizard-summary above) */
+.wizard-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wizard-summary-title {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--sd-navy);
+  margin: 0;
+  position: relative;
+  display: inline-block;
+}
+.wizard-summary-empty {
+  font-size: 13px;
+  color: var(--sd-ink-light);
+  line-height: 1.5;
+  margin: 0;
+}
+.wizard-summary-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+.wizard-summary-dog {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wizard-summary-dog-name {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sd-navy);
+}
+.wizard-summary-dog-meta {
+  font-size: 12px;
+  color: var(--sd-ink-light);
+}
+.wizard-summary-divider {
+  height: 1px;
+  background: rgba(45, 0, 75, 0.08);
+}
+.wizard-summary-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.wizard-summary-meta > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wizard-summary-meta dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sd-ink-light);
+}
+.wizard-summary-meta dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sd-navy);
+  text-align: right;
+}
+.wizard-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(45, 0, 75, 0.16);
+  font-size: 13px;
+  color: var(--sd-navy-soft);
+}
+.wizard-summary-total strong {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 16px;
+  color: var(--sd-navy);
 }
 
 /* Footer actions */
@@ -404,15 +603,21 @@
   .booking-wizard-step-dot,
   .wizard-option,
   .wizard-day,
-  .wizard-btn { transition: none; }
-  .wizard-btn:hover:not(:disabled) { transform: none !important; }
+  .wizard-btn,
+  .wizard-calendar-nav-btn { transition: none; }
+  .wizard-btn:hover:not(:disabled),
+  .wizard-calendar-nav-btn:hover:not(:disabled) { transform: none !important; }
 }
 
-/* === Booking success screen === */
+/* === Booking success screen ===
+   Nests inside .booking-wizard (via SuccessShell in BookingWizard.tsx) for
+   the same branded gradient backdrop as every other step, so margin/padding
+   here only need to handle the card itself — .booking-wizard already
+   supplies the page-level top offset and horizontal gutter. */
 .booking-success {
   max-width: 480px;
-  margin: 40px auto;
-  padding: 0 20px 60px;
+  margin: 0 auto;
+  padding: 0 0 60px;
   text-align: center;
   font-family: 'Montserrat', sans-serif;
   position: relative;

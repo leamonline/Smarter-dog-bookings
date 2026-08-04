@@ -193,10 +193,12 @@ export function SlotSelection({
       <div className="wizard-card">
         {loading && (
           <div className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
-            <div className="skeleton-row skeleton-row--sm" />
-            <div className="skeleton-row skeleton-row--sm" />
-            <div className="skeleton-row skeleton-row--sm" />
-            <div className="skeleton-row skeleton-row--sm" />
+            {/* Matches wizard-option's real rendered height (~56px, same as
+                DogSelection's skeleton) so loaded slots don't jump the page. */}
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
             <span className="sr-only">Checking availability…</span>
           </div>
         )}

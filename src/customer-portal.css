@@ -932,6 +932,16 @@
   gap: 8px;
   align-items: stretch;
 }
+/* Empty state has one CTA, not three actions — without this it sits in the
+   first of three equal grid columns, leaving two-thirds of the card as dead
+   space on wide screens. Stays full-width on mobile (unchanged there),
+   capped to a sensible reading width from tablet up. */
+.portal-booking-card-actions--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .portal-booking-card-actions--single { max-width: 340px; }
+}
 @media (max-width: 480px) {
   .portal-booking-card-actions--request {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -82,6 +82,26 @@ const UiKitchenSink = import.meta.env.DEV
       })),
     )
   : () => null;
+// Dev-only harness for the customer booking wizard's responsive shell
+// (the wizard doesn't fit here otherwise — its real steps fetch live data
+// from an authenticated customer session). Same tree-shaking guarantee.
+const BookingWizardShellPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/BookingWizardShellPreview.jsx").then((module) => ({
+        default: module.BookingWizardShellPreview,
+      })),
+    )
+  : () => null;
+// Dev-only harness for customer dashboard card components that take plain
+// props (CustomerDashboard itself fetches internally and has no offline
+// path). Same tree-shaking guarantee.
+const CustomerDashboardCardsPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/CustomerDashboardCardsPreview.jsx").then((module) => ({
+        default: module.CustomerDashboardCardsPreview,
+      })),
+    )
+  : () => null;
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -1189,6 +1209,18 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <Route
                       path="/dev/new-client"
                       element={<NewClientPreview />}
+                    />
+                  )}
+                  {import.meta.env.DEV && (
+                    <Route
+                      path="/dev/booking-wizard-shell-preview"
+                      element={<BookingWizardShellPreview />}
+                    />
+                  )}
+                  {import.meta.env.DEV && (
+                    <Route
+                      path="/dev/customer-dashboard-cards-preview"
+                      element={<CustomerDashboardCardsPreview />}
                     />
                   )}
                   <Route path="*" element={<Navigate to="/today" replace />} />

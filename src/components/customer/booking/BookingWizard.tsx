@@ -29,6 +29,7 @@ import { ServiceSelection } from "./ServiceSelection";
 import { DateSelection, type DatePageAvailability } from "./DateSelection";
 import { SlotSelection } from "./SlotSelection";
 import { BookingConfirmation } from "./BookingConfirmation";
+import { BookingSummarySidebar } from "./BookingSummarySidebar";
 import { AddToCalendarButton } from "../AddToCalendarButton";
 import { DepositHoldInstructions } from "../DepositHoldInstructions";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
@@ -126,6 +127,14 @@ function ConfettiPaws() {
       ))}
     </div>
   );
+}
+
+// Gives every terminal screen (booked / waitlisted / request sent / invalid
+// reschedule) the same branded backdrop as the rest of the wizard — without
+// it these screens fell back to the plain page background, breaking
+// continuity right at the flow's emotional high point.
+function SuccessShell({ children }: { children: React.ReactNode }) {
+  return <div className="booking-wizard">{children}</div>;
 }
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
@@ -595,17 +604,19 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
   if (rescheduleFrom?.invalid) {
     return (
-      <div className="booking-success booking-success--recovery">
-        <div role="alert" className="portal-alert portal-alert--error">
-          This reschedule link isn’t valid. Please return to your dashboard and choose Reschedule again.
+      <SuccessShell>
+        <div className="booking-success booking-success--recovery">
+          <div role="alert" className="portal-alert portal-alert--error">
+            This reschedule link isn’t valid. Please return to your dashboard and choose Reschedule again.
+          </div>
+          <div className="booking-success-actions">
+            <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+              Back to dashboard
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
         </div>
-        <div className="booking-success-actions">
-          <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
-            Back to dashboard
-            <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      </SuccessShell>
     );
   }
 
@@ -627,138 +638,145 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
     if (requestSent) {
       return (
-        <div className="booking-success booking-success--waitlist">
-          <div className="booking-success-polaroid" aria-hidden="true">
-            <div className="booking-success-polaroid-photo">
-              <Clipboard size={48} />
+        <SuccessShell>
+          <div className="booking-success booking-success--waitlist">
+            <div className="booking-success-polaroid" aria-hidden="true">
+              <div className="booking-success-polaroid-photo">
+                <Clipboard size={48} />
+              </div>
+            </div>
+            <h1 className="booking-success-title">
+              Request sent
+              <ScribbleUnderline color="var(--sd-coral)" />
+            </h1>
+            <p className="booking-success-subtitle">
+              We&apos;ve sent your preferred time for {dogNameStr} on{" "}
+              <strong>{dateLabel}</strong> at{" "}
+              <strong>{fmtTime(dropOff)}</strong> to the team. Your original
+              appointment stays booked unless they approve the change.
+            </p>
+            <div className="booking-success-actions">
+              <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+                Back to dashboard
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
             </div>
           </div>
-          <h1 className="booking-success-title">
-            Request sent
-            <ScribbleUnderline color="var(--sd-coral)" />
-          </h1>
-          <p className="booking-success-subtitle">
-            We&apos;ve sent your preferred time for {dogNameStr} on{" "}
-            <strong>{dateLabel}</strong> at{" "}
-            <strong>{fmtTime(dropOff)}</strong> to the team. Your original
-            appointment stays booked unless they approve the change.
-          </p>
-          <div className="booking-success-actions">
-            <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
-              Back to dashboard
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        </SuccessShell>
       );
     }
 
     if (waitlistJoined && !booked) {
       return (
-        <div className="booking-success booking-success--waitlist">
+        <SuccessShell>
+          <div className="booking-success booking-success--waitlist">
+            <ConfettiPaws />
+            <div className="booking-success-polaroid" aria-hidden="true">
+              <div className="booking-success-polaroid-photo">
+                <Clipboard size={48} />
+              </div>
+            </div>
+            <h1 className="booking-success-title">
+              You&apos;re on the waitlist!
+              <ScribbleUnderline color="var(--sd-coral)" />
+            </h1>
+            <p className="booking-success-subtitle">
+              We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll text you the moment a slot opens up.
+            </p>
+            <div className="booking-success-actions">
+              <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+                Back to dashboard
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </SuccessShell>
+      );
+    }
+
+    return (
+      <SuccessShell>
+        <div className="booking-success">
           <ConfettiPaws />
           <div className="booking-success-polaroid" aria-hidden="true">
             <div className="booking-success-polaroid-photo">
-              <Clipboard size={48} />
+              <PawPrint size={48} />
             </div>
           </div>
           <h1 className="booking-success-title">
-            You&apos;re on the waitlist!
-            <ScribbleUnderline color="var(--sd-coral)" />
+            {depositInfo
+              ? "Deposit needed"
+              : depositStatusUnknown
+                ? "Appointment saved"
+                : "All booked in!"}
+            <ScribbleUnderline />
           </h1>
           <p className="booking-success-subtitle">
-            We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll text you the moment a slot opens up.
+            {depositInfo ? (
+              <>
+                We&apos;re holding {dogNameStr}&apos;s appointment on{" "}
+                <strong>{dateLabel}</strong> at{" "}
+                <strong>{fmtTime(dropOff)}</strong> until the deposit deadline
+                below.
+              </>
+            ) : depositStatusUnknown ? (
+              <>
+                Your appointment has been saved. Please check your dashboard for
+                any deposit step before treating it as confirmed.
+              </>
+            ) : (
+              <>
+                Can&apos;t wait to see {dogNameStr} on{" "}
+                <strong>{dateLabel}</strong> at{" "}
+                <strong>{fmtTime(dropOff)}</strong>.
+              </>
+            )}
           </p>
+          {depositInfo && (
+            <div
+              role="status"
+              aria-label="Deposit needed"
+              className="wizard-card"
+              style={{ textAlign: "left", marginTop: 12 }}
+            >
+              <h2 style={{ fontSize: 16, marginTop: 0 }}>
+                Your £{depositInfo.amount} deposit
+              </h2>
+              <DepositHoldInstructions
+                amount={depositInfo.amount}
+                reference={depositInfo.reference}
+                dueBy={depositInfo.dueBy}
+                bank={depositInfo.bank}
+                compact
+              />
+            </div>
+          )}
+          {bookingRef && (
+            <div className="booking-success-ref">
+              Booking ref · <code>{bookingRef}</code>
+            </div>
+          )}
           <div className="booking-success-actions">
+            {bookedIds.map((id) => (
+              <AddToCalendarButton key={id} bookingId={id} />
+            ))}
             <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
               Back to dashboard
               <ArrowRight size={16} aria-hidden="true" />
             </button>
           </div>
+          <p className="booking-success-footnote">
+            We&apos;ll text a reminder the day before. Need to change something? Message us on WhatsApp.
+          </p>
         </div>
-      );
-    }
-
-    return (
-      <div className="booking-success">
-        <ConfettiPaws />
-        <div className="booking-success-polaroid" aria-hidden="true">
-          <div className="booking-success-polaroid-photo">
-            <PawPrint size={48} />
-          </div>
-        </div>
-        <h1 className="booking-success-title">
-          {depositInfo
-            ? "Deposit needed"
-            : depositStatusUnknown
-              ? "Appointment saved"
-              : "All booked in!"}
-          <ScribbleUnderline />
-        </h1>
-        <p className="booking-success-subtitle">
-          {depositInfo ? (
-            <>
-              We&apos;re holding {dogNameStr}&apos;s appointment on{" "}
-              <strong>{dateLabel}</strong> at{" "}
-              <strong>{fmtTime(dropOff)}</strong> until the deposit deadline
-              below.
-            </>
-          ) : depositStatusUnknown ? (
-            <>
-              Your appointment has been saved. Please check your dashboard for
-              any deposit step before treating it as confirmed.
-            </>
-          ) : (
-            <>
-              Can&apos;t wait to see {dogNameStr} on{" "}
-              <strong>{dateLabel}</strong> at{" "}
-              <strong>{fmtTime(dropOff)}</strong>.
-            </>
-          )}
-        </p>
-        {depositInfo && (
-          <div
-            role="status"
-            aria-label="Deposit needed"
-            className="wizard-card"
-            style={{ textAlign: "left", marginTop: 12 }}
-          >
-            <h2 style={{ fontSize: 16, marginTop: 0 }}>
-              Your £{depositInfo.amount} deposit
-            </h2>
-            <DepositHoldInstructions
-              amount={depositInfo.amount}
-              reference={depositInfo.reference}
-              dueBy={depositInfo.dueBy}
-              bank={depositInfo.bank}
-              compact
-            />
-          </div>
-        )}
-        {bookingRef && (
-          <div className="booking-success-ref">
-            Booking ref · <code>{bookingRef}</code>
-          </div>
-        )}
-        <div className="booking-success-actions">
-          {bookedIds.map((id) => (
-            <AddToCalendarButton key={id} bookingId={id} />
-          ))}
-          <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
-            Back to dashboard
-            <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        </div>
-        <p className="booking-success-footnote">
-          We&apos;ll text a reminder the day before. Need to change something? Message us on WhatsApp.
-        </p>
-      </div>
+      </SuccessShell>
     );
   }
 
   return (
     <div className="booking-wizard">
       <div className="booking-wizard-inner">
+        <div className="booking-wizard-main">
         {/* Header */}
         <div className="booking-wizard-header">
           <button
@@ -824,7 +842,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           if (prices.length === 0) return null;
           const total = prices.reduce((sum, p) => sum + p, 0) / 100;
           return (
-            <div className="text-[13px] font-semibold text-[var(--sd-ink-light)]">
+            <div className="booking-wizard-inline-total text-[13px] font-semibold text-[var(--sd-ink-light)]">
               Estimated total: from {"£"}{total} (final price confirmed at your appointment)
             </div>
           );
@@ -914,6 +932,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             approvalRequired={approvalRequired}
           />
         )}
+        </div>
+
+        <BookingSummarySidebar
+          selectedDogs={selectedDogs}
+          services={services}
+          selectedDate={selectedDate}
+          slotAllocation={slotAllocation}
+          dogs={dogs}
+        />
       </div>
     </div>
   );

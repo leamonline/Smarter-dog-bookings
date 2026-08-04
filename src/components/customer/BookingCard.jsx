@@ -105,7 +105,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
         <p className="portal-booking-card-body">
           Pick a date that suits you.
         </p>
-        <div className="portal-booking-card-actions">
+        <div className="portal-booking-card-actions portal-booking-card-actions--single">
           <button className="portal-btn portal-btn--cta" onClick={onBook}>
             <PawPrint size={18} aria-hidden="true" />
             Book a groom
