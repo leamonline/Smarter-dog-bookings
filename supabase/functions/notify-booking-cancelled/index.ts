@@ -9,10 +9,10 @@ import {
   fetchHumansByIds,
   pickChannel,
   bookingCancellationSkipReason,
-  staffRescheduleReplacementWarning,
-  SKIP_STAFF_RESCHEDULE,
-  type StaffRescheduleReplacement,
+  reportStaffRescheduleReplacement,
+  type StaffRescheduleLookupResult,
 } from "../_shared/recipients.ts";
+import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -20,14 +20,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts.
 // SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
-
-// supabase-js's embed resolution shape (single object vs array) depends on
-// whether it can infer a to-one relationship from FK metadata, and that's
-// not worth relying on — normalise either shape to an array before reading.
-function toArray<T>(value: T | T[] | null | undefined): T[] {
-  if (value == null) return [];
-  return Array.isArray(value) ? value : [value];
-}
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
@@ -49,12 +41,6 @@ serve(async (req) => {
       return new Response("No old_record in payload", { status: 400 });
     }
 
-    // The client is needed both for the ordinary send path below AND for the
-    // staff-reschedule replacement lookup a few lines down (which runs even
-    // when we're about to skip the send) — construct it before any early
-    // return, not after.
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     // 0b. The cancel_reason that triggered this send lives on NEW, not OLD —
     // it's set in the same UPDATE that flips status to 'Cancelled', so OLD's
     // cancel_reason is still whatever it was before (usually null). A
@@ -62,61 +48,44 @@ serve(async (req) => {
     // old visit and immediately confirm the replacement, so the standalone
     // "has been cancelled" message here would be redundant and misleading —
     // skip it. Falls back to old_record's reason for robustness if a caller
-    // ever posts without a `record`.
-    const skipReason = bookingCancellationSkipReason({
-      cancel_reason: payload.record?.cancel_reason ?? booking.cancel_reason,
-    });
-    if (skipReason) {
-      // Staff reschedule only (not the WhatsApp case, which is live in prod
-      // and shipped in #584 — no need to give it an extra round-trip):
-      // suppression is unconditional and must NEVER depend on this lookup
-      // succeeding, so it's advisory-only, wrapped so a failure or slow query
-      // can't change the outcome below.
-      if (skipReason === SKIP_STAFF_RESCHEDULE) {
-        try {
-          const { data: replacementRow, error: replacementError } = await supabase
-            .from("booking_visits")
-            .select("id, bookings(id), booking_visit_deposits(state)")
-            .eq("supersedes_visit_id", booking.visit_id)
-            .eq("lifecycle_state", "active")
-            .maybeSingle();
+    // ever posts without a `record`. Normalised once here so the skip
+    // decision and the staff-only branch below can't disagree about padding.
+    const rawReason = payload.record?.cancel_reason ?? booking.cancel_reason;
+    const cancelReason = typeof rawReason === "string" ? rawReason.trim() : "";
 
-          if (replacementError) {
-            console.warn(
-              "notify-booking-cancelled: staff reschedule replacement lookup failed",
-              JSON.stringify({ sourceVisitId: booking.visit_id, error: replacementError.message }),
-            );
-          } else {
-            const replacement: StaffRescheduleReplacement | null = replacementRow
-              ? {
-                id: replacementRow.id,
-                depositState: toArray(replacementRow.booking_visit_deposits)[0]?.state ?? null,
-                bookingCount: toArray(replacementRow.bookings).length,
-              }
-              : null;
-            const warning = staffRescheduleReplacementWarning({
-              sourceVisitId: booking.visit_id,
-              replacement,
-            });
-            if (warning) {
-              console.warn(
-                "notify-booking-cancelled: staff reschedule replacement needs attention",
-                JSON.stringify(warning),
-              );
-            }
-          }
-        } catch (lookupErr) {
-          console.warn(
-            "notify-booking-cancelled: staff reschedule replacement lookup threw",
-            JSON.stringify({
-              sourceVisitId: booking.visit_id,
-              error: lookupErr instanceof Error ? lookupErr.message : String(lookupErr),
-            }),
-          );
-        }
+    const skipReason = bookingCancellationSkipReason({ cancel_reason: cancelReason });
+    if (skipReason) {
+      // Staff reschedule only. The WhatsApp case is live in production and
+      // shipped in #584 — it keeps its original zero-query, zero-client fast
+      // path and is not perturbed here. Suppression is unconditional: the
+      // helper below never throws and never reports failure, so nothing in
+      // this block can stop the 200 below from being returned.
+      if (cancelReason === STAFF_RESCHEDULE_CANCEL_REASON) {
+        await reportStaffRescheduleReplacement({
+          sourceVisitId: booking.visit_id,
+          bookingId: booking.id,
+          // No lifecycle_state filter: booking_visits has a unique partial
+          // index on supersedes_visit_id, so there is at most one immediate
+          // replacement. Filtering on lifecycle_state='active' would report
+          // a false "replacement missing" when the replacement has itself
+          // already been rescheduled before this post-commit webhook ran.
+          // Client construction is inside the callback so that a failure to
+          // build it is caught by the helper's own guard.
+          lookup: async (sourceVisitId) => {
+            const { data, error } = await createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+              .from("booking_visits")
+              .select("id, bookings(id), booking_visit_deposits(state)")
+              .eq("supersedes_visit_id", sourceVisitId)
+              .maybeSingle();
+            return { data, error } as StaffRescheduleLookupResult;
+          },
+          warn: (message, detail) => console.warn(message, detail),
+        });
       }
       return new Response(`Skipped: ${skipReason}`, { status: 200 });
     }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 1. Look up the dog
     const { data: dog, error: dogError } = await supabase

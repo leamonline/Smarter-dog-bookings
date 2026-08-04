@@ -9,6 +9,7 @@ import {
   channelAvailableFor,
   pickChannel,
   resolveConfirmationChannel,
+  reportStaffRescheduleReplacement,
   staffRescheduleReplacementWarning,
   type RecipientHuman,
 } from "./recipients.ts";
@@ -194,11 +195,17 @@ Deno.test("staffRescheduleReplacementWarning: settled deposit states return null
 });
 
 Deno.test("staffRescheduleReplacementWarning: unsettled deposit states warn", () => {
+  // The complete set of states booking_visit_deposits.state can hold
+  // (20260726144002:302-305) minus the two the reschedule RPC itself treats
+  // as transferable, plus null for a replacement with no deposit row at all.
   for (
     const depositState of [
+      "awaiting_terms",
       "awaiting_payment",
-      "reconciliation_required",
       "received_liability",
+      "not_received",
+      "reconciliation_required",
+      null,
     ]
   ) {
     const warning = staffRescheduleReplacementWarning({
@@ -218,4 +225,120 @@ Deno.test("staffRescheduleReplacementWarning: missing replacement warns", () => 
   });
   assertEquals(warning?.sourceVisitId, "v-source");
   assertEquals(warning?.reason, "staff reschedule replacement visit not found");
+});
+
+// ── The operational invariant ────────────────────────────────────────────
+//
+// These are the tests that actually matter. Suppression of a staff-reschedule
+// cancellation is unconditional; the diagnostic lookup is advisory. Every
+// failure mode below must log and then resolve normally, because the caller
+// returns `200 Skipped` immediately afterwards — if any of these could throw
+// or signal failure, a diagnostic fault could turn a move into a
+// customer-facing "your appointment has been cancelled".
+
+function collectWarnings() {
+  const seen: Array<{ message: string; detail: string }> = [];
+  return {
+    seen,
+    warn: (message: string, detail: string) => seen.push({ message, detail }),
+  };
+}
+
+Deno.test("reportStaffRescheduleReplacement: a returned PostgREST error logs and resolves", async () => {
+  const { seen, warn } = collectWarnings();
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    lookup: () => Promise.resolve({ data: null, error: { code: "PGRST301", message: "boom" } }),
+    warn,
+  });
+  assertEquals(seen.length, 1);
+  assertEquals(
+    seen[0].message,
+    "notify-booking-cancelled: staff reschedule replacement lookup failed",
+  );
+  // "lookup failed" must stay distinct from "replacement missing".
+  assertEquals(JSON.parse(seen[0].detail).code, "PGRST301");
+});
+
+Deno.test("reportStaffRescheduleReplacement: a thrown exception logs and resolves", async () => {
+  const { seen, warn } = collectWarnings();
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    lookup: () => {
+      throw new Error("client construction failed");
+    },
+    warn,
+  });
+  assertEquals(seen.length, 1);
+  assertEquals(
+    seen[0].message,
+    "notify-booking-cancelled: staff reschedule replacement lookup threw",
+  );
+});
+
+Deno.test("reportStaffRescheduleReplacement: a missing source visit id logs and never queries", async () => {
+  const { seen, warn } = collectWarnings();
+  let queried = false;
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: null,
+    bookingId: "b-1",
+    lookup: () => {
+      queried = true;
+      return Promise.resolve({ data: null, error: null });
+    },
+    warn,
+  });
+  assertEquals(queried, false);
+  assertEquals(seen.length, 1);
+  assertEquals(
+    seen[0].message,
+    "notify-booking-cancelled: staff reschedule source visit id missing",
+  );
+  assertEquals(JSON.parse(seen[0].detail).bookingId, "b-1");
+});
+
+Deno.test("reportStaffRescheduleReplacement: a settled replacement logs nothing", async () => {
+  const { seen, warn } = collectWarnings();
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    lookup: () =>
+      Promise.resolve({
+        data: {
+          id: "v-new",
+          bookings: [{ id: "b-2" }, { id: "b-3" }],
+          booking_visit_deposits: [{ state: "received" }],
+        },
+        error: null,
+      }),
+    warn,
+  });
+  assertEquals(seen, []);
+});
+
+Deno.test("reportStaffRescheduleReplacement: normalises a to-one embed and reports the deposit state", async () => {
+  const { seen, warn } = collectWarnings();
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    // supabase-js may resolve a to-one embed as a bare object rather than an
+    // array depending on what it infers from FK metadata — both must work.
+    lookup: () =>
+      Promise.resolve({
+        data: {
+          id: "v-new",
+          bookings: { id: "b-2" },
+          booking_visit_deposits: { state: "awaiting_payment" },
+        },
+        error: null,
+      }),
+    warn,
+  });
+  assertEquals(seen.length, 1);
+  const detail = JSON.parse(seen[0].detail);
+  assertEquals(detail.depositState, "awaiting_payment");
+  assertEquals(detail.replacementVisitId, "v-new");
+  assertEquals(detail.bookingCount, 1);
 });

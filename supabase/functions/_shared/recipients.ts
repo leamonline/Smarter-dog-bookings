@@ -143,6 +143,109 @@ export function staffRescheduleReplacementWarning(
   return null;
 }
 
+// supabase-js's embed resolution shape (single object vs array) depends on
+// whether it can infer a to-one relationship from FK metadata, and that's not
+// worth relying on — normalise either shape to an array before reading.
+function toArray(value: unknown): unknown[] {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function firstDepositState(value: unknown): string | null {
+  const first = toArray(value)[0];
+  if (first && typeof first === "object" && "state" in first) {
+    const state = (first as { state: unknown }).state;
+    return typeof state === "string" ? state : null;
+  }
+  return null;
+}
+
+/** The `booking_visits` row shape the replacement lookup selects. */
+export interface StaffRescheduleLookupRow {
+  id: string;
+  bookings?: unknown;
+  booking_visit_deposits?: unknown;
+}
+
+/** supabase-js's `{ data, error }` result — PostgREST errors resolve, they
+ *  don't throw, so `error` must be inspected explicitly. */
+export interface StaffRescheduleLookupResult {
+  data: StaffRescheduleLookupRow | null;
+  error: { message?: string; code?: string } | null;
+}
+
+/**
+ * Advisory diagnostics for a suppressed staff-reschedule cancellation.
+ *
+ * The IO is injected so the whole thing is unit-testable without network
+ * access (CI runs `deno test` with `--allow-env` only). The operational
+ * invariant this exists to guarantee: **it never throws and never signals
+ * failure**. A missing source visit id, a returned PostgREST `error`, a
+ * client that fails to construct, and an unexpected exception all resolve
+ * normally after logging, so the caller's unconditional `200 Skipped` can
+ * never be turned into a customer-facing cancellation by a diagnostic fault.
+ *
+ * Each of those is a distinct log line — "lookup failed" and "replacement
+ * missing" are different operational events and must not be conflated.
+ *
+ * Note this runs once per cancelled source booking, so a multi-dog visit
+ * emits the same abnormal-state warning once per row. That's acceptable
+ * per-row diagnostics for a dormant path, not a per-visit summary.
+ */
+export async function reportStaffRescheduleReplacement(args: {
+  sourceVisitId: unknown;
+  bookingId: unknown;
+  lookup: (sourceVisitId: string) => Promise<StaffRescheduleLookupResult>;
+  warn: (message: string, payload: string) => void;
+}): Promise<void> {
+  const { sourceVisitId, bookingId, lookup, warn } = args;
+  try {
+    // The reason is a free-text column, so a legacy or hand-edited row could
+    // carry it without a visit_id even though the v1 RPC always sets one.
+    if (typeof sourceVisitId !== "string" || sourceVisitId === "") {
+      warn(
+        "notify-booking-cancelled: staff reschedule source visit id missing",
+        JSON.stringify({ bookingId: typeof bookingId === "string" ? bookingId : null }),
+      );
+      return;
+    }
+
+    const { data, error } = await lookup(sourceVisitId);
+    if (error) {
+      warn(
+        "notify-booking-cancelled: staff reschedule replacement lookup failed",
+        JSON.stringify({ sourceVisitId, code: error.code ?? null }),
+      );
+      return;
+    }
+
+    const warning = staffRescheduleReplacementWarning({
+      sourceVisitId,
+      replacement: data
+        ? {
+          id: data.id,
+          depositState: firstDepositState(data.booking_visit_deposits),
+          bookingCount: toArray(data.bookings).length,
+        }
+        : null,
+    });
+    if (warning) {
+      warn(
+        "notify-booking-cancelled: unexpected staff reschedule replacement state",
+        JSON.stringify(warning),
+      );
+    }
+  } catch (err) {
+    warn(
+      "notify-booking-cancelled: staff reschedule replacement lookup threw",
+      JSON.stringify({
+        sourceVisitId: typeof sourceVisitId === "string" ? sourceVisitId : null,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+}
+
 // Resolve the human ids to notify for a booking: the explicit notify_human_ids
 // list when present, else just the owner. De-duped; preserves the requested
 // order (so a list staff built owner-first stays owner-first).
