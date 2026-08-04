@@ -168,6 +168,15 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **Local dev hits the LIVE cloud Supabase** (real PII) unless offline. Offline mode
   (`VITE_FORCE_OFFLINE=1`, or missing creds in dev) serves `src/data/sample.js` — use it for visual
   checks and E2E so you never touch real customer data.
+- **Use `npm ci` locally, not `npm install`.** A darwin `npm install` silently strips the Linux
+  `libc` (glibc/musl) metadata from `package-lock.json` for 12 Linux-only optional binaries, and
+  CI runs `npm ci` on ubuntu-latest where that discriminator matters. It has been committed
+  accidentally twice. `npm run lint` now fails via `scripts/check-lockfile-platform.mjs`; the fix
+  is `git restore package-lock.json`. Only run `npm install` when deliberately changing deps.
+- **`deno.lock` drifts on every Dependabot bump.** It mirrors `package.json`'s dependency ranges
+  under `workspace.packageJson`, but Dependabot only updates `package.json`/`package-lock.json` —
+  so the next `deno test` rewrites it and dirties your tree. Resync it in its own commit; never
+  let it ride along in a feature commit.
 - **Tests are forced offline and must stay that way.** `vitest.config.ts` sets
   `VITE_FORCE_OFFLINE: "1"` on **every** project, so `npm run test` never builds a Supabase client
   even though your `.env.local` holds real production credentials (Vitest loads `.env` files exactly

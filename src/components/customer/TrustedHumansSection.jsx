@@ -10,6 +10,8 @@ function avatarTintFor(id) {
 }
 
 export function TrustedHumansSection({ trustedHumans }) {
+  const isEmpty = trustedHumans.length === 0;
+
   return (
     <div className="portal-card portal-card--buttercup" style={cardAnim(0.15)}>
       <div className="portal-card-header">
@@ -19,7 +21,7 @@ export function TrustedHumansSection({ trustedHumans }) {
         <h2 className="portal-card-title">Trusted humans</h2>
       </div>
 
-      <div className="flex-1">
+      <div className={`flex-1${isEmpty ? " flex flex-col justify-center" : ""}`}>
         {trustedHumans.map(th => {
           const initial = (th.name || "?").trim().charAt(0).toUpperCase();
           const tint = avatarTintFor(th.id);
@@ -49,8 +51,8 @@ export function TrustedHumansSection({ trustedHumans }) {
         })}
 
         <p
-          className="portal-text-help"
-          style={{ margin: trustedHumans.length > 0 ? "12px 0 0" : 0 }}
+          className={isEmpty ? "portal-empty-body" : "portal-text-help"}
+          style={isEmpty ? undefined : { margin: "12px 0 0" }}
         >
           Adding a trusted human online is temporarily unavailable.
         </p>

@@ -10,7 +10,7 @@ import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { SALON_SLOTS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
 import type { Booking, WizardDog, SlotOverrides } from "../../../types/index";
-import { ArrowLeft, ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { WizardTick } from "./WizardTick";
 
 interface DateSelectionProps {
@@ -315,14 +315,50 @@ export function DateSelection({
       )}
 
       <div className="wizard-calendar">
-        <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
+        {/* Prev/next live in a fixed-height header row (not below the grid)
+            so their position never shifts as the grid grows from 4 to 6
+            rows depending which weekday a page happens to start on. */}
+        <div className="wizard-calendar-nav" aria-label="Date pages">
+          <button
+            type="button"
+            className="wizard-calendar-nav-btn tap-target"
+            onClick={() => changePage(Math.max(0, currentPage - 1))}
+            disabled={currentPage === 0}
+            aria-label="Previous dates"
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+          <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
+          <button
+            type="button"
+            className="wizard-calendar-nav-btn tap-target"
+            onClick={() => changePage(Math.min(pageCount - 1, currentPage + 1))}
+            disabled={currentPage === pageCount - 1}
+            aria-label="Next dates"
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
         <p className="wizard-calendar-range" aria-live="polite">
           {bookingHorizonDays === 180
             ? `Days ${firstOffset}–${lastOffset}. Bookings are available up to six months ahead.`
             : `Days ${firstOffset}–${lastOffset} of ${bookingHorizonDays}.`}
         </p>
         {!displayLoading && visibleAvailability.complete ? (
-          <p className="wizard-calendar-hint">Closed and fully-booked days are dimmed — pick any available day.</p>
+          <div className="wizard-calendar-legend">
+            <span className="wizard-calendar-legend-item">
+              <span className="wizard-calendar-legend-swatch wizard-calendar-legend-swatch--open" aria-hidden="true" />
+              Open
+            </span>
+            <span className="wizard-calendar-legend-item">
+              <span className="wizard-calendar-legend-swatch wizard-calendar-legend-swatch--full" aria-hidden="true" />
+              Fully booked
+            </span>
+            <span className="wizard-calendar-legend-item">
+              <span className="wizard-calendar-legend-swatch wizard-calendar-legend-swatch--closed" aria-hidden="true" />
+              Closed
+            </span>
+          </div>
         ) : !displayLoading ? (
           <p className="wizard-calendar-hint" role="status">
             We couldn’t check every date completely. This preview is incomplete, and we’ll check your chosen date again at the next step.
@@ -352,7 +388,8 @@ export function DateSelection({
                 <button
                   key={dateStr}
                   type="button"
-                  className={`wizard-day${state === "full" ? " wizard-day--full" : ""}`}
+                  className="wizard-day"
+                  data-state={state}
                   aria-pressed={selected}
                   aria-label={ariaLabel}
                   disabled={!selectable}
@@ -364,15 +401,6 @@ export function DateSelection({
             })}
           </div>
         )}
-
-        <div className="wizard-calendar-pages" aria-label="Date pages">
-          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => changePage(Math.max(0, currentPage - 1))} disabled={currentPage === 0} aria-label="Previous dates">
-            <ArrowLeft size={16} aria-hidden="true" /> Previous
-          </button>
-          <button type="button" className="wizard-btn wizard-btn--back" onClick={() => changePage(Math.min(pageCount - 1, currentPage + 1))} disabled={currentPage === pageCount - 1} aria-label="Next dates">
-            Next <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        </div>
       </div>
 
       <div className="wizard-actions">
