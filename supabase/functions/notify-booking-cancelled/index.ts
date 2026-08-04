@@ -58,8 +58,9 @@ serve(async (req) => {
       // Staff reschedule only. The WhatsApp case is live in production and
       // shipped in #584 — it keeps its original zero-query, zero-client fast
       // path and is not perturbed here. Suppression is unconditional: the
-      // helper below never throws and never reports failure, so nothing in
-      // this block can stop the 200 below from being returned.
+      // helper below always resolves, within its own deadline, and never
+      // reports failure — so nothing in this block can stop the 200 below
+      // from being returned, or delay it indefinitely.
       if (cancelReason === STAFF_RESCHEDULE_CANCEL_REASON) {
         await reportStaffRescheduleReplacement({
           sourceVisitId: booking.visit_id,
@@ -71,11 +72,14 @@ serve(async (req) => {
           // already been rescheduled before this post-commit webhook ran.
           // Client construction is inside the callback so that a failure to
           // build it is caught by the helper's own guard.
-          lookup: async (sourceVisitId) => {
+          lookup: async (sourceVisitId, signal) => {
             const { data, error } = await createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
               .from("booking_visits")
               .select("id, bookings(id), booking_visit_deposits(state)")
               .eq("supersedes_visit_id", sourceVisitId)
+              // Honours the helper's deadline so an abandoned diagnostic
+              // doesn't leave a PostgREST request running behind the 200.
+              .abortSignal(signal)
               .maybeSingle();
             return { data, error } as StaffRescheduleLookupResult;
           },

@@ -11,6 +11,7 @@ import {
   resolveConfirmationChannel,
   reportStaffRescheduleReplacement,
   staffRescheduleReplacementWarning,
+  type StaffRescheduleLookupResult,
   type RecipientHuman,
 } from "./recipients.ts";
 
@@ -297,6 +298,63 @@ Deno.test("reportStaffRescheduleReplacement: a missing source visit id logs and 
     "notify-booking-cancelled: staff reschedule source visit id missing",
   );
   assertEquals(JSON.parse(seen[0].detail).bookingId, "b-1");
+});
+
+Deno.test("reportStaffRescheduleReplacement: a lookup that never settles times out and resolves", async () => {
+  const { seen, warn } = collectWarnings();
+  let aborted = false;
+
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    // Never resolves. Without a deadline this would hang the caller before
+    // it could return its 200 Skipped.
+    lookup: (_sourceVisitId, signal) => {
+      signal.addEventListener("abort", () => {
+        aborted = true;
+      });
+      return new Promise<never>(() => {});
+    },
+    warn,
+    timeoutMs: 5,
+  });
+
+  assertEquals(seen.length, 1);
+  assertEquals(
+    seen[0].message,
+    "notify-booking-cancelled: staff reschedule replacement lookup timed out",
+  );
+  assertEquals(JSON.parse(seen[0].detail).timeoutMs, 5);
+  // The real PostgREST request is told to stop, not just abandoned.
+  assertEquals(aborted, true);
+});
+
+Deno.test("reportStaffRescheduleReplacement: a lookup rejecting after the deadline stays silent", async () => {
+  const { seen, warn } = collectWarnings();
+
+  await reportStaffRescheduleReplacement({
+    sourceVisitId: "v-source",
+    bookingId: "b-1",
+    // Rejects well after the deadline — the timeout must already have won,
+    // and the late rejection must not surface as a second warning or as an
+    // unhandled rejection.
+    lookup: () =>
+      new Promise<StaffRescheduleLookupResult>((_resolve, reject) => {
+        setTimeout(() => reject(new Error("too late")), 15);
+      }),
+    warn,
+    timeoutMs: 5,
+  });
+
+  assertEquals(seen.length, 1);
+  assertEquals(
+    seen[0].message,
+    "notify-booking-cancelled: staff reschedule replacement lookup timed out",
+  );
+  // Let the late rejection land inside the test so a regression that leaves
+  // it unhandled fails here rather than in some later test.
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assertEquals(seen.length, 1);
 });
 
 Deno.test("reportStaffRescheduleReplacement: a settled replacement logs nothing", async () => {

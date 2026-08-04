@@ -60,12 +60,15 @@ export interface BookingCancellationRecord {
   cancel_reason?: unknown;
 }
 
-// The skip strings themselves, exported so a caller can branch on which
-// reschedule path fired without re-typing the literal. notify-booking-cancelled
-// keys its replacement-lookup on SKIP_STAFF_RESCHEDULE; comparing against a
-// bare string there would silently stop matching if this wording were edited.
-export const SKIP_WHATSAPP_RESCHEDULE = "cancellation is a WhatsApp reschedule";
-export const SKIP_STAFF_RESCHEDULE = "cancellation is a staff reschedule";
+// The skip strings. These are log/response text only — callers that need to
+// branch on *which* reschedule path fired compare the cancel_reason against
+// the constants in cancelReasons.ts instead, which ties the branch to the
+// value the database actually stamps rather than to a log message. Kept as
+// named constants (rather than inline literals) so the two returns below
+// can't drift apart, but deliberately not exported: nothing outside this
+// module should depend on the wording.
+const SKIP_WHATSAPP_RESCHEDULE = "cancellation is a WhatsApp reschedule";
+const SKIP_STAFF_RESCHEDULE = "cancellation is a staff reschedule";
 
 /**
  * After the caller has resolved the reason a cancellation fired, decide
@@ -174,19 +177,36 @@ export interface StaffRescheduleLookupResult {
   error: { message?: string; code?: string } | null;
 }
 
+/** How long the advisory lookup may take before it is abandoned. It runs
+ *  inline before the caller returns its 200, so this is a latency budget for
+ *  a diagnostic, not for anything the customer outcome depends on. */
+export const STAFF_RESCHEDULE_LOOKUP_TIMEOUT_MS = 3000;
+
+/** Distinct from any legitimate lookup result, so the race below can tell
+ *  "the timer won" from "the query returned nothing". */
+const LOOKUP_TIMED_OUT = Symbol("staff-reschedule-lookup-timeout");
+
 /**
  * Advisory diagnostics for a suppressed staff-reschedule cancellation.
  *
  * The IO is injected so the whole thing is unit-testable without network
  * access (CI runs `deno test` with `--allow-env` only). The operational
- * invariant this exists to guarantee: **it never throws and never signals
- * failure**. A missing source visit id, a returned PostgREST `error`, a
- * client that fails to construct, and an unexpected exception all resolve
- * normally after logging, so the caller's unconditional `200 Skipped` can
- * never be turned into a customer-facing cancellation by a diagnostic fault.
+ * invariant this exists to guarantee: **it always resolves, and never
+ * signals failure**. A missing source visit id, a returned PostgREST
+ * `error`, a client that fails to construct, an unexpected exception, and a
+ * lookup that is slow or never settles all resolve normally after logging,
+ * so the caller's unconditional `200 Skipped` can never be delayed
+ * indefinitely or turned into a customer-facing cancellation by a
+ * diagnostic fault.
  *
- * Each of those is a distinct log line — "lookup failed" and "replacement
- * missing" are different operational events and must not be conflated.
+ * The deadline is enforced two ways on purpose: `Promise.race` guarantees
+ * *this function* resolves even if an implementation ignores cancellation,
+ * and the `AbortSignal` gives the real PostgREST request a chance to stop
+ * rather than being left running.
+ *
+ * Each failure mode is a distinct log line — "lookup failed", "timed out"
+ * and "replacement missing" are different operational events and must not
+ * be conflated.
  *
  * Note this runs once per cancelled source booking, so a multi-dog visit
  * emits the same abnormal-state warning once per row. That's acceptable
@@ -195,10 +215,15 @@ export interface StaffRescheduleLookupResult {
 export async function reportStaffRescheduleReplacement(args: {
   sourceVisitId: unknown;
   bookingId: unknown;
-  lookup: (sourceVisitId: string) => Promise<StaffRescheduleLookupResult>;
+  lookup: (
+    sourceVisitId: string,
+    signal: AbortSignal,
+  ) => Promise<StaffRescheduleLookupResult>;
   warn: (message: string, payload: string) => void;
+  timeoutMs?: number;
 }): Promise<void> {
   const { sourceVisitId, bookingId, lookup, warn } = args;
+  const timeoutMs = args.timeoutMs ?? STAFF_RESCHEDULE_LOOKUP_TIMEOUT_MS;
   try {
     // The reason is a free-text column, so a legacy or hand-edited row could
     // carry it without a visit_id even though the v1 RPC always sets one.
@@ -210,7 +235,37 @@ export async function reportStaffRescheduleReplacement(args: {
       return;
     }
 
-    const { data, error } = await lookup(sourceVisitId);
+    const controller = new AbortController();
+    // Deno and the DOM/Node lib types disagree on setTimeout's return type —
+    // infer it rather than pinning it to number.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<typeof LOOKUP_TIMED_OUT>((resolve) => {
+      timer = setTimeout(() => resolve(LOOKUP_TIMED_OUT), timeoutMs);
+    });
+
+    let raced: StaffRescheduleLookupResult | typeof LOOKUP_TIMED_OUT;
+    try {
+      const pending = lookup(sourceVisitId, controller.signal);
+      // If the deadline wins, a later rejection from the abandoned lookup
+      // would otherwise surface as an unhandled rejection.
+      pending.catch(() => {});
+      raced = await Promise.race([pending, deadline]);
+    } finally {
+      // Always clear it — a dangling timer would keep the isolate (and the
+      // Deno test runner's op sanitiser) alive past this call.
+      if (timer !== undefined) clearTimeout(timer);
+    }
+
+    if (raced === LOOKUP_TIMED_OUT) {
+      controller.abort();
+      warn(
+        "notify-booking-cancelled: staff reschedule replacement lookup timed out",
+        JSON.stringify({ sourceVisitId, timeoutMs }),
+      );
+      return;
+    }
+
+    const { data, error } = raced;
     if (error) {
       warn(
         "notify-booking-cancelled: staff reschedule replacement lookup failed",
