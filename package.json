@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node-tests.json",
     "lint": "eslint . && node scripts/check-import-extensions.mjs && node scripts/check-duplicate-files.mjs && node scripts/check-lockfile-platform.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "check:edge-types": "node scripts/check-edge-function-types.mjs",
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
     "vapid:generate": "node scripts/generate-vapid-keys.mjs",
     "flow:publish": "node scripts/publish-flow.mjs",
