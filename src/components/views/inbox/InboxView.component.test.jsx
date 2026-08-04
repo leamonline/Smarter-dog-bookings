@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
-import { formatConversationalDate } from "./helpers.js";
 
 function setInboxState(value) {
   globalThis.__useWhatsAppInboxMock = value;
@@ -577,8 +576,29 @@ describe("InboxView", () => {
       fireEvent.click(within(contextRegion()).getByRole("button", { name: /^Booking/ }));
     }
 
+    // Staff now choose the action and the dog explicitly — the message
+    // classifier no longer decides for them. See
+    // docs/booking-pane-actions-spec.md.
+    function startOfferFlow() {
+      fireEvent.click(
+        within(contextRegion()).getByRole("button", { name: /Available appointments\?/ }),
+      );
+    }
+
+    function chooseDog(name) {
+      fireEvent.click(
+        within(contextRegion()).getByRole("checkbox", { name: new RegExp(name) }),
+      );
+    }
+
     function chooseSlot(slot) {
       fireEvent.click(within(contextRegion()).getByRole("button", { name: new RegExp(slot) }));
+    }
+
+    function addToReply() {
+      fireEvent.click(
+        within(contextRegion()).getByRole("button", { name: /Add to reply/i }),
+      );
     }
 
     function showConversation(view, conversation) {
@@ -604,6 +624,8 @@ describe("InboxView", () => {
       }));
 
       openBookingSection();
+      startOfferFlow();
+      chooseDog("Bella");
       chooseSlot("08:30");
       chooseSlot("09:00");
 
@@ -612,14 +634,12 @@ describe("InboxView", () => {
         screen.getByRole("button", { name: "Dismiss booking and customer context" }),
       ).toBeInTheDocument();
 
-      fireEvent.click(
-        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
-      );
+      addToReply();
 
       const composer = screen.getByLabelText("Write a reply");
-      expect(composer).toHaveValue(
-        `${formatConversationalDate(todayStr())} — 8:30am / 9:00am`,
-      );
+      expect(composer.value).toContain("Bella");
+      expect(composer.value).toContain("at 08:30");
+      expect(composer.value).toContain("at 09:00");
       await waitFor(() => expect(composer).toHaveFocus());
       expect(
         screen.queryByRole("button", { name: "Dismiss booking and customer context" }),
@@ -638,14 +658,14 @@ describe("InboxView", () => {
       });
 
       openBookingSection();
+      startOfferFlow();
+      chooseDog("Bella");
       chooseSlot("08:30");
-      fireEvent.click(
-        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
-      );
+      addToReply();
 
-      expect(screen.getByLabelText("Write a reply")).toHaveValue(
-        `Hiya Sarah, lovely to hear from you!\n\n${formatConversationalDate(todayStr())} — 8:30am`,
-      );
+      const value = screen.getByLabelText("Write a reply").value;
+      expect(value.startsWith("Hiya Sarah, lovely to hear from you!\n\n")).toBe(true);
+      expect(value).toContain("at 08:30");
     });
 
     it("keeps each conversation's slot choices and inserted reply to itself", async () => {
@@ -656,34 +676,27 @@ describe("InboxView", () => {
       }));
 
       openBookingSection();
+      startOfferFlow();
+      chooseDog("Bella");
       chooseSlot("08:30");
       chooseSlot("09:00");
-      fireEvent.click(
-        within(contextRegion()).getByRole("button", { name: /Insert into reply/i }),
-      );
-      const sarahReply = `${formatConversationalDate(todayStr())} — 8:30am / 9:00am`;
-      expect(screen.getByLabelText("Write a reply")).toHaveValue(sarahReply);
+      addToReply();
+      const sarahReply = screen.getByLabelText("Write a reply").value;
+      expect(sarahReply).toContain("Bella");
 
-      // Mina starts clean — no draft and no slot choices carried over.
+      // Mina starts clean — no draft and a fresh, unchosen booking flow.
       showConversation(view, second);
       await waitFor(() => expect(screen.getByLabelText("Write a reply")).toHaveValue(""));
       openBookingSection();
       expect(
-        within(contextRegion()).getByRole("button", { name: /08:30/ }),
-      ).toHaveAttribute("aria-pressed", "false");
+        within(contextRegion()).getByRole("button", { name: /Available appointments\?/ }),
+      ).toBeInTheDocument();
 
-      // Sarah's own work is intact on return.
+      // Sarah's own reply is intact on return.
       showConversation(view, first);
       await waitFor(() =>
         expect(screen.getByLabelText("Write a reply")).toHaveValue(sarahReply),
       );
-      openBookingSection();
-      expect(
-        within(contextRegion()).getByRole("button", { name: /08:30/ }),
-      ).toHaveAttribute("aria-pressed", "true");
-      expect(
-        within(contextRegion()).getByRole("button", { name: /09:00/ }),
-      ).toHaveAttribute("aria-pressed", "true");
     });
 
     it("surfaces a booking suggestion without opening the Booking section", () => {

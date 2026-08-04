@@ -46,11 +46,10 @@ import { useCustomerContext } from "../hooks/useCustomerContext.js";
 import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
 import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
 import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
-import { BookingPane } from "../../booking-workspace/BookingPane.jsx";
+import { BookingActionsPane } from "../../booking-workspace/BookingActionsPane.jsx";
 import {
   buildBookingRequest,
   isActiveAppointmentRequest,
-  toggleDraftSlot,
 } from "../../booking-workspace/bookingWorkspaceModel.js";
 import { BookingCustomerPane } from "./BookingCustomerPane.jsx";
 import { ConversationPane } from "./ConversationPane.jsx";
@@ -59,7 +58,6 @@ import { ThreadPane } from "./ThreadPane.jsx";
 import { buildDiaryDates } from "./inboxWorkspaceModel.js";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 
-const MAX_SLOT_CHOICES = 3;
 // At 1440px and above the context rail is permanently docked, so inserting
 // slots leaves it in place. Narrower, it is an overlay covering the thread and
 // must step aside once the times are in the reply.
@@ -151,32 +149,22 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     [selectedWork.dateStr],
   );
 
-  const handleToggleSlot = useCallback((choice) => {
-    if (!selectedId) return;
-    const result = toggleDraftSlot(selectedWork.slots, choice, MAX_SLOT_CHOICES);
-    if (result.choices === selectedWork.slots) return;
-    workspaceActions.setSlots(selectedId, result.choices);
-  }, [selectedId, selectedWork.slots, workspaceActions]);
-
   const handlePickDate = useCallback((date) => {
     if (!selectedId) return;
     workspaceActions.setDate(selectedId, toLocalDateStr(date));
   }, [selectedId, workspaceActions]);
 
-  const handleClearSlots = useCallback(() => {
-    if (!selectedId) return;
-    workspaceActions.setSlots(selectedId, []);
-  }, [selectedId, workspaceActions]);
-
-  // Appends to whatever staff have already typed (never replaces it), then puts
-  // the caret back in the composer. Nothing is sent — the normal send path
-  // still applies.
-  const handleInsertSlots = useCallback(() => {
-    if (!selectedId) return;
-    workspaceActions.insertSlots(selectedId);
+  // Same contract for the Booking pane's composed offer: append, focus, and
+  // hand back to the normal send path. Nothing is sent from here, so the
+  // WhatsApp 24-hour window and template rules stay with the composer.
+  const handleInsertOfferText = useCallback((text) => {
+    if (!selectedId || !text) return;
+    const existing = selectedWork.draft || "";
+    const next = existing.trim() ? `${existing.trimEnd()}\n\n${text}` : text;
+    workspaceActions.setDraft(selectedId, next);
     requestAnimationFrame(() => composerTextareaRef.current?.focus());
     if (!isRailDocked()) workspaceActions.closeContext();
-  }, [selectedId, workspaceActions]);
+  }, [selectedId, selectedWork.draft, workspaceActions]);
 
   // Wrap the hook actions with success toasts so screen-reader users
   // hear confirmation (errors stay inline in the panels — they need
@@ -336,6 +324,17 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setBookOpen(false);
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
+
+  // The conversation row already carries this customer's dogs (id, name,
+  // breed, size), so the booking pane can render immediately rather than
+  // waiting on the customer-context fetch. The fuller record wins once it
+  // lands — it also carries alerts and groom notes.
+  const bookingPaneDogs = useMemo(
+    () => (customerContext?.dogs?.length
+      ? customerContext.dogs
+      : selectedConversation?.humans?.dogs || []),
+    [customerContext?.dogs, selectedConversation],
+  );
 
   // "Update notes" — AI reads the thread and appends durable customer
   // notes + dog grooming requests to their records (nothing is sent).
@@ -667,20 +666,19 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       onExpand={workspaceActions.openContext}
       onDismissSuggestion={() => workspaceActions.dismissSuggestion(selectedId)}
       bookingPane={
-        <BookingPane
-          request={bookingRequest}
+        <BookingActionsPane
+          conversationId={selectedId}
+          customerName={customerContext?.human?.fullName || bookingRequest?.customerName || ""}
+          dogs={bookingPaneDogs}
+          lastServiceByDogId={customerContext?.lastServiceByDogId}
           dates={diaryDates}
           currentDateStr={selectedWork.dateStr}
           daySettings={salon.daySettings}
           bookingsByDate={salon.bookingsByDate}
           dailyDogCap={dailyDogCap}
-          choices={selectedWork.slots}
-          onToggleChoice={handleToggleSlot}
           onPickDate={handlePickDate}
-          atLimit={selectedWork.slots.length >= MAX_SLOT_CHOICES}
-          onClear={handleClearSlots}
-          onInsertIntoReply={handleInsertSlots}
-          showInsertAction
+          onInsertIntoReply={handleInsertOfferText}
+          bookingSuggested={!!bookingRequest}
         />
       }
       customerPane={
