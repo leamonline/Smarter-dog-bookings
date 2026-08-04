@@ -46,6 +46,35 @@ jobs:
       # fail and red-X main. Retry the whole run a few times: Deno caches
       # successful remote fetches within a run, so a genuine test failure still
       # fails on every attempt, but a one-off CDN blip clears on a retry.
+      # Deno only type-checks modules reachable from the *.test.ts files it
+      # discovers, and no test imports an index.ts — so without this step every
+      # Edge Function entrypoint ships unchecked. PR #589 proved the cost: the
+      # full lint/typecheck/test/build bar passed while two real type errors
+      # sat in an entrypoint. Runs BEFORE the tests: a type error reads as a
+      # type error rather than a downstream test failure, and the check warms
+      # Deno's remote-module cache for the step below.
+      #
+      # Must be its own step — the test step's retry loop exits 0 inside its
+      # own `for`, so anything appended there would never run.
+      #
+      # Same 3-attempt retry, for the same reason: the entrypoints import
+      # @supabase/supabase-js from esm.sh, so `deno check` has the identical
+      # transient-CDN exposure the test step documents below.
+      - name: Type-check Edge Function entrypoints
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::deno check (attempt $attempt/3)"
+            if npm run check:edge-types; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "deno check attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && { echo "retrying in $((attempt * 10))s…"; sleep $((attempt * 10)); }
+          done
+          echo "::error::deno check failed after 3 attempts"
+          exit 1
+
       - name: Run Edge Function (Deno) tests
         run: |
           for attempt in 1 2 3; do

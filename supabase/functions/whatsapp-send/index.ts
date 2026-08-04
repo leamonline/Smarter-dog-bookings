@@ -67,7 +67,9 @@ import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import {
   type ConfirmButtonsBody,
+  type ConfirmButtonsDeps,
   type ConfirmButtonsResult,
+  type SupabaseLike,
   runConfirmButtons,
 } from "../_shared/confirmButtons.ts";
 import { buildFlowMetaBody, validateFlowMessageParams } from "../_shared/flowMessage.ts";
@@ -744,16 +746,31 @@ async function handleConfirmButtons(
     action_kind: body.action_kind,
   };
 
-  const result: ConfirmButtonsResult = await runConfirmButtons(
-    {
-      supabase,
-      callMeta,
-      recordOutbound: (conversationId, metaMessageId, content, raw) =>
-        recordOutbound(supabase, conversationId, metaMessageId, content, raw),
-      now: () => new Date(),
-    },
-    inputBody,
-  );
+  // Hoisted into an explicitly annotated const on purpose: inferring the
+  // argument inline made TypeScript instantiate SupabaseClient's generics
+  // through the whole ConfirmButtonsDeps shape (TS2589, "type instantiation
+  // is excessively deep").
+  //
+  // The `as unknown as` is a deliberate dependency boundary, not a shrug.
+  // confirmButtons.ts uses exactly five operations —
+  // .from().select().eq().single() and .from().update().eq().select() — and
+  // SupabaseLike describes precisely those, so the real client genuinely
+  // satisfies it. The *real* structural mismatch (SupabaseSelectQuery.single()
+  // declaring Promise when the client returns a thenable) is fixed properly at
+  // its source in confirmButtons.ts. What remains is only that TypeScript
+  // exhausts its instantiation depth before it can finish comparing the two
+  // types: both a plain `as SupabaseLike` and no cast at all still raise
+  // TS2589, so it never reaches a compatibility verdict to be suppressed.
+  // Going via `unknown` short-circuits that comparison.
+  const deps: ConfirmButtonsDeps = {
+    supabase: supabase as unknown as SupabaseLike,
+    callMeta,
+    recordOutbound: (conversationId, metaMessageId, content, raw) =>
+      recordOutbound(supabase, conversationId, metaMessageId, content, raw),
+    now: () => new Date(),
+  };
+
+  const result: ConfirmButtonsResult = await runConfirmButtons(deps, inputBody);
 
   if (!result.ok) {
     return json(req, { ok: false, reason: result.reason }, result.status);

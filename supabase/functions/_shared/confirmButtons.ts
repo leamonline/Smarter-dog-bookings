@@ -63,6 +63,13 @@ export type ConfirmButtonsResult =
 // ── Minimal structural type for the supabase methods we use ───
 // The real @supabase/supabase-js client satisfies this structurally;
 // tests can supply a thin fake without pulling in the full SDK.
+//
+// The terminal methods return PromiseLike, not Promise: the real client hands
+// back a PostgrestBuilder, which is a *thenable* — it implements .then() but
+// not .catch()/.finally()/[Symbol.toStringTag]. Declaring Promise here made
+// the real client structurally unassignable to SupabaseLike (TS2322). Every
+// call site awaits the result, and await accepts any thenable, so this is the
+// honest description rather than a widening.
 
 export interface SupabaseLike {
   from(table: string): SupabaseTable;
@@ -75,12 +82,12 @@ export interface SupabaseTable {
 
 export interface SupabaseSelectQuery {
   eq(col: string, val: unknown): SupabaseSelectQuery;
-  single(): Promise<{ data: Record<string, unknown> | null; error: SupabaseError | null }>;
+  single(): PromiseLike<{ data: Record<string, unknown> | null; error: SupabaseError | null }>;
 }
 
 export interface SupabaseUpdateQuery {
   eq(col: string, val: unknown): SupabaseUpdateQuery;
-  select(cols?: string): Promise<{ data: Array<Record<string, unknown>> | null; error: SupabaseError | null }>;
+  select(cols?: string): PromiseLike<{ data: Array<Record<string, unknown>> | null; error: SupabaseError | null }>;
 }
 
 export interface SupabaseError {

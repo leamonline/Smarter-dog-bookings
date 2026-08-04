@@ -19,7 +19,7 @@ imports any `index.ts`, so every Edge Function entrypoint is currently unchecked
 
 That matters more than it looks: a change under `supabase/functions/_shared/**`
 triggers a redeploy of **every** Edge Function, so an undetected entrypoint error
-surfaces after merge, during deployment, across all 25 functions at once.
+surfaces after merge, during deployment, across all 27 functions at once.
 
 **Intended outcome:** CI fails on a type error in any deployable Edge Function
 entrypoint, and a guard makes that coverage hard to remove silently.
@@ -30,10 +30,10 @@ entrypoint, and a guard makes that coverage hard to remove silently.
 
 ### 1. `deno check` fails on `main` today — this is a blocker, not a footnote
 
-A sweep of all 25 entrypoints against `origin/main` (403d401):
+A sweep of all 27 entrypoints against `origin/main` (403d401):
 
 ```
-24 PASS
+26 PASS
  1 FAIL  supabase/functions/whatsapp-send/index.ts
 ```
 
@@ -68,12 +68,12 @@ runtime change:
   and pass `deps`. The explicit annotation stops TypeScript inferring through
   `SupabaseClient`'s generics. **Clears TS2589.**
 
-Confirmed after the change: **all 25 entrypoints pass**, and `deno test` still
+Confirmed after the change: **all 27 entrypoints pass**, and `deno test` still
 reports **68 passed / 0 failed**.
 
 ### 2. Cost is negligible — check everything, not just changed functions
 
-All 25 entrypoints in one invocation: **~16s cold, ~1.3s warm**. No reason to
+All 27 entrypoints in one invocation: **~16s cold, ~1.3s warm**. No reason to
 build changed-file detection. Checking the full set also means a function nobody
 touched can't rot.
 
@@ -157,7 +157,7 @@ Test-driven: each guard fails first, for the right reason, before the change lan
     resolves remote imports without them.
 - [ ] Add `"check:edge-types": "node scripts/check-edge-function-types.mjs"` to
       `package.json`.
-- [ ] Run `npm run check:edge-types` → **expect pass**, listing 25 entrypoints.
+- [ ] Run `npm run check:edge-types` → **expect pass**, listing 27 entrypoints.
 
 ### Step 4 — discovery unit tests (failing first)
 
