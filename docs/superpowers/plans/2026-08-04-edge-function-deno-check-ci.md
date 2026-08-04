@@ -1,6 +1,6 @@
 # Add Edge Function entrypoint type checking to CI
 
-**Status:** awaiting approval — no implementation started.
+**Status:** implemented and merged (#590).
 **Scope:** item 1 of the four follow-ups recorded in PR #589.
 
 ## Context
