@@ -9,6 +9,8 @@
 
 // deno-lint-ignore-file no-explicit-any
 
+import { WHATSAPP_RESCHEDULE_CANCEL_REASON } from "./cancelReasons.ts";
+
 export interface RecipientHuman {
   id: string;
   name: string;
@@ -49,6 +51,31 @@ export function bookingConfirmationSkipReason(
     booking.payment !== "Deposit Paid" &&
     booking.payment !== "Paid in Full";
   return awaitingDeposit ? "booking is awaiting deposit" : null;
+}
+
+export interface BookingCancellationRecord {
+  cancel_reason?: unknown;
+}
+
+/**
+ * After the caller has resolved the reason a cancellation fired, decide
+ * whether the standalone "has been cancelled. Rebook anytime." message would
+ * be misleading. A WhatsApp Flow reschedule cancels the old visit and
+ * immediately inserts the replacement — the confirmation of the new
+ * appointment is the customer's message, so this one is suppressed. Exact
+ * string equality only: a prefix match would also catch staff-initiated
+ * reschedules ('Rescheduled by staff'), which are a separate, unfixed bug
+ * left out of scope here.
+ */
+export function bookingCancellationSkipReason(
+  booking: BookingCancellationRecord,
+): string | null {
+  const reason = typeof booking.cancel_reason === "string"
+    ? booking.cancel_reason.trim()
+    : "";
+  return reason === WHATSAPP_RESCHEDULE_CANCEL_REASON
+    ? "cancellation is a WhatsApp reschedule"
+    : null;
 }
 
 // Resolve the human ids to notify for a booking: the explicit notify_human_ids

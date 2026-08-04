@@ -4,6 +4,7 @@ import {
   assertEquals,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
+  bookingCancellationSkipReason,
   bookingConfirmationSkipReason,
   channelAvailableFor,
   pickChannel,
@@ -121,4 +122,38 @@ Deno.test("pending deposits suppress the ordinary booking confirmation until mat
     }),
     null,
   );
+});
+
+Deno.test("bookingCancellationSkipReason: skips a WhatsApp Flow reschedule cancellation", () => {
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "Rescheduled via WhatsApp" }),
+    "cancellation is a WhatsApp reschedule",
+  );
+  // Surrounding whitespace still matches — the trigger stamps the literal
+  // exactly, but trim() protects against incidental padding.
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "  Rescheduled via WhatsApp  " }),
+    "cancellation is a WhatsApp reschedule",
+  );
+});
+
+Deno.test("bookingCancellationSkipReason: does not skip anything else", () => {
+  // Exact match only — 'Rescheduled by staff' is the same class of bug but
+  // explicitly out of scope, so a prefix match must not catch it.
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "Rescheduled by staff" }),
+    null,
+  );
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "Customer cancelled via WhatsApp" }),
+    null,
+  );
+  assertEquals(
+    bookingCancellationSkipReason({ cancel_reason: "Deposit not received" }),
+    null,
+  );
+  assertEquals(bookingCancellationSkipReason({ cancel_reason: null }), null);
+  assertEquals(bookingCancellationSkipReason({ cancel_reason: undefined }), null);
+  assertEquals(bookingCancellationSkipReason({ cancel_reason: "" }), null);
+  assertEquals(bookingCancellationSkipReason({ cancel_reason: 42 }), null);
 });
