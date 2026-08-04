@@ -9,7 +9,10 @@ import {
   fetchHumansByIds,
   pickChannel,
   bookingCancellationSkipReason,
+  reportStaffRescheduleReplacement,
+  type StaffRescheduleLookupResult,
 } from "../_shared/recipients.ts";
+import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -41,14 +44,48 @@ serve(async (req) => {
     // 0b. The cancel_reason that triggered this send lives on NEW, not OLD —
     // it's set in the same UPDATE that flips status to 'Cancelled', so OLD's
     // cancel_reason is still whatever it was before (usually null). A
-    // WhatsApp Flow reschedule cancels the old visit and immediately confirms
-    // the replacement, so the standalone "has been cancelled" message here
-    // would be redundant and misleading — skip it. Falls back to old_record's
-    // reason for robustness if a caller ever posts without a `record`.
-    const skipReason = bookingCancellationSkipReason({
-      cancel_reason: payload.record?.cancel_reason ?? booking.cancel_reason,
-    });
+    // WhatsApp Flow reschedule or a staff visit reschedule both cancel the
+    // old visit and immediately confirm the replacement, so the standalone
+    // "has been cancelled" message here would be redundant and misleading —
+    // skip it. Falls back to old_record's reason for robustness if a caller
+    // ever posts without a `record`. Normalised once here so the skip
+    // decision and the staff-only branch below can't disagree about padding.
+    const rawReason = payload.record?.cancel_reason ?? booking.cancel_reason;
+    const cancelReason = typeof rawReason === "string" ? rawReason.trim() : "";
+
+    const skipReason = bookingCancellationSkipReason({ cancel_reason: cancelReason });
     if (skipReason) {
+      // Staff reschedule only. The WhatsApp case is live in production and
+      // shipped in #584 — it keeps its original zero-query, zero-client fast
+      // path and is not perturbed here. Suppression is unconditional: the
+      // helper below always resolves, within its own deadline, and never
+      // reports failure — so nothing in this block can stop the 200 below
+      // from being returned, or delay it indefinitely.
+      if (cancelReason === STAFF_RESCHEDULE_CANCEL_REASON) {
+        await reportStaffRescheduleReplacement({
+          sourceVisitId: booking.visit_id,
+          bookingId: booking.id,
+          // No lifecycle_state filter: booking_visits has a unique partial
+          // index on supersedes_visit_id, so there is at most one immediate
+          // replacement. Filtering on lifecycle_state='active' would report
+          // a false "replacement missing" when the replacement has itself
+          // already been rescheduled before this post-commit webhook ran.
+          // Client construction is inside the callback so that a failure to
+          // build it is caught by the helper's own guard.
+          lookup: async (sourceVisitId, signal) => {
+            const { data, error } = await createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+              .from("booking_visits")
+              .select("id, bookings(id), booking_visit_deposits(state)")
+              .eq("supersedes_visit_id", sourceVisitId)
+              // Honours the helper's deadline so an abandoned diagnostic
+              // doesn't leave a PostgREST request running behind the 200.
+              .abortSignal(signal)
+              .maybeSingle();
+            return { data, error } as StaffRescheduleLookupResult;
+          },
+          warn: (message, detail) => console.warn(message, detail),
+        });
+      }
       return new Response(`Skipped: ${skipReason}`, { status: 200 });
     }
 

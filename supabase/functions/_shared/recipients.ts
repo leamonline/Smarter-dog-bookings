@@ -9,7 +9,10 @@
 
 // deno-lint-ignore-file no-explicit-any
 
-import { WHATSAPP_RESCHEDULE_CANCEL_REASON } from "./cancelReasons.ts";
+import {
+  STAFF_RESCHEDULE_CANCEL_REASON,
+  WHATSAPP_RESCHEDULE_CANCEL_REASON,
+} from "./cancelReasons.ts";
 
 export interface RecipientHuman {
   id: string;
@@ -57,15 +60,25 @@ export interface BookingCancellationRecord {
   cancel_reason?: unknown;
 }
 
+// The skip strings. These are log/response text only — callers that need to
+// branch on *which* reschedule path fired compare the cancel_reason against
+// the constants in cancelReasons.ts instead, which ties the branch to the
+// value the database actually stamps rather than to a log message. Kept as
+// named constants (rather than inline literals) so the two returns below
+// can't drift apart, but deliberately not exported: nothing outside this
+// module should depend on the wording.
+const SKIP_WHATSAPP_RESCHEDULE = "cancellation is a WhatsApp reschedule";
+const SKIP_STAFF_RESCHEDULE = "cancellation is a staff reschedule";
+
 /**
  * After the caller has resolved the reason a cancellation fired, decide
  * whether the standalone "has been cancelled. Rebook anytime." message would
- * be misleading. A WhatsApp Flow reschedule cancels the old visit and
- * immediately inserts the replacement — the confirmation of the new
- * appointment is the customer's message, so this one is suppressed. Exact
- * string equality only: a prefix match would also catch staff-initiated
- * reschedules ('Rescheduled by staff'), which are a separate, unfixed bug
- * left out of scope here.
+ * be misleading. Both a WhatsApp Flow reschedule and a staff visit
+ * reschedule cancel the old visit and immediately insert the replacement —
+ * the confirmation of the new appointment is the customer's message, so this
+ * one is suppressed in either case. Exact string equality only (no prefix
+ * matching), and each case returns its own distinct skip string so the
+ * function logs stay diagnosable about which reschedule path fired.
  */
 export function bookingCancellationSkipReason(
   booking: BookingCancellationRecord,
@@ -73,9 +86,219 @@ export function bookingCancellationSkipReason(
   const reason = typeof booking.cancel_reason === "string"
     ? booking.cancel_reason.trim()
     : "";
-  return reason === WHATSAPP_RESCHEDULE_CANCEL_REASON
-    ? "cancellation is a WhatsApp reschedule"
-    : null;
+  if (reason === WHATSAPP_RESCHEDULE_CANCEL_REASON) {
+    return SKIP_WHATSAPP_RESCHEDULE;
+  }
+  if (reason === STAFF_RESCHEDULE_CANCEL_REASON) {
+    return SKIP_STAFF_RESCHEDULE;
+  }
+  return null;
+}
+
+// The deposit states the staff reschedule RPC itself treats as transferable
+// to the replacement visit (20260726144007:544:
+// `if d.state not in ('not_required','received')` blocks the move before it
+// writes anything). Mirrored here — not imported from SQL — so this stays a
+// pure, dependency-free decision usable from the edge function's warning
+// path.
+const SETTLED_DEPOSIT_STATES = ["not_required", "received"];
+
+export interface StaffRescheduleReplacement {
+  id: string;
+  depositState: string | null;
+  bookingCount: number;
+}
+
+/**
+ * Pure decision: after a staff visit reschedule cancels the source rows, is
+ * the replacement visit in a state worth a structured operator warning?
+ *
+ * This is defence-in-depth, not a live check today — `stamp_booking_deposit`
+ * leaves visit_v1 bookings' `deposit_required` false, and the RPC itself
+ * refuses to write anything unless the deposit is already 'not_required' or
+ * 'received' (20260726144007:539-548). If a future change loosens that
+ * guard, this still fires. Warn when the replacement is missing (the lookup
+ * found nothing to point the "has been cancelled" suppression at) or its
+ * deposit state isn't one of the settled ones the RPC itself allows through.
+ */
+export function staffRescheduleReplacementWarning(
+  input: {
+    sourceVisitId: string;
+    replacement: StaffRescheduleReplacement | null;
+  },
+): Record<string, unknown> | null {
+  const { sourceVisitId, replacement } = input;
+  if (!replacement) {
+    return {
+      reason: "staff reschedule replacement visit not found",
+      sourceVisitId,
+    };
+  }
+  if (!SETTLED_DEPOSIT_STATES.includes(replacement.depositState ?? "")) {
+    return {
+      reason: "staff reschedule replacement has an unsettled deposit state",
+      sourceVisitId,
+      replacementVisitId: replacement.id,
+      depositState: replacement.depositState,
+      bookingCount: replacement.bookingCount,
+    };
+  }
+  return null;
+}
+
+// supabase-js's embed resolution shape (single object vs array) depends on
+// whether it can infer a to-one relationship from FK metadata, and that's not
+// worth relying on — normalise either shape to an array before reading.
+function toArray(value: unknown): unknown[] {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function firstDepositState(value: unknown): string | null {
+  const first = toArray(value)[0];
+  if (first && typeof first === "object" && "state" in first) {
+    const state = (first as { state: unknown }).state;
+    return typeof state === "string" ? state : null;
+  }
+  return null;
+}
+
+/** The `booking_visits` row shape the replacement lookup selects. */
+export interface StaffRescheduleLookupRow {
+  id: string;
+  bookings?: unknown;
+  booking_visit_deposits?: unknown;
+}
+
+/** supabase-js's `{ data, error }` result — PostgREST errors resolve, they
+ *  don't throw, so `error` must be inspected explicitly. */
+export interface StaffRescheduleLookupResult {
+  data: StaffRescheduleLookupRow | null;
+  error: { message?: string; code?: string } | null;
+}
+
+/** How long the advisory lookup may take before it is abandoned. It runs
+ *  inline before the caller returns its 200, so this is a latency budget for
+ *  a diagnostic, not for anything the customer outcome depends on. */
+export const STAFF_RESCHEDULE_LOOKUP_TIMEOUT_MS = 3000;
+
+/** Distinct from any legitimate lookup result, so the race below can tell
+ *  "the timer won" from "the query returned nothing". */
+const LOOKUP_TIMED_OUT = Symbol("staff-reschedule-lookup-timeout");
+
+/**
+ * Advisory diagnostics for a suppressed staff-reschedule cancellation.
+ *
+ * The IO is injected so the whole thing is unit-testable without network
+ * access (CI runs `deno test` with `--allow-env` only). The operational
+ * invariant this exists to guarantee: **it always resolves, and never
+ * signals failure**. A missing source visit id, a returned PostgREST
+ * `error`, a client that fails to construct, an unexpected exception, and a
+ * lookup that is slow or never settles all resolve normally after logging,
+ * so the caller's unconditional `200 Skipped` can never be delayed
+ * indefinitely or turned into a customer-facing cancellation by a
+ * diagnostic fault.
+ *
+ * The deadline is enforced two ways on purpose: `Promise.race` guarantees
+ * *this function* resolves even if an implementation ignores cancellation,
+ * and the `AbortSignal` gives the real PostgREST request a chance to stop
+ * rather than being left running.
+ *
+ * Each failure mode is a distinct log line — "lookup failed", "timed out"
+ * and "replacement missing" are different operational events and must not
+ * be conflated.
+ *
+ * Note this runs once per cancelled source booking, so a multi-dog visit
+ * emits the same abnormal-state warning once per row. That's acceptable
+ * per-row diagnostics for a dormant path, not a per-visit summary.
+ */
+export async function reportStaffRescheduleReplacement(args: {
+  sourceVisitId: unknown;
+  bookingId: unknown;
+  lookup: (
+    sourceVisitId: string,
+    signal: AbortSignal,
+  ) => Promise<StaffRescheduleLookupResult>;
+  warn: (message: string, payload: string) => void;
+  timeoutMs?: number;
+}): Promise<void> {
+  const { sourceVisitId, bookingId, lookup, warn } = args;
+  const timeoutMs = args.timeoutMs ?? STAFF_RESCHEDULE_LOOKUP_TIMEOUT_MS;
+  try {
+    // The reason is a free-text column, so a legacy or hand-edited row could
+    // carry it without a visit_id even though the v1 RPC always sets one.
+    if (typeof sourceVisitId !== "string" || sourceVisitId === "") {
+      warn(
+        "notify-booking-cancelled: staff reschedule source visit id missing",
+        JSON.stringify({ bookingId: typeof bookingId === "string" ? bookingId : null }),
+      );
+      return;
+    }
+
+    const controller = new AbortController();
+    // Deno and the DOM/Node lib types disagree on setTimeout's return type —
+    // infer it rather than pinning it to number.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<typeof LOOKUP_TIMED_OUT>((resolve) => {
+      timer = setTimeout(() => resolve(LOOKUP_TIMED_OUT), timeoutMs);
+    });
+
+    let raced: StaffRescheduleLookupResult | typeof LOOKUP_TIMED_OUT;
+    try {
+      const pending = lookup(sourceVisitId, controller.signal);
+      // If the deadline wins, a later rejection from the abandoned lookup
+      // would otherwise surface as an unhandled rejection.
+      pending.catch(() => {});
+      raced = await Promise.race([pending, deadline]);
+    } finally {
+      // Always clear it — a dangling timer would keep the isolate (and the
+      // Deno test runner's op sanitiser) alive past this call.
+      if (timer !== undefined) clearTimeout(timer);
+    }
+
+    if (raced === LOOKUP_TIMED_OUT) {
+      controller.abort();
+      warn(
+        "notify-booking-cancelled: staff reschedule replacement lookup timed out",
+        JSON.stringify({ sourceVisitId, timeoutMs }),
+      );
+      return;
+    }
+
+    const { data, error } = raced;
+    if (error) {
+      warn(
+        "notify-booking-cancelled: staff reschedule replacement lookup failed",
+        JSON.stringify({ sourceVisitId, code: error.code ?? null }),
+      );
+      return;
+    }
+
+    const warning = staffRescheduleReplacementWarning({
+      sourceVisitId,
+      replacement: data
+        ? {
+          id: data.id,
+          depositState: firstDepositState(data.booking_visit_deposits),
+          bookingCount: toArray(data.bookings).length,
+        }
+        : null,
+    });
+    if (warning) {
+      warn(
+        "notify-booking-cancelled: unexpected staff reschedule replacement state",
+        JSON.stringify(warning),
+      );
+    }
+  } catch (err) {
+    warn(
+      "notify-booking-cancelled: staff reschedule replacement lookup threw",
+      JSON.stringify({
+        sourceVisitId: typeof sourceVisitId === "string" ? sourceVisitId : null,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
 }
 
 // Resolve the human ids to notify for a booking: the explicit notify_human_ids
