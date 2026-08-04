@@ -322,7 +322,14 @@ describe("MessageBubble — special message rendering", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send again" }));
 
     await waitFor(() => expect(onRetry).toHaveBeenCalledWith(failedMessage));
-    expect(screen.getByRole("alert")).toHaveTextContent("Meta callback timed out");
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    // onRetry having been called only proves the click fired the handler —
+    // the component still has to await the rejected promise and re-render
+    // back out of its "Sending…" state. Asserting on that render
+    // synchronously here is a race (it was flaky in CI); wait for the
+    // settled UI instead of the settled mock.
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Meta callback timed out");
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
   });
 });
