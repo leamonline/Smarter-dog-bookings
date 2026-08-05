@@ -62,7 +62,10 @@ function toInsertPayload(dateStr, booking, dogId, pickupHumanId) {
   };
 }
 
-function groupBookingsByDate(rows, dogsById, humansById) {
+// Exported for useInboxDiaryData, which groups its own (dogs/humans-map-free)
+// booking rows by date the same way — keeps the grouping in one place rather
+// than re-deriving it for a second range.
+export function groupBookingsByDate(rows, dogsById, humansById) {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);
   const grouped = {};
 

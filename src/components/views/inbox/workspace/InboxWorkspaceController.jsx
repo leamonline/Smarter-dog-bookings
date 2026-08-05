@@ -27,8 +27,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { DAILY_DOG_CAP } from "../../../../constants/salon";
-import { useSalon } from "../../../../contexts/SalonContext";
 import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox.js";
+import { useInboxDiaryData } from "../../../../supabase/hooks/useInboxDiaryData.js";
 import { useSalonConfig } from "../../../../supabase/hooks/useSalonConfig.js";
 import { useToast } from "../../../../contexts/ToastContext.jsx";
 import { Spinner } from "../../../ui/Spinner.jsx";
@@ -111,7 +111,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     refreshList,
   } = useWhatsAppInbox({ includeBookingWorkspaceData: true });
   const toast = useToast();
-  const salon = useSalon();
   // The authoritative cap lives in salon_config; fall back to the shared
   // constant only while that loads so the diary never over-offers.
   const { config: salonConfig } = useSalonConfig();
@@ -129,6 +128,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     dateStr: initialDateStr,
     slots: [],
   };
+  // Own read path for the diary, scoped to whatever date it's currently
+  // showing — NOT the staff calendar's loaded week (see useInboxDiaryData
+  // for why). selectedWork.dateStr is the same value already driving
+  // diaryDates and the BookingActionsPane below.
+  const diaryData = useInboxDiaryData(selectedWork.dateStr);
 
   useEffect(() => {
     workspaceActions.syncSelectedConversation(selectedId);
@@ -673,8 +677,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           lastServiceByDogId={customerContext?.lastServiceByDogId}
           dates={diaryDates}
           currentDateStr={selectedWork.dateStr}
-          daySettings={salon.daySettings}
-          bookingsByDate={salon.bookingsByDate}
+          daySettings={diaryData.daySettings}
+          bookingsByDate={diaryData.bookingsByDate}
           dailyDogCap={dailyDogCap}
           onPickDate={handlePickDate}
           onInsertIntoReply={handleInsertOfferText}

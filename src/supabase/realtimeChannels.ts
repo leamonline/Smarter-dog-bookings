@@ -37,6 +37,8 @@ export const CHANNELS = {
   monthDaySettings: "month-day-settings",
   monthBookings: "month-bookings",
   daySettings: "day-settings-rt",
+  inboxDiaryDaySettings: "inbox-diary-day-settings",
+  inboxDiaryBookings: "inbox-diary-bookings",
   dogsRealtime: "dogs-realtime",
   bookingsRealtime: "bookings-realtime",
   humansRealtime: "humans-realtime",
