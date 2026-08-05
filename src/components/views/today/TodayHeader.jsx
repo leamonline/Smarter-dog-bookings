@@ -1,4 +1,4 @@
-import { CalendarDays, Clock3 } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock3 } from "lucide-react";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import {
   PageHeader,
@@ -29,10 +29,47 @@ function OperationalFact({ label, value, valueClassName = "" }) {
       <span className={`truncate text-[14px] font-black leading-tight tabular-nums text-brand-purple sm:text-[16px] ${valueClassName}`}>
         {value}
       </span>
-      <span className="mt-0.5 whitespace-nowrap text-[9px] font-bold uppercase leading-tight tracking-normal text-slate-500 min-[390px]:text-[10px]">
+      <span className="mt-0.5 whitespace-nowrap text-[12px] font-bold uppercase leading-tight tracking-normal text-slate-500">
         {label}
       </span>
     </div>
+  );
+}
+
+/**
+ * The mobile Need-action control: a plain "N need action" button when there's
+ * something to see, explicit "Showing N · Clear" escape language once the
+ * filter is active, and calm non-interactive text when there's nothing to
+ * chase — never a bare number that could be mistaken for a static count.
+ */
+function MobileNeedAction({ actionCount, actionFilterActive, onToggleActionFilter }) {
+  if (actionCount === 0) {
+    return <span className="text-[13px] font-bold text-brand-teal-text">All calm</span>;
+  }
+  if (actionFilterActive) {
+    return (
+      <button
+        type="button"
+        aria-pressed="true"
+        aria-describedby="needs-action-definition"
+        onClick={onToggleActionFilter}
+        className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-brand-purple px-3 text-[13px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+      >
+        Showing {actionCount} · Clear
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-pressed="false"
+      aria-describedby="needs-action-definition"
+      onClick={onToggleActionFilter}
+      className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-brand-coral/[0.12] px-3 text-[13px] font-bold text-brand-coral-text outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+    >
+      {actionCount} need action
+      <ChevronRight size={14} aria-hidden="true" />
+    </button>
   );
 }
 
@@ -76,7 +113,54 @@ export function TodayHeader({
 
   return (
     <PageHeader title="Daily Brief" className="!mb-3 !min-h-0 !gap-2 !py-2.5">
-      <div className="grid w-full gap-2">
+      {/* Compact mobile header (below md): date opens the picker directly, no
+          separate Choose-date control, unpaid total dropped, one Need-action
+          row instead of the four-cell status grid. */}
+      <div className="grid w-full gap-2 md:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenDatePicker}
+            aria-label={`${dateLabel} — choose a different date`}
+            className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-control px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+          >
+            <CalendarDays size={17} aria-hidden="true" className="shrink-0 text-brand-purple/50" />
+            <strong className="min-w-0 truncate font-display text-xl font-black leading-none tracking-[-0.02em] text-brand-purple">
+              {dateLabel}
+            </strong>
+          </button>
+          <PageHeaderPill tone={isDayOpen ? "open" : "closed"} dot>
+            {isDayOpen ? "Salon open" : "Salon closed"}
+          </PageHeaderPill>
+        </div>
+
+        {!briefMode ? (
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <span className="shrink-0 text-[13px] font-bold text-slate-700 tabular-nums">{dogsBooked} booked</span>
+            <MobileNeedAction
+              actionCount={actionCount}
+              actionFilterActive={actionFilterActive}
+              onToggleActionFilter={onToggleActionFilter}
+            />
+            <span className="shrink-0 text-[13px] font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)} expected</span>
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[12px] font-bold text-slate-600">{availabilityLabel}</span>
+          <button
+            type="button"
+            onClick={onManageAvailability}
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control bg-brand-purple px-3 text-[13px] font-bold text-white outline-none transition-colors hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+          >
+            <Clock3 size={16} aria-hidden="true" />
+            Availability
+          </button>
+        </div>
+      </div>
+
+      {/* Existing richer header at md and above. */}
+      <div className="hidden w-full gap-2 md:grid" data-testid="daily-brief-header-full">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <strong
             data-testid="daily-brief-date"
