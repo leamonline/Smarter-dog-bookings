@@ -31,33 +31,29 @@ const PRIMARY_BTN =
   "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-purple px-4 text-sm font-bold text-white transition-colors hover:bg-brand-purple-light disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 const GHOST_BTN =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-bold text-brand-purple transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+// Offer only ever drafts a message — fully reversible, and the common case.
+// It gets the filled, reach-for-it-by-reflex treatment.
+const OFFER_BTN =
+  "inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-brand-teal px-4 text-sm font-bold text-white transition-colors hover:bg-brand-teal/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2";
+// Book writes a real appointment. Outlined, not filled, so it costs one more
+// beat of intent than the reversible action beside it — never equal billing.
+const BOOK_BTN =
+  "inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full border-2 border-brand-purple/25 px-4 text-sm font-bold text-brand-purple transition-colors hover:border-brand-purple/40 hover:bg-brand-purple/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
-function EntryChoice({ onChoose, bookingSuggested }) {
+// The header above this pane already carries the "Booking suggested" badge
+// (BookingCustomerPane, fed independently from the same signal) — that's the
+// one place this gets said. Nothing here repeats it.
+function EntryChoice({ onChoose }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 px-4 py-6">
-      {bookingSuggested ? (
-        <p className="text-center text-xs font-semibold text-slate-500">
-          This chat looks like a booking request.
-        </p>
-      ) : null}
-      <button type="button" onClick={() => onChoose("offer")} className={`${PRIMARY_BTN} min-h-[52px]`}>
+    <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 px-4 py-6">
+      <button type="button" onClick={() => onChoose("offer")} className={OFFER_BTN}>
         <MessageSquareText aria-hidden="true" size={17} />
         Available appointments?
       </button>
-      <p className="text-center text-micro text-slate-500">
-        Offer up to {MAX_OFFER_SLOTS} times for the customer to choose from.
-      </p>
-      <button
-        type="button"
-        onClick={() => onChoose("book")}
-        className={`${PRIMARY_BTN} min-h-[52px] bg-brand-teal hover:bg-brand-teal/90`}
-      >
+      <button type="button" onClick={() => onChoose("book")} className={BOOK_BTN}>
         <CalendarPlus aria-hidden="true" size={17} />
         Let&apos;s book!
       </button>
-      <p className="text-center text-micro text-slate-500">
-        Book the appointment straight away.
-      </p>
     </div>
   );
 }
@@ -74,7 +70,6 @@ export function BookingActionsPane({
   dailyDogCap,
   onPickDate,
   onInsertIntoReply,
-  bookingSuggested = false,
 }) {
   const narrow = useMediaQuery(NARROW_QUERY);
   const headingRef = useRef(null);
@@ -96,7 +91,7 @@ export function BookingActionsPane({
   }, [selectedDogs, slotChoices.length]);
 
   if (!mode) {
-    return <EntryChoice onChoose={actions.setMode} bookingSuggested={bookingSuggested} />;
+    return <EntryChoice onChoose={actions.setMode} />;
   }
 
   if (mode === "book") {
@@ -167,7 +162,13 @@ export function BookingActionsPane({
       </div>
 
       <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-5px_20px_rgba(45,0,75,0.08)]">
-        <p role="status" aria-live="polite" className="mb-2 truncate text-micro text-slate-500">
+        <p
+          role="status"
+          aria-live="polite"
+          className={`mb-2 truncate text-xs ${
+            selectedDogs.length > 0 ? "font-bold text-brand-purple" : "font-semibold text-slate-500"
+          }`}
+        >
           {selectionSummary}
         </p>
         <div className="flex items-center gap-2">

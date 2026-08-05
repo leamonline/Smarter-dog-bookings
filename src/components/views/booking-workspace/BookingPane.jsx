@@ -35,7 +35,7 @@ export function formatDate(dateStr, options = {}) {
 // Hidden on phones: at 375px this five-day strip costs more height than the
 // slot list it sits above, and the ‹ › arrows already move the date. Restored
 // from `sm` up, where the height is there to spend.
-function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, onPickDate }) {
+function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, dailyCap, onPickDate }) {
   return (
     <div role="tablist" aria-label="Diary dates" className="hidden shrink-0 grid-cols-5 border-y border-slate-200 bg-white sm:grid">
       {dates.slice(0, 5).map((date) => {
@@ -50,15 +50,33 @@ function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, onPickD
             aria-selected={active}
             onClick={() => onPickDate(date.dateObj)}
             className={`min-h-[52px] border-r border-slate-100 px-1 py-1.5 text-center transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:min-h-[66px] sm:py-2 ${
-              active ? "bg-brand-coral-light text-brand-purple" : "hover:bg-slate-50"
+              // "Which date am I looking at" is orienting information, not a
+              // problem — coral is reserved for the latter, so the currently
+              // viewed date gets a quiet ink tint instead.
+              active ? "bg-brand-purple/[0.06]" : "hover:bg-slate-50"
             }`}
           >
             <span className="block text-micro font-bold uppercase tracking-wide text-slate-500">
               {date.dateObj.toLocaleDateString("en-GB", { weekday: "short" })}
             </span>
-            <span className={`mt-0.5 block font-display text-lg font-black ${active ? "text-brand-coral-text" : "text-brand-purple"}`}>
+            <span className="mt-0.5 block font-display text-lg font-black text-brand-purple">
               {date.dateObj.getDate()}
             </span>
+            {open ? (
+              <span className="mt-0.5 flex items-center justify-center gap-[3px]" aria-hidden="true">
+                {/* A rough fullness read at a glance — precise count is still
+                    the accessible name below. Three dots, filled by how much
+                    of the daily cap this date has used. */}
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`size-1.5 rounded-full ${
+                      i < Math.ceil((count / (dailyCap || 1)) * 3) ? "bg-brand-teal" : "bg-slate-200"
+                    }`}
+                  />
+                ))}
+              </span>
+            ) : null}
             <span className="mt-0.5 block text-micro font-semibold text-slate-500">
               {open ? `${count} booked` : "Closed"}
             </span>
@@ -206,38 +224,47 @@ export function BookingPane({
 
   return (
     <section aria-labelledby="booking-desk-diary" className="flex min-h-0 flex-1 flex-col bg-white">
-      {/* Vertical budget matters most on a 375px phone, where this header
-          competes directly with the slot list it exists to introduce. The
-          title and its explanatory line are desktop-only; narrow keeps just
-          the date and its two arrows. */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
-        <div className="hidden sm:block">
-          <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-purple">Diary</h2>
-          <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
-        </div>
-        <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">
-          <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
-            <ChevronLeft aria-hidden="true" size={18} />
-          </button>
-          <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-purple sm:min-w-[150px] sm:flex-none">
-            {formatDate(currentDateStr, { year: "numeric" })}
+      {/* Paging days, and even knowing which day is in view, isn't
+          actionable until there's a dog to check capacity against — so
+          none of this diary chrome exists on screen until hasSelection is
+          true. Before that, the pane is just the empty state below. */}
+      {hasSelection ? (
+        <>
+          {/* Vertical budget matters most on a 375px phone, where this header
+              competes directly with the slot list it exists to introduce. The
+              title and its explanatory line are desktop-only; narrow keeps just
+              the date and its two arrows. */}
+          <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
+            <div className="hidden sm:block">
+              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-purple">Diary</h2>
+              <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
+            </div>
+            <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">
+              <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+                <ChevronLeft aria-hidden="true" size={18} />
+              </button>
+              <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-purple sm:min-w-[150px] sm:flex-none">
+                {formatDate(currentDateStr, { year: "numeric" })}
+              </div>
+              <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+                <ChevronRight aria-hidden="true" size={18} />
+              </button>
+            </div>
           </div>
-          <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
-            <ChevronRight aria-hidden="true" size={18} />
-          </button>
-        </div>
-      </div>
 
-      <DateStrip
-        dates={dates}
-        currentDateStr={currentDateStr}
-        daySettings={daySettings}
-        bookingsByDate={bookingsByDate}
-        onPickDate={onPickDate}
-      />
+          <DateStrip
+            dates={dates}
+            currentDateStr={currentDateStr}
+            daySettings={daySettings}
+            bookingsByDate={bookingsByDate}
+            dailyCap={dailyDogCap}
+            onPickDate={onPickDate}
+          />
+        </>
+      ) : null}
 
       {!hasSelection ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-slate-500">
+        <div id="booking-desk-diary" className="flex flex-1 flex-col items-center justify-center px-6 text-center text-slate-500">
           <PawPrint aria-hidden="true" size={28} className="text-slate-300" />
           <p className="mt-3 text-sm font-bold text-brand-purple">{emptyStateTitle}</p>
           <p className="mt-1 text-xs">{emptyStateBody}</p>
@@ -267,14 +294,7 @@ export function BookingPane({
               })
             : null;
           const disabled = !selected && (!open || !hasSelection || !bookable || choices.length >= 3);
-
-          // Capacity headline. Staff are asking "is there room?", so lead with
-          // free seats rather than a bare "Available slot".
-          const capacityLabel = !open
-            ? "Closed"
-            : occupancy.booked === 0
-              ? `${occupancy.total} ${occupancy.total === 1 ? "space" : "spaces"}`
-              : `${occupancy.free} of ${occupancy.total} spaces available`;
+          const free = !open ? null : occupancy.free;
 
           return (
             <button
@@ -284,42 +304,43 @@ export function BookingPane({
               onClick={() => onToggleChoice(choice)}
               aria-pressed={selected}
               title={disabled && capacityCheck?.reason ? capacityCheck.reason : undefined}
-              className={`grid w-full grid-cols-[58px_minmax(0,1fr)_auto] items-start border-b border-slate-100 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
+              className={`grid w-full grid-cols-[52px_minmax(0,1fr)_auto] items-start text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
                 selected
-                  ? "bg-brand-yellow/15 ring-1 ring-inset ring-brand-purple/30"
+                  ? "bg-brand-teal/[0.08]"
                   : bookable && open
-                    ? "bg-white hover:bg-cyan-50/60"
-                    : "bg-slate-50/70"
+                    ? "bg-white hover:bg-slate-50"
+                    : "bg-slate-50/60"
               } disabled:cursor-not-allowed`}
             >
-              <span className="min-h-[58px] px-2 py-3 text-center font-display text-sm font-extrabold text-brand-purple">
-                {slot}
-              </span>
-              <span className="min-w-0 border-l border-slate-100 px-3 py-3">
+              {/* The number staff actually scan for — how many spaces —
+                  leads the row, sized to match. Time is real information
+                  too, but it's the row's label, not its headline. */}
+              <span className="flex min-h-[62px] flex-col items-center justify-center gap-0.5 py-3">
                 <span
-                  className={`block text-xs font-bold ${
-                    !open
-                      ? "text-slate-500"
-                      : occupancy.free > 0
-                        ? "text-brand-teal-text"
-                        : "text-slate-500"
+                  className={`font-display text-xl font-black leading-none ${
+                    !open ? "text-slate-300" : free > 0 ? "text-brand-teal-text" : "text-slate-300"
                   }`}
                 >
-                  {capacityLabel}
+                  {!open ? "–" : free}
                 </span>
+                <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                  {!open ? "closed" : free > 0 ? (free === 1 ? "space" : "spaces") : "full"}
+                </span>
+              </span>
+              <span className="min-w-0 px-3 py-3">
+                <span className="block text-xs font-bold text-brand-purple">{slot}</span>
                 {/* Existing bookings stay visible even when the slot is
                     selected — that context is exactly what staff want to
                     sanity-check before offering or booking a time. */}
                 {occupancy.dogs.length > 0 ? (
                   <span className="mt-1 block">
-                    <span className="block text-micro font-semibold text-slate-500">Booked:</span>
                     {occupancy.dogs.map((dog, index) => (
                       <span
                         key={`${dog.name}-${index}`}
-                        className="block break-words text-micro text-slate-600"
+                        className="block break-words text-micro text-slate-500"
                       >
-                        • {dog.name}
-                        {dog.breed ? ` (${dog.breed})` : ""}
+                        {dog.name}
+                        {dog.breed ? ` (${dog.breed})` : ""} booked
                       </span>
                     ))}
                   </span>
@@ -327,13 +348,15 @@ export function BookingPane({
               </span>
               <span className="px-3 py-3 text-right">
                 {selected ? (
-                  // Icon + label + ring, never colour alone.
-                  <span className="inline-flex min-h-7 items-center gap-1 rounded-full bg-brand-yellow px-2 text-micro font-black text-brand-purple">
+                  // Same teal-and-check language as a chosen dog — settles
+                  // in rather than snapping, so it reads as calm, not a
+                  // toggle firing.
+                  <span className="motion-safe:animate-[popIn_140ms_ease-out] inline-flex min-h-6 items-center gap-1 rounded-full bg-brand-teal/15 px-2 text-micro font-bold text-brand-teal-text">
                     <Check aria-hidden="true" size={12} />
                     Selected
                   </span>
                 ) : bookable && open ? (
-                  <span className="inline-flex min-h-7 items-center rounded-full border border-brand-teal/30 bg-white px-2 text-micro font-bold text-brand-teal-text">
+                  <span className="text-micro font-bold text-brand-teal-text">
                     {offerActionLabel}
                   </span>
                 ) : !open ? (

@@ -625,7 +625,8 @@ describe("InboxView", () => {
 
       openBookingSection();
       startOfferFlow();
-      chooseDog("Bella");
+      // Sarah has one dog — it's pre-selected, no checkbox tap required.
+      expect(within(contextRegion()).getByRole("checkbox", { name: /Bella/ })).toBeChecked();
       chooseSlot("08:30");
       chooseSlot("09:00");
 
@@ -659,7 +660,6 @@ describe("InboxView", () => {
 
       openBookingSection();
       startOfferFlow();
-      chooseDog("Bella");
       chooseSlot("08:30");
       addToReply();
 
@@ -677,7 +677,6 @@ describe("InboxView", () => {
 
       openBookingSection();
       startOfferFlow();
-      chooseDog("Bella");
       chooseSlot("08:30");
       chooseSlot("09:00");
       addToReply();
@@ -714,6 +713,23 @@ describe("InboxView", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Dismiss suggestion" }));
       expect(screen.queryByText("Booking suggested")).not.toBeInTheDocument();
+    });
+
+    it("still lets staff change the auto-selected dog", () => {
+      renderInbox(baseState({
+        conversations: [first, second],
+        selectedId: first.id,
+        selectedConversation: first,
+      }));
+
+      openBookingSection();
+      startOfferFlow();
+      expect(within(contextRegion()).getByRole("checkbox", { name: /Bella/ })).toBeChecked();
+
+      chooseDog("Bella");
+      expect(within(contextRegion()).getByRole("checkbox", { name: /Bella/ })).not.toBeChecked();
+      // With nothing selected, offering a time has nothing to attach to.
+      expect(within(contextRegion()).getByRole("button", { name: /Add to reply/i })).toBeDisabled();
     });
   });
 });
