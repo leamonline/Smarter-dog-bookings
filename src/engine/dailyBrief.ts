@@ -5,6 +5,7 @@ import {
   buildFutureDayFeed,
   buildTodayFeed,
   collectionWaitMinutes,
+  formatDuration,
   isPaymentOutstanding,
   londonDateStr,
   minutesUntilSlot,
@@ -258,17 +259,6 @@ function compareTimestamp(
   return compareId(a, b);
 }
 
-function durationLabel(minutes: number): string {
-  const whole = Math.max(0, Math.floor(minutes));
-  if (whole < 60) return `${whole} ${whole === 1 ? "min" : "mins"}`;
-  const hours = Math.floor(whole / 60);
-  const remainder = whole % 60;
-  const hourLabel = `${hours} ${hours === 1 ? "hr" : "hrs"}`;
-  return remainder
-    ? `${hourLabel} ${remainder} ${remainder === 1 ? "min" : "mins"}`
-    : hourLabel;
-}
-
 function collectedTimeLabel(completedAt: string | null | undefined): string | null {
   const timestamp = validTimestamp(completedAt);
   if (timestamp === null) return null;
@@ -290,16 +280,16 @@ function boardTimingLabel(
   if (!isToday) return null;
   if (lane === "due") {
     if (!entry.booking.slot || !Number.isFinite(entry.slotMinutes)) return "Time missing";
-    if (entry.isLate) return `${durationLabel(entry.overdueMinutes)} late`;
+    if (entry.isLate) return `${formatDuration(entry.overdueMinutes)} late`;
     const until = minutesUntilSlot(entry.booking.slot, now);
-    return until <= 0 ? "Due now" : `Due in ${durationLabel(until)}`;
+    return until <= 0 ? "Due now" : `Due in ${formatDuration(until)}`;
   }
   if (lane === "withUs") {
     const elapsed = timeInSalonMinutes(entry.booking, now);
-    return elapsed == null ? null : `On site ${durationLabel(elapsed)}`;
+    return elapsed == null ? null : `On site ${formatDuration(elapsed)}`;
   }
   const wait = collectionWaitMinutes(entry.booking, now);
-  return wait == null ? null : `Ready ${durationLabel(wait)}`;
+  return wait == null ? null : `Ready ${formatDuration(wait)}`;
 }
 
 /**
