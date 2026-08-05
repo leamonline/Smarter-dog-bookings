@@ -48,9 +48,28 @@ export function useBookingComposer({ conversationId, dogs, lastServiceByDogId })
     [dogs],
   );
 
+  // Most customers have one dog. Pre-selecting it (with its default service)
+  // saves the reflex tap of ticking a single checkbox, and lands staff
+  // straight on a diary that already has something to check capacity
+  // against. It only ever fires on a fresh entry (selections are already
+  // empty whenever setMode runs), and staff can still untick it — this
+  // changes the default, not the control.
   const setMode = useCallback((mode) => {
-    setState((prev) => ({ ...prev, mode, stage: "dogs" }));
-  }, []);
+    setState((prev) => {
+      const onlySelectable = (dogs || []).filter(isDogSelectable);
+      if (onlySelectable.length === 1) {
+        const dog = onlySelectable[0];
+        return {
+          ...prev,
+          mode,
+          stage: "dogs",
+          selectedDogIds: [dog.id],
+          servicesByDogId: { [dog.id]: defaultServiceFor(dog, lastServiceByDogId) },
+        };
+      }
+      return { ...prev, mode, stage: "dogs" };
+    });
+  }, [dogs, lastServiceByDogId]);
 
   const goToStage = useCallback((stage) => {
     setState((prev) => (STAGES.includes(stage) ? { ...prev, stage } : prev));

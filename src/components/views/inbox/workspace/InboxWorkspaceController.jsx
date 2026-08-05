@@ -678,7 +678,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           dailyDogCap={dailyDogCap}
           onPickDate={handlePickDate}
           onInsertIntoReply={handleInsertOfferText}
-          bookingSuggested={!!bookingRequest}
         />
       }
       customerPane={

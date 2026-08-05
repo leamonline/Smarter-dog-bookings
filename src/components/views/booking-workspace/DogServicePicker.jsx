@@ -32,16 +32,20 @@ function DogRow({
   const detail = [dog.breed, SIZE_LABELS[dog.size]].filter(Boolean).join(" · ");
 
   return (
-    <li className="border-b border-slate-100 last:border-b-0">
-      {/* min-h-11 keeps the whole row a ~44px touch target, not just the box. */}
+    <li>
+      {/* min-h-11 keeps the whole row a ~44px touch target, not just the box.
+          Selected state reuses the same language as a chosen time slot — a
+          soft teal wash and a teal check — so "I want this" looks the same
+          everywhere in the pane, whether the control underneath is a
+          checkbox or a button. */}
       <label
-        className={`flex min-h-11 items-start gap-3 px-3 py-2.5 ${
-          selectable ? "cursor-pointer hover:bg-slate-50" : "cursor-not-allowed"
-        }`}
+        className={`flex min-h-11 items-start gap-3 px-3 py-2.5 transition-colors ${
+          selectable ? "cursor-pointer" : "cursor-not-allowed"
+        } ${selected ? "bg-brand-teal/[0.07]" : selectable ? "hover:bg-slate-50" : ""}`}
       >
         <input
           type="checkbox"
-          className="mt-0.5 size-5 shrink-0 accent-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+          className="mt-0.5 size-5 shrink-0 accent-brand-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
           checked={selected}
           disabled={!selectable}
           onChange={() => selectable && onToggleDog(dog.id)}
@@ -114,9 +118,10 @@ export function DogServicePicker({
 
   return (
     <fieldset className="min-w-0">
-      <legend className="px-3 pt-3 text-micro font-bold uppercase tracking-wide text-slate-500">
-        Choose dogs
-      </legend>
+      {/* The caller (BookingActionsPane) already shows a visible "Choose
+          dogs" heading above this picker — this legend exists for the
+          fieldset's accessible name, not to say it a second time. */}
+      <legend className="sr-only">Choose dogs</legend>
       <ul className="mt-1 list-none">
         {dogs.map((dog) => (
           <DogRow

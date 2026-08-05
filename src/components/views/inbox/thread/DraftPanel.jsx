@@ -67,10 +67,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
   const hasAttached = attachedActions.length > 0;
 
   return (
-    <div className="p-4 bg-amber-50 border-t-2 border-amber-300">
+    // A pending draft is real "needs a decision" state, so the amber border
+    // stays — but a filled amber ground competed with the conversation
+    // itself for the eye. A plain surface with just the top rule reads as
+    // "one more thing in the thread," not a second focal point.
+    <div className="p-4 bg-white border-t-2 border-amber-300">
       <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-amber-800">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
             AI Draft
           </span>
           <span className="text-[11px] text-amber-700">

@@ -51,8 +51,9 @@ export function BookingCustomerPane({
           />
           Booking
           {showSuggestion ? (
-            <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-brand-yellow/25 px-2 py-0.5 text-micro font-bold text-brand-purple">
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-coral" />
+            // Yellow, reserved in this pane for "needs your attention" —
+            // the text alone says what it means, so no extra dot on top.
+            <span className="ml-auto inline-flex items-center rounded-full bg-brand-yellow/25 px-2 py-0.5 text-micro font-bold text-brand-purple">
               Booking suggested
             </span>
           ) : null}

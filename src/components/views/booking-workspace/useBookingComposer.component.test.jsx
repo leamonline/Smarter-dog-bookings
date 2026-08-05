@@ -143,4 +143,46 @@ describe("useBookingComposer", () => {
       expect(result.current.selectedDogIds).toEqual(["d1"]);
     });
   });
+
+  describe("auto-selecting the only dog", () => {
+    const ONE_DOG = [{ id: "d1", name: "Alfie", breed: "Cockapoo", size: "small" }];
+    // A sizeless dog doesn't count as a second option — it was never a real
+    // choice to begin with.
+    const ONE_SELECTABLE_PLUS_SIZELESS = [
+      { id: "d1", name: "Alfie", breed: "Cockapoo", size: "small" },
+      { id: "d4", name: "Pip", breed: "Unknown", size: null },
+    ];
+
+    it("pre-selects the only dog on entry, with its default service", () => {
+      const { result } = setup({ dogs: ONE_DOG, lastServiceByDogId: { d1: "bath-and-brush" } });
+      act(() => result.current.actions.setMode("offer"));
+      expect(result.current.selectedDogIds).toEqual(["d1"]);
+      expect(result.current.servicesByDogId.d1).toBe("bath-and-brush");
+    });
+
+    it("still auto-selects when the only OTHER dog has no size", () => {
+      const { result } = setup({ dogs: ONE_SELECTABLE_PLUS_SIZELESS });
+      act(() => result.current.actions.setMode("offer"));
+      expect(result.current.selectedDogIds).toEqual(["d1"]);
+    });
+
+    it("does not auto-select when there is more than one eligible dog", () => {
+      const { result } = setup(); // default fixture: two selectable dogs
+      act(() => result.current.actions.setMode("offer"));
+      expect(result.current.selectedDogIds).toEqual([]);
+    });
+
+    it("does not crash with no dogs at all", () => {
+      const { result } = setup({ dogs: [] });
+      act(() => result.current.actions.setMode("offer"));
+      expect(result.current.selectedDogIds).toEqual([]);
+    });
+
+    it("still lets staff change the auto-selected dog", () => {
+      const { result } = setup({ dogs: ONE_DOG });
+      act(() => result.current.actions.setMode("offer"));
+      act(() => result.current.actions.toggleDog("d1"));
+      expect(result.current.selectedDogIds).toEqual([]);
+    });
+  });
 });
