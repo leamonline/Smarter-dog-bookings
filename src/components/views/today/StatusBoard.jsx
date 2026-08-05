@@ -1,7 +1,10 @@
 import { Fragment, useState } from "react";
-import { Check, ChevronDown, Phone } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { BOOKING_STATUS, SERVICES } from "../../../constants/index";
+import { groupFeedBySlot } from "../../../engine/today";
 import { LiveArrivalDivider } from "./LiveArrivalDivider.jsx";
+import { ArrivingSlotGroup } from "./ArrivingSlotGroup.jsx";
+import { MobileEmptyLaneSummary } from "./MobileEmptyLaneSummary.jsx";
 import { MoreMenu, OnTheWayChip, WelfareChips, formatMoney } from "./parts.jsx";
 
 const LANE_META = {
@@ -25,19 +28,19 @@ const LANE_META = {
   },
 };
 
-function dogCountLabel(count) {
+export function dogCountLabel(count) {
   return `${count} ${count === 1 ? "dog" : "dogs"}`;
 }
 
-function serviceLabel(service) {
+export function serviceLabel(service) {
   return SERVICES.find((item) => item.id === service)?.name || service || "Service not set";
 }
 
-function firstName(name) {
+export function firstName(name) {
   return String(name || "the human").trim().split(/\s+/)[0] || "the human";
 }
 
-function telephoneHref(phone) {
+export function telephoneHref(phone) {
   const compact = String(phone || "").replace(/[^\d+]/g, "");
   return compact ? `tel:${compact}` : null;
 }
@@ -54,24 +57,26 @@ function formatConfirmedAt(iso) {
   });
 }
 
-const primaryClass =
+export const primaryClass =
   "inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-yellow px-3 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-yellow-dark focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
-const contactClass =
+export const secondaryClass =
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+export const contactClass =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
-function ConfirmationException({ needsConfirmation }) {
+export function ConfirmationException({ needsConfirmation }) {
   if (!needsConfirmation) return null;
   return (
     <span
       data-action-reason="confirmation"
-      className="inline-flex items-center text-[11px] font-bold text-amber-900"
+      className="inline-flex items-center text-[12px] font-bold text-amber-900"
     >
       Needs confirmation
     </span>
   );
 }
 
-function ConfirmedMark({ confirmedAt }) {
+export function ConfirmedMark({ confirmedAt }) {
   const time = formatConfirmedAt(confirmedAt);
   if (!time) return null;
   return (
@@ -86,7 +91,15 @@ function ConfirmedMark({ confirmedAt }) {
   );
 }
 
-function PaymentState({ payment, actionReason = false }) {
+/**
+ * Payment only reads as urgent once the action engine actually considers it
+ * actionable (`actionReason`, set from `entry.actionReasons.includes("payment")`
+ * — true for With us/Ready/Home once a dog owes money, always false while
+ * still Arriving). Otherwise it's neutral secondary information: a dog
+ * arriving later today who will owe money isn't yet a problem, so it must
+ * not look like one.
+ */
+export function PaymentState({ payment, actionReason = false }) {
   if (!payment) return null;
   if (payment.kind === "paid") {
     return (
@@ -99,7 +112,9 @@ function PaymentState({ payment, actionReason = false }) {
     return (
       <span
         data-action-reason={actionReason ? "payment" : undefined}
-        className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-amber-900"
+        className={`inline-flex items-center whitespace-nowrap font-bold ${
+          actionReason ? "text-[13px] text-brand-coral-text" : "text-[11px] text-slate-600"
+        }`}
       >
         {formatMoney(payment.amountDue)} due
       </span>
@@ -115,53 +130,20 @@ function PaymentState({ payment, actionReason = false }) {
   );
 }
 
+/**
+ * Actions for With us and Ready to go only — Arriving cards use their own
+ * ArrivingCardActions (ArrivingSlotGroup.jsx), which needs a three-state
+ * contact hierarchy this shared component doesn't.
+ */
 function CardActions({ entry, display, payment, handlers }) {
   const booking = entry.booking;
   const name = display.dogName;
   const contactName = firstName(display.owner);
-  const phoneHref = telephoneHref(display.ownerPhone);
-  const needsContact = entry.isLate || entry.actionReasons?.includes("confirmation");
   const journey = (id) => handlers.onJourneyAction?.(booking, { id, completed: false, next: true });
   const commonMore = [
     { label: `Message ${contactName}`, onClick: () => handlers.onMessageOwner?.(booking) },
     { label: "Open booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
   ];
-
-  if (entry.lane === "due") {
-    return (
-      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
-        <button data-primary-action="true" type="button" aria-label={`Check in ${name}`} onClick={() => journey("checkIn")} className={primaryClass}>
-          Check in
-        </button>
-        {needsContact ? (
-          phoneHref ? (
-            <a href={phoneHref} aria-label={`Call ${contactName} about ${name}`} className={contactClass}>
-              <Phone size={14} aria-hidden="true" />
-              Call
-            </a>
-          ) : (
-            <button
-              type="button"
-              aria-label={`Contact ${contactName} about ${name}`}
-              onClick={() => handlers.onMessageOwner?.(booking)}
-              className={contactClass}
-            >
-              Contact
-            </button>
-          )
-        ) : null}
-        <MoreMenu
-          menuLabel={`More actions for ${name}`}
-          items={[
-            ...commonMore,
-            { label: "Didn't show", onClick: () => handlers.onDidntShow?.(booking) },
-            { label: "Cancel booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
-            { label: "Reschedule booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
-          ]}
-        />
-      </div>
-    );
-  }
 
   if (entry.lane === "withUs") {
     const checkedIn = booking.status === BOOKING_STATUS.CHECKED_IN;
@@ -181,10 +163,36 @@ function CardActions({ entry, display, payment, handlers }) {
     );
   }
 
+  // Ready to go: money still due promotes "Take £N payment" to primary and
+  // demotes "Mark collected" to a visible secondary — never hidden in More —
+  // so the existing unpaid-collection safeguard (onRequestCollected still
+  // re-checks the balance) stays one tap away, not zero.
   const amountDue = payment?.amountDue;
-  const readyMore = amountDue != null && amountDue > 0
-    ? [{ label: `Take ${formatMoney(amountDue)} payment`, onClick: () => handlers.onOpenInvoice?.(booking) }, ...commonMore]
-    : commonMore;
+  const hasBalance = amountDue != null && amountDue > 0;
+  if (hasBalance) {
+    return (
+      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
+        <button
+          data-primary-action="true"
+          type="button"
+          aria-label={`Take ${formatMoney(amountDue)} payment from ${name}`}
+          onClick={() => handlers.onOpenInvoice?.(booking)}
+          className={primaryClass}
+        >
+          Take {formatMoney(amountDue)} payment
+        </button>
+        <button
+          type="button"
+          aria-label={`Mark ${name} collected`}
+          onClick={() => handlers.onRequestCollected?.(booking)}
+          className={secondaryClass}
+        >
+          Mark collected
+        </button>
+        <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
+      </div>
+    );
+  }
   return (
     <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
       <button
@@ -196,7 +204,7 @@ function CardActions({ entry, display, payment, handlers }) {
       >
         Mark collected
       </button>
-      <MoreMenu menuLabel={`More actions for ${name}`} items={readyMore} />
+      <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
     </div>
   );
 }
@@ -258,7 +266,7 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
               {displayTiming ? (
                 <strong
                   data-action-reason={timingActionReason}
-                  className={`ml-auto shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums ${entry.isLate ? "text-brand-coral-text" : "text-slate-700"}`}
+                  className={`ml-auto shrink-0 whitespace-nowrap text-[12px] font-bold tabular-nums ${entry.isLate ? "text-brand-coral-text" : "text-slate-700"}`}
                 >
                   {displayTiming}
                 </strong>
@@ -321,7 +329,7 @@ function laneWarning(lane, entries) {
   return null;
 }
 
-function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId, liveContext, handlers, onTheWaySignals }) {
+function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId, liveContext, handlers, onTheWaySignals, mobileHidden = false }) {
   const meta = LANE_META[lane];
   const count = entries.length;
   const warning = laneWarning(lane, entries);
@@ -341,7 +349,7 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
     <section
       aria-label={`${meta.title}, ${dogCountLabel(count)}`}
       data-lane-populated={count > 0 ? "true" : "false"}
-      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:max-h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
+      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${mobileHidden ? "hidden md:block" : ""} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:max-h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
     >
       <header className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-slate-100 px-3 py-1.5">
         <h2 className="font-display text-[18px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
@@ -363,6 +371,20 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
       >
         {entries.length === 0 ? (
           <p className="px-2 py-2 text-[12px] font-medium text-slate-500">No dogs in this lane</p>
+        ) : lane === "due" ? (
+          groupFeedBySlot(entries).map((group) => (
+            <ArrivingSlotGroup
+              key={group.slot ?? "unscheduled"}
+              group={group}
+              liveFocusId={liveFocusId}
+              liveContext={liveContext}
+              resolve={resolve}
+              getWelfare={getWelfare}
+              paymentOf={paymentOf}
+              handlers={handlers}
+              onTheWaySignals={onTheWaySignals}
+            />
+          ))
         ) : entries.map((entry, index) => (
           <Fragment key={entry.booking.id}>
             {index === markerIndex ? <LiveArrivalDivider context={liveContext} /> : null}
@@ -390,7 +412,7 @@ function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
   return (
     <section
       aria-label={`${title}, ${dogCountLabel(entries.length)}${warning ? `, ${warning}` : ""}`}
-      className="rounded-xl border border-slate-200 bg-white/80"
+      className={`rounded-xl border border-slate-200 bg-white/80 ${entries.length === 0 ? "hidden md:block" : ""}`}
     >
       <header className={`flex min-h-11 items-center gap-2 px-3 py-1 ${expanded ? "border-b border-slate-100" : ""}`}>
         <h2 className="font-display text-[16px] font-bold text-brand-purple">{title}</h2>
@@ -523,10 +545,17 @@ export function StatusBoard({
       />
       <div className="grid min-w-0 grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         <StatusLane lane="due" entries={board.due} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />
-        <StatusLane lane="withUs" entries={board.withUs} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />
-        <StatusLane lane="ready" entries={board.ready} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />
+        <StatusLane lane="withUs" entries={board.withUs} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} mobileHidden={board.withUs.length === 0} />
+        <StatusLane lane="ready" entries={board.ready} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} mobileHidden={board.ready.length === 0} />
       </div>
       <HomeToday entries={board.home} resolve={resolve} paymentOf={paymentOf} isToday={isToday} handlers={handlers} />
+      <MobileEmptyLaneSummary
+        lanes={[
+          board.withUs.length === 0 ? { key: "withUs", title: "With us" } : null,
+          board.ready.length === 0 ? { key: "ready", title: "Ready to go" } : null,
+          board.home.length === 0 ? { key: "home", title: isToday ? "Home today" : "Home on this date" } : null,
+        ].filter(Boolean)}
+      />
     </section>
   );
 }
