@@ -90,7 +90,7 @@ describe("StatusBoard", () => {
       booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:30:00Z" }),
       booking({ id: "bath", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:00:00Z" }),
       booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:00:00Z" }),
-      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z" }),
+      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z", payment: "Paid in Full" }),
     ]);
 
     expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
@@ -108,6 +108,24 @@ describe("StatusBoard", () => {
     expect(within(maxCard).getByRole("heading", { level: 3, name: "Max" })).toBeInTheDocument();
     expect(within(maxCard).getByRole("button", { name: "Open Dave Smith's human file" })).toHaveClass("text-slate-600");
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("shows an unpaid warning on Home today when a completed booking still owes money", () => {
+    renderBoard([
+      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z" }),
+    ]);
+
+    const home = screen.getByRole("region", { name: "Home today, 1 dog, 1 unpaid" });
+    expect(within(home).getByText("1 unpaid")).toBeInTheDocument();
+  });
+
+  it("shows no Home today warning once every completed booking is paid", () => {
+    renderBoard([
+      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z", payment: "Paid in Full" }),
+    ]);
+
+    expect(screen.getByRole("region", { name: "Home today, 1 dog" })).toBeInTheDocument();
+    expect(screen.queryByText("1 unpaid")).not.toBeInTheDocument();
   });
 
   it("uses lane context instead of repeating physical status on every card", () => {
@@ -276,9 +294,9 @@ describe("StatusBoard", () => {
     const arriving = screen.getByRole("region", { name: "Arriving, 1 dog" });
     const emptyWithUs = screen.getByRole("region", { name: "With us, 0 dogs" });
     expect(arriving).toHaveAttribute("data-lane-populated", "true");
-    expect(arriving).toHaveClass("xl:h-[min(66vh,44rem)]", "xl:flex", "xl:min-h-0");
+    expect(arriving).toHaveClass("xl:max-h-[min(66vh,44rem)]", "xl:flex", "xl:min-h-0");
     expect(within(arriving).getByTestId("due-lane-body")).toHaveClass("xl:overflow-y-auto", "xl:min-h-0", "xl:flex-1");
     expect(emptyWithUs).toHaveAttribute("data-lane-populated", "false");
-    expect(emptyWithUs).not.toHaveClass("xl:h-[min(66vh,44rem)]");
+    expect(emptyWithUs).not.toHaveClass("xl:max-h-[min(66vh,44rem)]");
   });
 });

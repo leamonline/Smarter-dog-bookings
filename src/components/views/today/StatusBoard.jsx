@@ -264,14 +264,14 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
                 </strong>
               ) : null}
             </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-tight text-slate-600">
+            <div className="mt-0.5 flex flex-wrap min-w-0 items-center gap-x-1 gap-y-0.5 text-[12px] leading-tight text-slate-600">
               <span className="shrink-0">{serviceLabel(booking.service)}</span>
               <span aria-hidden="true">·</span>
               <button
                 type="button"
                 aria-label={`Open ${display.owner}'s human file`}
                 onClick={() => handlers.onOpenHuman?.(booking._ownerId)}
-                className="min-w-0 truncate rounded-sm text-left font-medium text-slate-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
+                className="rounded-sm text-left font-medium text-slate-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
               >
                 {display.owner}
               </button>
@@ -314,6 +314,10 @@ function laneWarning(lane, entries) {
     const payments = count("payment");
     if (payments > 0) return `${payments} unpaid`;
   }
+  if (lane === "home") {
+    const payments = count("payment");
+    if (payments > 0) return `${payments} unpaid`;
+  }
   return null;
 }
 
@@ -337,7 +341,7 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
     <section
       aria-label={`${meta.title}, ${dogCountLabel(count)}`}
       data-lane-populated={count > 0 ? "true" : "false"}
-      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
+      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:max-h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
     >
       <header className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-slate-100 px-3 py-1.5">
         <h2 className="font-display text-[18px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
@@ -381,12 +385,22 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
 function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
   const [expanded, setExpanded] = useState(false);
   const title = isToday ? "Home today" : "Home on this date";
+  const warning = laneWarning("home", entries);
   const toggleLabel = `${expanded ? "Hide" : "Show"} ${dogCountLabel(entries.length)} sent home`;
   return (
-    <section aria-label={`${title}, ${dogCountLabel(entries.length)}`} className="rounded-xl border border-slate-200 bg-white/80">
+    <section
+      aria-label={`${title}, ${dogCountLabel(entries.length)}${warning ? `, ${warning}` : ""}`}
+      className="rounded-xl border border-slate-200 bg-white/80"
+    >
       <header className={`flex min-h-11 items-center gap-2 px-3 py-1 ${expanded ? "border-b border-slate-100" : ""}`}>
         <h2 className="font-display text-[16px] font-bold text-brand-purple">{title}</h2>
         <span className="text-[12px] font-bold text-slate-500">{dogCountLabel(entries.length)}</span>
+        {warning ? (
+          <>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span className="truncate text-[11px] font-bold text-brand-coral-text">{warning}</span>
+          </>
+        ) : null}
         {entries.length > 0 ? (
           <button
             type="button"
