@@ -272,8 +272,8 @@ describe("Daily Brief status board", () => {
       "later-upcoming",
       "missing-time",
     ]);
-    expect(board.due[0].timingLabel).toBe("1 hr 15 mins late");
-    expect(board.due[2].timingLabel).toBe("Due in 45 mins");
+    expect(board.due[0].timingLabel).toBe("1 hr 15 min late");
+    expect(board.due[2].timingLabel).toBe("Due in 45 min");
     expect(board.due[4].timingLabel).toBe("Time missing");
   });
 
@@ -340,12 +340,12 @@ describe("Daily Brief status board", () => {
       "on-site-recent",
       "on-site-unstamped",
     ]);
-    expect(board.withUs[0].timingLabel).toBe("On site 1 hr 45 mins");
+    expect(board.withUs[0].timingLabel).toBe("On site 1 hr 45 min");
     expect(board.ready.map((entry) => entry.booking.id)).toEqual([
       "ready-longest",
       "ready-recent",
     ]);
-    expect(board.ready[0].timingLabel).toBe("Ready 1 hr 15 mins");
+    expect(board.ready[0].timingLabel).toBe("Ready 1 hr 15 min");
   });
 
   it("orders completed bookings most recently collected first", () => {

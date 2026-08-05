@@ -193,14 +193,27 @@ describe("TodayBriefNotes", () => {
     });
   };
 
-  it("renders both warm notes when data is available and taps through to reports", () => {
+  it("reports the correct count on Later and reveals both notes once opened", () => {
     mockHooks({ loading: false, available: true, count: 3 }, { loading: false, available: true, overdueCount: 5 });
     const onOpenReports = vi.fn();
     render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={onOpenReports} />);
+
+    expect(screen.getByText("Later")).toBeInTheDocument();
+    expect(screen.getByText("2 things worth reviewing")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Later"));
+
     expect(screen.getByText(/3 grooms in the last fortnight aren't marked paid/)).toBeInTheDocument();
     expect(screen.getByText(/5 dogs are due back with no booking/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /marked paid/ }));
     expect(onOpenReports).toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("uses singular copy for one note", () => {
+    mockHooks({ loading: false, available: true, count: 1 }, { loading: false, available: false, overdueCount: 0 });
+    render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
+    expect(screen.getByText("1 thing worth reviewing")).toBeInTheDocument();
     vi.restoreAllMocks();
   });
 

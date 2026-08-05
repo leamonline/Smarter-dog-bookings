@@ -925,9 +925,21 @@ export interface LiveFocusContext {
   ariaLabel: string;
 }
 
-function liveMinutes(minutes: number): string {
+/**
+ * The one compact duration grammar for the whole Daily Brief: `8 min`,
+ * `1 hr`, `1 hr 13 min`, `2 hrs 5 min`. Hours pluralise normally ("1 hr" /
+ * "2 hrs"); minutes never do — "min" is a fixed unit abbreviation here, not a
+ * countable noun. Every duration string in the brief (slot countdowns,
+ * lateness, on-site/ready wait, live-focus text, checked-in-ago) must go
+ * through this function rather than assembling its own "mins"/"minutes".
+ */
+export function formatDuration(minutes: number): string {
   const whole = Math.max(0, Math.round(minutes));
-  return `${whole} ${whole === 1 ? "min" : "mins"}`;
+  if (whole < 60) return `${whole} min`;
+  const hours = Math.floor(whole / 60);
+  const remainder = whole % 60;
+  const hourLabel = `${hours} ${hours === 1 ? "hr" : "hrs"}`;
+  return remainder ? `${hourLabel} ${remainder} min` : hourLabel;
 }
 
 function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"]): LiveFocusContext {
@@ -938,16 +950,16 @@ function checkedInCopy(checkedInAt: string | null | undefined, now: Date): strin
   const checkedInTime = validTimestamp(checkedInAt);
   if (checkedInTime === null) return "Checked in";
   const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
-  return `Checked in ${liveMinutes(elapsed)} ago`;
+  return `Checked in ${formatDuration(elapsed)} ago`;
 }
 
 export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {
   const dog = entry.booking.dogName || "Booking";
-  if (entry.isLate) return focusContext(dog, `${liveMinutes(minutesOverdue(entry.booking, now))} overdue`, "overdue");
-  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${liveMinutes(collectionWaitMinutes(entry.booking, now) ?? 0)}`, "live");
+  if (entry.isLate) return focusContext(dog, `${formatDuration(minutesOverdue(entry.booking, now))} overdue`, "overdue");
+  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${formatDuration(collectionWaitMinutes(entry.booking, now) ?? 0)}`, "live");
   if (entry.stage === "inSalon") return focusContext(dog, checkedInCopy(entry.booking.checkedInAt, now), "live");
   const minutes = minutesUntilSlot(entry.booking.slot || "00:00", now);
-  return focusContext(dog, minutes <= 0 ? "Due now" : `Due to arrive in ${liveMinutes(minutes)}`, "live");
+  return focusContext(dog, minutes <= 0 ? "Due now" : `Due to arrive in ${formatDuration(minutes)}`, "live");
 }
 
 // ---- Takings by method (improvement #3 — till view) --------------------------

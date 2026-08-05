@@ -154,8 +154,7 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 payment from Jack" }));
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
@@ -225,8 +224,7 @@ describe("TodayView — selected-date operations", () => {
     expect(secondary).toHaveTextContent("£50 unpaid");
     expect(secondary).toHaveTextContent("£50 expected");
 
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Take £50 payment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £50 payment from Jack" }));
     expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
     expect(screen.getAllByText("£50", { selector: "dd" })).toHaveLength(2);
   });
@@ -447,8 +445,7 @@ describe("TodayView — selected-date operations", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Jack's dog file" }));
     fireEvent.click(screen.getByRole("button", { name: "Open 09:00 booking" }));
     fireEvent.click(screen.getByRole("button", { name: "Open David Law's human file" }));
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 payment from Jack" }));
     fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Message David" }));
 
@@ -468,8 +465,7 @@ describe("TodayView — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 payment from Jack" }));
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
@@ -509,12 +505,12 @@ describe("TodayView — selected-date operations", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
-    expect(screen.getByLabelText("Jack — due to arrive in 5 mins")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jack — due to arrive in 5 min")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
 
     await act(() => vi.advanceTimersByTimeAsync(60_000));
 
-    expect(screen.getByLabelText("Jack — due to arrive in 4 mins")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jack — due to arrive in 4 min")).toBeInTheDocument();
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
@@ -604,7 +600,7 @@ describe("TodayView — selected-date operations", () => {
       },
     }));
 
-    expect(screen.getByLabelText("Ruby — due to arrive in 35 mins")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ruby — due to arrive in 35 min")).toBeInTheDocument();
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
@@ -657,7 +653,7 @@ describe("TodayView — selected-date operations", () => {
     }));
 
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    expect(screen.getByLabelText("Ruby — due to arrive in 5 mins")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ruby — due to arrive in 5 min")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
 
@@ -822,7 +818,7 @@ describe("TodayView — selected-date operations", () => {
     }));
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText("Jack — 25 mins overdue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jack — 25 min overdue")).toBeInTheDocument();
   });
 
   it("scrolls when the selected date changes to today", () => {
@@ -873,6 +869,7 @@ describe("TodayHeader", () => {
         onToggleActionFilter={onToggleActionFilter}
       />,
     );
+    const fullHeader = screen.getByTestId("daily-brief-header-full");
     expect(screen.getByRole("heading", { name: "Daily Brief" })).toHaveClass("sr-only");
     expect(screen.getByTestId("daily-brief-date")).toHaveClass(
       "text-2xl",
@@ -888,7 +885,7 @@ describe("TodayHeader", () => {
       "text-brand-purple",
     );
     expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass("bg-brand-purple");
-    expect(screen.getByText("No online slots available")).toBeInTheDocument();
+    expect(within(fullHeader).getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
     expect(within(summary).getByText("Late").parentElement).toHaveTextContent("2");
     expect(within(summary).getByText("On site").parentElement).toHaveTextContent("3");
@@ -919,7 +916,7 @@ describe("TodayHeader", () => {
         onManageAvailability={noop}
       />,
     );
-    expect(screen.getByText("No online slots available")).toBeInTheDocument();
+    expect(within(screen.getByTestId("daily-brief-header-full")).getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
     expect(within(summary).getByText("On time")).toBeInTheDocument();
     expect(within(summary).getByText("All calm")).toBeInTheDocument();
@@ -956,23 +953,110 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("On time");
     expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("1/14 capacity");
-    expect(screen.getByText(/all calm/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("daily-brief-header-full")).getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
     expect(onManage).toHaveBeenCalled();
   });
 
   it("keeps availability management visible when the salon is closed", () => {
     render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={0} actionCount={0} isDayOpen={false} onOpenDatePicker={noop} onManageAvailability={noop} />);
-    expect(screen.getByText(/salon closed/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("daily-brief-header-full")).getByText(/salon closed/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Manage availability/ })).toBeInTheDocument();
   });
 
   it("briefMode suppresses today's stats — the closed-day KPIs carry the target day's figures", () => {
     render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={11} actionCount={6} unpaidTotal={478} isDayOpen={false} briefMode onManageAvailability={noop} />);
-    expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("daily-brief-header-full")).getByText("Thursday 2 July")).toBeInTheDocument();
     expect(screen.queryByText(/dogs booked/)).not.toBeInTheDocument();
     expect(screen.queryByText(/need action/)).not.toBeInTheDocument();
     expect(screen.queryByText(/unpaid/)).not.toBeInTheDocument();
+  });
+
+  describe("compact mobile header", () => {
+    function renderMobile(props = {}) {
+      return render(
+        <TodayHeader
+          dateLabel="Wednesday 5 August"
+          dogsBooked={7}
+          actionCount={6}
+          expectedRevenue={306}
+          unpaidTotal={306}
+          isDayOpen
+          onOpenDatePicker={noop}
+          onManageAvailability={noop}
+          onToggleActionFilter={noop}
+          {...props}
+        />,
+      );
+    }
+
+    function mobileHeader() {
+      // The compact layout is the only sibling of the "full" header that
+      // isn't itself the desktop block — select it by exclusion so this test
+      // doesn't depend on an incidental class name.
+      const full = screen.getByTestId("daily-brief-header-full");
+      return full.parentElement.querySelector(":scope > div:not([data-testid='daily-brief-header-full'])");
+    }
+
+    it("opens the date picker from the mobile date control, with no separate Choose date button", () => {
+      const onOpenDatePicker = vi.fn();
+      renderMobile({ onOpenDatePicker });
+
+      const mobile = within(mobileHeader());
+      fireEvent.click(mobile.getByRole("button", { name: /Wednesday 5 August/ }));
+      expect(onOpenDatePicker).toHaveBeenCalledTimes(1);
+      expect(mobile.queryByText("Choose date")).not.toBeInTheDocument();
+    });
+
+    it("never shows both unpaid and expected totals together on the compact row", () => {
+      renderMobile();
+      const mobile = within(mobileHeader());
+      expect(mobile.getByText("£306 expected")).toBeInTheDocument();
+      expect(mobile.queryByText(/unpaid/)).not.toBeInTheDocument();
+    });
+
+    it("filters and clears the board from the mobile Need action control", () => {
+      const onToggleActionFilter = vi.fn();
+      const { rerender } = renderMobile({ onToggleActionFilter });
+
+      const mobile = within(mobileHeader());
+      const needAction = mobile.getByRole("button", { name: "6 need action" });
+      expect(needAction).toHaveAttribute("aria-pressed", "false");
+      fireEvent.click(needAction);
+      expect(onToggleActionFilter).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <TodayHeader
+          dateLabel="Wednesday 5 August"
+          dogsBooked={7}
+          actionCount={6}
+          expectedRevenue={306}
+          isDayOpen
+          actionFilterActive
+          onOpenDatePicker={noop}
+          onManageAvailability={noop}
+          onToggleActionFilter={onToggleActionFilter}
+        />,
+      );
+      const clear = within(mobileHeader()).getByRole("button", { name: "Showing 6 · Clear" });
+      expect(clear).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("shows a calm, non-interactive state when nothing needs action", () => {
+      renderMobile({ actionCount: 0 });
+      const mobile = within(mobileHeader());
+      expect(mobile.getByText("All calm")).toBeInTheDocument();
+      expect(mobile.queryByRole("button", { name: /need action/ })).not.toBeInTheDocument();
+    });
+
+    it("opens availability from the compact 44px Availability button", () => {
+      const onManageAvailability = vi.fn();
+      renderMobile({ onManageAvailability });
+      const button = within(mobileHeader()).getByRole("button", { name: "Availability" });
+      expect(button).toHaveClass("min-h-11", "min-w-11");
+      fireEvent.click(button);
+      expect(onManageAvailability).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -1018,15 +1102,15 @@ describe("BookingFeed — accessible journey rows", () => {
     ])], {
       liveFocusId: "b2",
       liveContext: {
-        text: "Due to arrive in 5 mins",
+        text: "Due to arrive in 5 min",
         tone: "live",
-        ariaLabel: "Bertie — due to arrive in 5 mins",
+        ariaLabel: "Bertie — due to arrive in 5 min",
       },
     });
 
-    const divider = screen.getByLabelText("Bertie — due to arrive in 5 mins");
+    const divider = screen.getByLabelText("Bertie — due to arrive in 5 min");
     expect(divider).toHaveTextContent(
-      "Due to arrive in 5 mins",
+      "Due to arrive in 5 min",
     );
     expect(divider).toHaveAttribute("data-testid", "live-arrival-divider");
     expect(screen.queryByTestId("live-arrival-arrow")).not.toBeInTheDocument();
@@ -1340,6 +1424,24 @@ describe("TodaySummaryStrip", () => {
     );
     expect(screen.getByText(/Taken today £84/)).toBeInTheDocument();
     expect(screen.getByText("Card")).toBeInTheDocument();
+  });
+
+  it("uses compact zero-progress copy when nothing has arrived, been readied, collected or taken", () => {
+    render(
+      <TodaySummaryStrip
+        summary={{ ...summary, arrived: 0, ready: 0, collected: 0 }}
+        takings={{ total: 0, count: 0, byMethod: [] }}
+      />,
+    );
+    expect(screen.getByText("Progress: no dogs have arrived yet")).toBeInTheDocument();
+    expect(screen.queryByText("Daily progress", { selector: "h2" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Arrived")).not.toBeInTheDocument();
+  });
+
+  it("renders the detailed panel once any real progress exists", () => {
+    render(<TodaySummaryStrip summary={{ ...summary, arrived: 1, ready: 0, collected: 0 }} />);
+    expect(screen.getByText("Arrived")).toBeInTheDocument();
+    expect(screen.queryByText("Progress: no dogs have arrived yet")).not.toBeInTheDocument();
   });
 });
 

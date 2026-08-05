@@ -27,6 +27,7 @@ import {
   entryOpStatus,
   selectLiveFocus,
   liveFocusContext,
+  formatDuration,
   groupFeedBySlot,
   buildFutureDayFeed,
   countDogsPerOwner,
@@ -773,11 +774,38 @@ describe("selectLiveFocus", () => {
   });
 });
 
+describe("formatDuration", () => {
+  it.each([
+    [0, "0 min"],
+    [1, "1 min"],
+    [8, "8 min"],
+    [59, "59 min"],
+    [60, "1 hr"],
+    [73, "1 hr 13 min"],
+    [120, "2 hrs"],
+    [125, "2 hrs 5 min"],
+  ])("formats %i minutes as %s", (minutes, expected) => {
+    expect(formatDuration(minutes)).toBe(expected);
+  });
+
+  it("never pluralises min and always pluralises hrs correctly", () => {
+    expect(formatDuration(73)).not.toContain("mins");
+    expect(formatDuration(1)).not.toContain("mins");
+    expect(formatDuration(60)).toContain("1 hr");
+    expect(formatDuration(60)).not.toContain("1 hrs");
+    expect(formatDuration(120)).toContain("2 hrs");
+  });
+
+  it("clamps negative input to zero rather than showing a negative duration", () => {
+    expect(formatDuration(-5)).toBe("0 min");
+  });
+});
+
 describe("liveFocusContext", () => {
   it.each([
-    ["10:20", "Due to arrive in 5 mins"],
+    ["10:20", "Due to arrive in 5 min"],
     ["10:15", "Due now"],
-    ["10:00", "15 mins overdue"],
+    ["10:00", "15 min overdue"],
   ])("formats %s against the current London time", (slot, text) => {
     const entry = buildTodayFeed([bk({ dogName: "Minnie", slot, status: "Booked" })], NOW_SUMMER)[0];
     expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({ text, ariaLabel: `Minnie — ${text.toLowerCase()}` });
@@ -792,8 +820,8 @@ describe("liveFocusContext", () => {
       bk({ dogName: "Rufus", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
     ], NOW_SUMMER)[0];
 
-    expect.soft(liveFocusContext(overdue, later).text).toBe("45 mins overdue");
-    expect.soft(liveFocusContext(ready, later).text).toBe("Waiting for collection 45 mins");
+    expect.soft(liveFocusContext(overdue, later).text).toBe("45 min overdue");
+    expect.soft(liveFocusContext(ready, later).text).toBe("Waiting for collection 45 min");
   });
 
   it("uses plain checked-in copy for an invalid check-in timestamp", () => {

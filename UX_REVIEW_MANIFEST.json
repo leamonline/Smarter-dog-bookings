@@ -1,0 +1,128 @@
+{
+  "workflow_version": "1.0.0",
+  "review_date": "2026-08-05",
+  "review_target": "Current Daily Brief (/today) three-lane status board for a selected date, staff dashboard",
+  "source_context": {
+    "context_sha256": "86fc3f6ed2cd51753fee1b9b797b51672b32c3417c23a675f4dcf7701381c597",
+    "handoff_sha256": "71e5fb58e09d4c1bf1340ff67e2d3e6cfada571b3cc7c595736a64a1037bf339",
+    "manifest_status": "ready-for-review",
+    "repository": "leamonline/Smarter-dog-bookings",
+    "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6"
+  },
+  "review_scope": {
+    "workflow": "Staff scan lane warnings and the live due-to-arrive marker to find who needs action, then move each dog through Arriving to With us to Ready to go to Home today, resolving confirmation, welfare and payment exceptions, on today's date or a chosen date",
+    "states": [
+      "populated/busy day across all four lanes",
+      "near-empty real-today day",
+      "closed day with zero bookings",
+      "unknown/legacy booking-status recovery",
+      "past selected date (Home on this date)"
+    ],
+    "viewports": [
+      "390x844 (phone)",
+      "1024x900 (tablet, md/lg band)",
+      "1440x900 (desktop, xl band)"
+    ],
+    "visual_evidence_observed": true,
+    "production_observed": false,
+    "settled_scope_override": false
+  },
+  "review_evidence_sources": [
+    {
+      "id": "R1",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-05",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["390x844"],
+      "states": ["today (2026-08-05, Wednesday), sparse sample data"],
+      "exercised": "page load, screenshot, full-page text and accessibility-tree read",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+    },
+    {
+      "id": "R2",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-03",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["390x844"],
+      "states": ["populated sample Monday: Arriving, With us, Ready to go, Home on this date, unknown-status recovery"],
+      "exercised": "page load, screenshot, full-page text read, accessibility-tree read",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven; only one populated sample day exists in the fixture"]
+    },
+    {
+      "id": "R3",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-03 (resized in-session)",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["1024x900"],
+      "states": ["same populated sample Monday as R2"],
+      "exercised": "viewport resize, screenshot",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+    },
+    {
+      "id": "R4",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-03 (resized in-session)",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["1440x900"],
+      "states": ["same populated sample Monday as R2"],
+      "exercised": "viewport resize, screenshot",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+    },
+    {
+      "id": "R5",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-06",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["1440x900", "390x844"],
+      "states": ["closed, non-open day with zero bookings"],
+      "exercised": "page load, screenshot, full-page text read",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+    },
+    {
+      "id": "R6",
+      "source_type": "development-harness",
+      "location": "R1/R2 URLs above",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["390x844"],
+      "states": ["attempted date-picker open", "attempted Home-today disclosure expand"],
+      "exercised": "left_click on the Choose date button, its calendar icon, and the Show 1 dog sent home toggle (three attempts)",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, and no real-user or end-to-end behaviour is proven", "Every click attempt in this session returned a tool-level timeout with no observable DOM change, while screenshot, scroll, resize, keyboard Escape and navigation all worked normally in the same session; registered as an inconclusive interaction gap, not a confirmed product defect"]
+    },
+    {
+      "id": "R7",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-03",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["390x844"],
+      "states": ["same populated sample Monday as R2"],
+      "exercised": "read_page accessibility-tree extraction (interactive filter)",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven; confirms accessible names and structure only, not actual screen-reader output or keyboard traversal"]
+    },
+    {
+      "id": "R8",
+      "source_type": "development-harness",
+      "location": "http://localhost:5174/today?date=2026-08-03",
+      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+      "viewports": ["390x844"],
+      "states": ["same populated sample Monday as R2"],
+      "exercised": "getComputedStyle/canvas-based colour sampling on two text elements",
+      "limitations": ["Development harness with mock sample data; no authentication, no production data, and no real-user or end-to-end behaviour is proven", "The sampling method could not reliably resolve Tailwind v4 OKLCH-based translucent background colours against the true composited page background, so only one of two attempted measurements is reported with confidence"]
+    }
+  ],
+  "evidence_used": [
+    "E1", "E3", "E4", "E5", "E6", "E8", "E9", "E12", "E13", "E16", "E20",
+    "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"
+  ],
+  "material_gaps": [
+    "Click-triggered state changes (date-picker open, Home-today disclosure, every journey/action button, every More menu, the mini-invoice and unpaid-collection modals) could not be confirmed in this session (R6)",
+    "No loading-skeleton, request-failure, or realtime cross-device move state was observed live; these remain Supported interpretation from code only",
+    "Screen-reader output, real keyboard-only tab order, and 200% zoom/text-scaling reflow were not tested",
+    "Exact WCAG contrast ratios could not be measured for translucent tinted badges (R8)",
+    "Only one populated sample weekday (Monday) exists in the offline fixture, so a typical day could not be cross-checked against a second busy day"
+  ],
+  "structural_changes": [],
+  "owner_decisions_required": [],
+  "production_code_requested": false,
+  "review_document_sha256": "de41cd57d1f481fdac44f6871656970dc31fe85cf2a08c4a14efaf06e67f2267",
+  "status": "ready"
+}

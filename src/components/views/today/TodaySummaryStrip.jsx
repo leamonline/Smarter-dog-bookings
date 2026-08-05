@@ -1,6 +1,6 @@
 // The daily-progress footer keeps lifecycle outcomes and recorded takings
 // reachable without repeating the headline booking, revenue or capacity facts.
-import { formatMoney } from "./parts.jsx";
+import { CompactZeroState, formatMoney } from "./parts.jsx";
 
 function Stat({ label, value, hint }) {
   return (
@@ -13,6 +13,17 @@ function Stat({ label, value, hint }) {
 }
 
 export function TodaySummaryStrip({ summary, takings, isToday = true }) {
+  const hasProgress = summary.arrived > 0 || summary.ready > 0 || summary.collected > 0
+    || (takings && takings.total > 0);
+
+  if (!hasProgress) {
+    return (
+      <section aria-label="Daily progress">
+        <CompactZeroState>Progress: no dogs have arrived yet</CompactZeroState>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-label="Daily progress"
