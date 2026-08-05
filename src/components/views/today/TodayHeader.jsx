@@ -102,7 +102,7 @@ export function TodayHeader({
               >
                 <OperationalFact
                   label="Late"
-                  value={lateCount > 0 ? lateCount : "All on time"}
+                  value={lateCount > 0 ? lateCount : "On time"}
                   valueClassName={lateCount > 0 ? "text-brand-coral-text" : "text-[11px] text-brand-teal-text sm:text-[13px]"}
                 />
                 <OperationalFact label="On site" value={onSite} />
@@ -128,7 +128,7 @@ export function TodayHeader({
                       {actionFilterActive ? "Filtering" : actionCount}
                     </span>
                     <span className={`mt-0.5 truncate text-[9px] font-bold uppercase min-[390px]:text-[10px] ${actionFilterActive ? "text-white/80" : "text-brand-coral-text"}`}>
-                      {actionFilterActive ? `${actionCount} need action` : "Need action"}
+                      {actionFilterActive ? `${actionCount} action` : "Action"}
                     </span>
                   </button>
                 ) : (

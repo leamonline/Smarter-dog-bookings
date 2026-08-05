@@ -921,7 +921,7 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
-    expect(within(summary).getByText("All on time")).toBeInTheDocument();
+    expect(within(summary).getByText("On time")).toBeInTheDocument();
     expect(within(summary).getByText("All calm")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("All paid");
   });
@@ -954,7 +954,7 @@ describe("TodayHeader", () => {
     render(
       <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} lateCount={0} readyCount={0} actionCount={0} isDayOpen onManageAvailability={onManage} />,
     );
-    expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("All on time");
+    expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("On time");
     expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("1/14 capacity");
     expect(screen.getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
