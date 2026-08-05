@@ -30,6 +30,7 @@ const EMPTY_RESULT = Object.freeze({
   human: null,
   dogs: [],
   lastBooking: null,
+  lastServiceByDogId: {},
   trustedContacts: [],
   summary: "",
 });
@@ -110,8 +111,12 @@ export function useCustomerContext(humanId) {
             .select("id, name, breed, age, size, alerts, groom_notes")
             .eq("human_id", humanId)
             .order("name")),
-          // Most recent past booking across all of this customer's dogs.
+          // Recent past bookings across all of this customer's dogs.
           // `dogs!inner` filters to bookings whose dog belongs to humanId.
+          // Ordered newest-first: row 0 is the "last booking" shown on the
+          // customer card, and the same rows give each dog its most recent
+          // service, which prefills the booking pane's service selectors.
+          // Bounded — a customer's recent history, not their whole life.
           withSignal(supabase
             .from("bookings")
             .select(
@@ -121,8 +126,7 @@ export function useCustomerContext(humanId) {
             .lt("booking_date", today)
             .order("booking_date", { ascending: false })
             .order("slot", { ascending: false })
-            .limit(1))
-            .maybeSingle(),
+            .limit(40)),
           // Trusted contacts: join through humans on trusted_id so we
           // can display the contact's name + relationship without a
           // separate lookup. The "humans" alias on trusted_id is the
@@ -173,17 +177,29 @@ export function useCustomerContext(humanId) {
           groomNotes: d.groom_notes || "",
         }));
 
-        const lastBooking = lastBookingRes.data
+        const recentBookings = lastBookingRes.data || [];
+        const mostRecent = recentBookings[0] || null;
+
+        const lastBooking = mostRecent
           ? {
-              id: lastBookingRes.data.id,
-              date: lastBookingRes.data.booking_date,
-              slot: lastBookingRes.data.slot,
-              service: lastBookingRes.data.service,
-              status: lastBookingRes.data.status,
-              size: lastBookingRes.data.size,
-              dogName: lastBookingRes.data.dogs?.name || "",
+              id: mostRecent.id,
+              date: mostRecent.booking_date,
+              slot: mostRecent.slot,
+              service: mostRecent.service,
+              status: mostRecent.status,
+              size: mostRecent.size,
+              dogName: mostRecent.dogs?.name || "",
             }
           : null;
+
+        // Rows are newest-first, so the first service seen for a dog is its
+        // most recent one. Prefills the booking pane's per-dog service.
+        const lastServiceByDogId = {};
+        for (const row of recentBookings) {
+          if (row?.dog_id && row.service && !lastServiceByDogId[row.dog_id]) {
+            lastServiceByDogId[row.dog_id] = row.service;
+          }
+        }
 
         const trustedContacts = (trustedRes.data || [])
           .map((row) => {
@@ -201,7 +217,7 @@ export function useCustomerContext(humanId) {
 
         const summary = buildCustomerSummary({ human, dogs, lastBooking });
 
-        setData({ human, dogs, lastBooking, trustedContacts, summary });
+        setData({ human, dogs, lastBooking, lastServiceByDogId, trustedContacts, summary });
       } catch (err) {
         if (cancelled) return;
         logger.error("useCustomerContext:", err);

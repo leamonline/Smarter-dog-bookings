@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -13,6 +14,7 @@ import { canBookSlot, findGroupedSlots } from "../../../engine/capacity";
 import { excludeCancelled } from "../../../engine/occupancy";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { isDateOpen } from "../../../engine/utils";
+import { seatOccupancy } from "./bookingComposerModel.js";
 import { slotChoiceKey } from "./bookingWorkspaceModel.js";
 
 export function parseDate(dateStr) {
@@ -30,9 +32,12 @@ export function formatDate(dateStr, options = {}) {
   });
 }
 
+// Hidden on phones: at 375px this five-day strip costs more height than the
+// slot list it sits above, and the ‹ › arrows already move the date. Restored
+// from `sm` up, where the height is there to spend.
 function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, onPickDate }) {
   return (
-    <div role="tablist" aria-label="Diary dates" className="grid grid-cols-5 border-y border-slate-200 bg-white">
+    <div role="tablist" aria-label="Diary dates" className="hidden shrink-0 grid-cols-5 border-y border-slate-200 bg-white sm:grid">
       {dates.slice(0, 5).map((date) => {
         const active = date.dateStr === currentDateStr;
         const open = isDateOpen(date.dateStr, null, daySettings);
@@ -44,7 +49,7 @@ function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, onPickD
             role="tab"
             aria-selected={active}
             onClick={() => onPickDate(date.dateObj)}
-            className={`min-h-[66px] border-r border-slate-100 px-1 py-2 text-center transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
+            className={`min-h-[52px] border-r border-slate-100 px-1 py-1.5 text-center transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:min-h-[66px] sm:py-2 ${
               active ? "bg-brand-coral-light text-brand-purple" : "hover:bg-slate-50"
             }`}
           >
@@ -127,6 +132,10 @@ export function DraftOffer({
  */
 export function BookingPane({
   request,
+  dogs,
+  emptyStateTitle = "Choose a request first",
+  emptyStateBody = "The diary will then check capacity for that recorded dog size.",
+  offerActionLabel = "Choose",
   dates,
   currentDateStr,
   daySettings,
@@ -155,10 +164,28 @@ export function BookingPane({
     () => new Set(choices.map(slotChoiceKey)),
     [choices],
   );
+  // Capacity is computed for whatever dogs the caller supplies. The inbox
+  // passes an explicit multi-dog array; the Booking Desk still passes its
+  // single derived `request`, so that shape is normalised here rather than
+  // forcing a change on a surface this work doesn't touch.
+  const capacityDogs = useMemo(() => {
+    if (Array.isArray(dogs)) {
+      return dogs
+        .filter((dog) => dog?.size)
+        .map((dog) => ({ id: dog.id, size: dog.size }));
+    }
+    if (request?.size && request.dogName) {
+      return [{ id: request.dog?.id || `${request.id}-dog`, size: request.size }];
+    }
+    return [];
+  }, [dogs, request]);
+
+  const hasSelection = capacityDogs.length > 0;
+
   const bookableSlots = useMemo(() => {
-    if (!open || !request?.size || !request.dogName) return new Set();
+    if (!open || !hasSelection) return new Set();
     const allocations = findGroupedSlots(
-      [{ id: request.dog?.id || `${request.id}-dog`, size: request.size }],
+      capacityDogs,
       dayBookings,
       activeSlots,
       dailyDogCap,
@@ -169,7 +196,7 @@ export function BookingPane({
         allocation.assignments.map((assignment) => assignment.slot),
       ),
     );
-  }, [activeSlots, dailyDogCap, dayBookings, open, request, settings.overrides]);
+  }, [activeSlots, capacityDogs, dailyDogCap, dayBookings, hasSelection, open, settings.overrides]);
 
   function moveDay(delta) {
     const next = new Date(currentDate);
@@ -179,19 +206,23 @@ export function BookingPane({
 
   return (
     <section aria-labelledby="booking-desk-diary" className="flex min-h-0 flex-1 flex-col bg-white">
-      <div className="flex min-h-[62px] items-center justify-between gap-2 px-3 py-2">
-        <div>
+      {/* Vertical budget matters most on a 375px phone, where this header
+          competes directly with the slot list it exists to introduce. The
+          title and its explanatory line are desktop-only; narrow keeps just
+          the date and its two arrows. */}
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
+        <div className="hidden sm:block">
           <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-purple">Diary</h2>
           <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
         </div>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+        <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">
+          <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
             <ChevronLeft aria-hidden="true" size={18} />
           </button>
-          <div className="min-w-[128px] text-center font-display text-sm font-extrabold text-brand-purple sm:min-w-[150px]">
+          <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-purple sm:min-w-[150px] sm:flex-none">
             {formatDate(currentDateStr, { year: "numeric" })}
           </div>
-          <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+          <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
             <ChevronRight aria-hidden="true" size={18} />
           </button>
         </div>
@@ -205,16 +236,11 @@ export function BookingPane({
         onPickDate={onPickDate}
       />
 
-      {!request ? (
+      {!hasSelection ? (
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-slate-500">
           <PawPrint aria-hidden="true" size={28} className="text-slate-300" />
-          <p className="mt-3 text-sm font-bold text-brand-purple">Choose a request first</p>
-          <p className="mt-1 text-xs">The diary will then check capacity for that recorded dog size.</p>
-        </div>
-      ) : !request.size ? (
-        <div className="m-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <CircleAlert aria-hidden="true" size={17} className="mt-0.5 shrink-0" />
-          Capacity cannot be checked until the dog has an authoritative size on file.
+          <p className="mt-3 text-sm font-bold text-brand-purple">{emptyStateTitle}</p>
+          <p className="mt-1 text-xs">{emptyStateBody}</p>
         </div>
       ) : !open ? (
         <div className="m-3 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -230,25 +256,25 @@ export function BookingPane({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {activeSlots.map((slot) => {
-          const slotBookings = dayBookings.filter((booking) => booking.slot === slot);
           const choice = { dateStr: currentDateStr, slot };
           const selected = choicesSet.has(slotChoiceKey(choice));
           const bookable = bookableSlots.has(slot);
-          const capacityCheck = request?.size
-            ? canBookSlot(dayBookings, slot, request.size, activeSlots, {
+          const occupancy = seatOccupancy(slot, dayBookings, activeSlots);
+          const capacityCheck = hasSelection
+            ? canBookSlot(dayBookings, slot, capacityDogs[0].size, activeSlots, {
                 overrides: settings.overrides?.[slot] || {},
-                dogId: request.dog?.id || null,
+                dogId: capacityDogs[0].id,
               })
             : null;
-          const disabled = !selected && (!open || !request?.size || !bookable || choices.length >= 3);
-          const bookingLabel = slotBookings.length
-            ? slotBookings.map((booking) => booking.dogName || "Unknown dog").join(" · ")
-            : "Available slot";
-          const detailLabel = slotBookings.length
-            ? slotBookings.map((booking) => `${booking.breed || booking.size || "Dog"}`).join(" · ")
-            : request?.size
-              ? "Fits the current request"
-              : "Size needed to check";
+          const disabled = !selected && (!open || !hasSelection || !bookable || choices.length >= 3);
+
+          // Capacity headline. Staff are asking "is there room?", so lead with
+          // free seats rather than a bare "Available slot".
+          const capacityLabel = !open
+            ? "Closed"
+            : occupancy.booked === 0
+              ? `${occupancy.total} ${occupancy.total === 1 ? "space" : "spaces"}`
+              : `${occupancy.free} of ${occupancy.total} spaces available`;
 
           return (
             <button
@@ -258,29 +284,66 @@ export function BookingPane({
               onClick={() => onToggleChoice(choice)}
               aria-pressed={selected}
               title={disabled && capacityCheck?.reason ? capacityCheck.reason : undefined}
-              className={`grid min-h-[58px] w-full grid-cols-[58px_minmax(0,1fr)_auto] items-center border-b border-slate-100 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
+              className={`grid w-full grid-cols-[58px_minmax(0,1fr)_auto] items-start border-b border-slate-100 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
                 selected
-                  ? "bg-brand-yellow/15"
+                  ? "bg-brand-yellow/15 ring-1 ring-inset ring-brand-purple/30"
                   : bookable && open
                     ? "bg-white hover:bg-cyan-50/60"
                     : "bg-slate-50/70"
               } disabled:cursor-not-allowed`}
             >
-              <span className="px-2 text-center font-display text-sm font-extrabold text-brand-purple">{slot}</span>
-              <span className="min-w-0 border-l border-slate-100 px-3 py-2">
-                <span className={`block truncate text-xs font-bold ${selected ? "text-brand-teal-text" : slotBookings.length ? "text-brand-purple" : bookable ? "text-brand-teal-text" : "text-slate-500"}`}>
-                  {selected ? `${formatDate(currentDateStr)} · ${slot}` : bookingLabel}
-                </span>
-                <span className="mt-0.5 block truncate text-micro text-slate-500">{detailLabel}</span>
+              <span className="min-h-[58px] px-2 py-3 text-center font-display text-sm font-extrabold text-brand-purple">
+                {slot}
               </span>
-              <span className="px-3 text-right">
+              <span className="min-w-0 border-l border-slate-100 px-3 py-3">
+                <span
+                  className={`block text-xs font-bold ${
+                    !open
+                      ? "text-slate-500"
+                      : occupancy.free > 0
+                        ? "text-brand-teal-text"
+                        : "text-slate-500"
+                  }`}
+                >
+                  {capacityLabel}
+                </span>
+                {/* Existing bookings stay visible even when the slot is
+                    selected — that context is exactly what staff want to
+                    sanity-check before offering or booking a time. */}
+                {occupancy.dogs.length > 0 ? (
+                  <span className="mt-1 block">
+                    <span className="block text-micro font-semibold text-slate-500">Booked:</span>
+                    {occupancy.dogs.map((dog, index) => (
+                      <span
+                        key={`${dog.name}-${index}`}
+                        className="block break-words text-micro text-slate-600"
+                      >
+                        • {dog.name}
+                        {dog.breed ? ` (${dog.breed})` : ""}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+              <span className="px-3 py-3 text-right">
                 {selected ? (
-                  <span className="inline-flex min-h-7 items-center rounded-full bg-brand-yellow px-2 text-micro font-black text-brand-purple">Draft</span>
+                  // Icon + label + ring, never colour alone.
+                  <span className="inline-flex min-h-7 items-center gap-1 rounded-full bg-brand-yellow px-2 text-micro font-black text-brand-purple">
+                    <Check aria-hidden="true" size={12} />
+                    Selected
+                  </span>
                 ) : bookable && open ? (
-                  <span className="inline-flex min-h-7 items-center rounded-full border border-brand-teal/30 bg-white px-2 text-micro font-bold text-brand-teal-text">Choose</span>
-                ) : (
-                  <span className="text-micro font-semibold text-slate-400">{open ? "No space" : "Closed"}</span>
-                )}
+                  <span className="inline-flex min-h-7 items-center rounded-full border border-brand-teal/30 bg-white px-2 text-micro font-bold text-brand-teal-text">
+                    {offerActionLabel}
+                  </span>
+                ) : !open ? (
+                  <span className="text-micro font-semibold text-slate-400">Closed</span>
+                ) : hasSelection ? (
+                  // Only a claim about the CURRENT selection. With no dogs
+                  // chosen there is nothing to not fit, so saying "No space"
+                  // would contradict the free-seat count on the left.
+                  <span className="text-micro font-semibold text-slate-400">No space</span>
+                ) : null}
               </span>
             </button>
           );
