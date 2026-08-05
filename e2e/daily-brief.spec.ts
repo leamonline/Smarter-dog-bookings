@@ -19,11 +19,19 @@ test("Daily Brief keeps the status board usable at every supported width", async
   await expect(pageHeading).toBeAttached();
   await expect(pageHeading).toHaveClass(/sr-only/);
   await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
-  const dateControl = page.getByRole("button", {
-    name: "Choose date, Monday 13 July",
-  });
+  // Below md (the "mobile" project), the compact header replaces the
+  // separate Choose-date button with the date itself and shortens
+  // "Manage availability" to "Availability"; desktop/tablet keep the
+  // richer, unabbreviated controls.
+  const isMobile = testInfo.project.name === "mobile";
+  const dateControl = isMobile
+    ? page.getByRole("button", { name: "Monday 13 July — choose a different date" })
+    : page.getByRole("button", { name: "Choose date, Monday 13 July" });
   await expect(dateControl).toBeVisible();
-  const availability = page.getByRole("button", { name: "Manage availability" });
+  if (isMobile) {
+    await expect(page.getByRole("button", { name: "Choose date, Monday 13 July" })).toBeHidden();
+  }
+  const availability = page.getByRole("button", { name: isMobile ? "Availability" : "Manage availability" });
   await expect(availability).toBeVisible();
   expect(
     await page.evaluate(() => ({
@@ -98,7 +106,7 @@ test("Daily Brief keeps the status board usable at every supported width", async
     );
   }
 
-  await page.getByRole("button", { name: /Choose date/ }).click();
+  await dateControl.click();
   const datePicker = page.getByRole("dialog", { name: "July 2026" });
   await datePicker
     .getByRole("button", { name: "Wednesday, 15 July 2026", exact: true })
@@ -119,12 +127,10 @@ test("status actions and invoice work by keyboard", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
   await page.getByRole("button", { name: "Not now" }).click();
 
-  const moreActions = bookingCard(page, "Charlie").getByRole("button", {
-    name: "More actions for Charlie",
-  });
-  await moreActions.click();
-  const priceButton = page.getByRole("menuitem", {
-    name: /Take £.* payment/,
+  // Charlie still owes a balance, so Take payment is now the Ready card's
+  // primary action rather than sitting inside More.
+  const priceButton = bookingCard(page, "Charlie").getByRole("button", {
+    name: /Take £.* payment from Charlie/,
   });
   await priceButton.focus();
   await page.keyboard.press("Enter");
@@ -154,10 +160,9 @@ test("mini invoice fits without scrolling at every supported viewport", async ({
     .getByRole("button", { name: "Mark Charlie ready for collection" })
     .click();
   await page.getByRole("button", { name: "Not now" }).click();
-  await charlieCard
-    .getByRole("button", { name: "More actions for Charlie" })
-    .click();
-  await page.getByRole("menuitem", { name: /Take £.* payment/ }).click();
+  // Charlie still owes a balance, so Take payment is now the Ready card's
+  // primary action rather than sitting inside More.
+  await charlieCard.getByRole("button", { name: /Take £.* payment from Charlie/ }).click();
 
   const invoice = page.getByRole("dialog", { name: "Invoice · Charlie" });
   const invoiceBody = invoice.locator(".mini-invoice-body");
@@ -206,13 +211,22 @@ test("live arrival follows the focused dog without a duplicate Now panel", async
   await expect(liveMarker).toBeVisible();
   await expect(page.getByRole("region", { name: "Happening now" })).toHaveCount(0);
   await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
-  await expect(bookingCard(page, "Coco")).toContainText("45 mins late");
+  await expect(page.getByText("Next arrival")).toBeVisible();
+  // Coco's lateness is on its shared slot heading now, not repeated inside
+  // the card itself — and a late arrival with a phone gets both Call and
+  // Message rather than the old single Call-or-Contact fallback.
+  const dueLane = page.getByRole("region", { name: "Arriving, 3 dogs" });
+  await expect(dueLane).toContainText("45 min late");
+  await expect(bookingCard(page, "Coco")).not.toContainText("45 min late");
+  // A late arrival always offers Message (Call additionally appears only
+  // with a resolvable phone number, which this sample record doesn't have).
+  await expect(bookingCard(page, "Coco").getByRole("button", { name: /^Message / })).toBeVisible();
 
   await bookingCard(page, "Coco").getByRole("button", { name: "Check in Coco" }).click();
   await expect(page.getByRole("region", { name: "Arriving, 2 dogs" })).toContainText("Teddy");
   await expect(page.getByRole("region", { name: "With us, 1 dog" })).toContainText("Coco");
   await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
-  await expect(page.getByLabel("Teddy — 15 mins overdue")).toBeVisible();
+  await expect(page.getByLabel("Teddy — 15 min overdue")).toBeVisible();
 });
 
 test("early morning keeps every booked arrival upcoming", async ({ page }) => {
@@ -240,6 +254,10 @@ test("unknown-status warning opens the affected booking directly", async ({ page
 });
 
 test("Need action exposes its selected state and visible row reasons by keyboard", async ({ page }) => {
+  // This test is about the filter's data flow, not responsive layout — pin
+  // to a width where the richer header (and its fuller aria-label) is the
+  // one in the accessibility tree, regardless of which project runs it.
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
@@ -285,4 +303,42 @@ test("dog and human files preserve the selected Daily Brief and restore focus", 
   await expect(humanDialog).toBeVisible();
   await humanDialog.getByRole("button", { name: "Close" }).click();
   await expect(humanTrigger).toBeFocused();
+});
+
+test("compact mobile header opens the date picker and the Need action filter", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  // No separate Choose-date control at this width — the date itself opens
+  // the picker — and the richer header's own date button is hidden, not
+  // just visually smaller.
+  await expect(
+    page.getByRole("button", { name: "Choose date, Monday 13 July" }),
+  ).toBeHidden();
+  const dateControl = page.getByRole("button", {
+    name: "Monday 13 July — choose a different date",
+  });
+  await expect(dateControl).toBeVisible();
+  await dateControl.click();
+  await expect(page.getByRole("dialog", { name: "July 2026" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const availability = page.getByRole("button", { name: "Availability" });
+  await expect(availability).toBeVisible();
+  const box = await availability.boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+
+  const needAction = page.getByRole("button", { name: /need action$/ });
+  await expect(needAction).toBeVisible();
+  await expect(needAction).toHaveAttribute("aria-pressed", "false");
+  await needAction.click();
+  await expect(page.getByRole("button", { name: /^Showing \d+ · Clear$/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+  ).toBe(true);
 });

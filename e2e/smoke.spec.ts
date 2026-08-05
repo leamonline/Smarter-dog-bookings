@@ -25,14 +25,12 @@ test.describe("Smoke", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Daily Brief" }),
     ).toBeVisible();
-    // Open days expose one labelled operational-status region; closed days
-    // show the read-only next-open-day brief banner instead. The smoke runs
-    // on real wall-clock dates, so it must accept either state.
+    // The open/closed pill renders in both the richer md+ header and the
+    // compact mobile header, on every day state, so it's the one operational
+    // signal that's viewport- and date-independent. The smoke runs on real
+    // wall-clock dates, so it must accept either "Salon open" or "Salon closed".
     await expect(
-      page
-        .getByRole("region", { name: "Daily Brief operational status" })
-        .or(page.getByText(/closed today/i))
-        .first(),
+      page.getByText(/salon (open|closed)/i).locator("visible=true").first(),
     ).toBeVisible();
     // The primary nav is labelled, not icon-only.
     await expect(

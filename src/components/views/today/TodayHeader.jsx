@@ -135,14 +135,14 @@ export function TodayHeader({
         </div>
 
         {!briefMode ? (
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <span className="shrink-0 text-[13px] font-bold text-slate-700 tabular-nums">{dogsBooked} booked</span>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="text-[13px] font-bold text-slate-700 tabular-nums">{dogsBooked} booked</span>
             <MobileNeedAction
               actionCount={actionCount}
               actionFilterActive={actionFilterActive}
               onToggleActionFilter={onToggleActionFilter}
             />
-            <span className="shrink-0 text-[13px] font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)} expected</span>
+            <span className="text-[13px] font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)} expected</span>
           </div>
         ) : null}
 

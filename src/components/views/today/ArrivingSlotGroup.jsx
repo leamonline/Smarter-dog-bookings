@@ -102,6 +102,9 @@ function ArrivingCard({ entry, resolve, getWelfare, paymentOf, handlers, onTheWa
                   {display.dogName}
                 </button>
               </h4>
+              {entry.isLate ? (
+                <span data-action-reason="late" className="sr-only">Late arrival</span>
+              ) : null}
               <ConfirmedMark confirmedAt={confirmedAt} />
             </div>
             <div className="mt-0.5 flex flex-wrap min-w-0 items-center gap-x-1 gap-y-0.5 text-[12px] leading-tight text-slate-600">
