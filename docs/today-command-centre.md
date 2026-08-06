@@ -69,20 +69,34 @@ Sections, in priority order, each fed by `engine/today.ts` selectors:
 | Capacity & opportunities | remaining slots: seats free, large-dog eligibility, customer-reachable (immediate-flagged + before cutoff) | `buildSlotOpportunities` → `computeSlotCapacities` / `getBookableSeatCount` / `canBookSlot` (**never forks** the capacity engine) |
 | Summary strip | "Daily progress": collected-of-total + revenue on its own line (expected vs recorded-as-paid), then the five status counters (Booked/Arrived/Expected/Ready/Collected) + takings by method | `buildDaySummary`, `buildTakingsByMethod`, `computeRevenue` |
 
-**"Confirmed in chat".** `needsConfirmation` only clears on
-`bookings.reminder_confirmed_at`, which is stamped *only* by the customer
-tapping the Confirm Quick Reply on the WhatsApp reminder template
-(`mark_reminder_confirmed`). Owners who instead type a reply — "yes", "see you
-Tuesday" — used to keep their card saying "Needs confirmation" indefinitely.
-`engine/replyConfirmation.ts` + `hooks/useReplyConfirmations.ts` close that gap:
-read-only keyword detection over the INBOUND inbox messages that arrived *after*
-the reminder was sent, folded into the built feed/board by
-`applyChatConfirmations` so the card, lane warning, "N to confirm" heading and
-need-action count all agree. Any cancel/reschedule/"can't make it" message in
-that window suppresses the signal entirely. It never writes to `bookings`, never
-touches the agent, and never fabricates a `reminder_confirmed_at` — the green
-`ConfirmedMark` tick still means the real button tap; the chat signal renders as
-a separate "Confirmed in chat" chip carrying the owner's own words.
+**Typed reminder confirmations.** `needsConfirmation` only clears on
+`bookings.reminder_confirmed_at`, which used to be stamped *only* by the
+customer tapping the Confirm Quick Reply on the WhatsApp reminder template. An
+owner who instead typed "yes" / "see you Tuesday" / 👍 was never recorded, so
+their card said "Needs confirmation" indefinitely. Two layers now close that:
+
+1. **Recorded (the write path).** `whatsapp-agent` runs every inbound message
+   through `detectReplyConfirmation` (`_shared/reminderConfirmation.ts`) and, on
+   a match from a known customer, calls the *same* idempotent
+   `mark_reminder_confirmed` RPC the button tap uses — so a typed confirmation
+   gets the identical stamp, green tick, `reconfirmed` booking_event and report
+   treatment. It deliberately does **not** short-circuit the message: it stays
+   in the inbox and flows on to the normal risk/gate/draft machinery. Skipped on
+   a staff re-generate (`forceDraft`) so re-drafting stays side-effect free.
+2. **Derived (the read path).** `engine/replyConfirmation.ts` +
+   `hooks/useReplyConfirmations.ts` also read the inbox directly for bookings
+   still unconfirmed, covering replies that predate (1) and anything outside
+   `mark_reminder_confirmed`'s 36-hour window. `applyChatConfirmations` folds
+   the result into the built feed/board so the card, lane warning, "N to
+   confirm" heading and need-action count all agree. This layer never writes and
+   never fabricates a `reminder_confirmed_at` — the green `ConfirmedMark` tick
+   means a recorded confirmation; a derived one renders as a separate
+   "Confirmed in chat" chip carrying the owner's own words.
+
+The matching lives in **one** place, `supabase/functions/_shared/reminderConfirmation.ts`,
+imported (not mirrored) by both sides. Any cancel / reschedule / "can't make it"
+wording vetoes the whole signal, so "yes, but can we move it?" still reaches a
+human unconfirmed.
 
 Actions reuse existing paths: status transitions (which fire `booking_events` +
 the collection-notice modal automatically), `handleOpenBooking`,

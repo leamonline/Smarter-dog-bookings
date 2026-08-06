@@ -19,6 +19,9 @@ describe("detectReplyConfirmation", () => {
   it.each([
     "Yes",
     "yes please",
+    "👍",
+    "👍🏽",
+    "✅",
     "Yep 👍",
     "yeah thats fine",
     "Ok",
