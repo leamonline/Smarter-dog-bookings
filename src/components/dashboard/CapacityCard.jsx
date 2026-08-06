@@ -6,7 +6,6 @@ import {
   computeWeekCapacity,
   findNextAvailable,
   utilisationColor,
-  utilisationLabel,
 } from "../../engine/utilisation";
 import { excludeCancelled } from "../../engine/occupancy";
 import { getDefaultOpenForDate } from "../../engine/utils";
@@ -90,13 +89,13 @@ export function CapacityCard({
           isOpen={day.isOpen}
           label={selectedStr === todayStr ? "Today" : "This day"}
           sub={currentDateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-          statusLabel={utilisationLabel(day.pct, day.isOpen)}
+          statusLabel={day.isOpen ? `${day.bookings} of ${day.cap} seats booked` : "Closed"}
         />
         <CapacityBar
           pct={week.pct}
           isOpen={true}
           label="This week"
-          statusLabel={utilisationLabel(week.pct, true)}
+          statusLabel={`${week.bookings} of ${week.cap} seats booked this week`}
         />
       </div>
 

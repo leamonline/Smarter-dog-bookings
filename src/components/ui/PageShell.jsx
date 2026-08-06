@@ -1,5 +1,5 @@
 export function AppFrame({ children, className = "" }) {
-  const classes = ["max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans", className]
+  const classes = ["max-w-[1536px] mx-auto px-4 sm:px-6 md:px-8 py-5 font-sans", className]
     .filter(Boolean)
     .join(" ");
 

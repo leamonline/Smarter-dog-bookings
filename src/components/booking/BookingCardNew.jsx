@@ -1,6 +1,6 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
-import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
+import { Calendar, LogIn, Droplets, Sparkles, Check, AlertTriangle, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
 import { SERVICES, STATUS_DISPLAY, BOOKING_STATUS, BOOKING_STATUSES } from "../../constants/index";
 import { SizeDot } from "../ui/SizeDot.jsx";
@@ -32,13 +32,6 @@ const SIZE_DOT = {
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
-// Status palette (bg / text / border per status) now lives in
-// src/constants/salon.ts as STATUS_DISPLAY — the single source of truth shared
-// with the detail modal so card and pop-up can't drift. Imported above.
-
-// The five-step inline progression. Cancelled is terminal and only
-// reachable via the detail modal — never appears here. BOOKING_STATUSES
-// already encodes the progression order, so derive rather than restate it.
 const STATUS_PROGRESSION = BOOKING_STATUSES.map((s) => s.id);
 
 const STATUS_ICONS = {
@@ -49,25 +42,6 @@ const STATUS_ICONS = {
   [BOOKING_STATUS.COMPLETED]: Check,
 };
 
-// Short human-readable timestamp for the override-badge tooltip:
-// "Mon 18 May at 13:57". Falls back to the raw ISO string if parsing
-// fails so a malformed value is still visible to whoever is debugging.
-function formatOverrideAt(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const date = d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const time = d.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return `${date} at ${time}`;
-}
 
 function formatConfirmedAt(iso) {
   if (!iso) return "";
@@ -86,12 +60,6 @@ function formatConfirmedAt(iso) {
   return `${date} at ${time}`;
 }
 
-/**
- * AlertsPopover — small popup that lists every alert on a dog.
- * Rendered via portal so it escapes the booking card's overflow:
- * hidden and the surrounding grid. Positioned next to its anchor
- * with a soft drop-shadow.
- */
 function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
   const popRef = useRef(null);
 
@@ -101,8 +69,6 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
       if (!popRef.current?.contains(e.target)) onClose();
     };
     document.addEventListener("keydown", onKey);
-    // Use timeout so the click that opened the popover doesn't
-    // immediately close it.
     const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
     return () => {
       document.removeEventListener("keydown", onKey);
@@ -113,8 +79,6 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
 
   if (!anchorRect) return null;
 
-  // Position below the icon, aligned to its left edge. Clamp to
-  // viewport so it never sits half-off-screen.
   const POPUP_WIDTH = 260;
   const margin = 8;
   const top = Math.min(
@@ -138,11 +102,7 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-label text-red-700">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+          <AlertCircle size={13} className="stroke-[2.4]" aria-hidden="true" />
           Notes on {dogName}
         </div>
         <button
@@ -199,17 +159,12 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const [statusOpen, setStatusOpen] = useState(false);
   const [payChooserOpen, setPayChooserOpen] = useState(false);
   const [alertsAnchor, setAlertsAnchor] = useState(null);
-  // pendingSkipStatus tracks a "skip ≥2 steps" status change waiting for
-  // staff to confirm via ConfirmDialog (replaces the old window.confirm).
   const [pendingSkipStatus, setPendingSkipStatus] = useState(null);
-  // shape: { nextStatus: string, previous: string }
   const alertsButtonRef = useRef(null);
   const statusOptionRefs = useRef([]);
   const toast = useToast();
   const deliveryFailure = useBookingDeliveryFailure(booking.id);
 
-  // When the inline status picker opens, move focus to the current status so
-  // keyboard users land on a sensible option and can arrow between them.
   useEffect(() => {
     if (!statusOpen) return;
     const curIdx = Math.max(0, STATUS_PROGRESSION.indexOf(booking.status));
@@ -239,17 +194,11 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   };
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
-
   const service = SERVICES.find((s) => s.id === booking.service);
   const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY[BOOKING_STATUS.BOOKED];
-
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking._dogId || booking.dogName);
-  // Single source of truth (matches BookingHeader + transforms.ts): live join,
-  // falling back to bookings.*_snapshot only when the dog/owner row is missing.
   const display = resolveBookingDisplay(booking, dogs, humans);
 
-  // Total owed at pick-up (service + add-ons, minus deposit or paid-in-full).
-  // Shared with BookingDetailModal so card and modal can't drift.
   const pricing = computeBookingPricing({
     service: booking.service,
     size: booking.size,
@@ -261,9 +210,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     configPricing,
   });
 
-  // The dog is (or has gone) home but the money hasn't been taken — the point
-  // where a missed payment becomes a permanently blind ledger row. Drives the
-  // amber "£X due" chip and the one-tap mark-paid row below the status pill.
   const needsPayment =
     (booking.status === BOOKING_STATUS.READY_FOR_PICKUP ||
       booking.status === BOOKING_STATUS.COMPLETED) &&
@@ -294,9 +240,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     toast.show(`${displayDogName} — payment recorded`, "success");
   };
 
-  // resolveBookingDisplay returns sentinel strings ("Unknown" / "Unknown owner")
-  // when the joined dog/human row can't be resolved. Use the missing flags to
-  // swap those for friendlier UI copy without leaking the sentinel.
   const displayDogName = titleCase(
     display.dogMissing ? "Unnamed booking" : display.dogName,
   );
@@ -307,192 +250,159 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   return (
     <>
-      {/* Outer wrapper is a plain div, not role="button", so the inner
-          buttons (dog name, alerts, status) aren't nested interactives.
-          The dog-name button below is the keyboard target for "open
-          details"; mouse users can still click anywhere on the card. */}
       <div
         aria-hidden={searchDimmed || undefined}
         draggable={draggable || undefined}
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
-        // min-h matches the ghost / blocked / closed / reserved seat cells
-        // (min-h-[92px] md:min-h-[112px]) so every cell in a slot row lands on
-        // the same height — content shorter than the floor no longer renders a
-        // stubby card. Keep these four in sync if the seat height ever changes.
-        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[92px] md:min-h-[112px] ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
-        style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
-        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
-        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[76px] lg:min-h-[80px] h-auto ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.03), 0 2px 8px ${sizeTheme.glow}0.06)` }}
       >
-        {/* Gradient top accent bar */}
-        <div className="h-[3px]" style={{ background: sizeTheme.gradient }} />
+        {/* Top accent bar */}
+        <div className="h-[3px] shrink-0" style={{ background: sizeTheme.gradient }} />
 
-        <div className="p-2 md:p-3 flex flex-col gap-0.5 md:gap-1">
-        {/* Row 1: size dot + dog name (breed) + price */}
-        <div className="flex items-baseline gap-2">
-          {/* SizeDot carries a letter (S/M/L/?), so size isn't conveyed by
-              colour alone — WCAG 2.1 SC 1.4.1. */}
-          <span className="self-center inline-flex shrink-0">
-            <SizeDot size={booking.size} dim={16} />
-          </span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
-            tabIndex={searchDimmed ? -1 : 0}
-            aria-label={`Open booking for ${displayDogName}`}
-            // shrink-0 so the name never loses the space fight on narrow
-            // grid cards — the breed (below) truncates first instead.
-            className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis shrink-0 max-w-[70%] text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded"
-          >
-            {displayDogName}
-          </button>
-          {/* Alert icon — single click target that opens a popup
-              listing every note on the dog. No count or label so the
-              card stays uncluttered; the icon's job is just to flag. */}
-          {dogRecord?.alerts?.length > 0 && (
-            <button
-              ref={alertsButtonRef}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (alertsAnchor) {
-                  setAlertsAnchor(null);
-                } else {
-                  const rect = alertsButtonRef.current?.getBoundingClientRect();
-                  if (rect) setAlertsAnchor(rect);
-                }
-              }}
-              aria-expanded={!!alertsAnchor}
-              aria-haspopup="true"
-              aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
-              title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="group/note self-center relative inline-flex items-center justify-center w-4 h-4 rounded-full text-red-700 bg-red-50 border border-red-300 cursor-pointer transition-colors hover:bg-red-700 hover:text-white font-[inherit] shrink-0 after:content-[''] after:absolute after:-inset-[14px]"
-            >
-              {/* 16px circle matching the SizeDot; the invisible ::after gives
-                  it a ~44px tap target without inflating the row height. */}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </button>
-          )}
-          {booking.staffCapacityOverride && (
-            <span
-              role="img"
-              aria-label={
-                booking.staffCapacityOverrideAt
-                  ? `Capacity overridden on ${formatOverrideAt(booking.staffCapacityOverrideAt)}`
-                  : "Capacity overridden by staff"
-              }
-              title={
-                booking.staffCapacityOverrideAt
-                  ? `Capacity overridden on ${formatOverrideAt(booking.staffCapacityOverrideAt)}`
-                  : "Capacity overridden by staff"
-              }
-              className="self-center inline-block w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-100 shrink-0"
-            />
-          )}
-          {deliveryFailure && deliveryFailure.length > 0 && (
-            <span
-              role="img"
-              aria-label="A message to this customer failed to deliver"
-              title={`Failed to deliver: ${deliveryFailure
-                .map((f) => f.trigger_type)
-                .join(", ")}. Open the booking to fix the number and resend.`}
-              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-red-700 bg-red-50 border border-red-200 shrink-0"
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </span>
-          )}
-          {/* Breed follows the name; service sits far right, directly
-              above the price on line 2. Two text lines, not three. */}
-          <span className="min-w-0 truncate text-[10px] md:text-[11px] font-medium text-slate-500">
-            {displayBreed}
-          </span>
-          <span className="ml-auto shrink-0 text-[10px] md:text-[11px] font-semibold text-brand-purple/80">
-            {service?.name || booking.service || "—"}
-          </span>
-        </div>
-
-        {/* Row 2: owner and reminder response (left) + price (far right).
-            The response is deliberately separate from appointment status
-            and payment so staff do not mistake one for another. */}
-        <div className="flex items-center gap-2 pl-4 md:pl-5">
-          <div className="text-[10px] md:text-[11px] font-medium text-slate-500 min-w-0 truncate">
-            {displayOwner}
-          </div>
-          {booking.reminderConfirmedAt && (
-            <span
-              data-reminder-confirmation
-              role="status"
-              aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
-              title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
-              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 md:text-[10px]"
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Confirmed
-            </span>
-          )}
-          {pricing.subtotal > 0 && (
-            // Main number is always the full appointment value (service +
-            // add-ons + custom price). Payment state is secondary: a "due"
-            // figure so the till sees what to collect, or a "Paid" chip.
-            <span className="ml-auto shrink-0 inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums">
-              <span className="text-[12px] md:text-[13px] font-bold text-slate-800">
-                {"£"}{pricing.subtotal}
+        <div className="p-2 sm:p-3 flex flex-col gap-1.5 justify-between flex-1 min-w-0">
+          {/* Row 1: Dog name, breed and alerts | Price or amount due aligned right */}
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="inline-flex shrink-0">
+                <SizeDot size={booking.size} dim={13} />
               </span>
-              {isAwaitingDeposit(booking) ? (
-                <span
-                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1 py-0.5 rounded leading-none"
-                  title={`Awaiting £${booking.depositAmount ?? 10} deposit${booking.depositReference ? ` — ref ${booking.depositReference}` : ""}`}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
+                tabIndex={searchDimmed ? -1 : 0}
+                aria-label={`Open booking for ${displayDogName}`}
+                className="text-xs sm:text-[13px] md:text-sm font-bold font-display text-brand-purple truncate text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded hover:underline shrink-0 max-w-[50%]"
+              >
+                {displayDogName}
+              </button>
+
+              {dogRecord?.alerts?.length > 0 && (
+                <button
+                  ref={alertsButtonRef}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (alertsAnchor) {
+                      setAlertsAnchor(null);
+                    } else {
+                      const rect = alertsButtonRef.current?.getBoundingClientRect();
+                      if (rect) setAlertsAnchor(rect);
+                    }
+                  }}
+                  aria-expanded={!!alertsAnchor}
+                  aria-haspopup="true"
+                  aria-label={`${dogRecord.alerts.length} notes`}
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-red-700 bg-red-50 border border-red-300 cursor-pointer hover:bg-red-700 hover:text-white shrink-0 relative after:content-[''] after:absolute after:-inset-[10px]"
                 >
+                  <AlertCircle size={10} strokeWidth={3} aria-hidden="true" />
+                </button>
+              )}
+
+              {booking.staffCapacityOverride && (
+                <span
+                  role="img"
+                  aria-label="Capacity overridden by staff"
+                  title="Capacity overridden by staff"
+                  className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-100 shrink-0"
+                />
+              )}
+
+              {deliveryFailure && deliveryFailure.length > 0 && (
+                <span
+                  role="img"
+                  aria-label="Delivery failure"
+                  title="Delivery failure"
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-red-700 bg-red-50 border border-red-300 shrink-0"
+                >
+                  <AlertTriangle size={10} strokeWidth={3} aria-hidden="true" />
+                </span>
+              )}
+
+              {displayBreed && (
+                <span className="truncate text-[10px] sm:text-[11px] font-semibold text-slate-400 ml-1">
+                  {displayBreed}
+                </span>
+              )}
+            </div>
+
+            {/* Price or amount due aligned right */}
+            <div className="shrink-0 text-right font-display text-xs sm:text-[13px] font-black tabular-nums flex items-center gap-1.5">
+              <span className="text-slate-800">£{pricing.subtotal}</span>
+              {isAwaitingDeposit(booking) ? (
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded leading-none">
                   Awaiting deposit
                 </span>
-              ) : pricing.isPaidInFull ? (
-                <span
-                  className="text-[9px] md:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded leading-none"
-                  title={`Paid in full (£${pricing.subtotal})`}
-                >
-                  Paid
+              ) : needsPayment ? (
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                  £{pricing.amountDue} due
                 </span>
               ) : pricing.isDepositPaid ? (
-                <span
-                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded leading-none"
-                  title={`£${pricing.amountDue} due at pick-up (deposit of £${pricing.depositPaid} paid)`}
-                >
-                  {"\u00A3"}{pricing.amountDue} due
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                  £{pricing.amountDue} due
                 </span>
-              ) : needsPayment ? (
-                <span
-                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded leading-none"
-                  title={`\u00A3${pricing.amountDue} still to take`}
-                >
-                  {"\u00A3"}{pricing.amountDue} due
+              ) : pricing.isPaidInFull ? (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded leading-none">
+                  Paid
                 </span>
               ) : null}
-            </span>
-          )}
-        </div>
+            </div>
+          </div>
 
-        {/* Row 3: status pill */}
-        <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-0.5 md:mt-1">
-          {/* Status pill / inline picker (service moved to row 2) */}
-          {statusOpen ? (
+          {/* Row 2: Owner and service | Compact status control aligned right */}
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 truncate flex-1 flex items-center gap-1.5">
+              <span className="truncate font-semibold text-slate-600">{displayOwner || "No owner"}</span>
+              <span className="text-slate-300 font-normal">·</span>
+              <span className="truncate text-slate-500">{service?.name || booking.service || "—"}</span>
+              {booking.reminderConfirmedAt && (
+                <span
+                  data-reminder-confirmation
+                  role="status"
+                  aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+                  title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Confirmed
+                </span>
+              )}
+            </div>
+
+            {/* Compact status trigger */}
+            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setStatusOpen(true); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setStatusOpen(true);
+                  }
+                }}
+                aria-haspopup="listbox"
+                aria-expanded={statusOpen}
+                aria-label={`Change status, currently ${statusObj.label}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] sm:text-[12px] font-extrabold rounded-lg border cursor-pointer transition-all hover:brightness-95 min-h-[32px] md:min-h-0 touch-manipulation"
+                style={{ background: statusObj.bg, color: statusObj.color, borderColor: statusObj.border }}
+              >
+                <span>{statusObj.label}</span>
+                <span aria-hidden="true" className="text-[9px] opacity-75">▼</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Pay / Status controls inline options */}
+          {statusOpen && (
             <div
-              className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in"
+              className="flex flex-col gap-[3px] border-t border-slate-100 pt-1.5 animate-pop-in"
               role="listbox"
               aria-label="Set booking status"
-              aria-live="polite"
-              aria-atomic="true"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); return; }
@@ -522,98 +432,50 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     role="option"
                     aria-selected={isCurrent}
                     tabIndex={isCurrent ? 0 : -1}
-                    aria-current={isCurrent ? "true" : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isCurrent) changeStatus(s.id);
                       setStatusOpen(false);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") e.stopPropagation();
-                    }}
-                    className={`w-full text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-1 ${
-                      isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
-                    }`}
-                    style={{
-                      background: s.bg,
-                      color: s.color,
-                      borderColor: s.border,
-                      ...(isCurrent ? { "--tw-ring-color": s.color } : {}),
-                    }}
+                    className="w-full text-left text-xs font-bold py-1.5 px-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all font-[inherit]"
+                    style={{ background: s.bg, color: s.color, borderColor: s.border }}
                   >
-                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
-                    {s.label}
+                    <span className="flex items-center gap-1.5">
+                      {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
+                      {s.label}
+                    </span>
+                    {isCurrent && <span className="text-[10px]">Active</span>}
                   </button>
                 );
               })}
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setStatusOpen(true); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setStatusOpen(true);
-                }
-              }}
-              aria-haspopup="listbox"
-              aria-expanded={statusOpen}
-              aria-label={`Change status, currently ${statusObj.label}`}
-              className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] min-h-[36px] md:min-h-0 px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-1 font-[inherit]"
-              style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
-            >
-              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
-              {statusObj.label}
-              <span aria-hidden="true" className="text-[10px] opacity-60">{"\u25BE"}</span>
-            </button>
           )}
-        </div>
 
-        {/* Row 4 (only while money is owed at/after pick-up): one-tap payment
-            capture so the ledger row doesn't go blind the moment the dog goes
-            home. Optional by design \u2014 staff can leave it owed on purpose. */}
-        {needsPayment && (
-          <div
-            className="flex items-center flex-wrap gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") e.stopPropagation();
-            }}
-          >
-            {payChooserOpen ? (
-              <>
-                <span className="text-[10px] md:text-[11px] font-bold text-slate-500 self-center">Paid by:</span>
-                {PAYMENT_METHODS.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => markPaid(m.id)}
-                    className="text-[11px] md:text-[12px] font-bold py-1 px-2 min-h-[36px] md:min-h-0 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer transition-all hover:brightness-95 font-[inherit]"
-                  >
-                    {m.label}
-                  </button>
-                ))}
+          {payChooserOpen && needsPayment && (
+            <div
+              className="flex items-center gap-1.5 flex-wrap border-t border-slate-100 pt-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-[10px] font-bold text-slate-500">Pay:</span>
+              {PAYMENT_METHODS.map((m) => (
                 <button
+                  key={m.id}
                   type="button"
-                  onClick={() => setPayChooserOpen(false)}
-                  className="text-[11px] md:text-[12px] text-slate-500 underline py-1 px-1 min-h-[36px] md:min-h-0 bg-transparent border-none cursor-pointer font-[inherit]"
+                  onClick={() => markPaid(m.id)}
+                  className="text-[10px] font-bold py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:brightness-95 cursor-pointer touch-manipulation min-h-[32px] md:min-h-0"
                 >
-                  Cancel
+                  {m.label}
                 </button>
-              </>
-            ) : (
+              ))}
               <button
                 type="button"
-                onClick={() => setPayChooserOpen(true)}
-                className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] min-h-[36px] md:min-h-0 px-1.5 rounded-md text-center border border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer transition-all hover:brightness-95 font-[inherit]"
+                onClick={() => setPayChooserOpen(false)}
+                className="text-[10px] text-slate-500 underline ml-auto cursor-pointer"
               >
-                Mark paid {"\u00B7"} {"\u00A3"}{pricing.amountDue}
+                Cancel
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { canBookSlot } from "./capacity";
 import { excludeCancelled } from "./occupancy";
 import { isDateOpen } from "./utils";
 import { toDateStr } from "../supabase/transforms";
+import { londonNowParts, londonDateStr } from "./londonTime";
 import type {
   Booking,
   BookingsByDate,
@@ -167,18 +168,18 @@ export function findNextAvailable({
   now = new Date(),
 }: FindNextAvailableArgs = {}): NextAvailable | null {
   if (!fromDate) return null;
-  const start = new Date(fromDate);
-  start.setHours(0, 0, 0, 0);
-  // Never advertise a slot in the past. If the caller is looking at a
-  // past day (e.g., the user clicked back through the calendar), bump
-  // the search start to today so we don't suggest "Mon 11 May" when
-  // today is the 17th.
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  if (start < today) start.setTime(today.getTime());
+
+  const todayStr = londonDateStr(now);
+  let baseDate = new Date(fromDate);
+  if (toDateStr(baseDate) < todayStr) {
+    const [y, m, d] = todayStr.split("-").map(Number);
+    baseDate = new Date(y, m - 1, d);
+  }
+  baseDate.setHours(0, 0, 0, 0);
+
   for (let i = 0; i < maxDaysAhead; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
+    const d = new Date(baseDate);
+    d.setDate(baseDate.getDate() + i);
     const dateStr = toDateStr(d);
     const isOpen = isDateOpen(dateStr, dayOpenState);
     if (!isOpen) continue;
@@ -190,6 +191,14 @@ export function findNextAvailable({
     // a seat held only by a cancelled booking is free to advertise.
     const dayBookings: Booking[] = excludeCancelled(bookingsByDate?.[dateStr] || []);
     for (const slot of slots) {
+      if (dateStr === todayStr) {
+        const slotMins = slotToMinutes(slot);
+        const nowMins = londonNowParts(now).minutesOfDay;
+        if (slotMins <= nowMins) {
+          continue;
+        }
+      }
+
       const overrides = overridesForSlot[slot] || {};
       const check = canBookSlot(dayBookings, slot, size, slots, { overrides });
       if (check.allowed) {

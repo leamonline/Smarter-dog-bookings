@@ -65,7 +65,7 @@ describe("RescheduleModal — times + overbook", () => {
     expect(full).toHaveTextContent(/overbook/i);
     expect(full.className).toMatch(/bg-red/); // selected overbook slot goes red
 
-    await user.click(screen.getByRole("button", { name: /overbook & reschedule/i }));
+    await user.click(screen.getByRole("button", { name: /overbook & move/i }));
     expect(onConfirm).toHaveBeenCalledWith("2099-06-15", "09:00", { capacityOverride: true });
   });
 
@@ -77,7 +77,7 @@ describe("RescheduleModal — times + overbook", () => {
 
     await user.click(screen.getByRole("button", { name: /15 June, available/i }));
     await user.click(await screen.findByRole("button", { name: "08:30" }));
-    await user.click(screen.getByRole("button", { name: /confirm reschedule/i }));
+    await user.click(screen.getByRole("button", { name: /confirm move/i }));
     expect(onConfirm).toHaveBeenCalledWith("2099-06-15", "08:30", {});
   });
 });

@@ -31,7 +31,7 @@ import { resolveTodosTone } from "./tone/todos";
 
 const TONE_RANK = { attention: 0, active: 1, calm: 2 };
 
-export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFailure }) {
+export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onOpenReminders, onSelectFailure }) {
   const navigate = useNavigate();
   const inboxData = useWhatsAppSummary();
   const remindersData = useTomorrowReminders();
@@ -118,7 +118,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
           key: "reminders",
           tone: tones.reminders,
           canonicalIndex: 1,
-          node: <TomorrowRemindersCard data={remindersData} />,
+          node: <TomorrowRemindersCard data={remindersData} onOpen={onOpenReminders} />,
         },
         {
           key: "waitlist",
@@ -164,6 +164,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
       navigate,
       onOpenWaitlist,
       onOpenTodos,
+      onOpenReminders,
       onSelectFailure,
     ],
   );

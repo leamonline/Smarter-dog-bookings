@@ -33,7 +33,7 @@ export function DashboardShell({ left, main, right }) {
     : undefined;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:items-start">
       {/* Left sidebar — visible on xl+, content drives the row height
           for the middle + right columns via ResizeObserver. */}
       {left && (
@@ -63,7 +63,7 @@ export function DashboardShell({ left, main, right }) {
           shape of the booking grid card in the middle column. */}
       {right && (
         <div
-          className="order-2 lg:order-3 lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl"
+          className="order-2 lg:order-3 hidden xl:block lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl"
           style={matchedHeightStyle}
         >
           {right}

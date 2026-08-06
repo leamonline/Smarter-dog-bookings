@@ -12,7 +12,6 @@ import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-
 import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
-import { DAY_CAPACITY } from "./engine/utilisation";
 import { FEATURE_FLAGS } from "./constants/features";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
@@ -983,18 +982,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     month: "long",
                     year: "numeric",
                   })}
-                  isOpen={currentSettings.isOpen}
-                  dayTone={
-                    !currentSettings.isOpen
-                      ? "closed"
-                      : (bookingsByDate[currentDateStr] || []).length >= DAY_CAPACITY
-                        ? "full"
-                        : "open"
-                  }
                   onNavigateDay={(delta) => {
                     const target = new Date(currentDateObj);
                     target.setDate(target.getDate() + delta);
                     handleDatePick(target);
+                  }}
+                  onGoToday={() => {
+                    handleDatePick(new Date());
                   }}
                 />
                 <Routes>

@@ -128,7 +128,7 @@ async function refresh() {
     supabase
       .from("whatsapp_conversations")
       .select(
-        "id, phone_e164, human_id, last_customer_text, last_inbound_at, humans:human_id(name, surname)",
+        "id, phone_e164, human_id, last_customer_text, last_inbound_at, unread_count, humans:human_id(name, surname)",
       )
       .order("last_inbound_at", { ascending: false, nullsFirst: false })
       .limit(5),
@@ -202,6 +202,7 @@ async function refresh() {
       displayName: name || formatPhoneForDisplay(c.phone_e164) || "Unknown contact",
       lastText: c.last_customer_text ?? "",
       lastAt: c.last_inbound_at,
+      unreadCount: c.unread_count || 0,
     };
   });
 
