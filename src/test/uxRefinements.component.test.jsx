@@ -205,7 +205,7 @@ describe("UX Refinement: BookingHistoryCard collapsed activity history", () => {
 });
 
 describe("UX Refinement: Move booking labels and accessible activation", () => {
-  it("exposes a visibly available, keyboard-reachable Move Booking action", () => {
+  it("exposes a visibly available, keyboard-reachable Reschedule booking action", () => {
     const onReschedule = vi.fn();
     render(
       <ToastProvider>
@@ -217,7 +217,7 @@ describe("UX Refinement: Move booking labels and accessible activation", () => {
       </ToastProvider>
     );
 
-    const moveBtn = screen.getByRole("button", { name: "Move booking" });
+    const moveBtn = screen.getByRole("button", { name: "Reschedule booking" });
     expect(moveBtn).toBeInTheDocument();
     fireEvent.click(moveBtn);
     expect(onReschedule).toHaveBeenCalled();

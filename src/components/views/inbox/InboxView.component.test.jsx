@@ -38,21 +38,6 @@ vi.mock("../../../contexts/SalonContext", () => ({
   }),
 }));
 
-// The booking pane's diary reads its own window of day settings via this
-// hook rather than SalonContext (see useInboxDiaryData's docstring) — pin
-// "today" open here too, or the diary silently falls back to the Mon–Wed
-// default and disables every slot whenever a test happens to run on a day
-// the real calendar treats as closed.
-vi.mock("../../../supabase/hooks/useInboxDiaryData.js", () => ({
-  useInboxDiaryData: () => ({
-    daySettings: {
-      [todayStr()]: { isOpen: true, overrides: {}, extraSlots: [], immediateSlots: [] },
-    },
-    bookingsByDate: {},
-    loading: false,
-  }),
-}));
-
 vi.mock("../../../supabase/hooks/useSalonConfig.js", () => ({
   useSalonConfig: () => ({ config: { dailyDogCap: 14 }, loading: false, error: null }),
 }));
@@ -123,13 +108,17 @@ function renderInbox(state = baseState()) {
   );
 }
 
+vi.mock("../../../engine/utils", () => ({
+  getDefaultOpenForDate: () => true,
+  isDateOpen: () => true,
+}));
+
 describe("InboxView", () => {
   beforeEach(() => {
     setInboxState(baseState());
     setMessageSearch({ messageMatchIds: new Set(), searching: false });
   });
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
