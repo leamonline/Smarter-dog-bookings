@@ -76,6 +76,28 @@ export function ConfirmationException({ needsConfirmation }) {
   );
 }
 
+/**
+ * The owner answered the reminder by typing a reply in the inbox rather than
+ * tapping the Confirm button, so `reminder_confirmed_at` was never stamped
+ * (see engine/replyConfirmation.ts). Shown INSTEAD of "Needs confirmation" —
+ * and kept visually distinct from the green ConfirmedMark tick, which still
+ * means only the real button tap. The owner's own words are in the tooltip so
+ * staff can check the reading at a glance.
+ */
+export function ChatConfirmedChip({ signal }) {
+  if (!signal) return null;
+  const time = formatConfirmedAt(signal.at);
+  return (
+    <span
+      data-chat-confirmed="true"
+      title={`“${signal.text}”`}
+      className="inline-flex items-center whitespace-nowrap text-[12px] font-bold text-emerald-700"
+    >
+      Confirmed in chat{time ? ` · ${time}` : ""}
+    </span>
+  );
+}
+
 export function ConfirmedMark({ confirmedAt }) {
   const time = formatConfirmedAt(confirmedAt);
   if (!time) return null;
@@ -287,9 +309,10 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
                 <PaymentState payment={payment} actionReason={isPaymentAction} />
               </span>
             </div>
-            {isConfirmationAction || onTheWaySignals?.[booking.id] ? (
+            {isConfirmationAction || entry.chatConfirmation || onTheWaySignals?.[booking.id] ? (
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <ConfirmationException needsConfirmation={isConfirmationAction} />
+                <ChatConfirmedChip signal={entry.chatConfirmation} />
                 <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
               </div>
             ) : null}

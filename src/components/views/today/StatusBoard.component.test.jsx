@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BOOKING_STATUS } from "../../../constants/index";
 import { buildDailyBriefBoard } from "../../../engine/dailyBrief";
 import { paymentState } from "../../../engine/today";
+import { applyChatConfirmations } from "../../../engine/replyConfirmation";
 import { StatusBoard } from "./StatusBoard.jsx";
 
 const NOW = new Date("2026-07-14T10:15:00+01:00");
@@ -51,7 +52,16 @@ const displayById = {
 };
 
 function renderBoard(bookings, overrides = {}) {
-  const board = buildDailyBriefBoard(bookings, "2026-07-14", NOW);
+  const built = buildDailyBriefBoard(bookings, "2026-07-14", NOW);
+  // Mirrors TodayView: chat confirmations are folded into the built board.
+  const signals = overrides.chatConfirmations || {};
+  const board = {
+    ...built,
+    due: applyChatConfirmations(built.due, signals),
+    withUs: applyChatConfirmations(built.withUs, signals),
+    ready: applyChatConfirmations(built.ready, signals),
+    home: applyChatConfirmations(built.home, signals),
+  };
   const handlers = {
     onOpenDog: vi.fn(),
     onOpenHuman: vi.fn(),
@@ -279,6 +289,39 @@ describe("StatusBoard", () => {
     expect(within(screen.getByRole("article", { name: "Pip, 11:00, Arriving" })).getByText("Needs confirmation")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Bella, 11:00, With us" })).getByText("£42 due")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).getByText("Waiting")).toBeInTheDocument();
+  });
+
+  it("replaces Needs confirmation with the owner's inbox reply when they confirmed in chat", () => {
+    const bookings = [
+      booking({
+        id: "confirmed",
+        slot: "11:00",
+        payment: "Paid in Full",
+        reminderState: "sent",
+        confirmationChannel: "whatsapp",
+      }),
+    ];
+
+    // Without the signal the card chases, as it does today.
+    const { unmount } = renderBoard(bookings);
+    expect(
+      within(screen.getByRole("article", { name: "Rosie, 11:00, Arriving" })).getByText("Needs confirmation"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("1 to confirm").length).toBeGreaterThan(0);
+    unmount();
+
+    // The owner typed "yes" in the inbox instead of tapping Confirm.
+    renderBoard(bookings, {
+      chatConfirmations: { confirmed: { at: "2026-07-14T08:20:00Z", text: "Yes see you at 11" } },
+    });
+    const card = screen.getByRole("article", { name: "Rosie, 11:00, Arriving" });
+    expect(within(card).queryByText("Needs confirmation")).not.toBeInTheDocument();
+    expect(within(card).getByText("Confirmed in chat · 09:20")).toHaveAttribute(
+      "title",
+      "“Yes see you at 11”",
+    );
+    expect(card).toHaveAttribute("data-needs-action", "false");
+    expect(screen.queryByText("1 to confirm")).not.toBeInTheDocument();
   });
 
   it("opens each unknown-status booking directly and does not flag cancelled bookings", () => {

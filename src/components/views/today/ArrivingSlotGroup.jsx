@@ -8,6 +8,7 @@ import { ChevronRight, MessageCircle, Phone } from "lucide-react";
 import { LiveArrivalDivider } from "./LiveArrivalDivider.jsx";
 import { MoreMenu, OnTheWayChip, WelfareChips } from "./parts.jsx";
 import {
+  ChatConfirmedChip,
   ConfirmationException,
   ConfirmedMark,
   PaymentState,
@@ -122,9 +123,10 @@ function ArrivingCard({ entry, resolve, getWelfare, paymentOf, handlers, onTheWa
                 <PaymentState payment={payment} actionReason={false} />
               </span>
             </div>
-            {isConfirmationAction || onTheWaySignals?.[booking.id] ? (
+            {isConfirmationAction || entry.chatConfirmation || onTheWaySignals?.[booking.id] ? (
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <ConfirmationException needsConfirmation={isConfirmationAction} />
+                <ChatConfirmedChip signal={entry.chatConfirmation} />
                 <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
               </div>
             ) : null}

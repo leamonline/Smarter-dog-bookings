@@ -69,6 +69,21 @@ Sections, in priority order, each fed by `engine/today.ts` selectors:
 | Capacity & opportunities | remaining slots: seats free, large-dog eligibility, customer-reachable (immediate-flagged + before cutoff) | `buildSlotOpportunities` → `computeSlotCapacities` / `getBookableSeatCount` / `canBookSlot` (**never forks** the capacity engine) |
 | Summary strip | "Daily progress": collected-of-total + revenue on its own line (expected vs recorded-as-paid), then the five status counters (Booked/Arrived/Expected/Ready/Collected) + takings by method | `buildDaySummary`, `buildTakingsByMethod`, `computeRevenue` |
 
+**"Confirmed in chat".** `needsConfirmation` only clears on
+`bookings.reminder_confirmed_at`, which is stamped *only* by the customer
+tapping the Confirm Quick Reply on the WhatsApp reminder template
+(`mark_reminder_confirmed`). Owners who instead type a reply — "yes", "see you
+Tuesday" — used to keep their card saying "Needs confirmation" indefinitely.
+`engine/replyConfirmation.ts` + `hooks/useReplyConfirmations.ts` close that gap:
+read-only keyword detection over the INBOUND inbox messages that arrived *after*
+the reminder was sent, folded into the built feed/board by
+`applyChatConfirmations` so the card, lane warning, "N to confirm" heading and
+need-action count all agree. Any cancel/reschedule/"can't make it" message in
+that window suppresses the signal entirely. It never writes to `bookings`, never
+touches the agent, and never fabricates a `reminder_confirmed_at` — the green
+`ConfirmedMark` tick still means the real button tap; the chat signal renders as
+a separate "Confirmed in chat" chip carrying the owner's own words.
+
 Actions reuse existing paths: status transitions (which fire `booking_events` +
 the collection-notice modal automatically), `handleOpenBooking`,
 `setShowNewBooking`, inbox deep-link (`/inbox?human=…`). Per-day dismissals are
