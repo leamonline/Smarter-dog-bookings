@@ -20,9 +20,11 @@ import {
   buildDailyBriefFeed,
   requiresCareSkipConfirmation,
 } from "../../engine/dailyBrief";
+import { applyChatConfirmations } from "../../engine/replyConfirmation";
 import { BOOKING_STATUS } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
+import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
 import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
 import { StatusBoard } from "./today/StatusBoard.jsx";
 import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
@@ -150,9 +152,18 @@ export function TodayView({
     [selectedBookings, dogs, configPricing],
   );
   const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
+  // "Confirmed in chat" — owners who answered the reminder by typing a reply
+  // instead of tapping the Confirm button never stamp reminder_confirmed_at, so
+  // the engine still calls them unconfirmed. Folding the signal into the built
+  // feed (and board) clears the "Needs confirmation" flag everywhere at once:
+  // cards, lane warnings, the "N to confirm" heading and the need-action count.
+  const replyConfirmations = useReplyConfirmations(selectedBookings);
   const feed = useMemo(
-    () => buildDailyBriefFeed(selectedBookings, dateStr, now),
-    [selectedBookings, dateStr, now],
+    () => applyChatConfirmations(
+      buildDailyBriefFeed(selectedBookings, dateStr, now),
+      replyConfirmations,
+    ),
+    [selectedBookings, dateStr, now, replyConfirmations],
   );
   const opportunities = useMemo(
     () => buildSlotOpportunities({
@@ -178,10 +189,16 @@ export function TodayView({
     () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
     [showNeedsActionOnly, visibleFeed],
   );
-  const fullBoard = useMemo(
-    () => buildDailyBriefBoard(selectedBookings, dateStr, now),
-    [dateStr, now, selectedBookings],
-  );
+  const fullBoard = useMemo(() => {
+    const board = buildDailyBriefBoard(selectedBookings, dateStr, now);
+    return {
+      ...board,
+      due: applyChatConfirmations(board.due, replyConfirmations),
+      withUs: applyChatConfirmations(board.withUs, replyConfirmations),
+      ready: applyChatConfirmations(board.ready, replyConfirmations),
+      home: applyChatConfirmations(board.home, replyConfirmations),
+    };
+  }, [dateStr, now, selectedBookings, replyConfirmations]);
   const board = useMemo(() => {
     if (!showNeedsActionOnly) return fullBoard;
     const keepActionable = (entry) => entry.needsAction;

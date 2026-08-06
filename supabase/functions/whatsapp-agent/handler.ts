@@ -85,6 +85,7 @@ import {
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
+import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
   extractMessageText,
@@ -2696,6 +2697,42 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               console.warn("mark_reminder_confirmed dispatch failed:", err);
             }
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
+          }
+
+          // Reminder confirm, typed: the customer answered the reminder in
+          // their own words — "yes", "see you then", 👍 — instead of tapping
+          // the Confirm button. Same recorded outcome (the identical
+          // idempotent RPC, so the green tick, the 'reconfirmed' booking_event
+          // and the Daily Brief all behave exactly as they do for a tap).
+          //
+          // Unlike the button path this does NOT `continue`: the customer
+          // wrote a real message, so it stays in the inbox and flows on to the
+          // normal risk/gate/draft machinery untouched. Stamping is the only
+          // added effect, and it is best-effort — a failure here must never
+          // cost us the message.
+          //
+          // Matching lives in _shared/reminderConfirmation.ts, shared with the
+          // Daily Brief, and vetoes itself on any cancel/reschedule wording so
+          // "yes but can we move it?" still reaches a human unconfirmed.
+          // Skipped on forceDraft (a staff re-generate of an already-ingested
+          // message) so re-drafting stays side-effect free.
+          if (!forceDraft && conversation.human_id && detectReplyConfirmation(text)) {
+            try {
+              const { data: stampedIds, error: stampErr } = await supabase
+                .rpc("mark_reminder_confirmed", { p_human_id: conversation.human_id });
+              if (stampErr) {
+                console.warn("mark_reminder_confirmed (typed reply) rpc failed:", stampErr.message);
+              } else {
+                const count = Array.isArray(stampedIds) ? stampedIds.length : 0;
+                if (count > 0) {
+                  console.log(
+                    `mark_reminder_confirmed (typed reply): stamped ${count} booking(s) for human ${conversation.human_id}`,
+                  );
+                }
+              }
+            } catch (err) {
+              console.warn("mark_reminder_confirmed (typed reply) dispatch failed:", err);
+            }
           }
 
           // Manage-booking (Flow C): a recognised customer cancelling or

@@ -4,23 +4,39 @@ import { latestOnTheWaySignal, ON_THE_WAY_WINDOW_MINUTES, type OnTheWaySignal, t
 import { logger } from "../lib/logger";
 
 interface HasConversation {
+  id?: string | null;
   whatsappConversationId?: string | null;
 }
 
 /**
- * "Owner on the way" signals (improvement #2), keyed by WhatsApp conversation
- * id. Read-only: fetches recent INBOUND messages for the given bookings'
+ * "Owner on the way" signals (improvement #2), keyed by BOOKING id — which is
+ * how every consumer reads them (`onTheWaySignals[booking.id]` in
+ * StatusBoard.jsx / ArrivingSlotGroup.jsx). They were previously keyed by
+ * conversation id, so the lookup never hit and the chip never rendered.
+ *
+ * Read-only: fetches recent INBOUND messages for the given bookings'
  * conversations and keyword-detects an on-the-way intent. Never touches the
  * agent / auto-send. Empty offline or when no booking has a conversation.
  */
 export function useOnTheWaySignals(bookings: HasConversation[]): Record<string, OnTheWaySignal> {
   const [signals, setSignals] = useState<Record<string, OnTheWaySignal>>({});
 
-  const convIds = useMemo(
-    () => [...new Set(bookings.map((b) => b.whatsappConversationId).filter((id): id is string => !!id))].sort(),
+  // Several dogs from one household share a conversation, so keep the
+  // booking → conversation pairs and fan the one thread's signal back out
+  // across every booking on it.
+  const candidates = useMemo(
+    () =>
+      bookings
+        .filter((b) => !!b.id && !!b.whatsappConversationId)
+        .map((b) => ({ id: b.id as string, conversationId: b.whatsappConversationId as string }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
     [bookings],
   );
-  const key = convIds.join(",");
+  const convIds = useMemo(
+    () => [...new Set(candidates.map((c) => c.conversationId))],
+    [candidates],
+  );
+  const key = candidates.map((c) => `${c.id}:${c.conversationId}`).join(",");
 
   useEffect(() => {
     if (!supabase || convIds.length === 0) {
@@ -51,10 +67,15 @@ export function useOnTheWaySignals(bookings: HasConversation[]): Record<string, 
         (byConv[m.conversation_id] ||= []).push({ direction: m.direction, body: m.content, created_at: m.sent_at });
       });
       const now = new Date();
-      const out: Record<string, OnTheWaySignal> = {};
+      const byConversationSignal: Record<string, OnTheWaySignal> = {};
       Object.entries(byConv).forEach(([cid, msgs]) => {
         const sig = latestOnTheWaySignal(msgs, now);
-        if (sig) out[cid] = sig;
+        if (sig) byConversationSignal[cid] = sig;
+      });
+      const out: Record<string, OnTheWaySignal> = {};
+      candidates.forEach((candidate) => {
+        const sig = byConversationSignal[candidate.conversationId];
+        if (sig) out[candidate.id] = sig;
       });
       setSignals(out);
     })();
