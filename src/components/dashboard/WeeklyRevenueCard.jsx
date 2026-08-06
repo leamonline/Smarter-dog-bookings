@@ -17,13 +17,6 @@ function revenueColour(pct) {
   return "bg-transparent";
 }
 
-function revenueLabel(pct, hasRevenue) {
-  if (!hasRevenue) return "Empty";
-  if (pct >= 100) return "Strong";
-  if (pct >= 60) return "Healthy";
-  if (pct >= 25) return "Steady";
-  return "Quiet";
-}
 
 function RevenueBar({ amount, pct, label, sub, statusLabel, loading = false }) {
   return (
@@ -110,14 +103,14 @@ export function WeeklyRevenueCard({
                 })
               : ""
           }
-          statusLabel={revenueLabel(dayPct, dayRevenue > 0)}
+          statusLabel={dayRevenue > 0 ? (selectedStr === todayStr ? "expected today" : "expected") : "no revenue"}
           loading={loading}
         />
         <RevenueBar
           amount={weekRevenue}
           pct={weekPct}
           label="This week"
-          statusLabel={revenueLabel(weekPct, weekRevenue > 0)}
+          statusLabel={weekRevenue > 0 ? "booked this week" : "no bookings"}
           loading={loading}
         />
       </div>

@@ -85,7 +85,7 @@ export function BookingGridControls({
             onClick={onOpen}
             aria-label={`${count} ${count === 1 ? one : many}`}
             title={`${count} ${count === 1 ? one : many}`}
-            className={`lg:hidden inline-flex items-center justify-center gap-1 min-h-[40px] px-2.5 rounded-full text-[12px] font-bold border-none cursor-pointer font-[inherit] transition-colors ${cls}`}
+            className={`xl:hidden inline-flex items-center justify-center gap-1 min-h-[40px] px-2.5 rounded-full text-[12px] font-bold border-none cursor-pointer font-[inherit] transition-colors ${cls}`}
           >
             <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
             {count > 99 ? "99+" : count}

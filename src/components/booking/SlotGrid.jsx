@@ -222,7 +222,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[92px] md:min-h-[112px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
           >
             (large dog)
           </div>
@@ -240,7 +240,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[92px] md:min-h-[112px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
@@ -261,9 +261,6 @@ export function SlotGrid({
         />
       );
     };
-
-    const bookingSeats = loading ? [] : seatStates.filter((s) => s.type === "booking");
-    const otherSeats = loading ? [] : seatStates.filter((s) => s.type !== "booking");
 
     return (
       <div
@@ -307,32 +304,35 @@ export function SlotGrid({
         {loading ? (
           <div className={rowGrid}>
             {timeBox}
-            <SkeletonCard />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-3 items-stretch">
+              <SkeletonCard />
+              <SkeletonCard className="hidden lg:block" />
+            </div>
           </div>
         ) : (
-          // One time box spanning the whole slot, with both seats stacked
-          // beside it (booking cards + any free / blocked / large-dog seats).
+          // One time box spanning the whole slot, with both seats rendered
+          // in parallel (side-by-side) on lg+ and stacked below lg.
           <div className={rowGrid}>
             {timeBox}
-            <div className="flex flex-col gap-1.5 md:gap-2">
-              {bookingSeats.map((seat) => {
-                const b = seat.booking;
-                const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
-                return (
-                  <BookingCardNew
-                    key={b.id || seat.seatIndex}
-                    booking={b}
-                    searchDimmed={dimmed}
-                    draggable={!!onMoveBooking}
-                    onDragStart={onMoveBooking ? dnd.onCardDragStart : undefined}
-                    onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
-                    isBeingDragged={dnd.drag.booking?.id === b.id}
-                  />
-                );
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-3 items-stretch">
+              {seatStates.map((seat) => {
+                if (seat.type === "booking") {
+                  const b = seat.booking;
+                  const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
+                  return (
+                    <BookingCardNew
+                      key={b.id || seat.seatIndex}
+                      booking={b}
+                      searchDimmed={dimmed}
+                      draggable={!!onMoveBooking}
+                      onDragStart={onMoveBooking ? dnd.onCardDragStart : undefined}
+                      onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
+                      isBeingDragged={dnd.drag.booking?.id === b.id}
+                    />
+                  );
+                }
+                return seatCell(seat);
               })}
-              {/* Render every seat so each slot always shows its two seats
-                  (free seats become "+ Book" ghosts). */}
-              {otherSeats.map(seatCell)}
             </div>
           </div>
         )}

@@ -1,12 +1,11 @@
-import { WeekOverviewCard } from "./WeekOverviewCard.jsx";
 import { MiniCalendarCard } from "./MiniCalendarCard.jsx";
 import { CapacityCard } from "./CapacityCard.jsx";
 import { WeeklyRevenueCard } from "./WeeklyRevenueCard.jsx";
 
 export function LeftSidebar({
   dates,
-  selectedDay,
-  onSelectDay,
+  selectedDay: _selectedDay,
+  onSelectDay: _onSelectDay,
   currentDateObj,
   bookingsByDate,
   dayOpenState,
@@ -17,18 +16,6 @@ export function LeftSidebar({
 }) {
   return (
     <aside className="flex flex-col gap-4" aria-label="Calendar and capacity overview">
-      {/* Week pills only on desktop — tablet/mobile uses CalendarTabs
-          at the top of the page to avoid duplicate weight. */}
-      <div className="hidden lg:block">
-        <WeekOverviewCard
-          dates={dates}
-          selectedDay={selectedDay}
-          onSelectDay={onSelectDay}
-          bookingsByDate={bookingsByDate}
-          dayOpenState={dayOpenState}
-          loading={bookingsLoading}
-        />
-      </div>
       <MiniCalendarCard
         currentDateObj={currentDateObj}
         onSelectDate={onSelectDate}

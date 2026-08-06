@@ -274,11 +274,11 @@ export function WeekCalendarView({
       </div>
 
       {/* Delivery failures must never be missed — surface them above the
-          schedule on mobile/tablet whenever there are any. The rest of the
+          schedule on mobile/tablet/iPad-landscape whenever there are any. The rest of the
           workflow (reminders / waitlist / tasks) now lives as badges on the
           day's controls bar. Desktop (xl+) keeps the full RightWorkflowSidebar. */}
       {failures?.count > 0 && (
-        <div className="lg:hidden mb-3">
+        <div className="xl:hidden mb-3">
           <DeliveryFailuresCard data={failures} onSelectFailure={handleSelectFailure} />
         </div>
       )}
@@ -347,13 +347,14 @@ export function WeekCalendarView({
             />
           }
           right={
-            // Desktop (lg+) only: the full stacked workflow sidebar. Below
-            // lg the workflow signals live as badges on the day's controls
+            // Desktop (xl+) only: the full stacked workflow sidebar. Below
+            // xl the workflow signals live as badges on the day's controls
             // bar (reminders / waitlist / tasks), so this column is empty.
-            <div className="hidden lg:block">
+            <div className="hidden xl:block">
               <RightWorkflowSidebar
                 onOpenWaitlist={() => setShowWaitlist(true)}
                 onOpenTodos={() => setShowTodos(true)}
+                onOpenReminders={() => setShowReminders(true)}
                 onSelectFailure={handleSelectFailure}
               />
             </div>
@@ -363,7 +364,7 @@ export function WeekCalendarView({
 
       {/* Capacity overview at the foot of the page on mobile/tablet —
           desktop carries it in the left sidebar. */}
-      <div className="lg:hidden mt-3">
+      <div className="xl:hidden mt-3">
         <CapacityCard
           currentDateObj={currentDateObj}
           dates={dates}

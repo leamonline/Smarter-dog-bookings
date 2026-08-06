@@ -134,7 +134,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
             <span className="text-label text-ink-muted">
-              Reschedule
+              Move booking
             </span>
             <h2
               id="reschedule-title"
@@ -163,7 +163,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
             disabled={!selectedDateStr || !selectedSlot}
             className="ml-auto px-5 py-2 max-sm:min-h-[44px] rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-yellow-dark disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 inline-flex items-center justify-center"
           >
-            {selectedSlot?.overbook ? "Overbook & Reschedule" : "Confirm Reschedule"}
+            {selectedSlot?.overbook ? "Overbook & Move" : "Confirm Move"}
           </button>
         </div>
       }

@@ -1,4 +1,3 @@
-// src/components/booking/GhostSeat.jsx
 import { useState } from "react";
 
 function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
@@ -36,7 +35,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
     ? "border-brand-yellow bg-brand-yellow/20 ring-2 ring-brand-yellow/40"
     : "";
 
-  // Simple ghost seat without blocking (callers that don't pass onBlock)
+  // Simple, extremely calm and visually compact ghost seat
   if (!onBlock) {
     return (
       <button
@@ -46,31 +45,31 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`group border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[92px] md:min-h-[112px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
+        className={`group border-[1.5px] border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1 text-slate-400 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[76px] lg:min-h-[80px] font-[inherit] hover:border-slate-300 hover:text-brand-purple hover:bg-slate-50/50 ${spanClass} ${dropClass}`}
       >
-        <span className="text-lg font-bold transition-transform duration-200 group-hover:scale-125">+</span>
-        <span className="text-xs font-semibold">Book</span>
+        <span className="text-sm font-extrabold transition-transform duration-150 group-hover:scale-110">+</span>
+        <span className="text-xs font-bold">Book</span>
       </button>
     );
   }
 
-  // Ghost seat with block button
+  // Ghost seat with block button (compressed heights)
   return (
     <div
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all duration-200 min-h-[92px] md:min-h-[112px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
+      className={`border-[1.5px] border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 min-h-[76px] lg:min-h-[80px] relative px-1.5 hover:border-slate-300 ${spanClass} ${dropClass}`}
     >
-      {/* Book button — mustard CTA on hover */}
+      {/* Book button — calm layout */}
       <button
         onClick={onClick}
         aria-label="Book this seat"
         title="Add booking"
-        className="group/book flex-1 min-h-[92px] md:min-h-[112px] rounded-md bg-brand-yellow/15 text-brand-purple border border-brand-yellow/40 flex items-center justify-center gap-1 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow"
+        className="group/book flex-1 min-h-[56px] lg:min-h-[64px] rounded-lg bg-brand-yellow/5 text-brand-purple border border-brand-yellow/20 flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow/15"
       >
-        <span className="text-[11px] font-bold transition-transform duration-200 group-hover/book:scale-125">+</span>
-        <span className="text-[11px] font-bold">Book</span>
+        <span className="text-xs font-extrabold transition-transform duration-150 group-hover/book:scale-110">+</span>
+        <span className="text-xs font-bold">Book</span>
       </button>
 
       {/* Block button */}
@@ -85,9 +84,9 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
             onBlock();
           }
         }}
-        className="group/block w-10 h-10 rounded-full bg-pink-50 text-brand-coral border-none flex items-center justify-center shrink-0 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-coral hover:text-white"
+        className="group/block w-8 h-8 rounded-full bg-pink-50 text-brand-coral border-none flex items-center justify-center shrink-0 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-coral hover:text-white"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover/block:scale-110">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="transition-transform duration-150 group-hover/block:scale-110">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />
           <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
         </svg>

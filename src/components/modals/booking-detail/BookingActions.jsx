@@ -72,11 +72,11 @@ export function BookingActions({
         {onReschedule && (
           <button
             onClick={onReschedule}
-            aria-label="Reschedule booking"
+            aria-label="Move booking"
             className="flex-1 py-2.5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-brand-purple bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
           >
             <IconReopen size={14} colour="#475569" />
-            <span>Reschedule</span>
+            <span>Move booking</span>
           </button>
         )}
         <button

@@ -171,6 +171,12 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
     }
   };
 
+  const previewRows = useMemo(() => {
+    return (rows ?? []).slice(0, 3);
+  }, [rows]);
+
+  const moreCount = Math.max(0, (rows ?? []).length - 3);
+
   const loudList = (
     <>
       {error && (
@@ -188,8 +194,8 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
           </button>
         </div>
       )}
-      <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-        {(rows ?? []).map((r) => (
+      <ul className="flex flex-col gap-1 overflow-hidden">
+        {previewRows.map((r) => (
           <li key={r.customerKey}>
             <ReminderRow
               row={r}
@@ -198,7 +204,23 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
             />
           </li>
         ))}
+        {moreCount > 0 && (
+          <li className="text-[11px] text-slate-500 font-semibold px-2.5 py-1.5 list-none">
+            +{moreCount} more
+          </li>
+        )}
       </ul>
+      {onOpen && (
+        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-start">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex items-center justify-center py-1.5 px-3 rounded-md bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+          >
+            Review all {totalCount}
+          </button>
+        </div>
+      )}
     </>
   );
 

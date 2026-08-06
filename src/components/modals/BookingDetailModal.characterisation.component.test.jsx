@@ -177,7 +177,7 @@ describe("BookingDetailModal — nested modal mounting", () => {
   it("mounts the reschedule modal only after the Reschedule action", async () => {
     renderModal();
     expect(screen.queryByText(/Pick an available day/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reschedule booking" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move booking" }));
     expect(await screen.findByText(/Pick an available day/)).toBeInTheDocument();
   });
 
@@ -266,7 +266,7 @@ describe("BookingDetailModal — card surfaces", () => {
     expect(screen.getByText("Total")).toBeInTheDocument();
     // Full Groom small = £42 with nothing paid (header echo + integrated total row).
     expect(screen.getAllByText("£42").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Reschedule booking" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Move booking" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel booking" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete booking permanently" })).toBeInTheDocument();
   });
