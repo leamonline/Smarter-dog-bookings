@@ -1,5 +1,7 @@
 # Live staff reschedule customer notification — scope decision
 
+> **Historical decision note (9 August 2026):** issue #604 reopens this gap under the issue #603 evidence gate. This file records why notification work was deferred at the time; it does not authorise implementation or override the [current programme plan](../../plans/active/2026-08-09-issue-603-architecture-convergence.md).
+
 **Status:** decided, deferred. No code in this document; nothing to implement yet.
 **Scope:** item 3 of the four follow-ups recorded in PR #589.
 

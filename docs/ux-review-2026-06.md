@@ -2,7 +2,7 @@
 
 **Date:** 19 June 2026 · **Scope:** staff dashboard at `smarterdog.vercel.app` (desktop, iPad, iPhone) · **Goal:** a concrete P0/P1/P2 roadmap to 10/10.
 
-**Method.** Two streams, then merged. **(1) Live walkthrough** in the logged‑in staff browser — every major screen and state at desktop width, plus the responsive bands; non‑destructive (no saves/cancels/deletes on real bookings). **(2) Code‑grounded audit** — 14 parallel reviewers over the React 19 / Vite / Tailwind v4 source, each finding adversarially re‑checked against the code (184 candidates → **159 confirmed**, 25 rejected). Every recommendation names a file (and line where known); the complete per‑finding list with evidence is in [docs/ux-review-assets/_code-findings-digest.md](docs/ux-review-assets/_code-findings-digest.md), and the raw live notes are in [docs/ux-review-assets/_live-notes.md](docs/ux-review-assets/_live-notes.md).
+**Method.** Two streams, then merged. **(1) Live walkthrough** in the logged‑in staff browser — every major screen and state at desktop width, plus the responsive bands; non‑destructive (no saves/cancels/deletes on real bookings). **(2) Code‑grounded audit** — 14 parallel reviewers over the React 19 / Vite / Tailwind v4 source, each finding adversarially re‑checked against the code (184 candidates → **159 confirmed**, 25 rejected). Every recommendation names a file (and line where known); the complete per‑finding list with evidence is in [the code findings digest](ux-review-assets/_code-findings-digest.md), and the raw live notes are in [the live walkthrough notes](ux-review-assets/_live-notes.md).
 
 **Honesty note on device emulation.** The authenticated browser's viewport was locked at 1680 px (window resize was ignored and zoom keystrokes were intercepted), so pixel‑accurate iPad/iPhone *screenshots* weren't captured live. The responsive findings rest on (a) one real sub‑`xl` state observed live at 1054 px CSS — including a DOM dump proving the navigation is absent — and (b) the code audit of the actual breakpoint CSS, which is authoritative for tap targets, safe‑area and sheet behaviour. If you want true on‑device captures, open the app on a real iPad/iPhone and I'll guide a focused pass.
 
@@ -53,7 +53,7 @@ So the roadmap reads in context — these are real strengths, not faint praise:
 - **WhatsApp Inbox.** Three‑pane thread with a **24‑hour‑window countdown**, **AI reply off by default** with clear opt‑in copy, private conversation notes, and a customer‑context panel (dog, grooming notes, Book‑appointment CTA). This is a differentiator.
 - **Capacity Engine.** The 2‑2‑1 rule is explained in plain English *with a worked example* — exactly right for a non‑technical owner.
 - **Booking flow.** `N` opens New Booking with search auto‑focused; type‑ahead matches name/breed/owner; multi‑dog, recurring and capacity‑override confirmation are all handled.
-- **Foundations.** `prefers-reduced-motion` respected, `env(safe-area-inset-*)` handled, react‑aria focus trapping in modals, a real design‑token system in [src/index.css](src/index.css), inline alert chips that surface dog safety flags.
+- **Foundations.** `prefers-reduced-motion` respected, `env(safe-area-inset-*)` handled, react‑aria focus trapping in modals, a real design‑token system in [src/index.css](../src/index.css), inline alert chips that surface dog safety flags.
 
 ---
 
@@ -165,6 +165,6 @@ Almost all are token/attribute/class changes (≈40 of the Major findings are ta
 ---
 
 ## 7. Appendix
-- Full per‑finding list with file:line evidence and adversarial verdicts: [docs/ux-review-assets/_code-findings-digest.md](docs/ux-review-assets/_code-findings-digest.md)
-- Live walkthrough notes: [docs/ux-review-assets/_live-notes.md](docs/ux-review-assets/_live-notes.md)
+- Full per‑finding list with file:line evidence and adversarial verdicts: [code findings digest](ux-review-assets/_code-findings-digest.md)
+- Live walkthrough notes: [live walkthrough notes](ux-review-assets/_live-notes.md)
 - Counts by area (C/Major/Minor/Polish): Contrast 2/2/2/0 · Side panels 1/3/3/0 · A11y semantics 0/5/3/3 · Appointment modal 0/11/4/0 · Bookings 0/4/5/1 · Dogs 0/5/9/3 · Humans 0/6/10/0 · Microcopy 0/4/11/1 · New Booking 0/5/4/1 · Overview 0/3/5/1 · Reports 0/4/7/0 · Responsive 0/2/2/0 · Settings 0/9/5/1 · Tap targets 0/8/4/0.

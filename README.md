@@ -11,6 +11,39 @@ interfaces from one codebase**:
 
 Built with React 19 + Vite + Supabase (PostgreSQL + Auth + RLS + Edge Functions).
 
+## Project navigation
+
+This README explains how to run the application. For project intent and
+delivery context, start with:
+
+- [`PROJECT.md`](PROJECT.md) — concise product North Star and source-of-truth map
+- [`ROADMAP.md`](ROADMAP.md) — dependency-aware Now / Next / Later sequence
+- [`docs/README.md`](docs/README.md) — documentation authority and status map
+- [`AGENTS.md`](AGENTS.md) — durable instructions for coding agents
+- [GitHub epic #603](https://github.com/leamonline/Smarter-dog-bookings/issues/603) — live architecture-convergence execution
+
+### Capability status
+
+This table records code at the pinned 9 August 2026 baseline. Environment state
+is shown only where dated evidence exists; reverify deployments and feature
+flags before a release.
+
+| Capability | Repository support | Environment status | Current note |
+|---|---|---|---|
+| Staff dashboard and Daily Brief | Implemented | Not reverified in this documentation pass | Core staff surface |
+| Customer portal and legacy booking wizard | Implemented | Not reverified in this documentation pass | Writes legacy booking rows guarded by PostgreSQL |
+| WhatsApp appointment offers | Implemented | Not reverified in this documentation pass | Drafts times into the staff composer |
+| Direct booking from the Inbox | Shell only | Enablement not inferred | `Let's book!` currently leads to an unavailable explanation |
+| Visit aggregate, projections and typed commands | Implemented in the repository | Hosted state was not independently reverified in this documentation pass | Mutation commands remain deliberately dark |
+| `previous_day_1500_v1` customer policy | Implemented as inactive support | Activation not authorised or inferred | The repository keeps mutation callers dark; activation is separate work |
+| Customer notification after a staff reschedule | Gap | Not applicable | Tracked by [#604](https://github.com/leamonline/Smarter-dog-bookings/issues/604) |
+| Visit-level notification intent and attempt history | Gap | Not applicable | Tracked by [#610](https://github.com/leamonline/Smarter-dog-bookings/issues/610) |
+| Generic runtime schema/capability contract | Partial policy-specific pilot | Environment support not inferred | Tracked by [#607](https://github.com/leamonline/Smarter-dog-bookings/issues/607) |
+| Critical PR browser gate with WebKit | Gap | PR job currently skips Playwright | Tracked by [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606) |
+
+The evidence and distinctions behind this table live in
+[`docs/research/2026-08-09-issue-603-plan-reality-audit.md`](docs/research/2026-08-09-issue-603-plan-reality-audit.md).
+
 ## Features
 
 ### Staff dashboard
@@ -27,7 +60,7 @@ Built with React 19 + Vite + Supabase (PostgreSQL + Auth + RLS + Edge Functions)
 - **Settings** — business details, hours/closures, services & pricing, booking rules, capacity, customer portal and notifications (owner can edit, staff read-only)
 - **Calendar feeds** — per-user ICS feeds for staff and customers
 - **Role-based auth** — owner vs staff access levels
-- **Offline mode** — works without Supabase using sample data
+- **Demo/sample-data mode** — a deterministic local/test dataset; it is not durable offline production operation
 - **Responsive** — optimised for tablet (front desk) and mobile
 
 ### Customer portal
@@ -75,8 +108,8 @@ docs/                   deep-dive docs (WhatsApp, capacity engine, migrations)
 ## Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Install exactly the locked dependencies
+npm ci
 
 # Create .env.local with your Supabase credentials
 # (get these from Supabase → Your Project → Connect)

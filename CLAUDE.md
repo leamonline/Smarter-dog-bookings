@@ -2,6 +2,9 @@
 
 > Onboarding for AI agents. Keep it lean; verify against code if anything here looks stale.
 > Real customer data flows through production — accuracy and care matter.
+>
+> Read [`AGENTS.md`](AGENTS.md) and [`PROJECT.md`](PROJECT.md) first. They are
+> the tool-neutral authority; this file adds repository detail useful to Claude.
 
 ## What this is
 
@@ -18,7 +21,7 @@ on `cd`; CI sets `node-version: 20` explicitly and ignores the file). `.npmrc` s
 `legacy-peer-deps=true`, so use `npm` (not `pnpm`/`yarn`).
 
 ```bash
-npm install
+npm ci
 npm run dev            # Vite dev server on :5173  (needs VITE_ creds, see below)
 npm run build          # production build → dist/
 npm run preview        # serve the built app
@@ -29,8 +32,8 @@ npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sampl
 npm run check:migrations  # validate migration filenames/order
 ```
 
-**CI bar (`.github/workflows/ci.yml`, Node 20):** `lint → typecheck → check-migrations → test →
-build`. Match that before pushing — "builds" alone is not the bar. (E2E runs only on push to `main`
+**CI bar (`.github/workflows/ci.yml`, Node 20):** `lint → check:docs → typecheck → check-migrations →
+test → build`. Match that before pushing — "builds" alone is not the bar. (E2E runs only on push to `main`
 or manual dispatch.) **Without `VITE_` creds in dev**, `npm run dev` falls back to offline
 sample-data mode rather than erroring.
 
@@ -58,7 +61,7 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
 
 - `src/index.jsx` — entry. Routes `/customer/*` → `CustomerApp.jsx`, `/reset-password` standalone,
   everything else → `App.jsx`. If Supabase creds are missing it renders error pages instead.
-- **`src/App.jsx` (1013 lines) — read this first.** The staff app: auth gate, all data-hook
+- **`src/App.jsx` — read this first.** The staff app: auth gate, all data-hook
   declarations, modal/route map, `SalonProvider`. The clearest map of what data exists and how it flows.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
@@ -74,8 +77,9 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
 - `src/hooks/` — UI-level state hooks. `src/supabase/hooks/` — data hooks (facades composing focused
   sub-hooks). `src/supabase/repositories/` — transform snake_case DB rows → camelCase app objects.
   `src/supabase/rpc.ts` — RPC wrappers. `src/supabase/client.js` + `customerClient.js` — two clients.
-- `supabase/migrations/` — ~141 SQL files, applied in **filename order**, **by hand** (see Gotchas).
-  `supabase/functions/` — 24 Deno Edge Functions (`_shared/` is common code).
+- `supabase/migrations/` — ordered SQL history, applied in **filename order**, **by hand** (see Gotchas).
+  `supabase/functions/` — Deno Edge Functions (`_shared/` is common code). Do not hardcode
+  counts in documentation; discovery checks should enumerate them.
 
 ## Domain rules (the booking logic)
 
@@ -84,31 +88,31 @@ These are the rules most easily broken by a careless change. The capacity rules 
 dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 - **Bookable slots:** the canonical grid is `08:30`–`13:00`, **30-minute** intervals (10 slots) —
-  `SALON_SLOTS` [salon.ts:1](src/constants/salon.ts:1); `SLOT_MINUTES = 30` [utilisation.ts:82](src/engine/utilisation.ts:82).
+  `SALON_SLOTS` [salon.ts](src/constants/salon.ts#L1); `SLOT_MINUTES = 30` [utilisation.ts](src/engine/utilisation.ts#L82).
   Staff can add per-date **extra slots** after 13:00 (`day_settings.extra_slots`); the bookable grid
   for a date is `active_slots_for(date)` = canonical ∪ sanitised extras
   ([migration 20260702170000](supabase/migrations/20260702170000_extra_slots_bookable.sql); TS mirror
   `buildSlotGrid` in [slotGrid.ts](src/engine/slotGrid.ts) + `_shared/salonConstants.ts`). Extra slots
   reach **customers only as same-day "last minute" openings** (see below); staff book them any day.
   Large dogs are never extra-slot eligible.
-- **Open days:** Mon–Wed. `ALL_DAYS` defaults `mon/tue/wed` open [salon.ts:16](src/constants/salon.ts:16);
+- **Open days:** Mon–Wed. `ALL_DAYS` defaults `mon/tue/wed` open [salon.ts](src/constants/salon.ts#L16);
   at runtime the authoritative open/closed days live in the DB (`day_settings`, read by
   `validate_booking_calendar()`). ⚠️ A second, conflicting default exists — `DEFAULT_BUSINESS_HOURS`
-  in [salonSettings.ts:14](src/constants/salonSettings.ts:14) lists Mon–Sat 08:00–17:00; it's a settings
+  in [salonSettings.ts](src/constants/salonSettings.ts#L14) lists Mon–Sat 08:00–17:00; it's a settings
   template, **not** the booking constraint. Don't treat it as the hours.
 - **Capacity — the "2-2-1" rule:** each slot holds **2 seats** (2 small/medium dogs, or 1 large dog
   that usually takes the whole slot). The 2-2-1 rule caps throughput across *consecutive* slots: you
   can't have three back-to-back double slots — the offending one drops to 1 seat — so any rolling
   3-slot window holds at most **2+2+1 = 5 dogs** (`MAX_DOGS_PER_SLOT = 5`).
-  `getMaxSeatsForSlot` [capacity.ts:38](src/engine/capacity.ts:38); enforced in DB by
-  `validate_booking_capacity()` ([migration 20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql)) (original trigger; the live body is now in `20260622100000_daily_dog_cap.sql` — grep `validate_booking_capacity` for the latest).
+  `getMaxSeatsForSlot` [capacity.ts](src/engine/capacity.ts#L38); enforced in DB by
+  `validate_booking_capacity()` ([migration 20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql)) (original trigger; the latest baseline definition is in [migration 20260712115759](supabase/migrations/20260712115759_legal_risk_tranche1.sql) — always search every migration for qualified and unqualified definitions before editing).
 - **Large dogs:** slot-dependent seat cost + conditional rules (1 seat at 08:30/09:00/12:00; 2-seat
   full takeover at 12:30/13:00; a 12:00 large dog early-closes 13:00). `LARGE_DOG_SLOTS`
-  [salon.ts:31](src/constants/salon.ts:31); logic in `canBookSlot` [capacity.ts:261](src/engine/capacity.ts:261).
+  [salon.ts](src/constants/salon.ts#L31); logic in `canBookSlot` [capacity.ts](src/engine/capacity.ts#L261).
 - **Daily cap:** **14 dogs/day** (`salon_config.daily_dog_cap`), enforced for non-staff only via a
   per-date advisory lock ([migration 20260622100000](supabase/migrations/20260622100000_daily_dog_cap.sql)).
   This is a separate throughput cap, **not** slots×2. Frontend mirror: `findGroupedSlots`
-  [capacity.ts:560](src/engine/capacity.ts:560).
+  [capacity.ts](src/engine/capacity.ts#L560).
 - **Double-booking prevention:** same dog can't book the same slot twice (`canBookSlot` +
   unique constraint on `(dog_id, booking_date, slot)` for non-cancelled rows). Concurrent inserts are
   serialised by per-slot + per-date advisory locks in the capacity trigger. Cancelled rows free capacity.
@@ -121,7 +125,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   multi-dog group needs **every** assigned slot flagged. Future dates unchanged (portal: tomorrow+28;
   the WhatsApp Flow shows "Today — last minute" when flagged).
 - **Services:** only 4 are bookable — Full Groom, Bath & Brush, Bath & De-shed, Puppy Groom
-  ([salon.ts:9](src/constants/salon.ts:9); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
+  ([salon.ts](src/constants/salon.ts#L9); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
   Sensitive Shampoo, Anal Glands.
 - **Walk-ins (nail clip, anal gland, ear clean):** ✅ as stated, **not booked at all**. There is no
   walk-in booking type; the WhatsApp agent only recognises them by keyword and replies "pop in
@@ -156,7 +160,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 - **The capacity engine is implemented THREE times** and must stay in sync: `src/engine/capacity.ts`
   (frontend), `supabase/functions/_shared/capacity.ts` (Deno, ~line-for-line duplicate), and the
-  Postgres trigger ([20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql), original trigger; the live body is now in `20260622100000_daily_dog_cap.sql` — grep `validate_booking_capacity` for the latest). Change one rule → change all three.
+  Postgres trigger (originally [20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql); latest baseline definition [20260712115759](supabase/migrations/20260712115759_legal_risk_tranche1.sql)). Search every migration before editing because later migrations can replace the function. Change one rule → change all three.
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
   Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's
@@ -165,9 +169,10 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   prod history has known gaps). See [docs/migrations.md](docs/migrations.md).
 - **`vite.config.js` manual chunks must use `rollupOptions`, not `rolldownOptions`** — the wrong key is
   silently ignored and ships one 443 KB chunk that thrashes the PWA precache. A logic test guards it.
-- **Local dev hits the LIVE cloud Supabase** (real PII) unless offline. Offline mode
-  (`VITE_FORCE_OFFLINE=1`, or missing creds in dev) serves `src/data/sample.js` — use it for visual
-  checks and E2E so you never touch real customer data.
+- **Local dev hits the LIVE cloud Supabase** (real PII) unless explicitly put in demo mode.
+  Demo/sample-data mode (`VITE_FORCE_OFFLINE=1`, or missing creds in dev) serves
+  `src/data/sample.js`; it is deterministic test data, not durable offline production operation.
+  Use it for visual checks and E2E so you never touch real customer data.
 - **Use `npm ci` locally, not `npm install`.** A darwin `npm install` silently strips the Linux
   `libc` (glibc/musl) metadata from `package-lock.json` for 12 Linux-only optional binaries, and
   CI runs `npm ci` on ubuntu-latest where that discriminator matters. It has been committed
@@ -218,7 +223,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **High-risk — explain the change before making it:** RLS policies, auth, the capacity / booking-
   conflict engine and its DB trigger, and the booking write-path RPCs. Real customer bookings depend on
   these; a silent break can overbook or expose data.
-- **The bar is "lint + typecheck + check:migrations + test + build all pass"** (what CI runs), not
+- **The bar is "lint + check:docs + typecheck + check:migrations + test + build all pass"** (what CI runs), not
   "looks done." Run `npm run test` (not just `npm run build`) for UI/logic changes.
 - Treat `README.md` and `docs/` (capacity-engine, migrations, whatsapp-agent, whatsapp-flows) as
   canonical for deep dives rather than re-deriving.

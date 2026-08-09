@@ -1,0 +1,55 @@
+name: Bug report
+description: Report reproducible incorrect or regressed behaviour
+title: "[Bug]: "
+labels:
+  - type:bug
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened? Include the exact error or visible result.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should have happened, and which source defines it if known?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal numbered steps using sample data where possible.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P0 — data loss, security exposure or live booking integrity
+        - P1 — core journey blocked or materially incorrect
+        - P2 — degraded behaviour with a workaround
+        - P3 — minor defect
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Route, browser/device, branch or SHA, deployment and relevant feature flags. Do not include secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Sanitised logs, screenshots, failing tests or timestamps. Remove customer-identifiable data.
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression and scope
+      description: When did it last work, and what other journeys may share the failing path?

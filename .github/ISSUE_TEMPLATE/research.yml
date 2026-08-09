@@ -1,0 +1,49 @@
+name: Research or decision
+description: Resolve an important technical or product question with evidence
+title: "[Research]: "
+labels:
+  - type:research
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: State the decision this research must enable.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: What work, risk or policy is blocked by this uncertainty?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Existing evidence
+      description: Link code, production-safe aggregates, prior research and known constraints.
+  - type: textarea
+    id: options
+    attributes:
+      label: Options to evaluate
+      description: Include a no-change option where it is credible.
+  - type: textarea
+    id: method
+    attributes:
+      label: Method and acceptance
+      description: How will evidence be gathered, and what result is enough to decide?
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Related or blocked work
+      description: Link issues, requirements and decisions.
+  - type: textarea
+    id: output
+    attributes:
+      label: Required output
+      description: State whether this should produce an ADR, requirement/specification change or closure with no action.
+    validations:
+      required: true

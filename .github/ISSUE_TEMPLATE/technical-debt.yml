@@ -1,0 +1,57 @@
+name: Technical debt
+description: Record a bounded maintainability or architecture liability
+title: "[Debt]: "
+labels:
+  - type:technical-debt
+body:
+  - type: textarea
+    id: debt
+    attributes:
+      label: Liability
+      description: Describe the current design and why it is debt rather than simply a preference.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Evidence and impact
+      description: What failures, cost, risk or blocked work does it cause?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Booking
+        - Capacity
+        - Notifications
+        - Edge and integrations
+        - Release and CI
+        - Product UI
+        - Measurement
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Safe scope
+      description: Name relevant code, exclusions and compatibility constraints.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What measurable property changes when the debt is repaid?
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Link blockers, related issues or shared writers.
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and verification
+      description: Include regression risk and the tests/evidence needed.
