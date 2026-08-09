@@ -1,0 +1,67 @@
+name: Feature or outcome
+description: Propose an observable product or operational outcome
+title: "[Feature]: "
+labels:
+  - type:feature
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Describe the problem and desired behaviour. Product policy, architecture
+        and implementation detail can be resolved after the outcome is clear.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is happening, who is affected and what evidence supports it?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe observable behaviour, not merely a preferred implementation.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Booking
+        - Capacity
+        - Notifications
+        - Edge and integrations
+        - Release and CI
+        - Product UI
+        - Measurement
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Affected users
+      description: Which staff, customers or operational processes are affected?
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Behaviour and edge cases
+      description: Include important states, failure behaviour, accessibility or privacy constraints.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable evidence that would prove the outcome is complete.
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Link blocking issues, decisions, migrations or external prerequisites; write None if known to be independent.
+  - type: textarea
+    id: references
+    attributes:
+      label: Requirements and evidence
+      description: Link governing requirements, specifications, research or supporting evidence.

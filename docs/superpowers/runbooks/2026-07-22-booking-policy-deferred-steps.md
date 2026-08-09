@@ -1,5 +1,7 @@
 # Booking policy programme — deferred steps and environment limitations
 
+> **Currency note (9 August 2026):** this remains historical verification evidence. The generated database types now include the visit model, so the type-regeneration gap described below is no longer current. Use the [active architecture-convergence plan](../../plans/active/2026-08-09-issue-603-architecture-convergence.md) for present work; do not execute this file as a current checklist.
+
 Recorded honestly as work that has **not** been done, so nothing downstream
 mistakes an unavailable check for a passing one.
 

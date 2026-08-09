@@ -42,8 +42,9 @@ The detail modal will tell staff which constraint blocked a booking.
   `BEFORE INSERT` trigger on `bookings`. Originally added in
   `20260331083432_capacity_trigger.sql`, but the **live body has since been
   re-issued** — the current definition lives in
-  [supabase/migrations/20260622100000_daily_dog_cap.sql](../supabase/migrations/20260622100000_daily_dog_cap.sql)
-  (grep migrations for `validate_booking_capacity` and read the most recent).
+  [supabase/migrations/20260712115759_legal_risk_tranche1.sql](../supabase/migrations/20260712115759_legal_risk_tranche1.sql)
+  (search for both qualified and unqualified definitions of
+  `validate_booking_capacity`, then read the latest migration).
   This is what rejects an insert the frontend somehow let through.
 
 ## Approved large-dog slots
@@ -124,8 +125,10 @@ Two things that could look like off-switches but are not:
   in the capacity calculation — the trigger keys on `slot`, not on
   in-salon overlap.
 
-If you're touching the engine, run `npm run test src/engine/capacity.test.js`
-before opening a PR.
+If you're touching the engine, run
+`npm run test:logic -- src/engine/capacity.test.ts src/lib/whatsapp/capacityParity.test.ts`
+before opening a PR. Database-rule changes also require `npm run test:db` and
+the applicable concurrency harness.
 
 ## Daily dog cap (separate from per-slot seats)
 

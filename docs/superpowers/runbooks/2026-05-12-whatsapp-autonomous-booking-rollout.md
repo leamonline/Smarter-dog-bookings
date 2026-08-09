@@ -2,8 +2,8 @@
 
 **Status:** ready to roll out behind flags
 **Owner:** Bleep
-**Linked spec:** [2026-05-12-whatsapp-ai-autonomous-booking-design.md](../specs/2026-05-12-whatsapp-ai-autonomous-booking-design.md)
-**Linked plan:** [2026-05-12-whatsapp-ai-autonomous-booking.md](../plans/2026-05-12-whatsapp-ai-autonomous-booking.md)
+**Linked spec:** [2026-05-12-whatsapp-ai-autonomous-booking-design.md](../../archive/superpowers/specs/2026-05-12-whatsapp-ai-autonomous-booking-design.md)
+**Linked plan:** [2026-05-12-whatsapp-ai-autonomous-booking.md](../../archive/superpowers/plans/2026-05-12-whatsapp-ai-autonomous-booking.md)
 
 ## Pre-deploy checklist
 
