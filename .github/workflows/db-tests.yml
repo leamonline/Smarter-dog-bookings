@@ -18,16 +18,24 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
+      - 'package.json'
       - 'scripts/prepare-db-test-project.mjs'
+      - 'scripts/verify-db-concurrency.sh'
+      - 'scripts/verify-capacity-concurrency.sh'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
+      - 'scripts/whatsapp-reschedule-concurrency-helpers.sh'
       - '.github/workflows/db-tests.yml'
   pull_request:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
+      - 'package.json'
       - 'scripts/prepare-db-test-project.mjs'
+      - 'scripts/verify-db-concurrency.sh'
+      - 'scripts/verify-capacity-concurrency.sh'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
+      - 'scripts/whatsapp-reschedule-concurrency-helpers.sh'
       - '.github/workflows/db-tests.yml'
   workflow_dispatch:
 
@@ -62,11 +70,11 @@ jobs:
         timeout-minutes: 5
         run: supabase --workdir "$RUNNER_TEMP/db-test-project" test db
 
-      - name: Prove atomic reschedule concurrency
+      - name: Prove database concurrency
         timeout-minutes: 5
         env:
           CONCURRENCY_LOCAL_STACK_CONFIRMED: '1'
-        run: bash scripts/verify-whatsapp-reschedule-concurrency.sh
+        run: npm run test:db:concurrency
 
       - name: Dump diagnostics on failure
         if: failure()
