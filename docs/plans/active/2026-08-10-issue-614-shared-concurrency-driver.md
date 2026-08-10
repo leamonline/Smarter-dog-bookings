@@ -38,6 +38,10 @@ copies of connection safety, process control and cleanup mechanics.
 - Both scripts independently validate the local connection identity, find
   Supabase and `psql`, construct client arguments, terminate named backends and
   supervise bounded execution.
+- Review of draft PR #629 found that named-backend polling could return after a
+  backend disappeared while its host `psql` process remained alive. The later
+  raw shell `wait` was therefore not bounded, and cleanup had no TERM-to-KILL
+  escalation. A fake-client negative control reproduced the hang path.
 - The latest `public.validate_booking_capacity()` definition remains
   `20260712115759_legal_risk_tranche1.sql`; no approved-rule discrepancy was
   found during discovery.
@@ -50,8 +54,10 @@ copies of connection safety, process control and cleanup mechanics.
   watchdog lifecycle.
 - Both existing scenario scripts source that driver and contain only their
   fixture, transaction and domain assertions.
-- The WhatsApp script no longer depends on GNU `timeout`; its already bounded
-  database polling and cleanup remain the authority for session completion.
+- The WhatsApp script no longer depends on GNU `timeout`; the shared driver
+  tracks every spawned `psql` PID, bounds the host process independently of
+  `pg_stat_activity`, escalates from TERM to KILL and reaps the genuine exit
+  status.
 - Capacity output continues to identify both participants in each race, exact
   `P0001` loser outcomes, final legal counts, isolation level and exact SHA.
 
@@ -95,8 +101,9 @@ or host-address indirection. No environment file or customer record is read.
   implementations. The driver must own substantive connection and lifecycle
   behaviour used by both scenarios.
 - **WhatsApp regression:** removing GNU `timeout` must not remove bounded
-  completion; named-session polling, termination and the scenario cleanup trap
-  remain mandatory.
+  completion. Named-session polling remains diagnostic evidence, while the
+  driver must independently bound and reap every host client, including one
+  that outlives its database backend or ignores TERM.
 - **Capacity false green:** preserve distinct backends, exact production-lock
   observation, governed loser errors and final invariant assertions.
 - **Policy drift:** any SQL/approved-rule divergence is a stop condition, not a
@@ -104,8 +111,9 @@ or host-address indirection. No environment file or customer record is read.
 
 ## Implementation sequence
 
-1. Add the shared driver and static tests for guard ordering and portable
-   helpers.
+1. Add the shared driver and behavioural tests for guard ordering, tracked
+   clients, portable deadlines, TERM-to-KILL escalation and exit-status
+   preservation.
 2. Route the WhatsApp harness through it while preserving both race scenarios.
 3. Route the capacity harness through it while preserving its dblink-backed
    transactions and evidence lines.
@@ -137,6 +145,9 @@ git diff --check
 
 - Both established scenario scripts use the shared driver for local identity,
   client/session lifecycle and bounded process cleanup.
+- A fake `psql` that outlives its reported backend and ignores TERM is killed,
+  reaped and reported with its genuine signal-derived exit status within a
+  portable deadline.
 - All 19 focused pgTAP assertions and the complete database suite pass.
 - Both capacity races still show two available preflights, one legal commit,
   one exact `P0001` rejection and a legal final state.

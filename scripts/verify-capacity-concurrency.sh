@@ -33,7 +33,6 @@ RUN_TOKEN="issue614-${BASHPID}-$(date -u +%s)"
 HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 WORKTREE_STATE="$(concurrency_worktree_state "$REPO_ROOT")"
 CONTROLLER_CLIENT_PID=""
-WATCHDOG_PID=""
 
 sql() {
   concurrency_sql "$@"
@@ -185,13 +184,8 @@ cleanup_on_exit() {
   trap - EXIT INT TERM
   set +e
 
-  if [ -n "$WATCHDOG_PID" ]; then
-    concurrency_stop_watchdog "$WATCHDOG_PID"
-  fi
-  if [ -n "$CONTROLLER_CLIENT_PID" ]; then
-    kill -TERM "$CONTROLLER_CLIENT_PID" 2>/dev/null || true
-    wait "$CONTROLLER_CLIENT_PID" 2>/dev/null || true
-  fi
+  concurrency_cleanup_tracked_psql_sessions || result=1
+  CONTROLLER_CLIENT_PID=""
 
   if ! cleanup_fixtures; then
     result=1
@@ -1157,20 +1151,16 @@ rollback;
 SQL
 
 CONTROLLER_CLIENT_PID=$!
-concurrency_start_watchdog \
+concurrency_track_psql_pid "$CONTROLLER_CLIENT_PID"
+
+set +e
+concurrency_reap_psql_session \
   "$CONTROLLER_CLIENT_PID" \
   "$CAPACITY_CONCURRENCY_TIMEOUT_SECONDS" \
   "capacity concurrency controller"
-WATCHDOG_PID="$CONCURRENCY_WATCHDOG_PID"
-
-set +e
-wait "$CONTROLLER_CLIENT_PID"
 controller_result=$?
 set -e
 CONTROLLER_CLIENT_PID=""
-
-concurrency_stop_watchdog "$WATCHDOG_PID"
-WATCHDOG_PID=""
 
 if [ "$controller_result" -ne 0 ]; then
   exit "$controller_result"

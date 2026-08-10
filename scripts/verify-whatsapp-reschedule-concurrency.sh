@@ -133,22 +133,11 @@ cleanup() {
     terminate_named_backends || cleanup_failed=1
   fi
 
-  if [ -n "$SECOND_PID" ]; then
-    kill "$SECOND_PID" 2>/dev/null || true
-    wait "$SECOND_PID" 2>/dev/null || true
-  fi
-  if [ -n "$MEMBERSHIP_STAFF_PID" ]; then
-    kill "$MEMBERSHIP_STAFF_PID" 2>/dev/null || true
-    wait "$MEMBERSHIP_STAFF_PID" 2>/dev/null || true
-  fi
-  if [ -n "$MEMBERSHIP_RESCHEDULE_PID" ]; then
-    kill "$MEMBERSHIP_RESCHEDULE_PID" 2>/dev/null || true
-    wait "$MEMBERSHIP_RESCHEDULE_PID" 2>/dev/null || true
-  fi
-  if [ -n "$FIRST_PID" ]; then
-    kill "$FIRST_PID" 2>/dev/null || true
-    wait "$FIRST_PID" 2>/dev/null || true
-  fi
+  concurrency_cleanup_tracked_psql_sessions || cleanup_failed=1
+  FIRST_PID=""
+  SECOND_PID=""
+  MEMBERSHIP_RESCHEDULE_PID=""
+  MEMBERSHIP_STAFF_PID=""
 
   if [ "$DB_SETUP_STARTED" = "1" ]; then
     sql --command="
@@ -725,9 +714,11 @@ if ! concurrency_wait_for_named_backends \
 fi
 
 set +e
-wait "$FIRST_PID"
+concurrency_reap_psql_session \
+  "$FIRST_PID" "$RPC_TIMEOUT_SECONDS" "first WhatsApp reschedule client"
 FIRST_STATUS=$?
-wait "$SECOND_PID"
+concurrency_reap_psql_session \
+  "$SECOND_PID" "$RPC_TIMEOUT_SECONDS" "second WhatsApp reschedule client"
 SECOND_STATUS=$?
 FIRST_PID=""
 SECOND_PID=""
@@ -982,9 +973,13 @@ if ! concurrency_wait_for_named_backends \
 fi
 
 set +e
-wait "$MEMBERSHIP_RESCHEDULE_PID"
+concurrency_reap_psql_session \
+  "$MEMBERSHIP_RESCHEDULE_PID" "$RPC_TIMEOUT_SECONDS" \
+  "membership reschedule client"
 MEMBERSHIP_RESCHEDULE_STATUS=$?
-wait "$MEMBERSHIP_STAFF_PID"
+concurrency_reap_psql_session \
+  "$MEMBERSHIP_STAFF_PID" "$RPC_TIMEOUT_SECONDS" \
+  "membership staff client"
 MEMBERSHIP_STAFF_STATUS=$?
 MEMBERSHIP_RESCHEDULE_PID=""
 MEMBERSHIP_STAFF_PID=""

@@ -5,6 +5,10 @@
 # driver owns the safety boundary and process/session mechanics that every real
 # multi-session proof must share.
 
+CONCURRENCY_TRACKED_PSQL_PIDS=""
+CONCURRENCY_REAPED_PSQL_PIDS=""
+CONCURRENCY_TERM_GRACE_SECONDS="${CONCURRENCY_TERM_GRACE_SECONDS:-5}"
+
 concurrency_fail() {
   echo "FAIL: $*" >&2
   return 2
@@ -152,6 +156,54 @@ concurrency_start_psql_session() {
   PGAPPNAME="$application_name" "${CONCURRENCY_PSQL[@]}" \
     --command="$sql_text" >"$output_file" 2>&1 &
   CONCURRENCY_SESSION_PID=$!
+  if ! concurrency_track_psql_pid "$CONCURRENCY_SESSION_PID"; then
+    kill -KILL "$CONCURRENCY_SESSION_PID" 2>/dev/null || true
+    wait "$CONCURRENCY_SESSION_PID" 2>/dev/null || true
+    return 2
+  fi
+}
+
+concurrency_psql_pid_is_tracked() {
+  local client_pid=$1
+  local tracked_pid
+
+  for tracked_pid in $CONCURRENCY_TRACKED_PSQL_PIDS; do
+    if [ "$tracked_pid" = "$client_pid" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+concurrency_psql_pid_is_reaped() {
+  local client_pid=$1
+  local reaped_pid
+
+  for reaped_pid in $CONCURRENCY_REAPED_PSQL_PIDS; do
+    if [ "$reaped_pid" = "$client_pid" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+concurrency_track_psql_pid() {
+  local client_pid=$1
+
+  concurrency_validate_positive_integer "PostgreSQL client PID" "$client_pid" || return
+  if concurrency_psql_pid_is_tracked "$client_pid"; then
+    concurrency_fail "PostgreSQL client PID $client_pid is already tracked."
+    return
+  fi
+  CONCURRENCY_TRACKED_PSQL_PIDS="${CONCURRENCY_TRACKED_PSQL_PIDS:+$CONCURRENCY_TRACKED_PSQL_PIDS }$client_pid"
+}
+
+concurrency_mark_psql_pid_reaped() {
+  local client_pid=$1
+
+  if ! concurrency_psql_pid_is_reaped "$client_pid"; then
+    CONCURRENCY_REAPED_PSQL_PIDS="${CONCURRENCY_REAPED_PSQL_PIDS:+$CONCURRENCY_REAPED_PSQL_PIDS }$client_pid"
+  fi
 }
 
 concurrency_wait_for_named_backends() {
@@ -202,14 +254,23 @@ concurrency_start_watchdog() {
   local client_pid=$1
   local timeout_seconds=$2
   local description=$3
+  local term_grace_seconds=$CONCURRENCY_TERM_GRACE_SECONDS
 
+  concurrency_validate_positive_integer "watchdog client PID" "$client_pid" || return
   concurrency_validate_positive_integer "watchdog timeout" "$timeout_seconds" || return
+  concurrency_validate_positive_integer \
+    "CONCURRENCY_TERM_GRACE_SECONDS" "$term_grace_seconds" || return
 
   (
     sleep "$timeout_seconds"
     if kill -0 "$client_pid" 2>/dev/null; then
       echo "FAIL: $description exceeded ${timeout_seconds}s; terminating it." >&2
       kill -TERM "$client_pid" 2>/dev/null || true
+      sleep "$term_grace_seconds"
+      if kill -0 "$client_pid" 2>/dev/null; then
+        echo "FAIL: $description did not exit within ${term_grace_seconds}s of TERM; killing it." >&2
+        kill -KILL "$client_pid" 2>/dev/null || true
+      fi
     fi
   ) &
   CONCURRENCY_WATCHDOG_PID=$!
@@ -223,4 +284,68 @@ concurrency_stop_watchdog() {
   fi
   kill "$watchdog_pid" 2>/dev/null || true
   wait "$watchdog_pid" 2>/dev/null || true
+}
+
+concurrency_reap_psql_session() {
+  local client_pid=$1
+  local timeout_seconds=$2
+  local description=$3
+  local watchdog_pid
+  local client_status
+
+  if ! concurrency_psql_pid_is_tracked "$client_pid"; then
+    concurrency_fail "PostgreSQL client PID $client_pid is not tracked."
+    return
+  fi
+  if concurrency_psql_pid_is_reaped "$client_pid"; then
+    concurrency_fail "PostgreSQL client PID $client_pid has already been reaped."
+    return
+  fi
+
+  concurrency_start_watchdog \
+    "$client_pid" "$timeout_seconds" "$description" || return
+  watchdog_pid=$CONCURRENCY_WATCHDOG_PID
+
+  if wait "$client_pid"; then
+    client_status=0
+  else
+    client_status=$?
+  fi
+  concurrency_stop_watchdog "$watchdog_pid"
+  concurrency_mark_psql_pid_reaped "$client_pid"
+  return "$client_status"
+}
+
+concurrency_cleanup_tracked_psql_sessions() {
+  local client_pid
+  local has_unreaped_clients=0
+
+  concurrency_validate_positive_integer \
+    "CONCURRENCY_TERM_GRACE_SECONDS" "$CONCURRENCY_TERM_GRACE_SECONDS" || return
+
+  for client_pid in $CONCURRENCY_TRACKED_PSQL_PIDS; do
+    if ! concurrency_psql_pid_is_reaped "$client_pid"; then
+      has_unreaped_clients=1
+      kill -TERM "$client_pid" 2>/dev/null || true
+    fi
+  done
+
+  if [ "$has_unreaped_clients" = "0" ]; then
+    return 0
+  fi
+
+  sleep "$CONCURRENCY_TERM_GRACE_SECONDS"
+  for client_pid in $CONCURRENCY_TRACKED_PSQL_PIDS; do
+    if ! concurrency_psql_pid_is_reaped "$client_pid" &&
+       kill -0 "$client_pid" 2>/dev/null; then
+      kill -KILL "$client_pid" 2>/dev/null || true
+    fi
+  done
+
+  for client_pid in $CONCURRENCY_TRACKED_PSQL_PIDS; do
+    if ! concurrency_psql_pid_is_reaped "$client_pid"; then
+      wait "$client_pid" 2>/dev/null || true
+      concurrency_mark_psql_pid_reaped "$client_pid"
+    fi
+  done
 }

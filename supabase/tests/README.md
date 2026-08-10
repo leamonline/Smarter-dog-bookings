@@ -41,10 +41,9 @@ a stored database password. That separate, manual-only staging workflow uses
 
 ## Running locally
 
-Needs Docker, Node 22 and Supabase CLI 2.109.1. The separate multi-session gate
-also needs host `psql` and GNU `timeout` (the latter is required by the existing
-WhatsApp reschedule proof). Prepare the same disposable project used by CI,
-then run:
+Needs Docker, Node 22, Supabase CLI 2.109.1 and host `psql`. The shared driver
+provides portable host-client deadlines, so GNU `timeout` is not required.
+Prepare the same disposable project used by CI, then run:
 
 ```bash
 db_test_project_root="$(mktemp -d)/project"
@@ -81,7 +80,8 @@ WhatsApp reschedule gate and the capacity gate; use
   different-slot stale-write races with independent PostgreSQL sessions. It
   and the established WhatsApp scenarios share
   `scripts/postgres-concurrency-driver.sh` for the guarded local connection,
-  client/session lifecycle, named-backend termination and bounded watchdog.
+  tracked client/session lifecycle, named-backend termination and bounded
+  TERM-to-KILL cleanup.
 - `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
   keeps active SMS, WhatsApp and email suppressions, including their timestamp
   and reason evidence, when the losing human record is deleted.
