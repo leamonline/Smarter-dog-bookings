@@ -1,7 +1,8 @@
 # Issue #614 PostgreSQL capacity proof
 
-**Status:** Active
+**Status:** Complete
 **Issue:** [#614](https://github.com/leamonline/Smarter-dog-bookings/issues/614)
+**Pull request:** [#626](https://github.com/leamonline/Smarter-dog-bookings/pull/626)
 **Base:** `main@4c88c3623ee0060428e48cb2fca946ba36c199e9`
 **Last verified:** 10 August 2026
 **Owners:** `supabase/tests/035_capacity_behaviour.test.sql` for focused
@@ -28,9 +29,9 @@ executable evidence that the current guard re-evaluates after a competing
 commit, rejects the loser with its governed PostgreSQL error and preserves a
 legal final state.
 
-## Current behaviour
+## Current behaviour at discovery
 
-Verified at the base SHA:
+Verified at the base SHA during discovery:
 
 - `validate_booking_capacity()` in
   `supabase/migrations/20260712115759_legal_risk_tranche1.sql` is the latest
@@ -50,9 +51,9 @@ Verified at the base SHA:
   its broader convergence is B3 work and is not an authority for this package.
 - The discovery shell has Supabase CLI 2.111.0 and host `psql` under Homebrew.
   Docker became available during implementation, allowing a complete isolated
-  migration replay and local database proof. The exact commit-SHA CI rerun is
-  still required because the successful development runs used an uncommitted
-  working tree based on the recorded base SHA.
+  migration replay and local database proof. Those development runs initially
+  used an uncommitted working tree; the exact clean-commit and CI evidence is
+  recorded below.
 
 ## Implementation discoveries — 9 August 2026
 
@@ -260,8 +261,8 @@ the harness must not persist customer-like data or emit provider requests.
 - Update `docs/traceability.md` so A1 points to the executable SQL and race
   evidence.
 - Add an Unreleased testing entry to `CHANGELOG.md`.
-- Keep this plan active until all exact-SHA evidence is recorded; move it to
-  `docs/plans/completed/` only with verified pull-request evidence.
+- Move this plan to `docs/plans/completed/` after recording verified
+  pull-request-head evidence.
 
 ## Definition of done
 
@@ -276,6 +277,28 @@ the harness must not persist customer-like data or emit provider requests.
   head SHA; any omitted check is recorded with its consequence.
 - The diff is reviewed, documentation is current and the pull request links the
   issue, this plan, requirements and ADR.
+
+## Completion evidence — 10 August 2026
+
+Pull request [#626](https://github.com/leamonline/Smarter-dog-bookings/pull/626)
+was verified at head
+`05c6f5af2fc2498ec127b5e5b8ea4253b55aa358`:
+
+- The clean local concurrency run emitted
+  `EVIDENCE|sha=05c6f5af2fc2498ec127b5e5b8ea4253b55aa358|worktree=clean|isolation=read committed|sessions=4`.
+- The [database workflow](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31369766669)
+  rebuilt all 202 migrations, passed 37 pgTAP files and 874 assertions, proved
+  the WhatsApp and capacity concurrency gates, and removed its disposable
+  database.
+- The [main CI workflow](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31369766595)
+  passed lint, documentation, typecheck, migration validation, 275 Vitest files
+  and 2,711 assertions, the production build and Edge Function tests. Its PR
+  E2E guard passed with the browser journey intentionally skipped on pull
+  requests.
+- The [migration-parity workflow](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31369766644)
+  passed, and the Vercel preview completed successfully.
+- No required check was omitted, no migration or capacity policy changed, and
+  no hosted database or customer data was used during local verification.
 
 ## Open questions
 
