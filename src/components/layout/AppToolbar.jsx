@@ -120,14 +120,14 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             type="button"
             onClick={onNewBooking}
             className="inline-flex shrink-0 items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
-            aria-label="New booking (press N)"
+            aria-label="Schedule appointment (press N)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             <span className="xl:hidden">New</span>
-            <span className="hidden xl:inline">New booking</span>
+            <span className="hidden xl:inline">Schedule appointment</span>
           </button>
         )}
 
@@ -254,7 +254,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           <button
             type="button"
             onClick={onNewBooking}
-            aria-label="New booking"
+            aria-label="Schedule appointment"
             className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -263,7 +263,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             </svg>
             {/* On the very narrowest phones the label would push the bar past
                 the viewport edge — the aria-label keeps the name for AT. */}
-            <span className="max-[359px]:hidden">New booking</span>
+            <span className="max-[359px]:hidden">Schedule appointment</span>
           </button>
         )}
         <div ref={mobileMenuRef} className="relative shrink-0">
