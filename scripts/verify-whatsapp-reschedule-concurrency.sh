@@ -16,75 +16,11 @@
 # connection identity. It refuses all connection overrides.
 set -euo pipefail
 
-if [ "${CONCURRENCY_LOCAL_STACK_CONFIRMED:-}" != "1" ]; then
-  echo "FAIL: set CONCURRENCY_LOCAL_STACK_CONFIRMED=1 to opt in to the destructive local concurrency gate." >&2
-  exit 2
-fi
-
-if [ -n "${PGHOSTADDR:-}" ] ||
-   [ -n "${PGSERVICE:-}" ] ||
-   [ -n "${PGSERVICEFILE:-}" ] ||
-   [ -n "${PGSYSCONFDIR:-}" ]; then
-  echo "FAIL: libpq connection indirection variables PGHOSTADDR, PGSERVICE, PGSERVICEFILE, and PGSYSCONFDIR must be unset." >&2
-  exit 2
-fi
-
-PGHOST="${PGHOST:-127.0.0.1}"
-PGPORT="${PGPORT:-54322}"
-PGDATABASE="${PGDATABASE:-postgres}"
-PGUSER="${PGUSER:-postgres}"
-PGPASSWORD="${PGPASSWORD:-postgres}"
-PSQL_BIN="${PSQL_BIN:-psql}"
-export PGPASSWORD
-
-if [ "$PGHOST" != "127.0.0.1" ] ||
-   [ "$PGPORT" != "54322" ] ||
-   [ "$PGDATABASE" != "postgres" ] ||
-   [ "$PGUSER" != "postgres" ] ||
-   [ "$PGPASSWORD" != "postgres" ]; then
-  echo "FAIL: concurrency gate requires the exact local Supabase connection identity 127.0.0.1:54322/postgres as postgres with the default local password." >&2
-  echo "Refusing to connect or mutate because one or more PG* values differ." >&2
-  exit 2
-fi
-
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/whatsapp-reschedule-concurrency-helpers.sh"
-
-if ! command -v supabase >/dev/null 2>&1; then
-  echo "FAIL: required Supabase CLI was not found in PATH; cannot verify the local stack." >&2
-  exit 2
-fi
-if ! (
-  cd -- "$REPO_ROOT"
-  env -u SUPABASE_ACCESS_TOKEN -u SUPABASE_DB_PASSWORD supabase status \
-    >/dev/null 2>&1
-); then
-  echo "FAIL: supabase status did not confirm a running local stack for this checkout." >&2
-  exit 2
-fi
-
-if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
-  echo "FAIL: required PostgreSQL client '$PSQL_BIN' was not found in PATH." >&2
-  exit 2
-fi
-if ! command -v timeout >/dev/null 2>&1; then
-  echo "FAIL: required GNU timeout command was not found in PATH." >&2
-  exit 2
-fi
-
-PSQL=(
-  "$PSQL_BIN"
-  --host="$PGHOST"
-  --port="$PGPORT"
-  --username="$PGUSER"
-  --dbname="$PGDATABASE"
-  --no-psqlrc
-  --set=ON_ERROR_STOP=1
-  --quiet
-  --tuples-only
-  --no-align
-)
+source "$SCRIPT_DIR/postgres-concurrency-driver.sh"
+concurrency_init_local_supabase "WhatsApp reschedule concurrency" "$REPO_ROOT"
+PSQL=("${CONCURRENCY_PSQL[@]}")
 
 FIXTURE_USER="99000000-0000-4000-8000-000000000001"
 FIXTURE_HUMAN="99000000-0000-4000-8000-0000000000b1"
@@ -131,11 +67,11 @@ MEMBERSHIP_STAFF_PID=""
 DB_SETUP_STARTED=0
 
 sql() {
-  "${PSQL[@]}" "$@"
+  concurrency_sql "$@"
 }
 
 trim() {
-  tr -d '[:space:]'
+  concurrency_trim
 }
 
 dump_activity() {
@@ -164,15 +100,9 @@ dump_client_outputs() {
 }
 
 terminate_named_backends() {
-  sql --command="
-    select pg_terminate_backend(pid)
-      from pg_stat_activity
-     where pid <> pg_backend_pid()
-       and application_name in (
-         '$FIRST_APP', '$SECOND_APP',
-         '$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP'
-       );" \
-    >/dev/null
+  concurrency_terminate_named_backends \
+    "$FIRST_APP" "$SECOND_APP" \
+    "$MEMBERSHIP_RESCHEDULE_APP" "$MEMBERSHIP_STAFF_APP"
 }
 
 restore_trigger_mode() {
@@ -703,18 +633,8 @@ select replayed
     )
   );"
 
-run_rpc() {
-  local application_name=$1
-  PGAPPNAME="$application_name" timeout \
-    --signal=TERM \
-    --kill-after=5s \
-    "${RPC_TIMEOUT_SECONDS}s" \
-    "${PSQL[@]}" \
-    --command="$CALL_SQL"
-}
-
-run_rpc "$FIRST_APP" >"$FIRST_OUT" 2>&1 &
-FIRST_PID=$!
+concurrency_start_psql_session "$FIRST_APP" "$FIRST_OUT" "$CALL_SQL"
+FIRST_PID="$CONCURRENCY_SESSION_PID"
 
 FIRST_READY=0
 FIRST_STATE="missing"
@@ -750,8 +670,8 @@ if [ "$FIRST_READY" != "1" ]; then
   exit 1
 fi
 
-run_rpc "$SECOND_APP" >"$SECOND_OUT" 2>&1 &
-SECOND_PID=$!
+concurrency_start_psql_session "$SECOND_APP" "$SECOND_OUT" "$CALL_SQL"
+SECOND_PID="$CONCURRENCY_SESSION_PID"
 
 CONTENTION_PROVED=0
 SECOND_STATE="missing"
@@ -795,26 +715,14 @@ fi
 # Give both named RPC sessions a fresh bounded window to commit/replay after
 # contention has been proven. This makes the waits below observational only:
 # they cannot be reached while a database client is still active indefinitely.
-COMPLETION_DEADLINE=$((SECONDS + RPC_TIMEOUT_SECONDS))
-while :; do
-  ACTIVE_RPC_SESSIONS="$(
-    sql --command="
-      select count(*)
-        from pg_stat_activity
-       where application_name in ('$FIRST_APP', '$SECOND_APP');" | trim
-  )"
-  if [ "$ACTIVE_RPC_SESSIONS" = "0" ]; then
-    break
-  fi
-  if ((SECONDS >= COMPLETION_DEADLINE)); then
-    echo "FAIL: post-contention RPC completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $ACTIVE_RPC_SESSIONS named session(s) active." >&2
-    dump_activity
-    dump_client_outputs
-    terminate_named_backends || true
-    exit 1
-  fi
-  sleep "$POLL_INTERVAL"
-done
+if ! concurrency_wait_for_named_backends \
+  "$RPC_TIMEOUT_SECONDS" "$POLL_INTERVAL" "$FIRST_APP" "$SECOND_APP"; then
+  echo "FAIL: post-contention RPC completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $CONCURRENCY_ACTIVE_SESSION_COUNT named session(s) active." >&2
+  dump_activity
+  dump_client_outputs
+  terminate_named_backends || true
+  exit 1
+fi
 
 set +e
 wait "$FIRST_PID"
@@ -824,13 +732,6 @@ SECOND_STATUS=$?
 FIRST_PID=""
 SECOND_PID=""
 set -e
-if [ "$FIRST_STATUS" = "124" ] || [ "$SECOND_STATUS" = "124" ]; then
-  echo "FAIL: RPC completion deadline of ${RPC_TIMEOUT_SECONDS}s expired (first=$FIRST_STATUS second=$SECOND_STATUS)." >&2
-  dump_activity
-  dump_client_outputs
-  terminate_named_backends || true
-  exit 1
-fi
 if [ "$FIRST_STATUS" != "0" ] || [ "$SECOND_STATUS" != "0" ]; then
   echo "FAIL: RPC caller exited non-zero (first=$FIRST_STATUS second=$SECOND_STATUS)." >&2
   dump_client_outputs
@@ -986,26 +887,11 @@ values
    '$MEMBERSHIP_PHANTOM_DOG'::uuid, 'small', 'full-groom', 'Booked',
    '$MEMBERSHIP_GROUP'::uuid, 'staff');"
 
-run_membership_reschedule() {
-  PGAPPNAME="$MEMBERSHIP_RESCHEDULE_APP" timeout \
-    --signal=TERM \
-    --kill-after=5s \
-    "${RPC_TIMEOUT_SECONDS}s" \
-    "${PSQL[@]}" \
-    --command="$MEMBERSHIP_CALL_SQL"
-}
-
-run_membership_staff_insert() {
-  PGAPPNAME="$MEMBERSHIP_STAFF_APP" timeout \
-    --signal=TERM \
-    --kill-after=5s \
-    "${RPC_TIMEOUT_SECONDS}s" \
-    "${PSQL[@]}" \
-    --command="$MEMBERSHIP_STAFF_SQL"
-}
-
-run_membership_reschedule >"$MEMBERSHIP_RESCHEDULE_OUT" 2>&1 &
-MEMBERSHIP_RESCHEDULE_PID=$!
+concurrency_start_psql_session \
+  "$MEMBERSHIP_RESCHEDULE_APP" \
+  "$MEMBERSHIP_RESCHEDULE_OUT" \
+  "$MEMBERSHIP_CALL_SQL"
+MEMBERSHIP_RESCHEDULE_PID="$CONCURRENCY_SESSION_PID"
 
 MEMBERSHIP_FIRST_READY=0
 MEMBERSHIP_FIRST_STATE="missing"
@@ -1041,8 +927,11 @@ if [ "$MEMBERSHIP_FIRST_READY" != "1" ]; then
   exit 1
 fi
 
-run_membership_staff_insert >"$MEMBERSHIP_STAFF_OUT" 2>&1 &
-MEMBERSHIP_STAFF_PID=$!
+concurrency_start_psql_session \
+  "$MEMBERSHIP_STAFF_APP" \
+  "$MEMBERSHIP_STAFF_OUT" \
+  "$MEMBERSHIP_STAFF_SQL"
+MEMBERSHIP_STAFF_PID="$CONCURRENCY_SESSION_PID"
 
 MEMBERSHIP_CONTENTION_PROVED=0
 MEMBERSHIP_STAFF_STATE="missing"
@@ -1082,26 +971,15 @@ if [ "$MEMBERSHIP_CONTENTION_PROVED" != "1" ]; then
   FAIL=1
 fi
 
-MEMBERSHIP_COMPLETION_DEADLINE=$((SECONDS + RPC_TIMEOUT_SECONDS))
-while :; do
-  ACTIVE_MEMBERSHIP_SESSIONS="$(
-    sql --command="
-      select count(*)
-        from pg_stat_activity
-       where application_name in ('$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP');" | trim
-  )"
-  if [ "$ACTIVE_MEMBERSHIP_SESSIONS" = "0" ]; then
-    break
-  fi
-  if ((SECONDS >= MEMBERSHIP_COMPLETION_DEADLINE)); then
-    echo "FAIL: membership race completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $ACTIVE_MEMBERSHIP_SESSIONS named session(s) active." >&2
-    dump_activity
-    dump_client_outputs
-    terminate_named_backends || true
-    exit 1
-  fi
-  sleep "$POLL_INTERVAL"
-done
+if ! concurrency_wait_for_named_backends \
+  "$RPC_TIMEOUT_SECONDS" "$POLL_INTERVAL" \
+  "$MEMBERSHIP_RESCHEDULE_APP" "$MEMBERSHIP_STAFF_APP"; then
+  echo "FAIL: membership race completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $CONCURRENCY_ACTIVE_SESSION_COUNT named session(s) active." >&2
+  dump_activity
+  dump_client_outputs
+  terminate_named_backends || true
+  exit 1
+fi
 
 set +e
 wait "$MEMBERSHIP_RESCHEDULE_PID"
@@ -1111,11 +989,6 @@ MEMBERSHIP_STAFF_STATUS=$?
 MEMBERSHIP_RESCHEDULE_PID=""
 MEMBERSHIP_STAFF_PID=""
 set -e
-if [ "$MEMBERSHIP_RESCHEDULE_STATUS" = "124" ] || [ "$MEMBERSHIP_STAFF_STATUS" = "124" ]; then
-  echo "FAIL: membership race completion deadline of ${RPC_TIMEOUT_SECONDS}s expired (reschedule=$MEMBERSHIP_RESCHEDULE_STATUS staff=$MEMBERSHIP_STAFF_STATUS)." >&2
-  dump_client_outputs
-  exit 1
-fi
 if [ "$MEMBERSHIP_RESCHEDULE_STATUS" != "0" ]; then
   echo "FAIL: membership reschedule caller exited non-zero ($MEMBERSHIP_RESCHEDULE_STATUS)." >&2
   dump_client_outputs

@@ -8,73 +8,15 @@
 # the winner's real transaction-scoped advisory lock before the winner commits.
 set -euo pipefail
 
-if [ "${CONCURRENCY_LOCAL_STACK_CONFIRMED:-}" != "1" ]; then
-  echo "FAIL: set CONCURRENCY_LOCAL_STACK_CONFIRMED=1 to opt in to the destructive local concurrency gate." >&2
-  exit 2
-fi
-
-if [ -n "${PGHOSTADDR:-}" ] ||
-   [ -n "${PGSERVICE:-}" ] ||
-   [ -n "${PGSERVICEFILE:-}" ] ||
-   [ -n "${PGSYSCONFDIR:-}" ]; then
-  echo "FAIL: libpq connection indirection variables PGHOSTADDR, PGSERVICE, PGSERVICEFILE, and PGSYSCONFDIR must be unset." >&2
-  exit 2
-fi
-
-PGHOST="${PGHOST:-127.0.0.1}"
-PGPORT="${PGPORT:-54322}"
-PGDATABASE="${PGDATABASE:-postgres}"
-PGUSER="${PGUSER:-postgres}"
-PGPASSWORD="${PGPASSWORD:-postgres}"
-export PGPASSWORD
-
-if [ "$PGHOST" != "127.0.0.1" ] ||
-   [ "$PGPORT" != "54322" ] ||
-   [ "$PGDATABASE" != "postgres" ] ||
-   [ "$PGUSER" != "postgres" ] ||
-   [ "$PGPASSWORD" != "postgres" ]; then
-  echo "FAIL: capacity concurrency requires the exact local Supabase identity 127.0.0.1:54322/postgres as postgres with the default local password." >&2
-  echo "Refusing to connect or mutate because one or more PG* values differ." >&2
-  exit 2
-fi
-
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-
-SUPABASE_BIN="${SUPABASE_BIN:-supabase}"
-if ! command -v "$SUPABASE_BIN" >/dev/null 2>&1; then
-  if [ -x "$REPO_ROOT/node_modules/.bin/supabase" ]; then
-    SUPABASE_BIN="$REPO_ROOT/node_modules/.bin/supabase"
-  else
-    echo "FAIL: required Supabase CLI was not found." >&2
-    exit 2
-  fi
-fi
-
-if ! (
-  cd -- "$REPO_ROOT"
-  env -u SUPABASE_ACCESS_TOKEN -u SUPABASE_DB_PASSWORD "$SUPABASE_BIN" status \
-    >/dev/null 2>&1
-); then
-  echo "FAIL: Supabase CLI did not confirm a running local stack for this checkout." >&2
-  exit 2
-fi
-
-PSQL_BIN="${PSQL_BIN:-psql}"
-if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
-  if [ -x /opt/homebrew/opt/libpq/bin/psql ]; then
-    PSQL_BIN=/opt/homebrew/opt/libpq/bin/psql
-  else
-    echo "FAIL: required PostgreSQL client '$PSQL_BIN' was not found." >&2
-    exit 2
-  fi
-fi
+source "$SCRIPT_DIR/postgres-concurrency-driver.sh"
+concurrency_init_local_supabase "Capacity concurrency" "$REPO_ROOT"
 
 CAPACITY_CONCURRENCY_TIMEOUT_SECONDS="${CAPACITY_CONCURRENCY_TIMEOUT_SECONDS:-120}"
-if [[ ! "$CAPACITY_CONCURRENCY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
-  echo "FAIL: CAPACITY_CONCURRENCY_TIMEOUT_SECONDS must be a positive integer." >&2
-  exit 2
-fi
+concurrency_validate_positive_integer \
+  "CAPACITY_CONCURRENCY_TIMEOUT_SECONDS" \
+  "$CAPACITY_CONCURRENCY_TIMEOUT_SECONDS"
 
 # Bound host connections and every controller-side SQL statement. Independent
 # dblink backends receive equivalent connection options below, with the two
@@ -82,39 +24,23 @@ fi
 export PGCONNECT_TIMEOUT=5
 export PGOPTIONS="-c statement_timeout=60000 -c lock_timeout=10000"
 
-PSQL=(
-  "$PSQL_BIN"
-  --host="$PGHOST"
-  --port="$PGPORT"
-  --username="$PGUSER"
-  --dbname="$PGDATABASE"
-  --no-psqlrc
-  --set=ON_ERROR_STOP=1
-  --quiet
-  --tuples-only
-  --no-align
-)
+PSQL=("${CONCURRENCY_PSQL[@]}")
 
 CONFIG_ID="61400000-0000-4000-8000-000000000301"
 FIXTURE_USER="61400000-0000-4000-8000-000000000001"
 FIXTURE_HUMAN="61400000-0000-4000-8000-000000000010"
 RUN_TOKEN="issue614-${BASHPID}-$(date -u +%s)"
 HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-WORKTREE_STATE="clean"
-if ! git -C "$REPO_ROOT" diff --quiet --ignore-submodules -- ||
-   ! git -C "$REPO_ROOT" diff --cached --quiet --ignore-submodules -- ||
-   [ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard)" ]; then
-  WORKTREE_STATE="dirty"
-fi
+WORKTREE_STATE="$(concurrency_worktree_state "$REPO_ROOT")"
 CONTROLLER_CLIENT_PID=""
 WATCHDOG_PID=""
 
 sql() {
-  "${PSQL[@]}" "$@"
+  concurrency_sql "$@"
 }
 
 trim() {
-  tr -d '[:space:]'
+  concurrency_trim
 }
 
 fixture_marker_exists() {
@@ -135,15 +61,10 @@ reserved_marker_exists() {
 }
 
 terminate_named_backends() {
-  sql --command="
-    select pg_terminate_backend(pid)
-      from pg_stat_activity
-     where pid <> pg_backend_pid()
-       and application_name in (
-         'ci_capacity_setup',
-         'ci_capacity_slot_a', 'ci_capacity_slot_b',
-         'ci_capacity_day_a', 'ci_capacity_day_b'
-       );" >/dev/null
+  concurrency_terminate_named_backends \
+    ci_capacity_setup \
+    ci_capacity_slot_a ci_capacity_slot_b \
+    ci_capacity_day_a ci_capacity_day_b
 }
 
 cleanup_fixtures() {
@@ -265,8 +186,7 @@ cleanup_on_exit() {
   set +e
 
   if [ -n "$WATCHDOG_PID" ]; then
-    kill "$WATCHDOG_PID" 2>/dev/null || true
-    wait "$WATCHDOG_PID" 2>/dev/null || true
+    concurrency_stop_watchdog "$WATCHDOG_PID"
   fi
   if [ -n "$CONTROLLER_CLIENT_PID" ]; then
     kill -TERM "$CONTROLLER_CLIENT_PID" 2>/dev/null || true
@@ -1237,14 +1157,11 @@ rollback;
 SQL
 
 CONTROLLER_CLIENT_PID=$!
-(
-  sleep "$CAPACITY_CONCURRENCY_TIMEOUT_SECONDS"
-  if kill -0 "$CONTROLLER_CLIENT_PID" 2>/dev/null; then
-    echo "FAIL: capacity concurrency controller exceeded ${CAPACITY_CONCURRENCY_TIMEOUT_SECONDS}s; terminating it." >&2
-    kill -TERM "$CONTROLLER_CLIENT_PID" 2>/dev/null || true
-  fi
-) &
-WATCHDOG_PID=$!
+concurrency_start_watchdog \
+  "$CONTROLLER_CLIENT_PID" \
+  "$CAPACITY_CONCURRENCY_TIMEOUT_SECONDS" \
+  "capacity concurrency controller"
+WATCHDOG_PID="$CONCURRENCY_WATCHDOG_PID"
 
 set +e
 wait "$CONTROLLER_CLIENT_PID"
@@ -1252,8 +1169,7 @@ controller_result=$?
 set -e
 CONTROLLER_CLIENT_PID=""
 
-kill "$WATCHDOG_PID" 2>/dev/null || true
-wait "$WATCHDOG_PID" 2>/dev/null || true
+concurrency_stop_watchdog "$WATCHDOG_PID"
 WATCHDOG_PID=""
 
 if [ "$controller_result" -ne 0 ]; then

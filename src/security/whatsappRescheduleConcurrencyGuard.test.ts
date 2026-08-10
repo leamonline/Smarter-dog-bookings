@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -11,9 +12,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const script = "scripts/verify-whatsapp-reschedule-concurrency.sh";
-const concurrencyHelpers = join(
+const capacityScript = "scripts/verify-capacity-concurrency.sh";
+const concurrencyDriver = join(
   process.cwd(),
-  "scripts/whatsapp-reschedule-concurrency-helpers.sh",
+  "scripts/postgres-concurrency-driver.sh",
 );
 
 function runGate(overrides: NodeJS.ProcessEnv = {}) {
@@ -38,6 +40,17 @@ function runGate(overrides: NodeJS.ProcessEnv = {}) {
 }
 
 describe("the destructive reschedule concurrency gate", () => {
+  it("shares the guarded PostgreSQL driver with the capacity race", () => {
+    for (const scenarioScript of [script, capacityScript]) {
+      const source = readFileSync(scenarioScript, "utf8");
+      expect(source).toContain(
+        'source "$SCRIPT_DIR/postgres-concurrency-driver.sh"',
+      );
+      expect(source).toContain("concurrency_init_local_supabase");
+      expect(source).toContain("concurrency_terminate_named_backends");
+    }
+  });
+
   it("recognizes the expected staff failure when ripgrep is unavailable", () => {
     const stubRoot = mkdtempSync(join(tmpdir(), "wa-reschedule-output-check."));
     const outputFile = join(stubRoot, "membership-staff.out");
@@ -65,7 +78,7 @@ describe("the destructive reschedule concurrency gate", () => {
           "-c",
           'set -e; source "$1"; file_contains_fixed_string "$2" "$3"',
           "bash",
-          concurrencyHelpers,
+          concurrencyDriver,
           "booking_visit_already_cancelled",
           outputFile,
         ],

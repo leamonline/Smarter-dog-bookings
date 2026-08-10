@@ -23,7 +23,7 @@ on:
       - 'scripts/verify-db-concurrency.sh'
       - 'scripts/verify-capacity-concurrency.sh'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
-      - 'scripts/whatsapp-reschedule-concurrency-helpers.sh'
+      - 'scripts/postgres-concurrency-driver.sh'
       - '.github/workflows/db-tests.yml'
   pull_request:
     paths:
@@ -35,7 +35,7 @@ on:
       - 'scripts/verify-db-concurrency.sh'
       - 'scripts/verify-capacity-concurrency.sh'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
-      - 'scripts/whatsapp-reschedule-concurrency-helpers.sh'
+      - 'scripts/postgres-concurrency-driver.sh'
       - '.github/workflows/db-tests.yml'
   workflow_dispatch:
 

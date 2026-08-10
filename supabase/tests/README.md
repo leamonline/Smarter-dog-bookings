@@ -78,7 +78,10 @@ WhatsApp reschedule gate and the capacity gate; use
   adjacency and early close, the non-staff daily cap and one blocked seat; the
   customer group command rolls back both dogs when its second row crosses the
   cap. `verify-capacity-concurrency.sh` separately proves the same-slot and
-  different-slot stale-write races with independent PostgreSQL sessions.
+  different-slot stale-write races with independent PostgreSQL sessions. It
+  and the established WhatsApp scenarios share
+  `scripts/postgres-concurrency-driver.sh` for the guarded local connection,
+  client/session lifecycle, named-backend termination and bounded watchdog.
 - `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
   keeps active SMS, WhatsApp and email suppressions, including their timestamp
   and reason evidence, when the losing human record is deleted.
