@@ -41,18 +41,25 @@ a stored database password. That separate, manual-only staging workflow uses
 
 ## Running locally
 
-Needs Docker, Node 22 and Supabase CLI 2.109.1. Prepare the same disposable
-project used by CI, then run:
+Needs Docker, Node 22 and Supabase CLI 2.109.1. The separate multi-session gate
+also needs host `psql` and GNU `timeout` (the latter is required by the existing
+WhatsApp reschedule proof). Prepare the same disposable project used by CI,
+then run:
 
 ```bash
 db_test_project_root="$(mktemp -d)/project"
 node scripts/prepare-db-test-project.mjs "$db_test_project_root"
 supabase --workdir "$db_test_project_root" start
 supabase --workdir "$db_test_project_root" test db
+CONCURRENCY_LOCAL_STACK_CONFIRMED=1 npm run test:db:concurrency
 supabase --workdir "$db_test_project_root" stop --no-backup
 ```
 
 Each test wraps itself in `begin … rollback`, so it never persists data.
+The concurrency command is explicitly local-only and refuses any connection
+other than the disposable `127.0.0.1:54322/postgres` stack. It runs both the
+WhatsApp reschedule gate and the capacity gate; use
+`npm run test:db:capacity-concurrency` to run only the latter while developing.
 
 ## Tests
 
@@ -66,6 +73,12 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 - `020_rls_isolation.test.sql` — behavioural: acting as the `authenticated` role
   with a JWT `sub` claim, a customer reads only their own humans/dogs/bookings;
   another customer's rows are invisible; `anon` sees nothing.
+- `035_capacity_behaviour.test.sql` — behavioural: the real booking trigger
+  enforces canonical 2-2-1 allocation, approved/conditional large-dog
+  adjacency and early close, the non-staff daily cap and one blocked seat; the
+  customer group command rolls back both dogs when its second row crosses the
+  cap. `verify-capacity-concurrency.sh` separately proves the same-slot and
+  different-slot stale-write races with independent PostgreSQL sessions.
 - `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
   keeps active SMS, WhatsApp and email suppressions, including their timestamp
   and reason evidence, when the losing human record is deleted.
@@ -75,10 +88,7 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 
 ### Planned (behavioural — follow-up)
 
-These need more fixture setup (a `salon_config` row, or taming the AFTER-insert
-notify triggers on the success path) and are best iterated with a local stack:
+These need more fixture setup and are best iterated with a local stack:
 
-- daily-cap / capacity gate rejects the over-cap dog (non-staff) but lets staff
-  through;
 - a valid booking succeeds (the happy path, past all three gates);
 - `create_customer_booking_group` rejects a dog the caller doesn't own.

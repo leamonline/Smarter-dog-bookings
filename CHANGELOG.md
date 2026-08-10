@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ## Unreleased
 
+### Testing
+
+- Add focused PostgreSQL capacity behaviour coverage and genuine local
+  same-slot and daily-cap race gates, preserving PostgreSQL as the final
+  booking authority.
+
 ### Documentation
 
 - Establish a repository project-memory system with a North Star, dependency-aware roadmap, product requirements, current architecture, decision records, planning standard, agent guidance, reusable prompt library and GitHub contribution templates.
