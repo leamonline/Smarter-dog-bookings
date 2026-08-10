@@ -635,7 +635,7 @@ export function TodayView({
             <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
-              <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>
+              <p className="text-center text-[12px] text-slate-500">Sample data preview — changes won&apos;t save.</p>
             )}
           </>
         )}

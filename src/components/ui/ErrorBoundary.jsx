@@ -1,5 +1,4 @@
 import { Component } from "react";
-import { captureException } from "../../lib/sentry.js";
 import { logger } from "../../lib/logger";
 
 function makeErrorId() {
@@ -13,23 +12,22 @@ function makeErrorId() {
 export class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorId: null };
+    this.state = { hasError: false, errorId: null };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error, errorId: makeErrorId() };
+  static getDerivedStateFromError(_error) {
+    return { hasError: true, errorId: makeErrorId() };
   }
 
   componentDidCatch(error, info) {
-    logger.error("[ErrorBoundary] Unhandled error:", error, { extra: { info } });
-    captureException(error, {
+    logger.error("[ErrorBoundary] Unhandled error:", error, {
       tags: { errorId: this.state.errorId },
       extra: { componentStack: info?.componentStack },
     });
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorId: null });
+    this.setState({ hasError: false, errorId: null });
   };
 
   render() {
@@ -41,9 +39,7 @@ export class ErrorBoundary extends Component {
             That didn't quite work
           </div>
           <div className="text-slate-500 text-sm mb-2 max-w-xs">
-            {this.state.error?.message
-              ? `Error: ${this.state.error.message}`
-              : "An unexpected error occurred loading this section."}
+            We couldn&apos;t load this part of the dashboard. Try again, or reload the page if the problem continues.
           </div>
           {this.state.errorId ? (
             <div className="text-slate-500 text-[11px] font-mono mb-4">

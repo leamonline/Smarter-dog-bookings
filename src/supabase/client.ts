@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 import { logger } from "../lib/logger";
 
-// VITE_FORCE_OFFLINE=1 forces the app into offline/sample-data mode regardless
+// VITE_FORCE_OFFLINE=1 forces the app to use deterministic sample data regardless
 // of credentials. Used by Playwright E2E (.env.local would otherwise override
 // shell env in Vite) so journeys exercise the deterministic sample dataset.
 const forceOffline = import.meta.env.VITE_FORCE_OFFLINE === "1";
@@ -16,9 +16,9 @@ const supabaseKey = forceOffline
 const credsMissing = !forceOffline && (!supabaseUrl || !supabaseKey);
 
 // In production, missing creds means the deploy is broken (env vars not set
-// on the host). We refuse to fall back to offline/sample-data mode there —
+// on the host). We refuse to fall back to sample data there —
 // index.jsx checks this flag and renders a hard error page instead. In dev,
-// missing creds is intentional (local offline sample-data mode).
+// missing credentials intentionally select local sample data.
 export const supabaseConfigError =
   credsMissing && import.meta.env.PROD
     ? "Missing VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY"
@@ -30,7 +30,7 @@ if (supabaseConfigError) {
   );
 } else if (credsMissing) {
   logger.warn(
-    "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running in offline mode.",
+    "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running with deterministic sample data.",
   );
 }
 

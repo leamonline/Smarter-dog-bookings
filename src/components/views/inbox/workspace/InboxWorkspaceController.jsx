@@ -45,7 +45,6 @@ import { CustomerContextPanel } from "../customer-context/CustomerContextPanel.j
 import { useCustomerContext } from "../hooks/useCustomerContext.js";
 import { useInboxMessageSearch } from "../hooks/useInboxMessageSearch.js";
 import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
-import { BookAppointmentModal } from "../customer-context/BookAppointmentModal.jsx";
 import { BookingActionsPane } from "../../booking-workspace/BookingActionsPane.jsx";
 import {
   buildBookingRequest,
@@ -99,7 +98,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     reopenConversation,
     bulkResolveConversations,
     bulkReopenConversations,
-    createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
@@ -254,18 +252,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [generateReplyForConversation, selectedId, toast]);
 
-  // Book-appointment modal — staff quick-booking from the customer
-  // panel. createStaffBooking applies it through the same guarded path as
-  // an AI proposal, so on success the thread shows a "Booking created"
-  // card; we just surface the outcome as a toast.
-  const [bookOpen, setBookOpen] = useState(false);
-  const handleBookAppointment = useCallback(async (payload) => {
-    const res = await createStaffBooking(payload);
-    if (res?.ok) toast.show("Booking added to the diary", "success");
-    else if (res?.reason) toast.show(`Could not book: ${res.reason}`, "error");
-    return res;
-  }, [createStaffBooking, toast]);
-
   // Compose-new modal — outbound entry point. Opens from the header
   // button; after a successful send, close the modal and select the
   // freshly-upserted conversation so staff land straight in the thread.
@@ -321,12 +307,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [sendOutboundSMS, conversations, selectConversation, toast]);
 
-  // Close the book-appointment modal when switching conversations so a
-  // booking form holding the previous customer's dog does not follow staff
-  // into the newly selected thread. Workspace state closes the context pane.
-  useEffect(() => {
-    setBookOpen(false);
-  }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
   // The conversation row already carries this customer's dogs (id, name,
@@ -690,7 +670,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           conversation={selectedConversation}
           onOpenHuman={onOpenHuman}
           onOpenDog={onOpenDog}
-          onBookAppointment={() => setBookOpen(true)}
           onUpdateNotes={handleUpdateNotes}
         />
       }
@@ -713,15 +692,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         onDismissContext={workspaceActions.closeContext}
         returnFocusRef={contextTriggerRef}
       />
-
-      {bookOpen && selectedId && (
-        <BookAppointmentModal
-          conversation={selectedConversation}
-          dogs={customerContext.dogs}
-          onClose={() => setBookOpen(false)}
-          onBook={handleBookAppointment}
-        />
-      )}
 
       {composeOpen && (
         <ComposeNewModal

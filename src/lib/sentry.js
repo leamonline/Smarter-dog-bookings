@@ -2,9 +2,10 @@ import * as Sentry from "@sentry/react";
 
 let initialized = false;
 
-// Strip PII that we have seen leak through error messages (Supabase
-// 4xx response bodies, validation strings) — UK phone numbers and
-// email addresses. Anything else stays untouched.
+// Strip PII and credentials that can leak through error messages (Supabase
+// 4xx response bodies, validation strings): UK phone numbers, email addresses,
+// bearer tokens and UUIDs. The reference ID shown to the user stays separate
+// from the diagnostic event.
 function redactPii(value) {
   if (typeof value !== "string" || !value) return value;
   return value
@@ -12,7 +13,9 @@ function redactPii(value) {
       /(\+?44|0044|0)\s?[1-9]\d{2,3}[\s-]?\d{3}[\s-]?\d{3,4}/g,
       "[redacted-phone]",
     )
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[redacted-email]");
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[redacted-email]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+={0,2}/gi, "Bearer [redacted-token]")
+    .replace(/\b[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\b/gi, "[redacted-id]");
 }
 
 // Walk an object and redact string leaves. Capped depth so a
