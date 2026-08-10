@@ -262,11 +262,35 @@ concurrency_start_watchdog() {
     "CONCURRENCY_TERM_GRACE_SECONDS" "$term_grace_seconds" || return
 
   (
-    sleep "$timeout_seconds"
+    local watchdog_sleep_pid=""
+
+    trap - EXIT
+    concurrency_cancel_watchdog() {
+      trap - TERM INT
+      if [ -n "$watchdog_sleep_pid" ]; then
+        kill -TERM "$watchdog_sleep_pid" 2>/dev/null || true
+        wait "$watchdog_sleep_pid" 2>/dev/null || true
+      fi
+      exit 0
+    }
+    trap concurrency_cancel_watchdog TERM INT
+
+    sleep "$timeout_seconds" &
+    watchdog_sleep_pid=$!
+    if ! wait "$watchdog_sleep_pid"; then
+      exit 0
+    fi
+    watchdog_sleep_pid=""
+
     if kill -0 "$client_pid" 2>/dev/null; then
       echo "FAIL: $description exceeded ${timeout_seconds}s; terminating it." >&2
       kill -TERM "$client_pid" 2>/dev/null || true
-      sleep "$term_grace_seconds"
+      sleep "$term_grace_seconds" &
+      watchdog_sleep_pid=$!
+      if ! wait "$watchdog_sleep_pid"; then
+        exit 0
+      fi
+      watchdog_sleep_pid=""
       if kill -0 "$client_pid" 2>/dev/null; then
         echo "FAIL: $description did not exit within ${term_grace_seconds}s of TERM; killing it." >&2
         kill -KILL "$client_pid" 2>/dev/null || true

@@ -42,6 +42,10 @@ copies of connection safety, process control and cleanup mechanics.
   backend disappeared while its host `psql` process remained alive. The later
   raw shell `wait` was therefore not bounded, and cleanup had no TERM-to-KILL
   escalation. A fake-client negative control reproduced the hang path.
+- CI at `41b58b91db515d9b9c2e7b089890c54fbd0cdc81` then exposed a second
+  lifecycle edge: cancelling the Bash watchdog left its internal `sleep`
+  process orphaned. The watchdog must clear inherited traps and explicitly
+  terminate and reap its own timer as well as the tracked `psql` client.
 - The latest `public.validate_booking_capacity()` definition remains
   `20260712115759_legal_risk_tranche1.sql`; no approved-rule discrepancy was
   found during discovery.
@@ -104,6 +108,9 @@ or host-address indirection. No environment file or customer record is read.
   completion. Named-session polling remains diagnostic evidence, while the
   driver must independently bound and reap every host client, including one
   that outlives its database backend or ignores TERM.
+- **Watchdog cleanup:** stopping a completed client's watchdog must not run a
+  caller trap or leave its timer process orphaned. A fast-exit fake client
+  asserts that cancellation returns before the original timeout.
 - **Capacity false green:** preserve distinct backends, exact production-lock
   observation, governed loser errors and final invariant assertions.
 - **Policy drift:** any SQL/approved-rule divergence is a stop condition, not a

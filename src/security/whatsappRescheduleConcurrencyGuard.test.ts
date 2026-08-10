@@ -53,7 +53,8 @@ function runDriverProbe(
       mode: 0o755,
     });
 
-    return spawnSync(
+    const startedAt = Date.now();
+    const result = spawnSync(
       "/bin/bash",
       ["-c", probeBody, "bash", concurrencyDriver, fakePsql, outputFile],
       {
@@ -61,6 +62,7 @@ function runDriverProbe(
         timeout,
       },
     );
+    return { ...result, elapsedMs: Date.now() - startedAt };
   } finally {
     rmSync(stubRoot, { recursive: true, force: true });
   }
@@ -273,11 +275,18 @@ source "$1"
 CONCURRENCY_PSQL=("$2")
 concurrency_start_psql_session fake_failed_client "$3" "select 1"
 client_pid=$CONCURRENCY_SESSION_PID
+exit_trap_marker="$3.exit-trap"
+trap 'printf inherited > "$exit_trap_marker"' EXIT
 
 set +e
-concurrency_reap_psql_session "$client_pid" 2 "fake failed psql"
+concurrency_reap_psql_session "$client_pid" 5 "fake failed psql"
 client_status=$?
 set -e
+if [ -e "$exit_trap_marker" ]; then
+  echo "watchdog ran the caller EXIT trap" >&2
+  exit 93
+fi
+trap - EXIT
 printf 'client_status=%s\\n' "$client_status"
 [ "$client_status" -eq 23 ]`,
     );
@@ -285,6 +294,7 @@ printf 'client_status=%s\\n' "$client_status"
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("client_status=23");
+    expect(result.elapsedMs).toBeLessThan(2_500);
   });
 
   it("tracks and reaps every psql client during cleanup", () => {
