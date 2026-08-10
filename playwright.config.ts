@@ -5,15 +5,15 @@ import { defineConfig, devices } from "@playwright/test";
 // The dev server runs with VITE_FORCE_OFFLINE=1 so tests exercise the
 // deterministic sample dataset and don't depend on a live Supabase project.
 //
-// Browser pinning: every project runs on Chromium so a single
-// `playwright install chromium` in CI is enough. The iPad / iPhone
-// profiles still give us mobile viewport + touch coverage; we trade
-// pure Webkit rendering for simpler CI provisioning, which is the
-// right call for a launch smoke suite.
+// The full post-merge matrix deliberately remains Chromium-only: it provides
+// desktop, tablet and mobile viewport coverage at its established cost. The
+// pull-request gate opts into the smaller, production-build `pr-smoke` matrix
+// below so it adds real mobile WebKit coverage without changing that matrix.
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 4173;
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
+const isPullRequestSmoke = process.env.PLAYWRIGHT_PR_SMOKE === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -25,22 +25,34 @@ export default defineConfig({
     : "list",
   use: {
     baseURL,
+    screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  projects: [
-    {
-      name: "desktop",
-      use: { ...devices["Desktop Chrome"], browserName: "chromium" },
-    },
-    {
-      name: "tablet",
-      use: { ...devices["iPad (gen 7)"], browserName: "chromium" },
-    },
-    {
-      name: "mobile",
-      use: { ...devices["iPhone 13"], browserName: "chromium" },
-    },
-  ],
+  projects: isPullRequestSmoke
+    ? [
+        {
+          name: "desktop",
+          use: { ...devices["Desktop Chrome"], browserName: "chromium" },
+        },
+        {
+          name: "mobile-webkit",
+          use: { ...devices["iPhone 13"], browserName: "webkit" },
+        },
+      ]
+    : [
+        {
+          name: "desktop",
+          use: { ...devices["Desktop Chrome"], browserName: "chromium" },
+        },
+        {
+          name: "tablet",
+          use: { ...devices["iPad (gen 7)"], browserName: "chromium" },
+        },
+        {
+          name: "mobile",
+          use: { ...devices["iPhone 13"], browserName: "chromium" },
+        },
+      ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
     env: {

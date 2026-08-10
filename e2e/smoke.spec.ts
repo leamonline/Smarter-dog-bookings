@@ -1,13 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Smoke", () => {
-  test("staff app lands on the weekly calendar in offline mode", async ({
+  test("staff app renders its core landing route in offline mode", async ({
     page,
   }) => {
     // VITE_FORCE_OFFLINE=1 disables the auth gate so the calendar renders
     // straight away (see routeGuards.getStaffAuthRouteState: !isOnline → allow).
     await page.goto("/");
-    await expect(page).toHaveURL(/\/(?:\?|$)/);
+    // Desktop starts at the weekly calendar. Mobile Safari/WebKit deliberately
+    // redirects to the more useful Today route, so both are valid app-shell
+    // landing routes for this responsive smoke journey.
+    await expect(page).toHaveURL(/\/(?:\?|$)|\/today(?:\?|$)/);
     // The "New booking" toolbar action is the most stable landmark for the
     // app shell — since the Today mobile redesign it's the one persistent
     // header CTA on every viewport (mobile moved "New client" into the menu).
