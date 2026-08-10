@@ -218,6 +218,70 @@ describe("the destructive reschedule concurrency gate", () => {
 });
 
 describe("the shared PostgreSQL concurrency driver", () => {
+  it("starts a stoppable watchdog without caller EXIT cleanup", () => {
+    const result = runDriverProbe(
+      "exit 0",
+      `set -euo pipefail
+source "$1"
+watchdog_entered="$3.watchdog-entered"
+watchdog_exit_trap="$3.watchdog-exit-trap"
+parent_exit_cleared="$3.parent-exit-cleared"
+root_subshell=$BASH_SUBSHELL
+
+cleanup_probe() { :; }
+builtin trap cleanup_probe EXIT
+
+# Force the watchdog child to pause before its first production command, record
+# the EXIT trap it began with, then let the parent stop it deterministically.
+set -T
+trap '
+  if [ "$BASH_SUBSHELL" = "$root_subshell" ] &&
+     [ "$BASH_COMMAND" = "trap - EXIT" ]; then
+    touch "$parent_exit_cleared"
+  elif [ "$BASH_SUBSHELL" != "$root_subshell" ] &&
+       [[ "$BASH_COMMAND" != *"trap -p EXIT"* ]] &&
+       [ ! -e "$watchdog_entered" ]; then
+    if [ ! -e "$parent_exit_cleared" ]; then
+      builtin trap cleanup_probe EXIT
+    fi
+    builtin trap -p EXIT > "$watchdog_exit_trap"
+    touch "$watchdog_entered"
+    while :; do sleep 0.05; done
+  fi
+' DEBUG
+concurrency_start_watchdog "$$" 30 "pre-initialisation watchdog"
+watchdog_pid=$CONCURRENCY_WATCHDOG_PID
+
+for ((attempt = 1; attempt <= 100; attempt++)); do
+  [ -e "$watchdog_entered" ] && break
+  sleep 0.01
+done
+[ -e "$watchdog_entered" ]
+kill -KILL "$watchdog_pid"
+wait "$watchdog_pid" 2>/dev/null || true
+trap - DEBUG
+
+if [ -s "$watchdog_exit_trap" ]; then
+  echo "watchdog inherited the caller EXIT cleanup" >&2
+  exit 92
+fi
+
+if [ -e "$parent_exit_cleared" ]; then
+  printf 'parent_exit_cleared=yes\n'
+else
+  printf 'parent_exit_cleared=no\n'
+fi
+trap - EXIT
+printf 'watchdog_exit_trap=absent\n'`,
+    );
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("parent_exit_cleared=yes");
+    expect(result.stdout).toContain("watchdog_exit_trap=absent");
+    expect(result.stderr).not.toContain("No record of process");
+  });
+
   it("bounds and reaps a psql client that outlives its database backend", () => {
     const result = runDriverProbe(
       `if [ -z "\${PGAPPNAME:-}" ]; then

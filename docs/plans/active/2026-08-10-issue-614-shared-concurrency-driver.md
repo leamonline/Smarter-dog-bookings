@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Issue:** [#614](https://github.com/leamonline/Smarter-dog-bookings/issues/614) (closed; corrective follow-up to merged PR #626)
-**Base:** `origin/main@ceeebdea26702727469928e32d7af21434924b0b`
+**Base:** `origin/main@9c7285ef6b30fd341707e501d0ee82a029ea86fe`
 **Last verified:** 10 August 2026
 **Owners:** `scripts/postgres-concurrency-driver.sh`, the two existing
 concurrency scenario scripts, their static guard test, database CI path filters,
@@ -46,6 +46,13 @@ copies of connection safety, process control and cleanup mechanics.
   lifecycle edge: cancelling the Bash watchdog left its internal `sleep`
   process orphaned. The watchdog must clear inherited traps and explicitly
   terminate and reap its own timer as well as the tracked `psql` client.
+- The post-merge database runs at `807de0e335f24f4f3608d06c0a47512180a7797a`
+  and `9c7285ef6b30fd341707e501d0ee82a029ea86fe` both passed all 874 pgTAP
+  assertions, then failed in the WhatsApp concurrency scenario with Bash
+  `wait_for: No record of process` diagnostics and output files removed before
+  the parent could read them. Watchdog creation cleared `EXIT` only after the
+  child began running, leaving a scheduling window where the scenario cleanup
+  trap could be inherited and run by that child.
 - The latest `public.validate_booking_capacity()` definition remains
   `20260712115759_legal_risk_tranche1.sql`; no approved-rule discrepancy was
   found during discovery.
@@ -62,6 +69,9 @@ copies of connection safety, process control and cleanup mechanics.
   tracks every spawned `psql` PID, bounds the host process independently of
   `pg_stat_activity`, escalates from TERM to KILL and reaps the genuine exit
   status.
+- Watchdog creation clears the caller's `EXIT` trap before forking and restores
+  it immediately afterwards, so a child stopped before its first instruction
+  cannot run scenario cleanup.
 - Capacity output continues to identify both participants in each race, exact
   `P0001` loser outcomes, final legal counts, isolation level and exact SHA.
 
@@ -111,6 +121,9 @@ or host-address indirection. No environment file or customer record is read.
 - **Watchdog cleanup:** stopping a completed client's watchdog must not run a
   caller trap or leave its timer process orphaned. A fast-exit fake client
   asserts that cancellation returns before the original timeout.
+- **Watchdog creation race:** clearing `EXIT` inside the child is too late when
+  cancellation wins the scheduling race. A forced pre-initialisation negative
+  control must fail unless the parent clears the trap before forking.
 - **Capacity false green:** preserve distinct backends, exact production-lock
   observation, governed loser errors and final invariant assertions.
 - **Policy drift:** any SQL/approved-rule divergence is a stop condition, not a
@@ -127,12 +140,15 @@ or host-address indirection. No environment file or customer record is read.
 4. Update CI path filters and database-test guidance.
 5. Run focused shell/static checks, pgTAP, both concurrency gates, the complete
    requested repository bar, and review the exact diff before publication.
+6. Publish the corrective hotfix from the latest `main` and require the exact
+   hotfix SHA to pass GitHub checks before merge.
 
 ## Testing
 
 ```bash
 npm ci
 npm run test:logic -- src/security/whatsappRescheduleConcurrencyGuard.test.ts
+# Repeat the focused driver test to exercise process scheduling.
 npm run test:db
 CONCURRENCY_LOCAL_STACK_CONFIRMED=1 npm run test:db:concurrency
 npm run lint
@@ -155,6 +171,8 @@ git diff --check
 - A fake `psql` that outlives its reported backend and ignores TERM is killed,
   reaped and reported with its genuine signal-derived exit status within a
   portable deadline.
+- A watchdog stopped before its first production instruction begins without
+  the caller's `EXIT` cleanup trap.
 - All 19 focused pgTAP assertions and the complete database suite pass.
 - Both capacity races still show two available preflights, one legal commit,
   one exact `P0001` rejection and a legal final state.
@@ -162,6 +180,8 @@ git diff --check
 - No migration or governed capacity behaviour changes.
 - The draft pull request records the exact clean head SHA and all four capacity
   participant outcomes.
+- The corrective pull request's exact head SHA passes the GitHub database gate
+  that failed on both post-merge `main` runs.
 
 ## Open questions
 

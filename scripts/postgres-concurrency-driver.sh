@@ -255,12 +255,15 @@ concurrency_start_watchdog() {
   local timeout_seconds=$2
   local description=$3
   local term_grace_seconds=$CONCURRENCY_TERM_GRACE_SECONDS
+  local caller_exit_trap
 
   concurrency_validate_positive_integer "watchdog client PID" "$client_pid" || return
   concurrency_validate_positive_integer "watchdog timeout" "$timeout_seconds" || return
   concurrency_validate_positive_integer \
     "CONCURRENCY_TERM_GRACE_SECONDS" "$term_grace_seconds" || return
 
+  caller_exit_trap="$(trap -p EXIT)"
+  trap - EXIT
   (
     local watchdog_sleep_pid=""
 
@@ -298,6 +301,9 @@ concurrency_start_watchdog() {
     fi
   ) &
   CONCURRENCY_WATCHDOG_PID=$!
+  if [ -n "$caller_exit_trap" ]; then
+    eval "$caller_exit_trap"
+  fi
 }
 
 concurrency_stop_watchdog() {
