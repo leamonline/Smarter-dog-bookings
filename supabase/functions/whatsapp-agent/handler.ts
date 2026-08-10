@@ -63,7 +63,7 @@
 //                                call when the agent dispatches a draft.
 //
 // Deploy with:
-//   supabase functions deploy whatsapp-agent --no-verify-jwt
+//   supabase functions deploy whatsapp-agent --project-ref "<project-ref>" --no-verify-jwt
 //   --no-verify-jwt is fine because we authenticate the pg_net trigger
 //   ourselves via the AGENT_CALLBACK_SECRET header. This stops random
 //   hits on the public URL from processing events.

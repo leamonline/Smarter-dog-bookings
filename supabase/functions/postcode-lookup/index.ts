@@ -167,7 +167,7 @@ serve(async (req) => {
 
   if (!APITIER_API_KEY) {
     console.error(
-      "postcode-lookup: APITIER_API_KEY is not set. Run `supabase secrets set APITIER_API_KEY=...`",
+      "postcode-lookup: APITIER_API_KEY is not set. Set it on the expected Supabase project with an explicit project ref.",
     );
     return new Response(JSON.stringify({ error: "not_configured" }), {
       status: 500,

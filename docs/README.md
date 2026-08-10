@@ -19,6 +19,7 @@ It does not duplicate those sources.
 | What does the product currently do? | [`product/`](product/) and [`architecture/overview.md`](architecture/overview.md) |
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
 | Which plan is active? | [`plans/active/`](plans/active/) |
+| How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |
 | How are issues, pull requests and the Project organised? | [`project-management.md`](project-management.md) |

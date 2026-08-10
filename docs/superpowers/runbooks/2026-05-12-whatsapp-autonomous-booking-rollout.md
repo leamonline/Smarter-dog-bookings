@@ -12,7 +12,7 @@
 - [ ] `APPLY_CONFIRM_INTERNAL_SECRET` env var generated (32-char random) and added to:
   - `whatsapp-agent` (caller)
   - `apply-customer-confirm` (receiver)
-- [ ] `apply-customer-confirm` edge function deployed: `supabase functions deploy apply-customer-confirm --no-verify-jwt`
+- [ ] `apply-customer-confirm` edge function deployed: `supabase functions deploy apply-customer-confirm --project-ref "<project-ref>" --no-verify-jwt`
 - [ ] `whatsapp-agent` and `whatsapp-send` redeployed with the new code on this branch
 - [ ] `AI_AUTONOMOUS_BOOKING_ENABLED=false` confirmed in env on `whatsapp-agent` (the global kill switch is off by default; we flip it after staff dial-up)
 - [ ] Full test suite green: `npm run test` (expect 347 tests passing)

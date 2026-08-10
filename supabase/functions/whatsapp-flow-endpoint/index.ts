@@ -19,7 +19,7 @@
 //
 // Deploy WITHOUT JWT verification — Meta sends no JWT; the encryption +
 // signature are the auth:
-//   supabase functions deploy whatsapp-flow-endpoint --no-verify-jwt
+//   supabase functions deploy whatsapp-flow-endpoint --project-ref "<project-ref>" --no-verify-jwt
 //
 // Env vars required:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (auto)

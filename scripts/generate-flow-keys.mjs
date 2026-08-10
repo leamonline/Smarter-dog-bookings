@@ -37,8 +37,8 @@ if (generatedPassphrase) {
 }
 console.log("Next steps:\n");
 console.log("1) Set the Edge Function secrets (private key + passphrase):");
-console.log('   supabase secrets set FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"');
-console.log(`   supabase secrets set FLOW_PASSPHRASE="${generatedPassphrase ? passphrase : "<your-passphrase>"}"\n`);
+console.log('   supabase secrets set --project-ref "<project-ref>" FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"');
+console.log(`   supabase secrets set --project-ref "<project-ref>" FLOW_PASSPHRASE="${generatedPassphrase ? passphrase : "<your-passphrase>"}"\n`);
 console.log("2) Upload the PUBLIC key to Meta (replace PHONE_NUMBER_ID + TOKEN):");
 console.log(
   "   curl -X POST 'https://graph.facebook.com/v22.0/PHONE_NUMBER_ID/whatsapp_business_encryption' \\",

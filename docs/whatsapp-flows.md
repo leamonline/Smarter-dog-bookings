@@ -69,8 +69,8 @@ npm run flow:generate-keys
 
 ### 2. Set the Edge Function secrets
 ```bash
-supabase secrets set FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"
-supabase secrets set FLOW_PASSPHRASE="<the passphrase>"
+supabase secrets set --project-ref "<project-ref>" FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"
+supabase secrets set --project-ref "<project-ref>" FLOW_PASSPHRASE="<the passphrase>"
 ```
 `META_APP_SECRET` is reused for the request signature — no new value needed.
 
@@ -86,8 +86,8 @@ your project (or `supabase db push`).
 
 ### 5. Deploy the endpoint (no JWT — Meta sends none)
 ```bash
-supabase functions deploy whatsapp-flow-endpoint --no-verify-jwt
-supabase functions deploy whatsapp-send   # redeploy: now has the `flow` mode
+supabase functions deploy whatsapp-flow-endpoint --project-ref "<project-ref>" --no-verify-jwt
+supabase functions deploy whatsapp-send --project-ref "<project-ref>"  # redeploy: now has the `flow` mode
 ```
 Your endpoint URL is
 `https://<project-ref>.supabase.co/functions/v1/whatsapp-flow-endpoint`.

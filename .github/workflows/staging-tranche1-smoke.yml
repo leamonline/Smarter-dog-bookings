@@ -65,6 +65,7 @@ jobs:
           set -euo pipefail
           # Production is linked only to read its application schema.
           supabase link --project-ref "$PRODUCTION_PROJECT_REF"
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
           supabase db dump --linked \
             --schema public,smarter_dog_private \
             --file /tmp/prod-schema.sql

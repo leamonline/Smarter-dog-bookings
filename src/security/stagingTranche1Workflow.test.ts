@@ -118,6 +118,9 @@ describe("Tranche 1 staging provision workflow", () => {
 
     expect(workflow).toContain("--schema public,smarter_dog_private \\");
     expect(workflow).toContain("--file /tmp/prod-schema.sql");
+    expect(workflow).toContain(
+      'test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"\n          supabase db dump --linked',
+    );
     expect(workflow).not.toMatch(
       /--data-only|--role-only|--include-seed|supabase (?:db )?seed\b/,
     );
