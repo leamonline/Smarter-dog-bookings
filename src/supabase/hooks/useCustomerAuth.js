@@ -251,7 +251,7 @@ export function useCustomerAuth() {
         name === "FunctionsFetchError";
       if (looksLikeMissingFn) {
         logger.error(
-          "customer-phone-on-file Edge Function not reachable. Did you run `supabase functions deploy customer-phone-on-file`?",
+          "customer-phone-on-file Edge Function not reachable. Did you deploy it to the expected Supabase project?",
           lookupErr,
           {
             tags: { hook: "useCustomerAuth", op: "checkPhone" },

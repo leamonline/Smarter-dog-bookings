@@ -22,7 +22,7 @@
 //
 // Deployment note:
 //   Meta will not send a JWT with its webhook calls. Deploy with:
-//     supabase functions deploy whatsapp-webhook --no-verify-jwt
+//     supabase functions deploy whatsapp-webhook --project-ref "<project-ref>" --no-verify-jwt
 //   This is safe because we do our own signature check.
 //
 // Env vars required:

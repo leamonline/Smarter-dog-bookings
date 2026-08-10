@@ -54,10 +54,10 @@ These four are the only ones that need to change. The rest
 tied to the deleted app — keep them.
 
 ```sh
-supabase secrets set META_ACCESS_TOKEN="<new System User token>"
-supabase secrets set META_APP_SECRET="<new app secret>"
-supabase secrets set META_WABA_ID="<waba id — usually unchanged>"
-supabase secrets set META_PHONE_NUMBER_ID="<phone id — usually unchanged>"
+supabase secrets set --project-ref "<project-ref>" META_ACCESS_TOKEN="<new System User token>"
+supabase secrets set --project-ref "<project-ref>" META_APP_SECRET="<new app secret>"
+supabase secrets set --project-ref "<project-ref>" META_WABA_ID="<waba id — usually unchanged>"
+supabase secrets set --project-ref "<project-ref>" META_PHONE_NUMBER_ID="<phone id — usually unchanged>"
 ```
 
 These secrets power `whatsapp-webhook`, `whatsapp-send`, `whatsapp-admin`,
@@ -117,8 +117,8 @@ have deleted it after the initial setup):
 
 ```sh
 npm run flow:generate-keys              # writes flow-keys/{private,public}.pem
-supabase secrets set FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"
-supabase secrets set FLOW_PASSPHRASE="<the passphrase it printed>"
+supabase secrets set --project-ref "<project-ref>" FLOW_PRIVATE_KEY="$(cat flow-keys/private.pem)"
+supabase secrets set --project-ref "<project-ref>" FLOW_PASSPHRASE="<the passphrase it printed>"
 npm run flow:publish -- set-public-key  # uploads the new public half
 rm -rf flow-keys                        # don't keep the private key on disk
 ```

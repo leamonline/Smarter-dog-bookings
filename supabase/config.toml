@@ -8,7 +8,7 @@
 #      It does NOT read this file. So on a normal merge-to-main, the
 #      [functions.*] verify_jwt values below are ignored.
 #
-#   2. Local `supabase functions deploy <fn>` DOES read this file, and
+#   2. Local `supabase functions deploy <fn> --project-ref <ref>` DOES read this file, and
 #      the [functions.*] blocks below govern what gets set.
 #
 # Keep the two in sync: every function here is verify_jwt = false, which

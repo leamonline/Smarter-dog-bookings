@@ -29,10 +29,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
 command -v psql >/dev/null
 command -v prove >/dev/null
 
+test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
 supabase db dump --linked --schema public --dry-run > "$credential_script"
 sed -En '/^export PG(HOST|PORT|USER|PASSWORD|DATABASE)=/p' \
   "$credential_script" > "$credential_exports"
