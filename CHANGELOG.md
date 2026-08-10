@@ -8,6 +8,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Testing
 
+- Refactor the local PostgreSQL concurrency gates around one guarded,
+  reusable real-session driver with tracked client PIDs and portable bounded
+  TERM-to-KILL cleanup, while preserving the accepted WhatsApp and capacity
+  race scenarios.
 - Add focused PostgreSQL capacity behaviour coverage and genuine local
   same-slot and daily-cap race gates, preserving PostgreSQL as the final
   booking authority.

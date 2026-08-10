@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -11,9 +12,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const script = "scripts/verify-whatsapp-reschedule-concurrency.sh";
-const concurrencyHelpers = join(
+const capacityScript = "scripts/verify-capacity-concurrency.sh";
+const concurrencyDriver = join(
   process.cwd(),
-  "scripts/whatsapp-reschedule-concurrency-helpers.sh",
+  "scripts/postgres-concurrency-driver.sh",
 );
 
 function runGate(overrides: NodeJS.ProcessEnv = {}) {
@@ -37,7 +39,47 @@ function runGate(overrides: NodeJS.ProcessEnv = {}) {
   });
 }
 
+function runDriverProbe(
+  fakePsqlBody: string,
+  probeBody: string,
+  timeout = 10_000,
+) {
+  const stubRoot = mkdtempSync(join(tmpdir(), "postgres-concurrency-driver."));
+  const fakePsql = join(stubRoot, "fake-psql");
+  const outputFile = join(stubRoot, "client.out");
+
+  try {
+    writeFileSync(fakePsql, `#!/usr/bin/env bash\n${fakePsqlBody}\n`, {
+      mode: 0o755,
+    });
+
+    const startedAt = Date.now();
+    const result = spawnSync(
+      "/bin/bash",
+      ["-c", probeBody, "bash", concurrencyDriver, fakePsql, outputFile],
+      {
+        encoding: "utf8",
+        timeout,
+      },
+    );
+    return { ...result, elapsedMs: Date.now() - startedAt };
+  } finally {
+    rmSync(stubRoot, { recursive: true, force: true });
+  }
+}
+
 describe("the destructive reschedule concurrency gate", () => {
+  it("shares the guarded PostgreSQL driver with the capacity race", () => {
+    for (const scenarioScript of [script, capacityScript]) {
+      const source = readFileSync(scenarioScript, "utf8");
+      expect(source).toContain(
+        'source "$SCRIPT_DIR/postgres-concurrency-driver.sh"',
+      );
+      expect(source).toContain("concurrency_init_local_supabase");
+      expect(source).toContain("concurrency_terminate_named_backends");
+    }
+  });
+
   it("recognizes the expected staff failure when ripgrep is unavailable", () => {
     const stubRoot = mkdtempSync(join(tmpdir(), "wa-reschedule-output-check."));
     const outputFile = join(stubRoot, "membership-staff.out");
@@ -65,7 +107,7 @@ describe("the destructive reschedule concurrency gate", () => {
           "-c",
           'set -e; source "$1"; file_contains_fixed_string "$2" "$3"',
           "bash",
-          concurrencyHelpers,
+          concurrencyDriver,
           "booking_visit_already_cancelled",
           outputFile,
         ],
@@ -172,5 +214,116 @@ describe("the destructive reschedule concurrency gate", () => {
     } finally {
       rmSync(stubRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe("the shared PostgreSQL concurrency driver", () => {
+  it("bounds and reaps a psql client that outlives its database backend", () => {
+    const result = runDriverProbe(
+      `if [ -z "\${PGAPPNAME:-}" ]; then
+  printf '0\\n'
+  exit 0
+fi
+trap '' TERM
+exec sleep 30`,
+      `set -euo pipefail
+source "$1"
+CONCURRENCY_PSQL=("$2")
+CONCURRENCY_TERM_GRACE_SECONDS=1
+client_pid=""
+cleanup_probe() {
+  if [ -n "$client_pid" ]; then
+    kill -KILL "$client_pid" 2>/dev/null || true
+    wait "$client_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup_probe EXIT
+
+concurrency_start_psql_session fake_stuck_client "$3" "select 1"
+client_pid=$CONCURRENCY_SESSION_PID
+concurrency_wait_for_named_backends 1 0.1 fake_stuck_client
+
+set +e
+concurrency_reap_psql_session "$client_pid" 1 "fake stuck psql"
+client_status=$?
+set -e
+
+if kill -0 "$client_pid" 2>/dev/null; then
+  echo "client survived bounded reap" >&2
+  exit 91
+fi
+concurrency_psql_pid_is_reaped "$client_pid"
+printf 'client_status=%s reaped=yes\\n' "$client_status"
+client_pid=""
+trap - EXIT
+
+[ "$client_status" -eq 137 ]`,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("client_status=137 reaped=yes");
+    expect(result.stderr).toContain("fake stuck psql exceeded 1s");
+    expect(result.stderr).toContain("did not exit within 1s of TERM");
+  });
+
+  it("preserves the genuine non-zero exit status of a reaped psql client", () => {
+    const result = runDriverProbe(
+      "exit 23",
+      `set -euo pipefail
+source "$1"
+CONCURRENCY_PSQL=("$2")
+concurrency_start_psql_session fake_failed_client "$3" "select 1"
+client_pid=$CONCURRENCY_SESSION_PID
+exit_trap_marker="$3.exit-trap"
+trap 'printf inherited > "$exit_trap_marker"' EXIT
+
+set +e
+concurrency_reap_psql_session "$client_pid" 5 "fake failed psql"
+client_status=$?
+set -e
+if [ -e "$exit_trap_marker" ]; then
+  echo "watchdog ran the caller EXIT trap" >&2
+  exit 93
+fi
+trap - EXIT
+printf 'client_status=%s\\n' "$client_status"
+[ "$client_status" -eq 23 ]`,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("client_status=23");
+    expect(result.elapsedMs).toBeLessThan(2_500);
+  });
+
+  it("tracks and reaps every psql client during cleanup", () => {
+    const result = runDriverProbe(
+      `trap '' TERM
+exec sleep 30`,
+      `set -euo pipefail
+source "$1"
+CONCURRENCY_PSQL=("$2")
+CONCURRENCY_TERM_GRACE_SECONDS=1
+
+concurrency_start_psql_session fake_cleanup_one "$3.one" "select 1"
+first_pid=$CONCURRENCY_SESSION_PID
+concurrency_start_psql_session fake_cleanup_two "$3.two" "select 1"
+second_pid=$CONCURRENCY_SESSION_PID
+concurrency_cleanup_tracked_psql_sessions
+
+for client_pid in "$first_pid" "$second_pid"; do
+  if kill -0 "$client_pid" 2>/dev/null; then
+    echo "tracked client survived cleanup: $client_pid" >&2
+    exit 92
+  fi
+  concurrency_psql_pid_is_reaped "$client_pid"
+done
+printf 'tracked_clients_reaped=2\\n'`,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("tracked_clients_reaped=2");
   });
 });
