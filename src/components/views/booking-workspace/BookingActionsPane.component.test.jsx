@@ -47,12 +47,19 @@ async function startOfferFlow(user) {
 }
 
 describe("BookingActionsPane", () => {
-  it("offers both actions without needing the message classifier", () => {
+  it("labels Inbox booking as unavailable before staff can interact with it", async () => {
+    const user = userEvent.setup();
     renderPane();
     expect(
       screen.getByRole("button", { name: /Available appointments\?/ }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Let's book!/ })).toBeInTheDocument();
+    const booking = screen.getByRole("button", { name: /Book from Inbox.*not available/i });
+    expect(booking).toBeDisabled();
+    expect(booking).toHaveAttribute("aria-describedby");
+    expect(screen.getByText(/Booking straight from the inbox is not available yet/i)).toBeInTheDocument();
+
+    await user.click(booking);
+    expect(screen.queryByText(/Booking is not switched on yet/i)).not.toBeInTheDocument();
   });
 
   it("does not gate the actions behind a detected booking request", () => {
@@ -128,13 +135,6 @@ describe("BookingActionsPane", () => {
     expect(
       screen.getByRole("button", { name: /Available appointments\?/ }),
     ).toBeEnabled();
-    expect(screen.getByRole("button", { name: /Let's book!/ })).toBeEnabled();
-  });
-
-  it("marks the booking action as coming next rather than pretending it works", async () => {
-    const user = userEvent.setup();
-    renderPane();
-    await user.click(screen.getByRole("button", { name: /Let's book!/ }));
-    expect(screen.getByText(/not switched on yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Book from Inbox.*not available/i })).toBeDisabled();
   });
 });

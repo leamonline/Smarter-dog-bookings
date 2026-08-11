@@ -20,6 +20,13 @@ describe("sentryBeforeSend", () => {
     expect(out.message).toBe("User [redacted-email] submitted");
   });
 
+  it("redacts bearer tokens and UUIDs from diagnostic text", () => {
+    const out = sentryBeforeSend({
+      message: "Bearer eyJhbGciOiJIUzI1NiJ9.abc.def failed for 6f62d7f2-6d69-4a18-9a66-c0a80ca46de5",
+    });
+    expect(out.message).toBe("Bearer [redacted-token] failed for [redacted-id]");
+  });
+
   it("redacts both in one string", () => {
     const out = sentryBeforeSend({
       message: "Contact 07507731487 or test+tag@example.co.uk",

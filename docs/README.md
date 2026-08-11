@@ -20,6 +20,7 @@ It does not duplicate those sources.
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
 | Which plan is active? | [`plans/active/`](plans/active/) |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
+| Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |
 | How are issues, pull requests and the Project organised? | [`project-management.md`](project-management.md) |
@@ -76,6 +77,9 @@ These files remain authoritative for their bounded topics:
 - [`booking-pane-actions-spec.md`](booking-pane-actions-spec.md) — current
   appointment-offer interaction; it is not the future visit notification
   authority.
+- [`interface-capability-truth.md`](interface-capability-truth.md) — current
+  user-facing capability, error and sample-data boundaries verified against
+  code.
 - [`today-command-centre.md`](today-command-centre.md) — Daily Brief and report
   behaviour.
 - [`superpowers/runbooks/`](superpowers/runbooks/) — production and operational

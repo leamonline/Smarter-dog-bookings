@@ -101,25 +101,36 @@ describe("CustomerContextPanel", () => {
           dogs: [{ id: "dog-1", name: "Rex", breed: "Cockapoo" }],
         })}
         onOpenHuman={vi.fn()}
-        onBookAppointment={vi.fn()}
       />,
     );
 
     const notes = screen.getByText("Owner prefers mornings.");
     const dog = screen.getByText("Rex");
     const emailBtn = screen.getByRole("link", { name: /email/i });
-    const bookAppointment = screen.getByRole("button", { name: /Book appointment/i });
     const address = screen.getByText("Address"); // detail line at the very end (no "Details" header)
 
     const follows = (a, b) =>
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
     expect(follows(notes, dog)).toBe(true); // NOTES card above the dog card
-    expect(follows(dog, bookAppointment)).toBe(true); // dog before the actions
-    expect(follows(bookAppointment, address)).toBe(true); // actions before the address line
+    expect(follows(dog, emailBtn)).toBe(true); // dog before the actions
+    expect(follows(emailBtn, address)).toBe(true); // actions before the address line
     // Email is an action button (mailto), not a plain detail line.
     expect(emailBtn).toHaveAttribute("href", "mailto:sarah@example.com");
     // Section headers are gone — no "Details" label.
     expect(screen.queryByText("Details")).not.toBeInTheDocument();
+  });
+
+  it("does not offer direct booking from the Inbox", () => {
+    render(
+      <CustomerContextPanel
+        conversation={{ id: "conv-1", phone_e164: "+447700900123" }}
+        context={matchedContext()}
+        onBookAppointment={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Book appointment/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/Booking from Inbox is not available yet/i);
   });
 });

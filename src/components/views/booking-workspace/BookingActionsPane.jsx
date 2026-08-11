@@ -15,7 +15,7 @@
 // ============================================================
 
 import { useCallback, useMemo, useRef } from "react";
-import { CalendarPlus, CornerUpLeft, MessageSquareText, PawPrint } from "lucide-react";
+import { CalendarPlus, CornerUpLeft, MessageSquareText } from "lucide-react";
 
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { BookingPane } from "./BookingPane.jsx";
@@ -50,10 +50,18 @@ function EntryChoice({ onChoose }) {
         <MessageSquareText aria-hidden="true" size={17} />
         Available appointments?
       </button>
-      <button type="button" onClick={() => onChoose("book")} className={BOOK_BTN}>
+      <button
+        type="button"
+        disabled
+        aria-describedby="inbox-booking-unavailable"
+        className={`${BOOK_BTN} cursor-not-allowed border-slate-200 text-slate-500 opacity-70`}
+      >
         <CalendarPlus aria-hidden="true" size={17} />
-        Let&apos;s book!
+        Book from Inbox (not available)
       </button>
+      <p id="inbox-booking-unavailable" className="-mt-1 text-center text-xs text-slate-500">
+        Booking straight from the Inbox is not available yet. Use the diary to make a booking.
+      </p>
     </div>
   );
 }
@@ -92,25 +100,6 @@ export function BookingActionsPane({
 
   if (!mode) {
     return <EntryChoice onChoose={actions.setMode} />;
-  }
-
-  if (mode === "book") {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <PawPrint aria-hidden="true" size={28} className="text-slate-300" />
-          <p className="mt-3 text-sm font-bold text-brand-purple">Booking is not switched on yet</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Offering times works now. Booking straight from the inbox is coming next.
-          </p>
-        </div>
-        <div className="shrink-0 border-t border-slate-200 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          <button type="button" onClick={actions.cancel} className={GHOST_BTN}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
   }
 
   // Narrow layouts show one stage at a time; wide shows the lot in one scroller.
