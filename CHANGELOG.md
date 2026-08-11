@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ## Unreleased
 
+### Changed
+
+- Add a default-`HOLD`, exact-SHA human merge-control attestation and operator
+  runbook for pull requests while `main` lacks native GitHub protection,
+  including explicit migration disposition and post-merge check monitoring.
+
 ### Testing
 
 - Refactor the local PostgreSQL concurrency gates around one guarded,

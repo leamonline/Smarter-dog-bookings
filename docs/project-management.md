@@ -1,7 +1,7 @@
 # GitHub execution model
 
 Status: Active
-Last verified: 9 August 2026
+Last verified: 11 August 2026
 Programme: #603
 
 The repository is durable project memory. GitHub Issues and a repository Project are the live execution layer: priority, ownership, status, blockers and day-to-day discussion belong there.
@@ -149,9 +149,28 @@ Serialise migration writers and the generated types/RPC/client integration spine
 
 ## Branch controls and merge gate
 
-On 9 August 2026, `main` was not protected. GitHub rejected ruleset enforcement for this private repository on the current plan, so branch rules were not created. This is an external account limitation, not a repository guarantee.
+Live inspection on 11 August 2026 confirmed that `main` was not protected.
+GitHub rejected ruleset enforcement for this private repository on the current
+plan, so branch rules were not created. This is an external account limitation,
+not a repository guarantee.
 
-When the repository/plan supports enforcement, require the read-only PR-head checks and a separate write-capable merge job that never executes pull-request code, re-fetches the allowed head SHA and fails if it changed. Direct web merging remains an administrative bypass unless GitHub rules prevent it; document any temporary manual control honestly.
+Until native enforcement is available, every pull request targeting `main`
+uses the
+[human merge-control runbook](superpowers/runbooks/2026-08-11-human-merge-control.md).
+The control records a named human decision against the exact pull-request head
+and independently read current-`main` SHAs after the required PR evidence
+succeeds, and requires the candidate head to contain that main commit.
+Immediately before merge, the operator must compare those SHAs and all checks
+again; a stale, missing, skipped, failed or ambiguous result means `HOLD`.
+
+The resulting `human-merge-control` check is auditable operational evidence,
+but it cannot prevent a writer or administrator from bypassing it while `main`
+is unprotected. When the repository plan supports enforcement, require pull
+requests, dismiss stale approvals, prevent force/direct pushes as policy
+permits and require the exact contexts named in the runbook. A required status
+alone is not the native human authority because a publisher may never start;
+use GitHub-native review/ruleset state and prove the missing-run case live.
+Keep write-capable release jobs separate from untrusted pull-request code.
 
 ## Traceable completion
 

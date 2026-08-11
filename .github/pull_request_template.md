@@ -21,3 +21,22 @@ Link changed requirements, specifications, plans, ADRs, runbooks, prompt version
 ## Follow-up
 
 Link work deliberately left out, unresolved decisions and any evidence that must be collected after merge. Do not hide required completion work in an untracked TODO.
+
+## Human merge control
+
+This block starts fail closed. Leave it on `HOLD` until every prerequisite is
+green for the exact pull-request head, then follow the
+[human merge-control runbook](https://github.com/leamonline/Smarter-dog-bookings/blob/main/docs/superpowers/runbooks/2026-08-11-human-merge-control.md).
+`Approved base SHA` means the independently read current `main` commit, not
+the pull request's historical `base.sha`.
+Do not rename, reorder, format or duplicate the fields or markers. Only an
+allow-listed human may submit the final `MERGE` body edit.
+
+<!-- human-merge-control:start -->
+Decision: HOLD
+Approved head SHA:
+Approved base SHA:
+Approved by:
+Approved at (UTC):
+Migration review: HOLD
+<!-- human-merge-control:end -->
