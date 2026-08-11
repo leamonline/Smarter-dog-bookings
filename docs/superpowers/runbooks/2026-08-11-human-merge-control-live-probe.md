@@ -9,5 +9,3 @@ customer data. The probe pull request must remain unmerged and finish on
 
 This harmless follow-up line exists solely to prove that a new commit invalidates
 an approval recorded for the previous head SHA.
-
-[Deliberately broken probe link](./definitely-missing-human-merge-control-probe.md)
