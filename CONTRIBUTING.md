@@ -45,3 +45,16 @@ Use the pull request template. A reviewable PR should:
 - leave independently useful follow-ups as linked issues rather than hidden TODOs.
 
 Code written is not the same as work completed. Completion means acceptance criteria are met, checks pass, release dependencies are satisfied and the change can be traced to its decision and intent.
+
+### Human merge control
+
+Until GitHub can enforce protection for this private repository, every pull
+request targeting `main` starts on `HOLD`. After the required evidence is green,
+an allow-listed human must follow the
+[human merge-control runbook](docs/superpowers/runbooks/2026-08-11-human-merge-control.md),
+record the exact head and independently read current-`main` SHAs, confirm the
+head contains current `main`, and make the final pull-request body edit.
+
+A green `human-merge-control` result is auditable approval evidence. It does not
+technically prevent a writer or administrator bypassing the control while
+`main` remains unprotected, so do not use a direct push or merge around it.

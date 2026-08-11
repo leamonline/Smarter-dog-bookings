@@ -2,7 +2,8 @@
 
 **Status:** Active
 **Authority:** Navigation and source-precedence guide
-**Last verified:** 9 August 2026 against `main@8eb8800f`
+**Last verified:** 11 August 2026 against
+`main@e01823e8d4b79504a1454b6349ca61e6631fe094`
 
 This repository contains years of useful design notes, implementation plans and
 operational evidence. This page explains which source answers which question.
@@ -24,6 +25,7 @@ It does not duplicate those sources.
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |
 | How are issues, pull requests and the Project organised? | [`project-management.md`](project-management.md) |
+| How is a merge authorised while `main` is unprotected? | [`superpowers/runbooks/2026-08-11-human-merge-control.md`](superpowers/runbooks/2026-08-11-human-merge-control.md) |
 | Where are reusable AI prompts? | [`../prompts/README.md`](../prompts/README.md) |
 
 ## Source precedence
@@ -61,6 +63,8 @@ architecture convergence tracked by [issue #603](https://github.com/leamonline/S
   [`research/2026-08-09-issue-603-plan-reality-audit.md`](research/2026-08-09-issue-603-plan-reality-audit.md)
 - Roadmap and stop/go gate: [`../ROADMAP.md`](../ROADMAP.md)
 - Traceability: [`traceability.md`](traceability.md)
+- Temporary merge authority:
+  [`superpowers/runbooks/2026-08-11-human-merge-control.md`](superpowers/runbooks/2026-08-11-human-merge-control.md)
 
 ## Existing authoritative domain references
 
