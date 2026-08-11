@@ -10,6 +10,8 @@ explicitly approved the repository-wide control on 11 August 2026
 [#634](https://github.com/leamonline/Smarter-dog-bookings/pull/634)
 **Live proof pull request:**
 [#635](https://github.com/leamonline/Smarter-dog-bookings/pull/635)
+**Close-out pull request:**
+[#636](https://github.com/leamonline/Smarter-dog-bookings/pull/636)
 **Base:** `main@e01823e8d4b79504a1454b6349ca61e6631fe094`
 **Last verified:** 11 August 2026
 **Owners:** `.github/pull_request_template.md`,
