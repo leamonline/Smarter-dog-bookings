@@ -11,6 +11,7 @@ explicitly approved the repository-wide control on 11 August 2026
 **Owners:** `.github/pull_request_template.md`,
 `.github/workflows/human-merge-control.yml`,
 `scripts/human-merge-control.mjs`, `src/security/humanMergeControl.test.ts`,
+`src/security/humanMergeControlApi.test.ts`,
 `src/security/humanMergeControlCi.test.ts`,
 release-control documentation and changelog
 **Dependencies:** A4a implementation from #619; no Tranche B work
@@ -22,7 +23,7 @@ in [project management](../../project-management.md#branch-controls-and-merge-ga
 
 Make the temporary human merge control for unprotected `main` visible,
 auditable and fail closed when its evidence belongs to a stale SHA, while
-preserving a direct path to native required-status enforcement.
+preserving a direct path to GitHub-native review/ruleset enforcement.
 
 ## Why
 
@@ -73,7 +74,8 @@ operational control rather than native merge prevention.
 - Pure parser/evaluator plus a small GitHub REST client with no third-party
   runtime dependency.
 - A narrowly permissioned `pull_request_target` workflow that checks out only
-  the base SHA and never runs pull-request code.
+  the trusted event-time `github.sha` from `main` and never runs pull-request
+  code or the PR's historical `base.sha`.
 - Exact-source validation: GitHub Actions for four CI jobs and `vercel[bot]`
   for the `Vercel` commit status. Each Actions job is also bound to its expected
   workflow path through the Actions run API.
@@ -115,10 +117,10 @@ pull-request checks at head SHA
 human edits PR attestation
         |
         v
-pull_request_target workflow (trusted base SHA, no PR checkout, no secrets)
+pull_request_target workflow (trusted current-main SHA, no PR checkout, no secrets)
         |
         +-- read PR body/files, check runs and commit statuses
-        +-- publish in_progress, then success/action_required
+        +-- publish pending, then success/failure
         v
 human-merge-control status on the exact PR head SHA
 ```
@@ -142,19 +144,23 @@ candidate SHA. Its originating Actions run must also be a completed successful
 neutral, cancelled, timed-out, stale or in-progress results fail.
 
 The attestation time must not precede the newest required evidence completion
-time and must be close enough to workflow execution to reject obviously stale
-or future records. `Approved by` must match the actor who caused the `edited`
+time, must be no more than 15 minutes old and may be no more than two minutes
+ahead of the evaluator clock. `Approved by` must match the actor who caused the `edited`
 event, the workflow actor and triggering actor, and that login must be in the
 base-controlled allow-list. The edited payload must contain a real body change,
-and workflow re-runs are rejected. This does not assert that the approver is
+and GitHub's authenticated body-edit `updated_at` must be strictly later than
+all evidence. Workflow re-runs are rejected. This does not assert that the approver is
 independent of the author; the remaining human-authority limitation is
 documented rather than invented away.
 
-The evaluator reads the PR at the beginning and again immediately before
-success. Both reads must remain open, non-draft, targeted at `main`, and match
-the attested head and base SHAs. A later base advance is handled by the
-runbook's mandatory final comparison because no native rule currently forces
-the branch to be up to date.
+The evaluator reads the PR and the independent `commits/main` endpoint at the
+beginning and again immediately before success. Both PR reads must remain
+open, non-draft and targeted at `main`; both main reads must match the attested
+base SHA. A compare-API read must also prove that the candidate head contains
+that current main commit. The PR's `base.sha` is deliberately ignored because
+GitHub retains it as a historical PR base snapshot. A later base advance is
+handled by updating the branch, waiting for fresh head-bound evidence, and the
+runbook's mandatory final comparison.
 
 ## Data/database changes
 
@@ -169,31 +175,38 @@ No product API changes. The workflow uses GitHub's REST API to:
 - list commit statuses for that SHA;
 - read the originating Actions runs to bind job names to workflow paths;
 - list pull-request files; and
-- create or update only the `human-merge-control` check run on the candidate
+- read the current `main` commit twice and compare it with the candidate head;
+- write only the `human-merge-control` commit-status context on the candidate
   head SHA.
 
 Every response is schema-checked and ambiguity fails closed. Pagination is
-handled for file, check-run and status lists.
+handled for file, check-run and status lists. The fetched file count must equal
+the PR's `changed_files` total, so GitHub's 3,000-file listing cap cannot hide
+a migration-history edit.
 
 ## UI changes
 
 No product UI changes. GitHub pull requests gain a visible structured
-attestation and check run.
+attestation and commit status.
 
 ## Security/privacy considerations
 
 - Workflow permissions are limited to `contents: read`, `pull-requests: read`,
-  `checks: write`, `actions: read` and `statuses: read`.
+  `checks: read`, `actions: read` and `statuses: write`.
 - No repository secret is referenced; only the ephemeral `github.token` is
   passed to the evaluator.
-- Checkout is pinned to `github.event.pull_request.base.sha` with credential
-  persistence disabled.
+- The workflow-contract test rejects commit-status write permission in any
+  other current repository workflow, reducing same-repository spoofing paths.
+- Checkout uses the trusted `pull_request_target` `github.sha` with credential
+  persistence disabled; it never uses PR head code or the historical
+  `pull_request.base.sha`.
 - No pull-request code, dependency installation or shell interpolation of PR
   text occurs in the trusted workflow.
 - Logs contain repository metadata and check names only, with no customer data
   or credentials.
-- An in-progress check is written before remote reads so an evaluator crash
-  cannot leave a newly evaluated SHA falsely green.
+- A pending status is written from the locally validated GitHub event before
+  remote evidence reads, so an evaluator crash or API failure cannot leave the
+  newly evaluated SHA falsely green.
 
 ## Dependencies
 
@@ -210,14 +223,19 @@ attestation and check run.
 | --- | --- |
 | New commit retains old approval | exact SHA mismatch and `synchronize` evaluation fail the new head |
 | Old edit-event run is manually re-run later | require run attempt 1 and matching actor/triggering actor |
-| Base moves during evaluation | attest the base SHA and compare two fresh PR reads |
+| Base moves during evaluation | read current `main` twice and require both reads to equal the attested base SHA |
+| PR head omits current `main` | compare base to head and require current `main` to be the merge base |
 | PR text reaches shell execution | read JSON from `GITHUB_EVENT_PATH`; never interpolate body/title/ref in YAML `run` source |
-| PR changes the evaluator | checkout only the base SHA under `pull_request_target` |
+| PR changes the evaluator | checkout only trusted `github.sha` under `pull_request_target` |
 | A lookalike check supplies success | require exact context and expected GitHub App/bot identity |
+| PR weakens an evidence workflow or test harness | runbook forbids ordinary approval and requires separately authorised control-change review |
 | Human approves before evidence settles | require all checks successful and approval time after the latest completion |
 | Migration no-op is mistaken for production proof | require `NO_MIGRATIONS` or the exact successful migration-check run URL |
 | Applied migration history is edited | reject modified, removed or renamed migration SQL files |
-| Workflow/API outage | in-progress or `action_required` check; documented `HOLD` |
+| GitHub truncates a very large PR file list | compare the fetched length with the PR's changed-file count and hold on mismatch |
+| Workflow/API outage after start | pre-checkout pending plus best-effort failure recovery; failed publisher run is `HOLD` |
+| Hosted runner never starts | final operator check requires the latest publisher run to exist and complete |
+| Final status commits but its response is lost | best-effort non-green recovery plus mandatory successful publisher-run review |
 | Base or prerequisite changes after approval | final human comparison immediately before merge; native strict protection is the long-term fix |
 | Writer bypasses the status | explicit limitation and human procedure; native branch rules remain the required long-term fix |
 
@@ -231,7 +249,10 @@ attestation and check run.
 4. Add a harmless commit or use a fixture-based negative control and confirm
    the previous approval no longer makes the new SHA green.
 5. If native private-repository enforcement becomes available, require the six
-   contexts named in the approved design and retain the runbook.
+   contexts named in the approved design and bind the human-control context to
+   the expected GitHub Actions source App, but use GitHub-native review/ruleset
+   state as the human authority. Prove a missing latest publisher blocks merge
+   before retiring the runbook comparison.
 
 Rollback is deletion of the workflow plus removal of the template field and
 documentation links. Because no native rule currently requires the new status,
@@ -248,14 +269,17 @@ rollback cannot strand a protected branch.
 2. **Implement the pure control.** Add `scripts/human-merge-control.mjs` with
    exported parser, evidence selector and evaluator functions. Run the focused
    test until green without adding network authority to the pure functions.
-3. **Test the workflow contract first.** Add
+3. **Test the API and workflow contracts first.** Add
+   `src/security/humanMergeControlApi.test.ts` to prove pending-before-reads,
+   successful final publication, fail-closed API errors and event-type
+   rejection. Add
    `src/security/humanMergeControlCi.test.ts` with expected workflow triggers,
-   permissions, base-SHA checkout, disabled credential persistence, absence of
+   permissions, trusted `github.sha` checkout, disabled credential persistence, absence of
    PR checkout/secrets and the exact context name. Confirm it fails before the
    workflow exists.
 4. **Add the trusted workflow and API adapter.** Create
    `.github/workflows/human-merge-control.yml`; implement paginated reads, two
-   fresh PR comparisons and in-progress/final check writes in the script. Use a
+   fresh PR/current-main comparisons and pending/final status writes in the script. Use a
    full-length immutable SHA for the checkout action, a five-minute job timeout
    and per-PR concurrency without in-progress cancellation.
 5. **Add the human surface.** Update `.github/pull_request_template.md`; add
@@ -278,7 +302,10 @@ template and workflow.
 Focused:
 
 ```bash
-npx vitest run --project=logic src/security/humanMergeControl.test.ts
+npx vitest run --project=logic \
+  src/security/humanMergeControl.test.ts \
+  src/security/humanMergeControlApi.test.ts \
+  src/security/humanMergeControlCi.test.ts
 node scripts/human-merge-control.mjs --help
 ```
 
@@ -300,7 +327,7 @@ observed on the first later PR after this workflow reaches `main`.
 ## Observability
 
 - `human-merge-control` is attached to the exact candidate SHA with a target URL
-  to the evaluator run and a stable external ID for that PR/head pair.
+  to the evaluator run, using GitHub's latest-per-context status semantics.
 - Its description gives the first fail-closed reason without exposing body
   contents.
 - The PR body retains the named approver, decision, head/base SHAs, time and

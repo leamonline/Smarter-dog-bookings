@@ -1,0 +1,110 @@
+name: Human Merge Control Publisher
+
+on:
+  pull_request_target:
+    branches: [main]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - ready_for_review
+      - converted_to_draft
+
+# The workflow-level default is deliberately empty. The one publishing job
+# receives only the reads needed to verify evidence plus permission to publish
+# its head-bound commit status. No repository secret is referenced.
+permissions: {}
+
+concurrency:
+  group: human-merge-control-pr-${{ github.event.pull_request.number }}
+  # Do not cancel a publisher after it has created a pending status. GitHub
+  # permits one running and one queued run per PR; the newest queued event
+  # eventually evaluates the latest state without interrupting the running one.
+  cancel-in-progress: false
+
+jobs:
+  publish-human-merge-control:
+    name: Publish human merge control
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      # Reset the head-bound context before checkout. If checkout or the
+      # evaluator later fails, this pending state supersedes any older success.
+      # Event data is parsed as JSON inside Node and never interpolated into
+      # shell source.
+      - name: Reset head-bound control to pending before checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, "utf8"));
+          const headSha = event.pull_request?.head?.sha;
+          if (!/^[0-9a-f]{40}$/.test(headSha ?? "")) {
+            throw new Error("Pull-request event has no valid head SHA.");
+          }
+
+          const repository = process.env.GITHUB_REPOSITORY;
+          const [owner, repo, ...extra] = repository?.split("/") ?? [];
+          if (!owner || !repo || extra.length > 0) {
+            throw new Error("GITHUB_REPOSITORY must contain owner/name.");
+          }
+
+          const apiUrl = process.env.GITHUB_API_URL?.replace(/\/$/, "");
+          const serverUrl = process.env.GITHUB_SERVER_URL?.replace(/\/$/, "");
+          const runId = process.env.GITHUB_RUN_ID;
+          const token = process.env.GITHUB_TOKEN;
+          if (!apiUrl || !serverUrl || !runId || !token) {
+            throw new Error("Required GitHub runner context is missing.");
+          }
+
+          const response = await fetch(
+            `${apiUrl}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/statuses/${headSha}`,
+            {
+              method: "POST",
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": "smarter-dog-human-merge-control-reset",
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+              body: JSON.stringify({
+                state: "pending",
+                context: "human-merge-control",
+                target_url: `${serverUrl}/${repository}/actions/runs/${runId}`,
+                description: "HOLD while the trusted merge-control publisher runs.",
+              }),
+            },
+          );
+          if (!response.ok) {
+            throw new Error(`GitHub status reset returned ${response.status}.`);
+          }
+          const status = await response.json();
+          if (status.context !== "human-merge-control" || status.state !== "pending") {
+            throw new Error("GitHub did not confirm the pending merge-control status.");
+          }
+          NODE
+
+      # pull_request_target is privileged base-repository context. github.sha
+      # is the trusted target-branch commit selected for this workflow run;
+      # never fetch or execute the PR head (or the PR's historical base.sha).
+      - name: Check out trusted base evaluator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Evaluate and publish head-bound human control
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/human-merge-control.mjs

@@ -23,7 +23,7 @@ is a visible, auditable human control with an explicit bypass limitation.
 
 ## Decision
 
-Add a fail-closed `human-merge-control` check run for pull requests. A
+Add a fail-closed `human-merge-control` commit status for pull requests. A
 named human may turn it green only by editing a structured attestation in the
 pull-request body after the required evidence is green for the exact pull-
 request head SHA.
@@ -50,11 +50,17 @@ Approval requires all of the following:
 
 - `Decision` is exactly `MERGE`;
 - the approved SHA is the current 40-character pull-request head SHA;
-- the approved base SHA is the freshly read target-branch SHA;
+- the approved base SHA is the independently and freshly read `main` tip, not
+  the pull request's historical `base.sha`;
+- the approved head contains that current `main` commit;
 - `Approved by` names the GitHub actor who submitted the body edit and that
   actor is in the base-controlled merge-approver allow-list;
-- the timestamp is a valid UTC timestamp;
+- both the typed timestamp and GitHub-authenticated body-edit `updated_at` are
+  strictly after every evidence timestamp; equality fails closed;
+- the typed timestamp and body edit are no more than 15 minutes old and no more
+  than two minutes ahead of the evaluator clock;
 - migration disposition is explicit rather than inferred from a green no-op;
+  GitHub's reported changed-file count must equal the complete fetched list;
   and
 - every required pull-request check is successful for that SHA.
 
@@ -86,23 +92,34 @@ resulting `main` SHA.
 
 Use `pull_request_target` only for the narrow attestation workflow. It must:
 
-- execute repository code from the base commit, never the pull-request head;
+- execute repository code from the trusted `github.sha` target-branch commit,
+  never the pull-request head or the PR's historical `base.sha`;
 - receive no repository secrets;
-- request only repository read, pull-request read, commit-status read, Actions
-  read and check write permissions;
+- request only repository read, pull-request read, check read, Actions read and
+  commit-status write permissions;
 - treat the pull-request body and API responses as untrusted data;
-- create or update an in-progress check before evaluation and complete it with
-  `success` or `action_required` on the exact pull-request head SHA; and
+- publish `pending` from the validated GitHub event before checkout or remote
+  evidence reads, then `success` or `failure` on that exact pull-request head
+  SHA; and
 - fail closed if the event, API response, attestation or required context is
   missing, duplicated, stale, skipped, neutral, cancelled or otherwise
   ambiguous.
 
 The workflow job itself runs against the trusted base context. The durable
-`human-merge-control` check run is explicitly written to the candidate head SHA
-so it can later become a native required check without changing its name. Its
-stable external ID is scoped to the pull-request number and head SHA so repeated
-body edits update the same logical control instead of producing ambiguous
-lookalikes.
+`human-merge-control` status is explicitly written to the candidate head SHA so
+it can later become a native required status without changing its name. GitHub's
+latest-per-context semantics make each new `pending`, `success` or `failure`
+authoritative without discovering or updating an older check run.
+
+An internal or final-publication error triggers a best-effort non-green status
+write before the job exits non-zero. A lost API response can make the remote
+outcome unknowable, so the operator must also require the latest publisher run
+to have completed successfully; a status alone is insufficient.
+
+The evaluator reads the current `main` commit independently before and after
+collecting evidence. It also compares that commit with the candidate head and
+requires `main` to be the merge base, proving that the tested head contains the
+attested base. The PR object is used only to confirm `base.ref` remains `main`.
 
 ## Human operating procedure
 
@@ -121,15 +138,19 @@ does not prove the whole production migration ledger is current.
 
 Immediately before merging, the operator compares the attested base SHA with
 the current `main` SHA. An advance of `main` after approval requires a refreshed
-attestation. Without native protection there is no reliable repository event
-for every later prerequisite re-run or base movement, so the final comparison
-remains an explicit human duty.
+branch head, fresh head-bound evidence and attestation. Without native
+protection there is no reliable repository event for every later prerequisite
+re-run or base movement, so the final comparison remains an explicit human
+duty. The operator also confirms that GitHub actually started and completed
+the latest publisher run; a run that never starts cannot supersede an older
+green status.
 
 ## Native-enforcement path
 
 When the repository plan supports private-repository protection, configure
-`main` to require pull requests, dismiss stale approvals, block force pushes
-and require these contexts:
+`main` to require pull requests, GitHub-native approving review, dismissal of
+stale approvals, a current branch, blocked force/direct pushes and these
+contexts:
 
 - `build`
 - `agent-tests`
@@ -138,8 +159,15 @@ and require these contexts:
 - `Vercel`
 - `human-merge-control`
 
-The human runbook remains useful for release judgement, but GitHub then becomes
-the authority that prevents a merge while a required context is absent or red.
+These contexts are necessary but not sufficient for native human enforcement.
+An older green `human-merge-control` status can survive if a later publisher
+never starts, so GitHub-native review/ruleset state—not this status alone—must
+be the human prevention authority. Alternatively, redesign it as a required
+GitHub mechanism whose absence GitHub itself invalidates. Bind the status to
+the expected GitHub Actions source App, but do not mistake source identity for
+liveness. A dedicated GitHub App improves identity isolation, not dispatch
+guarantees. Keep the manual publisher-run comparison until a live negative
+test proves GitHub blocks a missing latest publisher.
 
 For the GitHub Actions evidence, the evaluator also resolves the originating
 Actions run and requires the expected workflow path: `build`, `agent-tests` and
@@ -152,7 +180,8 @@ different workflow does not satisfy the control.
 
 Focused tests cover valid approval, default hold, malformed or duplicated
 blocks, stale SHA, actor mismatch, invalid timestamp and every non-success
-check state. A workflow-contract test proves the trusted-base checkout,
+check state. They also reject GitHub's 3,000-file API truncation by comparing
+the PR's changed-file count with the fetched list. A workflow-contract test proves the trusted-base checkout,
 permissions, event list and exact status-context name cannot drift silently.
 
 An intentional failing fixture is the negative control: changing the approved
@@ -165,8 +194,17 @@ SHA or one required conclusion must make the evaluator reject the attestation.
 - A later advance of `main` or prerequisite re-run is not automatically able to
   invalidate an already completed check; the runbook therefore requires a
   final current-base and all-checks comparison immediately before merge.
+- A hosted runner that never starts cannot publish the initial pending status;
+  the runbook therefore requires the latest publisher run itself to exist and
+  complete for the final body edit.
+- A status request can be committed remotely while its response is lost. The
+  publisher attempts a non-green recovery, and the mandatory successful-run
+  check remains the final authority if that recovery is also ambiguous.
 - It does not make the current migration checker a bidirectional drift or SQL
   integrity check.
+- Actions name/App/path provenance does not prove that candidate changes left
+  the evidence-producing workflow or invoked test harness intact. The runbook
+  keeps such control changes on `HOLD` for separately authorised review.
 - It does not independently verify live application behaviour behind Vercel
   access controls.
 - It does not authorise a production write, billing change, visibility change
