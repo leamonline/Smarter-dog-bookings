@@ -1,11 +1,17 @@
 # Issue #606 human merge control
 
-**Status:** Active
+**Status:** Completed
 **Issue:** enforcement follow-up to
 [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606),
 [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) and parent
 [#603](https://github.com/leamonline/Smarter-dog-bookings/issues/603); the user
 explicitly approved the repository-wide control on 11 August 2026
+**Implementation pull request:**
+[#634](https://github.com/leamonline/Smarter-dog-bookings/pull/634)
+**Live proof pull request:**
+[#635](https://github.com/leamonline/Smarter-dog-bookings/pull/635)
+**Close-out pull request:**
+[#636](https://github.com/leamonline/Smarter-dog-bookings/pull/636)
 **Base:** `main@e01823e8d4b79504a1454b6349ca61e6631fe094`
 **Last verified:** 11 August 2026
 **Owners:** `.github/pull_request_template.md`,
@@ -356,6 +362,51 @@ observed on the first later PR after this workflow reaches `main`.
 - Focused negative controls and the repository bar pass.
 - The final evidence names the branch and commit; live GitHub behaviour is left
   as a clearly labelled post-merge observation, not claimed from local tests.
+
+## Completion evidence — 11 August 2026
+
+Bootstrap pull request
+[#634](https://github.com/leamonline/Smarter-dog-bookings/pull/634) was
+manually reviewed as the one-off introduction exception at exact head
+`80c3f0f60e1d3106becb32d260bdc2418702ace9` against
+`main@e01823e8d4b79504a1454b6349ca61e6631fe094`. The
+[final bootstrap decision](https://github.com/leamonline/Smarter-dog-bookings/pull/634#issuecomment-5255770459)
+records successful exact-head `build`, `agent-tests`,
+`pr-production-smoke` (18 of 18 production-build journeys),
+`migrations-applied` with `NO_MIGRATIONS`, and the `Vercel` status from
+`vercel[bot]`. The deliberately empty pull-request `e2e` job was not counted.
+
+GitHub merged #634 as
+`822416b8ce2da8b41981d6d13fd64546979e0bad`. On that exact `main` SHA,
+[CI run 31511505200](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31511505200)
+completed `build`, the full push `e2e` suite and `agent-tests` successfully;
+`pr-production-smoke` skipped as expected on push.
+[Migration run 31511505152](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31511505152)
+completed successfully, and the
+[Vercel production deployment](https://vercel.com/smarterdog/smarter-dogs-smart-humans/DogNHdnKLBsfNHMTZkV3ruhy74h6)
+reported success for the merge SHA.
+
+Temporary live-probe pull request
+[#635](https://github.com/leamonline/Smarter-dog-bookings/pull/635) proved the
+base-controlled workflow after it existed on `main`. The consolidated
+[live-proof record](https://github.com/leamonline/Smarter-dog-bookings/pull/635#issuecomment-5256208758)
+shows that a pull request begins on `HOLD`, non-body events cannot approve it,
+stale ancestry or base evidence remains `HOLD`, a valid exact-SHA attestation
+can publish success, a new commit invalidates the old approval, a failed
+prerequisite remains `HOLD`, and a missing latest publisher run is an
+operational `HOLD`. The successful live approval was bound to head
+`838d9c30e2db0162ff1d0477c22bc81e08c4bc36` and
+`main@822416b8ce2da8b41981d6d13fd64546979e0bad`. The probe ended at
+`5894bfdbbd56fd6d6028e4f9b9152a019e8cfa2e` with an explicit non-green
+control status and was closed unmerged after its body returned to blank
+`HOLD`.
+
+Native prevention remains unavailable on the current private-repository plan.
+Fresh GitHub reads still report `main` as unprotected, and the repository
+ruleset endpoint returns HTTP 403 with GitHub's instruction to upgrade to Pro
+or make the repository public. `human-merge-control` therefore remains the
+active auditable operating control plus mandatory final human comparison; it
+is not GitHub-native merge prevention.
 
 ## Open questions
 
