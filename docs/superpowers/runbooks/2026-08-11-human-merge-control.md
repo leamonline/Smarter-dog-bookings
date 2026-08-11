@@ -4,7 +4,7 @@
 **Applies to:** every pull request targeting `main`
 **Authority:** the approved
 [human merge-control design](../specs/2026-08-11-human-merge-control-design.md)
-and [issue #606 plan](../../plans/active/2026-08-11-issue-606-human-merge-control.md)
+and [issue #606 plan](../../plans/completed/2026-08-11-issue-606-human-merge-control.md)
 
 ## Purpose and boundary
 
