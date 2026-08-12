@@ -31,13 +31,24 @@ describe("AiWhatsAppSettings", () => {
     const control = await screen.findByRole("switch", {
       name: "Allow automatic AI WhatsApp messages",
     });
-    expect(control).toHaveAttribute("aria-checked", "true");
+    // findByRole resolves as soon as the switch EXISTS, and it renders with
+    // enabled=false/loading=true before the durable read resolves. Asserting
+    // straight away therefore races the load: it passes on a fast machine and
+    // fails on a loaded CI runner, which is exactly what happened. Wait for the
+    // loaded state instead of the element's mere presence.
+    await waitFor(() =>
+      expect(control).toHaveAttribute("aria-checked", "true"),
+    );
 
     fireEvent.click(control);
     await waitFor(() =>
       expect(setAiWhatsAppEnabled).toHaveBeenLastCalledWith(false),
     );
-    expect(control).toHaveAttribute("aria-checked", "false");
+    // Same reasoning: the attribute flips when the save resolves, not when the
+    // call is made.
+    await waitFor(() =>
+      expect(control).toHaveAttribute("aria-checked", "false"),
+    );
   });
 
   it("shows the fail-closed state when the setting cannot be read", async () => {
