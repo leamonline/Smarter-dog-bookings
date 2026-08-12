@@ -29,8 +29,17 @@ insert into public.salon_config (settings, daily_dog_cap) values (
   1
 );
 
+-- Seed a closed day on the NEXT WEDNESDAY. Anchored to the same start-of-week
+-- as the booking fixtures below so the three dates can never coincide.
+-- A plain `today + 5` collided with them depending on the weekday the suite
+-- happened to run: on a Wednesday it landed on the live booking's Monday and
+-- made "an open day at the configured daily dog cap is fully booked" fail,
+-- and on a Thursday it landed on the Cancelled booking's Tuesday, where a
+-- closed day also reports is_fully_booked = false and the assertion passed for
+-- the wrong reason. Keep every fixture date week-anchored.
 insert into public.day_settings (setting_date, is_open, overrides, extra_slots) values
-  ((statement_timestamp() at time zone 'Europe/London')::date + 5,
+  ((date_trunc('week', (statement_timestamp() at time zone 'Europe/London')::date)
+     + interval '9 days')::date,
    false, '{"09:00":{"1":"blocked"}}'::jsonb, array['14:00']);
 
 -- Seed one live booking on the next Monday and one Cancelled booking on the
@@ -99,7 +108,8 @@ select ok(
 );
 select is(
   (select is_open from public.get_public_open_days()
-   where setting_date = (statement_timestamp() at time zone 'Europe/London')::date + 5),
+   where setting_date = (date_trunc('week', (statement_timestamp() at time zone 'Europe/London')::date)
+     + interval '9 days')::date),
   false, 'anon calling get_public_open_days() sees the seeded closure'
 );
 select is(
@@ -130,7 +140,8 @@ select is(
 );
 select is(
   (select is_fully_booked from public.get_public_open_days()
-   where setting_date = (statement_timestamp() at time zone 'Europe/London')::date + 5),
+   where setting_date = (date_trunc('week', (statement_timestamp() at time zone 'Europe/London')::date)
+     + interval '9 days')::date),
   false,
   'a closed day never reports itself as fully booked'
 );
@@ -139,7 +150,8 @@ select ok(
           and row_to_json(d)::text !~ '14:00'
           and row_to_json(d)::text !~ 'booking_count'
      from public.get_public_open_days() d
-     where setting_date = (statement_timestamp() at time zone 'Europe/London')::date + 5),
+     where setting_date = (date_trunc('week', (statement_timestamp() at time zone 'Europe/London')::date)
+     + interval '9 days')::date),
   'get_public_open_days never surfaces counts or day_settings internals'
 );
 
