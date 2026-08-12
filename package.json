@@ -24,6 +24,7 @@
     "check:docs": "node scripts/check-doc-links.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:edge-types": "node scripts/check-edge-function-types.mjs",
+    "check:edge-auth": "node scripts/check-edge-function-auth.mjs",
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
     "vapid:generate": "node scripts/generate-vapid-keys.mjs",
     "flow:publish": "node scripts/publish-flow.mjs",

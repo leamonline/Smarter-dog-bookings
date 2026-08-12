@@ -76,6 +76,16 @@ jobs:
           echo "::error::deno check failed after 3 attempts"
           exit 1
 
+      # Every function is deployed with --no-verify-jwt, so its in-function check
+      # IS the security boundary. This fails when a deployable function has no
+      # entry in _shared/authManifest.json, or when an entry disagrees with the
+      # source it describes (origin allowlist, service-role use, config.toml
+      # declaration, or the primitives its declared family requires). Node
+      # builtins only, so it needs neither `npm ci` nor Deno — hence no retry
+      # loop: it makes no network calls and cannot fail on a CDN blip.
+      - name: Check Edge Function auth contract
+        run: npm run check:edge-auth
+
       - name: Run Edge Function (Deno) tests
         run: |
           for attempt in 1 2 3; do

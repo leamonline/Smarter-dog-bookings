@@ -26,6 +26,14 @@ export function isAuthorizedWebhook(
   secret: string,
 ): boolean {
   if (!authHeader) return false;
+  // Reject an empty/unset secret outright. Without this the comparison below
+  // is `timingSafeEqual("Bearer ", "Bearer " + "")` — an exact match — so a
+  // deployment that lost WEBHOOK_SECRET would authorise anyone who sent the
+  // literal header "Bearer " (with the trailing space). Callers do each guard
+  // this themselves (an early 500, or `!!WEBHOOK_SECRET &&`), so this is
+  // defence in depth rather than a live hole; it belongs in the primitive so a
+  // future caller cannot reintroduce it by forgetting the guard.
+  if (!secret) return false;
   return timingSafeEqual(authHeader, `Bearer ${secret}`);
 }
 

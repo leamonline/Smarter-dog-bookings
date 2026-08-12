@@ -74,6 +74,8 @@ These files remain authoritative for their bounded topics:
   blocked-seat, extra-slot and daily-cap behaviour.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
+- [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
+  contract for every deployable Edge Function, and what it does not prove.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
