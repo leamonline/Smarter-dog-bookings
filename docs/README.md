@@ -76,6 +76,8 @@ These files remain authoritative for their bounded topics:
   exceptions and database-function permission convention.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
   contract for every deployable Edge Function, and what it does not prove.
+- [`node-runtime.md`](node-runtime.md) — the supported Node version, where it is
+  declared, and how a bump is kept consistent.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
