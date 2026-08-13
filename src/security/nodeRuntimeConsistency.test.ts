@@ -72,7 +72,7 @@ function workflowJobs(): WorkflowJob[] {
         continue;
       }
 
-      const jobMatch = line.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+      const jobMatch = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
       if (jobMatch) {
         finishCurrent();
         current = { file, job: jobMatch[1], source: "" };
