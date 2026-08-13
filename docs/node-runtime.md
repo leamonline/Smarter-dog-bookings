@@ -9,15 +9,13 @@ The project targets **Node 24** ("Krypton", the active LTS line).
 | Source | Governs | Enforced by |
 |---|---|---|
 | [`.nvmrc`](../.nvmrc) | local shells (`nvm`/`fnm` auto-switch on `cd`) | the consistency test below |
-| [`package.json#engines.node`](../package.json) | `npm` installs, and Vercel's build image when no project setting overrides it | `engine-strict` |
-| [`.npmrc`](../.npmrc) `engine-strict=true` | makes an engine mismatch fatal instead of a warning | npm itself |
+| [`package.json#engines.node`](../package.json) | `npm` installs, and Vercel's build image when no project setting overrides it | advisory today — see below |
 | `.github/workflows/*.yml` `node-version:` | every CI job that runs Node | the consistency test below |
 | Vercel project setting `nodeVersion` | production and preview builds | **not assertable from this repository** |
 
 [`src/security/nodeRuntimeConsistency.test.ts`](../src/security/nodeRuntimeConsistency.test.ts)
 fails if any workflow pin, `.nvmrc` or `engines.node` disagrees on the major, if
-a pin goes missing, if `engine-strict` is removed, or if the declared major ever
-drops below 24.
+a pin goes missing, or if the declared major ever drops below 24.
 
 ## Why it is pinned rather than left floating
 
@@ -34,13 +32,19 @@ Node no longer supported. Meanwhile `@supabase/supabase-js` declares
 `EBADENGINE` as a warning and installed anyway, and nothing compared the
 workflows to each other.
 
-`engine-strict=true` is what converts that warning into a failure. Verified both
-ways: `npm ci` installs cleanly on Node 24 with no dependency excluding it, and
-fails with `EBADENGINE` on Node 22.
+### `engines.node` is currently advisory
+
+`engines.node` on its own does not fail an install: npm prints `EBADENGINE` and
+continues. Converting that warning into a failure requires `engine-strict=true`
+in [`.npmrc`](../.npmrc), which changes what `npm ci` does for every contributor
+and every CI job. That is a control change with real blast radius, so it is
+deliberately held back to its own reviewed pull request rather than riding along
+with a version bump. Until it lands, a contributor on an older Node still
+installs successfully and only sees a warning.
 
 ## Bumping the version
 
-Change all four repository sources in one commit — `.nvmrc`, `engines.node`, and
+Change every repository source in one commit — `.nvmrc`, `engines.node`, and
 every workflow pin — or the consistency test fails. Then update the Vercel
 project's Node setting to match, because that lives in Vercel and this
 repository cannot check it.
