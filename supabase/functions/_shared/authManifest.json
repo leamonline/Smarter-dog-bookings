@@ -110,13 +110,13 @@
       "caller": "staff dashboard browser",
       "role": "staff",
       "gatewayVerifyJwt": false,
-      "configToml": "absent",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "BROADCAST_MESSAGE_ALLOWED_ORIGINS",
       "replayDefence": "none — a repeated broadcast is a staff-visible action, not a silent privilege escalation",
       "unauthorizedResponse": "401 Unauthorized (missing or invalid token), 403 Forbidden (authenticated but not staff)",
       "emptySecretBehaviour": "n/a — no shared secret",
-      "notes": "Sends a message to many recipients. Missing from config.toml; CI's --no-verify-jwt flag is what actually applies, so local deploys and CI deploys agree only by accident."
+      "notes": "Sends a message to many recipients."
     },
     "calendar-feed": {
       "authFamily": "feed-token",
@@ -236,13 +236,13 @@
       "caller": "Postgres trigger via pg_net, or a service-role Edge Function",
       "role": "service",
       "gatewayVerifyJwt": false,
-      "configToml": "absent",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "NOTIFY_WELCOME_ALLOWED_ORIGINS",
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 Unauthorized",
       "emptySecretBehaviour": "closed — the bearer branch is guarded by WEBHOOK_SECRET being set and the internal branch by timingSafeEqualHeader",
-      "notes": "Missing from config.toml. Skips the getUser() call when the credential is a webhook or service bearer rather than a user JWT."
+      "notes": "Skips the getUser() call when the credential is a webhook or service bearer rather than a user JWT."
     },
     "notify-staff": {
       "authFamily": "webhook-bearer-or-internal-secret",
@@ -306,13 +306,13 @@
       "caller": "cron via pg_net only",
       "role": "service",
       "gatewayVerifyJwt": false,
-      "configToml": "absent",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": null,
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 Unauthorized",
       "emptySecretBehaviour": "closed — the guard is !WEBHOOK_SECRET || !isAuthorizedWebhook(...), so an unset secret rejects",
-      "notes": "Missing from config.toml. Sends SMS when a WhatsApp reminder could not be delivered."
+      "notes": "Sends SMS when a WhatsApp reminder could not be delivered."
     },
     "resend-booking-notification": {
       "authFamily": "staff-jwt",
@@ -320,13 +320,13 @@
       "caller": "staff dashboard browser",
       "role": "staff",
       "gatewayVerifyJwt": false,
-      "configToml": "absent",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "NOTIFY_REMINDER_ALLOWED_ORIGINS",
       "replayDefence": "none — resending is the explicit purpose of the endpoint",
       "unauthorizedResponse": "401 Unauthorized, 403 when authenticated but not staff",
       "emptySecretBehaviour": "closed for the onward call — returns 500 when WEBHOOK_SECRET is unset, because it re-invokes a notify-* function with that bearer",
-      "notes": "Missing from config.toml. Holds WEBHOOK_SECRET only to authenticate its onward call, never to authenticate its own caller."
+      "notes": "Holds WEBHOOK_SECRET only to authenticate its onward call, never to authenticate its own caller."
     },
     "sms-send": {
       "authFamily": "staff-jwt-or-internal-secret",
@@ -348,13 +348,13 @@
       "caller": "trusted operator scripts only",
       "role": "service",
       "gatewayVerifyJwt": false,
-      "configToml": "declared-unset",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": null,
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 Unauthorized",
       "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when the expected secret is empty",
-      "notes": "config.toml declares [functions.whatsapp-admin] without verify_jwt, so a local deploy would apply the Supabase default (true) while CI forces false. Administrative surface — the divergence is worth closing."
+      "notes": "Administrative surface protected by x-internal-secret."
     },
     "whatsapp-agent": {
       "authFamily": "agent-secret",
@@ -418,13 +418,13 @@
       "caller": "trusted operator scripts only",
       "role": "service",
       "gatewayVerifyJwt": false,
-      "configToml": "declared-unset",
+      "configToml": "declared-false",
       "serviceRole": false,
       "originPolicy": null,
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 Unauthorized",
       "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when the expected secret is empty",
-      "notes": "The only deployable function that never constructs a Supabase client. config.toml declares the block without verify_jwt, so local and CI deploys diverge."
+      "notes": "The only deployable function that never constructs a Supabase client."
     },
     "whatsapp-send": {
       "authFamily": "staff-jwt-or-internal-secret",
@@ -432,13 +432,13 @@
       "caller": "staff dashboard browser, plus every notify-* function and pg_net trigger",
       "role": "staff or service",
       "gatewayVerifyJwt": false,
-      "configToml": "declared-unset",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "WHATSAPP_SEND_ALLOWED_ORIGINS",
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 missing authorization / invalid token, 403 not staff",
       "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when SEND_INTERNAL_SECRET is empty",
-      "notes": "The busiest send path. Verifies the JWT via auth.getUser() against GoTrue rather than decoding it locally, so all signing algorithms are supported. config.toml declares the block without verify_jwt, so local and CI deploys diverge."
+      "notes": "The busiest send path. Verifies the JWT via auth.getUser() against GoTrue rather than decoding it locally, so all signing algorithms are supported."
     },
     "whatsapp-update-notes": {
       "authFamily": "staff-jwt",
@@ -446,13 +446,13 @@
       "caller": "staff inbox browser",
       "role": "staff",
       "gatewayVerifyJwt": false,
-      "configToml": "absent",
+      "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "WHATSAPP_UPDATE_NOTES_ALLOWED_ORIGINS",
       "replayDefence": "none — last write wins on a notes field",
       "unauthorizedResponse": "401 missing authorization / invalid token, 403 not staff",
       "emptySecretBehaviour": "n/a — no shared secret",
-      "notes": "Missing from config.toml. Returns 500 when the is_staff() RPC errors rather than proceeding."
+      "notes": "Returns 500 when the is_staff() RPC errors rather than proceeding."
     },
     "whatsapp-webhook": {
       "authFamily": "meta-signature",
