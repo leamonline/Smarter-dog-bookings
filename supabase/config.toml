@@ -66,11 +66,16 @@ verify_jwt = false
 [functions.whatsapp-agent]
 verify_jwt = false
 [functions.whatsapp-send]
+verify_jwt = false
 [functions.whatsapp-register]
+verify_jwt = false
 [functions.whatsapp-admin]
+verify_jwt = false
 [functions.whatsapp-generate-reply]
 verify_jwt = false
 [functions.whatsapp-media]
+verify_jwt = false
+[functions.whatsapp-update-notes]
 verify_jwt = false
 [functions.notify-booking-confirmed]
 verify_jwt = false
@@ -79,6 +84,8 @@ verify_jwt = false
 [functions.notify-booking-reminder]
 verify_jwt = false
 [functions.notify-booking-ready]
+verify_jwt = false
+[functions.notify-customer-welcome]
 verify_jwt = false
 [functions.notify-waitlist-joined]
 verify_jwt = false
@@ -94,11 +101,17 @@ verify_jwt = false
 verify_jwt = false
 [functions.apply-customer-confirm]
 verify_jwt = false
+[functions.broadcast-message]
+verify_jwt = false
 [functions.sms-send]
 verify_jwt = false
 [functions.dashboard-summary]
 verify_jwt = false
 [functions.reminder-send]
+verify_jwt = false
+[functions.reminder-sms-fallback]
+verify_jwt = false
+[functions.resend-booking-notification]
 verify_jwt = false
 [edge_runtime]
 policy = "per_worker"
