@@ -91,22 +91,24 @@ dispatch contract stays importable under `deno test`; its auth check lives in
 `handler.ts`, which is why entries name an `authSource` rather than assuming
 `index.ts`.
 
-## Known divergence: `config.toml` vs CI
+## Deploy-path consistency: `config.toml` vs CI
 
-The two deploy paths set `verify_jwt` by different means, and they do not agree:
+The two deploy paths set `verify_jwt` by different means:
 
 - **CI** passes `--no-verify-jwt` for every changed function and never reads `config.toml`.
 - **A local `supabase functions deploy`** does read `config.toml`.
 
-The manifest records the real state per function as `declared-false`,
-`declared-unset` (a `[functions.x]` block with no `verify_jwt` key) or `absent`
-(no block at all). Both of the latter mean a local deploy would fall back to the
-Supabase default of `verify_jwt = true` and behave differently from production.
+They now agree for all 27 deployable functions: every `[functions.*]` block in
+`supabase/config.toml` explicitly sets `verify_jwt = false`, matching CI's
+`--no-verify-jwt` behaviour.
 
-At the time of writing five functions are `absent` and four are
-`declared-unset`. The guard pins the current state rather than demanding it be
-fixed, so closing the gap is a deliberate follow-up rather than a silent drift.
-Consult the manifest for the live list — do not rely on the counts here.
+The manifest still models three possible repository states — `declared-false`,
+`declared-unset` (a `[functions.x]` block with no `verify_jwt` key) and `absent`
+(no block at all) — because the guard must be able to identify and report future
+drift accurately. All current entries are `declared-false`. A future
+`declared-unset` or `absent` entry would mean local deploys had diverged from CI
+again and should be treated as a deploy-configuration defect, not as equivalent
+protection.
 
 ## What this does and does not prove
 
