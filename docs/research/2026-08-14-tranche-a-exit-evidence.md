@@ -50,10 +50,11 @@ pre-existing `no-explicit-any` warnings), `typecheck` clean, `test` 2791 passed
 across 282 files, `check:docs`, `check:migrations`, `check:edge-auth` and
 `build` all green.
 
-## Gaps at this SHA
+## Caveats a reader must not skip
 
-Two packages cannot be evidenced by a `main` push alone. Both are properties of
-how the checks are triggered, not failures.
+Two packages cannot be evidenced by a `main` push alone — both because of how
+their checks are triggered, not because anything failed — and one package was
+closed before it was actually complete.
 
 ### A1 required a separate dispatch
 
