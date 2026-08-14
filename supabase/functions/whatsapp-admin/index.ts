@@ -28,7 +28,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
-import { mapMetaStatus, normaliseCategory } from "./templates.ts";
+import { mapMetaStatus, normaliseCategory } from "../_shared/templates.ts";
 
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID")!;

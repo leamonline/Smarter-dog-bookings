@@ -92,12 +92,19 @@ In the new app: **WhatsApp → Configuration → Webhook**:
   secret. The function at `whatsapp-webhook/index.ts:161` checks
   `mode === "subscribe" && token === META_WEBHOOK_VERIFY_TOKEN` and only
   then echoes the challenge.
-- **Subscribe to**: the `messages` field on the WABA (this is the one
-  the webhook handler actually parses — `change.value.messages[0]`).
+- **Subscribe to**: `messages` **and** `message_template_status_update` on
+  the WABA. Both are parsed by the webhook handler —
+  `change.value.messages[0]` for inbound traffic and statuses, and
+  `message_template_status_update` to write template review outcomes onto
+  `whatsapp_templates`.
 
-If you also rely on template status notifications (e.g. for approved /
-rejected template updates), subscribe to `message_template_status_update`
-too. Otherwise just `messages`.
+`message_template_status_update` is not optional in practice. Template review
+is asynchronous: `whatsapp-admin`'s `create_template` records `pending` at
+submission and Meta decides hours later. The broadcast gate only opens on
+`status='approved'`, and the only other route to that status is the
+`sync_templates` action — which nothing calls on a schedule. Without the
+subscription an approved template stays `pending` locally, and broadcasts stay
+blocked, until someone runs the sync by hand.
 
 ## Step 6 — Re-upload the Flow public key
 
