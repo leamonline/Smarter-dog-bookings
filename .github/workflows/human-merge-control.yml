@@ -94,6 +94,15 @@ jobs:
           }
           NODE
 
+      # The reset above intentionally runs before setup-node so a setup failure
+      # cannot leave an older green status authoritative. Pin the repository's
+      # trusted evaluator runtime from this point onward. No cache or install is
+      # needed in this privileged workflow.
+      - name: Pin Node for trusted evaluator
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
       # pull_request_target is privileged base-repository context. github.sha
       # is the trusted target-branch commit selected for this workflow run;
       # never fetch or execute the PR head (or the PR's historical base.sha).

@@ -137,6 +137,7 @@ const nvmrc = readFileSync(join(root, ".nvmrc"), "utf8").trim();
 const packageJson = JSON.parse(
   readFileSync(join(root, "package.json"), "utf8"),
 ) as { engines?: { node?: string } };
+const npmrc = readFileSync(join(root, ".npmrc"), "utf8");
 
 describe("Node runtime is declared consistently", () => {
   it("declares a supported Node major in .nvmrc", () => {
@@ -162,18 +163,10 @@ describe("Node runtime is declared consistently", () => {
       .filter(({ source }) => jobInvokesNode(source) && setupNodeCount(source) === 0)
       .map(({ file, job }) => `${file}:${job}`);
 
-    // Exactly one job is knowingly unpinned, and it is asserted by name rather
-    // than skipped: the trusted merge-control publisher. Pinning it edits the
-    // merge control's own evaluator, which the human-merge-control runbook
-    // requires be reviewed as a separately authorised control change rather
-    // than folded into a version bump. That change is the follow-up pull
-    // request; when it lands, this expectation becomes `[]`.
-    //
-    // Asserting the exact list keeps the gap honest: any OTHER job losing its
-    // pin still fails here, and the exemption cannot silently grow.
-    expect(unpinned).toEqual([
-      "human-merge-control.yml:publish-human-merge-control",
-    ]);
+    // No exemptions. The merge-control publisher was the last unpinned job and
+    // this pull request pins it, so the expected list is now empty and any
+    // future unpinned job fails here.
+    expect(unpinned).toEqual([]);
   });
 
   it("gives every setup-node step an explicit node-version", () => {
@@ -207,10 +200,10 @@ describe("Node runtime is declared consistently", () => {
     expect(majorOf(declared!.replace(/^[^\d]*/, ""))).toBe(majorOf(nvmrc));
   });
 
-  // NOTE: `engines.node` is currently advisory — npm prints EBADENGINE and
-  // installs anyway. Making it fatal needs `engine-strict=true` in .npmrc,
-  // which changes what `npm ci` does for every contributor and every job, so
-  // it is deliberately held back to a separate control-change pull request
-  // rather than riding along with a version bump. The assertion that
-  // enforces it lands there.
+  it("makes an engine mismatch fatal rather than a warning", () => {
+    // Without engine-strict, `engines.node` is advisory: npm prints EBADENGINE
+    // and installs anyway, which is how CI ran two majors behind production
+    // while staying green.
+    expect(npmrc).toMatch(/^engine-strict\s*=\s*true$/m);
+  });
 });
