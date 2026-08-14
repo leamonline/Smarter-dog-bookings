@@ -26,8 +26,8 @@ the decision fields in the
 | A0 measurement catalogue | [#615](https://github.com/leamonline/Smarter-dog-bookings/issues/615) | [Measurement catalogue](../specifications/measurement-catalogue.md) | `check:docs` green (documentation-only package) |
 | A1 capacity behaviour and stale-write proof | [#614](https://github.com/leamonline/Smarter-dog-bookings/issues/614) | [Capacity behaviour pgTAP](../../supabase/tests/035_capacity_behaviour.test.sql), [multi-session race driver](../../scripts/verify-capacity-concurrency.sh) | `DB Tests (pgTAP)` green via explicit dispatch — see [below](#a1-required-a-separate-dispatch) |
 | A2 interface, error and documentation truth | [#617](https://github.com/leamonline/Smarter-dog-bookings/issues/617) | [Interface capability truth](../interface-capability-truth.md) | `test` (2791 tests) and `check:docs` green |
-| A3 Edge authentication contract | [#616](https://github.com/leamonline/Smarter-dog-bookings/issues/616) | [Edge Function auth contract](../edge-function-auth.md), [`check-edge-function-auth.mjs`](../../scripts/check-edge-function-auth.mjs) | `check:edge-auth` green — 27 deployable functions classified and consistent |
-| A4a PR browser gate | [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) | [`e2e/smoke.spec.ts`](../../e2e/smoke.spec.ts), `pr-production-smoke` job in [CI](../../.github/workflows/ci.yml) | Structurally cannot run on a `main` SHA — see [below](#a4a-cannot-run-on-a-main-sha) |
+| A3 Edge authentication contract | [#616](https://github.com/leamonline/Smarter-dog-bookings/issues/616) | [Edge Function auth contract](../edge-function-auth.md), [`check-edge-function-auth.mjs`](../../scripts/check-edge-function-auth.mjs) | `check:edge-auth` green — 27 deployable functions classified and consistent; see [the closure correction](#a3-was-closed-before-one-criterion-was-met) |
+| A4a PR browser gate | [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) | [`e2e/smoke.spec.ts`](../../e2e/smoke.spec.ts), `pr-production-smoke` job in [CI](../../.github/workflows/ci.yml) | Green on a byte-identical tree — see [below](#a4a-is-proven-through-an-identical-tree-not-by-a-main-sha-run) |
 | A4b hosted Supabase target guard | [#618](https://github.com/leamonline/Smarter-dog-bookings/issues/618) | [Target guard](../hosted-supabase-target-guard.md), [`check-hosted-supabase-targets.mjs`](../../scripts/check-hosted-supabase-targets.mjs) | `lint` green — guard runs inside `npm run lint` |
 
 ## What executed at this SHA
@@ -77,39 +77,103 @@ production.
 **Anyone re-assembling this pack at a different SHA must dispatch
 `db-tests.yml` at that SHA rather than assume the path filter fired.**
 
-### A4a cannot run on a main SHA
+### A4a is proven through an identical tree, not by a main-SHA run
 
 `pr-production-smoke` is guarded by `if: github.event_name == 'pull_request'`
 and rechecks the pull-request head SHA by design, so it is always `skipped` on a
-push to `main`. No `main` SHA can carry a green result for it.
+push to `main`. No `main` SHA can carry a green result for it directly, and
+reading the criterion as "this job must be green on the `main` SHA" would block
+the gate permanently.
 
-A4a's proof is therefore necessarily tied to a pull-request head SHA: the
-negative control demonstrated in [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619),
-plus the gate running on every subsequent non-documentation pull request. The
-gate wording "green at one exact `main` SHA" cannot be satisfied literally for
-this package, and reading it strictly would block the gate permanently. The
-decision-maker should accept the per-pull-request evidence for A4a, or restate
-the criterion.
+It is nonetheless satisfied in substance at this SHA, because the content the
+gate tested is byte-identical to the content on `main`:
 
-## What this pack does not establish
+| Commit | Role | Tree |
+|---|---|---|
+| `9120e0b1364d6a9a3ada764c4a7efad98e9b384d` | PR [#641](https://github.com/leamonline/Smarter-dog-bookings/pull/641) head, where the gate ran | `6f212c212d721a0e39ebe3b83b96d585da81a351` |
+| `0ef06c1863578091f8b79264091bec9f468547e9` | current `main`, the merge of that PR | `6f212c212d721a0e39ebe3b83b96d585da81a351` |
+
+At `9120e0b`,
+[run 31772465267](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31772465267)
+executed `pr-production-smoke` to `success` with every substantive step
+green — head verification, the non-empty-suite assertion, the production-build
+Chromium and WebKit journeys, and the skipped/incomplete-result rejection. The
+job did real work; it was not a no-op pass.
+
+Because the merge commit introduced no tree change, that run exercised exactly
+the repository contents present at the gate SHA. Combined with the negative
+control recorded in [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619)
+— a deliberate regression went red, and its removal restored green — A4a's exit
+condition holds at this SHA.
+
+**This argument is specific to this SHA.** It works only because the merge
+commit and the tested head share a tree. At a `main` SHA whose tree differs from
+any gate-tested head, A4a would need re-establishing.
+
+### A3 was closed before one criterion was met
+
+Issue closure is not evidence, and A3 is the case that proves it. #616 was
+closed on 12 August with one acceptance criterion **explicitly unticked** —
+*local configuration, runtime checks and deployment flags cannot silently
+diverge*. At closure the `config.toml` versus CI divergence was visible and
+pinned by the manifest, but not fixed: 5 functions had no `[functions.*]` block
+and 3 declared one without `verify_jwt`, so a local `supabase functions deploy`
+would have applied `verify_jwt = true` while CI forces `false`.
+
+[PR #639](https://github.com/leamonline/Smarter-dog-bookings/pull/639), merged
+as `c8b8f5162083a8a99a8bd94c84c03f159eaaf67b`, closed all 8 divergences. The
+follow-up evidence re-derived the position from primary sources rather than
+trusting the manifest: 27 deployable functions, 27 `[functions.*]` blocks, 0
+entries not `declared-false`, 0 manifest/config mismatches, and no
+`verify_jwt = true` anywhere in `config.toml`. That is an alignment, not a
+weakening — CI already deployed all 27 with `--no-verify-jwt`, so gateway
+behaviour is unchanged.
+
+The criterion is met at this SHA. It is recorded here because a reader checking
+only the issue state would have counted A3 as complete a day before it was.
+
+## Residual limitations to carry into the decision record
+
+Both are deliberate scope boundaries, not oversights, and both should survive
+into the gate record rather than being dropped:
+
+1. **A3 does not prove runtime wiring.** The guard asserts each function
+   *references* its declared auth primitive; it does not execute the handler,
+   because importing an entrypoint starts an HTTP server. Proving it end-to-end
+   would mean restructuring all 27 functions.
+2. **A4a is not enforced by native branch protection.** Private-repository
+   branch/ruleset enforcement was unavailable, so the repository relies on the
+   [human merge-control mechanism](../superpowers/runbooks/2026-08-11-human-merge-control.md)
+   rather than GitHub technically preventing an unauthorised merge.
+
+## What this pack does and does not establish
 
 Per the [evidence rule](../traceability.md#evidence-rule), a green job proves
-only what it executed. Four of the gate's criteria cannot be satisfied from the
-repository at any SHA, and none of them is addressed here:
+only what it executed. Mapped against #620's acceptance criteria:
 
-1. **The human judgement.** Comparing observed staff-reschedule need against
-   the current manual-contact procedure, and explicitly recording `STOP` or
-   `GO`. No owner is appointed by this document.
-2. **Meta template route and fallback policy.** Requires provider-console
-   evidence for the exact template and version, plus a recorded SMS/email
-   fallback decision. No fallback is assumed.
-3. **The fresh aggregate-only production check.** Requires separately
-   authorised access to an explicitly verified production target. The
-   [9 August aggregate counts](2026-08-09-issue-603-plan-reality-audit.md#unverified-prior-aggregate-snapshot)
-   remain provenance-limited context and are not gate evidence.
-4. **Scope reconfirmation.** That B1–B4 remain the whole proposed live scope and
-   require no policy activation, full cutover, generic queue or unapproved data
-   repair.
+| # | Criterion | Status |
+|---|---|---|
+| 1 | A0–A4 green at one named `main` SHA | **Met** at `0ef06c1`, with the A1 dispatch and A4a tree-identity caveats above |
+| 2 | A named human compares reschedule need with the manual-contact procedure and records STOP/GO | **Needs the human.** #620 currently has no decision comment of any kind |
+| 3 | Exact approved template route and deterministic fallback policy evidenced | **Not met.** Provider-console evidence for the exact Meta template and version, plus a recorded fallback channel decision. No fallback is assumed |
+| 4 | Fresh aggregate-only, explicitly targeted production check | **Not met; needs separate authority.** #620 does not itself grant production-data access. The [9 August counts](2026-08-09-issue-603-plan-reality-audit.md#unverified-prior-aggregate-snapshot) are provenance-limited context, not gate evidence |
+| 5 | Ambiguous legacy groupings classified or excluded by B4's fail-closed contract, no heuristic repair | **Met by design.** [B4 #624](https://github.com/leamonline/Smarter-dog-bookings/issues/624) already requires `visit_review_required` with zero mutation, zero intent and no raw-row fallback. Criterion 4 would quantify how much ambiguity exists; it does not reopen the policy |
+| 6 | Record confirms B1–B4 are the whole live scope | **Scope already settled; needs human adoption** into the decision record |
+| 7 | Record names SHA, evidence, decision-maker, scope, rollback seam, unresolved risks | **Needs the human.** This pack supplies the SHA and evidence; the decision-maker cannot be manufactured |
+| 8 | STOP names its reconsideration trigger; GO authorises sequencing only | **Outcome-dependent.** The human selects the outcome and writes the matching statement |
+
+So criterion 1 is the part this pack closes. Criteria 3 and 4 are what block an
+evidence-complete `GO`; a `STOP` remains available without them, since the
+governing gate treats `STOP` as a valid completion outcome. **That is a
+statement about gate mechanics, not a recommendation.**
 
 `previous_day_1500_v1` remains inactive. This pack authorises no migration
 application, provider change, customer contact or production write.
+
+## Re-reading this pack later
+
+Criterion 1 is attested against one exact SHA. Before the decision is recorded,
+re-read `main`. If it is still `0ef06c1863578091f8b79264091bec9f468547e9`, this
+pack applies as written. If `main` has moved, re-establish A0–A4 at the new SHA
+rather than carrying this attestation forward — dispatching `db-tests.yml` at
+that SHA, and re-checking whether the A4a tree-identity argument still holds.

@@ -93,9 +93,11 @@ record deliberately does not invent one.
 The decision-maker should have one evidence pack tied to one `main` SHA.
 **Items 1–5 are assembled in the
 [Tranche A exit evidence pack](2026-08-14-tranche-a-exit-evidence.md) at
-`main@0ef06c1`, including two trigger caveats the decision-maker must read.
-Items 6–9 remain outstanding and need authority this repository does not
-grant.**
+`main@0ef06c1`, including two trigger caveats and a closure correction the
+decision-maker must read. Items 6 and 7 are outstanding and need authority this
+repository does not grant — they are what block an evidence-complete `GO`.
+Items 8 and 9 are settled in substance by the programme scope and need only
+explicit adoption in the decision record.**
 
 1. The documentation-first measurement catalogue defines the decision measures
    and explicitly leaves unassigned owners/thresholds visible.
