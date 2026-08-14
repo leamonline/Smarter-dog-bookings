@@ -1,9 +1,18 @@
 # Staff-reschedule automation go/no-go record
 
-**Status:** Research complete for the current baseline; default STOP
+**Status:** Research complete; evidence refreshed 14 August 2026; default STOP
 **Audited:** 9 August 2026
 **Repository baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
+**Evidence refreshed at:** `main@0ef06c1863578091f8b79264091bec9f468547e9`
 **Decision authority:** Unassigned; this document does not appoint one
+
+> **Evidence refresh, 14 August 2026.** Tranche A has since completed. The
+> sections below are annotated where its findings have been superseded; the
+> 9 August audit wording is preserved rather than rewritten. The assembled
+> exit evidence is in the
+> [Tranche A exit evidence pack](2026-08-14-tranche-a-exit-evidence.md).
+> **The disposition is unchanged: `STOP`.** Completing Tranche A is not
+> permission to begin Tranche B.
 
 ## Decision question
 
@@ -35,11 +44,22 @@ existence of issues, migrations, this research file or an empty owner field.
 - The customer-policy activation protocol is separate and must remain dark.
 - The current notification model lacks visit-level intents, append-only
   attempts and `delivery_unknown`.
-- PR Playwright is skipped; all configured browser projects use Chromium.
-- Edge caller authentication is distributed and lacks one complete contract.
+- ~~PR Playwright is skipped; all configured browser projects use Chromium.~~
+  **Superseded 14 August 2026 by A4a (#619):** the `pr-production-smoke` job
+  runs `e2e/smoke.spec.ts` against a production build in desktop Chromium and
+  mobile WebKit on every non-documentation pull request, with a non-empty-suite
+  assertion.
+- ~~Edge caller authentication is distributed and lacks one complete
+  contract.~~ **Superseded 14 August 2026 by A3 (#616):** `npm run
+  check:edge-auth` classifies all 27 deployable functions against
+  [one contract](../edge-function-auth.md) and fails on drift.
 
-See the [full dated audit](2026-08-09-issue-603-plan-reality-audit.md) for
-classification and repository evidence.
+The first four bullets remain true; the strikethrough bullets described the
+pre-Tranche-A baseline. See the
+[full dated audit](2026-08-09-issue-603-plan-reality-audit.md) for
+classification and repository evidence, and the
+[exit evidence pack](2026-08-14-tranche-a-exit-evidence.md) for what executed
+at the refreshed SHA.
 
 ## Unverified prior context
 
@@ -59,10 +79,10 @@ GO criterion or prove that any grouping currently exists.
 | Exact Meta template wording and approval state | Business-initiated WhatsApp sends may require an approved template | Provider-console evidence for the exact template/version before enablement |
 | Deterministic fallback policy | SMS/email/another WhatsApp route changes cost, consent, wording and duplicate risk | A recorded channel decision; no fallback is assumed here |
 | Safe `delivery_unknown` operating procedure | Blind retry can duplicate a customer message | Staff reconciliation UI/process, provider correlation evidence and audited mark-delivered/authorise-retry actions |
-| Complete Edge Function caller/auth contract | The new worker would handle privileged data and provider secrets | #605 inventory plus negative tests with no unresolved high/critical finding |
-| Old-schema/new-code failure behaviour | Frontend/Edge deploy separately from manual migrations | Minimal #607 named capability projection and a negative mismatch test |
-| Critical browser behaviour in WebKit | Current responsive emulation is Chromium-only | PR-head Chromium/WebKit gate and a proved negative control |
-| Exact hosted database target protection | A correct migration against the wrong project is still a production incident | Executable target assertion plus the manual target-verified rollout record |
+| ~~Complete Edge Function caller/auth contract~~ **Resolved by A3 (#616)** | The new worker would handle privileged data and provider secrets | Done: `check:edge-auth` classifies 27 deployable functions with negative tests by authentication family |
+| Old-schema/new-code failure behaviour | Frontend/Edge deploy separately from manual migrations | Minimal #607 named capability projection and a negative mismatch test — **still open; this is B1, not Tranche A** |
+| ~~Critical browser behaviour in WebKit~~ **Resolved by A4a (#619)** | Current responsive emulation is Chromium-only | Done: `pr-production-smoke` runs Chromium and mobile WebKit on pull requests, proved with a negative control |
+| ~~Exact hosted database target protection~~ **Resolved by A4b (#618)** | A correct migration against the wrong project is still a production incident | Done: [target guard](../hosted-supabase-target-guard.md) runs inside `npm run lint`; production application remains separate human authority |
 | Rollback boundary after the first live command | Once a move commits and a message may have been accepted, rollback is not one operation | A rehearsed command/delivery rollback and recovery runbook for the narrow slice |
 
 No quantitative success, error or discrepancy threshold has been agreed. This
@@ -70,7 +90,14 @@ record deliberately does not invent one.
 
 ## Evidence required before a GO can be considered
 
-The decision-maker should have one evidence pack tied to one `main` SHA:
+The decision-maker should have one evidence pack tied to one `main` SHA.
+**Items 1–5 are assembled in the
+[Tranche A exit evidence pack](2026-08-14-tranche-a-exit-evidence.md) at
+`main@0ef06c1`, including two trigger caveats and a closure correction the
+decision-maker must read. Items 6 and 7 are outstanding and need authority this
+repository does not grant — they are what block an evidence-complete `GO`.
+Items 8 and 9 are settled in substance by the programme scope and need only
+explicit adoption in the decision record.**
 
 1. The documentation-first measurement catalogue defines the decision measures
    and explicitly leaves unassigned owners/thresholds visible.

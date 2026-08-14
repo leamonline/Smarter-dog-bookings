@@ -30,3 +30,18 @@ A link to a test proves only what that test executes. A migration in the tree
 does not prove production application, a green PR job does not prove work it
 skipped, and a feature flag does not prove enablement. Release evidence must name
 the commit, environment, exact target and observed result.
+
+## Tranche gate evidence
+
+The STOP/GO gate ([#620](https://github.com/leamonline/Smarter-dog-bookings/issues/620))
+requires A0–A4 exit evidence at one exact `main` SHA. That evidence is assembled
+in the [Tranche A exit evidence pack](research/2026-08-14-tranche-a-exit-evidence.md)
+at `main@0ef06c1`, which the
+[go/no-go record](research/2026-08-09-reschedule-automation-go-no-go.md) now
+references. Two packages carry trigger caveats recorded there: `DB Tests
+(pgTAP)` is path-filtered and needs an explicit dispatch per SHA, and the A4a
+`pr-production-smoke` gate is pull-request-only and can never be green on a
+`main` SHA.
+
+Verifying that pack did not re-verify the goal table above; its baseline and
+`Last verified` date are unchanged. The recorded disposition remains `STOP`.
