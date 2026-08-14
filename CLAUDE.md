@@ -16,9 +16,13 @@ RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.verce
 
 ## Run it
 
-Package manager **npm**; **Node 20** (matches CI — pinned via `.nvmrc`, so `nvm`/`fnm` auto-switch
-on `cd`; CI sets `node-version: 20` explicitly and ignores the file). `.npmrc` sets
-`legacy-peer-deps=true`, so use `npm` (not `pnpm`/`yarn`).
+Package manager **npm**; **Node 24** (matches CI — pinned via `.nvmrc`, so `nvm`/`fnm` auto-switch
+on `cd`; every workflow sets `node-version: 24` explicitly and ignores the file). `package.json`
+declares `engines.node: >=24`, so **`npm ci` hard-fails on an older Node** — that is the intended
+signal, not a broken checkout. `.npmrc` sets `legacy-peer-deps=true`, so use `npm` (not
+`pnpm`/`yarn`). [docs/node-runtime.md](docs/node-runtime.md) is canonical; `.nvmrc`,
+`engines.node` and every workflow pin must change in one commit, and
+[a test](src/security/nodeRuntimeConsistency.test.ts) fails if they disagree.
 
 ```bash
 npm ci
@@ -32,7 +36,7 @@ npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sampl
 npm run check:migrations  # validate migration filenames/order
 ```
 
-**CI bar (`.github/workflows/ci.yml`, Node 20):** `lint → check:docs → typecheck → check-migrations →
+**CI bar (`.github/workflows/ci.yml`, Node 24):** `lint → check:docs → typecheck → check-migrations →
 test → build`. Match that before pushing — "builds" alone is not the bar. (E2E runs only on push to `main`
 or manual dispatch.) **Without `VITE_` creds in dev**, `npm run dev` falls back to offline
 sample-data mode rather than erroring.
