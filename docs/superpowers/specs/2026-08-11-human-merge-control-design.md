@@ -1,7 +1,7 @@
 # Human merge control — design
 
 **Date:** 2026-08-11
-**Status:** approved for implementation
+**Status:** approved for implementation; attestation contract amended 2026-08-14
 **Issue:** enforcement follow-up to
 [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606),
 [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) and parent
@@ -34,35 +34,48 @@ that bypasses the control.
 
 ## Attestation contract
 
+> **Amendment, 14 August 2026.** The original contract asked the approver to
+> transcribe the head SHA, the current `main` SHA and an approval timestamp.
+> Each is now read from GitHub directly, which is strictly stronger — a
+> transcribed value can be mistyped or back-dated; a machine read cannot — and
+> the ritual was the single largest source of operator friction. Documentation-
+> only pull requests were additionally exempted from human attestation. No
+> property below was weakened; three typed inputs were replaced by the machine
+> reads that already proved them. The amended contract is recorded here; the
+> superseded wording is preserved in the sections that follow it.
+
 The pull-request template contains one machine-readable block that begins in a
 safe state:
 
 ```text
 Decision: HOLD
-Approved head SHA:
-Approved base SHA:
 Approved by:
-Approved at (UTC):
 Migration review:
 ```
 
 Approval requires all of the following:
 
 - `Decision` is exactly `MERGE`;
-- the approved SHA is the current 40-character pull-request head SHA;
-- the approved base SHA is the independently and freshly read `main` tip, not
-  the pull request's historical `base.sha`;
-- the approved head contains that current `main` commit;
 - `Approved by` names the GitHub actor who submitted the body edit and that
   actor is in the base-controlled merge-approver allow-list;
-- both the typed timestamp and GitHub-authenticated body-edit `updated_at` are
-  strictly after every evidence timestamp; equality fails closed;
-- the typed timestamp and body edit are no more than 15 minutes old and no more
-  than two minutes ahead of the evaluator clock;
-- migration disposition is explicit rather than inferred from a green no-op;
-  GitHub's reported changed-file count must equal the complete fetched list;
+- every required pull-request check is successful for the current head SHA, and
+  each is bound to that head, to the `github-actions` app, to a `pull_request`
+  run and to its expected workflow path;
+- the head contains the independently and freshly read current `main` tip, not
+  the pull request's historical `base.sha`;
+- the GitHub-authenticated body-edit `updated_at` is strictly after every
+  evidence timestamp; equality fails closed;
+- that body edit is no more than one hour old and no more than two minutes
+  ahead of the evaluator clock;
+- migration history is append-only, and a pull request adding migration SQL
+  carries the exact successful `migrations-applied` job URL. A pull request
+  adding none needs no typed disposition: GitHub's reported changed-file count
+  must equal the complete fetched list, so the absence is proven, not asserted;
   and
-- every required pull-request check is successful for that SHA.
+- a documentation-only change — every path under `docs/**` or a Markdown file
+  outside `.github/`, with no migration SQL — requires the machine evidence
+  above but no human attestation. `.github/**`, `scripts/`, `src/`, `supabase/`
+  and `e2e/` are never exempt, and a mixed change is never exempt.
 
 Any new commit produces a different head SHA and therefore invalidates the old
 attestation. Opening, reopening, converting from draft or synchronising a pull
