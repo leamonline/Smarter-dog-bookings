@@ -21,11 +21,8 @@ function body(decision = "MERGE") {
   return [
     CONTROL_START_MARKER,
     `Decision: ${decision}`,
-    `Approved head SHA: ${HEAD_SHA}`,
-    `Approved base SHA: ${BASE_SHA}`,
     "Approved by: @leamonline",
-    "Approved at (UTC): 2026-08-11T12:05:00Z",
-    "Migration review: NO_MIGRATIONS",
+    "Migration review: HOLD",
     CONTROL_END_MARKER,
   ].join("\n");
 }

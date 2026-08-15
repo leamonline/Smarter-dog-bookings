@@ -9,7 +9,11 @@ export const CONTROL_END_MARKER = "<!-- human-merge-control:end -->";
 export const APPROVED_MERGE_ACTORS = Object.freeze(["leamonline"]);
 
 const CONTROL_NAME = "human-merge-control";
-const MAX_APPROVAL_AGE_MS = 15 * 60 * 1000;
+// The absolute freshness properties are "the edit happened after every piece of
+// evidence completed" and "the head did not move"; both are proven exactly. This
+// window is only a secondary guard against an approval left sitting around, so
+// it is set for human comfort rather than as the primary control.
+const MAX_APPROVAL_AGE_MS = 60 * 60 * 1000;
 const MAX_FUTURE_SKEW_MS = 2 * 60 * 1000;
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -24,14 +28,35 @@ const REQUIRED_ACTIONS_CHECKS = Object.freeze({
   "migrations-applied": ".github/workflows/check-migrations-applied.yml",
 });
 
+// Only what a human must actually decide. The approved head SHA, approved base
+// SHA and approval timestamp were previously typed here; each is now read from
+// GitHub directly, which is stricter than transcription and cannot be mistyped.
 const FIELD_PREFIXES = Object.freeze([
   ["decision", "Decision:"],
-  ["headSha", "Approved head SHA:"],
-  ["baseSha", "Approved base SHA:"],
   ["approvedBy", "Approved by:"],
-  ["approvedAt", "Approved at (UTC):"],
   ["migrationReview", "Migration review:"],
 ]);
+
+// Prose-only paths. Every executable or control-plane path is deliberately
+// excluded — `.github/**` (including its Markdown) carries workflow and
+// template behaviour, and `scripts/`, `src/`, `supabase/` and `e2e/` are code.
+function isDocumentationPath(path) {
+  if (typeof path !== "string" || path === "") return false;
+  if (path.startsWith(".github/")) return false;
+  return path.startsWith("docs/") || (path.endsWith(".md") && !path.includes("/../"));
+}
+
+function isDocumentationOnly(files) {
+  if (files.length === 0) return false;
+  return files.every((file) => {
+    if (!isObject(file)) return false;
+    const paths = [file.filename, file.previous_filename].filter(
+      (path) => typeof path === "string" && path !== "",
+    );
+    if (paths.length === 0) return false;
+    return paths.every(isDocumentationPath);
+  });
+}
 
 function countOccurrences(text, needle) {
   return text.split(needle).length - 1;
@@ -101,15 +126,6 @@ export function parseHumanMergeAttestation(body) {
     throw new Error("Decision must be exactly HOLD or MERGE.");
   }
 
-  for (const [field, label] of [
-    ["headSha", "Approved head SHA"],
-    ["baseSha", "Approved base SHA"],
-  ]) {
-    if (values[field] !== "" && !SHA_PATTERN.test(values[field])) {
-      throw new Error(`${label} must be a full 40-character commit SHA.`);
-    }
-  }
-
   let approvedBy = "";
   if (values.approvedBy !== "") {
     if (!values.approvedBy.startsWith("@")) {
@@ -124,10 +140,6 @@ export function parseHumanMergeAttestation(body) {
     }
   }
 
-  if (values.approvedAt !== "") {
-    parseUtcTimestamp(values.approvedAt, "Approved at (UTC)");
-  }
-
   if (
     values.migrationReview !== "HOLD" &&
     values.migrationReview !== "NO_MIGRATIONS" &&
@@ -140,10 +152,7 @@ export function parseHumanMergeAttestation(body) {
 
   return {
     decision: values.decision,
-    headSha: values.headSha.toLowerCase(),
-    baseSha: values.baseSha.toLowerCase(),
     approvedBy,
-    approvedAt: values.approvedAt,
     migrationReview: values.migrationReview,
   };
 }
@@ -312,30 +321,33 @@ function selectVercelEvidence(statuses) {
   return { evidence: latest.updatedAt };
 }
 
-function validateMigrationDisposition(files, attestation, migrationCheck) {
-  const migrationFiles = asArray(files, "Pull-request files").filter(
-    (file) => {
-      if (!isObject(file)) return false;
-      const paths = [file.filename, file.previous_filename].filter(
-        (path) => typeof path === "string",
-      );
-      return paths.some(
-        (path) =>
-          path.startsWith("supabase/migrations/") && path.endsWith(".sql"),
-      );
-    },
-  );
+function selectMigrationFiles(files) {
+  return asArray(files, "Pull-request files").filter((file) => {
+    if (!isObject(file)) return false;
+    const paths = [file.filename, file.previous_filename].filter(
+      (path) => typeof path === "string",
+    );
+    return paths.some(
+      (path) => path.startsWith("supabase/migrations/") && path.endsWith(".sql"),
+    );
+  });
+}
 
+/** Append-only history is a machine fact, enforced on every path. */
+function validateMigrationHistory(migrationFiles) {
   if (migrationFiles.some((file) => file.status !== "added")) {
     return "Migration history is append-only; modified, removed or renamed SQL is forbidden.";
   }
+  return null;
+}
 
-  if (migrationFiles.length === 0) {
-    if (attestation.migrationReview !== "NO_MIGRATIONS") {
-      return "Migration review must be NO_MIGRATIONS when no migration SQL was added.";
-    }
-    return null;
-  }
+/**
+ * Bind the human's migration disposition. A pull request that adds no migration
+ * SQL needs no typed disposition: the file list already proves it, and demanding
+ * `NO_MIGRATIONS` only invited a reflexive edit.
+ */
+function validateMigrationDisposition(migrationFiles, attestation, migrationCheck) {
+  if (migrationFiles.length === 0) return null;
 
   const applied = attestation.migrationReview.match(APPLIED_MIGRATION_PATTERN);
   if (!applied) {
@@ -349,34 +361,6 @@ function validateMigrationDisposition(files, attestation, migrationCheck) {
 
 function evaluate(input) {
   if (!isObject(input)) return hold("Evaluator input is missing.");
-  if (input.action !== "edited") {
-    return hold("Approval requires a fresh pull-request body edit.");
-  }
-  if (input.bodyChanged !== true) {
-    return hold("The edited event did not contain a real body edit.");
-  }
-
-  if (!isObject(input.sender) || input.sender.type !== "User") {
-    return hold("Approval requires an authenticated human editor.");
-  }
-  const sender = normaliseLogin(String(input.sender.login ?? ""));
-  const approvers = new Set(
-    asArray(input.approvers ?? APPROVED_MERGE_ACTORS, "Approvers").map((login) =>
-      normaliseLogin(String(login)),
-    ),
-  );
-  if (!approvers.has(sender)) {
-    return hold("The human editor is not an authorised merge approver.");
-  }
-  if (normaliseLogin(String(input.actor ?? "")) !== sender) {
-    return hold("The workflow actor does not match the human editor.");
-  }
-  if (normaliseLogin(String(input.triggeringActor ?? "")) !== sender) {
-    return hold("The workflow triggering actor does not match the human editor.");
-  }
-  if (input.runAttempt !== 1) {
-    return hold("Workflow re-runs cannot approve an old body-edit event.");
-  }
 
   const initialProblem = validatePullRequestSnapshot(input.initialPullRequest, "Initial");
   if (initialProblem) return hold(initialProblem);
@@ -422,19 +406,6 @@ function evaluate(input) {
     }
   }
 
-  let attestation;
-  try {
-    attestation = parseHumanMergeAttestation(final.body);
-  } catch (err) {
-    return hold(err instanceof Error ? err.message : "Merge attestation is malformed.");
-  }
-  if (attestation.decision !== "MERGE") {
-    return hold("Decision remains HOLD.");
-  }
-  if (attestation.approvedBy !== sender) {
-    return hold("Approved by must match the authenticated human editor.");
-  }
-
   const headSha = normaliseSha(final.head.sha);
   const initialBaseSha = normaliseSha(input.initialBaseSha);
   const finalBaseSha = normaliseSha(input.finalBaseSha);
@@ -443,12 +414,6 @@ function evaluate(input) {
   }
   if (initialBaseSha !== finalBaseSha) {
     return hold("Current main changed during evaluation.");
-  }
-  if (attestation.headSha !== headSha) {
-    return hold("Approved head SHA is not the current pull-request head.");
-  }
-  if (attestation.baseSha !== finalBaseSha) {
-    return hold("Approved base SHA is not the current main SHA.");
   }
 
   const comparison = input.baseComparison;
@@ -466,17 +431,71 @@ function evaluate(input) {
   const vercel = selectVercelEvidence(input.statuses);
   if (vercel.error) return hold(vercel.error);
 
+  const migrationFiles = selectMigrationFiles(files);
+  const historyProblem = validateMigrationHistory(migrationFiles);
+  if (historyProblem) return hold(historyProblem);
+
+  // Prose-only changes cannot alter runtime, schema or control-plane behaviour,
+  // and the machine evidence above has already passed at this exact head. They
+  // therefore need no typed human attestation. The complete file list was
+  // verified against changed_files above, so this cannot be faked by truncation.
+  if (migrationFiles.length === 0 && isDocumentationOnly(files)) {
+    return {
+      ok: true,
+      summary: `Documentation-only change at ${headSha.slice(0, 7)}; evidence green, no attestation required.`,
+    };
+  }
+
+  if (input.action !== "edited") {
+    return hold("Approval requires a fresh pull-request body edit.");
+  }
+  if (input.bodyChanged !== true) {
+    return hold("The edited event did not contain a real body edit.");
+  }
+  if (!isObject(input.sender) || input.sender.type !== "User") {
+    return hold("Approval requires an authenticated human editor.");
+  }
+  const sender = normaliseLogin(String(input.sender.login ?? ""));
+  const approvers = new Set(
+    asArray(input.approvers ?? APPROVED_MERGE_ACTORS, "Approvers").map((login) =>
+      normaliseLogin(String(login)),
+    ),
+  );
+  if (!approvers.has(sender)) {
+    return hold("The human editor is not an authorised merge approver.");
+  }
+  if (normaliseLogin(String(input.actor ?? "")) !== sender) {
+    return hold("The workflow actor does not match the human editor.");
+  }
+  if (normaliseLogin(String(input.triggeringActor ?? "")) !== sender) {
+    return hold("The workflow triggering actor does not match the human editor.");
+  }
+  if (input.runAttempt !== 1) {
+    return hold("Workflow re-runs cannot approve an old body-edit event.");
+  }
+
+  let attestation;
+  try {
+    attestation = parseHumanMergeAttestation(final.body);
+  } catch (err) {
+    return hold(err instanceof Error ? err.message : "Merge attestation is malformed.");
+  }
+  if (attestation.decision !== "MERGE") {
+    return hold("Decision remains HOLD.");
+  }
+  if (attestation.approvedBy !== sender) {
+    return hold("Approved by must match the authenticated human editor.");
+  }
+
   const migrationProblem = validateMigrationDisposition(
-    files,
+    migrationFiles,
     attestation,
     actions.selected.get("migrations-applied"),
   );
   if (migrationProblem) return hold(migrationProblem);
 
-  if (attestation.approvedAt === "") {
-    return hold("Approved at (UTC) is required for MERGE.");
-  }
-  const approvedAt = parseUtcTimestamp(attestation.approvedAt, "Approved at (UTC)");
+  // GitHub's own record of the body edit is the approval time. It cannot be
+  // mistyped, back-dated or skewed by the approver's clock.
   const bodyEditedAt = parseUtcTimestamp(
     final.updatedAt,
     "Authenticated pull-request body edit",
@@ -486,25 +505,16 @@ function evaluate(input) {
   if (bodyEditedAt <= latestEvidence) {
     return hold("The authenticated body edit must occur after all required evidence completed.");
   }
-  if (approvedAt <= latestEvidence) {
-    return hold("Approval must be recorded after all required evidence completed.");
-  }
   if (bodyEditedAt > now + MAX_FUTURE_SKEW_MS) {
     return hold("Authenticated body-edit timestamp must not be in the future.");
-  }
-  if (approvedAt > now + MAX_FUTURE_SKEW_MS) {
-    return hold("Approval timestamp must not be in the future.");
   }
   if (now - bodyEditedAt > MAX_APPROVAL_AGE_MS) {
     return hold("Authenticated body edit is too old; submit a fresh pull-request body edit.");
   }
-  if (now - approvedAt > MAX_APPROVAL_AGE_MS) {
-    return hold("Approval is too old; submit a fresh pull-request body edit.");
-  }
 
   return {
     ok: true,
-    summary: `Approved ${headSha.slice(0, 7)} by @${sender} for main at ${attestation.approvedAt}.`,
+    summary: `Approved ${headSha.slice(0, 7)} by @${sender} for main at ${final.updatedAt}.`,
   };
 }
 

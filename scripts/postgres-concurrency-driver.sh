@@ -270,6 +270,12 @@ concurrency_start_watchdog() {
     trap - EXIT
     concurrency_cancel_watchdog() {
       trap - TERM INT
+      # Deliberately no fallback to $! when watchdog_sleep_pid is unset: a
+      # subshell inherits $! from its parent, so before the sleep below has
+      # forked it still names the parent's last background job — the psql
+      # client — and signalling that, or a recycled PID, would be worse than
+      # leaving a sleep behind. The redirection below and the escalation in
+      # concurrency_stop_watchdog together make a leaked sleep harmless.
       if [ -n "$watchdog_sleep_pid" ]; then
         kill -TERM "$watchdog_sleep_pid" 2>/dev/null || true
         wait "$watchdog_sleep_pid" 2>/dev/null || true
@@ -278,7 +284,12 @@ concurrency_start_watchdog() {
     }
     trap concurrency_cancel_watchdog TERM INT
 
-    sleep "$timeout_seconds" &
+    # The sleeps get their own descriptors so that a sleep this subshell
+    # somehow fails to reap can never hold the caller's stdout/stderr pipe
+    # open. Callers that capture output wait for pipe EOF, not for the
+    # shell to exit, so a leaked sleep would stall them for its full
+    # duration even though the watchdog itself finished promptly.
+    sleep "$timeout_seconds" >/dev/null 2>&1 &
     watchdog_sleep_pid=$!
     if ! wait "$watchdog_sleep_pid"; then
       exit 0
@@ -288,7 +299,7 @@ concurrency_start_watchdog() {
     if kill -0 "$client_pid" 2>/dev/null; then
       echo "FAIL: $description exceeded ${timeout_seconds}s; terminating it." >&2
       kill -TERM "$client_pid" 2>/dev/null || true
-      sleep "$term_grace_seconds" &
+      sleep "$term_grace_seconds" >/dev/null 2>&1 &
       watchdog_sleep_pid=$!
       if ! wait "$watchdog_sleep_pid"; then
         exit 0
@@ -308,11 +319,27 @@ concurrency_start_watchdog() {
 
 concurrency_stop_watchdog() {
   local watchdog_pid=$1
+  local settle_attempt
 
   if [ -z "$watchdog_pid" ]; then
     return 0
   fi
   kill "$watchdog_pid" 2>/dev/null || true
+
+  # The cancelling TERM can be delivered before the watchdog subshell has
+  # installed its handler for it, in which case the signal is lost and the
+  # subshell sleeps out its whole timeout. It inherits the caller's stdout
+  # and stderr, and a caller that captures output waits for those pipes to
+  # reach EOF rather than for this shell to exit, so a surviving watchdog
+  # stalls the caller for the full timeout even though the reap itself
+  # finished. The watchdog has no work left once its client is reaped, so
+  # escalate to a signal it cannot miss.
+  for settle_attempt in 1 2 3 4 5; do
+    kill -0 "$watchdog_pid" 2>/dev/null || break
+    sleep 0.05
+  done
+  kill -KILL "$watchdog_pid" 2>/dev/null || true
+
   wait "$watchdog_pid" 2>/dev/null || true
 }
 

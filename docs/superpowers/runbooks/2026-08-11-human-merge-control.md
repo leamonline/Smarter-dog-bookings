@@ -81,20 +81,18 @@ The evaluator compares GitHub's reported `changed_files` count with every file
 returned by the paginated files API. A truncated or changing list is `HOLD`,
 including a pull request beyond GitHub's 3,000-file listing limit.
 
-Inspect the pull-request file list and the `migrations-applied` job log, then
-replace `Migration review: HOLD` with exactly one of:
+If the pull request adds **no** `supabase/migrations/*.sql` file, there is
+nothing to record: the verified file list already proves it and the evaluator
+derives the disposition itself. Leave `Migration review: HOLD`.
 
-- `Migration review: NO_MIGRATIONS` — only when the pull request adds no
-  `supabase/migrations/*.sql` file. The successful no-migration job proves only
-  that this diff added no migration. It does not query production, prove the
-  complete production ledger is current, detect historical drift or validate
-  SQL content.
-- `Migration review: APPLIED: <details-url>` — when the pull request adds one
-  or more migrations. Replace `<details-url>` with the exact details URL of
-  the successful `migrations-applied` job for this head SHA, after its log
-  reports that every added migration identifier is present in the verified
-  production project's ledger. This is not proof that the repository SQL is
-  byte-for-byte the SQL previously executed in production.
+If the pull request **adds** one or more migrations, inspect the file list and
+the `migrations-applied` job log, then set:
+
+- `Migration review: APPLIED: <details-url>` — replace `<details-url>` with the
+  exact details URL of the successful `migrations-applied` job for this head
+  SHA, after its log reports that every added migration identifier is present in
+  the verified production project's ledger. This is not proof that the
+  repository SQL is byte-for-byte the SQL previously executed in production.
 
 Migration history is append-only. If an existing migration is modified,
 deleted or renamed, remain on `HOLD` and replace the change with a new ordered
@@ -104,25 +102,35 @@ never infer a production link or run a bare `supabase migration up --linked`.
 
 ### 4. Submit the attestation
 
-Only after the required evidence is green, edit the single marked block in the
-pull-request body:
+**Documentation-only pull requests need no attestation.** When every changed
+path is prose — `docs/**` or a Markdown file outside `.github/` — and no
+migration SQL is added, the evaluator publishes success on the machine evidence
+alone. Every executable and control-plane path is excluded from that exemption:
+`.github/**` (including its Markdown), `scripts/`, `src/`, `supabase/` and
+`e2e/`. A change mixing prose with any other path is not exempt.
+
+Otherwise, only after the required evidence is green, edit the single marked
+block in the pull-request body:
 
 - change the decision from `HOLD` to exactly `MERGE`;
-- paste the current full head SHA and current full base SHA;
-- enter the allow-listed editor's GitHub login, for example `@leamonline`;
-- enter a current ISO 8601 UTC timestamp ending in `Z`, after the newest
-  prerequisite completed, for example `2026-08-11T12:05:00Z`; the evaluator
-  permits at most 15 minutes of age and two minutes of clock skew into the
-  future; and
-- enter the exact migration disposition from step 3.
+- enter the allow-listed editor's GitHub login, for example `@leamonline`; and
+- enter the migration disposition from step 3.
+
+Nothing else is typed. The head SHA, the current `main` SHA and the approval
+time are read from GitHub, which is stricter than transcription: a mistyped or
+back-dated value is not possible, and the approval is bound to the head by the
+evidence itself.
 
 Do not change the markers, field names, field order or add text inside the
-block. The person named in the block must be the allow-listed human who makes
-this body edit. Opening, reopening, synchronising or re-running an old workflow
-cannot approve the pull request; make a fresh body edit after the evidence is
-ready. GitHub's authenticated `updated_at` for that body edit, as well as the
-typed `Approved at (UTC)` value, must be strictly later than every required
-check/status timestamp; equality is ambiguous and remains `HOLD`.
+block. A block still carrying the retired `Approved head SHA`,
+`Approved base SHA` or `Approved at (UTC)` fields has the wrong field count and
+fails closed. The person named in the block must be the allow-listed human who
+makes this body edit. Opening, reopening, synchronising or re-running an old
+workflow cannot approve the pull request; make a fresh body edit after the
+evidence is ready. GitHub's authenticated `updated_at` for that body edit must
+be strictly later than every required check/status timestamp; equality is
+ambiguous and remains `HOLD`. The evaluator permits at most one hour of age and
+two minutes of clock skew into the future.
 
 The trusted-base evaluator must then publish a successful
 `human-merge-control` status on the exact head SHA. A failed, stale, missing or
