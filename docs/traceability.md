@@ -50,4 +50,10 @@ attestation; read the current pack for the live position. The interval between
 them contains a red `main` at `dcc8827`, accounted for in the current pack.
 
 Verifying these packs did not re-verify the goal table above; its baseline and
-`Last verified` date are unchanged. The recorded disposition remains `STOP`.
+`Last verified` date are unchanged.
+
+The gate is now **closed**: [@leamonline](https://github.com/leamonline)
+recorded **`STOP`** on 15 August 2026 against evidence at `main@9e12bac`, in the
+[go/no-go record](research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record).
+Manual contact is retained and B1–B4 are deferred. A later `GO` may not inherit
+this attestation: it must re-establish A0–A4 at the SHA it names.

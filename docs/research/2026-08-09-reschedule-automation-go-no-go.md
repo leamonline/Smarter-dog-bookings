@@ -1,12 +1,18 @@
 # Staff-reschedule automation go/no-go record
 
-**Status:** Research complete; evidence refreshed 14 August 2026; default STOP
+**Status:** **Decided — `STOP` recorded 15 August 2026.** Gate [#620](https://github.com/leamonline/Smarter-dog-bookings/issues/620) is complete
 **Audited:** 9 August 2026
 **Repository baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
-**Evidence refreshed at:** `main@0ef06c1863578091f8b79264091bec9f468547e9`
-**Decision authority:** [@leamonline](https://github.com/leamonline), named 15 August 2026.
-Naming the decision-maker is not the decision: every other field below remains
-unrecorded, and the disposition stays the documented default `STOP`.
+**Evidence reviewed at:** `main@9e12bac0a96991089db6f5a55c2661e6c542f578`
+**Decision authority:** [@leamonline](https://github.com/leamonline), named 15 August 2026
+
+> **Decision, 15 August 2026.** The named decision-maker recorded **`STOP`**.
+> The manual-contact procedure is retained; B1–B4 remain deferred; no live
+> automation is authorised. `STOP` is a valid completion outcome of the gate,
+> and it defers a `GO` rather than foreclosing one. The
+> [resumption trigger](#resumption-trigger) records what would justify
+> revisiting it. Full fields are in the
+> [required decision record](#required-decision-record).
 
 > **Evidence refresh, 14 August 2026.** Tranche A has since completed. The
 > sections below are annotated where its findings have been superseded; the
@@ -145,18 +151,52 @@ Complete these fields only when authorised evidence exists:
 | Field | Required value |
 |---|---|
 | Decision ID | `RA-001` |
-| Decision | `GO` or `STOP` |
+| Decision | **`STOP`** |
 | Named human decision-maker | [@leamonline](https://github.com/leamonline), named 15 August 2026 |
-| Decision date/time | Unrecorded |
-| Evidence/base SHA | Unrecorded |
-| Approved scope | Unrecorded |
-| Meta template evidence | Unrecorded |
-| Fallback policy | Unresolved |
-| Resumption trigger if STOP | Unrecorded |
-| Links to issue/PR/release evidence | Unrecorded |
+| Decision date/time | 15 August 2026 (UTC) |
+| Evidence/base SHA | `main@9e12bac0a96991089db6f5a55c2661e6c542f578` — see [SHA note](#note-on-the-evidence-sha) |
+| Approved scope | **None.** `STOP` authorises no implementation. B1–B4 stay deferred |
+| Meta template evidence | Not supplied; not required for `STOP` |
+| Fallback policy | Unresolved; not required for `STOP` |
+| Resumption trigger if STOP | See [resumption trigger](#resumption-trigger) below |
+| Links to issue/PR/release evidence | [#620](https://github.com/leamonline/Smarter-dog-bookings/issues/620), [Tranche A exit evidence pack](2026-08-15-tranche-a-exit-evidence.md), [PR #646](https://github.com/leamonline/Smarter-dog-bookings/pull/646) |
 
-Until these fields are completed by an authorised human, the decision remains
-`STOP` and implementation must not cross into live automation.
+`STOP` is a valid completion outcome of the gate, not a failure to decide. The
+manual-contact procedure is retained unchanged, and implementation must not
+cross into live automation.
+
+### Note on the evidence SHA
+
+The evidence reviewed is the pack attested at
+`main@9e12bac0a96991089db6f5a55c2661e6c542f578`. `main` has since advanced to
+`e7438dc` by merging that pack. The delta between the two is exactly three
+files — `docs/research/2026-08-09-reschedule-automation-go-no-go.md`,
+`docs/research/2026-08-15-tranche-a-exit-evidence.md` and
+`docs/traceability.md` — with no code, schema, migration or workflow change, so
+the evidence reviewed describes the code at current `main` without gaps.
+
+The pack's re-read rule requires re-establishing A0–A4 at a new SHA before
+relying on the attestation. That rule guards against authorising live work
+against unverified code. `STOP` authorises no work, so it is not re-run here.
+**A later `GO` may not inherit this**: it must re-establish A0–A4 at whatever
+SHA it names.
+
+### Resumption trigger
+
+Reconsider when **both** hold:
+
+1. The named decision-maker observes that manually contacting customers about
+   staff-initiated reschedules has become burdensome in practice. No threshold
+   is set here; the governing gate forbids inventing one, and the owner judges
+   this from the salon's own experience.
+2. The two evidence items that block an evidence-complete `GO` can actually be
+   supplied — the exact approved Meta template route with a deterministic
+   fallback/manual-contact policy, and a separately authorised aggregate-only
+   check against an explicitly verified production target.
+
+Item 2 is the binding constraint: neither was available at the time of this
+decision, so `GO` was not reachable on the evidence regardless of preference.
+Nothing about this record forecloses a later `GO`; it defers one.
 
 ## Data-handling boundary
 
