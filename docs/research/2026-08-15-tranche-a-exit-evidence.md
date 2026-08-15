@@ -4,7 +4,8 @@
 **Compiled:** 15 August 2026
 **Evidence SHA:** `main@9e12bac0a96991089db6f5a55c2661e6c542f578`
 **Tree:** `9b1176a8f099e63dcb58f15f4c0fbc6f4c329bd6`
-**Decision authority:** Unassigned; this document does not appoint one
+**Decision authority:** [@leamonline](https://github.com/leamonline), named 15 August 2026
+in the [go/no-go record](2026-08-09-reschedule-automation-go-no-go.md#required-decision-record)
 
 ## Purpose
 
@@ -152,12 +153,12 @@ only what it executed. Mapped against #620's acceptance criteria:
 | # | Criterion | Status |
 |---|---|---|
 | 1 | A0–A4 green at one named `main` SHA | **Met** at `9e12bac`, with the A1 dispatch and A4a tree-identity caveats above |
-| 2 | A named human compares reschedule need with the manual-contact procedure and records STOP/GO | **Needs the human.** #620 still has no decision comment of any kind |
+| 2 | A named human compares reschedule need with the manual-contact procedure and records STOP/GO | **Partly met.** The owner is named — [@leamonline](https://github.com/leamonline), 15 August 2026 — which satisfies "named". The comparison and the recorded STOP/GO are still outstanding, and are the owner's to make |
 | 3 | Exact approved template route and deterministic fallback policy evidenced | **Not met.** Provider-console evidence for the exact Meta template and version, plus a recorded fallback channel decision. No fallback is assumed |
 | 4 | Fresh aggregate-only, explicitly targeted production check | **Not met; needs separate authority.** #620 does not itself grant production-data access. The [9 August counts](2026-08-09-issue-603-plan-reality-audit.md#unverified-prior-aggregate-snapshot) are provenance-limited context, not gate evidence |
 | 5 | Ambiguous legacy groupings classified or excluded by B4's fail-closed contract, no heuristic repair | **Met by design.** [B4 #624](https://github.com/leamonline/Smarter-dog-bookings/issues/624) already requires `visit_review_required` with zero mutation, zero intent and no raw-row fallback |
 | 6 | Record confirms B1–B4 are the whole live scope | **Scope already settled; needs human adoption** into the decision record |
-| 7 | Record names SHA, evidence, decision-maker, scope, rollback seam, unresolved risks | **Needs the human.** This pack supplies the SHA and evidence; the decision-maker cannot be manufactured |
+| 7 | Record names SHA, evidence, decision-maker, scope, rollback seam, unresolved risks | **Partly met.** SHA, evidence and decision-maker are recorded; scope, rollback seam and unresolved risks are written when the decision is |
 | 8 | STOP names its reconsideration trigger; GO authorises sequencing only | **Outcome-dependent.** The human selects the outcome and writes the matching statement |
 
 So criterion 1 is the part this pack closes. Criteria 3 and 4 are what block an
