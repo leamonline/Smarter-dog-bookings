@@ -1,6 +1,6 @@
 # Tranche A exit evidence at one `main` SHA
 
-**Status:** Evidence pack only; no decision is recorded here
+**Status:** Evidence pack. The decision it supported — **`STOP`, 15 August 2026** — is recorded in the [go/no-go record](2026-08-09-reschedule-automation-go-no-go.md#required-decision-record), not here
 **Compiled:** 15 August 2026
 **Evidence SHA:** `main@9e12bac0a96991089db6f5a55c2661e6c542f578`
 **Tree:** `9b1176a8f099e63dcb58f15f4c0fbc6f4c329bd6`
@@ -153,18 +153,21 @@ only what it executed. Mapped against #620's acceptance criteria:
 | # | Criterion | Status |
 |---|---|---|
 | 1 | A0–A4 green at one named `main` SHA | **Met** at `9e12bac`, with the A1 dispatch and A4a tree-identity caveats above |
-| 2 | A named human compares reschedule need with the manual-contact procedure and records STOP/GO | **Partly met.** The owner is named — [@leamonline](https://github.com/leamonline), 15 August 2026 — which satisfies "named". The comparison and the recorded STOP/GO are still outstanding, and are the owner's to make |
-| 3 | Exact approved template route and deterministic fallback policy evidenced | **Not met.** Provider-console evidence for the exact Meta template and version, plus a recorded fallback channel decision. No fallback is assumed |
-| 4 | Fresh aggregate-only, explicitly targeted production check | **Not met; needs separate authority.** #620 does not itself grant production-data access. The [9 August counts](2026-08-09-issue-603-plan-reality-audit.md#unverified-prior-aggregate-snapshot) are provenance-limited context, not gate evidence |
+| 2 | A named human compares reschedule need with the manual-contact procedure and records STOP/GO | **Met.** [@leamonline](https://github.com/leamonline) recorded **`STOP`** on 15 August 2026, retaining the manual-contact procedure |
+| 3 | Exact approved template route and deterministic fallback policy evidenced | **Not met — and not required for the recorded `STOP`.** Provider-console evidence for the exact Meta template and version, plus a recorded fallback channel decision, would be needed for a `GO`. No fallback is assumed |
+| 4 | Fresh aggregate-only, explicitly targeted production check | **Not met; needs separate authority — and not required for the recorded `STOP`.** #620 does not itself grant production-data access. The [9 August counts](2026-08-09-issue-603-plan-reality-audit.md#unverified-prior-aggregate-snapshot) are provenance-limited context, not gate evidence |
 | 5 | Ambiguous legacy groupings classified or excluded by B4's fail-closed contract, no heuristic repair | **Met by design.** [B4 #624](https://github.com/leamonline/Smarter-dog-bookings/issues/624) already requires `visit_review_required` with zero mutation, zero intent and no raw-row fallback |
 | 6 | Record confirms B1–B4 are the whole live scope | **Scope already settled; needs human adoption** into the decision record |
-| 7 | Record names SHA, evidence, decision-maker, scope, rollback seam, unresolved risks | **Partly met.** SHA, evidence and decision-maker are recorded; scope, rollback seam and unresolved risks are written when the decision is |
-| 8 | STOP names its reconsideration trigger; GO authorises sequencing only | **Outcome-dependent.** The human selects the outcome and writes the matching statement |
+| 7 | Record names SHA, evidence, decision-maker, scope, rollback seam, unresolved risks | **Met.** All recorded in the [decision record](2026-08-09-reschedule-automation-go-no-go.md#required-decision-record). Approved scope is `None`; no rollback seam is needed because `STOP` changes nothing to roll back |
+| 8 | STOP names its reconsideration trigger; GO authorises sequencing only | **Met.** The [resumption trigger](2026-08-09-reschedule-automation-go-no-go.md#resumption-trigger) is recorded, and `STOP` authorises no implementation |
 
-So criterion 1 is the part this pack closes. Criteria 3 and 4 are what block an
-evidence-complete `GO`; a `STOP` remains available without them, since the
-governing gate treats `STOP` as a valid completion outcome. **That is a
-statement about gate mechanics, not a recommendation.**
+Criterion 1 is the part this pack closes. Criteria 3 and 4 were what blocked an
+evidence-complete `GO`; a `STOP` remained available without them, since the
+governing gate treats `STOP` as a valid completion outcome. On 15 August 2026
+the named decision-maker recorded **`STOP`**, so the gate is complete on those
+terms and B1–B4 stay deferred. Criteria 3 and 4 are therefore not outstanding
+work — they are the price of a future `GO`, recorded in the
+[resumption trigger](2026-08-09-reschedule-automation-go-no-go.md#resumption-trigger).
 
 `previous_day_1500_v1` remains inactive. This pack authorises no migration
 application, provider change, customer contact or production write.

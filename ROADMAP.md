@@ -14,8 +14,9 @@ order and STOP/GO boundary.
 
 | Horizon | Work | Decision |
 |---|---|---|
-| **Now** | Tranche A: A0 measurement, A1 capacity proof, A2 interface truth, A3 Edge authentication, A4 release and Supabase target gates | Finish the safety evidence, then default to **STOP**. |
-| **Next** | Tranche B, strictly serial: B1 #607 → B2 #610 → B3 #608 → B4 #604/#609 | Begin only after a named human records **GO** against one exact `main` SHA. |
+| **Done** | Tranche A: A0 measurement, A1 capacity proof, A2 interface truth, A3 Edge authentication, A4 release and Supabase target gates | Complete. Evidence attested at `main@9e12bac`. |
+| **Now** | Nothing. The gate is closed: **`STOP` recorded 15 August 2026** by [@leamonline](https://github.com/leamonline) | Manual contact retained. See the [decision record](docs/research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record). |
+| **Deferred** | Tranche B, strictly serial: B1 #607 → B2 #610 → B3 #608 → B4 #604/#609 | Deferred by the `STOP`. A future start needs a fresh **GO** against one exact `main` SHA, and A0–A4 re-established at that SHA. |
 | **Later** | Expand notification types; migrate remaining visit reads/writes; consider separate policy activation; retire compatibility paths after observation | Each is a new decision, not implied by B4. |
 
 ## Programme invariants
@@ -194,6 +195,20 @@ All A0–A4 exit evidence is green at that SHA.
   the evidence or external prerequisite that would justify reconsideration.
 - **GO:** authorise only the serial B1–B4 slice below. GO does not authorise
   production migration application, provider changes or policy activation.
+
+### Recorded outcome
+
+**`STOP`, recorded 15 August 2026** by [@leamonline](https://github.com/leamonline)
+against evidence at `main@9e12bac0a96991089db6f5a55c2661e6c542f578`. The
+manual-contact procedure is retained, B1–B4 are deferred, and no implementation
+is authorised. The reconsideration trigger and full decision fields are in the
+[go/no-go record](docs/research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record);
+the supporting evidence is the
+[15 August exit evidence pack](docs/research/2026-08-15-tranche-a-exit-evidence.md).
+
+The gate is closed on these terms. Reopening it means a fresh `GO` decision with
+A0–A4 re-established at the SHA that decision names — this `STOP` does not carry
+forward as entry evidence for a later `GO`.
 
 ## Next — Tranche B: narrow live convergence
 
