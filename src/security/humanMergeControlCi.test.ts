@@ -91,11 +91,17 @@ describe("human merge-control pull-request surface", () => {
     expect(template.match(/<!-- human-merge-control:start -->/g)).toHaveLength(1);
     expect(template.match(/<!-- human-merge-control:end -->/g)).toHaveLength(1);
     expect(template).toContain("Decision: HOLD");
-    expect(template).toContain("Approved head SHA:");
-    expect(template).toContain("Approved base SHA:");
     expect(template).toContain("Approved by:");
-    expect(template).toContain("Approved at (UTC):");
     expect(template).toContain("Migration review: HOLD");
+  });
+
+  it("does not reintroduce the transcribed fields GitHub now supplies", () => {
+    // The head SHA, current main SHA and approval time are read from GitHub.
+    // Re-adding them as typed fields would restore transcription risk and break
+    // the parser's exact field-count check.
+    expect(template).not.toContain("Approved head SHA:");
+    expect(template).not.toContain("Approved base SHA:");
+    expect(template).not.toContain("Approved at (UTC):");
   });
 
   it("links the durable operator runbook", () => {

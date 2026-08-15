@@ -11,7 +11,6 @@ const HEAD_SHA = "1".repeat(40);
 const BASE_SHA = "2".repeat(40);
 const FROZEN_PR_BASE_SHA = "9".repeat(40);
 const NOW = "2026-08-11T12:10:00Z";
-const APPROVED_AT = "2026-08-11T12:05:00Z";
 const UPDATED_AT = "2026-08-11T12:05:05Z";
 
 const CI_RUN_ID = 31441718471;
@@ -20,33 +19,21 @@ const MIGRATIONS_DETAILS_URL =
   `https://github.com/leamonline/Smarter-dog-bookings/actions/runs/${MIGRATIONS_RUN_ID}/job/93627630737`;
 
 function attestation(
-  overrides: Partial<Record<
-    | "decision"
-    | "headSha"
-    | "baseSha"
-    | "approvedBy"
-    | "approvedAt"
-    | "migrationReview",
-    string
-  >> = {},
+  overrides: Partial<
+    Record<"decision" | "approvedBy" | "migrationReview", string>
+  > = {},
 ) {
   const values = {
     decision: "MERGE",
-    headSha: HEAD_SHA,
-    baseSha: BASE_SHA,
     approvedBy: "@leamonline",
-    approvedAt: APPROVED_AT,
-    migrationReview: "NO_MIGRATIONS",
+    migrationReview: "HOLD",
     ...overrides,
   };
 
   return [
     CONTROL_START_MARKER,
     `Decision: ${values.decision}`,
-    `Approved head SHA: ${values.headSha}`,
-    `Approved base SHA: ${values.baseSha}`,
     `Approved by: ${values.approvedBy}`,
-    `Approved at (UTC): ${values.approvedAt}`,
     `Migration review: ${values.migrationReview}`,
     CONTROL_END_MARKER,
   ].join("\n");
@@ -189,11 +176,8 @@ describe("human merge attestation parser", () => {
   it("parses one complete strict block", () => {
     expect(parseHumanMergeAttestation(attestation())).toEqual({
       decision: "MERGE",
-      headSha: HEAD_SHA,
-      baseSha: BASE_SHA,
       approvedBy: "leamonline",
-      approvedAt: APPROVED_AT,
-      migrationReview: "NO_MIGRATIONS",
+      migrationReview: "HOLD",
     });
   });
 
@@ -214,17 +198,26 @@ describe("human merge attestation parser", () => {
     ).toThrow(/unexpected or duplicated field/i);
   });
 
-  it("rejects shortened SHAs, placeholders and non-UTC timestamps", () => {
-    expect(() => parseHumanMergeAttestation(attestation({ headSha: "abc123" })))
-      .toThrow(/head SHA/i);
+  it("rejects placeholder and malformed approver logins", () => {
     expect(() =>
       parseHumanMergeAttestation(attestation({ approvedBy: "@username" }))
     ).toThrow(/placeholder/i);
     expect(() =>
-      parseHumanMergeAttestation(
-        attestation({ approvedAt: "2026-08-11T13:05:00+01:00" }),
-      )
-    ).toThrow(/UTC/i);
+      parseHumanMergeAttestation(attestation({ approvedBy: "leamonline" }))
+    ).toThrow(/prefixed with @/i);
+  });
+
+  it("rejects a block carrying the retired transcription fields", () => {
+    // The evaluator reads the head SHA, current main SHA and approval time from
+    // GitHub. A body that still types them has the wrong field count and must
+    // fail closed rather than being silently tolerated.
+    const withRetiredField = attestation().replace(
+      "Decision: MERGE",
+      `Decision: MERGE\nApproved head SHA: ${HEAD_SHA}`,
+    );
+    expect(() => parseHumanMergeAttestation(withRetiredField)).toThrow(
+      /unexpected or duplicated field/i,
+    );
   });
 });
 
@@ -241,10 +234,7 @@ describe("human merge-control evaluation", () => {
   it("keeps the default template on HOLD", () => {
     const body = attestation({
       decision: "HOLD",
-      headSha: "",
-      baseSha: "",
       approvedBy: "",
-      approvedAt: "",
       migrationReview: "HOLD",
     });
     expectHold(
@@ -354,36 +344,25 @@ describe("human merge-control evaluation", () => {
     );
   });
 
-  it("requires the attested head and base SHAs to match the fresh PR", () => {
-    const staleHeadBody = attestation({ headSha: "3".repeat(40) });
+  it("binds approval to the head GitHub reports, with nothing transcribed", () => {
+    // The approver no longer types a head SHA. The binding instead comes from
+    // the evidence itself: every required check must be attached to the head
+    // GitHub reports for this pull request.
     expectHold(
       validInput({
-        initialPullRequest: {
-          ...validInput().initialPullRequest,
-          body: staleHeadBody,
-        },
-        finalPullRequest: {
-          ...validInput().finalPullRequest,
-          body: staleHeadBody,
-        },
+        checkRuns: [
+          githubActionsCheck("build", { head_sha: "3".repeat(40) }),
+          githubActionsCheck("agent-tests"),
+          githubActionsCheck("pr-production-smoke"),
+          githubActionsCheck("migrations-applied"),
+        ],
       }),
-      /head SHA.*current/i,
+      /build is not attached to the current head/i,
     );
 
-    const staleBaseBody = attestation({ baseSha: "4".repeat(40) });
-    expectHold(
-      validInput({
-        initialPullRequest: {
-          ...validInput().initialPullRequest,
-          body: staleBaseBody,
-        },
-        finalPullRequest: {
-          ...validInput().finalPullRequest,
-          body: staleBaseBody,
-        },
-      }),
-      /base SHA.*current/i,
-    );
+    const approved = evaluateHumanMergeControl(validInput());
+    expect(approved.ok).toBe(true);
+    expect(approved.summary).toContain(HEAD_SHA.slice(0, 7));
   });
 
   it("uses current main independently of GitHub's frozen PR base snapshot", () => {
@@ -451,32 +430,9 @@ describe("human merge-control evaluation", () => {
     );
   });
 
-  it("requires approval after every prerequisite and near evaluation time", () => {
-    const earlyBody = attestation({ approvedAt: "2026-08-11T12:02:00Z" });
-    expectHold(
-      validInput({
-        initialPullRequest: { ...validInput().initialPullRequest, body: earlyBody },
-        finalPullRequest: { ...validInput().finalPullRequest, body: earlyBody },
-      }),
-      /after.*evidence/i,
-    );
-
-    const futureBody = attestation({ approvedAt: "2026-08-11T12:16:00Z" });
-    expectHold(
-      validInput({
-        initialPullRequest: { ...validInput().initialPullRequest, body: futureBody },
-        finalPullRequest: { ...validInput().finalPullRequest, body: futureBody },
-      }),
-      /future/i,
-    );
-
-    expectHold(
-      validInput({ now: "2026-08-11T12:21:00Z" }),
-      /too old/i,
-    );
-  });
-
-  it("uses GitHub's authenticated body-edit time as the evidence boundary", () => {
+  it("uses GitHub's authenticated body-edit time as the only approval clock", () => {
+    // The approver types no timestamp. GitHub's updated_at for the body edit is
+    // the approval time, so it cannot be back-dated or skewed by a local clock.
     for (const updatedAt of ["2026-08-11T12:03:59Z", "2026-08-11T12:04:00Z"]) {
       expectHold(
         validInput({
@@ -493,54 +449,39 @@ describe("human merge-control evaluation", () => {
       );
     }
 
-    const equalTypedTime = attestation({ approvedAt: "2026-08-11T12:04:00Z" });
-    expectHold(
-      validInput({
-        initialPullRequest: {
-          ...validInput().initialPullRequest,
-          body: equalTypedTime,
-        },
-        finalPullRequest: {
-          ...validInput().finalPullRequest,
-          body: equalTypedTime,
-        },
-      }),
-      /approval.*after.*evidence/i,
-    );
+    const approved = evaluateHumanMergeControl(validInput());
+    expect(approved.ok).toBe(true);
+    expect(approved.summary).toContain(UPDATED_AT);
   });
 
   it("applies the documented approval-age and future-skew boundaries", () => {
-    expect(evaluateHumanMergeControl(validInput({ now: "2026-08-11T12:20:00Z" })).ok).toBe(
+    // The window is one hour from the authenticated body edit at 12:05:05Z.
+    expect(evaluateHumanMergeControl(validInput({ now: "2026-08-11T13:05:05Z" })).ok).toBe(
       true,
     );
-    expectHold(validInput({ now: "2026-08-11T12:20:01Z" }), /too old/i);
+    expectHold(validInput({ now: "2026-08-11T13:05:06Z" }), /too old/i);
 
-    const allowedFutureBody = attestation({ approvedAt: "2026-08-11T12:12:00Z" });
+    // Two minutes of future skew is tolerated against the evaluator's clock.
+    const editedAt = "2026-08-11T12:12:00Z";
     expect(
       evaluateHumanMergeControl(
         validInput({
-          initialPullRequest: {
-            ...validInput().initialPullRequest,
-            body: allowedFutureBody,
-          },
-          finalPullRequest: {
-            ...validInput().finalPullRequest,
-            body: allowedFutureBody,
-          },
+          initialPullRequest: { ...validInput().initialPullRequest, updatedAt: editedAt },
+          finalPullRequest: { ...validInput().finalPullRequest, updatedAt: editedAt },
         }),
       ).ok,
     ).toBe(true);
 
-    const excessiveFutureBody = attestation({ approvedAt: "2026-08-11T12:12:01Z" });
+    const excessiveFuture = "2026-08-11T12:12:01Z";
     expectHold(
       validInput({
         initialPullRequest: {
           ...validInput().initialPullRequest,
-          body: excessiveFutureBody,
+          updatedAt: excessiveFuture,
         },
         finalPullRequest: {
           ...validInput().finalPullRequest,
-          body: excessiveFutureBody,
+          updatedAt: excessiveFuture,
         },
       }),
       /future/i,
@@ -676,6 +617,97 @@ describe("human merge-control evaluation", () => {
         files: [{ ...addedFile, status: "modified" }],
       }),
       /append-only/i,
+    );
+  });
+});
+
+describe("documentation-only exemption", () => {
+  const docsFile = { filename: "docs/research/2026-08-14-note.md", status: "modified" };
+
+  it("approves prose-only changes with no human attestation", () => {
+    // No body edit, and the event is a plain push to the branch.
+    const result = evaluateHumanMergeControl(
+      validInput({ action: "synchronize", bodyChanged: false, files: [docsFile] }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.summary).toMatch(/documentation-only/i);
+  });
+
+  it("still demands complete, green machine evidence", () => {
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [docsFile],
+        checkRuns: (validInput().checkRuns as Array<Record<string, unknown>>).slice(1),
+      }),
+      /build.*missing/i,
+    );
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [docsFile],
+        baseComparison: {
+          status: "diverged",
+          base_commit: { sha: BASE_SHA },
+          merge_base_commit: { sha: "7".repeat(40) },
+        },
+      }),
+      /contain.*current main/i,
+    );
+  });
+
+  it("cannot be faked by an incomplete file list", () => {
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [docsFile],
+        initialPullRequest: { ...validInput().initialPullRequest, changedFiles: 2 },
+        finalPullRequest: { ...validInput().finalPullRequest, changedFiles: 2 },
+      }),
+      /file list.*incomplete/i,
+    );
+  });
+
+  it.each([
+    [".github/pull_request_template.md", "control-plane Markdown"],
+    ["scripts/human-merge-control.mjs", "evaluator source"],
+    ["src/engine/capacity.ts", "application code"],
+    ["supabase/migrations/20260811120000_example.sql", "migration SQL"],
+  ])("does not exempt %s (%s)", (filename) => {
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [{ filename, status: filename.endsWith(".sql") ? "added" : "modified" }],
+      }),
+      /fresh pull-request body edit/i,
+    );
+  });
+
+  it("does not exempt a change that mixes prose with code", () => {
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [docsFile, { filename: "src/engine/capacity.ts", status: "modified" }],
+        initialPullRequest: { ...validInput().initialPullRequest, changedFiles: 2 },
+        finalPullRequest: { ...validInput().finalPullRequest, changedFiles: 2 },
+      }),
+      /fresh pull-request body edit/i,
+    );
+  });
+
+  it("does not exempt prose renamed out of a code path", () => {
+    expectHold(
+      validInput({
+        action: "synchronize",
+        files: [
+          {
+            filename: "docs/moved.md",
+            previous_filename: "src/engine/capacity.ts",
+            status: "renamed",
+          },
+        ],
+      }),
+      /fresh pull-request body edit/i,
     );
   });
 });

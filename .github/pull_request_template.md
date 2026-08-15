@@ -27,16 +27,20 @@ Link work deliberately left out, unresolved decisions and any evidence that must
 This block starts fail closed. Leave it on `HOLD` until every prerequisite is
 green for the exact pull-request head, then follow the
 [human merge-control runbook](https://github.com/leamonline/Smarter-dog-bookings/blob/main/docs/superpowers/runbooks/2026-08-11-human-merge-control.md).
-`Approved base SHA` means the independently read current `main` commit, not
-the pull request's historical `base.sha`.
+
+To approve: set `Decision: MERGE` and `Approved by: @your-login`, then save. The
+head SHA, the current `main` SHA and the approval time are read from GitHub —
+never typed. **Documentation-only pull requests need no approval at all**; they
+go green on machine evidence alone.
+
+If this pull request adds migration SQL, set `Migration review:` to
+`APPLIED: <migrations-applied job URL>`. Otherwise leave it on `HOLD`.
+
 Do not rename, reorder, format or duplicate the fields or markers. Only an
 allow-listed human may submit the final `MERGE` body edit.
 
 <!-- human-merge-control:start -->
 Decision: HOLD
-Approved head SHA:
-Approved base SHA:
 Approved by:
-Approved at (UTC):
 Migration review: HOLD
 <!-- human-merge-control:end -->
