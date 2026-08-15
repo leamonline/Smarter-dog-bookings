@@ -4,7 +4,9 @@
 **Audited:** 9 August 2026
 **Repository baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
 **Evidence refreshed at:** `main@0ef06c1863578091f8b79264091bec9f468547e9`
-**Decision authority:** Unassigned; this document does not appoint one
+**Decision authority:** [@leamonline](https://github.com/leamonline), named 15 August 2026.
+Naming the decision-maker is not the decision: every other field below remains
+unrecorded, and the disposition stays the documented default `STOP`.
 
 > **Evidence refresh, 14 August 2026.** Tranche A has since completed. The
 > sections below are annotated where its findings have been superseded; the
@@ -144,7 +146,7 @@ Complete these fields only when authorised evidence exists:
 |---|---|
 | Decision ID | `RA-001` |
 | Decision | `GO` or `STOP` |
-| Named human decision-maker | Unassigned |
+| Named human decision-maker | [@leamonline](https://github.com/leamonline), named 15 August 2026 |
 | Decision date/time | Unrecorded |
 | Evidence/base SHA | Unrecorded |
 | Approved scope | Unrecorded |

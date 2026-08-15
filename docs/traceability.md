@@ -35,13 +35,19 @@ the commit, environment, exact target and observed result.
 
 The STOP/GO gate ([#620](https://github.com/leamonline/Smarter-dog-bookings/issues/620))
 requires A0–A4 exit evidence at one exact `main` SHA. That evidence is assembled
-in the [Tranche A exit evidence pack](research/2026-08-14-tranche-a-exit-evidence.md)
-at `main@0ef06c1`, which the
-[go/no-go record](research/2026-08-09-reschedule-automation-go-no-go.md) now
+in the [Tranche A exit evidence pack](research/2026-08-15-tranche-a-exit-evidence.md)
+at `main@9e12bac`, which the
+[go/no-go record](research/2026-08-09-reschedule-automation-go-no-go.md)
 references. Two packages carry trigger caveats recorded there: `DB Tests
 (pgTAP)` is path-filtered and needs an explicit dispatch per SHA, and the A4a
 `pr-production-smoke` gate is pull-request-only and can never be green on a
 `main` SHA.
 
-Verifying that pack did not re-verify the goal table above; its baseline and
+An attestation binds to its SHA and does not survive `main` moving. The
+[14 August pack](research/2026-08-14-tranche-a-exit-evidence.md) at
+`main@0ef06c1` is superseded and retained only as the record of that
+attestation; read the current pack for the live position. The interval between
+them contains a red `main` at `dcc8827`, accounted for in the current pack.
+
+Verifying these packs did not re-verify the goal table above; its baseline and
 `Last verified` date are unchanged. The recorded disposition remains `STOP`.
