@@ -15,6 +15,17 @@
 //   3. Log everything — even invalid signatures are written
 //      (with signature_valid = false) so we have a forensic trail.
 //
+//   4. Apply message_template_status_update events to
+//      whatsapp_templates. Template review is asynchronous — Meta
+//      returns PENDING at submission and decides hours later — and
+//      the broadcast gate opens only on status='approved'. The only
+//      other path to that status is whatsapp-admin's `sync_templates`
+//      action, which nothing calls on a schedule, so without this an
+//      approved template stays 'pending' locally until someone runs
+//      the sync by hand. This is a single-row status write off a
+//      payload we have already verified and persisted; it does not
+//      justify its own downstream job.
+//
 // What this function does NOT do:
 //   - Call Claude. That happens downstream via pg_net trigger.
 //   - Update conversations or messages tables. Downstream job.
@@ -34,8 +45,13 @@
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import { parseTemplateStatusEvent } from "../_shared/templates.ts";
+
+// The webhook field carrying template review outcomes. Subscribed on the
+// whatsapp_business_account topic alongside `messages`.
+const TEMPLATE_STATUS_FIELD = "message_template_status_update";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -149,6 +165,60 @@ function summarise(body: MetaWebhookBody): {
   };
 }
 
+/**
+ * Mirror Meta's template review decisions onto whatsapp_templates.
+ *
+ * Strictly best-effort: the raw payload is already safely in whatsapp_events
+ * by the time we get here, so a failure loses nothing that `sync_templates`
+ * can't reconcile later. It must never turn into a non-2xx — Meta retries on
+ * 5xx and we would duplicate the event row we just wrote.
+ *
+ * Matches rows on name+language (as sync_templates and create_template do)
+ * rather than meta_id, because the very first status webhook for a template
+ * submitted outside this app is the event that first teaches us its meta_id.
+ */
+async function applyTemplateStatusUpdates(
+  supabase: SupabaseClient,
+  body: MetaWebhookBody,
+): Promise<void> {
+  for (const entry of body.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      if (change?.field !== TEMPLATE_STATUS_FIELD) continue;
+
+      const update = parseTemplateStatusEvent(change.value);
+      if (!update) continue;
+
+      const { error, count } = await supabase
+        .from("whatsapp_templates")
+        .update({
+          status: update.status,
+          rejection_reason: update.rejectionReason,
+          ...(update.metaId ? { meta_id: update.metaId } : {}),
+          ...(update.category ? { category: update.category } : {}),
+        }, { count: "exact" })
+        .eq("name", update.name)
+        .eq("language", update.language);
+
+      if (error) {
+        console.error(
+          `template status update failed for ${update.name}/${update.language}:`,
+          error,
+        );
+      } else if (!count) {
+        // Meta sends status events for every template on the WABA, including
+        // ones this app never submitted. Not an error — just not ours.
+        console.log(
+          `template status ${update.status} for untracked ${update.name}/${update.language}`,
+        );
+      } else {
+        console.log(
+          `template ${update.name}/${update.language} → ${update.status}`,
+        );
+      }
+    }
+  }
+}
+
 // ── Handler ──────────────────────────────────────────────────
 serve(async (req) => {
   const url = new URL(req.url);
@@ -224,6 +294,14 @@ serve(async (req) => {
   if (!signatureValid) {
     console.warn("whatsapp-webhook invalid signature, event logged");
     return new Response("ok", { status: 200 });
+  }
+
+  // Signature-gated: only a payload Meta actually signed may mutate template
+  // state. Never allowed to fail the request — see the function's doc comment.
+  try {
+    await applyTemplateStatusUpdates(supabase, parsed);
+  } catch (err) {
+    console.error("whatsapp-webhook template status update threw:", err);
   }
 
   return new Response("ok", { status: 200 });
