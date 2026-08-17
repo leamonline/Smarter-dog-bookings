@@ -6,7 +6,7 @@ vi.mock("../../../supabase/client", () => ({ supabase: null }));
 
 const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 
-describe("CollectionNoticeModal offline recovery", () => {
+describe("CollectionNoticeModal sample-data recovery", () => {
   it("offers truthful manual recovery instead of loading contacts forever", async () => {
     render(
       <ToastProvider>
@@ -22,12 +22,12 @@ describe("CollectionNoticeModal offline recovery", () => {
       </ToastProvider>,
     );
 
-    expect(screen.queryByText(/isn't available offline/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/isn't available with sample data/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
     expect(
       await screen.findByText(
-        "Collection messaging isn't available offline. Contact the customer directly.",
+        "Collection messaging isn't available with sample data. Contact the customer directly.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Loading contacts…")).not.toBeInTheDocument();

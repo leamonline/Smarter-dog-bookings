@@ -17,6 +17,12 @@ Smarter Dog Bookings is a live operational system. Small changes should remain l
 - Use a new ordered migration for database changes. Never rewrite applied migration history.
 - Keep product policy in requirements/specifications, implementation choices in plans/ADRs and live task state in GitHub.
 - Update relevant documentation and prompt metadata in the same change.
+- Use the canonical vocabulary in [docs/product/terminology.md](docs/product/terminology.md).
+  It matters most where the words diverge: **appointment** is the user-facing
+  whole visit and belongs in customer and staff copy, while **visit**, **booking
+  line** and **booking row** are technical terms for schemas, RPCs and storage.
+  Sample-data mode is **sample data** or **demo**, never "offline" — that word is
+  reserved for a genuinely lost connection.
 
 ## Verify
 

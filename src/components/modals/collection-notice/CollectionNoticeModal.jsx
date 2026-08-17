@@ -82,7 +82,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
       if (!supabase) {
         setRecipients([]);
         setContactsUnavailable(
-          "Collection messaging isn't available offline. Contact the customer directly.",
+          "Collection messaging isn't available with sample data. Contact the customer directly.",
         );
         setLoading(false);
         return;

@@ -151,7 +151,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       <PortalShell>
         <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
           <span className="relative inline-block">
-            Offline mode
+            Sample data
             <ScribbleUnderline />
           </span>
         </h1>

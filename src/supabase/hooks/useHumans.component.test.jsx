@@ -1134,7 +1134,7 @@ describe("useHumans archived & on-demand lookups", () => {
   });
 });
 
-describe("useHumans offline (!supabase)", () => {
+describe("useHumans sample-data mode (!supabase)", () => {
   it("CRUD stays optimistic-only and lookups resolve from the local cache", async () => {
     setSupabase(null);
     const { result } = renderHook(() => useHumans());
@@ -1175,18 +1175,18 @@ describe("useHumans offline (!supabase)", () => {
     // Connection-required actions explain themselves instead of failing silently.
     expect(await result.current.mergeHumans("a", "b")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
     expect(await result.current.approveSignup("a")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
     expect(await result.current.rejectSignup("a")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
 
-    // deleteHuman: the optimistic removal is the whole operation offline.
+    // deleteHuman: the optimistic removal is the whole operation on sample data.
     let deleted;
     await act(async () => {
       deleted = await result.current.deleteHuman(added.id);

@@ -47,6 +47,41 @@ The detail modal will tell staff which constraint blocked a booking.
   `validate_booking_capacity`, then read the latest migration).
   This is what rejects an insert the frontend somehow let through.
 
+## Configurable settings versus fixed business rules
+
+Two different questions get confused here: "can staff change this from the
+app?" and "can this be changed at all?" Everything below is changeable by
+someone — the difference is whether it takes a click or a coordinated code and
+migration change.
+
+**Configurable at runtime — no deploy needed.** Staff or config change these
+and the engine picks them up:
+
+| Setting | Where it lives | Notes |
+|---|---|---|
+| Daily dog cap | `salon_config.daily_dog_cap` | Default 14. A separate throughput cap, not slots × 2 |
+| Open and closed days | `day_settings.is_open` | Mon–Wed are the defaults, not the constraint; the DB is authoritative |
+| Per-date extra slots | `day_settings.extra_slots` | After 13:00, staff-only. Large dogs are never extra-slot eligible |
+| Same-day "last minute" slots | `day_settings.immediate_slots` | Flags a slot for customer same-day booking |
+| Staff-blocked seats | blocked-seat rows | Removes a single seat from a slot |
+
+**Fixed business rules — changing one is a code change in every copy plus, in
+most cases, a migration.** These are not settings and there is no UI for them:
+
+| Rule | Value | Why it is fixed |
+|---|---|---|
+| Seats per slot | 2 | The core of the 2-2-1 rule |
+| Rolling 3-slot ceiling | 5 (`MAX_DOGS_PER_SLOT`) | 2+2+1 across consecutive slots |
+| Canonical slot grid | `08:30`–`13:00`, 30-minute intervals | `SALON_SLOTS`; extras extend it per date but do not change it |
+| Approved large-dog slots | `LARGE_DOG_SLOTS` | Hardcoded once per engine copy — see the section below |
+| Large-dog seat costs and the 12:00 early close | per-slot | Encoded in `canBookSlot` |
+| Same-day cutoff | 30 minutes before the slot | `IMMEDIATE_CUTOFF_MINUTES`, mirrored for UI gating only |
+| Pregnancy gate | blocks non-staff inserts | Trigger-enforced; staff bypass is deliberate clinical judgement |
+
+The engine exists **three times** — frontend, Deno, and the PostgreSQL trigger —
+so a "fixed rule" change means changing all three together and extending the
+parity test. That is the real cost, and the reason these are not settings.
+
 ## Approved large-dog slots
 
 The approved set is **hardcoded, once per engine copy** — it is not

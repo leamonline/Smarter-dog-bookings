@@ -175,8 +175,8 @@ export function useAuth() {
   }, [fetchProfile]);
   const signIn = useCallback(async (email, password, captchaToken) => {
     if (!supabase) {
-      setError("Supabase not configured. Running in offline mode.");
-      return { error: { message: "Offline mode" } };
+      setError("Supabase not configured. Running on sample data.");
+      return { error: { message: "Sample data mode" } };
     }
 
     setError(null);

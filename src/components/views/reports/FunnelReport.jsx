@@ -12,7 +12,7 @@ export function FunnelReport({ days }) {
     return (
       <Section title="Booking funnel" accent="#10C2FC">
         <div className="text-caption text-ink-muted font-medium">
-          {loading ? "Loading the booking funnel…" : "This needs live portal telemetry — it isn't available in offline mode."}
+          {loading ? "Loading the booking funnel…" : "This needs live portal telemetry — none is loaded right now."}
         </div>
       </Section>
     );

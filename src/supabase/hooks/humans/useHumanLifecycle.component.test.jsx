@@ -213,22 +213,22 @@ describe("useHumanLifecycle signup approval", () => {
   });
 });
 
-describe("useHumanLifecycle offline (!supabase)", () => {
+describe("useHumanLifecycle sample-data mode (!supabase)", () => {
   it("connection-required actions explain themselves instead of failing silently", async () => {
     setSupabase(null);
     const { result } = renderHook(() => useHarness());
 
     expect(await result.current.mergeHumans("a", "b")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
     expect(await result.current.approveSignup("a")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
     expect(await result.current.rejectSignup("a")).toEqual({
       ok: false,
-      error: expect.stringMatching(/offline/),
+      error: expect.stringMatching(/sample data/),
     });
   });
 });

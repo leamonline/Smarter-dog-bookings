@@ -72,7 +72,7 @@ export function friendlyDenialMessage(message?: string | null): string {
       // message, not capacity jargon, so we don't soften its meaning.
       return "Pregnant dogs need a quick chat first — please message us on WhatsApp so we can look after her properly. 🐾";
     case "daily_cap":
-      return "That day’s now fully booked. Try another day, or join the waitlist and we’ll text you the moment a space opens up.";
+      return "That day’s now fully booked. Try another day, or join the waitlist and we’ll be in touch as soon as a space opens up.";
     case "past_cutoff":
       return "That slot’s a bit too close to its start time to book online now — we need a little notice. Please pick a later time or another day.";
     case "past_date":

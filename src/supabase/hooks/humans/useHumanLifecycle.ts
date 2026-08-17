@@ -43,7 +43,7 @@ export function useHumanLifecycle({
       if (winnerId === loserId)
         return { ok: false, error: "Cannot merge a record into itself" };
       if (!supabase)
-        return { ok: false, error: "Merge needs a connection — you're offline." };
+        return { ok: false, error: "Merge needs the live database — you're on sample data." };
 
       const { error: err } = await mergeHumansRpc(supabase, {
         winnerId,
@@ -86,7 +86,7 @@ export function useHumanLifecycle({
     async (humanId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!humanId) return { ok: false, error: "Missing human id" };
       if (!supabase)
-        return { ok: false, error: "Approving needs a connection — you're offline." };
+        return { ok: false, error: "Approving needs the live database — you're on sample data." };
 
       const { error: err } = await approveCustomerSignup(supabase, { humanId });
       if (err) {
@@ -145,7 +145,7 @@ export function useHumanLifecycle({
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!humanId) return { ok: false, error: "Missing human id" };
       if (!supabase)
-        return { ok: false, error: "Rejecting needs a connection — you're offline." };
+        return { ok: false, error: "Rejecting needs the live database — you're on sample data." };
 
       const { error: err } = await rejectCustomerSignup(supabase, {
         humanId,

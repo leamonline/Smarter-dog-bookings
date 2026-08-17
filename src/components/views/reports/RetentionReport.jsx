@@ -42,7 +42,7 @@ export function RetentionReport() {
     <Section title="Due back but not booked" accent="var(--color-brand-purple)" insight={insight}>
       {!available ? (
         <div className="text-caption text-ink-muted font-medium">
-          {loading ? "Working out who's due back…" : "Retention needs live booking history — it isn't available in offline mode."}
+          {loading ? "Working out who's due back…" : "Retention needs live booking history — none is loaded right now."}
         </div>
       ) : due.length === 0 ? (
         <div className="text-caption text-ink-muted font-medium">No dogs are overdue right now. Lovely — everyone's on schedule. 🐾</div>
