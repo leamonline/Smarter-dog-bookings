@@ -100,4 +100,111 @@ describe("sentryBeforeSend", () => {
     for (let i = 0; i < 10; i += 1) deep = { nested: deep };
     expect(() => sentryBeforeSend({ extra: { deep } })).not.toThrow();
   });
+
+  // A name cannot be pattern-matched — "Fido" looks like any other word — so
+  // structured customer data is redacted by key. The keys mirror the schema's
+  // real customer columns: humans, dogs and whatsapp_messages.
+  describe("structured customer data", () => {
+    it("redacts owner and dog names, which no pattern could catch", () => {
+      const out = sentryBeforeSend({
+        extra: { name: "Fido", surname: "Postlethwaite", dogName: "Biscuit" },
+      });
+      expect(out.extra).toEqual({
+        name: "[redacted-name]",
+        surname: "[redacted-name]",
+        dogName: "[redacted-name]",
+      });
+    });
+
+    it("matches the same field across snake_case, camelCase and capitalisation", () => {
+      const out = sentryBeforeSend({
+        extra: { full_name: "Ada L", fullName: "Ada L", FullName: "Ada L" },
+      });
+      expect(Object.values(out.extra)).toEqual([
+        "[redacted-name]",
+        "[redacted-name]",
+        "[redacted-name]",
+      ]);
+    });
+
+    it("redacts addresses, notes and social handles", () => {
+      const out = sentryBeforeSend({
+        extra: {
+          address: "12 Hillcrest Road",
+          notes: "Owner prefers afternoons",
+          groom_notes: "Nervous around clippers",
+          insta: "@someone",
+        },
+      });
+      expect(out.extra).toEqual({
+        address: "[redacted-address]",
+        notes: "[redacted-notes]",
+        groom_notes: "[redacted-notes]",
+        insta: "[redacted-handle]",
+      });
+    });
+
+    it("redacts conversation content, including WhatsApp message bodies", () => {
+      const out = sentryBeforeSend({
+        extra: { content: "Can I move Tuesday to Wednesday please?" },
+        request: { data: { body: "Sorry, running 10 minutes late!" } },
+      });
+      expect(out.extra.content).toBe("[redacted-content]");
+      expect(out.request.data.body).toBe("[redacted-content]");
+    });
+
+    it("keeps non-customer fields alongside redacted ones", () => {
+      const out = sentryBeforeSend({
+        extra: { body: { name: "Fido", slot: "09:00", size: "large" } },
+      });
+      // The container keeps its shape and is walked, so the operational
+      // detail that makes the report useful survives.
+      expect(out.extra.body).toEqual({
+        name: "[redacted-name]",
+        slot: "09:00",
+        size: "large",
+      });
+    });
+
+    it("keeps array shape without the values", () => {
+      const out = sentryBeforeSend({
+        extra: { alerts: ["bites when nervous", "arthritis"] },
+      });
+      expect(out.extra.alerts).toEqual(["[redacted-notes]", "[redacted-notes]"]);
+    });
+
+    it("redacts customer data inside breadcrumb data", () => {
+      const out = sentryBeforeSend({
+        breadcrumbs: [
+          { message: "POST /rest/v1/humans", data: { name: "Ada", address: "12 Hillcrest Road" } },
+        ],
+      });
+      expect(out.breadcrumbs[0].data).toEqual({
+        name: "[redacted-name]",
+        address: "[redacted-address]",
+      });
+      expect(out.breadcrumbs[0].message).toBe("POST /rest/v1/humans");
+    });
+
+    it("redacts UK postcodes wherever they appear as free text", () => {
+      const out = sentryBeforeSend({ message: "Delivery to SW1A 1AA failed" });
+      expect(out.message).toBe("Delivery to [redacted-postcode] failed");
+    });
+
+    it("preserves the developer's own log summary", () => {
+      // logger.error puts its message into extra. It is the primary diagnostic
+      // and developer-authored, so it is redacted by pattern but never by key.
+      const out = sentryBeforeSend({
+        extra: { message: "Failed to fetch day closures", name: "Fido" },
+      });
+      expect(out.extra.message).toBe("Failed to fetch day closures");
+      expect(out.extra.name).toBe("[redacted-name]");
+    });
+
+    it("leaves null and undefined at sensitive keys alone", () => {
+      const out = sentryBeforeSend({ extra: { name: null, address: undefined } });
+      expect(out.extra.name).toBeNull();
+      expect(out.extra.address).toBeUndefined();
+    });
+  });
 });

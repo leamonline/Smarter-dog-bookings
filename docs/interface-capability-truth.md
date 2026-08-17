@@ -32,9 +32,30 @@ once; the logger owns the Sentry submission, so the same exception is not
 captured a second time.
 
 Before Sentry accepts an event, [`sentryBeforeSend`](../src/lib/sentry.js)
-redacts UK phone numbers, email addresses, bearer tokens and UUIDs from
-diagnostic strings and nested event data. This preserves a useful error class
-and support reference without retaining those identifiers in the report.
+redacts in two passes.
+
+**By pattern**, anywhere in diagnostic strings or nested event data: UK phone
+numbers, email addresses, UK postcodes, bearer tokens and UUIDs.
+
+**By key**, in structured data: names, addresses, notes, social handles and
+message content. A name cannot be pattern-matched — `Fido` is indistinguishable
+from any other word — so these are caught by the key they sit under instead.
+The key list tracks the schema's real customer columns: `humans` (`name`,
+`surname`, `address`, `notes`, `history_flag`, `fb`/`insta`/`tiktok`), `dogs`
+(`name`, `groom_notes`, `alerts`) and `whatsapp_messages` (`content`). Bare
+`name` is included deliberately, because in a Supabase request body it is a
+person's or a dog's name.
+
+A container under a sensitive key keeps its shape and is walked rather than
+dropped, so `body: { name, slot }` loses the name and keeps the slot. Arrays
+keep their length. Sentry tags are never redacted, so the `component` and `op`
+tags that call sites set still identify where a failure happened.
+
+`logger.error`'s own message is exempt from the key pass — it is the primary
+diagnostic and developer-authored — but still goes through the pattern pass.
+
+Together this preserves a useful error class and support reference without
+retaining customer identifiers in the report.
 
 ## Verification guards
 
