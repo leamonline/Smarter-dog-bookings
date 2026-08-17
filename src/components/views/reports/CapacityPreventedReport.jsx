@@ -13,7 +13,7 @@ export function CapacityPreventedReport({ days }) {
     return (
       <Section title="Turned-away demand" accent="var(--color-brand-coral)">
         <div className="text-caption text-ink-muted font-medium">
-          {loading ? "Checking for turned-away bookings…" : "This needs live booking data — it isn't available in offline mode."}
+          {loading ? "Checking for turned-away bookings…" : "This needs live booking data — none is loaded right now."}
         </div>
       </Section>
     );

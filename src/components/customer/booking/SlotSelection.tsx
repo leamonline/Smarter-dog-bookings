@@ -225,7 +225,7 @@ export function SlotSelection({
               <p className="portal-empty-body">
                 {isToday
                   ? "They do get snapped up fast — pick another day and we'll see you then."
-                  : "Try a different day, or pop on the waitlist and we'll text you if a slot opens up."}
+                  : "Try a different day, or pop on the waitlist and we'll be in touch if a slot opens up."}
               </p>
               {!isToday && onJoinWaitlist && (
                 <button

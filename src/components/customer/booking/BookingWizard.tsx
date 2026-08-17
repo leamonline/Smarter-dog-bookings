@@ -681,7 +681,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
               <ScribbleUnderline color="var(--sd-coral)" />
             </h1>
             <p className="booking-success-subtitle">
-              We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll text you the moment a slot opens up.
+              We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll be in touch as soon as a slot opens up.
             </p>
             <div className="booking-success-actions">
               <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
