@@ -13,82 +13,147 @@
     "recomputes originPolicy / serviceRole / configToml / authPrimitives from the",
     "actual sources so an entry cannot silently lie about the code it describes.",
     "",
+    "",
+    "The guard also follows each required primitive's VERDICT: its result must",
+    "reach an if-guard that returns or throws (directly, via a captured variable,",
+    "or via a named helper that returns it to a guarded call site). A call whose",
+    "result is discarded, or a guard that no longer exits, fails the build even",
+    "though the primitive is still \"referenced\". A family may list a primitive in",
+    "flowOnlyPrimitives when its verdict is enforced by something other than an",
+    "early exit — buildAllowedOrigins is the one case: its output becomes CORS",
+    "headers, and the browser (plus the Vary: Origin contract proven in",
+    "authContracts.test.ts) does the refusing.",
+    "",
     "Adding a function? Add it here in the same commit, or the guard fails."
   ],
-
   "families": {
     "webhook-bearer": {
       "description": "Authorization: Bearer <WEBHOOK_SECRET>. Called by Postgres triggers via pg_net and by scheduled cron jobs, never by a browser.",
-      "requiredPrimitives": ["isAuthorizedWebhook"],
-      "unauthorizedStatuses": [401],
+      "requiredPrimitives": [
+        "isAuthorizedWebhook"
+      ],
+      "unauthorizedStatuses": [
+        401
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "Each function either returns 500 when WEBHOOK_SECRET is unset, or guards the comparison with !!WEBHOOK_SECRET. isAuthorizedWebhook additionally compares against the literal 'Bearer ' + secret, so an empty secret cannot match an empty header."
     },
     "webhook-bearer-or-internal-secret": {
       "description": "Either Authorization: Bearer <WEBHOOK_SECRET> (trigger/cron) or x-internal-secret: <SEND_INTERNAL_SECRET> (service-role caller, i.e. another Edge Function).",
-      "requiredPrimitives": ["isAuthorizedWebhook", "timingSafeEqualHeader"],
-      "unauthorizedStatuses": [401],
+      "requiredPrimitives": [
+        "isAuthorizedWebhook",
+        "timingSafeEqualHeader"
+      ],
+      "unauthorizedStatuses": [
+        401
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "timingSafeEqualHeader returns false when either side is missing or empty, so an unset SEND_INTERNAL_SECRET cannot be matched by an empty header. The bearer branch is guarded by !!WEBHOOK_SECRET."
     },
     "webhook-bearer-or-staff-jwt": {
       "description": "Either Authorization: Bearer <WEBHOOK_SECRET> (cron) or a staff user's Supabase JWT verified by auth.getUser() then gated on the is_staff() RPC.",
-      "requiredPrimitives": ["isAuthorizedWebhook", "auth.getUser", "is_staff"],
-      "unauthorizedStatuses": [401, 403],
+      "requiredPrimitives": [
+        "isAuthorizedWebhook",
+        "auth.getUser",
+        "is_staff"
+      ],
+      "unauthorizedStatuses": [
+        401,
+        403
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "The bearer branch is guarded by !!WEBHOOK_SECRET; when it is unset the request falls through to the staff-JWT branch rather than being admitted."
     },
     "staff-jwt": {
       "description": "The staff member's own Supabase session JWT, verified against GoTrue via auth.getUser(), then authorised by the is_staff() RPC executed under that same user token.",
-      "requiredPrimitives": ["auth.getUser", "is_staff"],
-      "unauthorizedStatuses": [401, 403],
+      "requiredPrimitives": [
+        "auth.getUser",
+        "is_staff"
+      ],
+      "unauthorizedStatuses": [
+        401,
+        403
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "No shared secret is involved. Authorisation is delegated to Supabase Auth and to is_staff(), which is evaluated under the caller's own token so a forged client cannot assert staff status."
     },
     "staff-jwt-or-internal-secret": {
       "description": "Either a staff JWT (auth.getUser() + is_staff()) or x-internal-secret: <SEND_INTERNAL_SECRET> for service-role callers such as pg_net triggers and sibling Edge Functions.",
-      "requiredPrimitives": ["timingSafeEqualHeader", "auth.getUser", "is_staff"],
-      "unauthorizedStatuses": [401, 403],
+      "requiredPrimitives": [
+        "timingSafeEqualHeader",
+        "auth.getUser",
+        "is_staff"
+      ],
+      "unauthorizedStatuses": [
+        401,
+        403
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "timingSafeEqualHeader returns false when the expected secret is empty, so an unset SEND_INTERNAL_SECRET closes the service path instead of opening it."
     },
     "internal-secret": {
       "description": "x-internal-secret: <SEND_INTERNAL_SECRET> only. No browser path. Trusted service-to-service callers.",
-      "requiredPrimitives": ["timingSafeEqualHeader"],
-      "unauthorizedStatuses": [401],
+      "requiredPrimitives": [
+        "timingSafeEqualHeader"
+      ],
+      "unauthorizedStatuses": [
+        401
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "timingSafeEqualHeader returns false when either side is missing or empty."
     },
     "agent-secret": {
       "description": "x-agent-secret: <AGENT_CALLBACK_SECRET>. Only the SQL trigger and whatsapp-generate-reply hold this secret; it is never exposed to a browser.",
-      "requiredPrimitives": ["timingSafeEqualHeader"],
-      "unauthorizedStatuses": [401],
+      "requiredPrimitives": [
+        "timingSafeEqualHeader"
+      ],
+      "unauthorizedStatuses": [
+        401
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "timingSafeEqualHeader returns false when either side is missing or empty."
     },
     "meta-signature": {
       "description": "Meta-originated request authenticated by an HMAC-SHA256 X-Hub-Signature-256 over the raw body using META_APP_SECRET, and/or the hub.verify_token handshake.",
-      "requiredPrimitives": ["x-hub-signature-256"],
-      "unauthorizedStatuses": [200, 401, 403],
+      "requiredPrimitives": [
+        "x-hub-signature-256"
+      ],
+      "unauthorizedStatuses": [
+        200,
+        401,
+        403
+      ],
       "failsClosedOnEmptySecret": false,
       "emptySecretRationale": "See each function's emptySecretBehaviour. whatsapp-webhook treats an unset META_APP_SECRET as a failed signature and refuses to process. whatsapp-flow-endpoint deliberately degrades to RSA-envelope + flow_token session auth when META_APP_SECRET is unset; this is documented, not accidental."
     },
     "feed-token": {
       "description": "Opaque bearer token from calendar_feed_tokens, supplied as a query parameter. Calendar clients (Apple, Google, Outlook) cannot carry JWTs.",
-      "requiredPrimitives": ["validateFeedToken"],
-      "unauthorizedStatuses": [401, 403],
+      "requiredPrimitives": [
+        "validateFeedToken"
+      ],
+      "unauthorizedStatuses": [
+        401,
+        403
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "validateFeedToken returns null for an empty token, for an unknown token, for is_active = false and for an expired token. Every null path returns 401."
     },
     "public-rate-limited": {
       "description": "Deliberately unauthenticated pre-auth endpoint. There is no caller identity to check, so the controls are an origin allowlist, a per-IP rate limit and a global rate limit. Any function in this family MUST NOT expose customer data beyond a boolean-shaped answer.",
-      "requiredPrimitives": ["buildAllowedOrigins"],
-      "unauthorizedStatuses": [400, 429],
+      "requiredPrimitives": [
+        "buildAllowedOrigins"
+      ],
+      "flowOnlyPrimitives": [
+        "buildAllowedOrigins"
+      ],
+      "unauthorizedStatuses": [
+        400,
+        429
+      ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "No secret participates in the caller check. Abuse is bounded by rate limiting rather than rejected by authentication, so these functions are held to the additional data-exposure rule above."
     }
   },
-
   "functions": {
     "apply-customer-confirm": {
       "authFamily": "internal-secret",

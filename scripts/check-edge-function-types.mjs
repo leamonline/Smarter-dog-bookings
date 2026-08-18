@@ -90,10 +90,12 @@ function main() {
   );
   for (const entrypoint of entrypoints) console.log(`  ${entrypoint}`);
 
-  // --node-modules-dir=none: package.json otherwise makes Deno expect an
-  // installed node_modules for npm type resolution, and the CI job that runs
-  // this never runs `npm ci`. No --allow-* flags: `deno check` performs no
-  // runtime work, it only resolves and type-checks.
+  // --node-modules-dir=none: Deno must never resolve through node_modules,
+  // whether or not one exists — the agent-tests job now installs it for
+  // check:edge-auth's TypeScript parser, and locally it is always present.
+  // Without the flag, package.json makes Deno expect npm-style resolution and
+  // behaviour would differ between those environments. No --allow-* flags:
+  // `deno check` performs no runtime work, it only resolves and type-checks.
   const result = spawnSync(
     "deno",
     ["check", "--node-modules-dir=none", ...entrypoints],

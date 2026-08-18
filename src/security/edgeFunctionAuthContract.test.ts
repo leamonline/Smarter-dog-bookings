@@ -35,10 +35,21 @@ const STAFF_JWT_FAMILY = {
   emptySecretRationale: "No shared secret participates.",
 };
 
-/** A source that satisfies the staff-jwt family and nothing else. */
+/**
+ * A source that satisfies the staff-jwt family and nothing else.
+ *
+ * Guard-complete on purpose: the verdict-flow pass requires each primitive's
+ * result to reach an if-guard that exits, so a fixture of bare calls would
+ * fail for the right reasons in the wrong tests.
+ */
 const STAFF_JWT_SOURCE = `
-const { data } = await userClient.auth.getUser();
-const { data: staff } = await userClient.rpc("is_staff");
+export async function requireStaff(req: Request): Promise<Response | null> {
+  const { data } = await userClient.auth.getUser();
+  if (!data.user) return new Response("unauthorized", { status: 401 });
+  const { data: staff } = await userClient.rpc("is_staff");
+  if (staff !== true) return new Response("forbidden", { status: 403 });
+  return null;
+}
 `;
 
 function baseEntry(overrides: Record<string, unknown> = {}) {
@@ -367,6 +378,167 @@ describe("checkEdgeFunctionAuth", () => {
 
     expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
       "orphan-family",
+    );
+  });
+});
+
+// A family whose single primitive is a plain guard call, for verdict-flow
+// cases where the staff-jwt double-primitive shape would blur the assertion.
+const INTERNAL_SECRET_FAMILY = {
+  description: "x-internal-secret compared with timingSafeEqualHeader.",
+  requiredPrimitives: ["timingSafeEqualHeader"],
+  unauthorizedStatuses: [401],
+  failsClosedOnEmptySecret: true,
+  emptySecretRationale: "timingSafeEqualHeader rejects an unset secret.",
+};
+
+function internalEntry(overrides: Record<string, unknown> = {}) {
+  return baseEntry({ authFamily: "internal-secret", ...overrides });
+}
+
+function internalRoot(indexSource: string): string {
+  return makeRoot({
+    functions: { "some-fn": { "index.ts": indexSource } },
+    manifest: {
+      families: { "internal-secret": INTERNAL_SECRET_FAMILY },
+      functions: { "some-fn": internalEntry() },
+    },
+  });
+}
+
+describe("verdict-flow analysis", () => {
+  // The whole point of the pass: every shape below satisfies the old substring
+  // check while authenticating nothing.
+
+  it("fails a call whose result is discarded", () => {
+    const root = internalRoot(
+      `timingSafeEqualHeader(req.headers.get("x-internal-secret"), SECRET);`,
+    );
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "discards its result",
+    );
+  });
+
+  it("fails a guard whose branches never exit", () => {
+    const root = internalRoot(`
+      if (!timingSafeEqualHeader(req.headers.get("x-internal-secret"), SECRET)) {
+        console.warn("unauthorized caller, carrying on anyway");
+      }
+    `);
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "never returns or throws",
+    );
+  });
+
+  it("does not accept a primitive that only appears in a comment", () => {
+    const root = internalRoot(`
+      // timingSafeEqualHeader(header, secret) used to be called here.
+      const ok = true;
+    `);
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "does not reference it",
+    );
+  });
+
+  it("accepts the named-helper shape: verdict returned to a guarded call site", () => {
+    const root = internalRoot(`
+      function isInternalCaller(req: Request): boolean {
+        return timingSafeEqualHeader(req.headers.get("x-internal-secret"), SECRET);
+      }
+      export function handler(req: Request): Response {
+        if (!isInternalCaller(req)) return new Response("unauthorized", { status: 401 });
+        return new Response("ok");
+      }
+    `);
+    expect(checkEdgeFunctionAuth(root).problems).toEqual([]);
+  });
+
+  it("fails when the helper holding the verdict is never called", () => {
+    const root = internalRoot(`
+      function isInternalCaller(req: Request): boolean {
+        return timingSafeEqualHeader(req.headers.get("x-internal-secret"), SECRET);
+      }
+    `);
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "never called",
+    );
+  });
+
+  it("fails a captured verdict that nothing ever reads", () => {
+    const root = internalRoot(`
+      const ok = timingSafeEqualHeader(req.headers.get("x-internal-secret"), SECRET);
+    `);
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "never used",
+    );
+  });
+
+  const PUBLIC_FAMILY = {
+    description: "Unauthenticated; origin allowlist plus rate limits.",
+    requiredPrimitives: ["buildAllowedOrigins"],
+    flowOnlyPrimitives: ["buildAllowedOrigins"],
+    unauthorizedStatuses: [429],
+    failsClosedOnEmptySecret: true,
+    emptySecretRationale: "No secret participates; abuse is rate limited.",
+  };
+
+  it("lets a flow-only primitive pass without a guard, as long as its result is used", () => {
+    // buildAllowedOrigins' verdict becomes CORS headers, not a 401 — the one
+    // declared exception to the guard requirement.
+    const root = makeRoot({
+      functions: {
+        "public-fn": {
+          "index.ts": `
+            const ALLOWED = buildAllowedOrigins("X_ORIGINS");
+            export const corsFor = (req: Request) => buildCorsHeaders(req, ALLOWED);
+          `,
+        },
+      },
+      manifest: {
+        families: { "public-rate-limited": PUBLIC_FAMILY },
+        functions: {
+          "public-fn": baseEntry({
+            authFamily: "public-rate-limited",
+            originPolicy: "X_ORIGINS",
+          }),
+        },
+      },
+    });
+    expect(checkEdgeFunctionAuth(root).problems).toEqual([]);
+  });
+
+  it("still fails a flow-only primitive whose result is discarded", () => {
+    const root = makeRoot({
+      functions: {
+        "public-fn": { "index.ts": `buildAllowedOrigins("X_ORIGINS");` },
+      },
+      manifest: {
+        families: { "public-rate-limited": PUBLIC_FAMILY },
+        functions: {
+          "public-fn": baseEntry({
+            authFamily: "public-rate-limited",
+            originPolicy: "X_ORIGINS",
+          }),
+        },
+      },
+    });
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "discards its result",
+    );
+  });
+
+  it("rejects a flowOnlyPrimitives entry the family does not require", () => {
+    const root = makeRoot({
+      functions: { "some-fn": { "index.ts": STAFF_JWT_SOURCE } },
+      manifest: {
+        families: {
+          "staff-jwt": { ...STAFF_JWT_FAMILY, flowOnlyPrimitives: ["nope"] },
+        },
+        functions: { "some-fn": baseEntry() },
+      },
+    });
+    expect(checkEdgeFunctionAuth(root).problems.join("\n")).toContain(
+      "not in requiredPrimitives",
     );
   });
 });

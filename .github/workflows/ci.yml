@@ -32,20 +32,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # Pinned even though this job never runs `npm ci`: two of its steps are
-      # Node scripts (check:edge-types, check:edge-auth), and without this they
-      # run on whatever Node the runner image happens to ship — which is not a
-      # version the repository declares or tests against. No `cache: npm`,
-      # deliberately: there is no install to cache.
+      # Pinned so the two Node scripts (check:edge-types, check:edge-auth) run
+      # on the version the repository declares and tests against, not whatever
+      # the runner image ships.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # --node-modules-dir=none: the repo's package.json otherwise makes
-      # Deno expect an installed node_modules for npm type resolution,
-      # and this job deliberately never runs npm ci. A single discovery root
+      # check:edge-auth's verdict-flow pass parses each auth source with the
+      # `typescript` package (a devDependency), so this job now installs
+      # node_modules. The Deno steps are unaffected: both pass
+      # --node-modules-dir=none and never resolve through the install.
+      - run: npm ci
+      # --node-modules-dir=none: Deno must not resolve through node_modules
+      # (installed above for check:edge-auth) — without the flag the repo's
+      # package.json makes Deno expect npm-style resolution. A single discovery root
       # auto-runs every *.test.ts under functions/ (whatsapp-agent/__tests__/ +
       # _shared/), so a newly-added Deno test can't be silently skipped by
       # forgetting to list it. Non-test files (e.g. webpush.proof.ts) don't
@@ -86,11 +89,13 @@ jobs:
 
       # Every function is deployed with --no-verify-jwt, so its in-function check
       # IS the security boundary. This fails when a deployable function has no
-      # entry in _shared/authManifest.json, or when an entry disagrees with the
+      # entry in _shared/authManifest.json, when an entry disagrees with the
       # source it describes (origin allowlist, service-role use, config.toml
-      # declaration, or the primitives its declared family requires). Node
-      # builtins only, so it needs neither `npm ci` nor Deno — hence no retry
-      # loop: it makes no network calls and cannot fail on a CDN blip.
+      # declaration), or when a required auth primitive's verdict no longer
+      # reaches an exiting guard — a check whose result is discarded fails even
+      # though the call is still present. Parses with the `typescript` package
+      # from the npm ci above; the step itself makes no network calls and cannot
+      # fail on a CDN blip, hence no retry loop.
       - name: Check Edge Function auth contract
         run: npm run check:edge-auth
 

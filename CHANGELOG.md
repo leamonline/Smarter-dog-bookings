@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ## Unreleased
 
+### Security
+
+- Strengthen the Edge Function auth-contract guard (`check:edge-auth`) from
+  substring matching to verdict-flow analysis: each required auth primitive is
+  now parsed and its result must reach an if-guard that returns or throws —
+  directly, through a captured variable, or through a named helper returned to
+  a guarded call site. A check whose result is discarded, a guard that no
+  longer exits, or a mention that survives only in a comment now fails the
+  build; shapes the analysis cannot follow fail closed. `buildAllowedOrigins`
+  is the declared `flowOnlyPrimitives` exception — its verdict becomes CORS
+  headers, not an early exit. All 27 deployable functions pass; the audit that
+  accompanied the change found no decorative check in production.
+
 ### Removed
 
 - Remove the human merge-control attestation entirely: the publisher workflow,

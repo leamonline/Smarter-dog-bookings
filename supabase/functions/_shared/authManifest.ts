@@ -28,8 +28,18 @@ export type AuthFamilyId =
 
 export interface AuthFamily {
   description: string;
-  /** Markers that must appear in the source of every function in this family. */
+  /**
+   * Auth primitives every function in this family must call. The guard
+   * requires each one's verdict to reach an if-guard that returns or throws —
+   * not merely to be mentioned — unless listed in flowOnlyPrimitives.
+   */
   requiredPrimitives: string[];
+  /**
+   * Primitives whose verdict is enforced by something other than an early
+   * exit, so the guard only requires the result to be captured and used.
+   * buildAllowedOrigins is the one case: its output becomes CORS headers.
+   */
+  flowOnlyPrimitives?: string[];
   /** HTTP statuses this family may use to refuse an unauthorised caller. */
   unauthorizedStatuses: number[];
   /**
