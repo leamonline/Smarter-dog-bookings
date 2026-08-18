@@ -1,7 +1,10 @@
 # Human merge control — design
 
+> **RETIRED 18 August 2026.** The control this document designs was removed and
+> not replaced. Kept as a design record only.
+
 **Date:** 2026-08-11
-**Status:** approved for implementation; attestation contract amended 2026-08-14
+**Status:** retired 2026-08-18; formerly approved for implementation, attestation contract amended 2026-08-14
 **Issue:** enforcement follow-up to
 [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606),
 [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) and parent

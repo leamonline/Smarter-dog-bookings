@@ -6,11 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ## Unreleased
 
+### Removed
+
+- Remove the human merge-control attestation entirely: the publisher workflow,
+  the evaluator script, its three test suites, the pull-request template block
+  and every instruction to use it. **No merge gate replaces it** — `main` is
+  unprotected and auto-deploys to production, so merge authority is now CI
+  evidence plus the judgement of whoever merges. The runbook and design are kept,
+  marked retired, because dated evidence packs link to them.
+
 ### Changed
 
 - Add a default-`HOLD`, exact-SHA human merge-control attestation and operator
   runbook for pull requests while `main` lacks native GitHub protection,
   including explicit migration disposition and post-merge check monitoring.
+  (Superseded — removed 18 August 2026, see above.)
 
 ### Testing
 

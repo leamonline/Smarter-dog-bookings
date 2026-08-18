@@ -1,7 +1,13 @@
 # Human merge control
 
-**Status:** Active temporary operating control
-**Applies to:** every pull request targeting `main`
+> **RETIRED 18 August 2026.** This control no longer exists. The workflow,
+> evaluator script, tests and pull-request template block were all removed, and
+> no merge gate replaced them. Nothing in this runbook is currently in force.
+> It is kept because dated evidence packs and completed plans link to it, and
+> deleting it would falsify that record. Do not follow it as instructions.
+
+**Status:** Retired — was an active temporary operating control 11–18 August 2026
+**Applies to:** nothing; formerly every pull request targeting `main`
 **Authority:** the approved
 [human merge-control design](../specs/2026-08-11-human-merge-control-design.md)
 and [issue #606 plan](../../plans/completed/2026-08-11-issue-606-human-merge-control.md)

@@ -154,22 +154,22 @@ GitHub rejected ruleset enforcement for this private repository on the current
 plan, so branch rules were not created. This is an external account limitation,
 not a repository guarantee.
 
-Until native enforcement is available, every pull request targeting `main`
-uses the
-[human merge-control runbook](superpowers/runbooks/2026-08-11-human-merge-control.md).
-The control records a named human decision against the exact pull-request head
-and independently read current-`main` SHAs after the required PR evidence
-succeeds, and requires the candidate head to contain that main commit.
-Immediately before merge, the operator must compare those SHAs and all checks
-again; a stale, missing, skipped, failed or ambiguous result means `HOLD`.
+From 18 August 2026 there is **no merge gate at all**. The attestation control
+that previously stood in for branch protection was removed; the retired runbook
+and design are kept as history in
+[`superpowers/runbooks/2026-08-11-human-merge-control.md`](superpowers/runbooks/2026-08-11-human-merge-control.md).
 
-The resulting `human-merge-control` check is auditable operational evidence,
-but it cannot prevent a writer or administrator from bypassing it while `main`
-is unprotected. When the repository plan supports enforcement, require pull
-requests, dismiss stale approvals, prevent force/direct pushes as policy
-permits and require the exact contexts named in the runbook. A required status
-alone is not the native human authority because a publisher may never start;
-use GitHub-native review/ruleset state and prove the missing-run case live.
+Merging to `main` is therefore governed only by CI evidence and the judgement of
+whoever merges. `main` auto-deploys to Vercel production and auto-deploys changed
+Edge Functions, so the checks named in [CONTRIBUTING.md](../CONTRIBUTING.md) should
+be green before merge, and a migration should be applied to production *before*
+merging code that depends on it — nothing enforces either.
+
+When the repository plan supports enforcement, require pull requests, dismiss
+stale approvals, prevent force/direct pushes as policy permits and require the
+CI contexts as required checks. A required status alone is not native human
+authority because a publisher may never start; use GitHub-native review/ruleset
+state and prove the missing-run case live.
 Keep write-capable release jobs separate from untrusted pull-request code.
 
 ## Traceable completion
