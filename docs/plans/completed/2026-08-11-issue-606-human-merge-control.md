@@ -1,6 +1,11 @@
 # Issue #606 human merge control
 
-**Status:** Completed
+> **The control this plan delivered was removed on 18 August 2026.** Every file
+> named below (`.github/workflows/human-merge-control.yml`,
+> `scripts/human-merge-control.mjs`, the `src/security/humanMergeControl*.test.ts`
+> suites) no longer exists. Kept as a record of work done, not as instructions.
+
+**Status:** Completed; delivered control since removed
 **Issue:** enforcement follow-up to
 [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606),
 [#619](https://github.com/leamonline/Smarter-dog-bookings/issues/619) and parent
