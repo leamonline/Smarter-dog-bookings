@@ -115,7 +115,18 @@ protection.
 **It proves:**
 
 - Every deployable function is classified, or the build fails.
-- Each function still calls the auth primitives its declared family requires.
+- Each function still calls the auth primitives its declared family requires —
+  as executable call sites, not substrings, so a mention in a comment or an
+  import list satisfies nothing.
+- Each required primitive's **verdict is acted on**: its result terminates in
+  an if-guard that returns or throws, either directly, through a captured
+  variable tested later, or through a named helper that returns it to a guarded
+  call site. A call whose result is discarded, or a guard whose branches no
+  longer exit, fails the build even though the primitive is still "referenced".
+  (`buildAllowedOrigins` is the declared exception — listed under
+  `flowOnlyPrimitives`, its output must be captured and used, because its
+  verdict is enforced as CORS headers rather than an early exit.) Shapes the
+  analysis cannot follow fail closed rather than passing silently.
 - The shared primitives refuse missing, empty, wrong-length, near-miss and
   wrong-prefix credentials, and refuse an unset expected secret.
 - A disallowed or absent `Origin` receives no `Access-Control-Allow-Origin`, and
@@ -125,10 +136,14 @@ protection.
 
 **It does not prove:**
 
-- That a function's check is *wired into the request path* correctly. The guard
-  asserts the primitive is referenced in the declared source file; it does not
-  execute the handler. Importing an entrypoint starts an HTTP server, so proving
-  this would mean restructuring all 27 functions.
+- That a function's check *executes* on every route. The verdict-flow analysis
+  is syntactic: it proves the guard shape exists and exits, not that every
+  request path passes through it, and it follows names rather than scopes, so
+  a shadowed variable could in principle mislead it. Executing the handlers
+  would mean restructuring all 27 functions — importing an entrypoint starts an
+  HTTP server — which is exactly the trade this analysis exists to avoid.
+- Guard *polarity*. `if (ok) reject()` instead of `if (!ok) reject()` satisfies
+  the shape check; only a runtime test or review catches an inverted condition.
 - Anything about the deployed instances. It reads the repository, never the live
   project, and inspecting secrets is explicitly out of scope.
 - That the rate limits are correctly tuned, only that they are documented.

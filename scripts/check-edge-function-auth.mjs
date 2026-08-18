@@ -24,16 +24,32 @@
 //      the auth primitives the declared family requires — and compared with what
 //      the entry claims. An entry cannot describe code that no longer exists.
 //
-// It deliberately does NOT try to prove the runtime behaviour of a check; that
-// is what the Deno contract tests in _shared/authContracts.test.ts do for the
-// shared primitives every family is built from.
+//   3. VERDICT FLOW. Referencing a primitive is not the same as obeying it: a
+//      call whose result is discarded, or a guard whose branch no longer
+//      returns, satisfies a substring check while authenticating nothing. So
+//      each required primitive's source is parsed (TypeScript syntax only — no
+//      type checking, no execution) and its result must either terminate in an
+//      if-guard that returns or throws, or be returned to a caller whose own
+//      call sites do. A family may list a primitive under flowOnlyPrimitives,
+//      meaning its result only has to be captured and used — the shape of
+//      buildAllowedOrigins, whose verdict becomes CORS headers rather than a
+//      401. Anything the analysis cannot follow fails the build: restructure
+//      the guard into a recognised shape, or extend the analyzer. Fail closed.
 //
-// Node builtins only, and no npm install: this runs in the `agent-tests` job
-// alongside check:edge-function-types, which never runs `npm ci`.
+// It still does not execute any handler; the runtime behaviour of the shared
+// primitives is proven by the Deno contract tests in
+// _shared/authContracts.test.ts.
+//
+// Needs node_modules: the verdict-flow pass uses the `typescript` package
+// (already a devDependency, the same compiler `npm run typecheck` uses), so
+// the agent-tests job runs `npm ci` before this step. The Deno steps in that
+// job are unaffected — they pass --node-modules-dir=none and never resolve
+// through node_modules.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import ts from "typescript";
 import { discoverEdgeFunctionEntrypoints } from "./check-edge-function-types.mjs";
 
 const FUNCTIONS_DIR = join("supabase", "functions");
@@ -170,6 +186,354 @@ function checkDeployWorkflowPremise(root, problems) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Verdict-flow analysis.
+//
+// A substring match proves a primitive is mentioned; this proves its result is
+// acted on. The walk is deliberately syntactic and fail-closed: it follows the
+// verdict through the shapes this codebase actually uses — a call inside an
+// if-condition, a captured boolean tested later, a helper that returns the
+// verdict to a guarded call site, a header value passed onward into a verifier
+// — and reports anything it cannot follow rather than assuming the best. A
+// pass therefore means every required primitive's verdict reaches an exit; an
+// unrecognisable chain is a build failure, never a silent success.
+
+const GUARD_KIND = "guard";
+const FLOW_KIND = "flow";
+const MAX_VERDICT_DEPTH = 6;
+
+function lineOf(sf, node) {
+  return sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+}
+
+/**
+ * Innermost CallExpressions that invoke the primitive.
+ *
+ * Two shapes count, and only two:
+ *   - the callee names it (`timingSafeEqualHeader(...)`, `client.auth.getUser()`),
+ *   - a string argument IS it, exactly (`rpc("is_staff")`,
+ *     `headers.get("x-hub-signature-256")`).
+ * Exact argument equality matters: `console.error("is_staff rpc failed")` must
+ * not count as an is_staff call site, or every log line becomes a false alarm.
+ *
+ * Innermost, because in `verify(req.headers.get("x-hub-signature-256"))` the
+ * verdict starts at the headers.get call and flows INTO verify — tracking the
+ * outer call as well would double-count.
+ */
+function collectPrimitiveCalls(sf, primitive) {
+  const matches = [];
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const calleeNames = node.expression.getText(sf).includes(primitive);
+      const argIs = node.arguments.some(
+        (arg) => ts.isStringLiteralLike(arg) && arg.text === primitive,
+      );
+      if (calleeNames || argIs) matches.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return matches.filter(
+    (call) => !matches.some((other) => other !== call && other.pos >= call.pos && other.end <= call.end),
+  );
+}
+
+/** May the verdict keep ascending through this parent unchanged? */
+function ascendsThrough(parent, child) {
+  if (ts.isParenthesizedExpression(parent)) return true;
+  if (ts.isAwaitExpression(parent)) return true;
+  if (ts.isNonNullExpression(parent)) return true;
+  if (ts.isAsExpression(parent)) return true;
+  if (ts.isPrefixUnaryExpression(parent) && parent.operator === ts.SyntaxKind.ExclamationToken) return true;
+  if (ts.isBinaryExpression(parent)) {
+    const op = parent.operatorToken.kind;
+    return (
+      op === ts.SyntaxKind.AmpersandAmpersandToken ||
+      op === ts.SyntaxKind.BarBarToken ||
+      op === ts.SyntaxKind.QuestionQuestionToken ||
+      op === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      op === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
+      op === ts.SyntaxKind.EqualsEqualsToken ||
+      op === ts.SyntaxKind.ExclamationEqualsToken
+    );
+  }
+  if (ts.isConditionalExpression(parent)) return true;
+  if (ts.isPropertyAccessExpression(parent) && parent.expression === child) return true;
+  if (ts.isElementAccessExpression(parent) && parent.expression === child) return true;
+  if (ts.isPropertyAssignment(parent) && parent.initializer === child) return true;
+  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  if (ts.isObjectLiteralExpression(parent) || ts.isArrayLiteralExpression(parent)) return true;
+  return false;
+}
+
+/** Does this subtree exit (return/throw), without crediting nested functions? */
+function subtreeExits(node) {
+  if (!node) return false;
+  if (ts.isReturnStatement(node) || ts.isThrowStatement(node)) return true;
+  if (ts.isFunctionLike(node)) return false;
+  let found = false;
+  ts.forEachChild(node, (child) => {
+    if (!found) found = subtreeExits(child);
+  });
+  return found;
+}
+
+function collectBoundNames(bindingName, into) {
+  if (ts.isIdentifier(bindingName)) {
+    into.push(bindingName);
+    return;
+  }
+  if (ts.isObjectBindingPattern(bindingName) || ts.isArrayBindingPattern(bindingName)) {
+    for (const element of bindingName.elements) {
+      if (ts.isBindingElement(element)) collectBoundNames(element.name, into);
+    }
+  }
+}
+
+function enclosingScope(node, sf) {
+  let current = node.parent;
+  while (current) {
+    if (ts.isFunctionLike(current) && current.body) return current.body;
+    current = current.parent;
+  }
+  return sf;
+}
+
+/** Is this identifier a read of the variable, rather than a name/declaration? */
+function isValueUse(id) {
+  const parent = id.parent;
+  if (ts.isVariableDeclaration(parent) && parent.name === id) return false;
+  if (ts.isBindingElement(parent)) return false;
+  if (ts.isPropertyAccessExpression(parent) && parent.name === id) return false;
+  if (ts.isPropertyAssignment(parent) && parent.name === id) return false;
+  if (ts.isParameter(parent) && parent.name === id) return false;
+  if (ts.isFunctionDeclaration(parent) && parent.name === id) return false;
+  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent)) return false;
+  return true;
+}
+
+function findIdentifierUses(scope, name, declarationNode) {
+  const uses = [];
+  const visit = (node) => {
+    if (ts.isIdentifier(node) && node.text === name && node !== declarationNode && isValueUse(node)) {
+      uses.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(scope);
+  return uses;
+}
+
+function collectNamedCalls(sf, name) {
+  const calls = [];
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      if (
+        (ts.isIdentifier(callee) && callee.text === name) ||
+        (ts.isPropertyAccessExpression(callee) && callee.name.text === name)
+      ) {
+        calls.push(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return calls;
+}
+
+/**
+ * Follow one verdict-carrying expression upward.
+ *
+ * `direct` marks the primitive call itself, where a discarded or unfollowable
+ * result is a hard error. Derived uses that go nowhere are merely unguarded —
+ * a captured verdict may legitimately also be logged or stored (the webhook
+ * records signature_valid for forensics) as long as SOME use reaches an exit.
+ * Chain explanations (a conditional that never exits, an anonymous carrier)
+ * land in state.diagnostics and surface only when no chain guards at all:
+ * they explain a failure, and are noise beside a success — tokenInfo.feedType
+ * branching for staff-name enrichment is not a broken guard when
+ * `if (!tokenInfo) return 401` sits fifty lines above it.
+ */
+function followVerdict(node, sf, label, primitive, state, direct) {
+  if (state.depth > MAX_VERDICT_DEPTH) {
+    state.diagnostics.push(
+      `"${primitive}": verdict chain deeper than ${MAX_VERDICT_DEPTH} levels at ${label}:${lineOf(sf, node)} — flatten the indirection or extend the analyzer.`,
+    );
+    return false;
+  }
+
+  let current = node;
+  for (;;) {
+    const parent = current.parent;
+    if (!parent) return false;
+
+    if (ascendsThrough(parent, current)) {
+      current = parent;
+      continue;
+    }
+
+    if (ts.isIfStatement(parent) && parent.expression === current) {
+      if (subtreeExits(parent.thenStatement) || subtreeExits(parent.elseStatement)) return true;
+      state.diagnostics.push(
+        `"${primitive}": the guard at ${label}:${lineOf(sf, parent)} never returns or throws in either branch — an unauthorized caller falls straight through.`,
+      );
+      return false;
+    }
+
+    if (ts.isReturnStatement(parent) || (ts.isArrowFunction(parent) && parent.body === current)) {
+      return followCarrier(parent, sf, label, primitive, state);
+    }
+
+    if (ts.isVariableDeclaration(parent) && parent.initializer === current) {
+      return followBinding(parent, sf, label, primitive, state, direct);
+    }
+
+    if (
+      ts.isBinaryExpression(parent) &&
+      parent.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      parent.right === current &&
+      ts.isIdentifier(parent.left)
+    ) {
+      const scope = enclosingScope(parent, sf);
+      state.depth += 1;
+      const uses = findIdentifierUses(scope, parent.left.text, parent.left);
+      let guarded = false;
+      for (const use of uses) {
+        if (followVerdict(use, sf, label, primitive, state, false)) guarded = true;
+      }
+      state.depth -= 1;
+      return guarded;
+    }
+
+    if (ts.isCallExpression(parent) && parent.arguments.includes(current)) {
+      // The verdict feeds another call (a verifier, a response builder); its
+      // result becomes the thing to track.
+      current = parent;
+      continue;
+    }
+
+    if (ts.isExpressionStatement(parent)) {
+      if (direct) {
+        state.problems.push(
+          `"${primitive}": the call at ${label}:${lineOf(sf, current)} discards its result — the check runs but nothing acts on the verdict.`,
+        );
+      }
+      return false;
+    }
+
+    if (direct) {
+      state.problems.push(
+        `"${primitive}": unrecognised verdict flow (${ts.SyntaxKind[parent.kind]}) at ${label}:${lineOf(sf, current)} — restructure into a guard shape the analyzer recognises, or extend scripts/check-edge-function-auth.mjs. This check fails closed.`,
+      );
+    }
+    return false;
+  }
+}
+
+/** The verdict is returned: verify the enclosing function's call sites. */
+function followCarrier(exitNode, sf, label, primitive, state) {
+  let fn = exitNode;
+  while (fn && !ts.isFunctionLike(fn)) fn = fn.parent;
+  if (!fn) return false;
+
+  let name = null;
+  if ((ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn)) && fn.name) {
+    name = fn.name.text;
+  } else if (fn.parent && ts.isVariableDeclaration(fn.parent) && ts.isIdentifier(fn.parent.name)) {
+    name = fn.parent.name.text;
+  } else if (ts.isMethodDeclaration(fn) && ts.isIdentifier(fn.name)) {
+    name = fn.name.text;
+  }
+  if (!name) {
+    state.diagnostics.push(
+      `"${primitive}": verdict returned from an anonymous function at ${label}:${lineOf(sf, fn)} — bind it to a name so its call sites can be verified.`,
+    );
+    return false;
+  }
+
+  if (state.carrierMemo.has(name)) {
+    const memoised = state.carrierMemo.get(name);
+    return memoised === true; // "pending" (a cycle) counts as unguarded
+  }
+  state.carrierMemo.set(name, "pending");
+
+  const sites = collectNamedCalls(sf, name);
+  if (sites.length === 0) {
+    state.diagnostics.push(
+      `"${primitive}": ${name}() returns the verdict but is never called (${label}:${lineOf(sf, fn)}) — the check is unreachable.`,
+    );
+    state.carrierMemo.set(name, false);
+    return false;
+  }
+
+  state.depth += 1;
+  let guarded = false;
+  for (const site of sites) {
+    if (followVerdict(site, sf, label, primitive, state, false)) guarded = true;
+  }
+  state.depth -= 1;
+  state.carrierMemo.set(name, guarded);
+  return guarded;
+}
+
+/** The verdict is captured into bindings: verify their later uses. */
+function followBinding(declaration, sf, label, primitive, state, direct) {
+  const names = [];
+  collectBoundNames(declaration.name, names);
+  if (names.length === 0) return false;
+
+  const scope = enclosingScope(declaration, sf);
+  state.depth += 1;
+  let guarded = false;
+  let anyUse = false;
+  for (const nameNode of names) {
+    const uses = findIdentifierUses(scope, nameNode.text, nameNode);
+    if (uses.length > 0) anyUse = true;
+    for (const use of uses) {
+      if (followVerdict(use, sf, label, primitive, state, false)) guarded = true;
+    }
+  }
+  state.depth -= 1;
+
+  if (!anyUse && direct) {
+    state.problems.push(
+      `"${primitive}": result captured at ${label}:${lineOf(sf, declaration)} but the binding is never used — the check runs and nothing reads the verdict.`,
+    );
+  }
+  return guarded;
+}
+
+/**
+ * Analyze one primitive's verdict flow through one source file.
+ *
+ * kind "guard": at least one chain must end in an if-guard that returns or
+ * throws. kind "flow": the result only has to be captured and used — for
+ * primitives whose verdict is enforced by something other than an early exit.
+ */
+export function analyzeVerdictFlow(sourceText, primitive, kind, label) {
+  const sf = ts.createSourceFile(label, sourceText, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  const calls = collectPrimitiveCalls(sf, primitive);
+  if (calls.length === 0) return { callSites: 0, problems: [] };
+
+  const state = { depth: 0, carrierMemo: new Map(), problems: [], diagnostics: [] };
+  let guarded = false;
+  for (const call of calls) {
+    if (followVerdict(call, sf, label, primitive, state, true)) guarded = true;
+  }
+
+  // Hard problems always surface. Diagnostics are the why-not breadcrumbs —
+  // relevant only when a guard-kind primitive found no guard at all.
+  const problems = [...new Set(state.problems)];
+  if (kind === GUARD_KIND && !guarded) {
+    problems.push(...new Set(state.diagnostics));
+    problems.push(
+      `"${primitive}": ${calls.length} call site(s) in ${label}, but no verdict reaches an if-guard that returns or throws — the check is decorative.`,
+    );
+  }
+  return { callSites: calls.length, problems };
+}
+
 export function checkEdgeFunctionAuth(root = process.cwd()) {
   const problems = [];
 
@@ -277,14 +641,26 @@ export function checkEdgeFunctionAuth(root = process.cwd()) {
       );
     } else {
       // The declared family's primitives must actually appear where the entry
-      // says the check lives. This is what catches a check being deleted.
+      // says the check lives — as executable call sites whose verdict is acted
+      // on, not as substrings. This is what catches a check being deleted, and
+      // equally a check left in place but stripped of its consequences.
       const authSource = readFileSync(authSourcePath, "utf8");
+      const flowOnly = new Set(family.flowOnlyPrimitives ?? []);
       for (const primitive of family.requiredPrimitives ?? []) {
-        if (!authSource.includes(primitive)) {
+        const kind = flowOnly.has(primitive) ? FLOW_KIND : GUARD_KIND;
+        const { callSites, problems: flowProblems } = analyzeVerdictFlow(
+          authSource,
+          primitive,
+          kind,
+          entry.authSource,
+        );
+        if (callSites === 0) {
           problems.push(
-            `${name}: declares auth family "${entry.authFamily}", which requires "${primitive}", but ${entry.authSource} does not reference it. Either the check was removed or the family is wrong.`,
+            `${name}: declares auth family "${entry.authFamily}", which requires "${primitive}", but ${entry.authSource} does not reference it in executable code (comments and import lists do not count). Either the check was removed or the family is wrong.`,
           );
+          continue;
         }
+        for (const problem of flowProblems) problems.push(`${name}: ${problem}`);
       }
     }
 
@@ -322,6 +698,21 @@ export function checkEdgeFunctionAuth(root = process.cwd()) {
       problems.push(
         `Family "${id}": unauthorizedStatuses must be a non-empty array.`,
       );
+    }
+    if (family.flowOnlyPrimitives !== undefined) {
+      if (!Array.isArray(family.flowOnlyPrimitives)) {
+        problems.push(
+          `Family "${id}": flowOnlyPrimitives must be an array when present.`,
+        );
+      } else {
+        for (const primitive of family.flowOnlyPrimitives) {
+          if (!(family.requiredPrimitives ?? []).includes(primitive)) {
+            problems.push(
+              `Family "${id}": flowOnlyPrimitives lists "${primitive}", which is not in requiredPrimitives — a flow exemption for a primitive the family does not require is meaningless.`,
+            );
+          }
+        }
+      }
     }
     if (typeof family.failsClosedOnEmptySecret !== "boolean") {
       problems.push(
