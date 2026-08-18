@@ -363,7 +363,9 @@ describe("Supabase security review regressions", () => {
 
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
     const clientFacingFns = [
-      "supabase/functions/calendar-feed/index.ts",
+      // handler.ts, not index.ts: calendar-feed follows the serve()-shim split,
+      // so its response bodies and error logging live in the handler module.
+      "supabase/functions/calendar-feed/handler.ts",
       "supabase/functions/calendar-ics/index.ts",
       "supabase/functions/whatsapp-register/index.ts",
       "supabase/functions/whatsapp-admin/index.ts",
