@@ -224,6 +224,25 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **Work on a branch off `main`.** `main` **auto-deploys to Vercel production** (smarterdog.vercel.app)
   and auto-deploys changed Edge Functions — never push untested work there. DB migrations do **not**
   auto-apply; apply them to prod first.
+- **Applying migrations to production — standing permission, granted 18 August 2026.** Claude Code
+  may apply a migration to the live project **via the Supabase MCP (`apply_migration`)** when the
+  change needs one. This is a real production write against real customer data, so it carries
+  conditions, all of them non-optional:
+  1. **Show the SQL first.** Post it before running it — the operator sees what is applied, not just
+     that something was.
+  2. **Apply to prod BEFORE merging** the code that depends on it. Never the reverse: that ordering
+     is what broke the Settings save in June 2026 (see `check-migrations-applied.yml`).
+  3. **Confirm the migration is idempotent before applying, and never blind-rerun.** Early migrations
+     are not idempotent and prod history has known gaps — see [docs/migrations.md](docs/migrations.md).
+  4. **Verify afterwards with the `migrations-applied` check**, which queries prod's
+     `supabase_migrations.schema_migrations` directly. That is independent evidence; Claude's own
+     report is not.
+  5. **Say so explicitly**, including when an apply fails or half-lands. Since the human merge-control
+     attestation was removed (also 18 August 2026) nothing prompts for a migration disposition, so
+     stating it plainly is the only remaining signal.
+  Permission covers the Supabase MCP only. It is **not** permission to hold or use the service-role
+  key, which stays a transient, human-only credential per the bullet below. If the Supabase connector
+  is unauthorised, say so and stop — do not improvise another write path.
 - **Never** commit `.env*`, secrets, or the service-role key; **never** put a secret behind a `VITE_`
   prefix (it ships to the browser).
 - **High-risk — explain the change before making it:** RLS policies, auth, the capacity / booking-
