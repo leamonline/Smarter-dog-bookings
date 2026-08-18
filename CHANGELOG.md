@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Add runtime auth-gate tests for `apply-customer-confirm` — the
+  highest-blast-radius internal-secret endpoint, whose check is the only gate
+  on the autonomous booking path. `index.ts` becomes a `serve()` shim with the
+  unchanged handler exported from `handler.ts` (the whatsapp-agent pattern);
+  six Deno tests prove missing, wrong, near-miss and empty credentials are
+  refused, and the correct one advances to body validation, all before any
+  Supabase client exists — no database, no network. New functions must now be
+  born in this shape (`docs/edge-function-auth.md` § Adding a function).
 - Strengthen the Edge Function auth-contract guard (`check:edge-auth`) from
   substring matching to verdict-flow analysis: each required auth primitive is
   now parsed and its result must reach an if-guard that returns or throws —

@@ -435,7 +435,9 @@ describe("Supabase security review regressions", () => {
   });
 
   it("apply-customer-confirm requires the internal secret and only acts on awaiting_customer_confirm", () => {
-    const fn = readProjectFile("supabase/functions/apply-customer-confirm/index.ts");
+    // handler.ts, not index.ts: the handler lives behind a serve() shim so
+    // its auth gate can be driven directly by handler.test.ts.
+    const fn = readProjectFile("supabase/functions/apply-customer-confirm/handler.ts");
 
     expect(fn).toMatch(/timingSafeEqualHeader\(\s*req\.headers\.get\("x-internal-secret"\)/);
     expect(fn).toMatch(/APPLY_CONFIRM_INTERNAL_SECRET/);

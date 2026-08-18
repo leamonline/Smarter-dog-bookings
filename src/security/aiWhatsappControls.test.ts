@@ -35,8 +35,10 @@ describe("AI WhatsApp operational controls", () => {
 
   it("labels every whatsapp-agent and automated confirmation send as AI-initiated", () => {
     const agent = read("supabase/functions/whatsapp-agent/handler.ts");
+    // handler.ts, not index.ts: apply-customer-confirm follows the same
+    // serve()-shim split as whatsapp-agent above.
     const applyConfirm = read(
-      "supabase/functions/apply-customer-confirm/index.ts",
+      "supabase/functions/apply-customer-confirm/handler.ts",
     );
 
     expect(agent).toContain("ai_initiated: true");

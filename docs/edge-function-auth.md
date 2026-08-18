@@ -151,10 +151,18 @@ protection.
 
 ## Adding a function
 
-1. Write the function with an in-function auth check.
+1. Write the function with an in-function auth check — and keep `index.ts` a
+   thin `serve()` shim with the handler exported from `handler.ts`. Importing a
+   module that calls `serve()` starts an HTTP server, which is what made the
+   original 27 functions untestable at runtime; a new function must not
+   re-create that problem. `apply-customer-confirm` and `whatsapp-agent` are
+   the pattern. Add a `handler.test.ts` that proves a missing and a wrong
+   credential are refused **before any client is constructed** — the tests
+   should need no database and no network.
 2. Add its entry to `authManifest.json` in the **same commit**, with every field
    populated — the guard rejects a blank field rather than treating it as
-   answered.
+   answered. `authSource` names the file holding the check (`handler.ts` under
+   the shim pattern).
 3. Add a `[functions.<name>]` block with `verify_jwt = false` to `config.toml`
    so local and CI deploys agree, and record `declared-false`.
 4. If it needs a new family, define it with `requiredPrimitives` that genuinely
