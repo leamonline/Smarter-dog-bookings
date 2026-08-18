@@ -157,7 +157,7 @@
   "functions": {
     "apply-customer-confirm": {
       "authFamily": "internal-secret",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "whatsapp-agent and the confirmation button handler, service-to-service",
       "role": "service",
       "gatewayVerifyJwt": false,
@@ -167,7 +167,7 @@
       "replayDefence": "none — idempotency is enforced downstream by booking state, not by the transport",
       "unauthorizedResponse": "401 unauthorized",
       "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when the expected secret is empty",
-      "notes": "Applies a customer confirmation. The autonomous path writes state='confirmed' and deliberately bypasses is_staff(); the x-internal-secret check is therefore the only caller gate."
+      "notes": "Applies a customer confirmation. The autonomous path writes state='confirmed' and deliberately bypasses is_staff(); the x-internal-secret check is therefore the only caller gate. index.ts is a serve() shim; the handler and its gate live in handler.ts so handler.test.ts can drive them as a function."
     },
     "broadcast-message": {
       "authFamily": "staff-jwt",
