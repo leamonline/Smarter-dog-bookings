@@ -30,102 +30,158 @@ the database then refuses.
 
 ## Method
 
-17 scenarios, stated once in `src/engine/capacityParityFixtures.ts` and answered
-by both runtimes. Each scenario is a single candidate booking against a stated
-day — the smallest unit both runtimes can answer identically.
+43 scenarios, stated once in `src/engine/capacityParityFixtures.ts` and answered
+by both runtimes. No expected answer is written by hand anywhere; hand-written
+expectations would encode one runtime's opinion and hide the disagreement being
+looked for.
 
-- **TypeScript verdict:** computed by calling the real `canBookSlot()`. No
-  expected answer is written by hand anywhere; hand-written expectations would
-  encode one runtime's opinion and hide the disagreement being looked for.
-- **PostgreSQL verdict:** observed by attempting the `INSERT` and recording
-  whether the trigger permitted or rejected it, each scenario isolated in its own
-  subtransaction.
+Two kinds of scenario, asking different questions:
 
-Scenarios cover per-slot seats, the 2-2-1 window, large-dog seat cost, large-dog
-adjacency, early close, and staff-blocked seats.
+- **single (26)** — one candidate booking. The engine answers yes/no through
+  `canBookSlot()`; PostgreSQL through an `INSERT` its trigger permits or
+  rejects. The verdicts must match.
+- **group (15, yielding 104 cases)** — a multi-dog booking. Here the engine does
+  not answer yes/no: it **offers** allocations through `findGroupedSlots()` and
+  the customer picks one. The parity question is therefore directional and
+  stronger — *every allocation the engine offers must be one the database
+  accepts*, inserted as a whole group. Where the engine offers nothing, a plain
+  placement is attempted anyway to see whether the database would have taken it.
 
-### Where it ran, and why
+**130 cases in total**, each isolated in its own subtransaction.
 
-On the **staging** project, not production — capacity fixtures mean inserting
-bookings, which must never touch real customer data. Staging runs without a JWT,
-so `is_staff()` is false and the non-staff gates fire, exactly as
-`035_capacity_behaviour.test.sql` relies on.
+Coverage: per-slot seats, the 2-2-1 window, large-dog seat cost, large-dog
+adjacency, early close, staff-blocked seats, per-date extra slots, the daily
+dog cap, and grouped multi-dog allocation across small, medium and large dogs,
+onto empty, partly-full, cap-constrained, block-constrained and
+extra-slot-extended days.
 
-Staging's trigger was verified faithful first. Four of five capacity functions
-are byte-identical to production. `validate_booking_capacity()` differs on
-**7 of 354 lines, and the difference is character encoding only** — see the
-separate finding below. The logic is identical, so staging is a sound oracle for
-accept/reject.
+### Where it ran
 
-The local route was unavailable: this environment has no Docker daemon, no
-Supabase CLI and no local pgTAP, so `supabase start` could not rebuild a database
-from the committed migrations.
+On a **local database rebuilt from the committed migrations** via the Supabase
+CLI — the same path CI's `DB Tests (pgTAP)` uses. The first pass of this
+measurement had to use the staging project because the environment lacked
+Docker, the CLI and pgTAP; a `SessionStart` hook now provisions all three, so
+the measurement is reproducible locally and in CI.
+
+Sessions run without a JWT, so `is_staff()` is false and the non-staff gates
+fire, as `035_capacity_behaviour.test.sql` relies on.
+
+### One scenario class deliberately excluded
+
+**Immediate ("last minute") slots.** They are enforced by
+`validate_booking_calendar()`, not by the capacity trigger, and the TypeScript
+side mirrors `IMMEDIATE_CUTOFF_MINUTES` for UI gating only — the engine reaches
+no verdict to compare. There is no TS↔PostgreSQL capacity parity question here,
+and inventing one would mean testing the harness rather than the product.
+Same-day behaviour also depends on wall-clock time, which would make fixtures
+non-deterministic.
+
+**Staff capacity overrides** are excluded for a related reason: the trigger
+applies `staff_capacity_override` only when `is_staff()` is true
+(`v_override := coalesce(new.staff_capacity_override, false) and v_is_staff`),
+so exercising it means authenticating a staff session, which is a different
+test from capacity parity.
 
 ## Result
 
-**Eligibility: 17 of 17 scenarios agree. Zero divergence.**
+**Singles: 26 of 26 agree. Group offers: 101 of 102 accepted.**
 
-| rule | scenarios | eligibility agreement |
+| rule | cases | agreement |
 |---|---|---|
-| per-slot seats | 3 | 3/3 |
-| 2-2-1 window | 3 | 3/3 |
-| large-dog seat cost | 5 | 5/5 |
-| large-dog adjacency | 2 | 2/2 |
+| per-slot seats | 4 | 4/4 |
+| 2-2-1 window | 4 | 4/4 |
+| large-dog seat cost | 6 | 6/6 |
+| large-dog adjacency | 3 | 3/3 |
 | early close | 2 | 2/2 |
-| blocked seats | 2 | 2/2 |
+| blocked seats | 4 | 4/4 |
+| extra slots | 3 | 3/3 |
+| **grouped allocation (offers)** | **102** | **101/102** |
+| grouped allocation (no offer) | 2 | 1 agreement, 1 asymmetry |
 
-Nine scenarios were allowed by both runtimes and eight refused by both, so the
-agreement is not an artefact of one runtime saying "yes" to everything.
+Widening coverage from 17 scenarios to 130 cases changed the answer. The first
+pass found zero divergence; the deeper grouped coverage found two, and one of
+them is a customer-facing defect.
 
-### The one real difference: refusal wording
+### Divergence 1 — the engine offers a booking the database refuses
 
-Three of the eight refusals agree on the decision but differ in the text:
+**`findGroupedSlots()` offers two large dogs at 08:30 + 09:00. The trigger
+refuses it.**
 
-| scenario | engine says | trigger says |
-|---|---|---|
-| `early-close-1300-after-1200-large` | `1:00pm closed — early close from 12:00 large dog` | `13:00 closed — early close from 12:00 large dog` |
-| `large-1200-with-1300-occupied` | `12:00 large dog requires 1:00pm to be empty (early close)` | `12:00 large dog requires 13:00 to be empty (early close)` |
-| `large-back-to-back-0830-0900` | `9:00am conditional: 8:30am must be empty` | `09:00 large dog conditional: 08:30 must be empty` |
+```
+engine offer  : dropOff 08:30, slots [08:30, 09:00]
+database      : P0001 — "09:00 large dog conditional: 08:30 must be empty"
+```
 
-The engine renders a 12-hour clock, the trigger a 24-hour one, and the third pair
-is also phrased differently. This is presentation, not policy: the eligibility
-decision is identical in all three.
+The revealing part is that the engine already disagrees with *itself*.
+`canBookSlot()`, in the same file, refuses that exact placement — the single
+scenario `large-back-to-back-0830-0900` has the engine and the database
+agreeing on a refusal. So `findGroupedSlots()` does not apply the large-dog
+adjacency conditionals that `canBookSlot()` does; a search of the function
+finds no adjacency logic at all.
+
+The other two allocations for the same pair (12:00 + 12:30, and 12:30 + 13:00)
+are accepted, so the failure is specific to the morning conditional slots.
+
+**Reachability.** `findGroupedSlots()` is what the customer booking wizard
+(`SlotSelection.tsx`, `DateSelection.tsx`, `BookingWizard.tsx`), the staff
+booking workspace (`BookingPane.jsx`) and the WhatsApp Flow
+(`_shared/flowBooking.ts`) all call. A customer booking two large dogs together
+can therefore be shown the 08:30 drop-off, complete the wizard, and have the
+write refused. The database is doing its job — this is a preflight that offers
+what the authority will not accept, which is exactly the failure this harness
+was built to find.
+
+### Divergence 2 — the engine is stricter than the database
+
+**Five small dogs on an empty day: `findGroupedSlots()` offers nothing, while
+the database accepts 2+2+1 across three consecutive slots** — precisely what
+the 2-2-1 rule permits, and precisely what `MAX_DOGS_PER_SLOT = 5` describes.
+
+Nothing unsafe is offered, so no booking fails. The cost is availability: a
+five-dog household is told there is no room on a day that has room.
+
+### Refusal wording
+
+Unchanged from the first pass: three of the refusals agree on the decision and
+describe it differently, the engine rendering a 12-hour clock and the trigger a
+24-hour one (`1:00pm closed` versus `13:00 closed`). Presentation, not policy.
 
 ## What this means for #623
 
-The premise #623 was written on has weakened, and not only because of this
-measurement:
+The first pass suggested the divergent-eligibility premise had evaporated. The
+deeper grouped coverage restores it — but relocates it. The problem is not that
+three runtimes disagree about capacity semantics. It is that **the browser
+engine's two entry points disagree with each other**, and the grouped one, which
+is what customers actually meet, is the one that is wrong.
 
-1. **The engines agree on every decision tested.** The divergence the issue
-   exists to remove was not observed.
-2. **The AI preflight is already server-backed.** `whatsapp-agent/handler.ts`
-   calls `get_small_medium_availability` and `get_large_dog_day_availability`, so
-   #608's scope item 4 ("replace the simplified two-seat preflight") is
-   substantially already done.
-3. **Server capacity projections already exist** — `get_slot_occupancy`,
-   `get_blocked_seats`, `get_occupancy_range`, plus the two above.
+That reframes the work substantially:
 
-What remains genuinely unaddressed is the **structured reason contract**: the two
-runtimes reach the same verdict and then describe it differently, so any UI
-showing the database's message beside the engine's gets two vocabularies for one
-rule. That is a real inconsistency — and a far smaller problem than the one
-#623 was scoped to solve.
+1. **A canonical server evaluator would not have prevented this.** The trigger
+   was already right. What failed is a preflight that never consulted the same
+   rules its own sibling applies.
+2. **The cheapest correct fix is inside the engine**: make `findGroupedSlots()`
+   validate each candidate placement through `canBookSlot()` before offering it.
+   That is a change to one function, guarded by this harness, with no migration
+   and no new server surface.
+3. **The structured reason contract remains genuinely unaddressed** — two
+   runtimes describing the same decision in two vocabularies — but it is a
+   presentation concern, not the correctness problem #623 was scoped around.
 
-**No architecture recommendation is made here.** This document reports what was
-measured; the next decision is the owner's.
+**No architecture change is recommended in this document.** The recommendation
+is recorded on issue #608 for the owner's decision.
 
 ## Scope and limits, stated plainly
 
-- 17 scenarios is a probe, not a proof. It covers the rules listed above at their
-  boundaries; it does **not** cover the daily dog cap, extra slots, immediate
-  ("last minute") slots, multi-dog grouped allocation, or staff overrides.
-  Grouped allocation in particular is where the engine does its most intricate
-  work (`findGroupedSlots`), and it is only guarded browser-to-Deno today.
-- Agreement on 17 scenarios is evidence that the implementations are close, not
-  a guarantee they cannot diverge. The harness exists so that a future change
-  which does diverge fails a test rather than reaching a customer.
-- The measurement ran against staging's copy of the trigger, verified
-  logic-identical to production but not byte-identical (encoding only).
+- 130 cases is a substantial probe, not a proof. Grouped allocation is now
+  covered across sizes, day states, blocks, extra slots and the cap, but the
+  space of possible day states is far larger than any fixture list.
+- Immediate slots and staff overrides are excluded for the reasons given above.
+- Concurrency is out of scope here and covered separately by A1's two-session
+  race proof; this harness compares single-session verdicts.
+- The harness compares the browser engine with PostgreSQL. The Deno mirror is
+  covered against the browser engine by `capacityParity.test.ts`, so all three
+  runtimes are now transitively compared — but the Deno mirror inherits any
+  defect the browser engine has, including divergence 1.
 
 ## Separate finding: mojibake in production's capacity messages
 

@@ -92,19 +92,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 - Add a cross-runtime capacity parity harness and measure the divergence
   between the browser engine and PostgreSQL — the one leg of the three-way
-  capacity duplication nothing had ever compared. 17 shared scenarios (per-slot
-  seats, the 2-2-1 window, large-dog seat cost and adjacency, early close,
-  blocked seats) are stated once and answered by both runtimes: the engine
-  through `canBookSlot()`, the database by attempting the insert. **All 17
-  agree on eligibility** — 9 allowed, 8 refused, so the agreement is not an
-  artefact of one runtime saying yes to everything. The only difference is
-  refusal wording: 3 of 8 refusals describe the same decision with a 12-hour
-  versus 24-hour clock. The two halves are coupled so they cannot drift —
-  change a capacity rule without regenerating the pgTAP file and the
-  TypeScript test fails naming the scenario. Measurement and limits recorded
-  in `docs/research/2026-08-19-capacity-parity-measurement.md`; no runtime or
-  schema change, and no architecture recommendation, is made on the strength
-  of it.
+  capacity duplication nothing had ever compared. 43 scenarios yield **130
+  cases**: 26 single-booking verdicts that must match, and 15 grouped
+  multi-dog scenarios yielding 104 cases where the question is stronger and
+  directional — *every allocation `findGroupedSlots()` offers must be one the
+  database accepts*. Coverage spans per-slot seats, the 2-2-1 window,
+  large-dog seat cost and adjacency, early close, blocked seats, extra slots,
+  the daily cap, and grouped allocation across all three dog sizes onto empty,
+  partly-full, cap-constrained and block-constrained days.
+
+  **Singles agree 26/26. Group offers are accepted 101/102 — and the one
+  exception is a customer-facing defect.** `findGroupedSlots()` offers two
+  large dogs at 08:30 + 09:00; the trigger refuses it, and so does
+  `canBookSlot()` in the same file, so the grouped path disagrees with its own
+  sibling as well as with the database. It is reachable from the customer
+  wizard, the staff workspace and the WhatsApp Flow. A second, milder
+  asymmetry: the engine offers nothing for five small dogs on an empty day
+  while the database accepts 2+2+1, costing availability rather than risking a
+  failed booking.
+
+  Both are pinned by name in a divergence register that fails once the
+  behaviour changes, so a fix cannot leave a stale claim behind. Immediate
+  slots and staff overrides are excluded with reasons stated. Measurement,
+  limits and what it means for #623 are recorded in
+  `docs/research/2026-08-19-capacity-parity-measurement.md`; no runtime or
+  schema change is made on the strength of it.
 - Refactor the local PostgreSQL concurrency gates around one guarded,
   reusable real-session driver with tracked client PIDs and portable bounded
   TERM-to-KILL cleanup, while preserving the accepted WhatsApp and capacity
