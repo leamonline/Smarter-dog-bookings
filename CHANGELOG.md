@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Add runtime gate tests for `calendar-ics`, completing runtime coverage of
+  the feed-token family. Same serve()-shim split, handler unchanged; five Deno
+  tests (no database, no network) prove the method and missing-parameter gates
+  reject before any lookup — including when a token is supplied, so guessing a
+  booking id reaches nothing — and that an unvalidatable token never yields an
+  .ics, nor a `text/calendar` content type. Its 403 ownership gate (a customer
+  token may read only that customer's booking) is documented as deliberately
+  out of scope: reaching it needs a real token row and booking, the same class
+  of gap as the one criterion left open on the Edge Function auth audit.
 - Add runtime gate tests for `customer-phone-on-file` — the third and final
   shortlist entry, and the odd one out: a deliberately public pre-auth login
   helper whose only defences are an origin allowlist and a two-tier rate

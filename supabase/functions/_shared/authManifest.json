@@ -199,7 +199,7 @@
     },
     "calendar-ics": {
       "authFamily": "feed-token",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "external calendar clients",
       "role": "customer or staff, determined by the token's feed_type",
       "gatewayVerifyJwt": false,
@@ -209,7 +209,7 @@
       "replayDefence": "none by design — see calendar-feed",
       "unauthorizedResponse": "401 Unauthorized (invalid token), 403 Forbidden (valid token requesting another owner's booking)",
       "emptySecretBehaviour": "closed — validateFeedToken returns null for an empty token",
-      "notes": "Adds a per-booking ownership check on top of token validation, which calendar-feed does not need."
+      "notes": "Adds a per-booking ownership check on top of token validation, which calendar-feed does not need. index.ts is a serve() shim; the token and ownership gates live in the exported handler so handler.test.ts can drive them as a function."
     },
     "customer-phone-on-file": {
       "authFamily": "public-rate-limited",
