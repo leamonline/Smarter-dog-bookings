@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Pin `search_path` on `public.slots_are_hhmm(text[])` and
+  `public.deposit_reference_for(uuid, date)`, closing the last two Supabase
+  security-advisor findings that were not deliberate. Both are SECURITY
+  INVOKER, so this is defence in depth rather than a privilege-escalation
+  fix, and behaviour is unchanged — neither body references a table, view or
+  user-defined function, only `pg_catalog` built-ins. Applied to production
+  before merge, per the repository's database workflow; the advisor now
+  reports 111 findings rather than 113, with the `function_search_path_mutable`
+  category gone entirely and nothing new appearing.
 - Classify every `bookings` column that travels in a notification payload, and
   close out the data-exposure audit's only finding by rejecting its obvious
   fix. The audit flagged `resend-booking-notification`'s `select("*")`;

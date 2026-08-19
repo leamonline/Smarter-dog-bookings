@@ -1,0 +1,44 @@
+-- ============================================================
+-- Pin search_path on the last two functions the security advisor flags.
+--
+-- Grounded in a security-advisor run against prod on 2026-08-19. That run
+-- returned 113 findings and zero ERRORs, and every one was by design except
+-- these two function_search_path_mutable warnings:
+--
+--   public.slots_are_hhmm(text[])
+--   public.deposit_reference_for(uuid, date)
+--
+-- Both are SECURITY INVOKER, so neither carries the privilege-escalation
+-- risk that makes this warning urgent on a SECURITY DEFINER function — they
+-- run with the caller's own rights, not the owner's. Pinning search_path is
+-- defence in depth: it stops an object name inside the function body
+-- resolving to something the caller planted earlier on their own path.
+--
+-- Behaviour is unchanged. Neither body references a table, view or
+-- user-defined function; both use only pg_catalog built-ins (md5, substr,
+-- unnest, bool_and, coalesce, plus cast and regex operators), and pg_catalog
+-- is searched implicitly whatever search_path says.
+--
+-- slots_are_hhmm backs the humans_preferred_slots_hhmm and
+-- humans_blocked_slots_hhmm CHECK constraints. ALTER FUNCTION ... SET
+-- changes only the function's configuration, not its identity or body, so
+-- those constraints stay valid and no existing row is re-validated.
+--
+-- Same form as 20260518160000_supabase_advisor_fixes.sql, which pinned
+-- validate_booking_capacity and stamp_opt_out_timestamps for this warning.
+-- Re-runnable: setting the same value again is a no-op.
+--
+-- Deliberately NOT in scope. The remaining advisor findings are by design
+-- and are left alone: the four anon-executable SECURITY DEFINER functions
+-- (booking_policy_runtime and booking_policy_runtime_status are granted to
+-- anon on purpose — see 20260731100000; get_public_open_days and
+-- get_public_salon_facts are public endpoints already pinned to
+-- search_path = ''), the rls_enabled_no_policy tables (deny-all by design),
+-- and the authenticated-executable SECURITY DEFINER functions (the app's own
+-- RPC surface, each carrying its internal is_staff()/owner gate).
+-- auth_leaked_password_protection remains an Auth dashboard toggle rather
+-- than a migration — the same note appears in 20260518160000.
+-- ============================================================
+
+alter function public.slots_are_hhmm(text[]) set search_path = public, pg_temp;
+alter function public.deposit_reference_for(uuid, date) set search_path = public, pg_temp;
