@@ -354,13 +354,21 @@ export const CAPACITY_PARITY_FIXTURES: CapacityParityFixture[] = [
     existing: [],
     dogs: ["small", "small", "small", "small"],
   },
+  // Grouped booking is a 1–4 dog journey: docs/whatsapp-flows.md documents the
+  // Flow as "1–4 dogs in one", and the wizard enforces it (BookingWizard.tsx,
+  // DogSelection.tsx), so a customer cannot select a fifth. findGroupedSlots()
+  // returns nothing above four by the same rule. An earlier fixture here asked
+  // for five and read the empty result as the engine being over-conservative
+  // against the database — but the database has no group concept at all, so
+  // that comparison was asking a question the product forbids. Four is the
+  // real boundary, and it is the one worth pinning.
   {
     kind: "group",
-    id: "group-five-smalls-empty-day",
+    id: "group-four-larges-refused-by-policy",
     rule: "grouped-allocation",
-    description: "five dogs — the most a rolling three-slot window can hold",
+    description: "four large dogs cannot all be placed — the engine offers nothing",
     existing: [],
-    dogs: ["small", "small", "small", "small", "small"],
+    dogs: ["large", "large", "large", "large"],
   },
   {
     kind: "group",

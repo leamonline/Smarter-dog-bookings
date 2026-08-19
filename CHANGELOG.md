@@ -88,35 +88,54 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   including explicit migration disposition and post-merge check monitoring.
   (Superseded — removed 18 August 2026, see above.)
 
+### Fixed
+
+- Stop the booking wizard offering a slot pair the database refuses
+  ([#664](https://github.com/leamonline/Smarter-dog-bookings/issues/664)). Two
+  large dogs booked together could be offered the 08:30 drop-off, and the
+  capacity trigger then rejected the write — a journey that dead-ended after
+  the interface said yes. The rule was not missing: `findGroupedSlots()`
+  already checked every placement through `canBookSlot()`. It validated them
+  **incrementally against a partial day**, while the large-dog conditional is
+  **directional** — booking 09:00 inspects 08:30, but booking 08:30 does not
+  inspect 09:00 — so placing the pair 09:00-first passed step by step and
+  produced a finished allocation that was invalid. PostgreSQL never had the
+  problem, because its trigger evaluates the whole day on every insert. The fix
+  re-checks each completed allocation as a whole, reusing the existing rules, so
+  it can only remove offers the database would have rejected; no rule, policy or
+  schema changes. Applied to the browser engine and its Deno mirror, with the
+  trigger untouched. Found and proven closed by the parity harness, and pinned
+  by a regression test asserting the general property rather than the one slot
+  pair.
+
 ### Testing
 
 - Add a cross-runtime capacity parity harness and measure the divergence
   between the browser engine and PostgreSQL — the one leg of the three-way
-  capacity duplication nothing had ever compared. 43 scenarios yield **130
+  capacity duplication nothing had ever compared. 43 scenarios yield **129
   cases**: 26 single-booking verdicts that must match, and 15 grouped
-  multi-dog scenarios yielding 104 cases where the question is stronger and
+  multi-dog scenarios yielding 103 cases where the question is stronger and
   directional — *every allocation `findGroupedSlots()` offers must be one the
   database accepts*. Coverage spans per-slot seats, the 2-2-1 window,
   large-dog seat cost and adjacency, early close, blocked seats, extra slots,
   the daily cap, and grouped allocation across all three dog sizes onto empty,
   partly-full, cap-constrained and block-constrained days.
 
-  **Singles agree 26/26. Group offers are accepted 101/102 — and the one
-  exception is a customer-facing defect.** `findGroupedSlots()` offers two
-  large dogs at 08:30 + 09:00; the trigger refuses it, and so does
-  `canBookSlot()` in the same file, so the grouped path disagrees with its own
-  sibling as well as with the database. It is reachable from the customer
-  wizard, the staff workspace and the WhatsApp Flow. A second, milder
-  asymmetry: the engine offers nothing for five small dogs on an empty day
-  while the database accepts 2+2+1, costing availability rather than risking a
-  failed booking.
+  The deeper coverage earned its keep immediately: it found the ordering defect
+  fixed above, which 17 scenarios had missed. **All 129 cases now agree** —
+  26/26 singles and 101/101 grouped offers. It also produced a correction worth
+  recording: an apparent second divergence (the engine offering nothing for five
+  small dogs while the database would accept 2+2+1) was **not** a defect.
+  Grouped booking is a documented 1–4 dog journey and the wizard enforces it, so
+  a customer cannot select a fifth; the fixture was asking a question the
+  product forbids, and the database has no concept of a booking group to compare
+  against. It was replaced with the real four-dog boundary.
 
-  Both are pinned by name in a divergence register that fails once the
-  behaviour changes, so a fix cannot leave a stale claim behind. Immediate
-  slots and staff overrides are excluded with reasons stated. Measurement,
-  limits and what it means for #623 are recorded in
-  `docs/research/2026-08-19-capacity-parity-measurement.md`; no runtime or
-  schema change is made on the strength of it.
+  An empty divergence register remains, so a future disagreement has to be
+  recorded deliberately rather than absorbed silently. Immediate slots and staff
+  overrides are excluded with reasons stated. Measurement, limits and what it
+  means for #623 are in
+  `docs/research/2026-08-19-capacity-parity-measurement.md`.
 - Refactor the local PostgreSQL concurrency gates around one guarded,
   reusable real-session driver with tracked client PIDs and portable bounded
   TERM-to-KILL cleanup, while preserving the accepted WhatsApp and capacity

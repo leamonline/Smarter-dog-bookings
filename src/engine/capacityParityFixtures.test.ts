@@ -38,24 +38,31 @@ const PARITY_SQL = join(process.cwd(), "supabase/tests/036_capacity_parity.test.
  * fixing the engine trips this test and forces the entry out.
  */
 const KNOWN_REFUSED_OFFERS: Record<string, string> = {
-  "group-two-larges#0":
-    "findGroupedSlots() offers two large dogs at 08:30 + 09:00. canBookSlot() " +
-    "refuses that same placement, and so does the trigger (09:00 large dog " +
-    "conditional: 08:30 must be empty), so the grouped path disagrees with its " +
-    "own sibling as well as with the database.",
+  // Empty, and meant to stay that way.
+  //
+  // An entry here means the engine offers an allocation the database rejects —
+  // a booking that fails after the wizard said yes. There was one
+  // (group-two-larges#0: two large dogs at 08:30 + 09:00), caused by the search
+  // validating each placement against a partial day while the large-dog
+  // conditional is directional. Fixed in issue #664 by re-checking each
+  // finished allocation as a whole.
+  //
+  // The register stays so a future disagreement has to be recorded
+  // deliberately rather than absorbed silently, and the test below fails on any
+  // refused offer that is not listed.
 };
 
 /**
  * Scenarios where the engine offers nothing but the database would accept a
- * plain placement. Not a safety problem — nothing bad is offered — but the
- * engine is refusing bookings the salon could take.
+ * plain placement — the engine refusing bookings the salon could take.
+ *
+ * Empty. An earlier entry claimed five small dogs on an empty day belonged
+ * here, but grouped booking is a documented 1-4 dog journey
+ * (docs/whatsapp-flows.md; BookingWizard.tsx and DogSelection.tsx enforce it),
+ * so a customer cannot select a fifth and the engine is right to offer nothing.
+ * That fixture asked a question the product forbids and was replaced.
  */
-const KNOWN_OVER_CONSERVATIVE: Record<string, string> = {
-  "group-five-smalls-empty-day":
-    "five small dogs on an empty day: findGroupedSlots() returns no allocation, " +
-    "yet the database accepts 2+2+1 across three consecutive slots, which is " +
-    "exactly what the 2-2-1 rule permits.",
-};
+const KNOWN_OVER_CONSERVATIVE: Record<string, string> = {};
 
 function activeSlotsFor(fixture: CapacityParityFixture) {
   return buildSlotGrid(fixture.extraSlots ?? []);
@@ -205,6 +212,61 @@ describe("capacity parity fixtures", () => {
     }
 
     expect(sql, "the pgTAP plan must cover every case").toContain(`select plan(${cases});`);
+  });
+
+  it("never offers a grouped allocation that canBookSlot would refuse (issue #664)", () => {
+    // The regression this pins directly, independent of the fixture list.
+    //
+    // The search validated each placement against the day as it stood, but the
+    // large-dog conditional is directional: booking 09:00 inspects 08:30 while
+    // booking 08:30 does not inspect 09:00. Placing the pair 09:00-first was
+    // therefore accepted step by step, and the finished allocation — which
+    // PostgreSQL evaluates whole — was refused at commit.
+    //
+    // Rather than assert the absence of one slot pair, this checks the property
+    // that has to hold for every offer: each dog must still be placeable given
+    // all the others. Any future rule with the same directional shape is caught
+    // by the same assertion.
+    for (const fixture of groups) {
+      for (const allocation of groupOffers(fixture as never)) {
+        const placed = allocation.assignments.map((assignment) => {
+          const size = (fixture as never as { dogs: string[] }).dogs[
+            Number(assignment.dogId.split("-").pop())
+          ];
+          return { assignment, size };
+        });
+
+        for (const { assignment, size } of placed) {
+          const others = [
+            ...existingBookings(fixture),
+            ...placed
+              .filter((o) => o.assignment.dogId !== assignment.dogId)
+              .map((o, i) => ({
+                id: `sibling-${i}`,
+                dog_id: o.assignment.dogId,
+                slot: o.assignment.slot,
+                size: o.size,
+              })),
+          ] as never[];
+
+          const check = canBookSlot(
+            others,
+            assignment.slot,
+            size as never,
+            activeSlotsFor(fixture),
+            { overrides: (fixture.overrides ?? {})[assignment.slot] },
+          );
+
+          expect(
+            check.allowed,
+            `${fixture.id} offers ${allocation.assignments.map((a) => a.slot).join(" + ")}, ` +
+              `but placing the ${size} dog at ${assignment.slot} against its own group-mates is ` +
+              `refused: ${check.reason}. An offer must hold together as a finished allocation, ` +
+              `not merely as a sequence of individually legal steps.`,
+          ).toBe(true);
+        }
+      }
+    }
   });
 
   it("keeps the divergence register honest", () => {

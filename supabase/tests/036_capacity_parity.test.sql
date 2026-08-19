@@ -22,16 +22,14 @@
 -- 19 August 2026. src/engine/capacityParityFixtures.test.ts recomputes the
 -- engine side and fails if this file drifts from it.
 --
--- KNOWN DIVERGENCE, deliberately pinned rather than hidden: the engine offers
--- two large dogs at 08:30 + 09:00, and the trigger refuses that placement.
--- canBookSlot() refuses it too, so findGroupedSlots() disagrees with its own
--- sibling as well as with the database. Recorded in
--- docs/research/2026-08-19-capacity-parity-measurement.md and quarantined by
--- name in the TypeScript guard, which fails once it is fixed.
+-- As of the fix for issue #664 there is NO divergence: all 129 cases agree,
+-- and every allocation the engine offers is one the database accepts. The
+-- TypeScript guard keeps an empty divergence register, so a future
+-- disagreement has to be recorded deliberately rather than absorbed silently.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(130);
+select plan(129);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
@@ -837,20 +835,21 @@ select lives_ok(
   'parity[group-four-smalls-empty-day#8]: the engine offers this allocation, so PostgreSQL must accept it'
 );
 
--- group-five-smalls-empty-day#naive: five dogs — the most a rolling three-slot window can hold
+-- group-four-larges-refused-by-policy#naive: four large dogs cannot all be placed — the engine offers nothing
 set local session_replication_role = replica;
 delete from public.bookings where booking_date = date '2099-01-05';
 update public.day_settings set overrides = '{}'::jsonb, extra_slots = '{}'::text[] where setting_date = date '2099-01-05';
 update public.salon_config set daily_dog_cap = 14;
 set local session_replication_role = default;
-select lives_ok(
+select throws_ok(
   $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
-     values (date '2099-01-05', '08:30', '61510000-0000-4000-8000-000000000031', 'small', 'full-groom'),
-            (date '2099-01-05', '08:30', '61510000-0000-4000-8000-000000000032', 'small', 'full-groom'),
-            (date '2099-01-05', '09:00', '61510000-0000-4000-8000-000000000033', 'small', 'full-groom'),
-            (date '2099-01-05', '09:00', '61510000-0000-4000-8000-000000000034', 'small', 'full-groom'),
-            (date '2099-01-05', '09:30', '61510000-0000-4000-8000-000000000035', 'small', 'full-groom') $$,
-  'parity[group-five-smalls-empty-day#naive]: the engine offered nothing; this records what PostgreSQL does with a plain placement'
+     values (date '2099-01-05', '08:30', '61520000-0000-4000-8000-000000000031', 'large', 'full-groom'),
+            (date '2099-01-05', '08:30', '61520000-0000-4000-8000-000000000032', 'large', 'full-groom'),
+            (date '2099-01-05', '09:00', '61520000-0000-4000-8000-000000000033', 'large', 'full-groom'),
+            (date '2099-01-05', '09:00', '61520000-0000-4000-8000-000000000034', 'large', 'full-groom') $$,
+  'P0001',
+  'Only a small/medium dog can share this slot with a large dog',
+  'parity[group-four-larges-refused-by-policy#naive]: the engine offered nothing; PostgreSQL must refuse a plain placement too'
 );
 
 -- group-mixed-sizes#0: a small and a medium booked together
@@ -1054,12 +1053,10 @@ delete from public.bookings where booking_date = date '2099-01-05';
 update public.day_settings set overrides = '{}'::jsonb, extra_slots = '{}'::text[] where setting_date = date '2099-01-05';
 update public.salon_config set daily_dog_cap = 14;
 set local session_replication_role = default;
-select throws_ok(
+select lives_ok(
   $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
-     values (date '2099-01-05', '08:30', '61520000-0000-4000-8000-000000000031', 'large', 'full-groom'),
-            (date '2099-01-05', '09:00', '61520000-0000-4000-8000-000000000032', 'large', 'full-groom') $$,
-  'P0001',
-  '09:00 large dog conditional: 08:30 must be empty',
+     values (date '2099-01-05', '12:00', '61520000-0000-4000-8000-000000000031', 'large', 'full-groom'),
+            (date '2099-01-05', '12:30', '61520000-0000-4000-8000-000000000032', 'large', 'full-groom') $$,
   'parity[group-two-larges#0]: the engine offers this allocation, so PostgreSQL must accept it'
 );
 
@@ -1071,22 +1068,9 @@ update public.salon_config set daily_dog_cap = 14;
 set local session_replication_role = default;
 select lives_ok(
   $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
-     values (date '2099-01-05', '12:00', '61520000-0000-4000-8000-000000000031', 'large', 'full-groom'),
-            (date '2099-01-05', '12:30', '61520000-0000-4000-8000-000000000032', 'large', 'full-groom') $$,
-  'parity[group-two-larges#1]: the engine offers this allocation, so PostgreSQL must accept it'
-);
-
--- group-two-larges#2: two large dogs together, constrained by the adjacency rule
-set local session_replication_role = replica;
-delete from public.bookings where booking_date = date '2099-01-05';
-update public.day_settings set overrides = '{}'::jsonb, extra_slots = '{}'::text[] where setting_date = date '2099-01-05';
-update public.salon_config set daily_dog_cap = 14;
-set local session_replication_role = default;
-select lives_ok(
-  $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
      values (date '2099-01-05', '12:30', '61520000-0000-4000-8000-000000000031', 'large', 'full-groom'),
             (date '2099-01-05', '13:00', '61520000-0000-4000-8000-000000000032', 'large', 'full-groom') $$,
-  'parity[group-two-larges#2]: the engine offers this allocation, so PostgreSQL must accept it'
+  'parity[group-two-larges#1]: the engine offers this allocation, so PostgreSQL must accept it'
 );
 
 -- group-onto-partly-full-day#0: two dogs onto a day whose morning is already half booked
@@ -1801,7 +1785,7 @@ select throws_ok(
             (date '2099-01-05', '08:30', '61510000-0000-4000-8000-000000000032', 'small', 'full-groom') $$,
   'P0001',
   'Day is fully booked: 05 Jan 2099 already has 4 dog(s) (maximum 4 per day)',
-  'parity[group-exceeds-daily-cap#naive]: the engine offered nothing; this records what PostgreSQL does with a plain placement'
+  'parity[group-exceeds-daily-cap#naive]: the engine offered nothing; PostgreSQL must refuse a plain placement too'
 );
 
 -- group-large-plus-two-smalls#0: three dogs of mixed size, where the large one restricts its own slot set

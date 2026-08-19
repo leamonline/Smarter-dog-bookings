@@ -514,7 +514,41 @@ function searchAllocationsForSlots(
       a.id.localeCompare(b.id),
   );
 
+  // Re-check a finished allocation as a whole. The search validates each
+  // placement against the day as it stood at that moment, but some rules are
+  // DIRECTIONAL — booking 09:00 inspects 08:30, while booking 08:30 does not
+  // inspect 09:00 — so a depth-first path can reach an invalid final state
+  // through individually valid steps. Two large dogs placed 09:00 first and
+  // 08:30 second were offered that way, and PostgreSQL, which evaluates the
+  // whole day on every insert, then refused the booking (issue #664).
+  //
+  // Checking each dog against all the others closes that gap using only the
+  // rules already in canBookSlot(): no rule is added here, so this can only
+  // remove offers the database would have rejected.
+  function allocationHoldsTogether(
+    assignments: Array<{ dogId: string; slot: string }>,
+  ): boolean {
+    const placed = assignments.map((assignment) => {
+      const dog = dogs.find((d) => d.id === assignment.dogId)!;
+      return { assignment, booking: makeTempBooking(dog, assignment.slot), dog };
+    });
+
+    return placed.every(({ assignment, dog }) => {
+      const others = [
+        ...bookings,
+        ...placed
+          .filter((other) => other.assignment.dogId !== assignment.dogId)
+          .map((other) => other.booking),
+      ];
+      return canBookSlot(others, assignment.slot, dog.size, activeSlots, {
+        overrides: overrides[assignment.slot] || {},
+      }).allowed;
+    });
+  }
+
   function addResult(assignments: Array<{ dogId: string; slot: string }>) {
+    if (!allocationHoldsTogether(assignments)) return;
+
     const normalizedAssignments = [...assignments].sort((a, b) => {
       const slotDiff = slotIndex(a.slot) - slotIndex(b.slot);
       if (slotDiff !== 0) return slotDiff;

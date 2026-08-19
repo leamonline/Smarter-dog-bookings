@@ -1,6 +1,6 @@
 # Capacity parity: TypeScript engine versus PostgreSQL
 
-**Status:** Measurement. Answers the question [#608](https://github.com/leamonline/Smarter-dog-bookings/issues/608)
+**Status:** Measurement, and the fix it produced (issue #664). Answers the question [#608](https://github.com/leamonline/Smarter-dog-bookings/issues/608)
 was opened on, and informs — but does not authorise — the
 [#623](https://github.com/leamonline/Smarter-dog-bookings/issues/623) architecture.
 **Measured:** 19 August 2026
@@ -84,7 +84,7 @@ test from capacity parity.
 
 ## Result
 
-**Singles: 26 of 26 agree. Group offers: 101 of 102 accepted.**
+**All 129 cases agree. Zero divergence — after one real defect was found and fixed.**
 
 | rule | cases | agreement |
 |---|---|---|
@@ -95,80 +95,85 @@ test from capacity parity.
 | early close | 2 | 2/2 |
 | blocked seats | 4 | 4/4 |
 | extra slots | 3 | 3/3 |
-| **grouped allocation (offers)** | **102** | **101/102** |
-| grouped allocation (no offer) | 2 | 1 agreement, 1 asymmetry |
+| **grouped allocation (offers)** | **101** | **101/101** |
+| grouped allocation (no offer) | 2 | 2/2 |
 
-Widening coverage from 17 scenarios to 130 cases changed the answer. The first
-pass found zero divergence; the deeper grouped coverage found two, and one of
-them is a customer-facing defect.
+The first pass, at 17 scenarios, found nothing. Widening to 130 cases with the
+weight on grouped allocation found one genuine defect and one apparent one that
+turned out to be policy.
 
-### Divergence 1 — the engine offers a booking the database refuses
+### The defect: an offer PostgreSQL refuses — issue #664, now fixed
 
-**`findGroupedSlots()` offers two large dogs at 08:30 + 09:00. The trigger
-refuses it.**
+`findGroupedSlots()` offered two large dogs at **08:30 + 09:00**, and the
+trigger refused it: *"09:00 large dog conditional: 08:30 must be empty"*.
 
-```
-engine offer  : dropOff 08:30, slots [08:30, 09:00]
-database      : P0001 — "09:00 large dog conditional: 08:30 must be empty"
-```
+The cause was not a missing rule. `searchAllocationsForSlots()` already calls
+`canBookSlot()` for every placement. The defect was **order-dependence**:
+placements are validated incrementally against a partial day, while the
+large-dog conditional is **directional** — booking 09:00 inspects 08:30, but
+booking 08:30 does not inspect 09:00.
 
-The revealing part is that the engine already disagrees with *itself*.
-`canBookSlot()`, in the same file, refuses that exact placement — the single
-scenario `large-back-to-back-0830-0900` has the engine and the database
-agreeing on a refusal. So `findGroupedSlots()` does not apply the large-dog
-adjacency conditionals that `canBookSlot()` does; a search of the function
-finds no adjacency logic at all.
+| placement order | step 1 | step 2 | outcome |
+|---|---|---|---|
+| 08:30 → 09:00 | allowed | **refused** | correctly rejected |
+| 09:00 → 08:30 | allowed | allowed | **allocation offered** |
 
-The other two allocations for the same pair (12:00 + 12:30, and 12:30 + 13:00)
-are accepted, so the failure is specific to the morning conditional slots.
+Every step was legal; the finished allocation was not. PostgreSQL never had the
+problem, because its trigger evaluates the whole day on each insert.
 
-**Reachability.** `findGroupedSlots()` is what the customer booking wizard
-(`SlotSelection.tsx`, `DateSelection.tsx`, `BookingWizard.tsx`), the staff
-booking workspace (`BookingPane.jsx`) and the WhatsApp Flow
-(`_shared/flowBooking.ts`) all call. A customer booking two large dogs together
-can therefore be shown the 08:30 drop-off, complete the wizard, and have the
-write refused. The database is doing its job — this is a preflight that offers
-what the authority will not accept, which is exactly the failure this harness
-was built to find.
+**Fix.** Re-check each completed allocation as a whole: every dog must still be
+placeable given all the others. It reuses `canBookSlot()` and adds no rule, so
+it can only remove offers the database would have rejected. Applied to the
+browser engine and the Deno mirror; the trigger was already correct and is
+untouched.
 
-### Divergence 2 — the engine is stricter than the database
+Proven closed by this harness: `group-two-larges` now offers two allocations
+(12:00 + 12:30 and 12:30 + 13:00), both accepted, and group offers went from
+101/102 to **101/101**. A focused regression test asserts the general property —
+every offered allocation must hold together — so a future rule with the same
+directional shape is caught by the same assertion, not just this slot pair.
 
-**Five small dogs on an empty day: `findGroupedSlots()` offers nothing, while
-the database accepts 2+2+1 across three consecutive slots** — precisely what
-the 2-2-1 rule permits, and precisely what `MAX_DOGS_PER_SLOT = 5` describes.
+### The non-defect: a fixture asking a forbidden question
 
-Nothing unsafe is offered, so no booking fails. The cost is availability: a
-five-dog household is told there is no room on a day that has room.
+The same run appeared to show the engine being over-conservative — five small
+dogs on an empty day got no offer while the database would accept 2+2+1.
+
+That reading was wrong, and the correction matters more than the original
+claim. Grouped booking is a **1–4 dog journey**: `docs/whatsapp-flows.md`
+documents the Flow as *"1–4 dogs in one"*, and the wizard enforces it
+(`BookingWizard.tsx`, `DogSelection.tsx`). **A customer cannot select a fifth
+dog.** The engine's `count > 4` guard implements that policy correctly.
+
+The comparison was also unsound in principle: the database has no concept of a
+booking group at all, so "would PostgreSQL accept five rows" is not the same
+question as "should the wizard offer a five-dog booking". The fixture was
+replaced with the real boundary — four large dogs, which genuinely yields no
+offer, and where the database agrees.
+
+Two lessons worth keeping: a parity harness can only compare things that mean
+the same thing in both runtimes, and an asymmetry is not automatically a defect.
 
 ### Refusal wording
 
-Unchanged from the first pass: three of the refusals agree on the decision and
-describe it differently, the engine rendering a 12-hour clock and the trigger a
-24-hour one (`1:00pm closed` versus `13:00 closed`). Presentation, not policy.
+Unchanged: three refusals agree on the decision and describe it differently,
+the engine rendering a 12-hour clock and the trigger a 24-hour one
+(`1:00pm closed` versus `13:00 closed`). Presentation, not policy — and the
+remaining substance behind a structured reason contract.
 
 ## What this means for #623
 
-The first pass suggested the divergent-eligibility premise had evaporated. The
-deeper grouped coverage restores it — but relocates it. The problem is not that
-three runtimes disagree about capacity semantics. It is that **the browser
-engine's two entry points disagree with each other**, and the grouped one, which
-is what customers actually meet, is the one that is wrong.
+The original scope — a canonical PostgreSQL evaluator plus a migration on the
+booking spine — is not supported by any of this evidence:
 
-That reframes the work substantially:
+1. **The database was right in all 129 cases.** It was right before the fix
+   too: it caught the bad allocation. A new authoritative evaluator would have
+   replaced a component that was never wrong.
+2. **The defect was a preflight ordering bug in TypeScript**, fixed in one
+   function with no migration, no new server surface and no policy change.
+3. **What remains is the reason contract** — two vocabularies for one decision.
+   Real, small, and a presentation concern rather than a correctness one.
 
-1. **A canonical server evaluator would not have prevented this.** The trigger
-   was already right. What failed is a preflight that never consulted the same
-   rules its own sibling applies.
-2. **The cheapest correct fix is inside the engine**: make `findGroupedSlots()`
-   validate each candidate placement through `canBookSlot()` before offering it.
-   That is a change to one function, guarded by this harness, with no migration
-   and no new server surface.
-3. **The structured reason contract remains genuinely unaddressed** — two
-   runtimes describing the same decision in two vocabularies — but it is a
-   presentation concern, not the correctness problem #623 was scoped around.
-
-**No architecture change is recommended in this document.** The recommendation
-is recorded on issue #608 for the owner's decision.
+A rescope proposal is recorded on #608 for the owner's decision.
 
 ## Scope and limits, stated plainly
 
