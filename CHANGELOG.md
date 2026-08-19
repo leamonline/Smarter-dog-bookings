@@ -83,13 +83,76 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Rescope B3 (#623) from *canonical capacity evaluator and reason contract* to
+  **guard capacity parity across runtimes**, on the evidence of the 129-case
+  measurement: the capacity semantics do not diverge, PostgreSQL was correct in
+  every case including the one the engine got wrong, and the single real defect
+  was a TypeScript preflight ordering bug fixed in one function. The
+  authoritative evaluator, any booking-spine migration and any change to the
+  database capacity architecture are now explicitly out of scope, and the parity
+  harness becomes the deliverable rather than a stepping stone. Rejection-reason
+  alignment moves out entirely to its own issue (#665), specified but not
+  started, because it is presentation rather than correctness and the
+  customer-facing wording wants a product decision. B3 is also decoupled from
+  B1/B2 — that serialisation existed because the migration spine is serial, and
+  the rescoped B3 carries no migration; verified against the deliverable's
+  actual imports and the pre-existing tables its database half touches. B4
+  remains stopped behind the `RA-001` STOP. ADR 001 is reaffirmed, not
+  superseded: PostgreSQL stays the capacity authority.
+
 - Add a default-`HOLD`, exact-SHA human merge-control attestation and operator
   runbook for pull requests while `main` lacks native GitHub protection,
   including explicit migration disposition and post-merge check monitoring.
   (Superseded — removed 18 August 2026, see above.)
 
+### Fixed
+
+- Stop the booking wizard offering a slot pair the database refuses
+  ([#664](https://github.com/leamonline/Smarter-dog-bookings/issues/664)). Two
+  large dogs booked together could be offered the 08:30 drop-off, and the
+  capacity trigger then rejected the write — a journey that dead-ended after
+  the interface said yes. The rule was not missing: `findGroupedSlots()`
+  already checked every placement through `canBookSlot()`. It validated them
+  **incrementally against a partial day**, while the large-dog conditional is
+  **directional** — booking 09:00 inspects 08:30, but booking 08:30 does not
+  inspect 09:00 — so placing the pair 09:00-first passed step by step and
+  produced a finished allocation that was invalid. PostgreSQL never had the
+  problem, because its trigger evaluates the whole day on every insert. The fix
+  re-checks each completed allocation as a whole, reusing the existing rules, so
+  it can only remove offers the database would have rejected; no rule, policy or
+  schema changes. Applied to the browser engine and its Deno mirror, with the
+  trigger untouched. Found and proven closed by the parity harness, and pinned
+  by a regression test asserting the general property rather than the one slot
+  pair.
+
 ### Testing
 
+- Add a cross-runtime capacity parity harness and measure the divergence
+  between the browser engine and PostgreSQL — the one leg of the three-way
+  capacity duplication nothing had ever compared. 43 scenarios yield **129
+  cases**: 26 single-booking verdicts that must match, and 15 grouped
+  multi-dog scenarios yielding 103 cases where the question is stronger and
+  directional — *every allocation `findGroupedSlots()` offers must be one the
+  database accepts*. Coverage spans per-slot seats, the 2-2-1 window,
+  large-dog seat cost and adjacency, early close, blocked seats, extra slots,
+  the daily cap, and grouped allocation across all three dog sizes onto empty,
+  partly-full, cap-constrained and block-constrained days.
+
+  The deeper coverage earned its keep immediately: it found the ordering defect
+  fixed above, which 17 scenarios had missed. **All 129 cases now agree** —
+  26/26 singles and 101/101 grouped offers. It also produced a correction worth
+  recording: an apparent second divergence (the engine offering nothing for five
+  small dogs while the database would accept 2+2+1) was **not** a defect.
+  Grouped booking is a documented 1–4 dog journey and the wizard enforces it, so
+  a customer cannot select a fifth; the fixture was asking a question the
+  product forbids, and the database has no concept of a booking group to compare
+  against. It was replaced with the real four-dog boundary.
+
+  An empty divergence register remains, so a future disagreement has to be
+  recorded deliberately rather than absorbed silently. Immediate slots and staff
+  overrides are excluded with reasons stated. Measurement, limits and what it
+  means for #623 are in
+  `docs/research/2026-08-19-capacity-parity-measurement.md`.
 - Refactor the local PostgreSQL concurrency gates around one guarded,
   reusable real-session driver with tracked client PIDs and portable bounded
   TERM-to-KILL cleanup, while preserving the accepted WhatsApp and capacity
@@ -99,5 +162,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   booking authority.
 
 ### Documentation
+
+- Add a `SessionStart` hook that provisions the local database-test stack for
+  Claude Code on the web: Node 24 on `PATH` (the container defaults to 22, so
+  `npm ci` fails on `engines.node` before doing anything useful), npm
+  dependencies, the Docker daemon, the Supabase CLI, and a pre-pull of the
+  Postgres and `pg_prove` images. Without it a fresh web container cannot run
+  `supabase/tests/*.test.sql` at all — pgTAP ships inside the Supabase Postgres
+  image rather than as a host package — so an agent had to fall back to a hosted
+  project, which is slower, less reproducible and touches a shared environment.
+  The CLI is installed from npm because the agent proxy returns 403 for
+  `api.github.com`, making the usual release-tarball route unavailable.
+  The daemon step also clears a stale `containerd` left by an earlier session —
+  `dockerd` finds the orphan, cannot use it and times out — and retries once.
+  It deliberately does **not** start `containerd` itself: this sandbox drops
+  `cap_sys_resource`, so a shell-started `containerd` makes every container fail
+  with `error setting rlimit type 7: operation not permitted`. Verified both
+  ways; the comment in the hook says so, because the tidier-looking version is
+  the broken one.
 
 - Establish a repository project-memory system with a North Star, dependency-aware roadmap, product requirements, current architecture, decision records, planning standard, agent guidance, reusable prompt library and GitHub contribution templates.
