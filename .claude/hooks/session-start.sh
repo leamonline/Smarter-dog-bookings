@@ -64,11 +64,43 @@ if docker info >/dev/null 2>&1; then
 elif command -v dockerd >/dev/null 2>&1; then
   log "starting docker daemon"
   mkdir -p /var/log
+
+  # dockerd must start its OWN containerd. Starting one here instead looks
+  # tidier and breaks container startup: a containerd launched from this shell
+  # inherits its rlimit context, and runc then fails with "error setting rlimit
+  # type 7: operation not permitted" because cap_sys_resource is dropped in this
+  # sandbox. Verified both ways — dockerd-managed works, shell-started does not.
+  #
+  # What DOES need handling is a stale containerd left by an earlier session:
+  # dockerd finds the process, cannot use it, and gives up with "timeout waiting
+  # for containerd to start". Clear it so dockerd can manage a fresh one.
+  #
+  # pkill/pgrep use -x (exact process name), never -f: with -f the pattern
+  # matches this script's own command line and the hook kills itself.
+  if pgrep -x containerd >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
+    log "clearing stale containerd from a previous session"
+    pkill -x containerd 2>/dev/null || true
+    sleep 3
+  fi
+
   nohup dockerd >/var/log/dockerd.log 2>&1 &
   for _ in $(seq 1 30); do
     if docker info >/dev/null 2>&1; then break; fi
     sleep 1
   done
+
+  # One retry: a dockerd that lost the containerd race exits rather than
+  # recovering, so a clean second attempt is worth more than a longer wait.
+  if ! docker info >/dev/null 2>&1; then
+    log "docker did not come up; retrying once"
+    pkill -x dockerd 2>/dev/null || true
+    sleep 2
+    nohup dockerd >/var/log/dockerd.log 2>&1 &
+    for _ in $(seq 1 30); do
+      if docker info >/dev/null 2>&1; then break; fi
+      sleep 1
+    done
+  fi
   if docker info >/dev/null 2>&1; then
     log "docker ready ($(docker version --format '{{.Server.Version}}' 2>/dev/null || echo unknown))"
   else

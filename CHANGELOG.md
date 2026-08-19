@@ -173,5 +173,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   project, which is slower, less reproducible and touches a shared environment.
   The CLI is installed from npm because the agent proxy returns 403 for
   `api.github.com`, making the usual release-tarball route unavailable.
+  The daemon step also clears a stale `containerd` left by an earlier session —
+  `dockerd` finds the orphan, cannot use it and times out — and retries once.
+  It deliberately does **not** start `containerd` itself: this sandbox drops
+  `cap_sys_resource`, so a shell-started `containerd` makes every container fail
+  with `error setting rlimit type 7: operation not permitted`. Verified both
+  ways; the comment in the hook says so, because the tidier-looking version is
+  the broken one.
 
 - Establish a repository project-memory system with a North Star, dependency-aware roadmap, product requirements, current architecture, decision records, planning standard, agent guidance, reusable prompt library and GitHub contribution templates.
