@@ -160,20 +160,43 @@ the engine rendering a 12-hour clock and the trigger a 24-hour one
 (`1:00pm closed` versus `13:00 closed`). Presentation, not policy — and the
 remaining substance behind a structured reason contract.
 
-## What this means for #623
+## What this means for #623 — accepted and rescoped
 
-The original scope — a canonical PostgreSQL evaluator plus a migration on the
-booking spine — is not supported by any of this evidence:
+The owner accepted the rescope on 19 August 2026. #623 is now **"B3: Guard
+capacity parity across runtimes"**, and rejection-reason alignment moved out
+entirely to its own issue (#665, specified but not started).
 
-1. **The database was right in all 129 cases.** It was right before the fix
-   too: it caught the bad allocation. A new authoritative evaluator would have
-   replaced a component that was never wrong.
-2. **The defect was a preflight ordering bug in TypeScript**, fixed in one
-   function with no migration, no new server surface and no policy change.
-3. **What remains is the reason contract** — two vocabularies for one decision.
-   Real, small, and a presentation concern rather than a correctness one.
+The original scope — a canonical PostgreSQL evaluator, a versioned reason
+contract and a booking-spine migration — is superseded by this evidence:
 
-A rescope proposal is recorded on #608 for the owner's decision.
+1. **The database was right in all 129 cases**, including the one the engine got
+   wrong: it caught the bad allocation the preflight offered. A new
+   authoritative evaluator would have replaced the component that was never
+   wrong, while the actual defect — a preflight deciding what to *offer* —
+   would have survived it.
+2. **The defect was fixed in one function**, reusing existing rules, with no
+   migration, no RPC and no policy change.
+3. **The harness is the durable deliverable.** It found the defect and is what
+   prevents the next one, so it is what B3 delivers rather than a step toward
+   something larger.
+
+Out of scope and recorded as such on the issue: the authoritative evaluator, any
+booking-spine migration, any change to `validate_booking_capacity()` or the
+database capacity architecture, moving authority into shared TypeScript, and any
+capacity-policy change including the 1–4 dog group limit.
+
+**Dependencies.** B3 was serialised behind B1 and B2 because, as the ROADMAP put
+it, "the migration spine is serial". With no migration in the rescoped B3 that
+reason no longer holds, and the decoupling was verified rather than assumed: the
+deliverable imports only `src/types`, `src/constants/salon`,
+`src/engine/slotGrid` and `src/engine/capacity`, and its database half touches
+only `bookings`, `day_settings`, `dogs`, `humans` and `salon_config` — all
+pre-existing, none from B1's capability projection or B2's notification intents.
+**B4 remains stopped behind the `RA-001` STOP**, untouched.
+
+[ADR 001](../architecture/decisions/001-postgresql-capacity-authority.md) is
+**reaffirmed, not superseded**: PostgreSQL stays the authority. This work guards
+agreement with it rather than replacing it.
 
 ## Scope and limits, stated plainly
 

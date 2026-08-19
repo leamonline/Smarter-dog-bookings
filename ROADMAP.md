@@ -16,7 +16,7 @@ order and STOP/GO boundary.
 |---|---|---|
 | **Done** | Tranche A: A0 measurement, A1 capacity proof, A2 interface truth, A3 Edge authentication, A4 release and Supabase target gates | Complete. Evidence attested at `main@9e12bac`. |
 | **Now** | Nothing. The gate is closed: **`STOP` recorded 15 August 2026** by [@leamonline](https://github.com/leamonline) | Manual contact retained. See the [decision record](docs/research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record). |
-| **Deferred** | Tranche B, strictly serial: B1 #607 → B2 #610 → B3 #608 → B4 #604/#609 | Deferred by the `STOP`. A future start needs a fresh **GO** against one exact `main` SHA, and A0–A4 re-established at that SHA. |
+| **Deferred** | Tranche B: B1 #607 → B2 #610 → B4 #604/#609 remain serial and deferred by the `STOP`. **B3 #608 is rescoped and decoupled** (19 Aug 2026) — it carries no migration, so it is not part of that chain. | A future start for B1/B2/B4 needs a fresh **GO** against one exact `main` SHA, with A0–A4 re-established at that SHA. |
 | **Later** | Expand notification types; migrate remaining visit reads/writes; consider separate policy activation; retire compatibility paths after observation | Each is a new decision, not implied by B4. |
 
 ## Programme invariants
@@ -250,19 +250,35 @@ applicable checks and hand off the new base SHA and frozen contract.
 - **Primary risks:** Duplicate sends after worker failure; leaking provider
   payloads; coupling delivery failure to mutation rollback.
 
-### B3 — canonical capacity evaluator and reason contract
+### B3 — guard capacity parity across runtimes
 
 **Issue:** #608
 **Work package:** [#623](https://github.com/leamonline/Smarter-dog-bookings/issues/623)
 
-- **Entry:** B2 is merged; A1 evidence and approved capacity rules are fixed.
-- **Work:** Introduce the authoritative evaluator and structured reasons without
-  changing business policy. Migrate the simplified AI preflight and prove
-  quote/write equivalence.
-- **Exit:** Browser, Flow, AI and database scenarios agree on eligibility and
-  reason; PostgreSQL still rejects stale races; low-PII reads expose no customer
-  detail.
-- **Dependencies:** A1, then B2 because the migration spine is serial.
+**Rescoped 19 August 2026.** The original package — a canonical PostgreSQL
+evaluator, a structured reason contract and a booking-spine migration — is
+superseded. Measurement across 129 cross-runtime cases showed the capacity
+semantics do **not** diverge and the database was correct throughout, including
+on the one allocation the browser engine got wrong. The single real defect was
+an ordering bug in a TypeScript preflight (#664), fixed in one function with no
+migration. Rejection-reason alignment moved out entirely to #665.
+
+- **Entry:** A1 evidence green; approved capacity rules fixed.
+- **Work:** Keep the browser engine, the Deno mirror and the PostgreSQL trigger
+  provably in agreement, so no interface can offer a booking the database will
+  refuse. The parity harness is the deliverable, not a stepping stone.
+- **Exit:** Browser, Deno and database scenarios agree on eligibility for the
+  governed set; every allocation the engine offers is one PostgreSQL accepts;
+  the harness fails on a deliberate divergence; PostgreSQL still rejects stale
+  races; low-PII reads expose no customer detail.
+- **Dependencies:** A1 only. **B1 and B2 are decoupled** — that serialisation
+  existed because the migration spine is serial, and the rescoped B3 adds no
+  migration. Verified against the deliverable's actual imports and the tables
+  its database half touches, all pre-existing.
+- **Out of scope:** authoritative evaluator, booking-spine migration, any change
+  to `validate_booking_capacity()` or the database capacity architecture,
+  moving authority into shared TypeScript, and any capacity-policy change
+  (including the approved 1–4 dog group limit).
 - **Primary risks:** Rule change disguised as convergence; exposing operational
   data; weakening the final database guard.
 
@@ -282,7 +298,7 @@ applicable checks and hand off the new base SHA and frozen contract.
   failed, retryable and unknown states; provider-failure staging evidence is
   recorded. Ambiguous membership returns `visit_review_required`, performs no
   mutation or intent, and never falls back to `useBookings.updateBooking`.
-- **Dependencies:** B1 → B2 → B3, plus issues #604/#609 contracts.
+- **Dependencies:** B1 → B2, plus issues #604/#609 contracts. (B3 is no longer in this chain — see its rescope above — and B4 remains stopped behind the `RA-001` STOP regardless.)
 - **Primary risks:** Accidental policy activation; partial multi-dog moves;
   duplicate messages; a UI fallback that restores raw row authority.
 

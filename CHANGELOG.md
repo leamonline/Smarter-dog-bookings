@@ -83,6 +83,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Rescope B3 (#623) from *canonical capacity evaluator and reason contract* to
+  **guard capacity parity across runtimes**, on the evidence of the 129-case
+  measurement: the capacity semantics do not diverge, PostgreSQL was correct in
+  every case including the one the engine got wrong, and the single real defect
+  was a TypeScript preflight ordering bug fixed in one function. The
+  authoritative evaluator, any booking-spine migration and any change to the
+  database capacity architecture are now explicitly out of scope, and the parity
+  harness becomes the deliverable rather than a stepping stone. Rejection-reason
+  alignment moves out entirely to its own issue (#665), specified but not
+  started, because it is presentation rather than correctness and the
+  customer-facing wording wants a product decision. B3 is also decoupled from
+  B1/B2 — that serialisation existed because the migration spine is serial, and
+  the rescoped B3 carries no migration; verified against the deliverable's
+  actual imports and the pre-existing tables its database half touches. B4
+  remains stopped behind the `RA-001` STOP. ADR 001 is reaffirmed, not
+  superseded: PostgreSQL stays the capacity authority.
+
 - Add a default-`HOLD`, exact-SHA human merge-control attestation and operator
   runbook for pull requests while `main` lacks native GitHub protection,
   including explicit migration disposition and post-merge check monitoring.
