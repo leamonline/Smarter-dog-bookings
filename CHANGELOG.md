@@ -90,6 +90,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Testing
 
+- Add a cross-runtime capacity parity harness and measure the divergence
+  between the browser engine and PostgreSQL — the one leg of the three-way
+  capacity duplication nothing had ever compared. 17 shared scenarios (per-slot
+  seats, the 2-2-1 window, large-dog seat cost and adjacency, early close,
+  blocked seats) are stated once and answered by both runtimes: the engine
+  through `canBookSlot()`, the database by attempting the insert. **All 17
+  agree on eligibility** — 9 allowed, 8 refused, so the agreement is not an
+  artefact of one runtime saying yes to everything. The only difference is
+  refusal wording: 3 of 8 refusals describe the same decision with a 12-hour
+  versus 24-hour clock. The two halves are coupled so they cannot drift —
+  change a capacity rule without regenerating the pgTAP file and the
+  TypeScript test fails naming the scenario. Measurement and limits recorded
+  in `docs/research/2026-08-19-capacity-parity-measurement.md`; no runtime or
+  schema change, and no architecture recommendation, is made on the strength
+  of it.
 - Refactor the local PostgreSQL concurrency gates around one guarded,
   reusable real-session driver with tracked client PIDs and portable bounded
   TERM-to-KILL cleanup, while preserving the accepted WhatsApp and capacity
