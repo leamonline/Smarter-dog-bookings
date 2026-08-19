@@ -96,6 +96,33 @@ of the forwarded record, including shared helpers, and covers deposit-gated supp
 test. Until then `select("*")` is safer than a partial column list. This is a genuine case where
 the wildcard is load-bearing by accident.
 
+### Follow-up, 19 August 2026 — narrowing would not have helped
+
+Revisiting this finding to act on it surfaced the fact that settles it: **the Postgres triggers
+forward the identical row.** They post `'record', row_to_json(NEW)` — all 46 columns — on every
+booking status change, which is the path every automatic confirmation, ready and cancellation
+notification takes. `resend-booking-notification` is the rare manual replay of that same path,
+and its `select("*")` exists to match the trigger's payload shape.
+
+So narrowing the resend select would have reduced exposure by close to nothing, while
+introducing a second hazard: the two payloads would diverge, and a future consumer change could
+work on the trigger path and silently break on resend. The wildcard is not an oversight here —
+it is the shape of the contract.
+
+Enumerating the columns did produce something worth acting on, though. Of the 46 columns
+forwarded, 14 are consumed and 32 are not, and the unused set includes free text and
+customer-identifying snapshots — `notes`, `owner_name_snapshot`, `dog_name_snapshot`,
+`breed_snapshot`, `deposit_reference`, `created_by_name`. None is rendered into a customer
+message and all of it stays inside the project, so this is not a leak; but it travels, and the
+audit's stated residual concern — that a newly added column joins the payload with no review —
+applies to the trigger path just as much.
+
+**Action taken.** `src/security/bookingNotificationPayloadColumns.test.ts` classifies all 46
+columns and recomputes the consumed set from the consuming sources, so the classification cannot
+drift from the code. Adding a column to `bookings` now fails the build until someone states what
+it is and whether a notification payload should carry it, and narrowing either path alone fails
+too. The forwarding is unchanged; the silence is what got fixed.
+
 ## Finding 2 — `postcode-lookup` is an unauthenticated proxy to a paid API (informational)
 
 `public-rate-limited`, no table reads, returns Royal Mail PAF address data from APITier. The

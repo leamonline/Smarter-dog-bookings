@@ -8,6 +8,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Classify every `bookings` column that travels in a notification payload, and
+  close out the data-exposure audit's only finding by rejecting its obvious
+  fix. The audit flagged `resend-booking-notification`'s `select("*")`;
+  acting on it surfaced that the Postgres triggers forward the identical row
+  (`row_to_json(NEW)`, all 46 columns) on every status change, so narrowing the
+  one manual path would have reduced exposure by almost nothing while making
+  the two payload shapes diverge. What the enumeration did earn is a guard: all
+  46 columns are classified, the 14 consumed ones are recomputed from the
+  consuming sources so the classification cannot drift, and adding a column to
+  `bookings` — or narrowing one path alone — now fails the build. No runtime
+  behaviour changes; the silent forwarding of new columns is what got fixed.
 - Add runtime gate tests for `calendar-ics`, completing runtime coverage of
   the feed-token family. Same serve()-shim split, handler unchanged; five Deno
   tests (no database, no network) prove the method and missing-parameter gates
