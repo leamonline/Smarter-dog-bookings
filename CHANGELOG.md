@@ -115,4 +115,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Documentation
 
+- Add a `SessionStart` hook that provisions the local database-test stack for
+  Claude Code on the web: Node 24 on `PATH` (the container defaults to 22, so
+  `npm ci` fails on `engines.node` before doing anything useful), npm
+  dependencies, the Docker daemon, the Supabase CLI, and a pre-pull of the
+  Postgres and `pg_prove` images. Without it a fresh web container cannot run
+  `supabase/tests/*.test.sql` at all — pgTAP ships inside the Supabase Postgres
+  image rather than as a host package — so an agent had to fall back to a hosted
+  project, which is slower, less reproducible and touches a shared environment.
+  The CLI is installed from npm because the agent proxy returns 403 for
+  `api.github.com`, making the usual release-tarball route unavailable.
+
 - Establish a repository project-memory system with a North Star, dependency-aware roadmap, product requirements, current architecture, decision records, planning standard, agent guidance, reusable prompt library and GitHub contribution templates.
