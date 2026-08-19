@@ -309,8 +309,11 @@ describe("Supabase security review regressions", () => {
   });
 
   it("hardens customer-phone-on-file against IP spoofing and origin-* CORS", () => {
+    // handler.ts, not index.ts: the function follows the serve()-shim split
+    // (like whatsapp-agent), so the IP-extraction and rate-limit logic this
+    // test pins lives in the exported handler.
     const fn = readProjectFile(
-      "supabase/functions/customer-phone-on-file/index.ts",
+      "supabase/functions/customer-phone-on-file/handler.ts",
     );
 
     // cf-connecting-ip is set by the Cloudflare ingress and is not caller-

@@ -213,7 +213,7 @@
     },
     "customer-phone-on-file": {
       "authFamily": "public-rate-limited",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "customer portal login page, before any session exists",
       "role": "anonymous",
       "gatewayVerifyJwt": false,
@@ -223,7 +223,7 @@
       "replayDefence": "per-IP rate limit (5/60s) plus a global cap (200/60s) that survives IP rotation",
       "unauthorizedResponse": "400 invalid phone, 429 rate-limited",
       "emptySecretBehaviour": "n/a — no shared secret",
-      "notes": "Unauthenticated by necessity: it answers whether a number is on file so the login page can choose password vs SMS code. That makes it an enumeration oracle, which is why the global cap exists alongside the per-IP one. Returns only two booleans."
+      "notes": "Unauthenticated by necessity: it answers whether a number is on file so the login page can choose password vs SMS code. That makes it an enumeration oracle, which is why the global cap exists alongside the per-IP one. Returns only two booleans. index.ts is a serve() shim; the gates live in the exported handler so handler.test.ts can drive them as a function."
     },
     "dashboard-summary": {
       "authFamily": "staff-jwt",
