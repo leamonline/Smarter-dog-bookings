@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Add runtime auth-gate tests for `calendar-feed` — a URL-borne token guards
+  every customer's bookings (staff feeds include owner names), so its gate is
+  the second shortlist entry. Same serve()-shim split, handler unchanged; four
+  Deno tests prove the method and missing/empty-token refusals precede any
+  lookup, and that an unvalidatable token — including when the token store is
+  unreachable — never yields calendar data: a database outage must degrade to
+  refusal, not to an open feed.
 - Add runtime auth-gate tests for `apply-customer-confirm` — the
   highest-blast-radius internal-secret endpoint, whose check is the only gate
   on the autonomous booking path. `index.ts` becomes a `serve()` shim with the

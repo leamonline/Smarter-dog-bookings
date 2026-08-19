@@ -185,7 +185,7 @@
     },
     "calendar-feed": {
       "authFamily": "feed-token",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "external calendar clients (Apple Calendar, Google Calendar, Outlook)",
       "role": "customer or staff, determined by the token's feed_type",
       "gatewayVerifyJwt": false,
@@ -195,7 +195,7 @@
       "replayDefence": "none by design — a subscription URL is fetched repeatedly; the token is revocable via is_active and expires_at",
       "unauthorizedResponse": "401 Unauthorized",
       "emptySecretBehaviour": "closed — validateFeedToken returns null for an empty token",
-      "notes": "Token travels in the URL, so it appears in client logs. Revocation is via calendar_feed_tokens.is_active."
+      "notes": "Token travels in the URL, so it appears in client logs. Revocation is via calendar_feed_tokens.is_active. index.ts is a serve() shim; the handler and its token gate live in handler.ts so handler.test.ts can drive them as a function."
     },
     "calendar-ics": {
       "authFamily": "feed-token",
