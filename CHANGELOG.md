@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Add runtime gate tests for `customer-phone-on-file` — the third and final
+  shortlist entry, and the odd one out: a deliberately public pre-auth login
+  helper whose only defences are an origin allowlist and a two-tier rate
+  limit, answering at most two booleans. Same serve()-shim split, handler
+  unchanged; five Deno tests (no database, no network) prove the method,
+  JSON and phone-shape gates reject before anything is counted or queried,
+  and pin the property that makes a public enumeration oracle safe to
+  operate: the rate limiter fails CLOSED — an unreachable rate-limit store
+  yields 429, never an `on_file`/`has_password` answer.
 - Add runtime auth-gate tests for `calendar-feed` — a URL-borne token guards
   every customer's bookings (staff feeds include owner names), so its gate is
   the second shortlist entry. Same serve()-shim split, handler unchanged; four
