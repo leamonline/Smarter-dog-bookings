@@ -1,0 +1,210 @@
+{
+  "workflow_version": "1.1.0",
+  "analysis_date": "2026-08-05",
+  "review_target": "Current Daily Brief (/today) three-lane status board for a selected date, staff dashboard",
+  "source_context": {
+    "repository": "leamonline/Smarter-dog-bookings",
+    "branch": "main",
+    "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
+    "release": null,
+    "environment": "repository, plus one user-supplied screenshot",
+    "production_observed": false
+  },
+  "evidence_sources": [
+    {
+      "id": "E1",
+      "type": "repository guidance",
+      "location": "CLAUDE.md",
+      "version": "main@6d73281a",
+      "currency": "current, self-flags possible staleness",
+      "demonstrates": "Staff-vs-customer product split, domain rules, tech stack, and that App.jsx implements the staff auth gate"
+    },
+    {
+      "id": "E2",
+      "type": "specification",
+      "location": "docs/today-command-centre.md",
+      "version": "main@6d73281a",
+      "currency": "current canonical doc, self-flags possible staleness",
+      "demonstrates": "/today is the default staff landing screen; engine-module map; explicit Europe/London time handling",
+      "limitations": "Its literal section table is a looser description than the current card/lane anatomy"
+    },
+    {
+      "id": "E3",
+      "type": "code",
+      "location": "src/components/views/TodayView.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Composition root: selected-date state, engine wiring, mutation path, permission-based scroll, remote-move announcement, loading/error/empty states"
+    },
+    {
+      "id": "E4",
+      "type": "code",
+      "location": "src/engine/dailyBrief.ts",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Pure lane derivation, per-lane sort rules, journey actions, payment visuals, care-skip confirmation rule, mini-invoice validation"
+    },
+    {
+      "id": "E5",
+      "type": "code",
+      "location": "src/components/views/today/StatusBoard.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "The actual rendered lane grid and card, matching the supplied screenshot line for line"
+    },
+    {
+      "id": "E6",
+      "type": "code",
+      "location": "src/components/views/today/TodayHeader.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Header composition: date label, salon-open pill, availability label, operational-status grid, secondary totals"
+    },
+    {
+      "id": "E7",
+      "type": "code",
+      "location": "src/components/views/today/TodaySummaryStrip.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Daily-progress footer: arrived/ready/collected counts and takings by method"
+    },
+    {
+      "id": "E8",
+      "type": "code",
+      "location": "src/components/views/today/TodayBriefNotes.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Two conditional advisory notes that render only when their data source is genuinely available and non-zero"
+    },
+    {
+      "id": "E9",
+      "type": "code",
+      "location": "src/engine/today.ts (L145-220, L883-951) and LiveArrivalDivider.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Live-focus selection order, 'Due to arrive in X mins' copy, and the exact needs-confirmation gating rule"
+    },
+    {
+      "id": "E10",
+      "type": "code",
+      "location": "src/App.jsx (~L530-540, ~L1156-1186)",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "/today route wiring and the once-per-tab-session redirect from / to /today as the post-auth entry point"
+    },
+    {
+      "id": "E11",
+      "type": "code",
+      "location": "src/components/layout/navConfig.jsx",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Nav entry labelled 'Daily Brief' with a sun icon, shared by desktop nav and the mobile icon strip"
+    },
+    {
+      "id": "E12",
+      "type": "specification",
+      "location": "docs/plans/2026-07-14-daily-brief-design.md",
+      "version": "approved 2026-07-14",
+      "currency": "mixed: partially current, partially superseded",
+      "demonstrates": "Rename to Daily Brief, ?date= contract, split header, and an appointment-sentence plus icon-only journey-row card design",
+      "limitations": "The card design was superseded 6 days later by E13/E5; the document was never moved to docs/archive/"
+    },
+    {
+      "id": "E13",
+      "type": "specification",
+      "location": "docs/archive/superpowers/specs/2026-07-20-daily-brief-three-lane-status-board-implementation-brief.md",
+      "version": "approved for implementation 2026-07-20",
+      "currency": "approved and implemented",
+      "demonstrates": "Full three-lane board contract: lane derivation, sort rules, card anatomy, named actions, unpaid-collection confirmation, realtime rules, responsive rules, accessibility rules",
+      "limitations": "A plan/spec document; cross-checked against E5/E4/E16 and found faithfully implemented in every point checked, not exhaustively"
+    },
+    {
+      "id": "E14",
+      "type": "issue",
+      "location": "git log -- src/components/views/today/ src/engine/dailyBrief.ts src/engine/today.ts",
+      "version": "main@6d73281a, inspected 2026-08-05",
+      "currency": "current release evidence",
+      "demonstrates": "StatusBoard.jsx added 2026-07-20; surface last touched 2026-07-26",
+      "limitations": "Command-line history only, not a hosted PR review"
+    },
+    {
+      "id": "E15",
+      "type": "code",
+      "location": "repository-wide grep for BookingFeed/BookingJourneyRow/JourneyIconButton/TodayKpiRow imports",
+      "version": "main@6d73281a",
+      "currency": "current implementation, by absence",
+      "demonstrates": "None of these four files are imported by TodayView.jsx or StatusBoard.jsx; they are dormant",
+      "limitations": "Grep-based; the test suite was not executed"
+    },
+    {
+      "id": "E16",
+      "type": "specification and code",
+      "location": "docs/modal-standard.md; MiniInvoiceModal.jsx, UnpaidCollectionModal.jsx, AvailabilityModal.jsx",
+      "version": "main@6d73281a",
+      "currency": "current, strongly established",
+      "demonstrates": "The canonical modal contract applies to this surface's three modals; UnpaidCollectionModal.jsx's copy matches E13's prescription exactly"
+    },
+    {
+      "id": "E17",
+      "type": "code",
+      "location": "src/constants/salon.ts; src/engine/utilisation.ts",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "LATE_ARRIVAL_GRACE_MINUTES=5, IMMEDIATE_CUTOFF_MINUTES=30, DAY_CAPACITY=14, grounding the header's numeric claims"
+    },
+    {
+      "id": "E18",
+      "type": "code",
+      "location": "src/index.css (~L62-76)",
+      "version": "main@6d73281a",
+      "currency": "current implementation",
+      "demonstrates": "Only one custom breakpoint exists (Inbox-specific); Tailwind v4 default breakpoints govern this surface"
+    },
+    {
+      "id": "E19",
+      "type": "specification",
+      "location": "docs/ux-review-2026-06.md",
+      "version": "19 June 2026",
+      "currency": "legacy, pre-dates this surface's current form",
+      "demonstrates": "A prior cross-cutting staff-dashboard UX review",
+      "limitations": "Pre-dates both Daily Brief redesigns and never names a Today/Daily Brief area; treated as legacy context only"
+    },
+    {
+      "id": "E20",
+      "type": "screenshot",
+      "location": "user-supplied image, this conversation",
+      "version": "undated, no declared device/viewport metadata",
+      "currency": "observed rendered behaviour",
+      "demonstrates": "The entire card/lane/header/notes anatomy described throughout; single-column stacking consistent with a sub-768px viewport",
+      "limitations": "No EXIF/environment data; plausibly genuine operational data rather than seeded sample data"
+    },
+    {
+      "id": "E21",
+      "type": "schema",
+      "location": "package.json",
+      "version": "main@6d73281a",
+      "currency": "current implementation metadata",
+      "demonstrates": "React 19.2.8, Vite 7.3.6, Tailwind 4.2.2, Vitest 4.1.10"
+    },
+    {
+      "id": "E22",
+      "type": "test",
+      "location": "src/components/views/today/today.component.test.jsx; StatusBoard.component.test.jsx",
+      "version": "main@6d73281a",
+      "currency": "current automated coverage",
+      "demonstrates": "Test titles corroborate documented state-handling behaviour, and a still-present but dormant BookingFeed test suite",
+      "limitations": "Only test titles were read, not full assertions; the suite was not executed"
+    }
+  ],
+  "inaccessible_sources": [
+    "Authenticated running application",
+    "Production analytics",
+    "Figma design source (link named in E13 but not opened)",
+    "Live salon observation",
+    "Assistive-technology test results",
+    "Desktop and tablet viewport screenshots"
+  ],
+  "owner_decisions": [],
+  "context_document_sha256": "86fc3f6ed2cd51753fee1b9b797b51672b32c3417c23a675f4dcf7701381c597",
+  "status": "ready-for-review"
+}

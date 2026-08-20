@@ -1,210 +1,300 @@
 {
-  "workflow_version": "1.1.0",
-  "analysis_date": "2026-08-05",
-  "review_target": "Current Daily Brief (/today) three-lane status board for a selected date, staff dashboard",
+  "workflow_version": "2.0.0",
+  "analysis_date": "2026-08-20",
+  "review_target": "Customer self-service booking wizard (/customer portal, BookingWizard) — five-step flow plus terminal screens",
   "source_context": {
     "repository": "leamonline/Smarter-dog-bookings",
     "branch": "main",
-    "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-    "release": null,
-    "environment": "repository, plus one user-supplied screenshot",
-    "production_observed": false
+    "commit_or_release": "c1da6852b1a2bcd1edba7f45f0bb4a8569cd6e58",
+    "environment": "repository, plus one local development-harness session",
+    "observed_at": "2026-08-20",
+    "production_observed": false,
+    "currency": "current",
+    "currency_override_reason": ""
   },
   "evidence_sources": [
     {
       "id": "E1",
-      "type": "repository guidance",
+      "type": "specification",
       "location": "CLAUDE.md",
-      "version": "main@6d73281a",
-      "currency": "current, self-flags possible staleness",
-      "demonstrates": "Staff-vs-customer product split, domain rules, tech stack, and that App.jsx implements the staff auth gate"
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Staff/customer split; create_customer_booking_group is the only customer write path; the three BEFORE INSERT gates; the claim that offline mode never touches real customer data",
+      "limitations": "Self-flags possible staleness; its offline-safety claim is contradicted for the customer portal by E11 and E23"
     },
     {
       "id": "E2",
-      "type": "specification",
-      "location": "docs/today-command-centre.md",
-      "version": "main@6d73281a",
-      "currency": "current canonical doc, self-flags possible staleness",
-      "demonstrates": "/today is the default staff landing screen; engine-module map; explicit Europe/London time handling",
-      "limitations": "Its literal section table is a looser description than the current card/lane anatomy"
+      "type": "code",
+      "location": "src/CustomerApp.jsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The portal's gated lifecycle (login, human record, password, signup approval, profile) establishing that every wizard user is authenticated and approved",
+      "limitations": "Static inspection only; the gates were never exercised"
     },
     {
       "id": "E3",
       "type": "code",
-      "location": "src/components/views/TodayView.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Composition root: selected-date state, engine wiring, mutation path, permission-based scroll, remote-move announcement, loading/error/empty states"
+      "location": "src/components/customer/booking/BookingWizard.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Composition root: five steps, draft persistence, reschedule and approval modes, pre-commit client re-check, deposit read-back, error-code mapping, all terminal screens, funnel and denial telemetry",
+      "limitations": "Static inspection; never executed in an authenticated session"
     },
     {
       "id": "E4",
       "type": "code",
-      "location": "src/engine/dailyBrief.ts",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Pure lane derivation, per-lane sort rules, journey actions, payment visuals, care-skip confirmation rule, mini-invoice validation"
+      "location": "src/components/customer/booking/DogSelection.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Step 1: four-dog cap; pregnant and unknown-size dogs disabled with an inline reason; a WhatsApp escape hatch provided for pregnancy only",
+      "limitations": "Static inspection; not rendered"
     },
     {
       "id": "E5",
       "type": "code",
-      "location": "src/components/views/today/StatusBoard.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "The actual rendered lane grid and card, matching the supplied screenshot line for line"
+      "location": "src/components/customer/booking/ServiceSelection.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Step 2: per-dog service choice, size-filtered options, apply-to-everyone shortcut, starting-price framing",
+      "limitations": "Static inspection; not rendered"
     },
     {
       "id": "E6",
       "type": "code",
-      "location": "src/components/views/today/TodayHeader.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Header composition: date label, salon-open pill, availability label, operational-status grid, secondary totals"
+      "location": "src/components/customer/booking/DateSelection.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Step 3: 28-day paging, capacity-aware day states, the incomplete-availability hint that withholds the legend, the last-minute affordance, skeleton loading, full accessible day names",
+      "limitations": "Static inspection; only its degraded state was rendered (E23)"
     },
     {
       "id": "E7",
       "type": "code",
-      "location": "src/components/views/today/TodaySummaryStrip.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Daily-progress footer: arrived/ready/collected counts and takings by method"
+      "location": "src/components/customer/booking/SlotSelection.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Step 4: grouped drop-off times, per-human preferred and blocked slots, the explicit distinction between a fetch failure and a genuinely full day, the waitlist offer, the same-day fail-closed filter",
+      "limitations": "Static inspection; not rendered"
     },
     {
       "id": "E8",
       "type": "code",
-      "location": "src/components/views/today/TodayBriefNotes.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Two conditional advisory notes that render only when their data source is genuinely available and non-zero"
+      "location": "src/components/customer/booking/BookingConfirmation.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Step 5, the commitment point: summary of when, dog, service and price; the phrase 'From £X (paid at pick-up)'; the cancellation note; submit disabled while submitting",
+      "limitations": "Contains no deposit awareness; not rendered"
     },
     {
       "id": "E9",
       "type": "code",
-      "location": "src/engine/today.ts (L145-220, L883-951) and LiveArrivalDivider.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Live-focus selection order, 'Due to arrive in X mins' copy, and the exact needs-confirmation gating rule"
+      "location": "src/components/customer/booking/BookingSummarySidebar.tsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Desktop-only sticky 'Your booking so far' panel, always rendered in the DOM and hidden by CSS below the two-column breakpoint",
+      "limitations": "Rendered only with harness-supplied mock props (E23)"
     },
     {
       "id": "E10",
       "type": "code",
-      "location": "src/App.jsx (~L530-540, ~L1156-1186)",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "/today route wiring and the once-per-tab-session redirect from / to /today as the post-auth entry point"
+      "location": "src/components/customer/booking/booking-wizard.css",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The responsive contract (sidebar hidden below 1024px, two-column and sticky above it), the deliberate strikethrough on fully-booked days as a non-colour cue, and two prefers-reduced-motion blocks",
+      "limitations": "CSS proves implemented rules, not rendered quality at every viewport"
     },
     {
       "id": "E11",
       "type": "code",
-      "location": "src/components/layout/navConfig.jsx",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Nav entry labelled 'Daily Brief' with a sun icon, shared by desktop nav and the mobile icon strip"
+      "location": "src/supabase/customerClient.ts",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The customer Supabase client is built purely from credential presence and never consults VITE_FORCE_OFFLINE",
+      "limitations": "Contradicts E21's source comments and E1's offline-safety claim"
     },
     {
       "id": "E12",
-      "type": "specification",
-      "location": "docs/plans/2026-07-14-daily-brief-design.md",
-      "version": "approved 2026-07-14",
-      "currency": "mixed: partially current, partially superseded",
-      "demonstrates": "Rename to Daily Brief, ?date= contract, split header, and an appointment-sentence plus icon-only journey-row card design",
-      "limitations": "The card design was superseded 6 days later by E13/E5; the document was never moved to docs/archive/"
+      "type": "code",
+      "location": "src/supabase/client.ts",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The staff Supabase client does honour VITE_FORCE_OFFLINE, nulling both URL and key, establishing the asymmetry against E11",
+      "limitations": "Describes the staff client only"
     },
     {
       "id": "E13",
-      "type": "specification",
-      "location": "docs/archive/superpowers/specs/2026-07-20-daily-brief-three-lane-status-board-implementation-brief.md",
-      "version": "approved for implementation 2026-07-20",
-      "currency": "approved and implemented",
-      "demonstrates": "Full three-lane board contract: lane derivation, sort rules, card anatomy, named actions, unpaid-collection confirmation, realtime rules, responsive rules, accessibility rules",
-      "limitations": "A plan/spec document; cross-checked against E5/E4/E16 and found faithfully implemented in every point checked, not exhaustively"
+      "type": "test",
+      "location": "src/supabase/offlineTestGuard.test.ts",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The self-enforcing offline guard asserts that the staff client is null in every Vitest project",
+      "limitations": "Asserts nothing about customerClient, so the customer portal sits outside the guard"
     },
     {
       "id": "E14",
-      "type": "issue",
-      "location": "git log -- src/components/views/today/ src/engine/dailyBrief.ts src/engine/today.ts",
-      "version": "main@6d73281a, inspected 2026-08-05",
-      "currency": "current release evidence",
-      "demonstrates": "StatusBoard.jsx added 2026-07-20; surface last touched 2026-07-26",
-      "limitations": "Command-line history only, not a hosted PR review"
+      "type": "schema",
+      "location": "supabase/migrations/20260603130000_lock_get_open_days_to_authenticated.sql, 20260622110000_get_occupancy_range_rpc.sql, 20260627120000_get_blocked_seats_rpc.sql",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "get_open_days, get_occupancy_range and get_blocked_seats are each revoked from anon and granted only to authenticated",
+      "limitations": "Migration files; prod grants were not queried directly, though E23's 42501 responses corroborate them"
     },
     {
       "id": "E15",
-      "type": "code",
-      "location": "repository-wide grep for BookingFeed/BookingJourneyRow/JourneyIconButton/TodayKpiRow imports",
-      "version": "main@6d73281a",
-      "currency": "current implementation, by absence",
-      "demonstrates": "None of these four files are imported by TodayView.jsx or StatusBoard.jsx; they are dormant",
-      "limitations": "Grep-based; the test suite was not executed"
+      "type": "schema",
+      "location": "supabase/migrations/20260712115759_legal_risk_tranche1.sql L901-902",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "create_customer_booking_group is revoked from and re-granted only to authenticated, and is the sole customer write path",
+      "limitations": "Migration file; prod state not queried"
     },
     {
       "id": "E16",
-      "type": "specification and code",
-      "location": "docs/modal-standard.md; MiniInvoiceModal.jsx, UnpaidCollectionModal.jsx, AvailabilityModal.jsx",
-      "version": "main@6d73281a",
-      "currency": "current, strongly established",
-      "demonstrates": "The canonical modal contract applies to this surface's three modals; UnpaidCollectionModal.jsx's copy matches E13's prescription exactly"
+      "type": "code",
+      "location": "src/supabase/repositories/humansRepo.ts L97-124",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "getBookingRules returns preferredSlots, blockedSlots and depositRequired, and is already called at step 4, where depositRequired is then discarded",
+      "limitations": "The read fails open and returns null on error, so a null result never proves that no deposit is required"
     },
     {
       "id": "E17",
       "type": "code",
-      "location": "src/constants/salon.ts; src/engine/utilisation.ts",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "LATE_ARRIVAL_GRACE_MINUTES=5, IMMEDIATE_CUTOFF_MINUTES=30, DAY_CAPACITY=14, grounding the header's numeric claims"
+      "location": "src/supabase/customerBookingRules.ts",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Booking horizon of 28 days by default, overridable between 1 and 730 by RPC, with a failed read never blocking a booking",
+      "limitations": "The configured production value was not read"
     },
     {
       "id": "E18",
-      "type": "code",
-      "location": "src/index.css (~L62-76)",
-      "version": "main@6d73281a",
-      "currency": "current implementation",
-      "demonstrates": "Only one custom breakpoint exists (Inbox-specific); Tailwind v4 default breakpoints govern this surface"
+      "type": "test",
+      "location": "npx vitest run --project component src/components/customer/booking/",
+      "version": "main@c1da6852, executed 2026-08-20",
+      "currency": "current",
+      "demonstrates": "11 test files and 38 tests pass, covering horizon boundaries, deposit truthfulness, partial reschedule, pregnancy gating, size verification, last-minute rules, calendar paging and full-day handling",
+      "limitations": "jsdom component tests prove implemented logic, not rendered quality or production behaviour"
     },
     {
       "id": "E19",
-      "type": "specification",
-      "location": "docs/ux-review-2026-06.md",
-      "version": "19 June 2026",
-      "currency": "legacy, pre-dates this surface's current form",
-      "demonstrates": "A prior cross-cutting staff-dashboard UX review",
-      "limitations": "Pre-dates both Daily Brief redesigns and never names a Today/Daily Brief area; treated as legacy context only"
+      "type": "test",
+      "location": "e2e/",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "By absence: all five Playwright specs are staff-facing, so the customer portal and its write path have no end-to-end coverage",
+      "limitations": "Directory listing and grep; the suite was not executed"
     },
     {
       "id": "E20",
-      "type": "screenshot",
-      "location": "user-supplied image, this conversation",
-      "version": "undated, no declared device/viewport metadata",
-      "currency": "observed rendered behaviour",
-      "demonstrates": "The entire card/lane/header/notes anatomy described throughout; single-column stacking consistent with a sub-768px viewport",
-      "limitations": "No EXIF/environment data; plausibly genuine operational data rather than seeded sample data"
+      "type": "issue",
+      "location": "git log -- src/components/customer/booking/ src/CustomerApp.jsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Currency: the surface was last touched on 2026-08-06 by a copy-truthfulness fix, preceded by the desktop summary sidebar and deposit-messaging work",
+      "limitations": "Command-line history only, not a hosted review record"
     },
     {
       "id": "E21",
-      "type": "schema",
-      "location": "package.json",
-      "version": "main@6d73281a",
-      "currency": "current implementation metadata",
-      "demonstrates": "React 19.2.8, Vite 7.3.6, Tailwind 4.2.2, Vitest 4.1.10"
+      "type": "code",
+      "location": "src/components/dev/BookingWizardShellPreview.jsx",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The only harness for this surface: it mounts the real sidebar and the real DateSelection, and substitutes static placeholders for every other step plus static mocks for the calendar legend and success screen",
+      "limitations": "Its comments claim offline nulls the customer client and that DateSelection cannot reach its complete branch for that reason; E23 shows the client is live and the true cause is server permission"
     },
     {
       "id": "E22",
-      "type": "test",
-      "location": "src/components/views/today/today.component.test.jsx; StatusBoard.component.test.jsx",
-      "version": "main@6d73281a",
-      "currency": "current automated coverage",
-      "demonstrates": "Test titles corroborate documented state-handling behaviour, and a still-present but dormant BookingFeed test suite",
-      "limitations": "Only test titles were read, not full assertions; the suite was not executed"
+      "type": "code",
+      "location": "src/engine/capacity.ts, deposits.ts, denials.ts, slotGrid.ts, immediateBooking.ts, bookingRules.ts",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "The wizard is a thin client over shared pure engines also used by the staff app and the Deno edge functions",
+      "limitations": "Logic only; engine parity with the database trigger was not re-verified in this review"
+    },
+    {
+      "id": "E23",
+      "type": "observed-behaviour",
+      "location": "http://localhost:5174/dev/booking-wizard-shell-preview",
+      "version": "main@c1da6852, observed 2026-08-20",
+      "currency": "current",
+      "demonstrates": "Rendered the wizard shell, the real sidebar at three fill states and the real DateSelection in its incomplete-availability state; measured single-column-no-sidebar-no-overflow at 390px and a 644px/320px grid at 1280px; measured 34x34px calendar day targets against 44x44px nav buttons; measured contrast of 4.45:1 on white and 4.23:1 on the wizard backdrop for secondary text, 1.89:1 for closed-day numerals and 17.31:1 for open-day numerals; confirmed accessible day names such as 'Friday 21 August, closed'",
+      "limitations": "Runs inside the staff app shell rather than the customer portal shell; screenshot capture failed because the browser pane stayed hidden, so all findings rest on the accessibility tree, computed styles and geometry; steps 1, 2, 4 and 5 were never rendered; the harness fired six live requests to production Supabase, all rejected with 401 and 42501 permission-denied, so no data was read and nothing was written"
+    },
+    {
+      "id": "E24",
+      "type": "schema",
+      "location": "supabase/migrations/20260712115759_legal_risk_tranche1.sql L1355-1670 (cancel_customer_booking), plus src/constants/salonSettings.ts L29 and L84",
+      "version": "main@c1da6852",
+      "currency": "current",
+      "demonstrates": "Online cancellation is governed by two staff-configurable salon settings: customerPortal.allowCancellations (default true, toggleable in Settings) and minCancellationHours (default 24), measured backwards from the appointment's start time, raising SDC01 when disabled and SDC02 when the deadline has passed",
+      "limitations": "Contradicts step 5's hardcoded copy 'up until the day before' (E8). Migration file plus code defaults; the production salon_config values were not queried"
     }
   ],
   "inaccessible_sources": [
-    "Authenticated running application",
-    "Production analytics",
-    "Figma design source (link named in E13 but not opened)",
-    "Live salon observation",
-    "Assistive-technology test results",
-    "Desktop and tablet viewport screenshots"
+    "The authenticated customer portal and every wizard step in a real data state (steps 1, 2, 4 and 5 were never rendered)",
+    "Production analytics and the wizard's own funnel telemetry results (logFunnelEvent is emitted but its data was not available)",
+    "Real-customer research, interviews or observed sessions",
+    "Assistive-technology test results: actual screen-reader output, keyboard order through the 28-day grid, 200% zoom reflow and text scaling",
+    "Design files or visual specifications for this surface",
+    "The deposit, reschedule, approval-request and waitlist branches exercised end to end"
   ],
-  "owner_decisions": [],
-  "context_document_sha256": "86fc3f6ed2cd51753fee1b9b797b51672b32c3417c23a675f4dcf7701381c597",
-  "status": "ready-for-review"
+  "owner_decisions": [
+    {
+      "id": "Q1",
+      "topic": "Pre-commitment deposit disclosure",
+      "question": "Should the wizard warn a deposit-required customer before they commit, using the depositRequired flag it already fetches at step 4?",
+      "current_interpretation": "It should. The surface enforces a strict post-commitment honesty standard pinned by tests, and the pre-commitment screen has simply not been brought up to it.",
+      "evidence": [
+        "E8",
+        "E16",
+        "E3",
+        "E18"
+      ],
+      "why_it_matters": "It decides whether the most consequential moment in the flow tells a subset of customers something the system already knows to be wrong.",
+      "blocks_review": false
+    },
+    {
+      "id": "Q2",
+      "topic": "Real-world device priority",
+      "question": "Which device should this surface be optimised for?",
+      "current_interpretation": "Unknown. Mobile-first implementation is confirmed, but implementation optimisation is not usage evidence, and none is available.",
+      "evidence": [
+        "E9",
+        "E10",
+        "E23"
+      ],
+      "why_it_matters": "It decides whether the 34x34px calendar targets are the most important accessibility finding on this surface or a marginal one, and whether the desktop sidebar deserves further investment.",
+      "blocks_review": false
+    },
+    {
+      "id": "Q3",
+      "topic": "Customer client offline isolation",
+      "question": "Should customerClient.ts honour VITE_FORCE_OFFLINE as client.ts does, and should the offline guard test cover both clients?",
+      "current_interpretation": "Yes. The asymmetry appears accidental and costs the project both a stated safety guarantee and the ability to write an offline E2E for its only customer write path.",
+      "evidence": [
+        "E11",
+        "E12",
+        "E13",
+        "E19",
+        "E21",
+        "E23"
+      ],
+      "why_it_matters": "It is the precondition for end-to-end testing this surface and for reviewing it against real rendered states in future.",
+      "blocks_review": false
+    },
+    {
+      "id": "Q4",
+      "topic": "Cancellation-window copy at the commitment point",
+      "question": "Should step 5's cancellation sentence be corrected to the real rule, or derived from the configured settings?",
+      "current_interpretation": "It should at minimum be corrected. At the default of 24 hours before the appointment's start time, the current copy over-promises: a Tuesday 08:30 appointment cannot be cancelled on Monday evening, though 'up until the day before' says it can.",
+      "evidence": [
+        "E8",
+        "E24"
+      ],
+      "why_it_matters": "It is a second instance of hardcoded copy asserting a fact the server actually governs, at the same commitment point as the deposit gap.",
+      "blocks_review": false
+    }
+  ],
+  "context_document_sha256": "12134ed19cfee545fe2a42fca7fee6b24614b2097212e61b82212e22c38186ad",
+  "status": "owner-decision-required"
 }
