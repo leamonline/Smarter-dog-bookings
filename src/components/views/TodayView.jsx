@@ -21,7 +21,7 @@ import {
   requiresCareSkipConfirmation,
 } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
-import { BOOKING_STATUS } from "../../constants/index";
+import { BOOKING_STATUS, NO_SHOW_REASON } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
@@ -523,7 +523,7 @@ export function TodayView({
       b,
       await patch(
         b,
-        { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
+        { status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON },
         `${b.dogName} marked as a no-show`,
         "Marking this booking as a no-show could not be saved.",
       ),

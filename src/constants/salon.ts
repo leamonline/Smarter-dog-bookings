@@ -130,6 +130,20 @@ export const BOOKING_STATUS = {
 
 export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
 
+// A no-show is recorded as a CANCELLED booking carrying this exact reason.
+// NO_SHOW_REASON is the value staff write; NO_SHOW_REASON_NORMALISED is what
+// readers compare against after trimming and lower-casing, so free-text reasons
+// ("Rescheduled via WhatsApp", "Deposit not received") never match by accident.
+// Reports must never infer a no-show from a past booking left on "Booked" —
+// that is unclosed paperwork, and counting it overstates the rate.
+export const NO_SHOW_REASON = "No-show";
+export const NO_SHOW_REASON_NORMALISED = "no-show";
+
+/** True if `cancelReason` records a genuine, staff-confirmed no-show. */
+export function isNoShowReason(cancelReason: string | null | undefined): boolean {
+  return (cancelReason || "").trim().toLowerCase() === NO_SHOW_REASON_NORMALISED;
+}
+
 // The five-step status progression for a booking. The card's
 // inline segmented control walks staff through these in order; the
 // detail modal still allows arbitrary jumps for edge cases.

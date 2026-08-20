@@ -19,6 +19,7 @@ import {
   ALL_DAYS,
   DAILY_DOG_CAP,
   BOOKING_STATUS,
+  isNoShowReason,
 } from "../constants/index";
 import { paymentMethodLabel } from "../constants/salon";
 import { computeBookingPricing, isCountableBooking } from "./bookingRules";
@@ -397,7 +398,7 @@ export function computeOutcomes(
   });
   const rescheduleCount = evInWindow.filter((e) => e.event_type === "rescheduled").length;
   const cancels = evInWindow.filter((e) => e.event_type === "cancelled");
-  const noShowConfirmedCount = cancels.filter((e) => (e.cancel_reason || "").toLowerCase() === "no-show").length;
+  const noShowConfirmedCount = cancels.filter((e) => isNoShowReason(e.cancel_reason)).length;
   const lateCancelCount = cancels.filter(isLateCancellation).length;
 
   const bWindow = bookings.filter((b) => inCurrentWindow(b, cutoffStr, todayStr) && isOpen(b.booking_date));
@@ -406,7 +407,8 @@ export function computeOutcomes(
   const cancelRate = (list: AnalyticsBooking[]) =>
     list.length > 0 ? (list.filter((b) => !isCountableBooking(b)).length / list.length) * 100 : 0;
 
-  // Legacy proxy: a past-dated booking still sitting in "Booked".
+  // Past-dated bookings still sitting in "Booked". Reported as work to close
+  // off, never as inferred no-shows — see NO_SHOW_REASON in constants/salon.
   const noShowProxyCount = bWindow.filter(
     (b) => b.status === BOOKING_STATUS.BOOKED && b.booking_date < todayStr,
   ).length;
