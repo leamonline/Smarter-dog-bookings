@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink } from "lucide-react";
+import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink, ClipboardList } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
 import { navTargetFor, PRIMARY_NAV } from "./navConfig.jsx";
@@ -170,6 +170,13 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[230px] overflow-hidden animate-[fadeIn_0.12s_ease-out]"
             >
               <button
+                onClick={() => { navigate("/needs-attention"); setOpenMenu(null); }}
+                className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
+              >
+                <ClipboardList size={16} strokeWidth={2.2} className="shrink-0 text-slate-500" aria-hidden="true" />
+                Needs Attention
+              </button>
+              <button
                 onClick={() => { navigate("/settings"); setOpenMenu(null); }}
                 className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
               >
@@ -300,6 +307,13 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                   Week overview
                 </button>
               )}
+              <button
+                onClick={() => { navigate("/needs-attention"); setOpenMenu(null); }}
+                className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
+              >
+                <ClipboardList size={16} strokeWidth={2.2} className="shrink-0 text-slate-500" aria-hidden="true" />
+                Needs Attention
+              </button>
               <button
                 onClick={() => { navigate("/settings"); setOpenMenu(null); }}
                 className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
