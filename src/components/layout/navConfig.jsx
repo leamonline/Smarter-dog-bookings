@@ -133,5 +133,6 @@ export function sectionTitleFor(pathname) {
   if (pathname.startsWith("/inbox")) return "Inbox";
   if (pathname.startsWith("/reports")) return "Reports";
   if (pathname.startsWith("/settings")) return "Settings";
+  if (pathname.startsWith("/needs-attention")) return "Needs Attention";
   return "Bookings";
 }

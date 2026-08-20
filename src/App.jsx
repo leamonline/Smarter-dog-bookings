@@ -132,6 +132,11 @@ const TodayView = lazy(() =>
     default: module.TodayView,
   })),
 );
+const NeedsAttentionView = lazy(() =>
+  import("./components/views/NeedsAttentionView.jsx").then((module) => ({
+    default: module.NeedsAttentionView,
+  })),
+);
 const WeekCalendarView = lazy(() =>
   import("./components/layout/WeekCalendarView.jsx").then((module) => ({
     default: module.WeekCalendarView,
@@ -217,6 +222,7 @@ const ROUTE_CHUNK_IMPORTS = [
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
   ["/settings", () => import("./components/views/SettingsView.jsx")],
+  ["/needs-attention", () => import("./components/views/NeedsAttentionView.jsx")],
   ["/reports", () => import("./components/views/reports/ReportsLayout.jsx")],
   ["/", () => import("./components/layout/WeekCalendarView.jsx")],
 ];
@@ -1151,6 +1157,16 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     )
                   } />
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
+                  {/* Read-only backlog of unfinished work from previous days.
+                      Clicking an item opens the shared BookingDetailModal via
+                      handleOpenBooking — the view itself mutates nothing. */}
+                  <Route path="/needs-attention" element={
+                    <NeedsAttentionView
+                      dogs={dogs}
+                      humans={humans}
+                      onOpenBooking={handleOpenBooking}
+                    />
+                  } />
                   <Route path="/today" element={
                     <TodayView
                       selectedDateObj={currentDateObj}
