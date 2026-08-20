@@ -49,7 +49,19 @@ describe("BookingHealth", () => {
     renderHealth();
 
     expect(screen.getByText("9%")).toBeInTheDocument();
-    expect(screen.getByText(/1\s*\/\s*11/)).toBeInTheDocument();
+    // "1/11 kept" read as though one appointment was kept, when 1 is the
+    // no-show count — the caption must say what the numerator counts.
+    expect(screen.getByText(/1 of 11 dogs due in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/kept/i)).not.toBeInTheDocument();
+  });
+
+  it("explains the denominator, so the basis needs no reverse engineering", () => {
+    renderHealth();
+
+    const note = screen.getByText(/cancelled ahead of time/i);
+    expect(note).toBeInTheDocument();
+    expect(note.textContent).toMatch(/counted either way/i);
+    expect(note.textContent).toMatch(/out of the dogs due in/i);
   });
 
   it("reports unclassified past bookings separately from no-shows", () => {
