@@ -1,128 +1,175 @@
 {
-  "workflow_version": "1.0.0",
-  "review_date": "2026-08-05",
-  "review_target": "Current Daily Brief (/today) three-lane status board for a selected date, staff dashboard",
+  "workflow_version": "2.0.0",
+  "review_date": "2026-08-20",
+  "review_target": "Customer self-service booking wizard (/customer portal, BookingWizard) — five-step flow plus terminal screens",
   "source_context": {
-    "context_sha256": "86fc3f6ed2cd51753fee1b9b797b51672b32c3417c23a675f4dcf7701381c597",
-    "handoff_sha256": "71e5fb58e09d4c1bf1340ff67e2d3e6cfada571b3cc7c595736a64a1037bf339",
-    "manifest_status": "ready-for-review",
-    "repository": "leamonline/Smarter-dog-bookings",
-    "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6"
+    "context_sha256": "12134ed19cfee545fe2a42fca7fee6b24614b2097212e61b82212e22c38186ad",
+    "handoff_sha256": "f475513d1d368deb8e6cf6ef240e44258cbf089bc640e26066cc6ef2956edd11",
+    "manifest_status": "owner-decision-required",
+    "context_currency": "current",
+    "context_revalidated_on": "2026-08-20",
+    "context_currency_override_reason": ""
   },
   "review_scope": {
-    "workflow": "Staff scan lane warnings and the live due-to-arrive marker to find who needs action, then move each dog through Arriving to With us to Ready to go to Home today, resolving confirmation, welfare and payment exceptions, on today's date or a chosen date",
+    "interface": "Customer booking wizard: five steps (dogs, services, date, time, confirm), the desktop summary sidebar, and the booked / deposit-held / waitlisted / request-sent / invalid-reschedule terminal screens",
     "states": [
-      "populated/busy day across all four lanes",
-      "near-empty real-today day",
-      "closed day with zero bookings",
-      "unknown/legacy booking-status recovery",
-      "past selected date (Home on this date)"
+      "wizard shell empty, partial and full (rendered)",
+      "real DateSelection in its incomplete-availability degraded state (rendered)",
+      "summary sidebar empty, partial and full (rendered)",
+      "success screen and calendar open/full/closed legend (static reconstruction)",
+      "steps 1, 2, 4 and 5 including the commitment point (implementation and tests only, never rendered)",
+      "loading, empty, fetch-failure and server-refusal states (implementation and tests only)"
     ],
     "viewports": [
-      "390x844 (phone)",
-      "1024x900 (tablet, md/lg band)",
-      "1440x900 (desktop, xl band)"
+      "390x844 (rendered)",
+      "1280x720 (rendered)",
+      "640-1023px band (CSS only, not rendered)"
     ],
     "visual_evidence_observed": true,
     "production_observed": false,
-    "settled_scope_override": false
+    "settled_scope_override": true,
+    "settled_scope_override_reason": "The source context is current and complete for this surface but carries four open owner decisions (Q1 deposit disclosure, Q2 device priority, Q3 offline isolation, Q4 cancellation copy). None of them blocks the review: each recommendation is stated within the settled scope of the approved five-step structure, and the two decisions that bear on implementation (Q1, Q4) shape how recommendations 1 and 2 are built rather than whether they are warranted. Q2 is carried explicitly as a conditional on recommendation 5's priority rather than resolved by assumption, and no viewport is treated as primary."
   },
   "review_evidence_sources": [
     {
       "id": "R1",
       "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-05",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["390x844"],
-      "states": ["today (2026-08-05, Wednesday), sparse sample data"],
-      "exercised": "page load, screenshot, full-page text and accessibility-tree read",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+      "location": "http://localhost:5174/dev/booking-wizard-shell-preview",
+      "version_or_ref": "main@c1da6852, observed 2026-08-20",
+      "viewports": [
+        "1280x720"
+      ],
+      "states": [
+        "wizard shell empty",
+        "wizard shell partial",
+        "wizard shell full",
+        "BookingSummarySidebar at all three fill states"
+      ],
+      "exercised": "Page load, accessibility-tree read, full-text extraction, computed-style and geometry probes on the two-column grid and the sidebar",
+      "limitations": [
+        "Mounts static placeholders in place of steps 1, 2, 4 and 5",
+        "Runs inside the staff app shell rather than the customer portal shell",
+        "Establishes nothing about production routing, authentication, live data or end-to-end behaviour"
+      ]
     },
     {
       "id": "R2",
       "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-03",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["390x844"],
-      "states": ["populated sample Monday: Arriving, With us, Ready to go, Home on this date, unknown-status recovery"],
-      "exercised": "page load, screenshot, full-page text read, accessibility-tree read",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven; only one populated sample day exists in the fixture"]
+      "location": "http://localhost:5174/dev/booking-wizard-shell-preview",
+      "version_or_ref": "main@c1da6852, observed 2026-08-20",
+      "viewports": [
+        "390x844"
+      ],
+      "states": [
+        "same harness content at phone width",
+        "single-column collapse with the sidebar removed"
+      ],
+      "exercised": "Viewport resize; computed-style probes; bounding-box measurement of all 38 calendar day and navigation buttons; WCAG contrast computation against resolved backgrounds; document horizontal-overflow check",
+      "limitations": [
+        "Measurements are of the harness instance, not an authenticated production session",
+        "Screenshot capture failed because the browser pane stayed hidden, so no image evidence exists",
+        "Proves nothing about production, live data or end-to-end behaviour"
+      ]
     },
     {
       "id": "R3",
       "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-03 (resized in-session)",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["1024x900"],
-      "states": ["same populated sample Monday as R2"],
-      "exercised": "viewport resize, screenshot",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
+      "location": "http://localhost:5174/dev/booking-wizard-shell-preview — the real DateSelection instance",
+      "version_or_ref": "main@c1da6852, observed 2026-08-20",
+      "viewports": [
+        "390x844",
+        "1280x720"
+      ],
+      "states": [
+        "DateSelection incomplete-availability (degraded) state, reached because all three availability RPCs returned 42501 permission denied to an unauthenticated caller"
+      ],
+      "exercised": "Accessible-name extraction from 28 day buttons; data-state inspection; contrast measurement of open and closed day numerals; verification that the legend is withheld and the honest hint rendered",
+      "limitations": [
+        "The complete availability state was never rendered, so open, full and closed were never seen together",
+        "The degradation cause is an unauthenticated caller, not a production outage",
+        "Establishes nothing about production, live data or real user behaviour"
+      ]
     },
     {
       "id": "R4",
-      "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-03 (resized in-session)",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["1440x900"],
-      "states": ["same populated sample Monday as R2"],
-      "exercised": "viewport resize, screenshot",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
-    },
-    {
-      "id": "R5",
-      "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-06",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["1440x900", "390x844"],
-      "states": ["closed, non-open day with zero bookings"],
-      "exercised": "page load, screenshot, full-page text read",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven"]
-    },
-    {
-      "id": "R6",
-      "source_type": "development-harness",
-      "location": "R1/R2 URLs above",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["390x844"],
-      "states": ["attempted date-picker open", "attempted Home-today disclosure expand"],
-      "exercised": "left_click on the Choose date button, its calendar icon, and the Show 1 dog sent home toggle (three attempts)",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, and no real-user or end-to-end behaviour is proven", "Every click attempt in this session returned a tool-level timeout with no observable DOM change, while screenshot, scroll, resize, keyboard Escape and navigation all worked normally in the same session; registered as an inconclusive interaction gap, not a confirmed product defect"]
-    },
-    {
-      "id": "R7",
-      "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-03",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["390x844"],
-      "states": ["same populated sample Monday as R2"],
-      "exercised": "read_page accessibility-tree extraction (interactive filter)",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, no database integration, and no real-user or end-to-end behaviour is proven; confirms accessible names and structure only, not actual screen-reader output or keyboard traversal"]
-    },
-    {
-      "id": "R8",
-      "source_type": "development-harness",
-      "location": "http://localhost:5174/today?date=2026-08-03",
-      "commit": "6d73281a5010737725c60bc6f24bfdf7536f26e6",
-      "viewports": ["390x844"],
-      "states": ["same populated sample Monday as R2"],
-      "exercised": "getComputedStyle/canvas-based colour sampling on two text elements",
-      "limitations": ["Development harness with mock sample data; no authentication, no production data, and no real-user or end-to-end behaviour is proven", "The sampling method could not reliably resolve Tailwind v4 OKLCH-based translucent background colours against the true composited page background, so only one of two attempted measurements is reported with confidence"]
+      "source_type": "static-reconstruction",
+      "location": "src/components/dev/BookingWizardShellPreview.jsx — SuccessScreenMock and CalendarStatesMock",
+      "version_or_ref": "main@c1da6852, observed 2026-08-20",
+      "viewports": [
+        "390x844",
+        "1280x720"
+      ],
+      "states": [
+        "success screen",
+        "calendar open / fully booked / closed with legend"
+      ],
+      "exercised": "Visual and structural inspection of hand-copied markup",
+      "limitations": [
+        "Hand-maintained copies of markup that lives inline in BookingWizard.tsx, not the components themselves",
+        "Can drift from the real screens without any test failing, so treated as indicative of intended appearance only"
+      ]
     }
   ],
   "evidence_used": [
-    "E1", "E3", "E4", "E5", "E6", "E8", "E9", "E12", "E13", "E16", "E20",
-    "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"
+    "E1",
+    "E3",
+    "E4",
+    "E5",
+    "E6",
+    "E7",
+    "E8",
+    "E9",
+    "E10",
+    "E11",
+    "E12",
+    "E13",
+    "E14",
+    "E16",
+    "E18",
+    "E19",
+    "E21",
+    "E23",
+    "E24",
+    "R1",
+    "R2",
+    "R3",
+    "R4"
   ],
   "material_gaps": [
-    "Click-triggered state changes (date-picker open, Home-today disclosure, every journey/action button, every More menu, the mini-invoice and unpaid-collection modals) could not be confirmed in this session (R6)",
-    "No loading-skeleton, request-failure, or realtime cross-device move state was observed live; these remain Supported interpretation from code only",
-    "Screen-reader output, real keyboard-only tab order, and 200% zoom/text-scaling reflow were not tested",
-    "Exact WCAG contrast ratios could not be measured for translucent tinted badges (R8)",
-    "Only one populated sample weekday (Monday) exists in the offline fixture, so a typical day could not be cross-checked against a second busy day"
+    "No authenticated state of the wizard was rendered; steps 1, 2, 4 and 5 including the commitment point were assessed from implementation and passing component tests only",
+    "No real-world device evidence, so no viewport is treated as primary and recommendation 5's priority stays conditional",
+    "No assistive-technology testing: screen-reader output, keyboard order through the 28-day grid, and 200% zoom reflow were not exercised",
+    "The customer portal has no offline or sample-data mode, which is the direct cause of the three gaps above",
+    "Production salon_config values were not queried, so recommendation 2 is stated against the documented defaults"
   ],
   "structural_changes": [],
-  "owner_decisions_required": [],
+  "owner_decisions_required": [
+    {
+      "id": "Q1",
+      "topic": "Pre-commitment deposit disclosure",
+      "bears_on": "recommendation 1",
+      "blocks_review": false
+    },
+    {
+      "id": "Q2",
+      "topic": "Real-world device priority",
+      "bears_on": "recommendation 5 priority",
+      "blocks_review": false
+    },
+    {
+      "id": "Q3",
+      "topic": "Customer client offline isolation",
+      "bears_on": "recommendation 7",
+      "blocks_review": false
+    },
+    {
+      "id": "Q4",
+      "topic": "Cancellation-window copy at the commitment point",
+      "bears_on": "recommendation 2",
+      "blocks_review": false
+    }
+  ],
   "production_code_requested": false,
-  "review_document_sha256": "de41cd57d1f481fdac44f6871656970dc31fe85cf2a08c4a14efaf06e67f2267",
-  "status": "ready"
+  "review_document_sha256": "d5904008dbc762683f0dcc5b3c1cd2ed59d3f17b40828ac050d828c594492950",
+  "status": "owner-decision-required"
 }

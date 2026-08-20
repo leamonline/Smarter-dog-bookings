@@ -2,12 +2,20 @@
 // src/components/dev/BookingWizardShellPreview.jsx
 //
 // Dev-only harness for the booking wizard's responsive shell (the
-// .booking-wizard-inner two-column grid + BookingSummarySidebar). The real
-// step components (DogSelection, DateSelection, ...) fetch live data from
-// Supabase internally, so this harness swaps in a static placeholder for
-// the step content and mounts the REAL BookingSummarySidebar with mocked
-// props at a few fill states, to check the shell/grid/breakpoints without
-// needing an authenticated customer session.
+// .booking-wizard-inner two-column grid + BookingSummarySidebar). Steps 1-4
+// fetch live data from Supabase internally, so this harness swaps in a static
+// placeholder for their content and mounts the REAL BookingSummarySidebar and
+// the REAL BookingConfirmation with mocked props, to check the shell, the
+// breakpoints and the commitment-point copy without an authenticated session.
+//
+// WARNING: this harness is NOT isolated from production. customerClient.ts
+// keys off credential presence alone and does NOT honour VITE_FORCE_OFFLINE
+// (client.ts, the staff client, does) -- so with a populated .env.local the
+// customer client is live here and the real DateSelection below WILL issue
+// requests to the production project. They come back 401 / 42501 because
+// get_open_days, get_occupancy_range and get_blocked_seats are all granted to
+// `authenticated` only, so nothing is read and nothing is written. Do not
+// mistake that for isolation, and do not add anything here that writes.
 //
 // Mounted on /dev/booking-wizard-shell-preview, gated by
 // `import.meta.env.DEV` in the router so it never bundles into production.
@@ -16,8 +24,16 @@
 import { PawPrint } from "lucide-react";
 import { BookingSummarySidebar } from "../customer/booking/BookingSummarySidebar";
 import { DateSelection } from "../customer/booking/DateSelection";
+import { BookingConfirmation } from "../customer/booking/BookingConfirmation";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
+import { depositForDogsPence } from "../../constants/index";
 import "../customer/booking/booking-wizard.css";
+// BookingConfirmation's summary rows are .portal-detail-row, which is styled in
+// customer-portal.css — loaded by CustomerApp in the real portal but not by the
+// staff app this harness runs inside. Without it the labels and values collapse
+// together ("TotalFrom £80") and the preview misrepresents the real screen.
+// CustomerDashboardCardsPreview imports it for the same reason.
+import "../../customer-portal.css";
 
 function SuccessScreenMock() {
   // Static mock of the "All booked in!" screen — its real markup lives
@@ -138,10 +154,13 @@ function ShellFrame({ title, state }) {
 }
 
 function CalendarNavFrame() {
-  // The REAL DateSelection component — it degrades gracefully with no
-  // Supabase client (offline mode), falling back to the default open-day
-  // heuristic. Renders here to check that Previous/Next stay pinned at a
-  // fixed position as paging changes the grid from 4 to 6 rows.
+  // The REAL DateSelection component. Unauthenticated, its availability reads
+  // are refused by the server, so it lands in the incomplete-availability
+  // branch: no legend, an honest "we couldn't check every date" status, and
+  // days falling back to the default Mon-Wed open heuristic. That IS a state
+  // worth looking at -- it is what a customer sees when availability fails --
+  // but it is not the complete state. Renders here to check that Previous/Next
+  // stay pinned at a fixed position as paging changes the grid from 4 to 6 rows.
   return (
     <section className="mb-10">
       <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
@@ -165,10 +184,10 @@ function CalendarNavFrame() {
 }
 
 function CalendarStatesMock() {
-  // Static mock of the open/closed/fully-booked visual language + legend —
-  // offline mode's Supabase client is null, so the real DateSelection can
-  // never reach the "complete" branch that shows the legend or a "full" day.
-  // This exercises the exact same markup/classes by hand instead.
+  // Static mock of the open/closed/fully-booked visual language + legend. The
+  // real DateSelection above cannot reach the "complete" branch here because
+  // its availability RPCs are refused to an unauthenticated caller (see the
+  // file header), so this exercises the same markup and classes by hand.
   return (
     <section className="mb-10">
       <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
@@ -235,6 +254,85 @@ function CalendarStatesMock() {
   );
 }
 
+// The REAL BookingConfirmation — step 5, the commitment point. Unlike the other
+// steps it needs no Supabase client of its own: everything it renders arrives as
+// props, so the harness can show every combination that matters without an
+// authenticated customer session.
+//
+// These are the two facts that used to be wrong here. The deposit was never
+// mentioned until AFTER the booking was written, and the cancellation window was
+// hard-coded to "the day before" while the server enforces a configurable
+// deadline measured from the appointment's start time.
+function CommitmentFactsFrame() {
+  const dogRecords = [
+    { id: "dog-1", name: "Alfie", breed: "Boston Terrier", size: "small", reportedSize: "small", isPregnant: false },
+    { id: "dog-2", name: "Tipi", breed: "Boston Terrier", size: "small", reportedSize: "small", isPregnant: false },
+  ];
+  const oneDog = [{ dogId: "dog-1", name: "Alfie", size: "small" }];
+  const twoDogs = [...oneDog, { dogId: "dog-2", name: "Tipi", size: "small" }];
+  const serverSentence = "Changes close 24 hours before your appointment.";
+
+  const cases = [
+    {
+      title: "No deposit — deadline sentence from the server",
+      props: { selectedDogs: oneDog, services: { "dog-1": "full-groom" }, changeDeadlineNote: serverSentence },
+    },
+    {
+      title: "Deposit, one dog — £10 held, rest at pick-up",
+      props: {
+        selectedDogs: oneDog,
+        services: { "dog-1": "full-groom" },
+        depositTotal: depositForDogsPence(1) / 100,
+        changeDeadlineNote: serverSentence,
+      },
+    },
+    {
+      title: "Deposit, two dogs — flat per dog, so £20 (the case that used to say £10)",
+      props: {
+        selectedDogs: twoDogs,
+        services: { "dog-1": "full-groom", "dog-2": "bath-and-brush" },
+        depositTotal: depositForDogsPence(2) / 100,
+        changeDeadlineNote: serverSentence,
+      },
+    },
+    {
+      title: "Policy unknown or cancellations switched off — no promise at all",
+      props: { selectedDogs: oneDog, services: { "dog-1": "full-groom" }, changeDeadlineNote: null },
+    },
+  ];
+
+  return (
+    <>
+      {cases.map(({ title, props }) => (
+        <section className="mb-10" key={title}>
+          <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
+            Real BookingConfirmation — {title}
+          </h3>
+          <div className="booking-wizard" style={{ minHeight: 0, borderRadius: 16, overflow: "hidden" }}>
+            <div className="booking-wizard-inner">
+              <div className="booking-wizard-main">
+                <BookingConfirmation
+                  selectedDate="2099-06-15"
+                  slotAllocation={{
+                    dropOffTime: "10:00",
+                    groupId: "g1",
+                    assignments: props.selectedDogs.map((d) => ({ dogId: d.dogId, slot: "10:00" })),
+                  }}
+                  onConfirm={() => {}}
+                  onBack={() => {}}
+                  submitting={false}
+                  dogs={dogRecords}
+                  {...props}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
 export function BookingWizardShellPreview() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
@@ -245,6 +343,7 @@ export function BookingWizardShellPreview() {
         above it, the sidebar should appear, stick on scroll, and fill in as state
         changes below.
       </p>
+      <CommitmentFactsFrame />
       <SuccessScreenMock />
       <CalendarStatesMock />
       <CalendarNavFrame />

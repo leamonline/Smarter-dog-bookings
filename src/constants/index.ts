@@ -17,6 +17,8 @@ export {
   getStatusDisplay,
   DOG_SIZES,
   DOG_SIZE,
+  DEPOSIT_PER_DOG_PENCE,
+  depositForDogsPence,
 } from "./salon";
 export {
   DEFAULT_BUSINESS_NAME,

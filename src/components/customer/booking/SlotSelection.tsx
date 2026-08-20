@@ -149,8 +149,21 @@ export function SlotSelection({
   const isToday = selectedDate === toDateStr(new Date());
 
   const totalSlots = preferredSlots.length + availableSlots.length;
-  const morning = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) < 12);
-  const afternoon = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) >= 12);
+  // findGroupedSlots returns every "all dogs in one slot" option first, then the
+  // ones that split the group across adjacent slots — a sensible preference
+  // order for the engine, but an invisible one here, where the headings promise
+  // times. Left unsorted it renders as 12:30pm above 12:00pm. Sort for display
+  // only; the engine's ordering is not ours to change (it is duplicated in the
+  // Deno edge functions and mirrored by the DB trigger).
+  const byTime = (a: SlotAllocation, b: SlotAllocation) =>
+    a.dropOffTime.localeCompare(b.dropOffTime);
+  const morning = availableSlots
+    .filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) < 12)
+    .sort(byTime);
+  const afternoon = availableSlots
+    .filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) >= 12)
+    .sort(byTime);
+  const preferredInOrder = [...preferredSlots].sort(byTime);
 
   const renderSlotTile = (allocation: SlotAllocation, starred = false) => {
     const selected = selectedDropOff === allocation.dropOffTime;
@@ -246,7 +259,7 @@ export function SlotSelection({
               <>
                 <h3 className="wizard-slot-group">Your usual time</h3>
                 <div className="flex flex-col gap-2">
-                  {preferredSlots.map((a) => renderSlotTile(a, true))}
+                  {preferredInOrder.map((a) => renderSlotTile(a, true))}
                 </div>
               </>
             )}
