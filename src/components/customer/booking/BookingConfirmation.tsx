@@ -1,4 +1,4 @@
-import { SERVICES } from "../../../constants/index";
+import { SERVICES, DEPOSIT_PER_DOG_PENCE } from "../../../constants/index";
 import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/bookingRules";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
@@ -14,6 +14,18 @@ interface BookingConfirmationProps {
   submitting: boolean;
   dogs: CustomerDog[];
   approvalRequired?: boolean;
+  /**
+   * Total deposit in pounds for this visit (flat per dog), or null when no deposit
+   * is due OR when the per-owner rule could not be read. Null renders nothing:
+   * the rule fails open, so silence here is not a promise that nothing is owed.
+   */
+  depositTotal?: number | null;
+  /**
+   * Staff-configured sentence describing the change deadline, straight from
+   * `current_customer_booking_rules()`. Null when cancellation is switched off or
+   * the policy could not be read — in both cases no promise is displayed.
+   */
+  changeDeadlineNote?: string | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -52,6 +64,8 @@ export function BookingConfirmation({
   submitting,
   dogs,
   approvalRequired = false,
+  depositTotal = null,
+  changeDeadlineNote = null,
 }: BookingConfirmationProps) {
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
   const total = selectedDogs.reduce((sum, dog) => {
@@ -118,15 +132,37 @@ export function BookingConfirmation({
         {total > 0 && (
           <div className="portal-detail-row">
             <span className="portal-detail-label">Total</span>
-            <span className="portal-detail-value">From {"£"}{total} (paid at pick-up)</span>
+            <span className="portal-detail-value">
+              From {"£"}{total}
+              {depositTotal == null ? " (paid at pick-up)" : ""}
+            </span>
+          </div>
+        )}
+
+        {/* A deposit changes what confirming means — the appointment is HELD, not
+            booked outright — so it belongs beside the total, before the commit,
+            rather than only on the success screen after it. */}
+        {depositTotal != null && (
+          <div className="portal-detail-row">
+            <span className="portal-detail-label">Deposit</span>
+            <span className="portal-detail-value">
+              <strong>{"£"}{depositTotal}</strong> to hold this appointment
+              <div className="text-[12px] font-medium text-[var(--sd-ink-light)] mt-0.5">
+                {selectedDogs.length > 1
+                  ? `£${DEPOSIT_PER_DOG_PENCE / 100} per pup · the rest is paid at pick-up`
+                  : "The rest is paid at pick-up"}
+              </div>
+            </span>
           </div>
         )}
       </div>
 
-      <p className="text-[12px] text-[var(--sd-ink-light)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
-        <PawPrint size={12} aria-hidden="true" />
-        Need to cancel? You can do that from your dashboard up until the day before.
-      </p>
+      {changeDeadlineNote && (
+        <p className="text-[12px] text-[var(--sd-ink-light)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
+          <PawPrint size={12} aria-hidden="true" />
+          {changeDeadlineNote}
+        </p>
+      )}
 
       <div className="wizard-actions">
         <button

@@ -45,4 +45,42 @@ describe("DogSelection requires staff-confirmed size", () => {
     expect(screen.getAllByText(/size not confirmed/i)).toHaveLength(2);
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("offers a way to get the size confirmed, reachable outside the disabled row", () => {
+    // Telling someone to "message us first" without giving them the means is a
+    // dead end. The link must also sit OUTSIDE the disabled button, or keyboard
+    // and switch users can never reach it.
+    render(
+      <DogSelection
+        dogs={dogs}
+        selectedDogs={[]}
+        onSelect={noop}
+        onNext={noop}
+        onDogAdded={noop}
+        humanId="h1"
+        loading={false}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /message us on WhatsApp/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", expect.stringContaining("wa.me"));
+    expect(link.closest("button")).toBeNull();
+  });
+
+  it("stays quiet when every dog has a confirmed size", () => {
+    render(
+      <DogSelection
+        dogs={[{ id: "ok", name: "Coco", breed: "Cockapoo", size: "medium", reportedSize: "medium", isPregnant: false }]}
+        selectedDogs={[]}
+        onSelect={noop}
+        onNext={noop}
+        onDogAdded={noop}
+        humanId="h1"
+        loading={false}
+      />,
+    );
+
+    expect(screen.queryByText(/confirm a pup.s size/i)).toBeNull();
+  });
 });

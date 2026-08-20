@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
-  maybeSingle: vi.fn(),
+  depositRows: vi.fn(),
   createMany: vi.fn(),
   listOnDateForCapacity: vi.fn(),
   listBlockedSeats: vi.fn(),
@@ -123,20 +123,22 @@ describe("BookingWizard deposit truthfulness", () => {
       },
       releaseHours: 12,
     });
-    mocks.maybeSingle.mockResolvedValue({
-      data: {
-        deposit_required: true,
-        deposit_reference: "SDG-7K3M",
-        deposit_due_by: "2099-06-14T09:00:00Z",
-        deposit_amount: 10,
-      },
+    // The wizard reads back EVERY inserted row, because the deposit is a flat
+    // amount per dog and a multi-dog visit holds more than one dog's worth.
+    mocks.depositRows.mockResolvedValue({
+      data: [
+        {
+          deposit_required: true,
+          deposit_reference: "SDG-7K3M",
+          deposit_due_by: "2099-06-14T09:00:00Z",
+          deposit_amount: 10,
+        },
+      ],
       error: null,
     });
     mocks.from.mockReturnValue({
       select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: mocks.maybeSingle,
-        })),
+        in: mocks.depositRows,
       })),
     });
   });
@@ -175,7 +177,7 @@ describe("BookingWizard deposit truthfulness", () => {
   });
 
   it("fails honest when the new booking's deposit status cannot be checked", async () => {
-    mocks.maybeSingle.mockResolvedValueOnce({
+    mocks.depositRows.mockResolvedValueOnce({
       data: null,
       error: { message: "temporary read failure" },
     });

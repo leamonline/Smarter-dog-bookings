@@ -101,6 +101,27 @@ export function DogSelection({
             );
           })}
 
+          {/* A blocked dog must come with the means to unblock it. The row itself
+              is a disabled button, so the link lives out here where it stays
+              focusable — same placement as the pregnancy note below. */}
+          {dogs.some((dog) => !(DOG_SIZES as readonly string[]).includes(dog.size as string)) && (
+            <p
+              role="note"
+              className="m-0 px-1 text-[12px] font-semibold text-[var(--sd-coral)]"
+            >
+              We need to confirm a pup&apos;s size before booking them in —{" "}
+              <a
+                href={SALON_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                message us on WhatsApp 🐾
+              </a>
+              .
+            </p>
+          )}
+
           {dogs.some((dog) => dog.isPregnant) && (
             <p
               role="note"

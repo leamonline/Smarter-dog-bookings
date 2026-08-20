@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   parseCustomerBookingHorizonDays,
+  parseCustomerPortalPolicy,
   resolveCustomerBookingHorizonDays,
+  resolveCustomerPortalPolicy,
+  UNKNOWN_PORTAL_POLICY,
 } from "./customerBookingRules";
 
 describe("parseCustomerBookingHorizonDays", () => {
@@ -37,5 +40,75 @@ describe("resolveCustomerBookingHorizonDays", () => {
     const client = { rpc: async () => response };
 
     await expect(resolveCustomerBookingHorizonDays(client as never)).resolves.toBe(28);
+  });
+});
+
+describe("parseCustomerPortalPolicy", () => {
+  // Captured from production `current_customer_booking_rules()` on 2026-08-20.
+  const productionPayload = {
+    termsUrl: "https://smarterdog.co.uk/terms",
+    intakeEnabled: true,
+    changeDeadline: {
+      rule: "rolling_24h",
+      description: "Changes close 24 hours before your appointment.",
+    },
+    customerPortal: {
+      showHistory: true,
+      allowRescheduling: true,
+      allowCancellations: true,
+      allowRepeatBooking: true,
+    },
+    bookingHorizonDays: 180,
+  };
+
+  it("reads the deadline sentence and cancellation flag from the production payload", () => {
+    expect(parseCustomerPortalPolicy(productionPayload)).toEqual({
+      horizonDays: 180,
+      changeDeadlineDescription: "Changes close 24 hours before your appointment.",
+      allowCancellations: true,
+    });
+  });
+
+  it("reports an unknown deadline rather than inventing one", () => {
+    expect(parseCustomerPortalPolicy({ bookingHorizonDays: 180 })).toEqual({
+      horizonDays: 180,
+      changeDeadlineDescription: null,
+      allowCancellations: null,
+    });
+  });
+
+  it.each([
+    ["a non-string description", { changeDeadline: { description: 24 } }],
+    ["a blank description", { changeDeadline: { description: "   " } }],
+    ["a non-object changeDeadline", { changeDeadline: "24 hours" }],
+  ])("treats %s as unknown", (_description, payload) => {
+    expect(parseCustomerPortalPolicy(payload).changeDeadlineDescription).toBeNull();
+  });
+
+  it("distinguishes cancellations switched off from cancellations unknown", () => {
+    expect(
+      parseCustomerPortalPolicy({ customerPortal: { allowCancellations: false } })
+        .allowCancellations,
+    ).toBe(false);
+    expect(
+      parseCustomerPortalPolicy({ customerPortal: { allowCancellations: "yes" } })
+        .allowCancellations,
+    ).toBeNull();
+  });
+
+  it.each([[null], [undefined], ["not an object"]])(
+    "falls back to the unknown policy for payload %o",
+    (payload) => {
+      expect(parseCustomerPortalPolicy(payload)).toEqual(UNKNOWN_PORTAL_POLICY);
+    },
+  );
+});
+
+describe("resolveCustomerPortalPolicy", () => {
+  it("returns the unknown policy on an RPC error, so no promise is rendered", async () => {
+    const client = { rpc: async () => ({ data: null, error: new Error("unavailable") }) };
+    await expect(resolveCustomerPortalPolicy(client as never)).resolves.toEqual(
+      UNKNOWN_PORTAL_POLICY,
+    );
   });
 });

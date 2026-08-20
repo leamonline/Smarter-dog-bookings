@@ -101,6 +101,22 @@ export function paymentMethodLabel(id: string | null | undefined): string {
   return PAYMENT_METHODS.find((m) => m.id === id)?.label || "";
 }
 
+/**
+ * Flat deposit held per dog, in pence, for owners flagged `deposit_required`.
+ *
+ * This is the ONLY place the figure lives on the client. `salon_config.settings`
+ * carries `depositBank` and `depositReleaseHours` but no amount, and production
+ * `bookings.deposit_amount` is null on every existing deposit row — so this
+ * constant is what customers are actually told, both before they commit and on
+ * the success screen. It is **per dog**: a two-dog visit holds twice this.
+ */
+export const DEPOSIT_PER_DOG_PENCE = 1000;
+
+/** Deposit held for a whole visit, in pence. Flat per dog, any size or service. */
+export function depositForDogsPence(dogCount: number): number {
+  return Math.max(0, Math.trunc(dogCount)) * DEPOSIT_PER_DOG_PENCE;
+}
+
 export const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"] as const;
 
 export const ADDON_PRICES: Record<string, number> = {

@@ -13,13 +13,24 @@ import {
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
-import { SALON_SLOTS, DAILY_DOG_CAP } from "../../../constants/index";
+import {
+  SALON_SLOTS,
+  DAILY_DOG_CAP,
+  DEPOSIT_PER_DOG_PENCE,
+  depositForDogsPence,
+} from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
-import { LEGACY_BOOKING_HORIZON_DAYS, resolveCustomerBookingHorizonDays } from "../../../supabase/customerBookingRules";
+import {
+  LEGACY_BOOKING_HORIZON_DAYS,
+  UNKNOWN_PORTAL_POLICY,
+  resolveCustomerPortalPolicy,
+  type CustomerPortalPolicy,
+} from "../../../supabase/customerBookingRules";
+import { getBookingRules } from "../../../supabase/repositories/humansRepo";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
@@ -200,6 +211,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
   const [bookingHorizonDays, setBookingHorizonDays] = useState(LEGACY_BOOKING_HORIZON_DAYS);
+  // The customer-visible policy behind step 5's change-deadline sentence. Starts
+  // "unknown", which renders no promise at all — never a guessed one.
+  const [portalPolicy, setPortalPolicy] = useState<CustomerPortalPolicy>(UNKNOWN_PORTAL_POLICY);
+  // Whether THIS owner must pay a deposit to hold the appointment. Fetched here
+  // rather than read out of SlotSelection because a restored draft can land
+  // straight on step 5 without step 4 ever mounting. null = not established, in
+  // which case step 5 says nothing about deposits (the read fails open, so a
+  // missing flag is not evidence that no deposit is due).
+  const [depositRequired, setDepositRequired] = useState<boolean | null>(null);
   const [datePage, setDatePage] = useState(0);
   const datePageCache = useRef(new Map<string, DatePageAvailability>());
   // Deposit-required owners: the DB stamps reference + due-by at insert;
@@ -222,12 +242,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   useEffect(() => {
     let cancelled = false;
     if (!supabase) return;
-    void resolveCustomerBookingHorizonDays(supabase, (rpcError) => {
+    void resolveCustomerPortalPolicy(supabase, (rpcError) => {
       logger.error("Failed to fetch customer booking rules", rpcError, {
         tags: { component: "BookingWizard", op: "current_customer_booking_rules" },
       });
-    }).then((horizon) => {
-      if (!cancelled) setBookingHorizonDays(horizon);
+    }).then((policy) => {
+      if (cancelled) return;
+      setPortalPolicy(policy);
+      setBookingHorizonDays(policy.horizonDays);
     }).catch((rpcError) => {
       logger.error("Failed to fetch customer booking rules", rpcError, {
         tags: { component: "BookingWizard", op: "current_customer_booking_rules" },
@@ -235,6 +257,24 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     });
     return () => { cancelled = true; };
   }, []);
+
+  // Per-owner deposit rule. Best-effort and fail-open, exactly like SlotSelection's
+  // own read: the DB stamping trigger remains the authority, so a failure here
+  // only means step 5 stays quiet about deposits.
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase) return;
+    void getBookingRules(supabase, humanRecord.id)
+      .then((rules) => {
+        if (!cancelled && rules) setDepositRequired(rules.depositRequired);
+      })
+      .catch((rulesError) => {
+        logger.error("Failed to fetch per-human booking rules", rulesError, {
+          tags: { component: "BookingWizard", op: "get_booking_rules" },
+        });
+      });
+    return () => { cancelled = true; };
+  }, [humanRecord.id]);
 
   // Focus the step heading when the step changes (A2: focus management)
   useEffect(() => {
@@ -514,20 +554,31 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setDepositInfo(null);
       setDepositStatusUnknown(false);
       try {
-        const { data: depRow, error: depositReadError } = await supabase
+        // Read back EVERY inserted row, not just the first. The deposit is a flat
+        // amount per dog, so a two-dog visit holds twice one dog's deposit —
+        // reading row[0] alone told the customer half of what they owed, and an
+        // underpayment cannot be matched, so the appointment would be released.
+        const { data: depRows, error: depositReadError } = await supabase
           .from("bookings")
           .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
-          .eq("id", insertedIds[0])
-          .maybeSingle();
-        if (depositReadError || !depRow) {
+          .in("id", insertedIds);
+        if (depositReadError || !depRows || depRows.length === 0) {
           throw depositReadError ?? new Error("New booking could not be read back");
         }
-        if (depRow?.deposit_required) {
+        const depositRows = depRows.filter((row) => row.deposit_required);
+        if (depositRows.length > 0) {
           const depositSettings = await getDepositSettings(supabase);
+          // Prefer whatever the stamping trigger wrote per row; fall back to the
+          // flat per-dog constant for any row it left null (which is every row in
+          // production today). deposit_amount is stored in pounds, not pence.
+          const amount = depositRows.reduce(
+            (total, row) => total + (row.deposit_amount ?? DEPOSIT_PER_DOG_PENCE / 100),
+            0,
+          );
           setDepositInfo({
-            amount: depRow.deposit_amount ?? 10,
-            reference: depRow.deposit_reference ?? null,
-            dueBy: depRow.deposit_due_by ?? null,
+            amount,
+            reference: depositRows.find((row) => row.deposit_reference)?.deposit_reference ?? null,
+            dueBy: depositRows.find((row) => row.deposit_due_by)?.deposit_due_by ?? null,
             bank: depositSettings.bank,
           });
         }
@@ -930,6 +981,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             submitting={submitting}
             dogs={dogs}
             approvalRequired={approvalRequired}
+            depositTotal={
+              depositRequired === true
+                ? depositForDogsPence(selectedDogs.length) / 100
+                : null
+            }
+            changeDeadlineNote={
+              portalPolicy.allowCancellations === false
+                ? null
+                : portalPolicy.changeDeadlineDescription
+            }
           />
         )}
         </div>
