@@ -107,6 +107,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Repair mis-encoded characters in production's `validate_booking_capacity()`.
+  Seven sequences were double-encoded — UTF-8 decoded as Latin-1 at some point
+  in that function's hand-apply history — of which **three are `raise
+  exception` messages that reach callers**, so any surface showing the raw
+  database message showed `â` where an em dash belonged. No committed
+  migration has ever contained the corruption: it entered through a manual
+  production apply, and the repository has always held the correct text —
+  `035_capacity_behaviour.test.sql` already asserts the clean string with
+  `throws_ok`. Proven text-only rather than asserted: production's body,
+  once both sequences are normalised, hashes identically to the definition
+  local-from-migrations and staging both carry (`2aaa6590…`, 13086
+  characters on all three). The migration derives the repair from the
+  deployed definition by character substitution instead of retyping the
+  348-line body, so "no logic change" is a property of the mechanism, not a
+  promise, and it refuses rather than guesses on any unrecognised sequence or
+  drifted body. Client behaviour is unchanged either way — `mapDenialReason()`
+  matches on substrings that never span the corrupted character, and the
+  wizard maps on `error.code`. No stored `booking_denials` row was affected,
+  and this was the only affected function in the database.
+
 - Stop the booking wizard offering a slot pair the database refuses
   ([#664](https://github.com/leamonline/Smarter-dog-bookings/issues/664)). Two
   large dogs booked together could be offered the 08:30 drop-off, and the
