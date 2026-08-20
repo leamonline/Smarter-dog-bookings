@@ -3,7 +3,10 @@ import {
   classifyNeedsAttention,
   attentionDetail,
   buildNeedsAttention,
+  daysBetweenDateStrings,
+  ageLabel,
   NEEDS_ATTENTION_SECTIONS,
+  NEEDS_ATTENTION_STALE_DAYS,
 } from "./needsAttention";
 import { BOOKING_STATUS } from "../constants/salon";
 import type { Booking } from "../types/index";
@@ -199,7 +202,7 @@ describe("buildNeedsAttention", () => {
     expect(summary.total).toBe(2);
   });
 
-  it("always returns the three sections, newest day first within each", () => {
+  it("always returns the three sections, OLDEST day first within each", () => {
     const summary = buildNeedsAttention(
       [
         booking({ id: "old", _bookingDate: "2026-08-10", status: BOOKING_STATUS.CHECKED_IN }),
@@ -212,8 +215,36 @@ describe("buildNeedsAttention", () => {
       "pastAppointmentReview",
       "paymentInformation",
     ]);
+    // Oldest first: the long-stale row leads, not yesterday's paperwork.
     const review = summary.sections[1];
-    expect(review.items.map((i) => i.booking.id)).toEqual(["new", "old"]);
+    expect(review.items.map((i) => i.booking.id)).toEqual(["old", "new"]);
+  });
+
+  it("stamps each item with its age and staleness, and counts the stale ones", () => {
+    const summary = buildNeedsAttention(
+      [
+        booking({ id: "stale", _bookingDate: "2026-07-20", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "fresh", _bookingDate: YESTERDAY, status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      ],
+      TODAY,
+    );
+    const items = summary.sections[0].items;
+    expect(items.map((i) => i.booking.id)).toEqual(["stale", "fresh"]);
+    expect(items[0].ageDays).toBe(31);
+    expect(items[0].isStale).toBe(true);
+    expect(items[1].ageDays).toBe(1);
+    expect(items[1].isStale).toBe(false);
+    expect(summary.total).toBe(2);
+    expect(summary.staleTotal).toBe(1);
+  });
+
+  it("treats the stale boundary as inclusive", () => {
+    const onBoundary = buildNeedsAttention(
+      [booking({ _bookingDate: "2026-08-06", status: BOOKING_STATUS.READY_FOR_PICKUP })],
+      TODAY,
+    );
+    expect(onBoundary.sections[0].items[0].ageDays).toBe(NEEDS_ATTENTION_STALE_DAYS);
+    expect(onBoundary.sections[0].items[0].isStale).toBe(true);
   });
 
   it("counts nothing when everything is resolved", () => {
@@ -229,6 +260,31 @@ describe("buildNeedsAttention", () => {
       TODAY,
     );
     expect(summary.total).toBe(0);
+    expect(summary.staleTotal).toBe(0);
     expect(summary.sections.every((s) => s.items.length === 0)).toBe(true);
+  });
+});
+
+describe("age helpers", () => {
+  it("counts whole days across a DST boundary (BST -> GMT)", () => {
+    // 25 Oct 2026 is the BST->GMT switch; naive local-time maths would
+    // give 30.04 days here and round the wrong way.
+    expect(daysBetweenDateStrings("2026-10-20", "2026-11-19")).toBe(30);
+  });
+
+  it("counts whole days normally, and never goes negative on same-day", () => {
+    expect(daysBetweenDateStrings("2026-08-19", "2026-08-20")).toBe(1);
+    expect(daysBetweenDateStrings("2026-08-20", "2026-08-20")).toBe(0);
+  });
+
+  it("returns 0 rather than NaN for missing dates", () => {
+    expect(daysBetweenDateStrings("", "2026-08-20")).toBe(0);
+    expect(daysBetweenDateStrings("2026-08-20", "")).toBe(0);
+  });
+
+  it("reads naturally in the row", () => {
+    expect(ageLabel(0)).toBe("Today");
+    expect(ageLabel(1)).toBe("Yesterday");
+    expect(ageLabel(23)).toBe("23 days ago");
   });
 });

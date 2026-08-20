@@ -7,7 +7,7 @@
 import { RefreshCw } from "lucide-react";
 import { resolveBookingDisplay } from "../../engine/bookingRules";
 import { getStatusDisplay } from "../../constants/salon";
-import { NEEDS_ATTENTION_LOOKBACK_DAYS } from "../../engine/needsAttention";
+import { ageLabel, NEEDS_ATTENTION_LOOKBACK_DAYS } from "../../engine/needsAttention";
 import { useNeedsAttention } from "../../hooks/useNeedsAttention";
 
 function dateLabel(dateStr) {
@@ -61,6 +61,22 @@ function AttentionRow({ item, dogs, humans, onOpenBooking }) {
             {dateLabel(item.date)}
             {item.slot ? ` · ${item.slot}` : ""}
             {` — ${item.detail}`}
+          </div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                item.isStale
+                  ? "bg-brand-coral-light text-brand-coral-dark"
+                  : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {ageLabel(item.ageDays)}
+            </span>
+            {item.isStale && (
+              <span className="text-[11px] font-semibold text-brand-coral-dark">
+                Needs chasing
+              </span>
+            )}
           </div>
         </div>
         <span
@@ -130,6 +146,14 @@ export function NeedsAttentionContent({
                 ? `${summary.total} ${summary.total === 1 ? "item" : "items"} from the last ${NEEDS_ATTENTION_LOOKBACK_DAYS} days`
                 : "Needs a live connection to check previous days."}
           </p>
+          {/* Oldest first, so the count that matters is the stale one — the
+              rest is usually yesterday's paperwork, cleared as a matter of
+              course. */}
+          {!loading && available && summary.staleTotal > 0 && (
+            <p className="mt-0.5 mb-0 text-sm font-semibold text-brand-coral-dark">
+              {summary.staleTotal} waiting more than a fortnight
+            </p>
+          )}
         </div>
         {onRefresh && (
           <button

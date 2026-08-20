@@ -106,6 +106,25 @@ describe("NeedsAttentionContent", () => {
     expect(screen.queryByText(/owes/i)).not.toBeInTheDocument();
   });
 
+  it("leads with the oldest item and marks it as needing chasing", () => {
+    renderContent([
+      booking({ id: "fresh", _bookingDate: "2026-08-19", dogName: "Fresh" }),
+      booking({ id: "stale", _bookingDate: "2026-07-22", dogName: "Stale" }),
+    ]);
+    const rows = screen.getAllByRole("button", { name: /Fresh|Stale/ });
+    expect(rows[0]).toHaveTextContent("Stale");
+    expect(rows[0]).toHaveTextContent("29 days ago");
+    expect(rows[0]).toHaveTextContent("Needs chasing");
+    expect(rows[1]).toHaveTextContent("Fresh");
+    expect(rows[1]).toHaveTextContent("Yesterday");
+    expect(screen.getByText("1 waiting more than a fortnight")).toBeInTheDocument();
+  });
+
+  it("omits the stale line when everything is recent", () => {
+    renderContent([booking({ _bookingDate: "2026-08-19" })]);
+    expect(screen.queryByText(/waiting more than a fortnight/)).not.toBeInTheDocument();
+  });
+
   it("shows the all-clear state when nothing needs resolving", () => {
     renderContent([]);
     expect(screen.getByText("All clear")).toBeInTheDocument();
