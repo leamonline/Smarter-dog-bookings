@@ -11,7 +11,8 @@
     "src/engine/capacityTrigger.test.ts",
     "src/supabase/seed.ts",
     "src/lib/whatsapp/**/*.test.ts",
-    "src/lib/push/**/*.test.ts"
+    "src/lib/push/**/*.test.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

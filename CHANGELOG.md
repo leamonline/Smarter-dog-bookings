@@ -147,6 +147,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Testing
 
+- Close the three coverage gaps the rescoped B3 named, taking the capacity
+  parity harness from 129 cases to **162** — blocked seats against large dogs,
+  and grouped allocation onto blocked-seat, extra-slot and mixed-size days.
+  **All 162 agree.** A hypothesis went in and came out wrong, which is the
+  useful part: the two runtimes reach the blocked-seat answer by different
+  routes — PostgreSQL subtracts blocked seats generically *before* the
+  large-dog branch, while the engine floors a slot at two seats and handles
+  large-dog rules in a separate pass — and since #664 was an ordering defect,
+  a 12:30 large dog against one blocked seat looked like a strong candidate for
+  divergence. It is not; the arithmetic agrees throughout. One asymmetry did
+  surface and belongs to #665 rather than here: with **both** seats blocked,
+  PostgreSQL refuses from `validate_booking_calendar()` while the engine
+  refuses on capacity — same verdict, different gate, so the reason space spans
+  all three `BEFORE INSERT` gates.
+- Add `scripts/generate-capacity-parity-cases.ts`, so the pgTAP half of the
+  harness is generated rather than hand-written. It takes the engine's answer
+  from `src/engine/capacity.ts` and **observes** PostgreSQL's by attempting the
+  insert in a rolled-back transaction, so a `throws_ok` records what the
+  database actually did instead of what anyone assumed; it reports a divergence
+  rather than quietly encoding one. The file's own comments already said
+  "regenerate the SQL" with nothing in the repository able to do it.
+
 - Add a cross-runtime capacity parity harness and measure the divergence
   between the browser engine and PostgreSQL — the one leg of the three-way
   capacity duplication nothing had ever compared. 43 scenarios yield **129

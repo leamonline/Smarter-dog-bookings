@@ -30,24 +30,24 @@ the database then refuses.
 
 ## Method
 
-43 scenarios, stated once in `src/engine/capacityParityFixtures.ts` and answered
+54 scenarios, stated once in `src/engine/capacityParityFixtures.ts` and answered
 by both runtimes. No expected answer is written by hand anywhere; hand-written
 expectations would encode one runtime's opinion and hide the disagreement being
 looked for.
 
 Two kinds of scenario, asking different questions:
 
-- **single (26)** — one candidate booking. The engine answers yes/no through
+- **single (33)** — one candidate booking. The engine answers yes/no through
   `canBookSlot()`; PostgreSQL through an `INSERT` its trigger permits or
   rejects. The verdicts must match.
-- **group (15, yielding 104 cases)** — a multi-dog booking. Here the engine does
+- **group (21, yielding 129 cases)** — a multi-dog booking. Here the engine does
   not answer yes/no: it **offers** allocations through `findGroupedSlots()` and
   the customer picks one. The parity question is therefore directional and
   stronger — *every allocation the engine offers must be one the database
   accepts*, inserted as a whole group. Where the engine offers nothing, a plain
   placement is attempted anyway to see whether the database would have taken it.
 
-**130 cases in total**, each isolated in its own subtransaction.
+**162 cases in total**, each isolated in its own subtransaction.
 
 Coverage: per-slot seats, the 2-2-1 window, large-dog seat cost, large-dog
 adjacency, early close, staff-blocked seats, per-date extra slots, the daily
@@ -84,7 +84,7 @@ test from capacity parity.
 
 ## Result
 
-**All 129 cases agree. Zero divergence — after one real defect was found and fixed.**
+**All 162 cases agree. Zero divergence — after one real defect was found and fixed.**
 
 | rule | cases | agreement |
 |---|---|---|
@@ -95,12 +95,13 @@ test from capacity parity.
 | early close | 2 | 2/2 |
 | blocked seats | 4 | 4/4 |
 | extra slots | 3 | 3/3 |
-| **grouped allocation (offers)** | **101** | **101/101** |
-| grouped allocation (no offer) | 2 | 2/2 |
+| blocked seats x large dogs | 7 | 7/7 |
+| **grouped allocation (offers)** | **126** | **126/126** |
+| grouped allocation (no offer) | 3 | 3/3 |
 
 The first pass, at 17 scenarios, found nothing. Widening to 130 cases with the
 weight on grouped allocation found one genuine defect and one apparent one that
-turned out to be policy.
+turned out to be policy. A third pass on 20 August took it to 162 (below).
 
 ### The defect: an offer PostgreSQL refuses — issue #664, now fixed
 
@@ -198,9 +199,53 @@ pre-existing, none from B1's capability projection or B2's notification intents.
 **reaffirmed, not superseded**: PostgreSQL stays the authority. This work guards
 agreement with it rather than replacing it.
 
+## Third pass, 20 August 2026: the named coverage gaps
+
+The rescoped [#623](https://github.com/leamonline/Smarter-dog-bookings/issues/623)
+listed three places coverage was still thin. All three are now covered, taking
+the harness from 129 cases to **162**. **Every one agreed.**
+
+| added | cases | agreement |
+|---|---|---|
+| blocked seats against large dogs (singles) | 7 | 7/7 |
+| grouped allocation onto blocked-seat days | 11 | 11/11 |
+| grouped allocation onto extra-slot days | 10 | 10/10 |
+| grouped allocation across all three sizes | 5 | 5/5 |
+
+A hypothesis went in and came out wrong, which is worth recording. The two
+runtimes reach the blocked-seat answer by **different routes**: PostgreSQL
+subtracts blocked seats generically —
+`v_max_seats := greatest(v_max_seats - v_blocked_seats, 0)` — *before* the
+large-dog branch, while the engine floors a slot at two seats in
+`computeSlotCapacities` and handles the large-dog rules in a separate pass.
+Different order, and #664 was exactly an ordering defect, so a 12:30 large dog
+(2 seats, no sharing) against one blocked seat looked like a strong candidate
+for divergence. It is not: the arithmetic agrees in all seven singles and all
+26 new grouped allocations.
+
+One asymmetry did surface, and it belongs to
+[#665](https://github.com/leamonline/Smarter-dog-bookings/issues/665) rather
+than here. When **both** seats of a slot are blocked, PostgreSQL refuses from
+`validate_booking_calendar()` — *"That time slot is closed on this date"* — not
+from the capacity trigger, while the engine refuses with *"Not enough capacity
+(2-2-1 rule)"*. The verdicts agree; the **gate** does not. So the reason space
+spans all three `BEFORE INSERT` gates, which a reason contract scoped to
+capacity alone would miss.
+
+### Generated, not hand-written
+
+These cases come from `scripts/generate-capacity-parity-cases.ts`, added with
+them. It takes the engine's answer from `src/engine/capacity.ts` and **observes**
+PostgreSQL's by attempting the insert inside a rolled-back transaction, so a
+`throws_ok` records what the database actually did rather than what anyone
+assumed. It reports a divergence rather than quietly encoding it, and the file
+it produces is still checked by the TypeScript guard, which recomputes every
+verdict independently. Before this the SQL half was produced by hand, which is
+why the file's own comments said "regenerate the SQL" with nothing to do it.
+
 ## Scope and limits, stated plainly
 
-- 130 cases is a substantial probe, not a proof. Grouped allocation is now
+- 162 cases is a substantial probe, not a proof. Grouped allocation is now
   covered across sizes, day states, blocks, extra slots and the cap, but the
   space of possible day states is far larger than any fixture list.
 - Immediate slots and staff overrides are excluded for the reasons given above.

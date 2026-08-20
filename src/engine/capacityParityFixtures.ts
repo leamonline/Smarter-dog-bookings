@@ -469,6 +469,143 @@ export const CAPACITY_PARITY_FIXTURES: CapacityParityFixture[] = [
     ],
     dogs: ["small", "small"],
   },
+
+  // ---- blocked seats x large dogs ----------------------------------------
+  //
+  // Added 20 August 2026. The two runtimes reach this answer by different
+  // routes: PostgreSQL subtracts blocked seats generically
+  // (v_max_seats := greatest(v_max_seats - v_blocked_seats, 0)) BEFORE the
+  // large-dog branch, while the engine floors a slot at two seats in
+  // computeSlotCapacities and handles the large-dog rules in a separate pass.
+  // Different order, same arithmetic — measured, not assumed.
+  //
+  // The both-seats-blocked pair is worth keeping for a second reason: the
+  // engine refuses on capacity, but PostgreSQL refuses from
+  // validate_booking_calendar() ("that time slot is closed on this date"),
+  // not from the capacity trigger. The verdicts agree; the gate does not.
+  {
+    kind: "single",
+    id: "large-1230-takeover-one-seat-blocked",
+    rule: "large-dog-seats",
+    description: "a 12:30 large dog needs both seats, so one blocked seat refuses it",
+    existing: [],
+    overrides: { "12:30": { 0: "blocked" } },
+    candidate: large("12:30"),
+  },
+  {
+    kind: "single",
+    id: "large-1230-takeover-both-seats-blocked",
+    rule: "large-dog-seats",
+    description: "a 12:30 large dog onto a slot with both seats blocked",
+    existing: [],
+    overrides: { "12:30": { 0: "blocked", 1: "blocked" } },
+    candidate: large("12:30"),
+  },
+  {
+    kind: "single",
+    id: "large-1300-takeover-one-seat-blocked",
+    rule: "large-dog-seats",
+    description: "a 13:00 large dog needs both seats, so one blocked seat refuses it",
+    existing: [],
+    overrides: { "13:00": { 0: "blocked" } },
+    candidate: large("13:00"),
+  },
+  {
+    kind: "single",
+    id: "large-0830-one-seat-blocked",
+    rule: "large-dog-seats",
+    description: "an 08:30 large dog costs one seat, so one blocked seat still leaves room",
+    existing: [],
+    overrides: { "08:30": { 0: "blocked" } },
+    candidate: large("08:30"),
+  },
+  {
+    kind: "single",
+    id: "large-0830-both-seats-blocked",
+    rule: "large-dog-seats",
+    description: "an 08:30 large dog onto a slot with both seats blocked",
+    existing: [],
+    overrides: { "08:30": { 0: "blocked", 1: "blocked" } },
+    candidate: large("08:30"),
+  },
+  {
+    kind: "single",
+    id: "large-1200-one-seat-blocked",
+    rule: "large-dog-seats",
+    description: "a 12:00 large dog costs one seat and can share, so a blocked seat still leaves room",
+    existing: [],
+    overrides: { "12:00": { 0: "blocked" } },
+    candidate: large("12:00"),
+  },
+  {
+    kind: "single",
+    id: "small-1230-one-seat-blocked-control",
+    rule: "blocked-seats",
+    description: "control: a small dog takes the one seat a block leaves at 12:30",
+    existing: [],
+    overrides: { "12:30": { 0: "blocked" } },
+    candidate: small("12:30"),
+  },
+
+  // ---- grouped allocation onto constrained days ---------------------------
+  //
+  // Added 20 August 2026. Grouped allocation is where issue #664 lived, and
+  // where the engine does its most intricate work, so the constraints that
+  // were only covered for single bookings are covered here as groups too:
+  // blocked seats, per-date extra slots, and mixed sizes together.
+  {
+    kind: "group",
+    id: "group-large-small-blocked-1230",
+    rule: "grouped-allocation",
+    description: "a large and a small dog routing around a block on the 12:30 takeover slot",
+    existing: [],
+    overrides: { "12:30": { 0: "blocked" } },
+    dogs: ["large", "small"],
+  },
+  {
+    kind: "group",
+    id: "group-large-small-blocked-0830",
+    rule: "grouped-allocation",
+    description: "a large and a small dog routing around a block on 08:30",
+    existing: [],
+    overrides: { "08:30": { 0: "blocked" } },
+    dogs: ["large", "small"],
+  },
+  {
+    kind: "group",
+    id: "group-two-larges-blocked-1230",
+    rule: "grouped-allocation",
+    description: "two large dogs when the 12:30 takeover slot has a blocked seat",
+    existing: [],
+    overrides: { "12:30": { 0: "blocked" } },
+    dogs: ["large", "large"],
+  },
+  {
+    kind: "group",
+    id: "group-large-small-extra-slots",
+    rule: "grouped-allocation",
+    description: "a large and a small dog on a day extended with extra slots",
+    existing: [],
+    extraSlots: ["13:30", "14:00"],
+    dogs: ["large", "small"],
+  },
+  {
+    kind: "group",
+    id: "group-three-smalls-large-extra-slots",
+    rule: "grouped-allocation",
+    description: "a four-dog group including a large one, on an extra-slot day",
+    existing: [],
+    extraSlots: ["13:30", "14:00"],
+    dogs: ["small", "small", "small", "large"],
+  },
+  {
+    kind: "group",
+    id: "group-all-three-sizes",
+    rule: "grouped-allocation",
+    description: "one dog of each size booked together",
+    existing: [],
+    dogs: ["large", "medium", "small"],
+  },
 ];
 
 /** The daily cap a scenario runs under. */
