@@ -40,7 +40,7 @@ export function BookingHealth({
                 </div>
               </div>
               <div className="text-caption text-amber-700 font-medium leading-snug">
-                {noShowN}/{denom} kept
+                {noShowN} of {denom} dogs due in
                 {prevNoShowRate > 0 && (
                   <div className="text-micro text-amber-600/80">
                     was {prevNoShowRate.toFixed(0)}%
@@ -80,6 +80,12 @@ export function BookingHealth({
               </div>
             </div>
           </div>
+
+          <p className="text-micro text-ink-muted leading-snug">
+            Counts dogs staff marked as a no-show, out of the dogs due in that
+            day. Bookings cancelled ahead of time aren&apos;t counted either way
+            &mdash; nobody was expected.
+          </p>
 
           {needsClassificationN > 0 && (
             <button
