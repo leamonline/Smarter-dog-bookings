@@ -23,8 +23,44 @@ import { statusRank } from "./today";
 import { slotToMinutes } from "./utilisation";
 import type { Booking } from "../types/index";
 
-/** How many days back the view sweeps for unresolved items. */
+/**
+ * How many days back the view sweeps for unresolved items.
+ *
+ * DO NOT widen this without re-measuring first. Payment marking was only
+ * adopted in early July 2026 (3% of completed bookings carried "Paid in Full"
+ * in June, 83% in July, 100% from August). Every completed booking before
+ * that cutover therefore classifies as "payment information missing" — a
+ * software-wasn't-told gap, not money missing. Measured 20 Aug 2026, a
+ * 30-day window showed 0 such items while all-history showed 211. Widening
+ * the window past the cutover floods the view with pre-adoption ghosts and
+ * trains staff to ignore the whole page.
+ */
 export const NEEDS_ATTENTION_LOOKBACK_DAYS = 30;
+
+/**
+ * At or beyond this age a task is "stale" — it has survived several opening
+ * days, so it is real backlog rather than yesterday's not-yet-tidied paperwork.
+ * The UI leans on this to mark the rows that genuinely need chasing.
+ */
+export const NEEDS_ATTENTION_STALE_DAYS = 14;
+
+/** Whole days between two YYYY-MM-DD strings, via UTC so DST can't skew it. */
+export function daysBetweenDateStrings(from: string, to: string): number {
+  if (!from || !to) return 0;
+  const [fy, fm, fd] = from.split("-").map(Number);
+  const [ty, tm, td] = to.split("-").map(Number);
+  const fromMs = Date.UTC(fy, fm - 1, fd);
+  const toMs = Date.UTC(ty, tm - 1, td);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return 0;
+  return Math.round((toMs - fromMs) / 86_400_000);
+}
+
+/** Compact age copy for a task's row: "Yesterday", "3 days ago". */
+export function ageLabel(ageDays: number): string {
+  if (ageDays <= 0) return "Today";
+  if (ageDays === 1) return "Yesterday";
+  return `${ageDays} days ago`;
+}
 
 export type NeedsAttentionKind =
   | "readyForCollection"
@@ -56,6 +92,10 @@ export interface NeedsAttentionItem {
   slot: string;
   /** Neutral one-line reason, e.g. `Still marked "Checked in"`. */
   detail: string;
+  /** Whole days between the appointment date and today. */
+  ageDays: number;
+  /** Survived NEEDS_ATTENTION_STALE_DAYS+ — real backlog, not yesterday's lag. */
+  isStale: boolean;
 }
 
 export interface NeedsAttentionSection {
@@ -70,6 +110,8 @@ export interface NeedsAttentionSummary {
   sections: NeedsAttentionSection[];
   /** Total tasks across every section (post group-dedupe). */
   total: number;
+  /** How many of `total` are stale — the number actually worth chasing. */
+  staleTotal: number;
 }
 
 // Section copy lives here (not in the component) so the payment language
@@ -195,19 +237,28 @@ export function buildNeedsAttention(
   for (const { kind, bookings: members } of byTask.values()) {
     const ordered = sortBookingsInGroup(members);
     const primary = ordered[0];
+    const date = primary._bookingDate || "";
+    const ageDays = daysBetweenDateStrings(date, todayStr);
     itemsByKind[kind].push({
       kind,
       booking: primary,
       bookings: ordered,
-      date: primary._bookingDate || "",
+      date,
       slot: primary.slot || "",
       detail: attentionDetail(kind, primary),
+      ageDays,
+      isStale: ageDays >= NEEDS_ATTENTION_STALE_DAYS,
     });
   }
 
+  // OLDEST FIRST, deliberately. Measured against production on 20 Aug 2026:
+  // of 40 live tasks, 16 were 0-2 days old (yesterday's paperwork, which staff
+  // clear as a matter of course) while 18 ready-for-collection items were 15+
+  // days old. Sorting newest-first put the self-resolving rows at the top and
+  // buried the genuine backlog, so the page led with its least important item.
   for (const kind of SECTION_ORDER) {
     itemsByKind[kind].sort((a, b) => {
-      if (a.date !== b.date) return a.date < b.date ? 1 : -1; // newest day first
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1; // oldest day first
       const am = a.slot ? slotToMinutes(a.slot) : Number.POSITIVE_INFINITY;
       const bm = b.slot ? slotToMinutes(b.slot) : Number.POSITIVE_INFINITY;
       if (am !== bm) return am - bm;
@@ -223,5 +274,9 @@ export function buildNeedsAttention(
   return {
     sections,
     total: sections.reduce((sum, s) => sum + s.items.length, 0),
+    staleTotal: sections.reduce(
+      (sum, s) => sum + s.items.filter((i) => i.isStale).length,
+      0,
+    ),
   };
 }
