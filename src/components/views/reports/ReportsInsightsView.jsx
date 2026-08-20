@@ -235,6 +235,8 @@ export function ReportsInsightsView({ loadError = null }) {
                   totalPast={stats.totalPast}
                   noShowN={stats.noShowN}
                   noShowRate={stats.noShowRate}
+                  noShowDenom={stats.noShowDenom}
+                  needsClassificationN={stats.needsClassificationN}
                   prevNoShowRate={stats.prevNoShowRate}
                   insight={insights.health}
                 />

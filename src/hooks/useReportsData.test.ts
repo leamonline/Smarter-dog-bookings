@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildReportInsights,
   buildReportSourceFromSalon,
   computeReportStats,
 } from "./useReportsData";
@@ -270,5 +271,216 @@ describe("single pricing source, cancelled and period windows", () => {
     // 05-20 only — 05-04 is excluded by the new prev lower bound.
     expect(stats.prevN).toBe(1);
     expect(stats.prevRev).toBe(42);
+  });
+});
+
+describe("no-show truth: confirmed no-shows vs unclassified past bookings", () => {
+  // 2026-06-03 is a Wednesday; the salon opens Mon–Wed. The trailing-7-day
+  // window is cur (05-27, 06-03]. Every row below sits on an open day strictly
+  // before `today`, so it lands in the "past" cohort the health widget reports.
+  const today = new Date("2026-06-03T12:00:00");
+  const dogMap = { d1: { humanId: "h1", customPrice: null } };
+  const humanMap = { h1: "Owner One" };
+
+  function row(
+    bookingDate: string,
+    over: Record<string, unknown> = {},
+  ): never {
+    return {
+      id: `${bookingDate}-${over.slot ?? "08:30"}-${String(over.status ?? "b")}`,
+      booking_date: bookingDate,
+      service: "full-groom",
+      size: "small",
+      status: BOOKING_STATUS.BOOKED,
+      payment: "Due at Pick-up",
+      slot: "08:30",
+      dog_id: "d1",
+      addons: [],
+      deposit_amount: null,
+      cancel_reason: null,
+      ...over,
+    } as never;
+  }
+
+  function statsFor(rows: never[]) {
+    return computeReportStats(7, rows, dogMap, humanMap, today);
+  }
+
+  it("does not count a past booking left as Booked as a no-show", () => {
+    // The regression this suite exists for: admin never closed the booking off.
+    // That is unfinished paperwork, not a customer who failed to turn up.
+    const stats = statsFor([row("2026-06-01", { slot: "08:30" })]);
+
+    expect(stats.noShowN).toBe(0);
+    expect(stats.noShowRate).toBe(0);
+    expect(stats.needsClassificationN).toBe(1);
+  });
+
+  it("counts a cancelled booking with a No-show reason as a no-show", () => {
+    const stats = statsFor([
+      row("2026-06-01", {
+        slot: "08:30",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "No-show",
+      }),
+    ]);
+
+    expect(stats.noShowN).toBe(1);
+    expect(stats.noShowRate).toBe(100); // 1 of 1 appointment that reached its slot
+    expect(stats.needsClassificationN).toBe(0);
+  });
+
+  it("normalises the no-show reason's case and surrounding whitespace", () => {
+    const stats = statsFor([
+      row("2026-06-01", {
+        slot: "08:30",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "  NO-SHOW ",
+      }),
+    ]);
+
+    expect(stats.noShowN).toBe(1);
+  });
+
+  it("does not count a cancellation made for any other reason", () => {
+    const stats = statsFor([
+      row("2026-06-01", {
+        slot: "08:30",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "Rescheduled to 8 Jun 2026 at 9:30am",
+      }),
+      row("2026-06-01", {
+        slot: "09:00",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: null,
+      }),
+    ]);
+
+    expect(stats.noShowN).toBe(0);
+    expect(stats.noShowRate).toBe(0);
+  });
+
+  it("computes the rate over appointments that reached their slot, not every row", () => {
+    // 2 attended + 1 unclassified + 1 confirmed no-show = 4 appointments that
+    // reached their slot. The two advance cancellations never did, so they are
+    // not in the denominator.
+    const stats = statsFor([
+      row("2026-06-01", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-06-01", { slot: "09:30" }), // left as Booked — unclassified
+      row("2026-06-02", {
+        slot: "08:30",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "No-show",
+      }),
+      row("2026-06-02", {
+        slot: "09:00",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "Customer cancelled via WhatsApp",
+      }),
+      row("2026-06-02", {
+        slot: "09:30",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "Rescheduled via WhatsApp",
+      }),
+    ]);
+
+    expect(stats.noShowN).toBe(1);
+    expect(stats.needsClassificationN).toBe(1);
+    expect(stats.noShowRate).toBe(25); // 1 of 4
+  });
+
+  it("excludes today's and future bookings from the unclassified count", () => {
+    // Today's bookings are still live work — the Daily Brief owns those.
+    const stats = statsFor([
+      row("2026-06-03", { slot: "08:30" }), // today
+      row("2026-06-01", { slot: "09:00" }), // past, genuinely unclassified
+    ]);
+
+    expect(stats.needsClassificationN).toBe(1);
+  });
+
+  it("reports the previous period's no-show rate on the same confirmed basis", () => {
+    const stats = statsFor([
+      // previous window (05-20, 05-27]: one attended, one confirmed no-show
+      row("2026-05-25", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-05-26", {
+        slot: "09:00",
+        status: BOOKING_STATUS.CANCELLED,
+        cancel_reason: "No-show",
+      }),
+      // a past Booked row in the previous window must not inflate it either
+      row("2026-05-27", { slot: "09:30" }),
+    ]);
+
+    expect(stats.prevNoShowRate).toBe(50); // 1 confirmed of 2 that reached a slot
+  });
+});
+
+describe("attendance insight does not outrun the evidence", () => {
+  const today = new Date("2026-06-03T12:00:00");
+  const dogMap = { d1: { humanId: "h1", customPrice: null } };
+  const humanMap = { h1: "Owner One" };
+
+  function row(
+    bookingDate: string,
+    over: Record<string, unknown> = {},
+  ): never {
+    return {
+      id: `${bookingDate}-${over.slot ?? "08:30"}-${String(over.status ?? "b")}`,
+      booking_date: bookingDate,
+      service: "full-groom",
+      size: "small",
+      status: BOOKING_STATUS.READY_FOR_PICKUP,
+      payment: "Paid in Full",
+      slot: "08:30",
+      dog_id: "d1",
+      addons: [],
+      deposit_amount: null,
+      cancel_reason: null,
+      ...over,
+    } as never;
+  }
+
+  const SLOTS = ["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"];
+
+  function insightsFor(rows: never[]) {
+    return buildReportInsights(
+      computeReportStats(7, rows, dogMap, humanMap, today),
+    );
+  }
+
+  it("claims strong attendance only when the past days are actually closed off", () => {
+    const rows = SLOTS.map((slot) => row("2026-06-01", { slot })) as never[];
+
+    expect(insightsFor(rows).health).toMatch(/strong attendance/i);
+  });
+
+  it("does not claim strong attendance while past bookings are unclassified", () => {
+    // Eight closed off, two never closed. The no-show rate reads 0%, but that
+    // is ignorance, not evidence — the old copy would have called it "strong".
+    const rows = [
+      ...SLOTS.slice(0, 8).map((slot) => row("2026-06-01", { slot })),
+      ...SLOTS.slice(8).map((slot) => row("2026-06-01", { slot, status: BOOKING_STATUS.BOOKED })),
+    ] as never[];
+
+    const health = insightsFor(rows).health;
+    expect(health).not.toMatch(/strong attendance/i);
+    expect(health).toMatch(/2 past bookings/i);
+  });
+
+  it("still flags a genuinely high confirmed no-show rate", () => {
+    const rows = [
+      ...SLOTS.slice(0, 6).map((slot) => row("2026-06-01", { slot })),
+      ...SLOTS.slice(6).map((slot) =>
+        row("2026-06-01", {
+          slot,
+          status: BOOKING_STATUS.CANCELLED,
+          cancel_reason: "No-show",
+        }),
+      ),
+    ] as never[];
+
+    expect(insightsFor(rows).health).toMatch(/no-show rate is high/i);
   });
 });

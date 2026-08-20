@@ -136,5 +136,8 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
 // Display-level constants shared across report sub-components
 export const SIZE_COLORS = { small: "var(--color-size-small)", medium: "var(--color-brand-teal)", large: "var(--color-brand-coral)" };
 export const STATUS_COLORS = { [BOOKING_STATUS.BOOKED]: "#475569", [BOOKING_STATUS.CHECKED_IN]: "#16A34A", [BOOKING_STATUS.READY_FOR_PICKUP]: "#7C3AED" };
-export const STATUS_LABELS = { [BOOKING_STATUS.BOOKED]: "Booked / No-show", [BOOKING_STATUS.CHECKED_IN]: "Checked in", [BOOKING_STATUS.READY_FOR_PICKUP]: "Finished" };
+// The status mix is built from PAST bookings only, so a row still on "Booked"
+// is one nobody closed off — not an inferred absence. It must never be labelled
+// as a no-show; a confirmed no-show is a Cancelled row carrying that reason.
+export const STATUS_LABELS = { [BOOKING_STATUS.BOOKED]: "Needs classification", [BOOKING_STATUS.CHECKED_IN]: "Checked in", [BOOKING_STATUS.READY_FOR_PICKUP]: "Finished" };
 export const PERIODS = [{ v: 7, l: "7 days" }, { v: 30, l: "30 days" }, { v: 90, l: "90 days" }];

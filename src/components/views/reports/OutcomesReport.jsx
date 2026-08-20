@@ -47,7 +47,7 @@ export function OutcomesReport({ outcomes }) {
 
       {noShowProxyCount > 0 && (
         <div className="mt-3 text-caption text-ink-muted font-medium">
-          {noShowProxyCount} past booking{noShowProxyCount !== 1 ? "s" : ""} left as “Booked” — likely unmarked no-shows. Marking them keeps this accurate.
+          {noShowProxyCount} past booking{noShowProxyCount !== 1 ? "s" : ""} left as “Booked” — not counted as no-shows. Closing them off keeps this accurate.
         </div>
       )}
 

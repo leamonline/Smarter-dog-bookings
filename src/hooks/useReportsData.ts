@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client";
-import { SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../constants/index";
+import { SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS, isNoShowReason } from "../constants/index";
 import { getDefaultOpenForDate } from "../engine/utils";
 import { computeBookingPricing, isCountableBooking } from "../engine/bookingRules";
 import { computeFillRate } from "../engine/utilisation";
@@ -436,13 +436,41 @@ export function computeReportStats(
     statusAcc[b.status] = (statusAcc[b.status] || 0) + 1;
   });
   const totalPast = pastCur.length;
-  const noShowN = statusAcc[BOOKING_STATUS.BOOKED] || 0;
-  const noShowRate = totalPast > 0 ? (noShowN / totalPast) * 100 : 0;
-  const prevPastNoShow = prev.filter(
-    (b) => b.status === BOOKING_STATUS.BOOKED && b.booking_date < cutoffStr,
-  ).length;
+
+  // A no-show is a customer who did not turn up: staff cancel the booking and
+  // record a "No-show" reason. A past booking still sitting on "Booked" is
+  // unfinished paperwork, not an absence — it is the salon that has not closed
+  // the record. Counting those as no-shows overstated the rate roughly 2x and,
+  // worse, got *worse* the busier the salon was, because admin slipped further
+  // behind. They are reported separately as work to classify (/needs-attention).
+  const needsClassificationN = statusAcc[BOOKING_STATUS.BOOKED] || 0;
+
+  // Cancelled rows never reach `cur`/`prev` (isCountableBooking drops them), so
+  // confirmed no-shows are counted straight off the raw rows, applying the same
+  // window, open-day and past-only rules the countable cohorts use.
+  const confirmedNoShowsIn = (afterStr: string, beforeStr: string): number =>
+    bookings.filter(
+      (b) =>
+        b.booking_date > afterStr &&
+        b.booking_date < beforeStr &&
+        b.status === BOOKING_STATUS.CANCELLED &&
+        isNoShowReason(b.cancel_reason) &&
+        isOpen(b.booking_date),
+    ).length;
+
+  // Denominator: appointments that actually reached their slot — everything not
+  // cancelled in advance, plus the no-shows themselves. A booking cancelled
+  // ahead of time never reached a slot, so it is not attendance evidence either
+  // way and must not dilute the rate.
+  const noShowN = confirmedNoShowsIn(cutoffStr, todayStr);
+  const noShowDenom = totalPast + noShowN;
+  const noShowRate = noShowDenom > 0 ? (noShowN / noShowDenom) * 100 : 0;
+
   const prevPast = prev.filter((b) => b.booking_date < cutoffStr).length;
-  const prevNoShowRate = prevPast > 0 ? (prevPastNoShow / prevPast) * 100 : 0;
+  const prevNoShowN = confirmedNoShowsIn(prevCutoffStr, cutoffStr);
+  const prevNoShowDenom = prevPast + prevNoShowN;
+  const prevNoShowRate =
+    prevNoShowDenom > 0 ? (prevNoShowN / prevNoShowDenom) * 100 : 0;
 
   const custAcc: Record<string, { n: number; rev: number; dogs: Set<string> }> = {};
   cur.forEach((b) => {
@@ -497,6 +525,8 @@ export function computeReportStats(
     totalPast,
     noShowN,
     noShowRate,
+    noShowDenom,
+    needsClassificationN,
     prevNoShowRate,
     topCusts,
     uniqueCusts,
@@ -545,11 +575,16 @@ export function buildReportInsights(stats: ReturnType<typeof computeReportStats>
   }
 
   if (stats.totalPast > 5) {
+    const unclassified = stats.needsClassificationN;
     if (stats.noShowRate > 15) {
-      out.health = `${stats.noShowRate.toFixed(0)}% no-show rate is high. Booking reminders could recover significant lost revenue.`;
+      out.health = `${stats.noShowRate.toFixed(0)}% confirmed no-show rate is high. Booking reminders could recover significant lost revenue.`;
+    } else if (unclassified > 0) {
+      // A low no-show rate on top of unclosed paperwork is ignorance, not good
+      // news. Say what is missing rather than congratulating the salon on it.
+      out.health = `${unclassified} past booking${unclassified === 1 ? "" : "s"} still need${unclassified === 1 ? "s" : ""} closing off \u2014 until ${unclassified === 1 ? "it is" : "they are"} classified, the attendance figure is incomplete.`;
     } else if (stats.noShowRate < 5) {
       out.health =
-        "Strong attendance \u2014 your no-show rate is well below the industry average of 10-15%.";
+        "Strong attendance \u2014 your confirmed no-show rate is well below the industry average of 10-15%.";
     }
   }
 
