@@ -80,7 +80,9 @@ most cases, a migration.** These are not settings and there is no UI for them:
 
 The engine exists **three times** — frontend, Deno, and the PostgreSQL trigger —
 so a "fixed rule" change means changing all three together and extending the
-parity test. That is the real cost, and the reason these are not settings.
+governed scenario set in `src/engine/capacityParityFixtures.ts`, which all three
+parity harnesses consume. That is the real cost, and the reason these are not
+settings.
 
 ## Approved large-dog slots
 
@@ -116,8 +118,11 @@ takeovers with no sharing.
 > but no enforcement path read it — removing a chip in Settings changed
 > nothing (audit finding AUDIT-1, 2026-07-01). The current card is read-only
 > and cannot change that column. Changing the real rules means changing all
-> three hardcoded copies above **together** and extending the parity test
-> (`src/lib/whatsapp/capacityParity.test.ts`).
+> three hardcoded copies above **together** and adding the scenario to
+> `src/engine/capacityParityFixtures.ts` — the one list that
+> `src/lib/whatsapp/capacityParity.test.ts` (browser ↔ Deno),
+> `src/engine/capacityParityFixtures.test.ts` and
+> `supabase/tests/036_capacity_parity.test.sql` (browser ↔ PostgreSQL) all read.
 
 ## Disabling the rule
 
@@ -161,7 +166,7 @@ Two things that could look like off-switches but are not:
   in-salon overlap.
 
 If you're touching the engine, run
-`npm run test:logic -- src/engine/capacity.test.ts src/lib/whatsapp/capacityParity.test.ts`
+`npm run test:logic -- src/engine/capacity.test.ts src/lib/whatsapp/capacityParity.test.ts src/engine/capacityParityFixtures.test.ts`
 before opening a PR. Database-rule changes also require `npm run test:db` and
 the applicable concurrency harness.
 
