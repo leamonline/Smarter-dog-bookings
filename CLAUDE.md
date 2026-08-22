@@ -164,7 +164,10 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 - **The capacity engine is implemented THREE times** and must stay in sync: `src/engine/capacity.ts`
   (frontend), `supabase/functions/_shared/capacity.ts` (Deno, ~line-for-line duplicate), and the
-  Postgres trigger (originally [20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql); latest baseline definition [20260712115759](supabase/migrations/20260712115759_legal_risk_tranche1.sql)). Search every migration before editing because later migrations can replace the function. Change one rule → change all three.
+  Postgres trigger (originally [20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql); latest baseline definition [20260712115759](supabase/migrations/20260712115759_legal_risk_tranche1.sql)). Search every migration before editing because later migrations can replace the function. Change one rule → change all three, and add the scenario to the one governed list
+  (`src/engine/capacityParityFixtures.ts`) that every parity harness reads — browser↔Deno
+  (`src/lib/whatsapp/capacityParity.test.ts`) and browser↔PostgreSQL
+  (`src/engine/capacityParityFixtures.test.ts` + `supabase/tests/036_capacity_parity.test.sql`).
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
   Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's
