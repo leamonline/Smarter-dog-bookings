@@ -33,8 +33,49 @@ log() { echo "[session-start] $*"; }
 
 # ---------------------------------------------------------------------------
 # 1. Node 24 — the version CI uses and package.json requires.
+#
+# Two things have varied between container images: WHERE nvm keeps its versions
+# (/root/.nvm originally, /opt/nvm on 22 August 2026) and WHETHER any Node 24 is
+# preinstalled (it was not, that day). Both failures land in the same place —
+# `npm ci` aborts on engines.node — so the session cannot run lint, typecheck,
+# the test suite or the build, which is the whole repository bar. Search the
+# known locations, and install if none of them has it.
 # ---------------------------------------------------------------------------
-NODE24_BIN="$(ls -d /root/.nvm/versions/node/v24*/bin 2>/dev/null | sort -V | tail -1 || true)"
+find_node24() {
+  local dir bin
+  for dir in "${NVM_DIR:-}" /root/.nvm /opt/nvm /usr/local/nvm; do
+    [ -n "$dir" ] || continue
+    bin="$(ls -d "$dir"/versions/node/v24*/bin 2>/dev/null | sort -V | tail -1 || true)"
+    if [ -n "$bin" ] && [ -x "$bin/node" ]; then
+      echo "$bin"
+      return 0
+    fi
+  done
+  return 1
+}
+
+NODE24_BIN="$(find_node24 || true)"
+
+if [ -z "$NODE24_BIN" ]; then
+  # nvm downloads from nodejs.org, which the agent proxy allows (unlike
+  # api.github.com — see the Supabase CLI note below). ~30s on a cold container.
+  NVM_SH="$(ls "${NVM_DIR:-/nonexistent}/nvm.sh" /opt/nvm/nvm.sh /root/.nvm/nvm.sh 2>/dev/null | head -1 || true)"
+  if [ -n "$NVM_SH" ]; then
+    log "no Node 24 present; installing with nvm"
+    NVM_DIR="$(dirname "$NVM_SH")"
+    export NVM_DIR
+    # nvm.sh is not written to survive `set -euo pipefail`.
+    set +eu
+    # shellcheck disable=SC1090
+    . "$NVM_SH" >/dev/null 2>&1
+    nvm install 24 >/dev/null 2>&1
+    set -eu
+    NODE24_BIN="$(find_node24 || true)"
+  else
+    log "WARNING: no nvm found, so Node 24 cannot be installed"
+  fi
+fi
+
 if [ -n "$NODE24_BIN" ] && [ -x "$NODE24_BIN/node" ]; then
   export PATH="$NODE24_BIN:$PATH"
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
