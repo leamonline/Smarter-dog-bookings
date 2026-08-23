@@ -53,7 +53,7 @@ import {
 } from "../_shared/flowBooking.ts";
 import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
 import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
-import { mapDenialReason } from "../_shared/denialCopy.ts";
+import { canRetryAnotherTime, mapDenialReason } from "../_shared/denialCopy.ts";
 import {
   completeSession,
   createServiceClient,
@@ -477,26 +477,33 @@ async function handleConfirm(
       });
     }
 
-    if (result.kind === "slot_taken" && allowRetry) {
-      await logFlowDenial(supabase, session, state, result.detail ?? result.message, true);
+    // Only offer other times when another time could actually resolve this
+    // refusal (issue #680) AND there is genuinely something else to offer.
+    if (result.kind === "slot_taken" && allowRetry && canRetryAnotherTime(result.detail)) {
       const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
-      await saveSession(supabase, session.flow_token, {
-        screen: "SELECT_TIME_RETRY",
-        state,
-      });
-      return screenResponse("SELECT_TIME_RETRY", {
-        date_label: state.date ? formatDateLong(state.date) : "",
-        time_heading: state.date
-          ? `No worries — pick another time on ${formatDateLong(state.date)}`
-          : "Pick another time",
-        time_slots: slots.length
-          ? slots
-          : [{ id: state.drop_off ?? "", title: slotLabel(state.drop_off ?? "") }],
-        error_message: result.message,
-      });
+      if (slots.length) {
+        await logFlowDenial(supabase, session, state, result.detail ?? result.message, true);
+        await saveSession(supabase, session.flow_token, {
+          screen: "SELECT_TIME_RETRY",
+          state,
+        });
+        return screenResponse("SELECT_TIME_RETRY", {
+          date_label: state.date ? formatDateLong(state.date) : "",
+          time_heading: state.date
+            ? `No worries — pick another time on ${formatDateLong(state.date)}`
+            : "Pick another time",
+          time_slots: slots,
+          error_message: result.message,
+        });
+      }
+      // No alternatives left. The old fallback re-offered the very slot that
+      // just failed; ending on BOOKING_FAILED is the honest answer.
     }
 
-    if (result.kind === "slot_taken" && !allowRetry) {
+    // Terminal now: either not retryable, or nothing left to offer.
+    // rescheduleConfirm deliberately leaves a slot_taken session active for a
+    // retry, so declining one here means the endpoint must close it.
+    if (result.kind === "slot_taken") {
       await failSession(supabase, session.flow_token);
     }
     await logFlowDenial(supabase, session, state, result.detail ?? result.message, false);
@@ -537,17 +544,20 @@ async function handleConfirm(
     return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
 
-  if (res.kind === "slot_taken" && allowRetry) {
-    // Capacity-prevented, but we're offering other times on the same day.
-    await logFlowDenial(supabase, session, state, res.detail ?? res.message, true);
+  // Capacity-prevented and another time could fix it — offer the other times,
+  // but only if there actually are some (issue #680).
+  if (res.kind === "slot_taken" && allowRetry && canRetryAnotherTime(res.detail)) {
     const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
-    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
-    return screenResponse("SELECT_TIME_RETRY", {
-      date_label: formatDateLong(state.date),
-      time_heading: `No worries — pick another time on ${formatDateLong(state.date)}`,
-      time_slots: slots.length ? slots : [{ id: state.drop_off, title: slotLabel(state.drop_off) }],
-      error_message: res.message,
-    });
+    if (slots.length) {
+      await logFlowDenial(supabase, session, state, res.detail ?? res.message, true);
+      await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
+      return screenResponse("SELECT_TIME_RETRY", {
+        date_label: formatDateLong(state.date),
+        time_heading: `No worries — pick another time on ${formatDateLong(state.date)}`,
+        time_slots: slots,
+        error_message: res.message,
+      });
+    }
   }
 
   // Hard rejection (no retry offered) — capacity-prevented demand, logged best-effort.

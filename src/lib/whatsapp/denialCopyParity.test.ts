@@ -31,8 +31,10 @@ import {
   mapDenialReason as portalMapper,
 } from "../../engine/denials";
 import {
+  canRetryAnotherTime,
   friendlyDenialMessage as flowCopy,
   mapDenialReason as flowMapper,
+  RETRYABLE_DENIAL_REASONS,
 } from "../../../supabase/functions/_shared/denialCopy.ts";
 
 const root = process.cwd();
@@ -84,6 +86,19 @@ function engineReasonStrings(): string[] {
   }
   return [...found].sort();
 }
+
+/**
+ * Reason codes where a different time on the same day cannot help. Kept here
+ * rather than imported so the test states the intended policy independently of
+ * the implementation it checks.
+ */
+const NOT_RETRYABLE = [
+  "pregnant",
+  "daily_cap",
+  "calendar_closed",
+  "past_date",
+  "unknown",
+] as const;
 
 const ALL_SAMPLES = Object.values(SAMPLE_MESSAGES).flat();
 const CODES = Object.keys(DENIAL_REASON_LABELS);
@@ -208,6 +223,68 @@ describe("the two channels stay deliberately different only where the channel di
   it("keeps the Flow free of any 'message us on WhatsApp' instruction", () => {
     for (const message of ALL_SAMPLES) {
       expect(flowCopy(message)).not.toMatch(/message us on WhatsApp/i);
+    }
+  });
+});
+
+/**
+ * Which refusals earn a "pick another time" retry (issue #680).
+ *
+ * The Flow's only recovery offer is a list of other slots on the SAME DAY, so
+ * the question for every reason code is narrow and answerable: could a
+ * different time that day actually succeed? Keying this on the raw SQLSTATE
+ * could not answer it — P0001 is Postgres' generic raise_exception code, shared
+ * by the capacity trigger, the pregnancy gate, the per-customer slot block and
+ * the dog-integrity check.
+ */
+describe("retry policy: only offer another time when another time could work", () => {
+  it("classifies every reason code as retryable or not, with none forgotten", () => {
+    const decided = new Set([...RETRYABLE_DENIAL_REASONS, ...NOT_RETRYABLE]);
+    expect([...decided].sort(), "every reason code needs a retry decision").toEqual(
+      [...CODES].sort(),
+    );
+    // A code cannot be both.
+    for (const code of NOT_RETRYABLE) {
+      expect(RETRYABLE_DENIAL_REASONS.has(code), `${code} is in both lists`).toBe(false);
+    }
+  });
+
+  it.each([...NOT_RETRYABLE])("refuses a same-day retry for %s", (code) => {
+    for (const message of SAMPLE_MESSAGES[code]) {
+      expect(
+        canRetryAnotherTime(message),
+        `"${message}" must not offer other times — another time cannot fix it`,
+      ).toBe(false);
+    }
+  });
+
+  it.each([...RETRYABLE_DENIAL_REASONS])("offers a same-day retry for %s", (code) => {
+    for (const message of SAMPLE_MESSAGES[code]) {
+      expect(canRetryAnotherTime(message), `"${message}" should offer other times`).toBe(true);
+    }
+  });
+
+  it("refuses the retry for the refusals issue #680 named", () => {
+    // The pregnancy gate: the exact deployed message, both branches.
+    expect(canRetryAnotherTime("We can't book a pregnant dog online — please call the salon.")).toBe(false);
+    // The dog-integrity branch of the same trigger. It matches no pattern, so
+    // it maps to `unknown` — which is precisely why `unknown` must fail closed.
+    expect(canRetryAnotherTime("That dog is no longer available. Please refresh and try again.")).toBe(false);
+    // The whole day is full: every slot on it would reject too.
+    expect(
+      canRetryAnotherTime("Day is fully booked: 2026-08-25 already has 14 dog(s) (maximum 14 per day)"),
+    ).toBe(false);
+  });
+
+  it("still offers the retry for an ordinary taken slot", () => {
+    // The case the retry screen exists for — this must keep working.
+    expect(canRetryAnotherTime("Slot is full")).toBe(true);
+    expect(canRetryAnotherTime("Capped at 1 (2-2-1 rule)")).toBe(true);
+  });
+
+  it("fails closed on an unrecognised or empty refusal", () => {
+    for (const input of [undefined, null, "", "something nobody has classified yet"]) {
+      expect(canRetryAnotherTime(input)).toBe(false);
     }
   });
 });
