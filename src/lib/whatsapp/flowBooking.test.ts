@@ -238,12 +238,21 @@ describe("confirmBooking", () => {
     expect(inserted[0].size).toBe("large");
   });
 
-  it("maps the capacity trigger (P0001) to slot_taken", async () => {
+  it("maps the capacity trigger (P0001) to slot_taken, without showing the raw message", async () => {
+    // This assertion used to be `message: "Slot is full"` — it pinned the leak
+    // ADR 008 closes. The raw gate text is engineer-facing and now travels as
+    // `detail` (for booking_denials.reason_detail and the reason mapper) while
+    // the customer reads friendly copy.
     const { db } = makeDb({
       insert: () => ({ errorCode: "P0001", errorMessage: "Slot is full" }),
     });
     const res = await confirmBooking(db, base);
-    expect(res).toEqual({ ok: false, kind: "slot_taken", message: "Slot is full" });
+    expect(res).toEqual({
+      ok: false,
+      kind: "slot_taken",
+      message: "That time’s just been taken. Please choose another — there’s usually one free close by.",
+      detail: "Slot is full",
+    });
   });
 
   it("rejects a dog that isn't the caller's", async () => {
