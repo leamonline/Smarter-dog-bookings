@@ -4337,8 +4337,10 @@ export type Database = {
         Args: {
           p_dog_count?: number
           p_human_id?: string
+          p_occurred_at?: string
           p_session_id: string
           p_step: string
+          p_step_index?: number
         }
         Returns: undefined
       }

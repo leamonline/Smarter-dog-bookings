@@ -1,11 +1,13 @@
 // ============================================================
 // Booking-wizard funnel — pure TS, zero React.
 //
-// The customer wizard logs each step it reaches (booking_funnel_events, one
-// session_id per run). This turns those events into a drop-off funnel: how many
-// sessions reached each step and where they fall away. Counting is by *furthest
-// step reached* per session, so a dropped intermediate log can't make the funnel
-// non-monotonic.
+// The customer wizard logs each step it completes (booking_funnel_events, one
+// session_id per booking attempt — persisted by src/lib/funnelSession.ts):
+// "started" on opening the wizard, each select_* as the customer advances past
+// that step, "confirm" on the confirm click, "booked" on success. This turns
+// those events into a drop-off funnel: how many sessions reached each step and
+// where they fall away. Counting is by *furthest step reached* per session, so
+// a dropped intermediate log can't make the funnel non-monotonic.
 // ============================================================
 
 export const FUNNEL_STEPS: Array<{ step: string; label: string }> = [

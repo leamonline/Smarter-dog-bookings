@@ -24,6 +24,7 @@ import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
+import { claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
@@ -406,41 +407,54 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     [selectedDogs, services, fireDenialLog],
   );
 
-  // Booking-wizard funnel telemetry (improvement #4) — best-effort, deduped per
-  // step, one session_id per run. Wrapped/swallowed exactly like fireDenialLog
-  // so a telemetry failure can never affect the wizard.
-  const funnelSessionId = useRef<string>(crypto.randomUUID());
-  const loggedFunnelSteps = useRef<Set<string>>(new Set());
-  const fireFunnel = useCallback(
-    (funnelStep: string) => {
-      try {
-        if (!supabase || loggedFunnelSteps.current.has(funnelStep)) return;
-        loggedFunnelSteps.current.add(funnelStep);
-        logFunnelEvent(supabase, {
-          sessionId: funnelSessionId.current,
-          step: funnelStep,
-          humanId: humanRecord.id,
-          dogCount: selectedDogs.length || null,
-        }).then(undefined, () => {});
-      } catch {
-        /* telemetry must never surface into the wizard */
-      }
-    },
-    [humanRecord.id, selectedDogs.length],
-  );
+  // Booking-wizard funnel telemetry (improvement #4) — best-effort, one
+  // session_id per booking *attempt* (sessionStorage via funnelSession.ts, so
+  // it survives remounts / refreshes and is cleared when a booking lands).
+  // Each event carries a monotonic step index and a client timestamp captured
+  // synchronously at the call site, so ordering never depends on the server's
+  // insert time. Wrapped/swallowed exactly like fireDenialLog so a telemetry
+  // failure can never affect the wizard.
+  const funnelMeta = useRef<{ humanId: string; dogCount: number | null }>({
+    humanId: humanRecord.id,
+    dogCount: selectedDogs.length || null,
+  });
+  useEffect(() => {
+    funnelMeta.current = {
+      humanId: humanRecord.id,
+      dogCount: selectedDogs.length || null,
+    };
+  }, [humanRecord.id, selectedDogs.length]);
+  const fireFunnel = useCallback((funnelStep: string) => {
+    try {
+      if (!supabase) return;
+      const claim = claimFunnelStep(funnelStep);
+      if (!claim) return;
+      const occurredAt = new Date().toISOString();
+      logFunnelEvent(supabase, {
+        sessionId: claim.sessionId,
+        step: funnelStep,
+        stepIndex: claim.stepIndex,
+        occurredAt,
+        humanId: funnelMeta.current.humanId,
+        dogCount: funnelMeta.current.dogCount,
+      }).then(undefined, () => {});
+    } catch {
+      /* telemetry must never surface into the wizard */
+    }
+  }, []);
+  // "started" is the one funnel event with no user click behind it, so a
+  // mount effect is genuinely needed. fireFunnel is stable ([] deps), and the
+  // startedLogged flag persisted with the session record makes this once per
+  // attempt — not once per mount, however often auth refreshes remount us.
   useEffect(() => {
     fireFunnel("started");
   }, [fireFunnel]);
-  useEffect(() => {
-    const name = { 1: "select_dogs", 2: "select_service", 3: "select_date", 4: "select_slot", 5: "confirm" }[step];
-    if (name) fireFunnel(name);
-  }, [step, fireFunnel]);
-  useEffect(() => {
-    if (booked) fireFunnel("booked");
-  }, [booked, fireFunnel]);
 
   const handleConfirm = async () => {
     if (!slotAllocation || !selectedDate) return;
+    // Logged from the confirm click itself, synchronously before any await,
+    // so the captured occurred_at orders it correctly against "booked".
+    fireFunnel("confirm");
     setSubmitting(true);
     setError(null);
     try {
@@ -588,6 +602,11 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       setBookedIds(insertedIds);
       setBooked(true);
+      // Terminal funnel event, then end the attempt: clearing the stored
+      // session here (and only here) is what stops post-booking remounts
+      // minting stub sessions — the next genuine attempt starts fresh.
+      fireFunnel("booked");
+      clearFunnelSession();
     } catch (err) {
       // The server-side capacity/calendar triggers raise engineer-facing
       // messages like "Slot is full", "Capped at 1 (2-2-1 rule)",
@@ -925,7 +944,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             dogs={dogs}
             selectedDogs={selectedDogs}
             onSelect={toggleDog}
-            onNext={() => setStep(2)}
+            onNext={() => {
+              fireFunnel("select_dogs");
+              setStep(2);
+            }}
             onDogAdded={handleDogAdded}
             humanId={humanRecord.id}
             loading={dogsLoading}
@@ -937,7 +959,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             selectedDogs={selectedDogs}
             services={services}
             onSelect={selectService}
-            onNext={() => setStep(3)}
+            onNext={() => {
+              fireFunnel("select_service");
+              setStep(3);
+            }}
             onBack={() => setStep(1)}
           />
         )}
@@ -948,7 +973,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             selectedDogs={selectedDogs}
             selectedDate={selectedDate}
             onSelect={setSelectedDate}
-            onNext={() => setStep(4)}
+            onNext={() => {
+              fireFunnel("select_date");
+              setStep(4);
+            }}
             onBack={() => setStep(2)}
             page={datePage}
             onPageChange={setDatePage}
@@ -962,7 +990,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             selectedDate={selectedDate}
             slotAllocation={slotAllocation}
             onSelect={(allocation) => setSlotAllocation(allocation)}
-            onNext={() => setStep(5)}
+            onNext={() => {
+              fireFunnel("select_slot");
+              setStep(5);
+            }}
             onBack={() => setStep(3)}
             onJoinWaitlist={handleJoinWaitlist}
             onNoAvailability={handleNoAvailability}
