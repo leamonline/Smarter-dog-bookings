@@ -59,6 +59,51 @@ export function mapDenialReason(message?: string | null): string {
 }
 
 /**
+ * Reason codes that a DIFFERENT TIME ON THE SAME DAY could actually resolve.
+ *
+ * The Flow's only recovery offer is SELECT_TIME_RETRY — a list of other slots
+ * on the date the customer already picked. Whether that helps depends entirely
+ * on which gate refused, and `P0001` does not distinguish them: it is
+ * Postgres' generic raise_exception code, shared by the capacity trigger, the
+ * pregnancy gate, the per-customer slot block and the dog-integrity check
+ * (issue #680). Keying the retry on the SQLSTATE alone offered a pregnant dog's
+ * owner a list of times, every one of which fails identically.
+ *
+ * Flow-only, so deliberately NOT mirrored in src/engine/denials.ts: the portal
+ * wizard shows a message and lets the customer navigate, it has no equivalent
+ * retry screen to gate.
+ *
+ * Excluded, and why another time cannot help:
+ *   pregnant        — the dog cannot be booked online at all
+ *   daily_cap       — the whole DAY is full, so every slot on it fails
+ *   calendar_closed — the salon is closed that day
+ *   past_date       — the date has already gone
+ *   unknown         — unrecognised refusal; fail closed rather than loop the
+ *                     customer through slots that may all reject
+ */
+export const RETRYABLE_DENIAL_REASONS: ReadonlySet<string> = new Set([
+  // Per-slot capacity: a different slot may well have room.
+  "capacity_2_2_1",
+  "slot_full",
+  "seat_blocked",
+  "large_dog_ineligible",
+  // Invalid slot — picking a real one is exactly the fix.
+  "unavailable",
+  // Same-day cutoff: a later slot today can still be far enough out.
+  "past_cutoff",
+  // The unique constraint is (dog_id, booking_date, slot), so the same dog at
+  // a different slot on the same day is allowed.
+  "double_booked",
+  // The owner's blocked_slots gate is per-slot, not per-day.
+  "customer_slot_blocked",
+]);
+
+/** Whether the Flow should offer other times on the same day for this refusal. */
+export function canRetryAnotherTime(message?: string | null): boolean {
+  return RETRYABLE_DENIAL_REASONS.has(mapDenialReason(message));
+}
+
+/**
  * Warm, customer-facing copy for a gate rejection, for the WhatsApp Flow.
  *
  * Routes the raw message through the SAME mapDenialReason categoriser used for
