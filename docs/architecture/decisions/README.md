@@ -18,6 +18,7 @@ complete.
 | [005](005-fail-closed-on-ambiguous-legacy-visit-grouping.md) | Ambiguous legacy visit grouping fails closed | Accepted plan decision |
 | [006](006-manual-target-verified-database-rollout.md) | Production database rollout remains manual and target verified | Accepted — current release model |
 | [007](007-customer-capacity-read-disclosure.md) | Customer capacity-read RPCs disclose occupancy shape only, range reads capped at 92 days | Accepted — gap found and fixed |
+| [008](008-customer-facing-refusal-wording.md) | A refused customer is told what to do next, never the rule, the clock or the capacity number | Accepted — wording rule decided and enforced |
 
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately

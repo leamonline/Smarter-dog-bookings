@@ -10,7 +10,16 @@
 export type RescheduleConfirmFailure = {
   ok: false;
   kind: "slot_taken" | "ownership" | "error" | "old_visit_unavailable";
+  /** Customer-facing copy. Never a raw database message — see ADR 008. */
   message?: string;
+  /**
+   * The raw gate/database message behind this failure, when there was one.
+   * Diagnostic only: it feeds booking_denials.reason_detail and the reason
+   * mapper, and must never be rendered to a customer. Declared here because
+   * this type re-describes the adapter's failure shape, and omitting it would
+   * silently strip the detail on the reschedule path.
+   */
+  detail?: string;
 };
 
 export type RescheduleConfirmSuccess = {

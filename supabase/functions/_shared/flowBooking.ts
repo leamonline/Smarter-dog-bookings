@@ -30,6 +30,7 @@ import {
   SLOT_SHAPE,
   slotLabel,
 } from "./salonConstants.ts";
+import { friendlyDenialMessage } from "./denialCopy.ts";
 import { ADDONS } from "./salonConstants.ts";
 import {
   type Booking as CapacityBooking,
@@ -498,7 +499,14 @@ export type GroupConfirmResult =
   | {
       ok: false;
       kind: "slot_taken" | "ownership" | "error" | "old_visit_unavailable";
+      /** Customer-facing copy. Never a raw database message — see ADR 008. */
       message: string;
+      /**
+       * The raw gate/database message, when there was one. Diagnostic only:
+       * it feeds booking_denials.reason_detail and the reason-code mapper, and
+       * must never be rendered to a customer.
+       */
+      detail?: string;
     };
 
 /**
@@ -643,13 +651,17 @@ export async function confirmGroupBooking(
     return {
       ok: false,
       kind: "slot_taken",
-      message: res.errorMessage || "That slot was just taken — please pick another time.",
+      message: friendlyDenialMessage(res.errorMessage),
+      detail: res.errorMessage,
     };
   }
   return {
     ok: false,
     kind: "error",
-    message: res.errorMessage || "Couldn't save the booking.",
+    // A non-P0001 database error is not a gate refusal, so there is no reason
+    // code to translate — but it must not reach a customer verbatim either.
+    message: "Sorry, we couldn’t save that booking. Please try again, or reply here and we’ll help.",
+    detail: res.errorMessage,
   };
 }
 
@@ -664,7 +676,14 @@ export interface ConfirmInput {
 
 export type ConfirmResult =
   | { ok: true; bookingId: string; size: DogSize }
-  | { ok: false; kind: "slot_taken" | "ownership" | "error"; message: string };
+  | {
+      ok: false;
+      kind: "slot_taken" | "ownership" | "error";
+      /** Customer-facing copy. Never a raw database message — see ADR 008. */
+      message: string;
+      /** Raw gate/database message; diagnostic only, never shown. */
+      detail?: string;
+    };
 
 const CAPACITY_TRIGGER_SQLSTATE = "P0001";
 // reschedule_whatsapp_booking_group raises P0002 when the old visit is
@@ -697,13 +716,15 @@ export async function confirmBooking(db: FlowDb, input: ConfirmInput): Promise<C
     return {
       ok: false,
       kind: "slot_taken",
-      message: result.errorMessage || "That slot was just taken — please pick another time.",
+      message: friendlyDenialMessage(result.errorMessage),
+      detail: result.errorMessage,
     };
   }
   return {
     ok: false,
     kind: "error",
-    message: result.errorMessage || "Couldn't save the booking.",
+    message: "Sorry, we couldn’t save that booking. Please try again, or reply here and we’ll help.",
+    detail: result.errorMessage,
   };
 }
 

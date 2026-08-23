@@ -39,7 +39,13 @@ export function mapDenialReason(message?: string | null): string {
   if (m.includes("2-2-1")) return "capacity_2_2_1";
   if (m.includes("fully booked") && m.includes("per day")) return "daily_cap";
   if (m.includes("slot is full")) return "slot_full";
-  if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close/.test(m)) return "large_dog_ineligible";
+  // "conditional:" catches the browser engine's 12-hour phrasing of the
+  // large-dog conditional ("9:00am conditional: 8:30am must be empty"), which
+  // names no rule the other patterns match. Without it that refusal logs as
+  // "unknown" while the trigger's 24-hour wording of the SAME refusal logs as
+  // large_dog_ineligible — issue #665's third divergence, with report 2F as
+  // the casualty.
+  if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close|conditional:/.test(m)) return "large_dog_ineligible";
   if (m.includes("same-day")) return "past_cutoff";
   if (m.includes("in the past")) return "past_date";
   if (m.includes("blocked")) return "seat_blocked";

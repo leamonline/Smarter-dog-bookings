@@ -53,6 +53,7 @@ import {
 } from "../_shared/flowBooking.ts";
 import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
 import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
+import { mapDenialReason } from "../_shared/denialCopy.ts";
 import {
   completeSession,
   createServiceClient,
@@ -334,25 +335,6 @@ async function validateRescheduleOld(
   return { ok: true };
 }
 
-// Best-effort categorisation of a gate rejection message (Deno copy of the
-// frontend engine/denials.ts mapper — the customer portal is the source of
-// truth; keep the two in sync).
-function flowDenialReason(message: string | undefined): string {
-  const m = (message || "").toLowerCase();
-  if (!m) return "unknown";
-  if (m.includes("pregnant")) return "pregnant";
-  if (m.includes("2-2-1")) return "capacity_2_2_1";
-  if (m.includes("fully booked") && m.includes("per day")) return "daily_cap";
-  if (m.includes("slot is full")) return "slot_full";
-  if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close/.test(m)) return "large_dog_ineligible";
-  if (m.includes("same-day")) return "past_cutoff";
-  if (m.includes("in the past")) return "past_date";
-  if (m.includes("blocked")) return "seat_blocked";
-  if (m.includes("closed")) return "calendar_closed";
-  if (m.includes("twice") || m.includes("already booked")) return "double_booked";
-  if (m.includes("invalid slot")) return "unavailable";
-  return "unknown";
-}
 
 // Log a capacity-prevented booking into booking_denials (report 2F). Awaited so
 // the write lands before the edge function returns, but fully swallowed — a
@@ -368,7 +350,7 @@ async function logFlowDenial(
     const dogIds = state.dog_ids ?? [];
     const firstId = dogIds[0];
     await supabase.rpc("log_booking_denial", {
-      p_reason_code: flowDenialReason(message),
+      p_reason_code: mapDenialReason(message),
       p_source: "whatsapp_flow",
       p_requested_date: state.date ?? null,
       p_slot: state.drop_off ?? null,
@@ -487,7 +469,7 @@ async function handleConfirm(
     }
 
     if (result.kind === "old_visit_unavailable") {
-      await logFlowDenial(supabase, session, state, result.message, false);
+      await logFlowDenial(supabase, session, state, result.detail ?? result.message, false);
       return screenResponse("BOOKING_FAILED", {
         message: result.message === RESCHEDULE_CUTOFF_MSG
           ? RESCHEDULE_CUTOFF_MSG
@@ -496,7 +478,7 @@ async function handleConfirm(
     }
 
     if (result.kind === "slot_taken" && allowRetry) {
-      await logFlowDenial(supabase, session, state, result.message, true);
+      await logFlowDenial(supabase, session, state, result.detail ?? result.message, true);
       const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       await saveSession(supabase, session.flow_token, {
         screen: "SELECT_TIME_RETRY",
@@ -517,7 +499,7 @@ async function handleConfirm(
     if (result.kind === "slot_taken" && !allowRetry) {
       await failSession(supabase, session.flow_token);
     }
-    await logFlowDenial(supabase, session, state, result.message, false);
+    await logFlowDenial(supabase, session, state, result.detail ?? result.message, false);
     return screenResponse("BOOKING_FAILED", {
       message: result.message ?? "Couldn't save the booking.",
     });
@@ -550,14 +532,14 @@ async function handleConfirm(
   // Defensive fallback for an adapter that reports a reschedule-only error on
   // this ordinary booking path.
   if (res.kind === "old_visit_unavailable") {
-    await logFlowDenial(supabase, session, state, res.message, false);
+    await logFlowDenial(supabase, session, state, res.detail ?? res.message, false);
     await failSession(supabase, session.flow_token);
     return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
 
   if (res.kind === "slot_taken" && allowRetry) {
     // Capacity-prevented, but we're offering other times on the same day.
-    await logFlowDenial(supabase, session, state, res.message, true);
+    await logFlowDenial(supabase, session, state, res.detail ?? res.message, true);
     const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
     await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
     return screenResponse("SELECT_TIME_RETRY", {
@@ -569,7 +551,7 @@ async function handleConfirm(
   }
 
   // Hard rejection (no retry offered) — capacity-prevented demand, logged best-effort.
-  await logFlowDenial(supabase, session, state, res.message, false);
+  await logFlowDenial(supabase, session, state, res.detail ?? res.message, false);
   await failSession(supabase, session.flow_token);
   return screenResponse("BOOKING_FAILED", { message: res.message });
 }
