@@ -32,12 +32,12 @@
 // Writing this guard found a live gap: get_occupancy_range had no range cap
 // at all while booking_policy_runtime() is inactive (the production state),
 // unlike its sibling get_blocked_seats. Fixed in
-// 20260822080000_cap_get_occupancy_range.sql, applied to both hosted
+// 20260823080000_cap_get_occupancy_range.sql, applied to both hosted
 // projects the same day. See
 // docs/architecture/decisions/007-customer-capacity-read-disclosure.md.
 //
 // Live verification (production `nlzhllhkigmsvrzduefz` and staging
-// `btjnxvgkpdbfrrqxvkfj`, 22 August 2026): all four are SECURITY DEFINER,
+// `btjnxvgkpdbfrrqxvkfj`, 23 August 2026): all four are SECURITY DEFINER,
 // STABLE, `search_path=public, pg_temp`, and
 // `has_function_privilege('anon', …, 'EXECUTE')` is false for every one; the
 // deployed bodies match the migration text asserted below, and
@@ -109,7 +109,7 @@ const RANGE_POSTURE: Record<Rpc, { args: string; cap: string }> = {
   get_slot_occupancy: { args: "p_date date", cap: "one date per call" },
   get_occupancy_range: {
     args: "p_from date, p_to date",
-    cap: "92 days when booking_policy_runtime() is inactive — added by 20260822080000, see ADR 007",
+    cap: "92 days when booking_policy_runtime() is inactive — added by 20260823080000, see ADR 007",
   },
   get_blocked_seats: { args: "p_start date, p_end date", cap: "92 days" },
   get_immediate_slots: { args: "", cap: "today only, no parameters" },
@@ -225,7 +225,7 @@ describe("customer capacity reads: security posture", () => {
     expect(
       grantedToAnon,
       `public.${rpc} bypasses RLS; a grant to anon would publish the salon's occupancy to ` +
-        `the internet. Verified false in production on 22 August 2026.`,
+        `the internet. Verified false in production on 23 August 2026.`,
     ).toEqual([]);
   });
 
@@ -271,7 +271,7 @@ describe("customer capacity reads: how much one call can harvest", () => {
     // `if ... = 'active'`, with no `else`. With booking_policy_runtime()
     // inactive (the production state), that left zero bound: one authenticated
     // call could read the whole booking history's (date, slot, size). Fixed in
-    // 20260822080000 by adding the same always-on 92-day fallback
+    // 20260823080000 by adding the same always-on 92-day fallback
     // get_blocked_seats already had. Remove the cap and this fails.
     expect(
       definitions.get_occupancy_range.body,
@@ -305,7 +305,7 @@ describe("customer capacity reads: the decision record", () => {
   it("records the gap that was found and the fix that closed it", () => {
     const adr = read(ADR);
     expect(adr, "must record the migration that added the cap").toContain(
-      "20260822080000_cap_get_occupancy_range",
+      "20260823080000_cap_get_occupancy_range",
     );
     expect(adr, "must record the 92-day cap the fix added").toMatch(/92 day/i);
   });

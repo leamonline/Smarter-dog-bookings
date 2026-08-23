@@ -1,9 +1,9 @@
 # ADR 007: What the customer capacity-read RPCs may disclose
 
 **Status:** Accepted — current disclosure surface, one gap found and fixed
-**Date:** 22 August 2026
+**Date:** 23 August 2026
 **Related issues/PRs:** Issue #667 (re-homed from #623); migration
-`20260822080000_cap_get_occupancy_range.sql`
+`20260823080000_cap_get_occupancy_range.sql`
 **Applies to:** `get_slot_occupancy`, `get_occupancy_range`, `get_blocked_seats`,
 `get_immediate_slots`
 
@@ -33,7 +33,7 @@ an unexamined one.
 | `get_immediate_slots()` | `(setting_date, slot)` for the server's today | any parameter — the function decides "today" itself, so a client can't ask about any other date |
 
 Verified against the deployed function bodies on both hosted projects
-(`nlzhllhkigmsvrzduefz` production, `btjnxvgkpdbfrrqxvkfj` staging), 22 August
+(`nlzhllhkigmsvrzduefz` production, `btjnxvgkpdbfrrqxvkfj` staging), 23 August
 2026: all four are `SECURITY DEFINER`, `STABLE`, pin `search_path`, and
 `has_function_privilege('anon', …, 'EXECUTE')` is false for every one — the
 grant chain is `revoke all` then `grant … to authenticated` alone, so only a
@@ -84,10 +84,10 @@ component only ever requests one 28-day page at a time (`PAGE_SIZE = 28`), no
 Edge Function calls this RPC, and mirroring `get_blocked_seats`' exact 92-day
 shape leaves 3× headroom with zero behavioural change for any real caller.
 
-Fixed in `20260822080000_cap_get_occupancy_range.sql`: the same always-on
+Fixed in `20260823080000_cap_get_occupancy_range.sql`: the same always-on
 92-day `else` fallback `get_blocked_seats` already had, added to
 `get_occupancy_range`. Returned columns and grants are unchanged. Applied to
-both `nlzhllhkigmsvrzduefz` and `btjnxvgkpdbfrrqxvkfj` on 22 August 2026 and
+both `nlzhllhkigmsvrzduefz` and `btjnxvgkpdbfrrqxvkfj` on 23 August 2026 and
 verified live on each: a request wider than 92 days now raises
 `get_occupancy_range: range too wide (max 92 days)`; a normal 28-day request
 is unaffected (40 rows returned against production's real data).
@@ -130,7 +130,7 @@ cost of a four-line `else` branch and no product-visible change.
 
 ## Evidence and implementation state
 
-- **Verified against live definitions**, both hosted projects, 22 August
+- **Verified against live definitions**, both hosted projects, 23 August
   2026 — not against migration text alone.
 - **Fixed, not merely recorded:** the one gap found
   (`get_occupancy_range` unbounded) was closed the same day, before this ADR

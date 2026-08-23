@@ -12,7 +12,7 @@
 -- kept the fallback as an `else` branch rather than replacing it.
 --
 -- With booking_policy_runtime() inactive — the live state on both prod
--- (nlzhllhkigmsvrzduefz) and staging (btjnxvgkpdbfrrqxvkfj), verified 22
+-- (nlzhllhkigmsvrzduefz) and staging (btjnxvgkpdbfrrqxvkfj), verified 23
 -- August 2026 — the result is that get_occupancy_range(p_from, p_to) has NO
 -- range limit at all: any authenticated customer account can request the
 -- entire booking history's (booking_date, slot, size) in a single call. No
