@@ -162,7 +162,11 @@
   /* Ink + mute (semantic aliases of brand-purple) */
   --color-sd-navy: #2D004B;
   --color-sd-navy-soft: #43326C;
-  --color-sd-ink-light: #6B7891;
+  /* WCAG AA (4.5:1) for normal-size text needs darker than the original
+     #6B7891 (4.45:1 on white, 4.23:1 on --sd-paper). This measures 4.77:1 on
+     white and 4.53:1 on --sd-paper, preserving hue/saturation (219.5°→220.0°,
+     15.1%→14.9%) — only lightness drops (49.4%→47.5%). */
+  --color-sd-ink-light: #67738B;
 
   /* Action colour aliases */
   --color-sd-yellow: #FECC13;
