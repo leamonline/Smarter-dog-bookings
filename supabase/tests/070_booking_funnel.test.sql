@@ -1,4 +1,6 @@
--- booking_funnel_events + log_funnel_event (migration 20260704120000).
+-- booking_funnel_events + log_funnel_event (migrations 20260704120000 +
+-- 20260823171500, which adds the optional client-side ordering fields
+-- step_index / occurred_at).
 --
 -- Verifies: the fire-and-forget RPC lets an ordinary authenticated (non-staff)
 -- session write; RLS keeps the table staff-read-only; anon cannot execute the
@@ -7,7 +9,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(6);
 
 -- Seed a staff profile (FK to auth.users skipped in replica mode).
 set local session_replication_role = replica;
@@ -24,6 +26,12 @@ select lives_ok(
   'an authenticated (non-staff) session can log a funnel step'
 );
 
+-- The wizard's new call shape: monotonic step index + client timestamp.
+select lives_ok(
+  $$ select public.log_funnel_event('11111111-2222-4333-8444-555555555555'::uuid, 'select_slot', null, 2, 4, '2026-08-23T10:00:00Z'::timestamptz) $$,
+  'the six-argument call with client-side ordering fields works'
+);
+
 select is(
   (select count(*) from public.booking_funnel_events), 0::bigint,
   'a non-staff session cannot read booking_funnel_events'
@@ -35,8 +43,13 @@ set local request.jwt.claims = '{"sub":"f0000000-0000-4000-8000-00000000007f","r
 set local role authenticated;
 
 select is(
-  (select count(*) from public.booking_funnel_events), 1::bigint,
-  'staff can read the logged funnel step'
+  (select count(*) from public.booking_funnel_events), 2::bigint,
+  'staff can read the logged funnel steps'
+);
+
+select is(
+  (select step_index from public.booking_funnel_events where step = 'select_slot'), 4,
+  'the client-side step_index is stored verbatim'
 );
 
 -- Anon cannot execute the RPC.

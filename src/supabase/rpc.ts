@@ -365,11 +365,20 @@ export function logBookingDenial(client: SupabaseClient, input: BookingDenialInp
 // fire-and-forget — a failure must never surface to, or block, the wizard.
 export function logFunnelEvent(
   client: SupabaseClient,
-  input: { sessionId: string; step: string; humanId?: string | null; dogCount?: number | null },
+  input: {
+    sessionId: string;
+    step: string;
+    stepIndex?: number | null;
+    occurredAt?: string | null;
+    humanId?: string | null;
+    dogCount?: number | null;
+  },
 ) {
   return client.rpc("log_funnel_event", {
     p_session_id: input.sessionId,
     p_step: input.step,
+    p_step_index: input.stepIndex ?? null,
+    p_occurred_at: input.occurredAt ?? null,
     p_human_id: input.humanId ?? null,
     p_dog_count: input.dogCount ?? null,
   });
