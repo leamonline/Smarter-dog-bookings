@@ -18,7 +18,7 @@
 
 import { slotToMinutes, DAY_CAPACITY } from "./utilisation";
 import { getBookableSeatCount, canBookSlot } from "./capacity";
-import { computeBookingPricing, isCountableBooking } from "./bookingRules";
+import { computeBookingPricing, getDogByIdOrName, isCountableBooking } from "./bookingRules";
 import type { PricingConfig } from "./bookingRules";
 import { computeRevenue } from "./pricing";
 import {
@@ -952,4 +952,83 @@ export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod 
     }))
     .sort((a, b) => b.amount - a.amount);
   return { total, count: paid.length, byMethod };
+}
+
+// ============================================================
+// Dogs booked this week whose RECORD carries no size
+//
+// bookings.size is NOT NULL, so a booking always states a size — but the DOG
+// record can still be blank, and that is what blocks the customer from
+// self-serving (both the portal wizard and the WhatsApp Flow need it) and what
+// staff must supply by hand at booking time (#683).
+//
+// 139 such dogs exist as a one-off artefact of the April 2026 import, and they
+// cannot be repaired automatically: every booking they have reads "small",
+// which was a UI default echoing back rather than an observation. So the
+// backlog needs a human who knows the dog — and the ones worth doing first are
+// the ones actually coming in.
+//
+// This surfaces exactly those: the dog is in the diary, so someone will see it
+// shortly and can record its real size while it is in front of them.
+// ============================================================
+
+export interface DogMissingSize {
+  dogId: string;
+  dogName: string;
+  /** Earliest upcoming booking for this dog, YYYY-MM-DD. */
+  dateStr: string;
+  slot: string;
+}
+
+/**
+ * Dogs with a booking on or after `todayStr` whose dog record has no size.
+ *
+ * Scope is whatever `bookingsByDate` holds — the loaded week — so the caller
+ * should describe it as "this week" rather than implying it swept the future.
+ * One row per dog (earliest booking wins), soonest first, cancelled excluded.
+ */
+export function selectDogsMissingSize(
+  bookingsByDate: Record<string, Booking[]> | null | undefined,
+  dogs: Record<string, Dog> | null | undefined,
+  todayStr: string,
+): DogMissingSize[] {
+  if (!bookingsByDate || !dogs) return [];
+
+  const earliest = new Map<string, DogMissingSize>();
+
+  for (const [dateStr, list] of Object.entries(bookingsByDate)) {
+    if (!dateStr || dateStr < todayStr) continue;
+    for (const booking of list || []) {
+      if (booking.status === BOOKING_STATUS.CANCELLED) continue;
+
+      // Resolve the dog RECORD; the booking's own size tells us nothing about
+      // whether the record is complete.
+      const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+      if (!dog || !dog.id) continue;
+      if (dog.size) continue;
+
+      const candidate: DogMissingSize = {
+        dogId: dog.id,
+        dogName: dog.name || booking.dogName || "This dog",
+        dateStr,
+        slot: booking.slot || "",
+      };
+      const held = earliest.get(dog.id);
+      if (
+        !held ||
+        candidate.dateStr < held.dateStr ||
+        (candidate.dateStr === held.dateStr &&
+          slotToMinutes(candidate.slot) < slotToMinutes(held.slot))
+      ) {
+        earliest.set(dog.id, candidate);
+      }
+    }
+  }
+
+  return [...earliest.values()].sort(
+    (a, b) =>
+      a.dateStr.localeCompare(b.dateStr) ||
+      slotToMinutes(a.slot) - slotToMinutes(b.slot) ||
+      a.dogName.localeCompare(b.dogName),
+  );
 }
