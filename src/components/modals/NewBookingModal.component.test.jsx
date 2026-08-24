@@ -339,3 +339,55 @@ describe("live calendar link — draftPick", () => {
     );
   });
 });
+
+// A dog whose record carries no size used to be booked silently as "small"
+// (issue #683). bookings.size drives the capacity engine AND
+// validate_booking_capacity, so an actually-large dog counted as one seat is an
+// overbook neither can detect — and the modal had no size control at all, so
+// nobody was ever asked. Staff must choose; nothing may be assumed on their
+// behalf.
+describe("NewBookingModal — a dog with no recorded size (#683)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const unsized = { ...luna, id: "dog-nosize", name: "Pip", size: null };
+  const unsizedEntry = { dog: unsized, humanKey: "Emma Wilson", service: "full-groom", addons: [] };
+
+  it("says the size is not set instead of showing a size the record lacks", async () => {
+    renderModal({ initialEntries: [unsizedEntry] });
+    expect(await screen.findByText("Pip")).toBeInTheDocument();
+    expect(screen.getByText(/size not set/i)).toBeInTheDocument();
+    // "Small" exists only as an option to choose — the dog is not labelled it.
+    // (The old behaviour rendered a "small" badge for this dog.)
+    expect(screen.getByRole("combobox", { name: /set pip's size/i })).not.toHaveValue("small");
+    expect(screen.getByRole("option", { name: "Small" }).selected).toBe(false);
+  });
+
+  it("offers staff an explicit size choice", async () => {
+    renderModal({ initialEntries: [unsizedEntry] });
+    const picker = await screen.findByRole("combobox", { name: /set pip's size/i });
+    expect(picker).toBeInTheDocument();
+    // Nothing is pre-selected — a default is exactly what caused the defect.
+    expect(picker).toHaveValue("");
+  });
+
+  it("refuses to save until a size is chosen, naming the dog", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [unsizedEntry], onAdd });
+    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+    expect(await screen.findByText(/set pip's size/i)).toBeInTheDocument();
+    // Critically: no booking was written with a guessed size.
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("writes the size staff actually chose, not a default", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [unsizedEntry], onAdd });
+    const picker = await screen.findByRole("combobox", { name: /set pip's size/i });
+    fireEvent.change(picker, { target: { value: "large" } });
+    await confirmWithMethod();
+    await waitFor(() => expect(onAdd).toHaveBeenCalled());
+    const written = onAdd.mock.calls[0][0];
+    const rows = Array.isArray(written) ? written : [written];
+    expect(rows[0].size).toBe("large");
+  });
+});

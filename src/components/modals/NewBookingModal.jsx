@@ -14,6 +14,15 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
 
+// A dog whose record carries no size must have one CHOSEN, never assumed.
+// bookings.size drives both the capacity engine and validate_booking_capacity,
+// so a fabricated "small" silently under-counts an actually-large dog's seats
+// (issue #683). Returns null when nobody has decided yet; saving is blocked
+// until they have.
+function entrySize(entry) {
+  return entry?.dog?.size || entry?.chosenSize || null;
+}
+
 // ─── main modal ─────────────────────────────────────────────────────────────
 
 export function NewBookingModal({
@@ -240,8 +249,14 @@ export function NewBookingModal({
   // load the owner's full dog list for the "add another dog" picker, which
   // can't rely on the paginated `dogs` map containing siblings.
   const selectedHumanId = dogEntries[0]?.dog?._humanId || null;
-  const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
-  const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small", name: e.dog.name }));
+  const primaryTheme = hasDogs ? (SIZE_THEME[entrySize(dogEntries[0])] || SIZE_FALLBACK) : SIZE_FALLBACK;
+  // Availability preview only counts dogs whose size is actually known. A dog
+  // awaiting a size choice is briefly absent from the preview rather than
+  // counted as a guess — and the save is blocked until it has one, so the gap
+  // closes as soon as staff answer.
+  const selectedDogs = dogEntries
+    .filter(e => entrySize(e))
+    .map(e => ({ id: e.dog.id, size: entrySize(e), name: e.dog.name }));
 
   // Load the owner's trusted humans when the owner changes so the recipient
   // picker knows whether to appear — trusted contacts hydrate lazily, so the
@@ -331,6 +346,12 @@ export function NewBookingModal({
     setSelectedSlot("");
   };
 
+  const handleSizeChange = (dogId, newSize) => {
+    setDogEntries(prev => prev.map(e =>
+      e.dog.id === dogId ? { ...e, chosenSize: newSize } : e
+    ));
+  };
+
   const handleServiceChange = (dogId, newService) => {
     setDogEntries(prev => prev.map(e =>
       e.dog.id === dogId ? { ...e, service: newService } : e
@@ -376,6 +397,10 @@ export function NewBookingModal({
     // (dog + date + slot) are filled in.
     const missing = [];
     if (dogEntries.length === 0) missing.push("Pick a dog");
+    // Never write a guessed size: capacity is computed from it (issue #683).
+    for (const entry of dogEntries) {
+      if (!entrySize(entry)) missing.push(`Set ${titleCase(entry.dog.name)}'s size`);
+    }
     if (!selectedDateStr) missing.push("Pick a date");
     if (!selectedSlot) missing.push("Pick a time");
     if (missing.length > 0) {
@@ -511,7 +536,7 @@ export function NewBookingModal({
       // save silently into a blocked seat without the override confirm dialog.
       const slotOverrides = settings?.overrides?.[selectedSlot] || {};
       for (const entry of dogEntries) {
-        const size = entry.dog.size || "small";
+        const size = entrySize(entry);
         const check = canBookSlot(simulated, selectedSlot, size, activeSlots, {
           overrides: slotOverrides,
           dogId: entry.dog.id,
@@ -537,7 +562,7 @@ export function NewBookingModal({
             slot: selectedSlot,
             dogName: entry.dog.name,
             breed: entry.dog.breed,
-            size: entry.dog.size || "small",
+            size: entrySize(entry),
             service: entry.service,
             addons: entry.addons || [],
             owner: entry.dog.humanId,
@@ -725,6 +750,7 @@ export function NewBookingModal({
           onSelectEntry={handleSelectEntry}
           onAddAnotherDog={handleAddAnotherDog}
           onRemoveDog={handleRemoveDog}
+          onSizeChange={handleSizeChange}
           onServiceChange={handleServiceChange}
           onAddonsChange={handleAddonsChange}
           onClearAll={handleClearAll}
