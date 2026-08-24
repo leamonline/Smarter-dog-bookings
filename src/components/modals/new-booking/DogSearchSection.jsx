@@ -24,6 +24,7 @@ export function DogSearchSection({
   onAddAnotherDog,
   onRemoveDog,
   onServiceChange,
+  onSizeChange,
   onAddonsChange,
   onClearAll,
   onOpenAddDog,
@@ -90,7 +91,10 @@ export function DogSearchSection({
       {hasDogs ? (
         <div className="flex flex-col gap-2">
           {dogEntries.map((entry) => {
-            const dogTheme = SIZE_THEME[entry.dog.size || "small"] || SIZE_FALLBACK;
+            // No fabricated size: an unsized dog gets the neutral theme and is
+            // labelled honestly below (issue #683).
+            const effectiveSize = entry.dog.size || entry.chosenSize || null;
+            const dogTheme = SIZE_THEME[effectiveSize] || SIZE_FALLBACK;
             return (
             <div
               key={entry.dog.id}
@@ -108,12 +112,29 @@ export function DogSearchSection({
                     {entry.dog.alerts?.length > 0 && <span className="ml-1.5">⚠️</span>}
                   </div>
                   <div className="text-[11px] text-slate-800 flex items-center gap-1.5 flex-wrap">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-white/80"
-                      style={{ color: dogTheme.primary }}
-                    >
-                      {entry.dog.size || "small"}
-                    </span>
+                    {effectiveSize ? (
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-white/80"
+                        style={{ color: dogTheme.primary }}
+                      >
+                        {effectiveSize}
+                      </span>
+                    ) : (
+                      <label className="text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 text-brand-coral">
+                        Size not set
+                        <select
+                          aria-label={`Set ${titleCase(entry.dog.name)}'s size`}
+                          value=""
+                          onChange={(e) => onSizeChange(entry.dog.id, e.target.value)}
+                          className="text-[10px] font-bold uppercase rounded border-[1.5px] border-brand-coral bg-white px-1 py-0.5"
+                        >
+                          <option value="" disabled>Choose…</option>
+                          <option value="small">Small</option>
+                          <option value="medium">Medium</option>
+                          <option value="large">Large</option>
+                        </select>
+                      </label>
+                    )}
                     <span>{titleCase(entry.dog.breed)} · {titleCase(entry.humanKey)}</span>
                   </div>
                   {entry.dog.alerts?.length > 0 && (
@@ -140,7 +161,7 @@ export function DogSearchSection({
               >
                 {SERVICES.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} — {getServicePriceLabel(s.id, entry.dog.size || "small")}
+                    {s.name}{effectiveSize ? ` — ${getServicePriceLabel(s.id, effectiveSize)}` : ""}
                   </option>
                 ))}
               </select>
@@ -212,7 +233,9 @@ export function DogSearchSection({
                     onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                   >
                     <span className="text-[13px] font-bold text-slate-800">{titleCase(dog.name)}</span>
-                    <span className="text-xs text-slate-500 ml-1.5">{titleCase(dog.breed)} · {dog.size || "small"}</span>
+                    <span className="text-xs text-slate-500 ml-1.5">
+                      {titleCase(dog.breed)} · {dog.size || "size not set"}
+                    </span>
                   </div>
                 ))
               )}
