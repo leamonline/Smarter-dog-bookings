@@ -809,6 +809,41 @@ export function entryOpStatus(entry: TodayFeedEntry): OpStatus {
   return { kind, ...OP_STATUS[kind] };
 }
 
+// ---- Act-now counts (the header's itemised status sentence) ------------------
+
+/**
+ * The header's "act now" numbers, itemised so the count defines itself:
+ * `1 late · 1 to confirm · 1 waiting` instead of an opaque "3 need action".
+ * Money deliberately does NOT appear here — a dog that will pay at pick-up is
+ * not a task while it is mid-groom, so owed money is a separate ambient fact
+ * (`£N to collect`) and the act-now numbers can only FALL as work gets done.
+ * `dogs` counts distinct entries (one dog late AND unconfirmed is one dog);
+ * the per-reason counts are honest per-reason tallies.
+ */
+export interface NowCounts {
+  late: number;
+  toConfirm: number;
+  waiting: number;
+  /** Distinct entries carrying at least one act-now reason. */
+  dogs: number;
+}
+
+const NOW_REASONS: NeedActionReason[] = ["late", "confirmation", "collection"];
+
+export function buildNowCounts(entries: TodayFeedEntry[]): NowCounts {
+  let late = 0;
+  let toConfirm = 0;
+  let waiting = 0;
+  let dogs = 0;
+  for (const e of entries) {
+    if (e.actionReasons.includes("late")) late++;
+    if (e.actionReasons.includes("confirmation")) toConfirm++;
+    if (e.actionReasons.includes("collection")) waiting++;
+    if (NOW_REASONS.some((reason) => e.actionReasons.includes(reason))) dogs++;
+  }
+  return { late, toConfirm, waiting, dogs };
+}
+
 // ---- Live focus and context --------------------------------------------------
 
 function validTimestamp(value: string | null | undefined): number | null {

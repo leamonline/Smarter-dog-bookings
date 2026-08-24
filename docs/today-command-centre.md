@@ -36,38 +36,67 @@ correct year-round, BST included.
 
 ## The Today view (`src/components/views/TodayView.jsx` + `views/today/`)
 
+The board is **ranked, not scrolled-to** (August 2026 redesign). There is no
+sticky Now strip and no load-time auto-scroll: the header names the most
+urgent dog in a one-line **"Next:" link** (`selectLiveFocus` +
+`liveFocusContext`) that scrolls-and-flashes the card only on an explicit tap,
+so the date — the guard against wrong-day writes — never leaves the screen.
+
 **Operational priority is centralised** in `entryOpStatus` (`engine/today.ts`):
 one ranked mapping (late → unpaid-collected → unconfirmed → ready-waiting →
-ready → in-salon → next → upcoming → collected) drives the card's accent rail,
-its status chip, its primary action AND the sticky strip, so they can never
-disagree. Tones map to classes in `views/today/parts.jsx`
-(`RAIL_TONE_CLASS`/`CHIP_TONE_CLASS`).
+ready → in-salon → next → upcoming → collected). The card's 3px **accent
+rail** reads from it (coral = late, amber = unconfirmed, emerald = ready;
+in-progress and upcoming cards are railless — absence of colour is the calm
+state). Rail tones map to classes in `views/today/parts.jsx`
+(`RAIL_TONE_CLASS`). Card surfaces are always white — state never lives in a
+background wash, so green cannot grow a second meaning.
 
-**The sticky "Now / Up next" strip** (`TodayNowStrip.jsx`) pins beneath the
-header: `selectNowNext` picks NOW (most urgent actionable → next arrival due
-within `DUE_SOON_MINUTES` → live dog, ready first) and UP NEXT (earliest
-still-expected arrival, an unconfirmed one preferred). Its primary action is
-the same contextual mapping as the cards (collection keeps its two-step
-confirm, payment keeps the method chooser); tapping the identity scrolls to
-and briefly highlights the card.
+**The gold rule.** At most **one** filled-yellow primary exists per board —
+the live focus card's — so yellow always means "do this next". Every other
+primary is the outlined tier. A booked, on-time focus earns gold only within
+`GOLD_DUE_SOON_MINUTES` (15) of its slot, and a browsed past/future date fills
+none at all: a calm 6:30am board shows no yellow, deliberately.
 
-**Card primary actions by state:** late/booked → Mark arrived · unconfirmed →
-Chase confirmation (inbox thread — reminder-send is deliberately no-resend) ·
-Checked in → Start groom (sets In bath; Mark ready stays secondary) · In bath →
-Mark ready · Ready → collection flow · Collected + owing → Mark paid.
-"Message owner" is never removed — it demotes to the More menu where it isn't
-the contextual pairing.
+**The header** (`TodayHeader.jsx`) is one anatomy at every width: the date IS
+the date-picker control; the salon open/closed pill sits beside it; the
+Manage-availability button carries its own state ("No online slots today" /
+"Next online 11:00") as a sub-label. Beneath, one **itemised status
+sentence**: `7 booked · 1 late · 1 to confirm · 1 waiting · £199 to collect`
+(`buildNowCounts` — money is deliberately NOT an act-now count, so the
+numbers can only fall as work gets done; an over-cap day appends a coral
+`15/14 over the daily cap`). The act-now cluster is also the needs-attention
+filter toggle; the filter itself still operates on the union including unpaid
+balances, so an owing dog can never be filtered out of sight.
 
-Sections, in priority order, each fed by `engine/today.ts` selectors:
+**One `BookingCard` for every lane** (`StatusBoard.jsx`): slot chip (coral
+when late), dog name as calm text, timing on the right, service · owner ·
+money on one line, welfare chips (coral, in the same safety language as the
+directories' `SafetyAlertChip` — never hidden at any width), then the action
+row. The whole card body opens the booking; dog/human files live one tap away
+in the More menu, which renders through a **portal** (never clipped, flips
+above the trigger near the viewport bottom, full menu keyboard contract,
+dismisses on scroll). Lanes are shell-less — a `text-label` heading + count +
+exception ("1 late" / "2 waiting") over cards on the page ground — in a
+content-weighted grid (`1.4fr 1fr 1fr`); empty lanes collapse into one
+reassurance line (`EmptyLaneSummary`) and there is **one page scroll**: no
+lane ever scrolls inside itself.
 
-| Section | Shows | Source |
-|---|---|---|
-| Immediate attention | ranked act-now queue: late arrivals, ready-but-not-collected, unconfirmed, outstanding payments, welfare flags | `buildImmediateAttention` — `isLateArrival` (Booked + slot passed + `LATE_ARRIVAL_GRACE_MINUTES`), `needsConfirmation` (reminder sent, not confirmed, `confirmation_channel != 'none'`), `isPaymentOutstanding`, dog `alerts`/`is_pregnant`/booking `notes` |
-| Dogs due in | today's bookings grouped by slot (`buildSlotGrid` incl. extra slots), current/next slot prioritised | `buildArrivalsBySlot` + `currentSlotIndex` |
-| In salon now / collection queue | checked-in and ready dogs with wait time | `buildCollectionQueue`, `collectionWaitMinutes` (from `ready_at`), `timeInSalonMinutes` (from `checked_in_at`) |
-| Payments & handover | today's non-cancelled unpaid bookings, deposit/balance split | `buildPaymentsList`, `paymentState` (G4 mapping via `computeBookingPricing`) |
-| Capacity & opportunities | remaining slots: seats free, large-dog eligibility, customer-reachable (immediate-flagged + before cutoff) | `buildSlotOpportunities` → `computeSlotCapacities` / `getBookableSeatCount` / `canBookSlot` (**never forks** the capacity engine) |
-| Summary strip | "Daily progress": collected-of-total + revenue on its own line (expected vs recorded-as-paid), then the five status counters (Booked/Arrived/Expected/Ready/Collected) + takings by method | `buildDaySummary`, `buildTakingsByMethod`, `computeRevenue` |
+**Card primary actions by state:** Booked → Check in (Call/Message appear as
+quiet contextual actions only when late/unconfirmed) · Checked in → Start
+groom · In bath → Ready for collection · Ready + owing → Take £N payment
+(with Mark collected one visible tap away — the unpaid-collection safeguard
+modal still re-checks) · Ready + paid → Mark collected. Actions show an
+in-flight state (`aria-busy`, dimmed) while their write is out, and the card
+flashes once where it lands (`animate-card-flash`, motion-gated). Care-step
+skips confirm through `ConfirmDialog` (ModalShell), never `window.confirm`.
+
+**The end-of-day strip** (`EndOfDay` in `StatusBoard.jsx`) replaces the boxed
+"Home today" card and "Daily progress" panel: cumulative arrived count, the
+till (`buildTakingsByMethod`), expected revenue and the daily cap on one
+hairline-separated line, with the sent-home list behind a single disclosure.
+Slot availability still comes from `buildSlotOpportunities` →
+`buildAvailabilityView` (**never forks** the capacity engine) via the
+Manage-availability modal.
 
 **Typed reminder confirmations.** `needsConfirmation` only clears on
 `bookings.reminder_confirmed_at`, which used to be stamped *only* by the

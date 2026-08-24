@@ -6,6 +6,10 @@ function bookingCard(page: Page, dogName: string) {
   return page.getByRole("article", { name: new RegExp(`^${dogName},`) });
 }
 
+function goldPrimaries(page: Page) {
+  return page.locator('[data-status-board-root] [data-primary-action="true"].bg-brand-yellow');
+}
+
 test("Daily Brief keeps the status board usable at every supported width", async ({
   page,
 }, testInfo) => {
@@ -19,20 +23,18 @@ test("Daily Brief keeps the status board usable at every supported width", async
   await expect(pageHeading).toBeAttached();
   await expect(pageHeading).toHaveClass(/sr-only/);
   await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
-  // Below md (the "mobile" project), the compact header replaces the
-  // separate Choose-date button with the date itself and shortens
-  // "Manage availability" to "Availability"; desktop/tablet keep the
-  // richer, unabbreviated controls.
-  const isMobile = testInfo.project.name === "mobile";
-  const dateControl = isMobile
-    ? page.getByRole("button", { name: "Monday 13 July — choose a different date" })
-    : page.getByRole("button", { name: "Choose date, Monday 13 July" });
+
+  // One header anatomy at every width: the date IS the date-picker control,
+  // and the availability button carries its own state as a sub-label.
+  const dateControl = page.getByRole("button", {
+    name: "Monday 13 July — choose a different date",
+  });
   await expect(dateControl).toBeVisible();
-  if (isMobile) {
-    await expect(page.getByRole("button", { name: "Choose date, Monday 13 July" })).toBeHidden();
-  }
-  const availability = page.getByRole("button", { name: isMobile ? "Availability" : "Manage availability" });
+  await expect(page.getByRole("button", { name: "Choose date, Monday 13 July" })).toHaveCount(0);
+  const availability = page.getByRole("button", { name: /Manage availability/ });
   await expect(availability).toBeVisible();
+  expect((await availability.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
   expect(
     await page.evaluate(() => ({
       documentFits:
@@ -51,28 +53,31 @@ test("Daily Brief keeps the status board usable at every supported width", async
   const dueLane = page.getByRole("region", { name: "Arriving, 2 dogs" });
   const withUsLane = page.getByRole("region", { name: "With us, 2 dogs" });
   const readyLane = page.getByRole("region", { name: "Ready to go, 1 dog" });
-  const home = page.getByRole("region", { name: "Home on this date, 1 dog" });
   await expect(dueLane).toBeVisible();
   await expect(withUsLane).toBeVisible();
   await expect(readyLane).toBeVisible();
+
+  // The sent-home list lives in the end-of-day strip behind one disclosure.
+  const home = page.getByRole("group", { name: "Home on this date, 1 dog" });
   await expect(home).toBeVisible();
   const homeToggle = home.getByRole("button", { name: "Show 1 dog sent home" });
   await expect(homeToggle).toHaveAttribute("aria-expanded", "false");
   await expect(home.getByRole("list")).toHaveCount(0);
   await expect(page.getByRole("tablist")).toHaveCount(0);
-  await expect(page.getByTestId("booking-journey-grid")).toHaveCount(0);
   await expect(page.getByRole("alert").filter({ hasText: "status fixed" })).toBeVisible();
 
   const maxCard = bookingCard(page, "Max");
   const bellaCard = bookingCard(page, "Bella");
   const charlieCard = bookingCard(page, "Charlie");
   const lunaCard = bookingCard(page, "Luna");
-  await expect(maxCard.getByRole("button", { name: "Open Max's dog file" })).toBeVisible();
-  await expect(maxCard.getByRole("button", { name: "Open Dave Smith's human file" })).toBeVisible();
-  await expect(maxCard.getByRole("button", { name: "Check in Max" })).toBeVisible();
-  await expect(bellaCard.getByRole("button", { name: "Start Bella's groom" })).toBeVisible();
-  await expect(charlieCard.getByRole("button", { name: "Mark Charlie ready for collection" })).toBeVisible();
-  await expect(lunaCard.getByRole("button", { name: "Mark Luna collected" })).toBeVisible();
+  // The card body opens the booking; dog/human names are calm text and their
+  // files live one tap away in More.
+  await expect(maxCard.getByRole("button", { name: "Open Max's 08:30 booking" })).toBeAttached();
+  await expect(maxCard.getByRole("button", { name: "Open Max's dog file" })).toHaveCount(0);
+  await maxCard.getByRole("button", { name: "More actions for Max" }).click();
+  await expect(page.getByRole("menuitem", { name: "Open Max's dog file" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Open Dave Smith's human file" })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   for (const action of [
     maxCard.getByRole("button", { name: "Check in Max" }),
@@ -83,33 +88,24 @@ test("Daily Brief keeps the status board usable at every supported width", async
     expect((await action.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   }
 
-  if (testInfo.project.name === "desktop") {
-    for (const card of [charlieCard, lunaCard]) {
-      expect((await card.boundingBox())?.height).toBeLessThanOrEqual(120);
-    }
-    expect((await bellaCard.boundingBox())?.height).toBeLessThanOrEqual(145);
-  }
+  // A browsed non-today date fills no gold primary — nothing on it is
+  // happening now.
+  await expect(goldPrimaries(page)).toHaveCount(0);
 
   const activeLaneColumns = await dueLane.locator("..").evaluate((element) =>
     getComputedStyle(element).gridTemplateColumns.split(" ").length,
   );
   expect(activeLaneColumns).toBe(testInfo.project.name === "desktop" ? 3 : testInfo.project.name === "tablet" ? 2 : 1);
 
+  // One page scroll only — no lane ever scrolls inside itself.
   const dueLaneBody = dueLane.locator('[data-testid="due-lane-body"]');
-  const dueLaneBodyCount = await dueLaneBody.count();
-  expect(dueLaneBodyCount).toBe(1);
-  const laneOverflow = await dueLaneBody.evaluate((element) => getComputedStyle(element).overflowY);
-  expect(laneOverflow).toBe(testInfo.project.name === "desktop" ? "auto" : "visible");
-  if (testInfo.project.name === "desktop") {
-    expect(await dueLane.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(
-      Math.round((await page.evaluate(() => window.innerHeight)) * 0.67) + 2,
-    );
-  }
+  await expect(dueLaneBody).toHaveCount(1);
+  expect(await dueLaneBody.evaluate((element) => getComputedStyle(element).overflowY)).toBe("visible");
 
   await dateControl.click();
   const datePicker = page.getByRole("dialog", { name: "July 2026" });
   await datePicker
-    .getByRole("button", { name: "Wednesday, 15 July 2026", exact: true })
+    .getByRole("button", { name: /^Wednesday 15 July 2026/ })
     .click();
   await expect(page).toHaveURL(/date=2026-07-15/);
   await expect(page.getByText("No bookings on this date")).toBeVisible();
@@ -160,8 +156,6 @@ test("mini invoice fits without scrolling at every supported viewport", async ({
     .getByRole("button", { name: "Mark Charlie ready for collection" })
     .click();
   await page.getByRole("button", { name: "Not now" }).click();
-  // Charlie still owes a balance, so Take payment is now the Ready card's
-  // primary action rather than sitting inside More.
   await charlieCard.getByRole("button", { name: /Take £.* payment from Charlie/ }).click();
 
   const invoice = page.getByRole("dialog", { name: "Invoice · Charlie" });
@@ -203,33 +197,48 @@ test("mini invoice fits without scrolling at every supported viewport", async ({
     .toBeGreaterThanOrEqual(0);
 });
 
-test("live arrival follows the focused dog without a duplicate Now panel", async ({ page }) => {
+test("the header Next link and the single gold primary follow the focused dog", async ({ page }, testInfo) => {
+  const hasNextLink = testInfo.project.name !== "mobile"; // the link is md+ — on phones the ordered column carries it
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
-  const liveMarker = page.getByLabel(/due now|due to arrive|overdue/i).first();
-  await expect(liveMarker).toBeVisible();
+  // No duplicated Now panel and no auto-scroll divider — the header names the
+  // next dog, the board marks it with the page's only gold primary.
   await expect(page.getByRole("region", { name: "Happening now" })).toHaveCount(0);
-  await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
-  await expect(page.getByText("Next arrival")).toBeVisible();
-  // Coco's lateness is on its shared slot heading now, not repeated inside
-  // the card itself — and a late arrival with a phone gets both Call and
-  // Message rather than the old single Call-or-Contact fallback.
+  await expect(page.getByTestId("live-arrival-divider")).toHaveCount(0);
+  await expect(page.getByText("Next arrival")).toHaveCount(0);
+
+  await expect(goldPrimaries(page)).toHaveCount(1);
+  await expect(goldPrimaries(page).first()).toHaveAccessibleName("Check in Coco");
+
+  // Coco's lateness is on its shared slot heading, not repeated inside the
+  // card itself — and a late arrival always offers Message (Call additionally
+  // appears only with a resolvable phone number, which this record doesn't have).
   const dueLane = page.getByRole("region", { name: "Arriving, 3 dogs" });
   await expect(dueLane).toContainText("45 min late");
   await expect(bookingCard(page, "Coco")).not.toContainText("45 min late");
-  // A late arrival always offers Message (Call additionally appears only
-  // with a resolvable phone number, which this sample record doesn't have).
   await expect(bookingCard(page, "Coco").getByRole("button", { name: /^Message / })).toBeVisible();
+
+  // The Next link jumps to the focused card on request (md and up).
+  if (hasNextLink) {
+    const nextLink = page.getByRole("button", { name: "Next: Coco — 45 min overdue" });
+    await expect(nextLink).toBeVisible();
+    await nextLink.click();
+    await expect(bookingCard(page, "Coco")).toBeFocused();
+  }
 
   await bookingCard(page, "Coco").getByRole("button", { name: "Check in Coco" }).click();
   await expect(page.getByRole("region", { name: "Arriving, 2 dogs" })).toContainText("Teddy");
   await expect(page.getByRole("region", { name: "With us, 1 dog" })).toContainText("Coco");
-  await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
-  await expect(page.getByLabel("Teddy — 15 min overdue")).toBeVisible();
+  // The focus advances: the gold primary and the Next link both move to Teddy.
+  await expect(goldPrimaries(page)).toHaveCount(1);
+  await expect(goldPrimaries(page).first()).toHaveAccessibleName("Check in Teddy");
+  if (hasNextLink) {
+    await expect(page.getByRole("button", { name: "Next: Teddy — 15 min overdue" })).toBeVisible();
+  }
 });
 
-test("early morning keeps every booked arrival upcoming", async ({ page }) => {
+test("early morning keeps every booked arrival upcoming — and nothing gold", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-07-14T06:30:00+01:00"));
   await page.goto("/today?date=2026-07-14");
 
@@ -237,6 +246,10 @@ test("early morning keeps every booked arrival upcoming", async ({ page }) => {
   await expect(arriving.getByText("Upcoming", { exact: true })).toHaveCount(0);
   await expect(arriving.getByRole("article")).toHaveCount(3);
   await expect(arriving.locator('[data-action-reason="late"]')).toHaveCount(0);
+  // Yellow means "do this now" — at 6:30 nothing is, so nothing is yellow,
+  // and the empty downstream lanes fold into one reassurance line.
+  await expect(goldPrimaries(page)).toHaveCount(0);
+  await expect(page.getByText("With us — nobody yet")).toBeVisible();
 });
 
 test("unknown-status warning opens the affected booking directly", async ({ page }) => {
@@ -253,23 +266,23 @@ test("unknown-status warning opens the affected booking directly", async ({ page
   await expect(page.getByRole("dialog", { name: /Milo/i })).toBeVisible();
 });
 
-test("Need action exposes its selected state and visible row reasons by keyboard", async ({ page }) => {
+test("the itemised filter exposes its selected state and visible row reasons by keyboard", async ({ page }) => {
   // This test is about the filter's data flow, not responsive layout — pin
-  // to a width where the richer header (and its fuller aria-label) is the
-  // one in the accessibility tree, regardless of which project runs it.
+  // to a width where the desktop status sentence is in the accessibility tree.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
-  const filter = page.getByRole("button", { name: /Filter .* bookings needing action/ });
+  const filter = page.getByRole("button", { name: /Filter to the .* needing attention/ });
   await expect(filter).toHaveAttribute("aria-pressed", "false");
+  await expect(filter).toContainText(/\d+ late/);
   await filter.focus();
   await page.keyboard.press("Enter");
   const selectedFilter = page.getByRole("button", { name: /Show all bookings/ });
   await expect(selectedFilter).toHaveAttribute("aria-pressed", "true");
   await expect(selectedFilter).toHaveAttribute("data-filter-selected", "true");
-  await expect(selectedFilter).toContainText("Filtering");
-  await expect(page.getByRole("status")).toContainText("Showing");
+  await expect(selectedFilter).toContainText("Clear");
+  await expect(page.getByText(/Showing .* needing attention/)).toBeVisible();
 
   const visibleActionCards = page.locator('[data-needs-action="true"]:visible');
   const actionCardCount = await visibleActionCards.count();
@@ -280,42 +293,62 @@ test("Need action exposes its selected state and visible row reasons by keyboard
   expect(missingReasons).toBe(0);
 });
 
-test("dog and human files preserve the selected Daily Brief and restore focus", async ({
+test("dog and human files open from More, preserve the date and restore focus", async ({
   page,
 }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");
 
-  const dogTrigger = page.getByRole("button", { name: "Open Bella's dog file" });
-  await dogTrigger.click();
+  const moreTrigger = bookingCard(page, "Bella").getByRole("button", { name: "More actions for Bella" });
+  await moreTrigger.click();
+  await page.getByRole("menuitem", { name: "Open Bella's dog file" }).click();
   await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
   const dogDialog = page.getByRole("dialog", { name: /Bella/i });
   await expect(dogDialog).toBeVisible();
   await dogDialog.getByRole("button", { name: "Close" }).click();
-  await expect(dogTrigger).toBeFocused();
+  await expect(moreTrigger).toBeFocused();
 
-  const humanTrigger = page.getByRole("button", {
-    name: "Open Sarah Jones's human file",
-  });
-  await humanTrigger.click();
+  await moreTrigger.click();
+  await page.getByRole("menuitem", { name: "Open Sarah Jones's human file" }).click();
   await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
   const humanDialog = page.getByRole("dialog", { name: /Sarah Jones/i });
   await expect(humanDialog).toBeVisible();
   await humanDialog.getByRole("button", { name: "Close" }).click();
-  await expect(humanTrigger).toBeFocused();
+  await expect(moreTrigger).toBeFocused();
 });
 
-test("compact mobile header opens the date picker and the Need action filter", async ({ page }) => {
+test("the More menu is never clipped by the board and dismisses on scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 560 });
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  const triggers = page
+    .locator('[data-testid="due-lane-body"]')
+    .getByRole("button", { name: /More actions for/ });
+  await triggers.last().click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  const box = await menu.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1);
+
+  // The trigger sits at the bottom of the page here, so scroll back up —
+  // any real scroll must dismiss the menu. The dismiss listener deliberately
+  // arms a beat after open (so the opening tap's own scroll can't close it);
+  // wait past that arming window before scrolling.
+  await page.waitForTimeout(250);
+  await page.evaluate(() => window.scrollBy(0, -120));
+  await expect(menu).toHaveCount(0);
+});
+
+test("compact widths keep one header anatomy: date-as-picker and the itemised filter", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");
 
-  // No separate Choose-date control at this width — the date itself opens
-  // the picker — and the richer header's own date button is hidden, not
-  // just visually smaller.
-  await expect(
-    page.getByRole("button", { name: "Choose date, Monday 13 July" }),
-  ).toBeHidden();
   const dateControl = page.getByRole("button", {
     name: "Monday 13 July — choose a different date",
   });
@@ -324,16 +357,15 @@ test("compact mobile header opens the date picker and the Need action filter", a
   await expect(page.getByRole("dialog", { name: "July 2026" })).toBeVisible();
   await page.keyboard.press("Escape");
 
-  const availability = page.getByRole("button", { name: "Availability" });
+  const availability = page.getByRole("button", { name: /Manage availability/ });
   await expect(availability).toBeVisible();
   const box = await availability.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(44);
 
-  const needAction = page.getByRole("button", { name: /need action$/ });
-  await expect(needAction).toBeVisible();
-  await expect(needAction).toHaveAttribute("aria-pressed", "false");
-  await needAction.click();
-  await expect(page.getByRole("button", { name: /^Showing \d+ · Clear$/ })).toHaveAttribute(
+  const filter = page.getByRole("button", { name: /Filter to the .* needing attention/ });
+  await expect(filter).toHaveAttribute("aria-pressed", "false");
+  await filter.click();
+  await expect(page.getByRole("button", { name: /^Show all bookings/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

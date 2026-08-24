@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { MiniInvoiceModal } from "./MiniInvoiceModal.jsx";
@@ -278,9 +278,9 @@ describe("MiniInvoiceModal", () => {
     expect(dialog.parentElement).toHaveClass("items-end");
   });
 
-  it("confirms dirty close with the approved prompt", () => {
+  it("confirms dirty close with an in-product dialog, never window.confirm", () => {
     const onClose = vi.fn();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const confirm = vi.spyOn(window, "confirm");
     render(
       <MiniInvoiceModal
         booking={bookingFixture}
@@ -296,11 +296,18 @@ describe("MiniInvoiceModal", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(confirm).toHaveBeenCalledWith("Discard these invoice changes?");
+    expect(confirm).not.toHaveBeenCalled();
+    const discardDialog = screen.getByRole("dialog", { name: "Discard these invoice changes?" });
     expect(onClose).not.toHaveBeenCalled();
 
-    confirm.mockReturnValue(true);
+    // "Keep editing" backs out without losing the draft…
+    fireEvent.click(within(discardDialog).getByRole("button", { name: "Keep editing" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Deposit received")).toHaveValue(5);
+
+    // …and "Discard changes" is the one destructive step that closes.
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

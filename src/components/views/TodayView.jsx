@@ -1,5 +1,10 @@
 // Daily Brief command centre. Every date-specific selector and mutation is
 // anchored to the selected date, including closed, past and future dates.
+//
+// The board is RANKED, not scrolled-to: the header's "Next:" link names the
+// most urgent dog and jumps on request, but the viewport never moves by
+// itself — the date (the guard against wrong-day writes) stays put, and
+// keyboard entry starts at the top of the page like everywhere else.
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
@@ -9,13 +14,16 @@ import {
   londonWallClockToUtcMs,
   paymentState,
   buildDaySummary,
+  buildNowCounts,
   buildTakingsByMethod,
   buildSlotOpportunities,
   buildAvailabilityView,
   liveFocusContext,
+  minutesUntilSlot,
   selectLiveFocus,
   selectDogsMissingSize,
 } from "../../engine/today";
+import { DAY_CAPACITY } from "../../engine/utilisation";
 import {
   buildDailyBriefBoard,
   buildDailyBriefFeed,
@@ -26,24 +34,30 @@ import { BOOKING_STATUS, NO_SHOW_REASON } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
-import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
+import { ConfirmDialog } from "../modals/ConfirmDialog.jsx";
+import { TodayHeader } from "./today/TodayHeader.jsx";
 import { StatusBoard } from "./today/StatusBoard.jsx";
 import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
-import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
 import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
 
+// Mirrors the real board: three shell-less lanes of card ghosts.
 function BoardSkeleton() {
   return (
-    <div aria-label="Loading booking status board" className="grid grid-cols-1 gap-3 motion-safe:animate-pulse md:grid-cols-2 xl:grid-cols-3">
+    <div
+      aria-label="Loading booking status board"
+      className="grid grid-cols-1 items-start gap-6 motion-safe:animate-pulse md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]"
+    >
       {[0, 1, 2].map((lane) => (
-        <div key={lane} className="rounded-2xl border border-brand-paper-line bg-white p-4">
-          <div className="mb-4 h-5 w-36 rounded bg-slate-100" />
-          <div className="mb-2 h-28 rounded-xl bg-slate-50" />
-          <div className="h-28 rounded-xl bg-slate-50" />
+        <div key={lane} className="min-w-0">
+          <div className="mb-2.5 h-3 w-24 rounded bg-slate-200/80" />
+          <div className="space-y-2.5">
+            <div className="h-28 rounded-xl border border-brand-paper-line bg-white" />
+            {lane === 0 ? <div className="h-28 rounded-xl border border-brand-paper-line bg-white" /> : null}
+          </div>
         </div>
       ))}
     </div>
@@ -57,6 +71,10 @@ const BOARD_LANE_BY_STATUS = {
   [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
   [BOOKING_STATUS.COMPLETED]: "home",
 };
+
+// A booked, on-time focus earns the gold primary only once its arrival is
+// this close — before that the board is calm and nothing is yellow.
+const GOLD_DUE_SOON_MINUTES = 15;
 
 const BOARD_LANE_LABEL = {
   due: "Arriving",
@@ -114,11 +132,20 @@ export function TodayView({
   const [showAvailability, setShowAvailability] = useState(false);
   const [invoiceBooking, setInvoiceBooking] = useState(null);
   const [collectionDueBooking, setCollectionDueBooking] = useState(null);
+  const [pendingCareSkip, setPendingCareSkip] = useState(null);
   const [showNeedsActionOnly, setShowNeedsActionOnly] = useState(false);
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
+  // In-flight and just-moved cards: the pressed control dims (aria-busy) while
+  // its write is out, and the card flashes once where it lands so a lane move
+  // has visible continuity instead of a silent disappearance.
+  const [busyIds, setBusyIds] = useState(() => new Set());
+  const [flashId, setFlashId] = useState(null);
+  const flashTimerRef = useRef(null);
   const localLaneMutationIdsRef = useRef(new Set());
   const previousBoardLanesRef = useRef(null);
   const focusedBookingIdRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(flashTimerRef.current), []);
 
   const realTodayStr = londonDateStr(now);
   const dateStr = selectedDateStr || realTodayStr;
@@ -158,7 +185,7 @@ export function TodayView({
   // instead of tapping the Confirm button never stamp reminder_confirmed_at, so
   // the engine still calls them unconfirmed. Folding the signal into the built
   // feed (and board) clears the "Needs confirmation" flag everywhere at once:
-  // cards, lane warnings, the "N to confirm" heading and the need-action count.
+  // cards, lane warnings, the "N to confirm" heading and the act-now counts.
   const replyConfirmations = useReplyConfirmations(selectedBookings);
   const feed = useMemo(
     () => applyChatConfirmations(
@@ -186,6 +213,7 @@ export function TodayView({
   const onTheWaySignals = useOnTheWaySignals(readyBookings);
 
   const visibleFeed = feed;
+  const nowCounts = useMemo(() => buildNowCounts(visibleFeed), [visibleFeed]);
   const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
   const displayedFeed = useMemo(
     () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
@@ -233,6 +261,34 @@ export function TodayView({
     [liveFocus, now],
   );
   const liveFocusId = liveFocus?.booking.id ?? null;
+  // The gold rule: yellow means "do this NOW". A focus that is merely the
+  // next expected arrival stays outlined until its slot is imminent — a calm
+  // 6:30am board shows no yellow at all, deliberately.
+  const goldId = useMemo(() => {
+    if (!liveFocus) return null;
+    if (liveFocus.stage !== "booked" || liveFocus.isLate) return liveFocus.booking.id;
+    const minutes = minutesUntilSlot(liveFocus.booking.slot || "00:00", now);
+    return minutes <= GOLD_DUE_SOON_MINUTES ? liveFocus.booking.id : null;
+  }, [liveFocus, now]);
+  const nextUp = useMemo(
+    () => (liveFocus && liveContext
+      ? { dogName: liveFocus.booking.dogName || "Booking", text: liveContext.text, tone: liveContext.tone }
+      : null),
+    [liveFocus, liveContext],
+  );
+
+  // The viewport moves only on this explicit request — never on load.
+  const jumpToNext = useCallback(() => {
+    if (!liveFocusId) return;
+    const el = document.getElementById(`today-card-${liveFocusId}`);
+    if (!el) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    el.focus({ preventScroll: true });
+    clearTimeout(flashTimerRef.current);
+    setFlashId(liveFocusId);
+    flashTimerRef.current = setTimeout(() => setFlashId(null), 1400);
+  }, [liveFocusId]);
 
   useEffect(() => {
     const onFocusIn = (event) => {
@@ -294,60 +350,6 @@ export function TodayView({
     }
   }, [dateStr, fullBoard, selectedBookings, toast]);
 
-  // Scrolling is permission-based: candidate changes alone never move the
-  // viewport. Initial/date loads and successful focused-booking resolutions
-  // issue an explicit request, while ticks, filters and refetches only update
-  // the marker in place.
-  const [scrollRequest, setScrollRequest] = useState(null);
-  const initialLoadDateRef = useRef(null);
-  const handledScrollRequestRef = useRef(0);
-  const requestLiveScroll = useCallback((focusId) => {
-    setScrollRequest((previous) => ({
-      sequence: (previous?.sequence ?? 0) + 1,
-      dateStr,
-      focusId,
-    }));
-  }, [dateStr]);
-
-  useEffect(() => {
-    if (!isToday) {
-      initialLoadDateRef.current = null;
-      return;
-    }
-    if (bookingsLoading || initialLoadDateRef.current === dateStr) return;
-    initialLoadDateRef.current = dateStr;
-    if (liveFocusId) requestLiveScroll(liveFocusId);
-  }, [bookingsLoading, dateStr, isToday, liveFocusId, requestLiveScroll]);
-
-  useEffect(() => {
-    if (
-      !scrollRequest ||
-      !isToday ||
-      bookingsLoading ||
-      scrollRequest.dateStr !== dateStr ||
-      handledScrollRequestRef.current === scrollRequest.sequence
-    ) {
-      return;
-    }
-    handledScrollRequestRef.current = scrollRequest.sequence;
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`today-card-${scrollRequest.focusId}`);
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-      el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-    });
-  }, [bookingsLoading, dateStr, isToday, scrollRequest]);
-
-  const [pendingResolvedFocusId, setPendingResolvedFocusId] = useState(null);
-  useEffect(() => {
-    if (!pendingResolvedFocusId || !isToday || bookingsLoading) return;
-    const resolvedEntry = visibleFeed.find(
-      (entry) => entry.booking.id === pendingResolvedFocusId,
-    );
-    if (resolvedEntry?.stage === "booked") return;
-    setPendingResolvedFocusId(null);
-    if (liveFocusId) requestLiveScroll(liveFocusId);
-  }, [bookingsLoading, isToday, liveFocusId, pendingResolvedFocusId, requestLiveScroll, visibleFeed]);
-
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
   useEffect(() => setNotesReady(true), []);
@@ -389,14 +391,26 @@ export function TodayView({
     const movesLane = changes.status
       && bookingLane(changes.status) !== bookingLane(b.status);
     if (movesLane) localLaneMutationIdsRef.current.add(b.id);
+    setBusyIds((prev) => new Set(prev).add(b.id));
     let result;
     try {
       result = await onUpdateBooking({ ...b, ...changes }, date, date);
     } catch {
       result = null;
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(b.id);
+        return next;
+      });
     }
     if (result !== null && result !== false) {
       if (successMessage) toast.show(successMessage, "success");
+      if (movesLane) {
+        clearTimeout(flashTimerRef.current);
+        setFlashId(b.id);
+        flashTimerRef.current = setTimeout(() => setFlashId(null), 1400);
+      }
       return result;
     }
     if (movesLane) localLaneMutationIdsRef.current.delete(b.id);
@@ -415,16 +429,21 @@ export function TodayView({
     return null;
   }, [onUpdateBooking, toast, dateStr]);
 
-  const authoriseResolvedFocusAdvance = useCallback((booking, result) => {
-    if (
-      result !== null &&
-      result !== false &&
-      booking.id === liveFocusId
-    ) {
-      setPendingResolvedFocusId(booking.id);
-    }
-    return result;
-  }, [liveFocusId]);
+  const performStatusUpdate = useCallback(async (
+    booking,
+    status,
+    successMessage,
+    failureMessage,
+    options = {},
+  ) => patch(
+    booking,
+    {
+      status,
+      ...(options.skipCollectionPrompt ? { _skipCollectionPrompt: true } : {}),
+    },
+    successMessage,
+    failureMessage,
+  ), [patch]);
 
   const updateStatus = useCallback(async (
     booking,
@@ -434,26 +453,26 @@ export function TodayView({
     options = {},
   ) => {
     const skipped = requiresCareSkipConfirmation(booking.status, status);
-    if (
-      skipped &&
-      !options.skipConfirmation &&
-      !window.confirm(`${booking.dogName} has not ${skipped}. Continue anyway?`)
-    ) {
+    if (skipped && !options.skipConfirmation) {
+      // In-product confirm (never window.confirm — see docs/modal-standard.md).
+      setPendingCareSkip({ booking, status, successMessage, failureMessage, options, skippedText: skipped });
       return null;
     }
-    const result = await patch(
-      booking,
-      {
-        status,
-        ...(options.skipCollectionPrompt ? { _skipCollectionPrompt: true } : {}),
-      },
-      successMessage,
-      failureMessage,
+    return performStatusUpdate(booking, status, successMessage, failureMessage, options);
+  }, [performStatusUpdate]);
+
+  const confirmCareSkip = useCallback(async () => {
+    const pending = pendingCareSkip;
+    setPendingCareSkip(null);
+    if (!pending) return;
+    await performStatusUpdate(
+      pending.booking,
+      pending.status,
+      pending.successMessage,
+      pending.failureMessage,
+      pending.options,
     );
-    return options.advanceLiveFocus
-      ? authoriseResolvedFocusAdvance(booking, result)
-      : result;
-  }, [authoriseResolvedFocusAdvance, patch]);
+  }, [pendingCareSkip, performStatusUpdate]);
 
   const onJourneyAction = useCallback(async (booking, action) => {
     if (action.completed && action.id !== "paid") return null;
@@ -461,9 +480,8 @@ export function TodayView({
       return updateStatus(
         booking,
         BOOKING_STATUS.CHECKED_IN,
-        `${booking.dogName} checked in`,
+        `${booking.dogName} checked in — with us now`,
         "Check-in could not be saved.",
-        { advanceLiveFocus: true },
       );
     }
     if (action.id === "startGroom") {
@@ -478,9 +496,9 @@ export function TodayView({
       const saved = await updateStatus(
         booking,
         BOOKING_STATUS.READY_FOR_PICKUP,
-        `${booking.dogName} is waiting to be collected`,
+        `${booking.dogName} is ready to go home`,
         "Ready for collection could not be saved.",
-        { skipCollectionPrompt: true, skipConfirmation: true, advanceLiveFocus: true },
+        { skipCollectionPrompt: true, skipConfirmation: true },
       );
       if (saved) {
         onSendCollection({
@@ -495,9 +513,8 @@ export function TodayView({
       return updateStatus(
         booking,
         BOOKING_STATUS.COMPLETED,
-        `${booking.dogName} collected`,
+        `${booking.dogName} collected — home today`,
         "Collection could not be saved.",
-        { advanceLiveFocus: true },
       );
     }
     if (action.id === "paid") setInvoiceBooking(booking);
@@ -529,16 +546,13 @@ export function TodayView({
     [patch],
   );
   const onDidntShow = useCallback(
-    async (b) => authoriseResolvedFocusAdvance(
+    (b) => patch(
       b,
-      await patch(
-        b,
-        { status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON },
-        `${b.dogName} marked as a no-show`,
-        "Marking this booking as a no-show could not be saved.",
-      ),
+      { status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON },
+      `${b.dogName} marked as a no-show`,
+      "Marking this booking as a no-show could not be saved.",
     ),
-    [authoriseResolvedFocusAdvance, patch],
+    [patch],
   );
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
@@ -553,6 +567,7 @@ export function TodayView({
     month: "long",
   });
   const isEmptyDay = feed.length === 0;
+  const isRefreshing = bookingsLoading && selectedBookings.length > 0;
 
   const feedHandlers = {
     onOpenDog,
@@ -571,38 +586,44 @@ export function TodayView({
       <TodayHeader
         dateLabel={dateLabel}
         dogsBooked={summary.dogsBooked}
-        onSite={summary.onSite}
-        lateCount={fullBoard.due.filter((entry) => entry.isLate).length}
-        readyCount={fullBoard.ready.length}
+        capacityTotal={DAY_CAPACITY}
+        nowCounts={nowCounts}
         actionCount={actionCount}
         unpaidTotal={unpaidTotal}
-        expectedRevenue={summary.expectedRevenue}
-        nextOnlineSlot={availabilityView.nextOnlineSlot}
         isDayOpen={isDayOpen}
         isToday={isToday}
+        nextOnlineSlot={availabilityView.nextOnlineSlot}
+        nextUp={nextUp}
+        onJumpToNext={jumpToNext}
         onOpenDatePicker={onOpenDatePicker}
         onManageAvailability={() => setShowAvailability(true)}
         actionFilterActive={showNeedsActionOnly}
         onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
       />
 
-      <div className="mx-auto flex w-full max-w-[96rem] flex-col gap-3 px-3 pb-6 sm:px-4">
+      <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6 pb-10">
 
         <p className="sr-only" aria-live="polite" aria-atomic="true">{boardAnnouncement}</p>
+
+        {isRefreshing ? (
+          <div role="status" aria-label="Refreshing bookings" className="-mt-3 h-0.5 overflow-hidden rounded-full bg-brand-purple/10">
+            <span className="block h-full w-1/3 rounded-full bg-brand-purple/40 motion-safe:animate-[refresh-slide_1.2s_ease-in-out_infinite]" />
+          </div>
+        ) : null}
 
         {showNeedsActionOnly && (
           <p
             role="status"
-            className="rounded-xl border border-brand-purple/15 bg-brand-purple/5 px-3 py-2 text-[12px] font-medium text-brand-purple"
+            className="-mb-2 px-0.5 text-[12px] font-semibold text-brand-purple"
           >
-            Showing {actionCount} {actionCount === 1 ? "booking" : "bookings"} needing action: {NEEDS_ACTION_DEFINITION.replace("Need action means ", "").replace(/\.$/, "").toLowerCase()}.
+            Showing {actionCount} {actionCount === 1 ? "booking" : "bookings"} needing attention — late, unconfirmed, waiting to be collected, or unpaid.
           </p>
         )}
 
         {bookingsError && (
-          <div className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark">
             <span>Couldn&apos;t load bookings for this date.</span>
-            {onRefresh && <button type="button" onClick={onRefresh} className="min-h-[44px] font-bold underline">Retry</button>}
+            {onRefresh && <button type="button" onClick={onRefresh} className="min-h-11 font-bold underline">Retry</button>}
           </div>
         )}
 
@@ -610,40 +631,41 @@ export function TodayView({
           <BoardSkeleton />
         ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
-            <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-10 text-center">
-              <p className="text-[16px] font-bold text-slate-700">No bookings on this date</p>
-              <p className="text-[13px] text-slate-600 mt-1">
-                Use the calendar to choose another day, or manage availability here.
+            <div className="px-4 py-14 text-center">
+              <p className="font-display text-[17px] font-bold text-brand-purple">No bookings on this date</p>
+              <p className="mt-1 text-[13px] text-slate-500">
+                Choose another day from the date above, or open slots with Manage availability.
               </p>
             </div>
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
           </>
         ) : (
           <>
-            {isToday && (
-              <>
-                {!showNeedsActionOnly && (
-                  <AwaitingDepositsCard
-                    bookings={selectedBookings}
-                    now={now}
-                    onOpenBooking={onOpenDepositBooking}
-                  />
-                )}
-              </>
+            {isToday && !showNeedsActionOnly && (
+              <AwaitingDepositsCard
+                bookings={selectedBookings}
+                now={now}
+                onOpenBooking={onOpenDepositBooking}
+              />
             )}
-            <StatusBoard
-              board={board}
-              resolve={resolve}
-              getWelfare={getWelfare}
-              paymentOf={paymentOf}
-              liveFocusId={liveFocusId}
-              liveContext={liveContext}
-              isToday={isToday}
-              handlers={feedHandlers}
-              onTheWaySignals={onTheWaySignals}
-            />
+            <div className={isRefreshing ? "opacity-70 motion-safe:transition-opacity" : "motion-safe:transition-opacity"}>
+              <StatusBoard
+                board={board}
+                resolve={resolve}
+                getWelfare={getWelfare}
+                paymentOf={paymentOf}
+                liveFocusId={goldId}
+                isToday={isToday}
+                handlers={feedHandlers}
+                onTheWaySignals={onTheWaySignals}
+                busyIds={busyIds}
+                flashId={flashId}
+                summary={summary}
+                takings={takings}
+                capacityTotal={DAY_CAPACITY}
+              />
+            </div>
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
-            <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
               <p className="text-center text-[12px] text-slate-500">Sample data preview — changes won&apos;t save.</p>
@@ -658,6 +680,16 @@ export function TodayView({
             dogsBooked={summary.dogsBooked}
             onToggleImmediate={onToggleImmediate}
             onNewBooking={(slot) => { setShowAvailability(false); onNewBookingSlot(slot); }}
+          />
+        )}
+        {pendingCareSkip && (
+          <ConfirmDialog
+            title={`${pendingCareSkip.booking.dogName} has not ${pendingCareSkip.skippedText}`}
+            body="You can continue anyway — the skipped step is simply left unrecorded."
+            confirmLabel="Continue anyway"
+            cancelLabel="Go back"
+            onConfirm={confirmCareSkip}
+            onClose={() => setPendingCareSkip(null)}
           />
         )}
         {invoiceBooking && (

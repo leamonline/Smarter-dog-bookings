@@ -96,7 +96,9 @@ function Toaster({ toasts, onDismiss }) {
   );
 
   return (
-    <div className="fixed bottom-20 xl:bottom-6 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-2 pointer-events-none">
+    // Mobile: bottom-centre above the nav strip. Desktop: bottom-right, out
+    // of the content column so a confirmation never covers the next control.
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-6 md:left-auto md:right-6 md:translate-x-0 z-[2000] flex flex-col items-center md:items-end gap-2 pointer-events-none">
       <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-2">
         {politeToasts.map(renderToast)}
       </div>
