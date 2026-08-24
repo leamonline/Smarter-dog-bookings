@@ -14,6 +14,7 @@ import {
   buildAvailabilityView,
   liveFocusContext,
   selectLiveFocus,
+  selectDogsMissingSize,
 } from "../../engine/today";
 import {
   buildDailyBriefBoard,
@@ -33,6 +34,7 @@ import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
+import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
 
 function BoardSkeleton() {
   return (
@@ -351,6 +353,14 @@ export function TodayView({
   useEffect(() => setNotesReady(true), []);
   const onOpenReports = useCallback(() => navigate("/reports"), [navigate]);
 
+  // Dogs in this week's diary whose RECORD has no size. Anchored to the REAL
+  // today, not the browsed date, so navigating the calendar doesn't change what
+  // is outstanding. Scope is whatever the week loader holds — hence "this week".
+  const dogsMissingSize = useMemo(
+    () => selectDogsMissingSize(bookingsByDate, dogs, realTodayStr),
+    [bookingsByDate, dogs, realTodayStr],
+  );
+
   // ---- Display + welfare + payment resolvers ----
   const resolve = useCallback((b) => resolveBookingDisplay(b, dogs, humans), [dogs, humans]);
   const getWelfare = useCallback((b) => {
@@ -632,6 +642,7 @@ export function TodayView({
               handlers={feedHandlers}
               onTheWaySignals={onTheWaySignals}
             />
+            <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (

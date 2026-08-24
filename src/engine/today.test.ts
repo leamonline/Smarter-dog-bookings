@@ -31,6 +31,7 @@ import {
   groupFeedBySlot,
   buildFutureDayFeed,
   countDogsPerOwner,
+  selectDogsMissingSize,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking, Dog } from "../types/index";
@@ -934,5 +935,104 @@ describe("countDogsPerOwner", () => {
 
   it("ignores dogs it cannot resolve and never falls back to names", () => {
     expect(countDogsPerOwner([e("d1"), e(null), e("missing")], dogs)).toEqual({ h1: 1 });
+  });
+});
+
+describe("selectDogsMissingSize", () => {
+  const dogs = {
+    Pip: { id: "d1", name: "Pip", size: null },
+    Rex: { id: "d2", name: "Rex", size: "large" },
+    Nell: { id: "d3", name: "Nell", size: null },
+  } as unknown as Record<string, Dog>;
+  const bk = (dogId: string, dateStr: string, slot: string, extra: Record<string, unknown> = {}) => ({
+    id: `b-${dogId}-${dateStr}-${slot}`,
+    _dogId: dogId,
+    dogName: dogId,
+    slot,
+    status: "Booked",
+    ...extra,
+    _date: dateStr,
+  });
+  const byDate = (...entries: Array<ReturnType<typeof bk>>) => {
+    const out: Record<string, Booking[]> = {};
+    for (const { _date, ...b } of entries) (out[_date] ??= []).push(b as unknown as Booking);
+    return out;
+  };
+
+  it("returns only dogs whose RECORD has no size", () => {
+    // Rex is booked too, but his record is complete — he is not backlog.
+    const rows = selectDogsMissingSize(
+      byDate(bk("d1", "2026-08-26", "09:00"), bk("d2", "2026-08-26", "09:30")),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows.map((r) => r.dogName)).toEqual(["Pip"]);
+  });
+
+  it("ignores the booking's own size, which is never blank", () => {
+    // bookings.size is NOT NULL, so a booking always claims a size — often the
+    // fabricated "small" of #683. Only the dog record decides.
+    const rows = selectDogsMissingSize(
+      byDate(bk("d1", "2026-08-26", "09:00", { size: "small" })),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("skips cancelled bookings", () => {
+    const rows = selectDogsMissingSize(
+      byDate(bk("d1", "2026-08-26", "09:00", { status: "Cancelled" })),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("skips dates before today", () => {
+    const rows = selectDogsMissingSize(
+      byDate(bk("d1", "2026-08-20", "09:00")),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("includes today", () => {
+    const rows = selectDogsMissingSize(
+      byDate(bk("d1", "2026-08-24", "09:00")),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("shows a dog once, at its earliest booking", () => {
+    const rows = selectDogsMissingSize(
+      byDate(
+        bk("d1", "2026-08-28", "09:00"),
+        bk("d1", "2026-08-26", "12:00"),
+        bk("d1", "2026-08-26", "08:30"),
+      ),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ dateStr: "2026-08-26", slot: "08:30" });
+  });
+
+  it("orders soonest first", () => {
+    const rows = selectDogsMissingSize(
+      byDate(bk("d3", "2026-08-28", "09:00"), bk("d1", "2026-08-26", "09:00")),
+      dogs,
+      "2026-08-24",
+    );
+    expect(rows.map((r) => r.dogName)).toEqual(["Pip", "Nell"]);
+  });
+
+  it("is quiet when there is nothing to do", () => {
+    expect(selectDogsMissingSize({}, dogs, "2026-08-24")).toEqual([]);
+    expect(selectDogsMissingSize(null, dogs, "2026-08-24")).toEqual([]);
+    expect(selectDogsMissingSize(byDate(bk("d1", "2026-08-26", "09:00")), null, "2026-08-24")).toEqual([]);
   });
 });
