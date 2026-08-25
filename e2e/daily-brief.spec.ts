@@ -275,6 +275,27 @@ test("staff confirm an unconfirmed arrival from its card and the flag clears", a
   await expect(poppyCard.getByRole("img", { name: "Confirmed by staff at 09:15" })).toBeVisible();
   // A booking the customer already answered has nothing left to confirm.
   await expect(page.getByText(/to confirm/)).toHaveCount(0);
+
+  // Mis-tap safety net 1: the toast's Undo puts everything back.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Poppy's booking is unconfirmed again")).toBeVisible();
+  await expect(poppyCard.getByText("Needs confirmation")).toBeVisible();
+  await expect(poppyCard.getByRole("button", { name: "Confirm Poppy's booking" })).toBeVisible();
+  await expect(poppyCard.getByRole("img", { name: /Confirmed by staff/ })).toHaveCount(0);
+
+  // Mis-tap safety net 2: re-confirm, then Unconfirm lives in More — an
+  // escape hatch that outlasts the toast. Staff-sourced only.
+  await poppyCard.getByRole("button", { name: "Confirm Poppy's booking" }).click();
+  await expect(poppyCard.getByRole("img", { name: "Confirmed by staff at 09:15" })).toBeVisible();
+  await poppyCard.getByRole("button", { name: "More actions for Poppy" }).click();
+  await page.getByRole("menuitem", { name: "Unconfirm booking" }).click();
+  await expect(poppyCard.getByText("Needs confirmation")).toBeVisible();
+  // A CUSTOMER-confirmed card offers no such item — their word stands.
+  const teddyCard = bookingCard(page, "Teddy");
+  await expect(teddyCard.getByRole("img", { name: "Customer confirmed at 07:50" })).toBeVisible();
+  await teddyCard.getByRole("button", { name: "More actions for Teddy" }).click();
+  await expect(page.getByRole("menu", { name: "More actions for Teddy" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Unconfirm booking" })).toHaveCount(0);
 });
 
 test("unknown-status warning opens the affected booking directly", async ({ page }) => {

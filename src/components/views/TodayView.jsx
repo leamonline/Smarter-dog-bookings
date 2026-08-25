@@ -385,7 +385,7 @@ export function TodayView({
     changes,
     successMessage,
     failureMessage = "Booking update could not be saved.",
-    { showFailureToast = true } = {},
+    { showFailureToast = true, successAction = null } = {},
   ) => {
     const date = b._bookingDate || dateStr;
     const movesLane = changes.status
@@ -405,7 +405,7 @@ export function TodayView({
       });
     }
     if (result !== null && result !== false) {
-      if (successMessage) toast.show(successMessage, "success");
+      if (successMessage) toast.show(successMessage, "success", successAction);
       if (movesLane) {
         clearTimeout(flashTimerRef.current);
         setFlashId(b.id);
@@ -558,11 +558,44 @@ export function TodayView({
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
     else toast.show("Messaging isn't available for this booking", "info");
   }, [navigate, toast]);
+  // Undo of a staff confirmation (mis-tap): clears the pair. The write path
+  // guards on source='staff', so if the customer's own confirmation raced in
+  // it matches nothing and their word stands — the quiet info toast covers
+  // that case and any save failure alike, with nothing to retry.
+  const onUnconfirmArrival = useCallback(async (b) => {
+    // In-memory revert of the derived reminderState (the server recomputes it
+    // from notification_log on refetch; offline this IS the state): the toast
+    // Undo closes over the pre-confirm booking, so its own reminderState is
+    // the answer; the More-menu path sees the confirmed booking and falls
+    // back to the state stashed at confirm time, then to sent-log evidence.
+    const revertState = b.reminderState === "confirmed"
+      ? b._preConfirmReminderState ?? (b.reminderSentAt ? "sent" : "none")
+      : b.reminderState ?? "none";
+    const result = await patch(
+      b,
+      {
+        _unconfirmArrival: true,
+        reminderConfirmedAt: null,
+        reminderConfirmedBy: null,
+        reminderState: revertState,
+      },
+      `${b.dogName}'s booking is unconfirmed again`,
+      undefined,
+      { showFailureToast: false },
+    );
+    if (!result) {
+      toast.show(
+        "Couldn't undo — if the customer has just confirmed themselves, their confirmation stands.",
+        "info",
+      );
+    }
+  }, [patch, toast]);
   // Staff confirmation: the owner confirmed off-channel (phone, in person).
   // The _confirmArrival marker makes the write path stamp
   // reminder_confirmed_at/_source='staff'; a later customer WhatsApp
   // confirmation overwrites it server-side. The in-memory fields keep the
-  // offline path (which merges this object verbatim) consistent.
+  // offline path (which merges this object verbatim) consistent. The toast's
+  // Undo closes over the pre-confirm booking, so it reverts exactly.
   const onConfirmArrival = useCallback(
     (b) => patch(
       b,
@@ -571,11 +604,15 @@ export function TodayView({
         reminderConfirmedAt: new Date().toISOString(),
         reminderConfirmedBy: "staff",
         reminderState: "confirmed",
+        // In-memory only (the DB payload is explicit): lets a later
+        // Unconfirm revert the derived reminderState truthfully offline.
+        _preConfirmReminderState: b.reminderState ?? "none",
       },
       `${b.dogName}'s booking confirmed`,
       "Confirming this booking could not be saved.",
+      { successAction: { label: "Undo", onClick: () => onUnconfirmArrival(b) } },
     ),
-    [patch],
+    [patch, onUnconfirmArrival],
   );
   const onNewBookingSlot = useCallback((slot) => onNewBooking({ dateStr, slot }), [onNewBooking, dateStr]);
   const onToggleImmediate = useCallback((slot) => toggleImmediateSlot(slot), [toggleImmediateSlot]);
@@ -595,6 +632,7 @@ export function TodayView({
     onOpenInvoice,
     onMessageOwner,
     onConfirmArrival,
+    onUnconfirmArrival,
     onJourneyAction,
     onRequestCollected,
     onDidntShow,

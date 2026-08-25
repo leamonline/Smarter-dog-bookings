@@ -142,6 +142,14 @@ attributed `reconfirmed` booking event (staff actor vs owner). Authority:
 migration `20260825100000_staff_booking_confirmation.sql`; DB contract test
 `supabase/tests/181_staff_reminder_confirmation.test.sql`.
 
+A mis-tapped staff Confirm is reversible two ways: the success toast carries
+**Undo** for its 10-second life, and a staff-confirmed Arriving card keeps an
+**Unconfirm booking** item in its More menu. Both clear the pair through the
+`_unconfirmArrival` marker, whose update is filtered on
+`reminder_confirmed_source = 'staff'` — so a customer confirmation that raced
+in matches nothing and stands (the UI then says so in an info toast). A
+customer's confirmation is never removable from the UI at all.
+
 Actions reuse existing paths: status transitions (which fire `booking_events` +
 the collection-notice modal automatically), `handleOpenBooking`,
 `setShowNewBooking`, inbox deep-link (`/inbox?human=…`). Per-day dismissals are

@@ -69,6 +69,7 @@ function renderBoard(bookings, overrides = {}) {
     onOpenInvoice: vi.fn(),
     onMessageOwner: vi.fn(),
     onConfirmArrival: vi.fn(),
+    onUnconfirmArrival: vi.fn(),
     onJourneyAction: vi.fn(),
     onRequestCollected: vi.fn(),
     onDidntShow: vi.fn(),
@@ -363,6 +364,37 @@ describe("StatusBoard", () => {
     // A card the customer already confirmed has nothing to confirm.
     const confirmedCard = screen.getByRole("article", { name: "Rosie, 12:00, Arriving" });
     expect(within(confirmedCard).queryByRole("button", { name: /Confirm Rosie/ })).not.toBeInTheDocument();
+  });
+
+  it("offers Unconfirm in More only for a staff-sourced confirmation", () => {
+    const { handlers } = renderBoard([
+      booking({
+        id: "staff-confirmed",
+        dogName: "Pip",
+        slot: "11:00",
+        reminderConfirmedAt: "2026-07-14T08:05:00Z",
+        reminderConfirmedBy: "staff",
+      }),
+      booking({
+        id: "confirmed",
+        slot: "12:00",
+        reminderConfirmedAt: "2026-07-14T08:10:00Z",
+        reminderConfirmedBy: "customer",
+      }),
+    ]);
+
+    // Staff-confirmed card: the escape hatch is there and routes the booking.
+    const staffCard = screen.getByRole("article", { name: "Pip, 11:00, Arriving" });
+    fireEvent.click(within(staffCard).getByRole("button", { name: "More actions for Pip" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unconfirm booking" }));
+    expect(handlers.onUnconfirmArrival).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "staff-confirmed" }),
+    );
+
+    // Customer-confirmed card: their word is never removable here.
+    const customerCard = screen.getByRole("article", { name: "Rosie, 12:00, Arriving" });
+    fireEvent.click(within(customerCard).getByRole("button", { name: "More actions for Rosie" }));
+    expect(screen.queryByRole("menuitem", { name: "Unconfirm booking" })).not.toBeInTheDocument();
   });
 
   it("labels the confirmed tick by who confirmed — staff or customer", () => {
