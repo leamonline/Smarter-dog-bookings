@@ -22,6 +22,7 @@ import {
   type RescheduleSelector,
   type HumanRow,
   type InsertResult,
+  isBookableOnline,
   listPetOptions,
   petOptions,
   sanitizeDayOverrides,
@@ -148,7 +149,7 @@ describe("option builders", () => {
 
   it("builds a pet list through FlowDb", async () => {
     const { db } = makeDb();
-    expect(await listPetOptions(db, "h1")).toHaveLength(2);
+    expect((await listPetOptions(db, "h1")).options).toHaveLength(2);
   });
 });
 
@@ -820,5 +821,55 @@ describe("confirmGroupBooking — atomic reschedule", () => {
 
     // Neither rejection reached the database, so nothing was cancelled.
     expect(reschedules).toHaveLength(0);
+  });
+});
+
+// The Flow used to offer every dog on file and only fail at the gate: a dog
+// with no recorded size reached a service screen with NOTHING on it (every
+// service filters out on an unrecognised size), and a pregnant dog was refused
+// only at insert. The portal greys both out at step 1; the Flow now hides them
+// (issue #682, "hide" chosen over "show disabled" — WhatsApp Flow list
+// controls can't express a disabled row).
+describe("unbookable dogs are hidden from the picker (#682)", () => {
+  const sized = { id: "ok", name: "Bella", breed: "Cockapoo", size: "small", human_id: "h1" };
+  const unsized = { id: "nosize", name: "Pip", breed: "Terrier", size: null, human_id: "h1" };
+  const pregnant = { id: "preg", name: "Nell", breed: "Poodle", size: "medium", human_id: "h1", is_pregnant: true };
+
+  it("keeps a dog that is sized and not pregnant", () => {
+    expect(isBookableOnline(sized as never)).toBe(true);
+  });
+
+  it("rejects a dog with no recorded size", () => {
+    expect(isBookableOnline(unsized as never)).toBe(false);
+    // and anything outside the three known values, not just null
+    expect(isBookableOnline({ ...sized, size: "gigantic" } as never)).toBe(false);
+    expect(isBookableOnline({ ...sized, size: "" } as never)).toBe(false);
+  });
+
+  it("rejects a pregnant dog even when it is sized", () => {
+    expect(isBookableOnline(pregnant as never)).toBe(false);
+  });
+
+  it("omits them from petOptions, keeping the bookable ones", () => {
+    const opts = petOptions([sized, unsized, pregnant] as never);
+    expect(opts.map((o) => o.id)).toEqual(["ok"]);
+  });
+
+  it("reports how many it hid, so the caller can tell the empty cases apart", async () => {
+    const { db } = makeDb({ dogs: [sized, unsized, pregnant] as never });
+    const listing = await listPetOptions(db, "h1");
+    expect(listing).toMatchObject({ hiddenCount: 2, totalOnFile: 3 });
+    expect(listing.options).toHaveLength(1);
+  });
+
+  it("distinguishes 'no dogs on file' from 'dogs on file, none bookable'", async () => {
+    // This is the distinction that matters: telling an existing customer to
+    // "reply new and we'll get you registered" would create a duplicate record.
+    const none = await listPetOptions(makeDb({ dogs: [] as never }).db, "h1");
+    expect(none).toMatchObject({ options: [], hiddenCount: 0, totalOnFile: 0 });
+
+    const allHidden = await listPetOptions(makeDb({ dogs: [unsized, pregnant] as never }).db, "h1");
+    expect(allHidden.options).toHaveLength(0);
+    expect(allHidden.totalOnFile).toBe(2); // → the "we need to check something" message
   });
 });

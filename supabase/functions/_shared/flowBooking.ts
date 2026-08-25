@@ -19,6 +19,7 @@
 
 import {
   buildSlotGrid,
+  DOG_SIZE,
   type DogSize,
   isServiceAllowedForSize,
   LARGE_DOG_CANDIDATE_SLOTS,
@@ -52,8 +53,46 @@ export interface DogRow {
   id: string;
   name: string;
   breed: string | null;
+  // Typed as DogSize, but the column is nullable and 139 live rows are blank
+  // (a one-off artefact of the April 2026 import). isBookableOnline() is the
+  // boundary that makes this type honest: past it, the size really is one of
+  // the three values, so downstream `DogSize` assumptions hold.
   size: DogSize;
   human_id: string;
+  is_pregnant?: boolean;
+}
+
+/**
+ * Can this dog be booked online at all?
+ *
+ * Mirrors the portal wizard's step-1 preflight (DogSelection.tsx), which greys
+ * out exactly these two cases. The Flow had no equivalent (issue #682), so it
+ * offered every dog on file and only failed at the gate — or, for a blank
+ * size, silently offered a service list with nothing in it, because
+ * priceString() misses on an unrecognised size and every service filters out.
+ *
+ * Kept as a predicate rather than inlined so the two reasons are named once
+ * and the same rule can gate the list and any later caller.
+ */
+export function isBookableOnline(dog: DogRow): boolean {
+  const sized = dog.size === DOG_SIZE.SMALL ||
+    dog.size === DOG_SIZE.MEDIUM ||
+    dog.size === DOG_SIZE.LARGE;
+  return sized && !dog.is_pregnant;
+}
+
+/**
+ * The pet picker's data, plus what it had to leave out.
+ *
+ * `hiddenCount` exists so the caller can tell "no dogs on file" from "dogs on
+ * file, none bookable" — the difference between inviting someone to register
+ * and telling them to message the salon. Getting that wrong would send an
+ * existing customer to create a duplicate record.
+ */
+export interface PetListing {
+  options: FlowOption[];
+  hiddenCount: number;
+  totalOnFile: number;
 }
 
 export interface AvailabilitySlot {
@@ -205,7 +244,7 @@ function titleCase(s: string): string {
 }
 
 export function petOptions(dogs: DogRow[]): FlowOption[] {
-  return dogs.map((d) => ({
+  return dogs.filter(isBookableOnline).map((d) => ({
     id: d.id,
     title: d.name,
     description: [d.breed, titleCase(d.size)].filter(Boolean).join(" · "),
@@ -295,9 +334,14 @@ export function addDays(dateStr: string, days: number): string {
 
 // ── Orchestration (FlowDb-driven) ──────────────────────────────
 
-export async function listPetOptions(db: FlowDb, humanId: string): Promise<FlowOption[]> {
+export async function listPetOptions(db: FlowDb, humanId: string): Promise<PetListing> {
   const dogs = await db.getDogsByHuman(humanId);
-  return petOptions(dogs);
+  const options = petOptions(dogs);
+  return {
+    options,
+    hiddenCount: dogs.length - options.length,
+    totalOnFile: dogs.length,
+  };
 }
 
 /**
