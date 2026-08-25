@@ -104,8 +104,11 @@ test("Daily Brief keeps the status board usable at every supported width", async
 
   await dateControl.click();
   const datePicker = page.getByRole("dialog", { name: "July 2026" });
+  // The cell's aria-label is a full en-GB date, and en-GB gained a comma after
+  // the weekday in a recent CLDR release — so whether it is there depends on the
+  // browser build. Match either, as DatePickerModal's own unit test does.
   await datePicker
-    .getByRole("button", { name: /^Wednesday 15 July 2026/ })
+    .getByRole("button", { name: /^Wednesday,? 15 July 2026/ })
     .click();
   await expect(page).toHaveURL(/date=2026-07-15/);
   await expect(page.getByText("No bookings on this date")).toBeVisible();
