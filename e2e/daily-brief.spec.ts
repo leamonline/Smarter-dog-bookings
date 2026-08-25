@@ -359,11 +359,18 @@ test("a welfare note stays visible on the board, never only behind a tap", async
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");
 
-  const flagged = page.locator("[data-token-safety-text]");
-  if ((await flagged.count()) === 0) test.skip(true, "sample data carries no welfare flag today");
-  await expect(flagged.first()).toBeVisible();
-  const owner = flagged.first().locator("xpath=ancestor::li[1]");
-  await expect(owner.locator("[data-token-safety]")).toBeAttached();
+  // Max carries "Bites / Nips" in the sample dataset — the safety rule is that
+  // a welfare fact is never hidden behind a tap or a breakpoint, so it has to
+  // be readable on the board itself before anyone presses anything.
+  const maxCell = page.locator('[data-token-cell]', { has: page.getByText("Max", { exact: true }) });
+  await expect(maxCell.locator("[data-token-safety]")).toBeAttached();
+  const note = maxCell.locator("[data-token-safety-text]");
+  await expect(note).toBeVisible();
+  await expect(note).toHaveText("Bites / Nips");
+
+  // And the full text is in the panel too, for a dog carrying more than one.
+  const panel = await openDog(page, "Max");
+  await expect(panel).toContainText("Bites / Nips");
 });
 
 test("unknown-status warning opens the affected booking directly", async ({ page }) => {
