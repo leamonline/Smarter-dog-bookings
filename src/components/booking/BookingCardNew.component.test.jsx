@@ -81,6 +81,18 @@ describe("BookingCardNew — confirm tick", () => {
     expect(indicator.getAttribute("title")).toMatch(/confirmed via whatsapp/i);
   });
 
+  it("attributes a staff-recorded confirmation to staff, not WhatsApp", () => {
+    renderCard(
+      bookingFixture({
+        reminderConfirmedAt: "2026-05-31T15:53:00Z",
+        reminderConfirmedBy: "staff",
+      }),
+    );
+    const indicator = screen.getByRole("status", { name: /confirmed by staff/i });
+    expect(indicator.getAttribute("title")).toMatch(/confirmed by staff/i);
+    expect(indicator.getAttribute("title")).not.toMatch(/whatsapp/i);
+  });
+
   it("does not render the tick when reminderConfirmedAt is null", () => {
     renderCard(bookingFixture({ reminderConfirmedAt: null }));
     expect(screen.queryByText("Confirmed")).toBeNull();

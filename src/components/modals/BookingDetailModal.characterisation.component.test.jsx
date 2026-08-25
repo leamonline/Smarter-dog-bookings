@@ -314,6 +314,18 @@ describe("BookingDetailModal — card surfaces", () => {
     expect(screen.getByText(/Customer confirmed via WhatsApp/)).toBeInTheDocument();
   });
 
+  it("attributes a staff-recorded confirmation to staff, not the customer", () => {
+    renderModal({
+      booking: {
+        ...baseBooking,
+        reminderConfirmedAt: "2026-05-17T11:00:00Z",
+        reminderConfirmedBy: "staff",
+      },
+    });
+    expect(screen.getByText(/Confirmed by staff on/)).toBeInTheDocument();
+    expect(screen.queryByText(/Customer confirmed via WhatsApp/)).not.toBeInTheDocument();
+  });
+
   it("offers a pickup-ready SMS link for the pickup human", () => {
     renderModal();
     expect(
