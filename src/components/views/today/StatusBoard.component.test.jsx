@@ -68,6 +68,7 @@ function renderBoard(bookings, overrides = {}) {
     onOpenBooking: vi.fn(),
     onOpenInvoice: vi.fn(),
     onMessageOwner: vi.fn(),
+    onConfirmArrival: vi.fn(),
     onJourneyAction: vi.fn(),
     onRequestCollected: vi.fn(),
     onDidntShow: vi.fn(),
@@ -341,6 +342,42 @@ describe("StatusBoard", () => {
     // the payment action-reason marker it gains at Ready.
     const money = within(lane).getByText("£42 due");
     expect(money).not.toHaveAttribute("data-action-reason");
+  });
+
+  it("offers a staff Confirm action on an unconfirmed card and routes it to the handler", () => {
+    const { handlers } = renderBoard([
+      booking({
+        id: "unconfirmed",
+        dogName: "Pip",
+        slot: "11:00",
+        reminderState: "sent",
+        confirmationChannel: "whatsapp",
+      }),
+      booking({ id: "confirmed", slot: "12:00", reminderConfirmedAt: "2026-07-14T08:05:00Z" }),
+    ]);
+
+    const unconfirmedCard = screen.getByRole("article", { name: "Pip, 11:00, Arriving" });
+    fireEvent.click(within(unconfirmedCard).getByRole("button", { name: "Confirm Pip's booking" }));
+    expect(handlers.onConfirmArrival).toHaveBeenCalledWith(expect.objectContaining({ id: "unconfirmed" }));
+
+    // A card the customer already confirmed has nothing to confirm.
+    const confirmedCard = screen.getByRole("article", { name: "Rosie, 12:00, Arriving" });
+    expect(within(confirmedCard).queryByRole("button", { name: /Confirm Rosie/ })).not.toBeInTheDocument();
+  });
+
+  it("labels the confirmed tick by who confirmed — staff or customer", () => {
+    renderBoard([
+      booking({
+        id: "confirmed",
+        slot: "11:00",
+        reminderConfirmedAt: "2026-07-14T08:05:00Z",
+        reminderConfirmedBy: "staff",
+      }),
+    ]);
+
+    const tick = screen.getByLabelText("Confirmed by staff at 09:05");
+    expect(tick).toHaveAttribute("data-confirmed-by", "staff");
+    expect(screen.queryByLabelText(/Customer confirmed/)).not.toBeInTheDocument();
   });
 
   it("replaces Needs confirmation with the owner's inbox reply when they confirmed in chat", () => {

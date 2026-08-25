@@ -252,6 +252,28 @@ test("early morning keeps every booked arrival upcoming — and nothing gold", a
   await expect(page.getByText("With us — nobody yet")).toBeVisible();
 });
 
+test("staff confirm an unconfirmed arrival from its card and the flag clears", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-14");
+
+  // Poppy's reminder went out unanswered: the card chases, quietly.
+  const poppyCard = bookingCard(page, "Poppy");
+  await expect(poppyCard.getByText("Needs confirmation")).toBeVisible();
+  const confirm = poppyCard.getByRole("button", { name: "Confirm Poppy's booking" });
+  await expect(confirm).toBeVisible();
+  expect((await confirm.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
+  // The owner confirmed by phone — staff record it on the spot.
+  await confirm.click();
+  await expect(page.getByText("Poppy's booking confirmed")).toBeVisible();
+  await expect(poppyCard.getByText("Needs confirmation")).toHaveCount(0);
+  await expect(poppyCard.getByRole("button", { name: "Confirm Poppy's booking" })).toHaveCount(0);
+  // The tick says WHO confirmed — staff, not the customer.
+  await expect(poppyCard.getByRole("img", { name: "Confirmed by staff at 09:15" })).toBeVisible();
+  // A booking the customer already answered has nothing left to confirm.
+  await expect(page.getByText(/to confirm/)).toHaveCount(0);
+});
+
 test("unknown-status warning opens the affected booking directly", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");

@@ -35,7 +35,9 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
   tue: [
     { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED },
     { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED },
-    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED },
+    // Reminder sent, no reply yet — exercises "Needs confirmation" and the
+    // staff Confirm action on the Daily Brief.
+    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED, reminderState: "sent", confirmationChannel: "whatsapp" },
   ],
   wed: [
     // A cancelled booking on an open day — exercises the rule that cancelled

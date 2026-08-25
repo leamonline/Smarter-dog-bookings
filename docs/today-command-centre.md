@@ -127,6 +127,21 @@ imported (not mirrored) by both sides. Any cancel / reschedule / "can't make it"
 wording vetoes the whole signal, so "yes, but can we move it?" still reaches a
 human unconfirmed.
 
+**Staff confirmation (customer wins).** An unconfirmed Arriving card also
+offers a quiet **Confirm** action for the owner reached off-channel (phone, in
+person). It writes `reminder_confirmed_at` + `reminder_confirmed_source =
+'staff'` through the ordinary staff update path (the `_confirmArrival` marker
+in `useBookings.updateBooking`), and the `ConfirmedMark` tick then reads
+"Confirmed by staff". If the customer later answers the WhatsApp reminder
+themselves, `mark_reminder_confirmed` **overwrites** the staff stamp with a
+customer one (fresher evidence, straight from the owner) — never the reverse:
+the staff write only happens from a card still showing "Needs confirmation",
+and customer → customer stays idempotent. A date move clears both halves
+(`reset_reminder_on_reschedule`), and each transition emits a correctly
+attributed `reconfirmed` booking event (staff actor vs owner). Authority:
+migration `20260825100000_staff_booking_confirmation.sql`; DB contract test
+`supabase/tests/181_staff_reminder_confirmation.test.sql`.
+
 Actions reuse existing paths: status transitions (which fire `booking_events` +
 the collection-notice modal automatically), `handleOpenBooking`,
 `setShowNewBooking`, inbox deep-link (`/inbox?human=…`). Per-day dismissals are

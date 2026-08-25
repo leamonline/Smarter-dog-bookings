@@ -982,6 +982,51 @@ describe("dbBookingsToArray — reminder_confirmed_at", () => {
   });
 });
 
+describe("dbBookingsToArray — reminderConfirmedBy source", () => {
+  const dogsById = buildDogsById([{ id: "d-1", name: "Bella", human_id: "h-1" } as any]);
+  const humansById = buildHumansById([{ id: "h-1", name: "Jane", surname: "S" } as any]);
+
+  it("maps a staff confirmation source", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          reminder_confirmed_at: "2026-08-25T09:00:00Z",
+          reminder_confirmed_source: "staff",
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderConfirmedBy).toBe("staff");
+  });
+
+  it("falls back to 'customer' for legacy confirmed rows with no source", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          reminder_confirmed_at: "2026-08-25T09:00:00Z",
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderConfirmedBy).toBe("customer");
+  });
+
+  it("stays null while unconfirmed", () => {
+    const out = dbBookingsToArray(
+      [bookingRow({ id: "b-1", dog_id: "d-1", reminder_confirmed_at: null }) as any],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderConfirmedBy).toBeNull();
+  });
+});
+
 describe("dbBookingsToArray — reminder lifecycle from notification_log", () => {
   const dogsById = buildDogsById([{ id: "d-1", name: "Bella", human_id: "h-1" } as any]);
   const humansById = buildHumansById([{ id: "h-1", name: "Jane", surname: "S" } as any]);

@@ -96,6 +96,7 @@ interface DbBookingRow {
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
+  reminder_confirmed_source?: string | null;
   completed_at?: string | null;
   checked_in_at?: string | null;
   ready_at?: string | null;
@@ -450,7 +451,12 @@ export function dbBookingsToArray(
       reminderSentAt: sentReminder?.sent_at ?? null,
       reminderReadAt: null,
       reminderChannel: sentReminder?.channel ?? null,
-      reminderConfirmedBy: null,
+      // Who confirmed. Rows stamped before the source column existed could
+      // only have come from the customer WhatsApp path, so that is the
+      // fallback when the timestamp is set but the source is null.
+      reminderConfirmedBy:
+        row.reminder_confirmed_source ??
+        (row.reminder_confirmed_at ? "customer" : null),
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

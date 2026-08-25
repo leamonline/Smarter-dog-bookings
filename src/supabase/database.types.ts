@@ -2003,6 +2003,7 @@ export type Database = {
           price_override: number | null
           ready_at: string | null
           reminder_confirmed_at: string | null
+          reminder_confirmed_source: string | null
           service: string
           size: string
           slot: string
@@ -2051,6 +2052,7 @@ export type Database = {
           price_override?: number | null
           ready_at?: string | null
           reminder_confirmed_at?: string | null
+          reminder_confirmed_source?: string | null
           service: string
           size: string
           slot: string
@@ -2099,6 +2101,7 @@ export type Database = {
           price_override?: number | null
           ready_at?: string | null
           reminder_confirmed_at?: string | null
+          reminder_confirmed_source?: string | null
           service?: string
           size?: string
           slot?: string
@@ -4037,6 +4040,7 @@ export type Database = {
           price_override: number | null
           ready_at: string | null
           reminder_confirmed_at: string | null
+          reminder_confirmed_source: string | null
           service: string
           size: string
           slot: string
@@ -4740,6 +4744,7 @@ export type Database = {
           price_override: number | null
           ready_at: string | null
           reminder_confirmed_at: string | null
+          reminder_confirmed_source: string | null
           service: string
           size: string
           slot: string
