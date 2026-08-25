@@ -84,13 +84,17 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     (booking.reminderConfirmedAt ? "confirmed" : "none");
   const cfg = STATE_CONFIG[state] || STATE_CONFIG.none;
 
-  const client = titleCase(
-    booking.reminderConfirmedBy ||
-      pickupHuman?.fullName ||
-      booking.pickupBy ||
-      booking.owner ||
-      "the customer",
-  );
+  // reminderConfirmedBy is a source token ('customer' | 'staff'), not a name.
+  // A staff confirmation says so plainly; a customer one names the person.
+  const client =
+    booking.reminderConfirmedBy === "staff"
+      ? "staff"
+      : titleCase(
+          pickupHuman?.fullName ||
+            booking.pickupBy ||
+            booking.owner ||
+            "the customer",
+        );
   const statusText = cfg.status({
     client,
     sentWhen: formatWhen(booking.reminderSentAt),

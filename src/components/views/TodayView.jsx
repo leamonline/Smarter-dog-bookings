@@ -558,6 +558,25 @@ export function TodayView({
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
     else toast.show("Messaging isn't available for this booking", "info");
   }, [navigate, toast]);
+  // Staff confirmation: the owner confirmed off-channel (phone, in person).
+  // The _confirmArrival marker makes the write path stamp
+  // reminder_confirmed_at/_source='staff'; a later customer WhatsApp
+  // confirmation overwrites it server-side. The in-memory fields keep the
+  // offline path (which merges this object verbatim) consistent.
+  const onConfirmArrival = useCallback(
+    (b) => patch(
+      b,
+      {
+        _confirmArrival: true,
+        reminderConfirmedAt: new Date().toISOString(),
+        reminderConfirmedBy: "staff",
+        reminderState: "confirmed",
+      },
+      `${b.dogName}'s booking confirmed`,
+      "Confirming this booking could not be saved.",
+    ),
+    [patch],
+  );
   const onNewBookingSlot = useCallback((slot) => onNewBooking({ dateStr, slot }), [onNewBooking, dateStr]);
   const onToggleImmediate = useCallback((slot) => toggleImmediateSlot(slot), [toggleImmediateSlot]);
 
@@ -575,6 +594,7 @@ export function TodayView({
     onOpenBooking,
     onOpenInvoice,
     onMessageOwner,
+    onConfirmArrival,
     onJourneyAction,
     onRequestCollected,
     onDidntShow,

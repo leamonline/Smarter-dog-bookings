@@ -88,6 +88,7 @@ const FORWARDED_UNUSED: Record<string, string> = {
   price_override: "financial — manual price adjustment",
   ready_at: "operational — ready-for-collection timestamp",
   reminder_confirmed_at: "operational — reminder acknowledgement",
+  reminder_confirmed_source: "operational — who confirmed (customer or staff)",
   size: "operational — dog size, drives capacity",
   source: "operational — booking channel",
   staff_capacity_override: "operational — capacity override flag",

@@ -150,6 +150,36 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
   });
 
+  it("records a staff confirmation from the unconfirmed card and toasts it", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{
+          ...selectedBooking,
+          reminderState: "sent",
+          confirmationChannel: "whatsapp",
+        }],
+      },
+      onUpdateBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Jack's booking" }));
+
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(onUpdateBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "b-selected",
+        _confirmArrival: true,
+        reminderConfirmedBy: "staff",
+        reminderState: "confirmed",
+        reminderConfirmedAt: expect.any(String),
+      }),
+      "2026-07-16",
+      "2026-07-16",
+    );
+    expect(await screen.findByText("Jack's booking confirmed")).toBeInTheDocument();
+  });
+
   it("marks the pressed card busy while its write is in flight", async () => {
     let resolveSave;
     const onUpdateBooking = vi.fn(() => new Promise((resolve) => {

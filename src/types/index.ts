@@ -167,6 +167,12 @@ export interface Booking {
   _groupId: string | null;
   /** Transient UI instruction; never persisted to the bookings table. */
   _skipCollectionPrompt?: boolean;
+  /**
+   * Transient UI instruction: this update is a staff confirmation, so the
+   * write path stamps reminder_confirmed_at/_source = 'staff'. A later real
+   * customer confirmation overwrites it (mark_reminder_confirmed).
+   */
+  _confirmArrival?: boolean;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;

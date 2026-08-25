@@ -457,6 +457,17 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
           : updatedBooking.staffCapacityOverride
             ? { staff_capacity_override: true }
             : {}),
+        // Staff confirmation (Daily Brief "Confirm"). Written ONLY on the
+        // explicit marker so ordinary edits never touch the confirmation pair
+        // — a customer's WhatsApp confirm (source 'customer') must survive
+        // every unrelated save. mark_reminder_confirmed() later overwrites a
+        // 'staff' stamp when the customer really confirms.
+        ...(updatedBooking._confirmArrival
+          ? {
+              reminder_confirmed_at: new Date().toISOString(),
+              reminder_confirmed_source: "staff",
+            }
+          : {}),
       };
 
       // Optimistic: patch the raw row (incl. booking_date, so a move to

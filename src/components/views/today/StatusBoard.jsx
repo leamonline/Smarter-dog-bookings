@@ -87,14 +87,23 @@ export function ChatConfirmedChip({ signal }) {
   );
 }
 
-export function ConfirmedMark({ confirmedAt }) {
+export function ConfirmedMark({ confirmedAt, confirmedBy = "customer" }) {
   const time = formatLondonTime(confirmedAt);
   if (!time) return null;
+  // The customer's own confirmation (WhatsApp) and a staff-recorded one carry
+  // the same operational weight — same tick — but the label says which, so a
+  // staff confirm is never mistaken for the owner's word. A later real
+  // customer confirmation overwrites a staff one server-side.
+  const isStaff = confirmedBy === "staff";
+  const label = isStaff
+    ? `Confirmed by staff at ${time}`
+    : `Customer confirmed at ${time}`;
   return (
     <span
       role="img"
-      aria-label={`Customer confirmed at ${time}`}
-      title={`Confirmed via WhatsApp at ${time}`}
+      data-confirmed-by={isStaff ? "staff" : "customer"}
+      aria-label={label}
+      title={isStaff ? label : `Confirmed via WhatsApp at ${time}`}
       className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700"
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -266,6 +275,22 @@ function CardActions({ entry, lane, display, payment, handlers, isGold, busy }) 
           Message
         </button>
       ) : null}
+      {isUnconfirmed && lane === "due" ? (
+        // Staff reached the owner off-channel (phone, in person) — record the
+        // confirmation here so the amber flag clears. If the customer later
+        // answers the WhatsApp reminder themselves, their confirmation
+        // overwrites this one (mark_reminder_confirmed).
+        <button
+          type="button"
+          aria-label={`Confirm ${name}'s booking`}
+          aria-busy={busy || undefined}
+          disabled={busy}
+          onClick={() => handlers.onConfirmArrival?.(booking)}
+          className={contactClass}
+        >
+          Confirm
+        </button>
+      ) : null}
       <span className="pointer-events-auto ml-auto inline-flex items-center gap-1.5">
         <MoreMenu menuLabel={`More actions for ${name}`} items={moreItems} />
         {secondary}
@@ -353,7 +378,7 @@ export function BookingCard({
           {entry.isLate ? (
             <span data-action-reason="late" className="sr-only">Late arrival</span>
           ) : null}
-          <ConfirmedMark confirmedAt={confirmedAt} />
+          <ConfirmedMark confirmedAt={confirmedAt} confirmedBy={booking.reminderConfirmedBy} />
           {displayTiming ? (
             <strong
               data-action-reason={timingActionReason}
