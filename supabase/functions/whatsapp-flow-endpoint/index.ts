@@ -102,6 +102,12 @@ const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
 const NO_PETS_MSG =
   'We couldn\'t find a dog on your file yet. Reply "new" and we\'ll get you registered, then you can book.';
+// Different situation, different answer: these customers ARE on file, so
+// inviting them to register would create a duplicate. Their dogs just can't be
+// booked online yet — a missing size, or a pregnancy we want to talk through
+// (issue #682). Both are resolved by a human, not by the Flow.
+const NO_BOOKABLE_PETS_MSG =
+  "We just need to check something about your dog before booking online — please reply here and the team will sort it. 🐾";
 const FINE_PRINT =
   "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon.";
 
@@ -194,9 +200,15 @@ async function buildScreen(
       return renderWelcome(session, supabase);
 
     case "SELECT_PET": {
-      const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
-      if (!pets.length) return screenResponse("NO_PETS", { message: NO_PETS_MSG });
-      return screenResponse("SELECT_PET", { pets });
+      const listing = session.human_id
+        ? await listPetOptions(db, session.human_id)
+        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+      if (!listing.options.length) {
+        return screenResponse("NO_PETS", {
+          message: listing.totalOnFile > 0 ? NO_BOOKABLE_PETS_MSG : NO_PETS_MSG,
+        });
+      }
+      return screenResponse("SELECT_PET", { pets: listing.options });
     }
 
     case "SELECT_DATE": {
@@ -613,8 +625,10 @@ async function handleDataExchange(
         target = "SELECT_DATE";
         break;
       }
-      const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
-      target = pets.length ? "SELECT_PET" : "NO_PETS";
+      const listing = session.human_id
+        ? await listPetOptions(db, session.human_id)
+        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+      target = listing.options.length ? "SELECT_PET" : "NO_PETS";
       break;
     }
     case "SELECT_PET": {

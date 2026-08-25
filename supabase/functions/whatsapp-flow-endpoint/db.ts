@@ -102,7 +102,7 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
     async getDogsByHuman(humanId: string): Promise<DogRow[]> {
       const { data, error } = await supabase
         .from("dogs")
-        .select("id, name, breed, size, human_id")
+        .select("id, name, breed, size, human_id, is_pregnant")
         .eq("human_id", humanId)
         .order("name");
       if (error) {
@@ -115,7 +115,7 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
     async getDogById(dogId: string): Promise<DogRow | null> {
       const { data } = await supabase
         .from("dogs")
-        .select("id, name, breed, size, human_id")
+        .select("id, name, breed, size, human_id, is_pregnant")
         .eq("id", dogId)
         .maybeSingle();
       return (data as DogRow | null) ?? null;
