@@ -1,11 +1,17 @@
 import { readFile } from "node:fs/promises";
 
-const [resultsPath] = process.argv.slice(2);
-const requiredProjects = ["desktop", "mobile-webkit"];
+// The PR gate runs its two projects as separate Playwright invocations — see
+// the comment in ci.yml — so each report holds one project and names it here.
+// With no project named, both must be present, which is how a single combined
+// report was checked before the invocations were split.
+const [resultsPath, ...namedProjects] = process.argv.slice(2);
+const requiredProjects = namedProjects.length
+  ? namedProjects
+  : ["desktop", "mobile-webkit"];
 
 if (!resultsPath) {
   throw new Error(
-    "Usage: node scripts/assert-playwright-pr-smoke-results.mjs <results.json>",
+    "Usage: node scripts/assert-playwright-pr-smoke-results.mjs <results.json> [project...]",
   );
 }
 

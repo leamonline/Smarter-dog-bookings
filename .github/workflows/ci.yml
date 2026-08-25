@@ -189,23 +189,47 @@ jobs:
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
         run: |
-          npx playwright test --list | tee pr-smoke-test-list.txt
+          npx playwright test --project=desktop --list | tee pr-smoke-test-list.txt
           test_count="$(sed -n 's/^Total: \([0-9][0-9]*\) tests\? in .*/\1/p' pr-smoke-test-list.txt)"
           test -n "$test_count" && test "$test_count" -gt 0 || {
             echo "::error::PR smoke suite is empty."
             exit 1
           }
           echo "PR smoke suite contains $test_count tests."
-      - name: Run production-build PR suite (every spec on Chromium, smoke on WebKit)
+      # Two invocations, each naming its own specs, because this job checks out
+      # the PR HEAD while the workflow itself comes from the merge commit. A
+      # pull request branched before the gate widened still has the old
+      # playwright.config.ts, so per-project spec selection must NOT be read
+      # from the checked-out config — state it here, where the merged workflow
+      # is authoritative, and the gate behaves the same at any branch age.
+      #
+      # Each invocation's report is asserted IN THE SAME STEP that wrote it,
+      # via an ABSOLUTE PLAYWRIGHT_JSON_OUTPUT_NAME. Both halves are
+      # load-bearing: a relative output name is not honoured as a path — the
+      # json reporter drops the file as basename-into-outputDir, so the report
+      # always sat inside test-results/ (Playwright's own folder) whatever the
+      # env said, and the second invocation's startup emptied it there — which
+      # is how the first two-invocation run went red on ENOENT with both
+      # suites green. An absolute path escapes outputDir entirely, and
+      # asserting in-step leaves no window for anything to intervene.
+      - name: Run production-build PR suite — every spec on desktop Chromium
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/pr-smoke-results.json
-        run: >-
-          npx playwright test
-          --reporter=line,github,html,json
-      - name: Reject skipped or incomplete PR smoke results
-        if: always()
-        run: node scripts/assert-playwright-pr-smoke-results.mjs test-results/pr-smoke-results.json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/pr-gate-results/pr-desktop-results.json
+        run: |
+          npx playwright test --project=desktop \
+            --reporter=line,github,html,json
+          node scripts/assert-playwright-pr-smoke-results.mjs \
+            pr-gate-results/pr-desktop-results.json desktop
+      - name: Run production-build PR suite — smoke journeys on WebKit
+        env:
+          PLAYWRIGHT_PR_SMOKE: "1"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/pr-gate-results/pr-webkit-results.json
+        run: |
+          npx playwright test e2e/smoke.spec.ts --project=mobile-webkit \
+            --reporter=line,github,html,json
+          node scripts/assert-playwright-pr-smoke-results.mjs \
+            pr-gate-results/pr-webkit-results.json mobile-webkit
       - name: Retain Playwright failure context
         if: always()
         uses: actions/upload-artifact@v7
@@ -214,6 +238,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            pr-gate-results/
             pr-smoke-test-list.txt
           if-no-files-found: warn
           retention-days: 7

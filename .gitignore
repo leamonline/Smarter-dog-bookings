@@ -51,3 +51,4 @@ ds-bundle/
 # `node scripts/generate-launch-kit.mjs` / `generate-premium-launch-kit.mjs`.
 # Nothing in the app or the build reads these.
 outputs/
+pr-gate-results/
