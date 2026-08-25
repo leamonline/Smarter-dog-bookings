@@ -7,8 +7,15 @@ import { defineConfig, devices } from "@playwright/test";
 //
 // The full post-merge matrix deliberately remains Chromium-only: it provides
 // desktop, tablet and mobile viewport coverage at its established cost. The
-// pull-request gate opts into the smaller, production-build `pr-smoke` matrix
-// below so it adds real mobile WebKit coverage without changing that matrix.
+// pull-request gate opts into the production-build `pr-smoke` matrix below,
+// which runs EVERY spec on desktop Chromium plus mobile WebKit smoke.
+//
+// Why every spec on pull requests: a spec that only runs after merge is a spec
+// that can only fail on main — and main auto-deploys production. #690 shipped a
+// broken daily-brief locator that way and left main red for three consecutive
+// merges, because its pull request never ran the spec it had just rewritten.
+// One viewport catches that class at roughly a third of the matrix cost; the
+// three-viewport sweep stays post-merge for genuinely viewport-specific breaks.
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 4173;
 const baseURL =
@@ -34,9 +41,13 @@ export default defineConfig({
           name: "desktop",
           use: { ...devices["Desktop Chrome"], browserName: "chromium" },
         },
+        // WebKit stays deliberately narrow. It exists for cross-browser smoke
+        // coverage, and the other specs have never been validated against it —
+        // widening it here would trade a real gate for unrelated WebKit noise.
         {
           name: "mobile-webkit",
           use: { ...devices["iPhone 13"], browserName: "webkit" },
+          testMatch: /smoke\.spec\.ts/,
         },
       ]
     : [
