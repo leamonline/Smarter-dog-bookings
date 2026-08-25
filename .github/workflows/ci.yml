@@ -150,9 +150,14 @@ jobs:
           retention-days: 7
 
   pr-production-smoke:
-    # This is intentionally separate from `e2e`: PRs run only the small,
-    # deterministic smoke suite while the full desktop/tablet/mobile Chromium
-    # matrix remains post-merge/manual to control Actions cost.
+    # This is intentionally separate from `e2e`: PRs run every spec once, on
+    # desktop Chromium, plus the smoke journeys on WebKit — while the full
+    # desktop/tablet/mobile matrix remains post-merge/manual to control cost.
+    #
+    # The job name is load-bearing (branch protection may require it by name),
+    # so it keeps the historical `pr-production-smoke` name even though the
+    # suite is no longer smoke-only. Project selection lives in
+    # playwright.config.ts under PLAYWRIGHT_PR_SMOKE.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -180,23 +185,23 @@ jobs:
         # WebKit is installed only here; the post-merge e2e job remains
         # Chromium-only and retains its existing browser-download cost.
         run: npx playwright install --with-deps chromium webkit
-      - name: Assert the PR smoke suite is non-empty
+      - name: Assert the PR suite is non-empty
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
         run: |
-          npx playwright test e2e/smoke.spec.ts --list | tee pr-smoke-test-list.txt
+          npx playwright test --list | tee pr-smoke-test-list.txt
           test_count="$(sed -n 's/^Total: \([0-9][0-9]*\) tests\? in .*/\1/p' pr-smoke-test-list.txt)"
           test -n "$test_count" && test "$test_count" -gt 0 || {
             echo "::error::PR smoke suite is empty."
             exit 1
           }
           echo "PR smoke suite contains $test_count tests."
-      - name: Run production-build Chromium and WebKit smoke journeys
+      - name: Run production-build PR suite (every spec on Chromium, smoke on WebKit)
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/pr-smoke-results.json
         run: >-
-          npx playwright test e2e/smoke.spec.ts
+          npx playwright test
           --reporter=line,github,html,json
       - name: Reject skipped or incomplete PR smoke results
         if: always()
