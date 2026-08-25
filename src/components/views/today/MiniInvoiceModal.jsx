@@ -9,6 +9,7 @@ import {
 import { computeBookingPricing } from "../../../engine/bookingRules";
 import { buildMiniInvoicePatch } from "../../../engine/dailyBrief";
 import { ModalShell } from "../../modals/shell/ModalShell.jsx";
+import { ConfirmDialog } from "../../modals/ConfirmDialog.jsx";
 import { formatMoney } from "./parts.jsx";
 
 const INPUT_CLASS =
@@ -89,9 +90,9 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
     setDirty(true);
   };
 
-  const requestDirtyClose = () => {
-    if (window.confirm("Discard these invoice changes?")) onClose();
-  };
+  // In-product confirm (never window.confirm — see docs/modal-standard.md).
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const requestDirtyClose = () => setConfirmingDiscard(true);
 
   const requestClose = () => {
     if (saving) return;
@@ -349,6 +350,18 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
           </fieldset>
         </div>
       </form>
+      {confirmingDiscard ? (
+        <ConfirmDialog
+          title="Discard these invoice changes?"
+          body="The price, add-ons and payment you entered here will be lost."
+          confirmLabel="Discard changes"
+          cancelLabel="Keep editing"
+          tone="danger"
+          zIndex={1100}
+          onConfirm={onClose}
+          onClose={() => setConfirmingDiscard(false)}
+        />
+      ) : null}
     </ModalShell>
   );
 }

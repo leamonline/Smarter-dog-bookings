@@ -1,105 +1,96 @@
-import { CalendarDays, ChevronRight, Clock3 } from "lucide-react";
+// Daily Brief header — one identity row and one status sentence, the same
+// anatomy at every width. The date IS the date-picker control; availability
+// state lives on the button that manages it; the act-now numbers are itemised
+// so the count defines itself ("1 late · 1 to confirm") instead of an opaque
+// "N need action" whose meaning hid in a hover tooltip.
+import { CalendarDays, ChevronDown, ChevronRight, Clock3 } from "lucide-react";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
-import {
-  PageHeader,
-  PageHeaderAction,
-  PageHeaderPill,
-} from "../../ui/PageHeader.jsx";
+import { PageHeader, PageHeaderPill } from "../../ui/PageHeader.jsx";
 import { formatMoney } from "./parts.jsx";
 
+// The union the needs-attention FILTER shows (money is deliberately part of
+// the filter so an owing dog can never be filtered out of sight, even though
+// it is not part of the act-now counts).
 export const NEEDS_ACTION_DEFINITION =
-  "Need action means late arrivals, confirmation chases, overdue collections and unpaid bookings after arrival.";
+  "Needs attention means late arrivals, unconfirmed bookings, dogs waiting to be collected, and unpaid balances.";
 
-function SecondaryAction({ children, className = "", icon: Icon, ...props }) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className={`inline-flex h-11 min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-control border border-slate-300 bg-white px-2 text-[13px] font-bold text-brand-purple shadow-sm outline-none transition-colors hover:border-brand-purple/40 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 sm:gap-2 sm:px-4 sm:text-sm ${className}`}
-    >
-      <Icon size={17} aria-hidden="true" />
-      {children}
-    </button>
-  );
-}
-
-function OperationalFact({ label, value, valueClassName = "" }) {
-  return (
-    <div className="flex min-h-12 min-w-0 flex-col justify-center border-r border-slate-200 px-2 py-1 last:border-r-0 lg:px-3">
-      <span className={`truncate text-[14px] font-black leading-tight tabular-nums text-brand-purple sm:text-[16px] ${valueClassName}`}>
-        {value}
-      </span>
-      <span className="mt-0.5 whitespace-nowrap text-[12px] font-bold uppercase leading-tight tracking-normal text-slate-500">
-        {label}
-      </span>
-    </div>
-  );
+function segmentPlural(count, singular, plural = null) {
+  return `${count} ${count === 1 ? singular : plural || `${singular}s`}`;
 }
 
 /**
- * The mobile Need-action control: a plain "N need action" button when there's
- * something to see, explicit "Showing N · Clear" escape language once the
- * filter is active, and calm non-interactive text when there's nothing to
- * chase — never a bare number that could be mistaken for a static count.
+ * The itemised act-now cluster. Zero → a calm sentence (today only — a past
+ * or future date needs no reassurance). Non-zero → one toggle that filters
+ * the board to everything needing attention; the segments name the reasons so
+ * the number is self-defining.
  */
-function MobileNeedAction({ actionCount, actionFilterActive, onToggleActionFilter }) {
-  if (actionCount === 0) {
-    return <span className="text-[13px] font-bold text-brand-teal-text">All calm</span>;
+function NowCluster({ nowCounts, actionCount, isToday, active, onToggle }) {
+  const { late, toConfirm, waiting, dogs } = nowCounts;
+  if (dogs === 0 && actionCount === 0) {
+    return isToday ? (
+      <span className="text-[13px] font-bold text-brand-teal-text">Nothing needs you yet</span>
+    ) : null;
   }
-  if (actionFilterActive) {
+
+  const segments = [
+    late > 0 && { text: `${late} late`, tone: "text-brand-coral-text" },
+    toConfirm > 0 && { text: `${toConfirm} to confirm`, tone: "text-amber-800" },
+    waiting > 0 && { text: `${waiting} waiting`, tone: "text-brand-purple" },
+  ].filter(Boolean);
+  // A day can need attention on money alone (act-now counts all zero).
+  if (segments.length === 0) {
+    segments.push({ text: segmentPlural(actionCount, "to review"), tone: "text-brand-purple" });
+  }
+
+  if (active) {
     return (
       <button
         type="button"
         aria-pressed="true"
+        aria-label={`Show all bookings; ${actionCount} currently need attention`}
         aria-describedby="needs-action-definition"
-        onClick={onToggleActionFilter}
-        className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-brand-purple px-3 text-[13px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+        data-filter-selected="true"
+        onClick={onToggle}
+        className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control bg-brand-purple px-3 text-[13px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
       >
         Showing {actionCount} · Clear
       </button>
     );
   }
+
   return (
     <button
       type="button"
       aria-pressed="false"
+      aria-label={`Filter to the ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing attention: ${segments.map((s) => s.text).join(", ")}`}
       aria-describedby="needs-action-definition"
-      onClick={onToggleActionFilter}
-      className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-brand-coral/[0.12] px-3 text-[13px] font-bold text-brand-coral-text outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+      data-filter-selected="false"
+      onClick={onToggle}
+      className="group inline-flex min-h-11 shrink-0 items-center gap-x-2 rounded-control px-2 -mx-1 text-[13px] font-bold leading-none outline-none transition-colors hover:bg-brand-coral/[0.06] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
     >
-      {actionCount} need action
-      <ChevronRight size={14} aria-hidden="true" />
+      {segments.map((segment, index) => (
+        <span key={segment.text} className={`whitespace-nowrap tabular-nums ${segment.tone}`}>
+          {index > 0 ? <span aria-hidden="true" className="mr-2 font-normal text-slate-300">·</span> : null}
+          {segment.text}
+        </span>
+      ))}
+      <ChevronRight size={13} aria-hidden="true" className="self-center text-slate-400 transition-colors group-hover:text-brand-coral-text" />
     </button>
-  );
-}
-
-function SecondaryTotals({ dogsBooked, capacityTotal, unpaidTotal, expectedRevenue }) {
-  return (
-    <section
-      role="region"
-      aria-label="Daily Brief secondary totals"
-      className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600"
-    >
-      <span><strong className="font-bold text-slate-700 tabular-nums">{dogsBooked}/{capacityTotal}</strong> capacity</span>
-      <span><strong className="font-bold text-slate-700 tabular-nums">{unpaidTotal > 0 ? formatMoney(unpaidTotal) : "All paid"}</strong>{unpaidTotal > 0 ? " unpaid" : ""}</span>
-      <span><strong className="font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)}</strong> expected</span>
-    </section>
   );
 }
 
 export function TodayHeader({
   dateLabel,
   dogsBooked,
-  onSite = 0,
-  lateCount = 0,
-  readyCount = 0,
-  actionCount,
-  unpaidTotal = 0,
-  expectedRevenue = 0,
   capacityTotal = DAY_CAPACITY,
-  nextOnlineSlot = null,
+  nowCounts = { late: 0, toConfirm: 0, waiting: 0, dogs: 0 },
+  actionCount = 0,
+  unpaidTotal = 0,
   isDayOpen,
-  briefMode = false,
+  isToday = false,
+  nextOnlineSlot = null,
+  nextUp = null,
+  onJumpToNext,
   onOpenDatePicker,
   onManageAvailability,
   actionFilterActive = false,
@@ -108,149 +99,98 @@ export function TodayHeader({
   const availabilityLabel = nextOnlineSlot
     ? `Next online ${nextOnlineSlot}`
     : isDayOpen
-      ? "No online slots available"
-      : "No online slots · bookings closed";
+      ? "No online slots today"
+      : "Online booking closed";
+  const overCap = dogsBooked > capacityTotal;
 
   return (
-    <PageHeader title="Daily Brief" className="!mb-3 !min-h-0 !gap-2 !py-2.5">
-      {/* Compact mobile header (below md): date opens the picker directly, no
-          separate Choose-date control, unpaid total dropped, one Need-action
-          row instead of the four-cell status grid. */}
-      <div className="grid w-full gap-2 md:hidden">
-        <div className="flex min-w-0 items-center gap-2">
+    <PageHeader title="Daily Brief" className="!mb-4 !min-h-0 !gap-1.5 !py-3">
+      <div className="grid w-full gap-1.5">
+        {/* Identity row: the date is the picker; availability state lives on
+            the button that manages it. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
           <button
             type="button"
+            data-testid="daily-brief-date"
             onClick={onOpenDatePicker}
             aria-label={`${dateLabel} — choose a different date`}
-            className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-control px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-2 rounded-control px-1 -ml-1 text-left outline-none transition-colors hover:bg-brand-purple/[0.04] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
-            <CalendarDays size={17} aria-hidden="true" className="shrink-0 text-brand-purple/50" />
-            <strong className="min-w-0 truncate font-display text-xl font-black leading-none tracking-[-0.02em] text-brand-purple">
+            <CalendarDays size={18} aria-hidden="true" className="shrink-0 text-brand-purple/45" />
+            <strong className="min-w-0 truncate font-display text-xl font-bold leading-none tracking-[-0.02em] text-brand-purple sm:text-2xl">
               {dateLabel}
             </strong>
+            <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-purple/45" />
           </button>
           <PageHeaderPill tone={isDayOpen ? "open" : "closed"} dot>
             {isDayOpen ? "Salon open" : "Salon closed"}
           </PageHeaderPill>
-        </div>
-
-        {!briefMode ? (
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
-            <span className="text-[13px] font-bold text-slate-700 tabular-nums">{dogsBooked} booked</span>
-            <MobileNeedAction
-              actionCount={actionCount}
-              actionFilterActive={actionFilterActive}
-              onToggleActionFilter={onToggleActionFilter}
-            />
-            <span className="text-[13px] font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)} expected</span>
-          </div>
-        ) : null}
-
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-[12px] font-bold text-slate-600">{availabilityLabel}</span>
           <button
             type="button"
             onClick={onManageAvailability}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control bg-brand-purple px-3 text-[13px] font-bold text-white outline-none transition-colors hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            aria-label={`Manage availability — ${availabilityLabel}`}
+            className="inline-flex min-h-11 shrink-0 flex-col items-start justify-center gap-0 rounded-control border border-slate-300 bg-white px-3.5 py-1 text-left outline-none transition-colors hover:border-brand-purple/40 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 max-md:ml-auto"
           >
-            <Clock3 size={16} aria-hidden="true" />
-            Availability
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold leading-tight text-brand-purple">
+              <Clock3 size={15} aria-hidden="true" />
+              Manage availability
+            </span>
+            <span aria-hidden="true" className="pl-[21px] text-[11px] font-medium leading-tight text-slate-500">
+              {availabilityLabel}
+            </span>
           </button>
         </div>
-      </div>
 
-      {/* Existing richer header at md and above. */}
-      <div className="hidden w-full gap-2 md:grid" data-testid="daily-brief-header-full">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <strong
-            data-testid="daily-brief-date"
-            className="mr-auto shrink-0 font-display text-2xl font-black leading-none tracking-[-0.025em] text-brand-purple sm:text-[1.7rem]"
-          >
-            {dateLabel}
-          </strong>
-          <PageHeaderPill tone={isDayOpen ? "open" : "closed"} dot>
-            {isDayOpen ? "Salon open" : "Salon closed"}
-          </PageHeaderPill>
-          <span className="text-[11px] font-bold text-slate-600 sm:text-xs" aria-label="Availability">
-            {availabilityLabel}
+        {/* Status sentence: booked · act-now (itemised, filters) · money ·
+            over-cap warning · the Next jump. Segments render only when true. */}
+        <div
+          role="region"
+          aria-label="Daily Brief status"
+          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-slate-600"
+        >
+          <span className="whitespace-nowrap">
+            <strong className="font-bold text-brand-purple tabular-nums">{dogsBooked}</strong> booked
           </span>
-        </div>
-
-        <div className="grid items-stretch gap-2 lg:grid-cols-[minmax(0,1fr)_max-content]">
-          {!briefMode ? (
-            <div className="grid min-w-0 gap-1.5">
-              <section
-                role="region"
-                aria-label="Daily Brief operational status"
-                className="grid min-w-0 grid-cols-4 overflow-hidden rounded-xl border border-slate-200 bg-white"
-              >
-                <OperationalFact
-                  label="Late"
-                  value={lateCount > 0 ? lateCount : "On time"}
-                  valueClassName={lateCount > 0 ? "text-brand-coral-text" : "text-[11px] text-brand-teal-text sm:text-[13px]"}
-                />
-                <OperationalFact label="On site" value={onSite} />
-                <OperationalFact label="Ready" value={readyCount} />
-                {actionCount > 0 ? (
-                  <button
-                    type="button"
-                    aria-label={actionFilterActive
-                      ? `Show all bookings; ${actionCount} currently need action`
-                      : `Filter ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing action`}
-                    aria-describedby="needs-action-definition"
-                    aria-pressed={actionFilterActive}
-                    data-filter-selected={actionFilterActive ? "true" : "false"}
-                    title={NEEDS_ACTION_DEFINITION}
-                    onClick={onToggleActionFilter}
-                    className={`flex min-h-12 min-w-0 flex-col justify-center px-2 py-1 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:px-3 ${
-                      actionFilterActive
-                        ? "bg-brand-purple text-white"
-                        : "bg-brand-coral/[0.08] text-brand-coral-text hover:bg-brand-coral/[0.14]"
-                    }`}
-                  >
-                    <span className="truncate text-[14px] font-black leading-tight tabular-nums sm:text-[16px]">
-                      {actionFilterActive ? "Filtering" : actionCount}
-                    </span>
-                    <span className={`mt-0.5 truncate text-[9px] font-bold uppercase min-[390px]:text-[10px] ${actionFilterActive ? "text-white/80" : "text-brand-coral-text"}`}>
-                      {actionFilterActive ? `${actionCount} action` : "Action"}
-                    </span>
-                  </button>
-                ) : (
-                  <OperationalFact label="Action" value="All calm" valueClassName="text-[12px] text-brand-teal-text sm:text-[14px]" />
-                )}
-              </section>
-              <SecondaryTotals
-                dogsBooked={dogsBooked}
-                capacityTotal={capacityTotal}
-                unpaidTotal={unpaidTotal}
-                expectedRevenue={expectedRevenue}
-              />
-            </div>
-          ) : <span aria-hidden="true" />}
-
-          <div className="grid shrink-0 grid-cols-2 items-center gap-2 lg:grid-cols-[max-content_max-content]">
-            <SecondaryAction
-              className="w-full lg:w-auto"
-              icon={CalendarDays}
-              aria-label={`Choose date, ${dateLabel}`}
-              onClick={onOpenDatePicker}
+          <NowCluster
+            nowCounts={nowCounts}
+            actionCount={actionCount}
+            isToday={isToday}
+            active={actionFilterActive}
+            onToggle={onToggleActionFilter}
+          />
+          {unpaidTotal > 0 ? (
+            <span className="whitespace-nowrap">
+              <strong className="font-bold text-brand-purple tabular-nums">{formatMoney(unpaidTotal)}</strong> to collect
+            </span>
+          ) : dogsBooked > 0 ? (
+            <span className="whitespace-nowrap font-bold text-brand-teal-text">All paid</span>
+          ) : null}
+          {overCap ? (
+            <span className="whitespace-nowrap font-bold text-brand-coral-text">
+              <span className="tabular-nums">{dogsBooked}/{capacityTotal}</span> over the daily cap
+            </span>
+          ) : null}
+          {isToday && nextUp ? (
+            <button
+              type="button"
+              onClick={onJumpToNext}
+              aria-label={`Next: ${nextUp.dogName} — ${nextUp.text}`}
+              className="ml-auto hidden min-h-11 min-w-0 items-center gap-1 rounded-control px-1 text-[13px] font-bold text-brand-purple underline decoration-brand-purple/25 underline-offset-4 outline-none transition-colors hover:decoration-brand-purple md:inline-flex focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
             >
-              Choose date
-            </SecondaryAction>
-            <PageHeaderAction className="w-full gap-1.5 px-2 text-[13px] sm:gap-2 sm:px-4 sm:text-sm lg:w-auto" icon={Clock3} onClick={onManageAvailability}>
-              Manage availability
-            </PageHeaderAction>
-          </div>
+              <span className="shrink-0">Next:</span>
+              <span className={`min-w-0 truncate ${nextUp.tone === "overdue" ? "text-brand-coral-text" : ""}`}>
+                {nextUp.dogName} — {nextUp.text}
+              </span>
+              <ChevronDown size={13} aria-hidden="true" className="shrink-0 text-brand-purple/50" />
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {!briefMode && actionCount > 0 ? (
+      {actionCount > 0 ? (
         <span id="needs-action-definition" className="sr-only">
           {NEEDS_ACTION_DEFINITION}
         </span>
-      ) : null}
-      {briefMode ? (
-        <aside aria-label="Availability" className="sr-only">{availabilityLabel}</aside>
       ) : null}
     </PageHeader>
   );

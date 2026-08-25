@@ -1,22 +1,32 @@
-// Tests for the shared Today primitives: the canonical status line, honest
-// wait-time colours (threshold-driven, never green, never from the section a
-// card sits in), and the card-level "More" menu.
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+// Component tests for the Daily Brief's shared parts: the wait-time tones,
+// the portalled More menu (with its full menu keyboard contract), the welfare
+// chips' shared safety language, and the "Later" notes disclosure.
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  BookingStatusLine,
-  WaitBadge,
-  waitTone,
   MoreMenu,
-  ActionTile,
-  PaymentMethodChooser,
+  WelfareChips,
+  waitTone,
   WAIT_AMBER_MINUTES,
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
-import { TodayKpiRow } from "./TodayKpiRow.jsx";
 import { TodayBriefNotes } from "./TodayBriefNotes.jsx";
-import * as unpaidHook from "../../../hooks/useUnpaidFortnight";
-import * as retentionHook from "../../../hooks/useRetentionData";
+
+const unpaidState = { available: true, count: 2 };
+const retentionState = { available: true, overdueCount: 3 };
+vi.mock("../../../hooks/useUnpaidFortnight", () => ({
+  useUnpaidFortnight: () => unpaidState,
+}));
+vi.mock("../../../hooks/useRetentionData", () => ({
+  useRetentionData: () => retentionState,
+}));
+
+afterEach(() => {
+  unpaidState.available = true;
+  unpaidState.count = 2;
+  retentionState.available = true;
+  retentionState.overdueCount = 3;
+});
 
 describe("waitTone thresholds", () => {
   it("is neutral under the amber threshold, amber at 60+, red at 120+", () => {
@@ -26,210 +36,136 @@ describe("waitTone thresholds", () => {
     expect(waitTone(WAIT_AMBER_MINUTES)).toBe("amber");
     expect(waitTone(WAIT_RED_MINUTES - 1)).toBe("amber");
     expect(waitTone(WAIT_RED_MINUTES)).toBe("red");
-    expect(waitTone(9 * 60 + 42)).toBe("red");
-  });
-});
-
-describe("WaitBadge", () => {
-  it("never renders a wait in green, whatever the duration", () => {
-    for (const mins of [5, 59, 60, 119, 120, 582]) {
-      const { container, unmount } = render(<WaitBadge minutes={mins} />);
-      expect(container.querySelector("span").className).not.toMatch(/emerald|green/);
-      unmount();
-    }
-  });
-
-  it("tones a long wait red and keeps the duration text", () => {
-    const { container } = render(<WaitBadge minutes={582} withWord={false} />);
-    const el = container.querySelector("span");
-    expect(el).toHaveTextContent("9 hr 42 min");
-    expect(el.className).toContain("text-brand-coral-text");
-  });
-
-  it("keeps the word 'waiting' where the headline doesn't already say it", () => {
-    render(<WaitBadge minutes={25} />);
-    expect(screen.getByText("waiting 25 min")).toBeInTheDocument();
-  });
-});
-
-describe("BookingStatusLine", () => {
-  const readyBooking = {
-    status: "Ready for pick-up",
-    readyAt: "2026-07-02T10:00:00Z", // 11:00 London (BST)
-    collectionSentAt: null,
-  };
-
-  it("shows status + since-time, wait and payment in order", () => {
-    render(
-      <BookingStatusLine
-        booking={readyBooking}
-        waitMinutes={135}
-        pay={{ kind: "due", label: "Balance due", amountDue: 42, depositPaid: 0, subtotal: 42 }}
-      />,
-    );
-    expect(screen.getByText("Ready")).toBeInTheDocument();
-    expect(screen.getByText("since 11:00")).toBeInTheDocument();
-    expect(screen.getByText("waiting 2 hr 15 min")).toBeInTheDocument();
-    expect(screen.getByText(/£42/)).toBeInTheDocument();
-  });
-
-  it("never restates whether the collection message went out — the primary action already carries that fact", () => {
-    render(<BookingStatusLine booking={{ ...readyBooking, collectionSentAt: "2026-07-02T10:05:00Z" }} />);
-    expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
-  });
-
-  it("shows the £ balance for a non-ready booking too", () => {
-    render(
-      <BookingStatusLine
-        booking={{ status: "Booked" }}
-        waitMinutes={null}
-        pay={{ kind: "due", label: "Balance due", amountDue: 55, depositPaid: 0, subtotal: 55 }}
-      />,
-    );
-    expect(screen.getByText(/£55 due at pick-up/)).toBeInTheDocument();
-  });
-
-  it("suppresses the 'Booked' pill — the default resting state adds no information — but keeps it for every other status", () => {
-    const { rerender } = render(<BookingStatusLine booking={{ status: "Booked" }} />);
-    expect(screen.queryByText("Booked")).not.toBeInTheDocument();
-
-    rerender(<BookingStatusLine booking={{}} />);
-    expect(screen.queryByText("Booked")).not.toBeInTheDocument();
-
-    rerender(<BookingStatusLine booking={{ status: "Checked in" }} />);
-    expect(screen.getByText("Checked in")).toBeInTheDocument();
-
-    rerender(<BookingStatusLine booking={{ status: "Completed" }} />);
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(waitTone(500)).toBe("red");
   });
 });
 
 describe("MoreMenu", () => {
   it("hides its items until opened, then fires the chosen one", () => {
-    const onA = vi.fn();
+    const onPick = vi.fn();
     render(
       <MoreMenu
-        menuLabel="More actions for Rex"
+        menuLabel="More actions for Max"
         items={[
-          { label: "Open booking", onClick: onA },
-          { label: "Didn't show", onClick: noop },
+          { label: "Open booking", onClick: onPick },
+          { label: "Didn't show", onClick: vi.fn() },
         ]}
       />,
     );
-    expect(screen.queryByRole("menuitem", { name: "Open booking" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Rex" }));
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "More actions for Max" });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(screen.getByRole("menuitem", { name: "Open booking" }));
-    expect(onA).toHaveBeenCalled();
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("renders through a portal so an ancestor's overflow can never clip it", () => {
+    const { container } = render(
+      <div style={{ overflow: "hidden", height: 10 }}>
+        <MoreMenu menuLabel="More" items={[{ label: "Open booking", onClick: vi.fn() }]} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    const menu = screen.getByRole("menu");
+    // The panel is a child of document.body, not of the clipping ancestor.
+    expect(container.contains(menu)).toBe(false);
+    expect(document.body.contains(menu)).toBe(true);
+  });
+
+  it("keeps the full menu keyboard contract: focus in, arrows traverse, Escape restores", () => {
+    render(
+      <MoreMenu
+        menuLabel="More actions for Max"
+        items={[
+          { label: "First", onClick: vi.fn() },
+          { label: "Second", onClick: vi.fn() },
+        ]}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "More actions for Max" });
+    fireEvent.click(trigger);
+    const first = screen.getByRole("menuitem", { name: "First" });
+    const second = screen.getByRole("menuitem", { name: "Second" });
+    expect(first).toHaveFocus();
+
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    expect(second).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "End" });
+    expect(second).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("renders nothing when there are no items", () => {
     const { container } = render(<MoreMenu items={[]} />);
-    expect(container.firstChild).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
-describe("ActionTile", () => {
-  it("renders icon + short label with a full accessible name", () => {
-    const onClick = vi.fn();
-    render(<ActionTile icon="check" label="Collected" ariaLabel="Mark collected" onClick={onClick} />);
-    const btn = screen.getByRole("button", { name: "Mark collected" });
-    expect(btn).toHaveTextContent("Collected");
-    expect(btn.querySelector("svg")).not.toBeNull();
-    fireEvent.click(btn);
-    expect(onClick).toHaveBeenCalled();
-  });
-});
+describe("WelfareChips", () => {
+  it("shows every welfare fact as its own always-visible coral safety chip", () => {
+    render(
+      <WelfareChips
+        alerts={["Bites / Nips", "Muzzle required"]}
+        pregnant
+        notes="Nervous of dryers"
+      />,
+    );
 
-describe("PaymentMethodChooser", () => {
-  it("offers every payment method and a cancel", () => {
-    const onPick = vi.fn();
-    const onCancel = vi.fn();
-    render(<PaymentMethodChooser onPick={onPick} onCancel={onCancel} />);
-    fireEvent.click(screen.getByRole("button", { name: "Bank transfer" }));
-    expect(onPick).toHaveBeenCalledWith("bank_transfer");
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(onCancel).toHaveBeenCalled();
-  });
-});
-
-describe("MoreMenu tile variant", () => {
-  it("renders a tile-shaped trigger that still opens the menu", () => {
-    const onA = vi.fn();
-    render(<MoreMenu tile menuLabel="More actions for Rex" items={[{ label: "Didn't show", onClick: onA }]} />);
-    fireEvent.click(screen.getByRole("button", { name: "More actions for Rex" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
-    expect(onA).toHaveBeenCalled();
-  });
-});
-
-describe("TodayKpiRow", () => {
-  it("shows on-site dogs with the booked total and keeps capacity booked-based", () => {
-    render(<TodayKpiRow dogsBooked={11} onSite={3} expectedRevenue={478.4} />);
-    expect(screen.getByText("On site").parentElement).toHaveTextContent("3");
-    expect(screen.getByText("11 booked today")).toBeInTheDocument();
-    expect(screen.getByText("£478")).toBeInTheDocument();
-    const bar = screen.getByRole("progressbar", { name: /capacity/i });
-    expect(bar).toHaveAttribute("aria-valuenow", "11");
+    for (const text of ["Pregnant", "Bites / Nips", "Muzzle required", "Nervous of dryers"]) {
+      const chip = screen.getByText(text).parentElement;
+      // The shared safety language from SafetyAlertChip — coral, never amber,
+      // and never hidden behind a tap.
+      expect(chip.className).toMatch(/bg-brand-coral-light/);
+      expect(chip.className).toMatch(/text-brand-coral-text/);
+    }
   });
 
-  it("shows a booked-only card when onSite is omitted for a future brief", () => {
-    render(<TodayKpiRow dogsBooked={6} expectedRevenue={252} />);
-    expect(screen.getByText("Booked").parentElement).toHaveTextContent("6");
-    expect(screen.queryByText("On site")).not.toBeInTheDocument();
-  });
-
-  it("caps the bar at 100% when over capacity", () => {
-    render(<TodayKpiRow dogsBooked={20} expectedRevenue={0} />);
-    const bar = screen.getByRole("progressbar", { name: /capacity/i });
-    expect(bar.querySelector("span").style.width).toBe("100%");
+  it("renders nothing when there is nothing to flag", () => {
+    const { container } = render(<WelfareChips alerts={[]} pregnant={false} notes="" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
 describe("TodayBriefNotes", () => {
-  const mockHooks = (unpaid, retention) => {
-    vi.spyOn(unpaidHook, "useUnpaidFortnight").mockReturnValue(unpaid);
-    vi.spyOn(retentionHook, "useRetentionData").mockReturnValue({
-      candidates: [], excludedCount: 0, refresh: noop, mark: noop, ...retention,
-    });
-  };
-
   it("reports the correct count on Later and reveals both notes once opened", () => {
-    mockHooks({ loading: false, available: true, count: 3 }, { loading: false, available: true, overdueCount: 5 });
-    const onOpenReports = vi.fn();
-    render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={onOpenReports} />);
+    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
 
     expect(screen.getByText("Later")).toBeInTheDocument();
     expect(screen.getByText("2 things worth reviewing")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Later"));
-
-    expect(screen.getByText(/3 grooms in the last fortnight aren't marked paid/)).toBeInTheDocument();
-    expect(screen.getByText(/5 dogs are due back with no booking/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /marked paid/ }));
-    expect(onOpenReports).toHaveBeenCalled();
-    vi.restoreAllMocks();
+    expect(screen.getByText(/2 grooms in the last fortnight/)).toBeInTheDocument();
+    expect(screen.getByText(/3 dogs are due back with no booking/)).toBeInTheDocument();
   });
 
   it("uses singular copy for one note", () => {
-    mockHooks({ loading: false, available: true, count: 1 }, { loading: false, available: false, overdueCount: 0 });
-    render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
+    retentionState.available = false;
+    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
     expect(screen.getByText("1 thing worth reviewing")).toBeInTheDocument();
-    vi.restoreAllMocks();
   });
 
   it("renders nothing when neither source is available (offline)", () => {
-    mockHooks({ loading: false, available: false, count: 0 }, { loading: false, available: false, overdueCount: 0 });
-    const { container } = render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
+    unpaidState.available = false;
+    retentionState.available = false;
+    const { container } = render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
-    vi.restoreAllMocks();
   });
 
   it("hides a zero-count note rather than saying zero", () => {
-    mockHooks({ loading: false, available: true, count: 0 }, { loading: false, available: true, overdueCount: 0 });
-    const { container } = render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
-    expect(container).toBeEmptyDOMElement();
-    vi.restoreAllMocks();
+    unpaidState.count = 0;
+    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
+    expect(screen.getByText("1 thing worth reviewing")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Later"));
+    expect(screen.queryByText(/fortnight/)).not.toBeInTheDocument();
   });
 });
-
-function noop() {}

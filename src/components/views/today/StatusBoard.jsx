@@ -1,31 +1,28 @@
-import { Fragment, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+// The Daily Brief status board — shell-less lanes, one BookingCard for every
+// lane, and exactly one filled-yellow primary on the page (the live focus).
+// Urgency is painted by the engine: entryOpStatus → the card's accent rail,
+// so the board can never disagree with the ranking that drives it.
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { BOOKING_STATUS, SERVICES } from "../../../constants/index";
-import { groupFeedBySlot } from "../../../engine/today";
-import { LiveArrivalDivider } from "./LiveArrivalDivider.jsx";
+import { groupFeedBySlot, entryOpStatus } from "../../../engine/today";
 import { ArrivingSlotGroup } from "./ArrivingSlotGroup.jsx";
-import { MobileEmptyLaneSummary } from "./MobileEmptyLaneSummary.jsx";
-import { MoreMenu, OnTheWayChip, WelfareChips, formatMoney } from "./parts.jsx";
+import { EmptyLaneSummary } from "./EmptyLaneSummary.jsx";
+import {
+  MoreMenu,
+  OnTheWayChip,
+  RAIL_TONE_CLASS,
+  WAIT_TONE_CLASS,
+  WelfareChips,
+  formatLondonTime,
+  formatMoney,
+  waitTone,
+} from "./parts.jsx";
 
 const LANE_META = {
-  due: {
-    title: "Arriving",
-    purpose: "Dogs expected to arrive.",
-    accent: "border-t-brand-yellow",
-    countText: "text-amber-900",
-  },
-  withUs: {
-    title: "With us",
-    purpose: "Dogs physically in the salon.",
-    accent: "border-t-brand-teal",
-    countText: "text-brand-teal-text",
-  },
-  ready: {
-    title: "Ready to go",
-    purpose: "Finished dogs waiting for collection.",
-    accent: "border-t-brand-purple",
-    countText: "text-brand-purple",
-  },
+  due: { title: "Arriving", purpose: "Dogs expected to arrive." },
+  withUs: { title: "With us", purpose: "Dogs physically in the salon." },
+  ready: { title: "Ready to go", purpose: "Finished dogs waiting for collection." },
 };
 
 export function dogCountLabel(count) {
@@ -45,31 +42,23 @@ export function telephoneHref(phone) {
   return compact ? `tel:${compact}` : null;
 }
 
-function formatConfirmedAt(iso) {
-  if (!iso) return null;
-  const value = new Date(iso);
-  if (Number.isNaN(value.getTime())) return null;
-  return value.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Europe/London",
-  });
-}
-
-export const primaryClass =
-  "inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-yellow px-3 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-yellow-dark focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
-export const secondaryClass =
-  "inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+// Button tiers. Gold is a law, not a colour: at most ONE gold primary exists
+// per board — the live focus card's — so yellow always means "do this next".
+// Every other primary is the outlined tier; contextual contact actions are
+// quiet text.
+export const goldPrimaryClass =
+  "pointer-events-auto inline-flex min-h-11 items-center justify-center rounded-control bg-brand-yellow px-3.5 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-yellow-dark focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+export const outlinedPrimaryClass =
+  "pointer-events-auto inline-flex min-h-11 items-center justify-center rounded-control border border-brand-purple/30 bg-white px-3.5 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 export const contactClass =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "pointer-events-auto inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control px-2 text-[12px] font-semibold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
 export function ConfirmationException({ needsConfirmation }) {
   if (!needsConfirmation) return null;
   return (
     <span
       data-action-reason="confirmation"
-      className="inline-flex items-center text-[12px] font-bold text-amber-900"
+      className="inline-flex items-center text-[12px] font-bold text-amber-800"
     >
       Needs confirmation
     </span>
@@ -86,7 +75,7 @@ export function ConfirmationException({ needsConfirmation }) {
  */
 export function ChatConfirmedChip({ signal }) {
   if (!signal) return null;
-  const time = formatConfirmedAt(signal.at);
+  const time = formatLondonTime(signal.at);
   return (
     <span
       data-chat-confirmed="true"
@@ -99,7 +88,7 @@ export function ChatConfirmedChip({ signal }) {
 }
 
 export function ConfirmedMark({ confirmedAt }) {
-  const time = formatConfirmedAt(confirmedAt);
+  const time = formatLondonTime(confirmedAt);
   if (!time) return null;
   return (
     <span
@@ -108,24 +97,25 @@ export function ConfirmedMark({ confirmedAt }) {
       title={`Confirmed via WhatsApp at ${time}`}
       className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700"
     >
-      <Check size={13} strokeWidth={3} aria-hidden="true" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
     </span>
   );
 }
 
 /**
  * Payment only reads as urgent once the action engine actually considers it
- * actionable (`actionReason`, set from `entry.actionReasons.includes("payment")`
- * — true for With us/Ready/Home once a dog owes money, always false while
- * still Arriving). Otherwise it's neutral secondary information: a dog
- * arriving later today who will owe money isn't yet a problem, so it must
- * not look like one.
+ * actionable (`actionReason` — true from Ready onward once a dog owes money,
+ * always false while still Arriving or mid-groom). Otherwise it's neutral
+ * secondary information: a dog who will pay at pick-up isn't yet a problem,
+ * so it must not look like one.
  */
 export function PaymentState({ payment, actionReason = false }) {
   if (!payment) return null;
   if (payment.kind === "paid") {
     return (
-      <span className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-emerald-700">
+      <span className="inline-flex items-center whitespace-nowrap text-[12px] font-bold text-emerald-700">
         Paid
       </span>
     );
@@ -134,8 +124,8 @@ export function PaymentState({ payment, actionReason = false }) {
     return (
       <span
         data-action-reason={actionReason ? "payment" : undefined}
-        className={`inline-flex items-center whitespace-nowrap font-bold ${
-          actionReason ? "text-[13px] text-brand-coral-text" : "text-[11px] text-slate-600"
+        className={`inline-flex items-center whitespace-nowrap tabular-nums ${
+          actionReason ? "text-[13px] font-bold text-brand-coral-text" : "text-[12px] font-semibold text-slate-500"
         }`}
       >
         {formatMoney(payment.amountDue)} due
@@ -145,185 +135,263 @@ export function PaymentState({ payment, actionReason = false }) {
   return (
     <span
       data-action-reason={actionReason ? "payment" : undefined}
-      className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-slate-600"
+      className="inline-flex items-center whitespace-nowrap text-[12px] font-semibold text-slate-500"
     >
       {payment.label}
     </span>
   );
 }
 
-/**
- * Actions for With us and Ready to go only — Arriving cards use their own
- * ArrivingCardActions (ArrivingSlotGroup.jsx), which needs a three-state
- * contact hierarchy this shared component doesn't.
- */
-function CardActions({ entry, display, payment, handlers }) {
+/** entryOpStatus tone → the card's rail. In-progress and upcoming cards stay
+ * railless: absence of colour is the calm state, and a ready dog's WAIT
+ * duration (not its rail) says how long via the threshold tones. */
+function railToneFor(entry) {
+  const kind = entryOpStatus(entry).kind;
+  if (kind === "overdue" || kind === "paymentDue") return "coral";
+  if (kind === "unconfirmed") return "amber";
+  if (kind === "ready" || kind === "readyWaiting") return "emerald";
+  return null;
+}
+
+function CardActions({ entry, lane, display, payment, handlers, isGold, busy }) {
   const booking = entry.booking;
   const name = display.dogName;
   const contactName = firstName(display.owner);
+  const primaryClass = isGold ? goldPrimaryClass : outlinedPrimaryClass;
   const journey = (id) => handlers.onJourneyAction?.(booking, { id, completed: false, next: true });
-  const commonMore = [
-    { label: `Message ${contactName}`, onClick: () => handlers.onMessageOwner?.(booking) },
+
+  const isUnconfirmed = entry.actionReasons?.includes("confirmation");
+  const showCallQuiet = lane === "due" && entry.isLate && !!telephoneHref(display.ownerPhone);
+  const showMessageQuiet = lane === "due" && (entry.isLate || isUnconfirmed);
+
+  const moreItems = [
+    !showMessageQuiet && {
+      label: `Message ${contactName}`,
+      onClick: () => handlers.onMessageOwner?.(booking),
+    },
     { label: "Open booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
-  ];
+    { label: `Open ${name}'s dog file`, onClick: () => handlers.onOpenDog?.(booking._dogId) },
+    { label: `Open ${display.owner}'s human file`, onClick: () => handlers.onOpenHuman?.(booking._ownerId) },
+    ...(lane === "due"
+      ? [
+        { label: "Didn't show", onClick: () => handlers.onDidntShow?.(booking) },
+        { label: "Cancel booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
+        { label: "Reschedule booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
+      ]
+      : []),
+  ].filter(Boolean);
 
-  if (entry.lane === "withUs") {
-    const checkedIn = booking.status === BOOKING_STATUS.CHECKED_IN;
-    return (
-      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
-        <button
-          data-primary-action="true"
-          type="button"
-          aria-label={checkedIn ? `Start ${name}'s groom` : `Mark ${name} ready for collection`}
-          onClick={() => journey(checkedIn ? "startGroom" : "ready")}
-          className={primaryClass}
-        >
-          {checkedIn ? "Start groom" : "Ready for collection"}
-        </button>
-        <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
-      </div>
+  let primary;
+  let secondary = null;
+  if (lane === "due") {
+    primary = (
+      <button data-primary-action="true" type="button" aria-label={`Check in ${name}`} aria-busy={busy || undefined} disabled={busy} onClick={() => journey("checkIn")} className={primaryClass}>
+        Check in
+      </button>
     );
-  }
-
-  // Ready to go: money still due promotes "Take £N payment" to primary and
-  // demotes "Mark collected" to a visible secondary — never hidden in More —
-  // so the existing unpaid-collection safeguard (onRequestCollected still
-  // re-checks the balance) stays one tap away, not zero.
-  const amountDue = payment?.amountDue;
-  const hasBalance = amountDue != null && amountDue > 0;
-  if (hasBalance) {
-    return (
-      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
+  } else if (lane === "withUs") {
+    const checkedIn = booking.status === BOOKING_STATUS.CHECKED_IN;
+    primary = (
+      <button
+        data-primary-action="true"
+        type="button"
+        aria-label={checkedIn ? `Start ${name}'s groom` : `Mark ${name} ready for collection`}
+        aria-busy={busy || undefined}
+        disabled={busy}
+        onClick={() => journey(checkedIn ? "startGroom" : "ready")}
+        className={primaryClass}
+      >
+        {checkedIn ? "Start groom" : "Ready for collection"}
+      </button>
+    );
+  } else {
+    // Ready to go: money still due promotes "Take £N payment" to primary and
+    // keeps "Mark collected" a visible outlined step — never hidden in More —
+    // so the existing unpaid-collection safeguard (onRequestCollected still
+    // re-checks the balance) stays one tap away, not zero.
+    const amountDue = payment?.amountDue;
+    const hasBalance = amountDue != null && amountDue > 0;
+    if (hasBalance) {
+      primary = (
         <button
           data-primary-action="true"
           type="button"
           aria-label={`Take ${formatMoney(amountDue)} payment from ${name}`}
+          aria-busy={busy || undefined}
+          disabled={busy}
           onClick={() => handlers.onOpenInvoice?.(booking)}
           className={primaryClass}
         >
           Take {formatMoney(amountDue)} payment
         </button>
+      );
+      secondary = (
         <button
           type="button"
           aria-label={`Mark ${name} collected`}
+          aria-busy={busy || undefined}
+          disabled={busy}
           onClick={() => handlers.onRequestCollected?.(booking)}
-          className={secondaryClass}
+          className={outlinedPrimaryClass}
         >
           Mark collected
         </button>
-        <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
-      </div>
-    );
+      );
+    } else {
+      primary = (
+        <button
+          data-primary-action="true"
+          type="button"
+          aria-label={`Mark ${name} collected`}
+          aria-busy={busy || undefined}
+          disabled={busy}
+          onClick={() => handlers.onRequestCollected?.(booking)}
+          className={primaryClass}
+        >
+          Mark collected
+        </button>
+      );
+    }
   }
+
   return (
-    <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
-      <button
-        data-primary-action="true"
-        type="button"
-        aria-label={`Mark ${name} collected`}
-        onClick={() => handlers.onRequestCollected?.(booking)}
-        className={primaryClass}
-      >
-        Mark collected
-      </button>
-      <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
+    <div className="mt-1.5 flex w-full flex-wrap items-center gap-x-1 gap-y-1.5">
+      {showCallQuiet ? (
+        <a href={telephoneHref(display.ownerPhone)} aria-label={`Call ${contactName} about ${name}`} className={contactClass}>
+          Call
+        </a>
+      ) : null}
+      {showMessageQuiet ? (
+        <button type="button" aria-label={`Message ${contactName} about ${name}`} onClick={() => handlers.onMessageOwner?.(booking)} className={contactClass}>
+          Message
+        </button>
+      ) : null}
+      <span className="pointer-events-auto ml-auto inline-flex items-center gap-1.5">
+        <MoreMenu menuLabel={`More actions for ${name}`} items={moreItems} />
+        {secondary}
+        {primary}
+      </span>
     </div>
   );
 }
 
-function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, handlers, onTheWaySignals }) {
+/**
+ * The one booking card, for every lane. The whole card body opens the booking
+ * (a stretched button behind the content — text clicks fall through to it,
+ * real controls sit above), so the dog and owner names are calm text rather
+ * than two more sub-24px tap targets. Dog/human files stay one tap away in
+ * the More menu and inside the booking detail.
+ */
+export function BookingCard({
+  entry,
+  lane,
+  laneTitle,
+  resolve,
+  getWelfare,
+  paymentOf,
+  handlers,
+  onTheWaySignals,
+  isGold = false,
+  busy = false,
+  flash = false,
+}) {
   const booking = entry.booking;
   const display = resolve(booking);
   const payment = paymentOf(booking);
   const welfare = getWelfare?.(booking) || { alerts: [], pregnant: false, notes: "" };
   const confirmedAt = booking.reminderConfirmedAt;
-  const progressed = booking.status !== BOOKING_STATUS.BOOKED;
-  const successTone = confirmedAt || progressed
-    ? "border-emerald-200 bg-emerald-50/45"
-    : "border-brand-paper-line bg-white";
   const actionReasons = entry.actionReasons || [];
   const isConfirmationAction = actionReasons.includes("confirmation");
-  const isPaymentAction = actionReasons.includes("payment");
+  const isPaymentAction = actionReasons.includes("payment") && (lane === "ready" || lane === "home");
   const isCollectionAction = actionReasons.includes("collection");
-  const displayTiming = entry.timingLabel
-    || (entry.lane === "ready" && isCollectionAction ? "Waiting" : null);
-  const timingActionReason = entry.isLate
-    ? "late"
-    : entry.lane === "ready" && isCollectionAction && displayTiming
-      ? "collection"
-      : undefined;
+  const railTone = railToneFor(entry);
+  // Arriving cards sit under their slot-group's h3, so their name is an h4;
+  // the other lanes' cards sit directly under the lane's h2, so an h3.
+  const NameHeading = lane === "due" ? "h4" : "h3";
+
+  // Lateness lives on the slot heading in the Arriving lane (never repeated
+  // on the card); the other lanes carry their own elapsed time.
+  const displayTiming = lane === "due"
+    ? null
+    : entry.timingLabel || (lane === "ready" && isCollectionAction ? "Waiting" : null);
+  const timingClass = lane === "ready"
+    ? WAIT_TONE_CLASS[waitTone(entry.waitMinutes)]
+    : "text-slate-500";
+  const timingActionReason = lane === "ready" && isCollectionAction && displayTiming ? "collection" : undefined;
 
   return (
-    <div data-status-card-shell className="w-full">
-      <article
-        id={`today-card-${booking.id}`}
-        data-booking-id={booking.id}
-        data-needs-action={entry.needsAction ? "true" : "false"}
-        tabIndex={-1}
-        aria-label={`${display.dogName}, ${booking.slot || "Time missing"}, ${laneTitle}`}
-        className={`min-w-0 rounded-xl border px-2.5 py-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] sm:px-3 ${successTone}`}
-      >
-        <div className="flex min-w-0 items-start gap-2">
-          <button
-            type="button"
-            aria-label={`Open ${booking.slot || "unscheduled"} booking`}
-            onClick={() => handlers.onOpenBooking?.(booking.id)}
-            className={`flex min-h-11 min-w-[3.25rem] shrink-0 items-center justify-center rounded-lg px-1.5 text-[12px] font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${entry.isLate ? "bg-brand-coral text-white" : "bg-brand-purple text-white"}`}
+    <article
+      id={`today-card-${booking.id}`}
+      data-booking-id={booking.id}
+      data-needs-action={entry.needsAction ? "true" : "false"}
+      tabIndex={-1}
+      aria-label={`${display.dogName}, ${booking.slot || "Time missing"}, ${laneTitle}`}
+      className={`relative min-w-0 scroll-mt-28 rounded-xl border border-brand-paper-line bg-white px-3.5 py-3 transition-colors hover:border-slate-300 ${flash ? "animate-card-flash" : ""}`}
+    >
+      <button
+        type="button"
+        aria-label={`Open ${display.dogName}'s ${booking.slot || "unscheduled"} booking`}
+        onClick={() => handlers.onOpenBooking?.(booking.id)}
+        className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+      />
+      {railTone ? (
+        <span data-rail={railTone} aria-hidden="true" className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-l-xl ${RAIL_TONE_CLASS[railTone]}`} />
+      ) : null}
+      <div className="pointer-events-none relative min-w-0">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className={`inline-flex h-7 min-w-[3rem] shrink-0 items-center justify-center rounded-lg px-1.5 text-[12px] font-bold tabular-nums ${
+              entry.isLate ? "bg-brand-coral text-white" : "bg-brand-purple/[0.07] text-brand-purple"
+            }`}
           >
             {booking.slot || "—"}
-          </button>
-          <div className="min-w-0 flex-1 py-0.5">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <h3 className="min-w-0 truncate font-display text-[18px] font-bold leading-tight text-brand-purple">
-                <button
-                  type="button"
-                  aria-label={`Open ${display.dogName}'s dog file`}
-                  onClick={() => handlers.onOpenDog?.(booking._dogId)}
-                  className="max-w-full truncate rounded-sm text-left outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
-                >
-                  {display.dogName}
-                </button>
-              </h3>
-              <ConfirmedMark confirmedAt={confirmedAt} />
-              {displayTiming ? (
-                <strong
-                  data-action-reason={timingActionReason}
-                  className={`ml-auto shrink-0 whitespace-nowrap text-[12px] font-bold tabular-nums ${entry.isLate ? "text-brand-coral-text" : "text-slate-700"}`}
-                >
-                  {displayTiming}
-                </strong>
-              ) : null}
-            </div>
-            <div className="mt-0.5 flex flex-wrap min-w-0 items-center gap-x-1 gap-y-0.5 text-[12px] leading-tight text-slate-600">
-              <span className="shrink-0">{serviceLabel(booking.service)}</span>
-              <span aria-hidden="true">·</span>
-              <button
-                type="button"
-                aria-label={`Open ${display.owner}'s human file`}
-                onClick={() => handlers.onOpenHuman?.(booking._ownerId)}
-                className="rounded-sm text-left font-medium text-slate-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
-              >
-                {display.owner}
-              </button>
-              <span className="ml-auto shrink-0">
-                <PaymentState payment={payment} actionReason={isPaymentAction} />
-              </span>
-            </div>
-            {isConfirmationAction || entry.chatConfirmation || onTheWaySignals?.[booking.id] ? (
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <ConfirmationException needsConfirmation={isConfirmationAction} />
-                <ChatConfirmedChip signal={entry.chatConfirmation} />
-                <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
-              </div>
-            ) : null}
-            <WelfareChips {...welfare} />
+          </span>
+          <NameHeading className="min-w-0 truncate font-display text-[17px] font-bold leading-tight text-brand-purple">
+            {display.dogName}
+          </NameHeading>
+          {entry.isLate ? (
+            <span data-action-reason="late" className="sr-only">Late arrival</span>
+          ) : null}
+          <ConfirmedMark confirmedAt={confirmedAt} />
+          {displayTiming ? (
+            <strong
+              data-action-reason={timingActionReason}
+              className={`ml-auto shrink-0 whitespace-nowrap text-[12px] font-bold tabular-nums ${timingClass}`}
+            >
+              {displayTiming}
+            </strong>
+          ) : null}
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] leading-tight text-slate-500">
+          <span className="min-w-0 truncate">
+            {serviceLabel(booking.service)}
+            <span aria-hidden="true"> · </span>
+            {display.owner}
+          </span>
+          <span className="ml-auto shrink-0">
+            <PaymentState payment={payment} actionReason={isPaymentAction} />
+          </span>
+        </div>
+        {isConfirmationAction || entry.chatConfirmation || onTheWaySignals?.[booking.id] ? (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <ConfirmationException needsConfirmation={isConfirmationAction} />
+            <ChatConfirmedChip signal={entry.chatConfirmation} />
+            <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
           </div>
-        </div>
-        <div className="mt-1 flex min-h-11 items-center border-t border-slate-200/70 pt-1">
-          <CardActions entry={entry} display={display} payment={payment} handlers={handlers} />
-        </div>
-      </article>
-    </div>
+        ) : null}
+        <WelfareChips {...welfare} />
+        <CardActions
+          entry={entry}
+          lane={lane}
+          display={display}
+          payment={payment}
+          handlers={handlers}
+          isGold={isGold}
+          busy={busy}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -335,10 +403,8 @@ function laneWarning(lane, entries) {
     const confirmations = count("confirmation");
     if (confirmations > 0) return `${confirmations} to confirm`;
   }
-  if (lane === "withUs") {
-    const payments = count("payment");
-    if (payments > 0) return `${payments} unpaid`;
-  }
+  // "With us" carries no money warning: a dog mid-groom that will pay at
+  // pick-up is routine, and each card's own "£N due" already states the fact.
   if (lane === "ready") {
     const collections = count("collection");
     if (collections > 0) return `${collections} waiting`;
@@ -352,139 +418,172 @@ function laneWarning(lane, entries) {
   return null;
 }
 
-function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId, liveContext, handlers, onTheWaySignals, mobileHidden = false }) {
+function StatusLane({
+  lane,
+  entries,
+  resolve,
+  getWelfare,
+  paymentOf,
+  liveFocusId,
+  isToday,
+  handlers,
+  onTheWaySignals,
+  busyIds,
+  flashId,
+  className = "",
+  bodyClassName = "",
+}) {
   const meta = LANE_META[lane];
   const count = entries.length;
   const warning = laneWarning(lane, entries);
-  const focusedEntry = liveContext
-    ? entries.find((entry) => entry.booking.id === liveFocusId)
-    : null;
-  const markerIndex = focusedEntry
-    ? entries.findIndex((entry) => {
-      const focusedHasTime = Number.isFinite(focusedEntry.slotMinutes);
-      const entryHasTime = Number.isFinite(entry.slotMinutes);
-      return focusedHasTime && entryHasTime
-        ? entry.slotMinutes === focusedEntry.slotMinutes
-        : !focusedHasTime && !entryHasTime;
-    })
-    : -1;
+  const isGoldFor = (entry) => isToday && entry.booking.id === liveFocusId;
+
   return (
     <section
       aria-label={`${meta.title}, ${dogCountLabel(count)}`}
       data-lane-populated={count > 0 ? "true" : "false"}
-      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${mobileHidden ? "hidden md:block" : ""} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:max-h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
+      className={`min-w-0 ${className}`}
     >
-      <header className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-slate-100 px-3 py-1.5">
-        <h2 className="font-display text-[18px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
-        <span aria-hidden="true" className="text-slate-300">·</span>
-        <span className={`shrink-0 text-[11px] font-bold ${meta.countText}`}>
-          {dogCountLabel(count)}
-        </span>
+      <header className="mb-2 flex min-w-0 items-baseline gap-2 px-0.5">
+        <h2 className="text-label text-slate-500">{meta.title}</h2>
+        <span className="text-[12px] font-bold tabular-nums text-brand-purple">{count}</span>
         {warning ? (
-          <>
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <span className="truncate text-[11px] font-bold text-brand-coral-text">{warning}</span>
-          </>
+          <span className="truncate text-[11px] font-bold text-brand-coral-text">{warning}</span>
         ) : null}
         <p className="sr-only">{meta.purpose}</p>
       </header>
-      <div
-        data-testid={`${lane}-lane-body`}
-        className={`relative space-y-1.5 p-2 ${count > 0 ? "xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain" : ""}`}
-      >
-        {entries.length === 0 ? (
-          <p className="px-2 py-2 text-[12px] font-medium text-slate-500">No dogs in this lane</p>
-        ) : lane === "due" ? (
+      <div data-testid={`${lane}-lane-body`} className={`space-y-2.5 ${bodyClassName}`}>
+        {lane === "due" ? (
           groupFeedBySlot(entries).map((group) => (
             <ArrivingSlotGroup
               key={group.slot ?? "unscheduled"}
               group={group}
-              liveFocusId={liveFocusId}
-              liveContext={liveContext}
               resolve={resolve}
               getWelfare={getWelfare}
               paymentOf={paymentOf}
               handlers={handlers}
               onTheWaySignals={onTheWaySignals}
+              isGoldFor={isGoldFor}
+              busyIds={busyIds}
+              flashId={flashId}
             />
           ))
-        ) : entries.map((entry, index) => (
-          <Fragment key={entry.booking.id}>
-            {index === markerIndex ? <LiveArrivalDivider context={liveContext} /> : null}
-            <StatusBookingCard
-              entry={entry}
-              laneTitle={meta.title}
-              resolve={resolve}
-              getWelfare={getWelfare}
-              paymentOf={paymentOf}
-              handlers={handlers}
-              onTheWaySignals={onTheWaySignals}
-            />
-          </Fragment>
+        ) : entries.map((entry) => (
+          <BookingCard
+            key={entry.booking.id}
+            entry={entry}
+            lane={lane}
+            laneTitle={meta.title}
+            resolve={resolve}
+            getWelfare={getWelfare}
+            paymentOf={paymentOf}
+            handlers={handlers}
+            onTheWaySignals={onTheWaySignals}
+            isGold={isGoldFor(entry)}
+            busy={busyIds?.has(entry.booking.id)}
+            flash={flashId === entry.booking.id}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
+/**
+ * The end-of-day strip: cumulative progress, the till, expected value and the
+ * daily cap on one quiet hairline-separated line, with the sent-home list
+ * behind a native disclosure. Replaces the boxed "Home today" card and the
+ * "Daily progress" panel — their Ready/Collected stats were byte-identical to
+ * the lane counts above.
+ */
+export function EndOfDay({
+  summary,
+  takings,
+  capacityTotal,
+  homeEntries,
+  isToday,
+  resolve,
+  paymentOf,
+  handlers,
+}) {
   const [expanded, setExpanded] = useState(false);
-  const title = isToday ? "Home today" : "Home on this date";
-  const warning = laneWarning("home", entries);
-  const toggleLabel = `${expanded ? "Hide" : "Show"} ${dogCountLabel(entries.length)} sent home`;
+  const homeTitle = isToday ? "Home today" : "Home on this date";
+  const warning = laneWarning("home", homeEntries);
+  const overCap = summary.dogsBooked > capacityTotal;
+
   return (
-    <section
-      aria-label={`${title}, ${dogCountLabel(entries.length)}${warning ? `, ${warning}` : ""}`}
-      className={`rounded-xl border border-slate-200 bg-white/80 ${entries.length === 0 ? "hidden md:block" : ""}`}
-    >
-      <header className={`flex min-h-11 items-center gap-2 px-3 py-1 ${expanded ? "border-b border-slate-100" : ""}`}>
-        <h2 className="font-display text-[16px] font-bold text-brand-purple">{title}</h2>
-        <span className="text-[12px] font-bold text-slate-500">{dogCountLabel(entries.length)}</span>
-        {warning ? (
-          <>
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <span className="truncate text-[11px] font-bold text-brand-coral-text">{warning}</span>
-          </>
+    <section aria-label="End of day" className="border-t border-brand-paper-line pt-3">
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 px-0.5 text-[12px] text-slate-500">
+        {summary.arrived > 0 ? (
+          <span className="whitespace-nowrap">
+            <strong className="font-bold text-slate-700 tabular-nums">{summary.arrived}</strong> arrived so far
+          </span>
+        ) : (
+          <span className="whitespace-nowrap">No dogs have arrived yet</span>
+        )}
+        {takings && takings.total > 0 ? (
+          <span className="min-w-0">
+            Taken <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(takings.total)}</strong>
+            {takings.byMethod.map((m) => (
+              <span key={m.method} className="whitespace-nowrap">
+                {" · "}{m.label} <span className="tabular-nums">{formatMoney(m.amount)}</span>
+              </span>
+            ))}
+          </span>
         ) : null}
-        {entries.length > 0 ? (
+        <span className="whitespace-nowrap">
+          Expected <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(summary.expectedRevenue)}</strong>
+        </span>
+        <span className={`whitespace-nowrap ${overCap ? "font-bold text-brand-coral-text" : ""}`}>
+          Capacity <strong className={`font-bold tabular-nums ${overCap ? "text-brand-coral-text" : "text-slate-700"}`}>
+            {summary.dogsBooked}/{capacityTotal}
+          </strong>
+          {overCap ? " — over the daily cap" : ""}
+        </span>
+      </div>
+
+      {homeEntries.length > 0 ? (
+        <div className="mt-2" role="group" aria-label={`${homeTitle}, ${dogCountLabel(homeEntries.length)}${warning ? `, ${warning}` : ""}`}>
           <button
             type="button"
             aria-expanded={expanded}
-            aria-label={toggleLabel}
+            aria-label={`${expanded ? "Hide" : "Show"} ${dogCountLabel(homeEntries.length)} sent home`}
             onClick={() => setExpanded((value) => !value)}
-            className="ml-auto inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-[12px] font-bold text-brand-purple outline-none hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 items-center gap-2 rounded-control px-0.5 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/[0.04] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
-            {expanded ? "Hide" : "Show"}
-            <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+            {homeTitle}
+            <span className="text-[12px] font-bold tabular-nums text-slate-500">{dogCountLabel(homeEntries.length)}</span>
+            {warning ? <span className="text-[11px] font-bold text-brand-coral-text">{warning}</span> : null}
+            <ChevronDown size={15} aria-hidden="true" className={`text-slate-400 motion-safe:transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
-        ) : null}
-      </header>
-      {entries.length === 0 ? (
-        <p className="px-4 py-3 text-[12px] text-slate-500">No dogs have gone home yet.</p>
-      ) : expanded ? (
-        <ul className="divide-y divide-slate-100 px-4">
-          {entries.map((entry) => {
-            const booking = entry.booking;
-            const display = resolve(booking);
-            const payment = paymentOf(booking);
-            return (
-              <li
-                key={booking.id}
-                data-needs-action={entry.needsAction ? "true" : "false"}
-                className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 py-2 text-[13px]"
-              >
-                <button type="button" onClick={() => handlers.onOpenDog?.(booking._dogId)} className="font-display text-[15px] font-bold text-brand-purple hover:underline">
-                  {display.dogName}
-                </button>
-                <span className="text-slate-500">{entry.timingLabel || "Collected"}</span>
-                <span className="ml-auto"><PaymentState payment={payment} actionReason={entry.actionReasons?.includes("payment")} /></span>
-                <button type="button" onClick={() => handlers.onOpenBooking?.(booking.id)} className="min-h-11 px-2 text-[12px] font-bold text-brand-purple underline">
-                  Open booking
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+          {expanded ? (
+            <ul className="divide-y divide-slate-100 border-t border-slate-100">
+              {homeEntries.map((entry) => {
+                const booking = entry.booking;
+                const display = resolve(booking);
+                const payment = paymentOf(booking);
+                return (
+                  <li
+                    key={booking.id}
+                    data-needs-action={entry.needsAction ? "true" : "false"}
+                    className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[13px]"
+                  >
+                    <span className="font-display text-[15px] font-bold text-brand-purple">{display.dogName}</span>
+                    <span className="text-slate-500">{entry.timingLabel || "Collected"}</span>
+                    <span className="ml-auto"><PaymentState payment={payment} actionReason={entry.actionReasons?.includes("payment")} /></span>
+                    <button
+                      type="button"
+                      onClick={() => handlers.onOpenBooking?.(booking.id)}
+                      className="min-h-11 rounded-control px-2 text-[12px] font-bold text-brand-purple underline decoration-brand-purple/30 underline-offset-2 outline-none hover:decoration-brand-purple focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+                    >
+                      Open booking
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
@@ -506,7 +605,7 @@ function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
   return (
     <section
       role="alert"
-      className="rounded-2xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-brand-coral-text sm:px-4"
+      className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3.5 py-3 text-brand-coral-text"
     >
       <h2 className="text-[13px] font-extrabold">
         {bookings.length === 1
@@ -514,7 +613,7 @@ function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
           : `${bookings.length} bookings need their status fixed`}
       </h2>
       <p className="mt-0.5 text-[12px] font-medium">
-        Fix each status to place the booking in the right lane.
+        Set each booking&apos;s status so it shows in the right place.
       </p>
       <ul className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {bookings.map((booking) => {
@@ -531,7 +630,7 @@ function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
                 type="button"
                 aria-label={`Fix ${dogName}'s ${time} booking`}
                 onClick={() => onOpenBooking?.(booking.id)}
-                className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-brand-purple px-3 text-[12px] font-bold text-white outline-none hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control bg-brand-purple px-3 text-[12px] font-bold text-white outline-none hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
               >
                 Fix booking
               </button>
@@ -543,42 +642,93 @@ function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
   );
 }
 
+// Content-weighted grid templates: the busiest lane (Arriving) earns extra
+// width, empty lanes surrender their track entirely, and a lone lane is
+// capped so cards never stretch past legibility. One page scroll — no lane
+// ever scrolls inside itself.
+const GRID_BY_POPULATED = {
+  3: "md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]",
+  2: "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]",
+  1: "md:grid-cols-[minmax(0,42rem)]",
+};
+
 export function StatusBoard({
   board,
   resolve,
   getWelfare,
   paymentOf,
   liveFocusId = null,
-  liveContext = null,
   isToday = false,
   handlers = {},
   onTheWaySignals = {},
+  busyIds = null,
+  flashId = null,
+  summary = null,
+  takings = null,
+  capacityTotal = 14,
 }) {
+  const laneOrder = ["due", "withUs", "ready"];
+  const populated = laneOrder.filter((lane) => board[lane].length > 0);
+  const emptyLanes = laneOrder.filter((lane) => board[lane].length === 0);
+  const readySpans = populated.length === 3;
+
+  const laneProps = {
+    resolve,
+    getWelfare,
+    paymentOf,
+    liveFocusId,
+    isToday,
+    handlers,
+    onTheWaySignals,
+    busyIds,
+    flashId,
+  };
+
   return (
     <section
       aria-label="Daily booking status board"
       data-status-board-root
       tabIndex={-1}
-      className="space-y-3 outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+      className="flex flex-col gap-5 outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
     >
       <UnknownStatusRecovery
         bookings={board.excludedBookings || []}
         resolve={resolve}
         onOpenBooking={handlers.onOpenBooking}
       />
-      <div className="grid min-w-0 grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <StatusLane lane="due" entries={board.due} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />
-        <StatusLane lane="withUs" entries={board.withUs} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} mobileHidden={board.withUs.length === 0} />
-        <StatusLane lane="ready" entries={board.ready} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} mobileHidden={board.ready.length === 0} />
-      </div>
-      <HomeToday entries={board.home} resolve={resolve} paymentOf={paymentOf} isToday={isToday} handlers={handlers} />
-      <MobileEmptyLaneSummary
-        lanes={[
-          board.withUs.length === 0 ? { key: "withUs", title: "With us" } : null,
-          board.ready.length === 0 ? { key: "ready", title: "Ready to go" } : null,
-          board.home.length === 0 ? { key: "home", title: isToday ? "Home today" : "Home on this date" } : null,
-        ].filter(Boolean)}
+      {populated.length > 0 ? (
+        <div className={`grid min-w-0 grid-cols-1 items-start gap-6 ${GRID_BY_POPULATED[populated.length]}`}>
+          {populated.map((lane) => (
+            <StatusLane
+              key={lane}
+              lane={lane}
+              entries={board[lane]}
+              className={lane === "ready" && readySpans ? "md:col-span-2 xl:col-span-1" : ""}
+              bodyClassName={
+                lane === "ready" && readySpans
+                  ? "md:grid md:grid-cols-2 md:gap-2.5 md:space-y-0 xl:block xl:space-y-2.5"
+                  : ""
+              }
+              {...laneProps}
+            />
+          ))}
+        </div>
+      ) : null}
+      <EmptyLaneSummary
+        lanes={emptyLanes.map((lane) => ({ key: lane, title: LANE_META[lane].title }))}
       />
+      {summary ? (
+        <EndOfDay
+          summary={summary}
+          takings={takings}
+          capacityTotal={capacityTotal}
+          homeEntries={board.home}
+          isToday={isToday}
+          resolve={resolve}
+          paymentOf={paymentOf}
+          handlers={handlers}
+        />
+      ) : null}
     </section>
   );
 }

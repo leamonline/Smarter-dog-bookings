@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BOOKING_STATUS } from "../../../constants/index";
 import { buildDailyBriefBoard } from "../../../engine/dailyBrief";
-import { paymentState } from "../../../engine/today";
+import { buildDaySummary, buildTakingsByMethod, paymentState } from "../../../engine/today";
 import { applyChatConfirmations } from "../../../engine/replyConfirmation";
 import { StatusBoard } from "./StatusBoard.jsx";
 
@@ -85,41 +85,54 @@ function renderBoard(bookings, overrides = {}) {
       getWelfare={() => ({ alerts: [], pregnant: false, notes: "" })}
       paymentOf={(item) => paymentState(item)}
       liveFocusId={overrides.liveFocusId || null}
-      liveContext={overrides.liveContext || null}
-      isToday
+      isToday={overrides.isToday ?? true}
       handlers={handlers}
+      busyIds={overrides.busyIds || null}
+      summary={overrides.summary ?? buildDaySummary(bookings)}
+      takings={overrides.takings ?? buildTakingsByMethod(bookings)}
+      capacityTotal={14}
     />,
   );
   return { board, handlers, ...view };
 }
 
 describe("StatusBoard", () => {
-  it("renders every operational lane, dog-first cards and compact completed history", () => {
+  it("renders every populated lane, dog-first cards and the end-of-day strip", () => {
     renderBoard([
       booking({ id: "due" }),
       booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:30:00Z" }),
       booking({ id: "bath", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:00:00Z" }),
       booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:00:00Z" }),
-      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z", payment: "Paid in Full" }),
+      booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z", payment: "Paid in Full", paidAmount: 42, paymentMethod: "cash" }),
     ]);
 
     expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "With us, 2 dogs" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Ready to go, 1 dog" })).toBeInTheDocument();
-    const home = screen.getByRole("region", { name: "Home today, 1 dog" });
+
+    // The end-of-day strip: cumulative progress + till + expected + capacity,
+    // with the sent-home list behind one disclosure.
+    const endOfDay = screen.getByRole("region", { name: "End of day" });
+    expect(endOfDay).toHaveTextContent("4 arrived so far");
+    expect(endOfDay).toHaveTextContent("Taken £42");
+    expect(endOfDay).toHaveTextContent("Cash £42");
+    expect(endOfDay).toHaveTextContent("Capacity 5/14");
+    const home = screen.getByRole("group", { name: "Home today, 1 dog" });
     const homeToggle = within(home).getByRole("button", { name: "Show 1 dog sent home" });
     expect(homeToggle).toHaveAttribute("aria-expanded", "false");
     expect(within(home).queryByRole("list")).not.toBeInTheDocument();
     fireEvent.click(homeToggle);
     expect(homeToggle).toHaveAttribute("aria-expanded", "true");
-    expect(within(home).getByRole("button", { name: "Milo" })).toBeInTheDocument();
+    expect(within(home).getByText("Milo")).toBeInTheDocument();
 
     const maxCard = screen.getByRole("article", { name: "Max, 11:00, Arriving" });
     // Max's dog name is a level-4 heading nested under its slot group's
     // level-3 heading, itself under the lane's level-2 heading — a real
     // three-level hierarchy now that Arriving groups by appointment slot.
     expect(within(maxCard).getByRole("heading", { level: 4, name: "Max" })).toBeInTheDocument();
-    expect(within(maxCard).getByRole("button", { name: "Open Dave Smith's human file" })).toHaveClass("text-slate-600");
+    // Names are calm text, not sub-24px buttons — the card body opens the
+    // booking, and the files live one tap away in More.
+    expect(within(maxCard).queryByRole("button", { name: "Open Dave Smith's human file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
@@ -128,7 +141,7 @@ describe("StatusBoard", () => {
       booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z" }),
     ]);
 
-    const home = screen.getByRole("region", { name: "Home today, 1 dog, 1 unpaid" });
+    const home = screen.getByRole("group", { name: "Home today, 1 dog, 1 unpaid" });
     expect(within(home).getByText("1 unpaid")).toBeInTheDocument();
   });
 
@@ -137,7 +150,7 @@ describe("StatusBoard", () => {
       booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z", payment: "Paid in Full" }),
     ]);
 
-    expect(screen.getByRole("region", { name: "Home today, 1 dog" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Home today, 1 dog" })).toBeInTheDocument();
     expect(screen.queryByText("1 unpaid")).not.toBeInTheDocument();
   });
 
@@ -171,6 +184,68 @@ describe("StatusBoard", () => {
     expect(handlers.onJourneyAction).toHaveBeenNthCalledWith(3, expect.objectContaining({ id: "bath" }), expect.objectContaining({ id: "ready" }));
     expect(handlers.onRequestCollected).toHaveBeenCalledWith(expect.objectContaining({ id: "ready" }));
     expect(screen.queryByText("Next step")).not.toBeInTheDocument();
+  });
+
+  it("fills exactly one gold primary — the live focus — and outlines every other", () => {
+    const { container } = renderBoard(
+      [
+        booking({ id: "late", dogName: "Luna", slot: "09:00" }),
+        booking({ id: "due", slot: "12:00" }),
+        booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN }),
+      ],
+      { liveFocusId: "late" },
+    );
+
+    const gold = container.querySelectorAll('[data-primary-action="true"].bg-brand-yellow');
+    expect(gold).toHaveLength(1);
+    expect(gold[0]).toHaveAccessibleName("Check in Luna");
+    expect(screen.getByRole("button", { name: "Check in Max" })).not.toHaveClass("bg-brand-yellow");
+    expect(screen.getByRole("button", { name: "Start Bella's groom" })).not.toHaveClass("bg-brand-yellow");
+  });
+
+  it("fills no gold primary at all on a non-today date", () => {
+    const { container } = renderBoard(
+      [booking({ id: "due", slot: "12:00" })],
+      { isToday: false, liveFocusId: null },
+    );
+    expect(container.querySelectorAll(".bg-brand-yellow")).toHaveLength(0);
+  });
+
+  it("paints urgency on the rail: coral for late, emerald for ready, none while calm", () => {
+    renderBoard([
+      booking({ id: "late", dogName: "Luna", slot: "09:00" }),
+      booking({ id: "due", slot: "12:00", payment: "Paid in Full" }),
+      booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:00:00Z" }),
+      booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN }),
+    ]);
+
+    expect(screen.getByRole("article", { name: "Luna, 09:00, Arriving" }).querySelector("[data-rail]")).toHaveAttribute("data-rail", "coral");
+    expect(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" }).querySelector("[data-rail]")).toHaveAttribute("data-rail", "emerald");
+    expect(screen.getByRole("article", { name: "Max, 12:00, Arriving" }).querySelector("[data-rail]")).toBeNull();
+    expect(screen.getByRole("article", { name: "Bella, 11:00, With us" }).querySelector("[data-rail]")).toBeNull();
+  });
+
+  it("opens the booking from the card body and the files from More", () => {
+    const { handlers } = renderBoard([booking({ id: "due" })]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Max's 11:00 booking" }));
+    expect(handlers.onOpenBooking).toHaveBeenCalledWith("due");
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Max" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open Max's dog file" }));
+    expect(handlers.onOpenDog).toHaveBeenCalledWith("d1");
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Max" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open Dave Smith's human file" }));
+    expect(handlers.onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it("dims the pressed card's actions while its write is in flight", () => {
+    renderBoard([booking({ id: "due" })], { busyIds: new Set(["due"]) });
+
+    const primary = screen.getByRole("button", { name: "Check in Max" });
+    expect(primary).toBeDisabled();
+    expect(primary).toHaveAttribute("aria-busy", "true");
   });
 
   it("promotes Take payment to primary when Ready still owes money, keeping Mark collected one tap away", () => {
@@ -211,50 +286,15 @@ describe("StatusBoard", () => {
     expect(handlers.onDidntShow).toHaveBeenCalledWith(expect.objectContaining({ id: "late" }));
   });
 
-  it("preserves the customer-confirmed signal and one live divider", () => {
+  it("preserves the customer-confirmed signal with no auto-scroll divider anywhere", () => {
     renderBoard(
       [booking({ id: "confirmed", reminderConfirmedAt: "2026-07-14T08:05:00Z" })],
-      {
-        liveFocusId: "confirmed",
-        liveContext: {
-          text: "Due to arrive in 45 min",
-          tone: "live",
-          ariaLabel: "Rosie — due to arrive in 45 min",
-        },
-      },
+      { liveFocusId: "confirmed" },
     );
 
     expect(screen.getByLabelText("Customer confirmed at 09:05")).toBeInTheDocument();
-    expect(screen.getByLabelText("Rosie — due to arrive in 45 min")).toBeInTheDocument();
-    expect(screen.getAllByTestId("live-arrival-divider")).toHaveLength(1);
-    expect(screen.queryByTestId("live-arrival-arrow")).not.toBeInTheDocument();
-  });
-
-  it("places the live divider before the complete same-time group without narrowing cards", () => {
-    const { container } = renderBoard(
-      [
-        booking({ id: "same-c", dogName: "Clover", slot: "11:00", payment: "Paid in Full" }),
-        booking({ id: "same-a", dogName: "Alfie", slot: "11:00", payment: "Paid in Full" }),
-        booking({ id: "same-b", dogName: "Bertie", slot: "11:00", payment: "Paid in Full" }),
-      ],
-      {
-        liveFocusId: "same-b",
-        liveContext: {
-          text: "Due to arrive in 45 min",
-          tone: "live",
-          ariaLabel: "Bertie — due to arrive in 45 min",
-        },
-      },
-    );
-
-    const lane = screen.getByRole("region", { name: "Arriving, 3 dogs" });
-    const divider = within(lane).getByTestId("live-arrival-divider");
-    const cards = within(lane).getAllByRole("article");
-    expect(divider.compareDocumentPosition(cards[0]) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(container.querySelectorAll("[data-status-card-shell]")).toHaveLength(3);
-    for (const shell of container.querySelectorAll("[data-status-card-shell]")) {
-      expect(shell).toHaveClass("w-full");
-    }
+    expect(screen.queryAllByTestId("live-arrival-divider")).toHaveLength(0);
+    expect(screen.queryByText("Next arrival")).not.toBeInTheDocument();
   });
 
   it("shows the row-level reason that puts every actionable booking in the filter", () => {
@@ -279,8 +319,8 @@ describe("StatusBoard", () => {
       }),
     ]);
 
-    // Olive's and Luna's countdown/lateness now live once on their shared
-    // slot heading rather than being repeated inside each dog's own article.
+    // Countdown/lateness live once on the shared slot heading rather than
+    // being repeated inside each dog's own article.
     const dueLane = screen.getByRole("region", { name: "Arriving, 3 dogs" });
     expect(within(dueLane).queryByText("Upcoming")).not.toBeInTheDocument();
     expect(within(dueLane).getByText("Due in 1 hr 45 min")).toBeInTheDocument();
@@ -289,6 +329,18 @@ describe("StatusBoard", () => {
     expect(within(screen.getByRole("article", { name: "Pip, 11:00, Arriving" })).getByText("Needs confirmation")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Bella, 11:00, With us" })).getByText("£42 due")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).getByText("Waiting")).toBeInTheDocument();
+  });
+
+  it("keeps a mid-groom balance quiet — money is not an act-now state before Ready", () => {
+    renderBoard([booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN })]);
+
+    // The lane heading carries no "unpaid" warning while the dog is with us…
+    const lane = screen.getByRole("region", { name: "With us, 1 dog" });
+    expect(within(lane).queryByText(/unpaid/)).not.toBeInTheDocument();
+    // …and the card's own money fact renders in the quiet register, without
+    // the payment action-reason marker it gains at Ready.
+    const money = within(lane).getByText("£42 due");
+    expect(money).not.toHaveAttribute("data-action-reason");
   });
 
   it("replaces Needs confirmation with the owner's inbox reply when they confirmed in chat", () => {
@@ -332,9 +384,6 @@ describe("StatusBoard", () => {
       booking({ id: "unknown-b", dogName: "Nell", slot: "", status: "" }),
     ]);
 
-    expect(screen.getByRole("region", { name: "Arriving, 0 dogs" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "With us, 0 dogs" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Ready to go, 0 dogs" })).toBeInTheDocument();
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("2 bookings need their status fixed");
     expect(alert).toHaveTextContent("Rufus");
@@ -347,16 +396,13 @@ describe("StatusBoard", () => {
     expect(handlers.onOpenBooking).toHaveBeenCalledWith("unknown-a");
   });
 
-  it("bounds populated desktop lanes while empty lanes keep their natural height", () => {
+  it("never scrolls a lane inside itself — one page scroll only", () => {
     renderBoard([booking({ id: "due" })]);
 
     const arriving = screen.getByRole("region", { name: "Arriving, 1 dog" });
-    const emptyWithUs = screen.getByRole("region", { name: "With us, 0 dogs" });
     expect(arriving).toHaveAttribute("data-lane-populated", "true");
-    expect(arriving).toHaveClass("xl:max-h-[min(66vh,44rem)]", "xl:flex", "xl:min-h-0");
-    expect(within(arriving).getByTestId("due-lane-body")).toHaveClass("xl:overflow-y-auto", "xl:min-h-0", "xl:flex-1");
-    expect(emptyWithUs).toHaveAttribute("data-lane-populated", "false");
-    expect(emptyWithUs).not.toHaveClass("xl:max-h-[min(66vh,44rem)]");
+    expect(arriving.className).not.toMatch(/max-h|overflow/);
+    expect(within(arriving).getByTestId("due-lane-body").className).not.toMatch(/overflow-y-auto/);
   });
 
   describe("Arriving grouped by slot", () => {
@@ -367,9 +413,19 @@ describe("StatusBoard", () => {
       ]);
 
       const lane = screen.getByRole("region", { name: "Arriving, 2 dogs" });
-      expect(within(lane).getAllByText("12:00")).toHaveLength(1);
+      expect(within(lane).getByRole("heading", { level: 3, name: "12:00" })).toBeInTheDocument();
+      expect(within(lane).getByText("2 dogs")).toBeInTheDocument();
       expect(within(lane).getByRole("article", { name: "Alfie, 12:00, Arriving" })).toBeInTheDocument();
       expect(within(lane).getByRole("article", { name: "Bertie, 12:00, Arriving" })).toBeInTheDocument();
+    });
+
+    it("suppresses the dog count on a single-card slot group", () => {
+      renderBoard([
+        booking({ id: "solo", dogName: "Alfie", slot: "12:00", payment: "Paid in Full" }),
+      ]);
+
+      const lane = screen.getByRole("region", { name: "Arriving, 1 dog" });
+      expect(within(lane).queryByText("1 dog", { exact: true })).not.toBeInTheDocument();
     });
 
     it("keeps a missing-slot booking visible in a trailing Unscheduled group instead of hiding it", () => {
@@ -407,26 +463,15 @@ describe("StatusBoard", () => {
           paymentOf={(item) => paymentState(item)}
           isToday={false}
           handlers={{ onOpenBooking: vi.fn(), onOpenDog: vi.fn(), onOpenHuman: vi.fn(), onMessageOwner: vi.fn(), onJourneyAction: vi.fn(), onDidntShow: vi.fn() }}
+          summary={buildDaySummary([booking({ id: "future", dogName: "Otis", slot: "12:00" })])}
+          takings={buildTakingsByMethod([])}
+          capacityTotal={14}
         />,
       );
 
       const lane = screen.getByRole("region", { name: "Arriving, 1 dog" });
       expect(within(lane).getByRole("article", { name: "Otis, 12:00, Arriving" })).toBeInTheDocument();
       expect(within(lane).queryByText(/Due in|late|Due now/)).not.toBeInTheDocument();
-    });
-
-    it("flags the live-focus slot with a Next arrival marker", () => {
-      renderBoard(
-        [booking({ id: "next", dogName: "Otis", slot: "12:00", payment: "Paid in Full" })],
-        {
-          liveFocusId: "next",
-          liveContext: { text: "Due to arrive in 45 min", tone: "live", ariaLabel: "Otis — due to arrive in 45 min" },
-        },
-      );
-
-      const lane = screen.getByRole("region", { name: "Arriving, 1 dog" });
-      expect(within(lane).getByText("Next arrival")).toBeInTheDocument();
-      expect(within(lane).getByTestId("live-arrival-divider")).toBeInTheDocument();
     });
   });
 
@@ -465,16 +510,17 @@ describe("StatusBoard", () => {
     });
   });
 
-  describe("mobile empty-lane collapsing", () => {
-    it("collapses every empty downstream lane into one compact summary and keeps the desktop lanes available", () => {
+  describe("empty-lane collapsing at every width", () => {
+    it("collapses every empty lane into one reassurance line — no boxed 'no dogs' columns", () => {
       renderBoard([booking({ id: "due" })]);
 
-      const summary = screen.getByText((_, el) => el?.getAttribute("aria-label") === "With us 0 dogs, Ready to go 0 dogs, Home today 0 dogs — nothing waiting yet");
+      const summary = screen.getByText((_, el) => el?.getAttribute("aria-label") === "With us — nobody yet, Ready to go — nobody yet");
       expect(summary).toBeInTheDocument();
-      expect(summary).toHaveClass("md:hidden");
-
-      const emptyWithUs = screen.getByRole("region", { name: "With us, 0 dogs" });
-      expect(emptyWithUs).toHaveClass("hidden", "md:block");
+      // The old always-rendered empty lane regions are gone entirely.
+      expect(screen.queryByRole("region", { name: "With us, 0 dogs" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Ready to go, 0 dogs" })).not.toBeInTheDocument();
+      // And the summary is not width-gated.
+      expect(summary.closest("p").className).not.toMatch(/md:hidden/);
     });
 
     it("never names a populated lane in the empty summary", () => {
@@ -483,12 +529,10 @@ describe("StatusBoard", () => {
         booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN }),
       ]);
 
-      const summary = screen.getByText((_, el) => !!el?.getAttribute("aria-label")?.includes("nothing waiting yet"));
+      const summary = screen.getByText((_, el) => !!el?.getAttribute("aria-label")?.includes("nobody yet"));
       expect(summary).toHaveAttribute("aria-label", expect.not.stringContaining("With us"));
-      expect(summary).toHaveAttribute("aria-label", expect.stringContaining("Ready to go 0"));
-      expect(summary).toHaveAttribute("aria-label", expect.stringContaining("Home today 0"));
-      const populatedWithUs = screen.getByRole("region", { name: "With us, 1 dog" });
-      expect(populatedWithUs).not.toHaveClass("hidden");
+      expect(summary).toHaveAttribute("aria-label", expect.stringContaining("Ready to go"));
+      expect(screen.getByRole("region", { name: "With us, 1 dog" })).toBeInTheDocument();
     });
   });
 });

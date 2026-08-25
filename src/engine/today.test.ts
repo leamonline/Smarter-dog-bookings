@@ -25,6 +25,7 @@ import {
   buildTodayFeed,
   buildAvailabilityView,
   entryOpStatus,
+  buildNowCounts,
   selectLiveFocus,
   liveFocusContext,
   formatDuration,
@@ -611,6 +612,43 @@ describe("entryOpStatus — one priority order for rails, labels and actions", (
     ].map((e) => entryOpStatus(e).urgency);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(new Set(order).size).toBe(order.length);
+  });
+});
+
+describe("buildNowCounts — the itemised act-now sentence", () => {
+  const entry = (actionReasons: string[]) => ({
+    booking: bk({ id: `n-${actionReasons.join("-") || "calm"}` }),
+    slotMinutes: 540,
+    stage: "booked",
+    isNext: false,
+    isLate: actionReasons.includes("late"),
+    isUnconfirmed: actionReasons.includes("confirmation"),
+    owes: actionReasons.includes("payment"),
+    needsAction: actionReasons.length > 0,
+    actionReasons,
+    overdueMinutes: 0,
+    waitMinutes: null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+
+  it("itemises late, to-confirm and waiting; money is never an act-now reason", () => {
+    const counts = buildNowCounts([
+      entry(["late"]),
+      entry(["confirmation"]),
+      entry(["collection"]),
+      entry(["payment"]), // owes mid-groom — ambient, not a task
+      entry([]),
+    ]);
+    expect(counts).toEqual({ late: 1, toConfirm: 1, waiting: 1, dogs: 3 });
+  });
+
+  it("counts a dog once in `dogs` however many reasons it carries", () => {
+    const counts = buildNowCounts([entry(["late", "confirmation"])]);
+    expect(counts).toEqual({ late: 1, toConfirm: 1, waiting: 0, dogs: 1 });
+  });
+
+  it("is all-zero on a calm feed", () => {
+    expect(buildNowCounts([entry([]), entry(["payment"])]).dogs).toBe(0);
   });
 });
 

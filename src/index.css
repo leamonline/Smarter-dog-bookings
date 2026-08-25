@@ -383,6 +383,23 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Daily Brief: one-shot ring flash marking the card an action just moved, or
+   the card the header's "Next:" link jumped to. Motion-gated — under reduced
+   motion the class does nothing and the toast/aria-live carry the message. */
+@keyframes today-card-flash {
+  0% { box-shadow: 0 0 0 2px var(--color-brand-purple); }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-card-flash { animation: today-card-flash 1.3s ease-out 1; }
+}
+
+/* Daily Brief: indeterminate hairline while cached bookings refresh. */
+@keyframes refresh-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(12px) scale(0.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }

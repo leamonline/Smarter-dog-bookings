@@ -1,20 +1,10 @@
-// Shared presentational building blocks for the Today command centre.
-// All status/urgency is carried by text + hierarchy + an accent bar — never
+// Shared presentational building blocks for the Daily Brief.
+// All status/urgency is carried by text + hierarchy + an accent rail — never
 // colour alone — matching the app's accessibility bar. Every tap target is at
 // least 44px tall (wet hands, one thumb, a wriggling dog under the other arm).
-import { useEffect, useRef, useState } from "react";
-import { BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
-import { PAYMENT_METHODS } from "../../../constants/salon";
-
-/** "25 min", "1 hr 5 min", "just now". */
-export function formatMinutes(mins) {
-  if (mins == null) return null;
-  if (mins <= 0) return "just now";
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h} hr ${m} min` : `${h} hr`;
-}
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, Car, ChevronDown } from "lucide-react";
 
 /** Whole-pound money for operational nudges (no decimals of pence). */
 export function formatMoney(amount) {
@@ -45,53 +35,11 @@ export function waitTone(mins) {
 }
 
 // Text tokens ≥ 4.5:1 (WCAG AA) on white and on the pale amber tint.
-const WAIT_TONE_CLASS = {
+export const WAIT_TONE_CLASS = {
   neutral: "text-slate-700",
   amber: "text-amber-800",
   red: "text-brand-coral-text",
 };
-
-/** Threshold-toned wait duration — "waiting 25 min", or the bare duration. */
-export function WaitBadge({ minutes, withWord = true }) {
-  if (minutes == null) return null;
-  const duration = formatMinutes(minutes);
-  return (
-    <span className={`font-bold tabular-nums ${WAIT_TONE_CLASS[waitTone(minutes)]}`}>
-      {withWord ? `waiting ${duration}` : duration}
-    </span>
-  );
-}
-
-export function SectionCard({ title, subtitle, count, accent, action, children }) {
-  return (
-    <section
-      className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] overflow-hidden"
-      aria-label={typeof title === "string" ? title : undefined}
-    >
-      <header className="flex items-center gap-3 px-4 sm:px-5 py-3 border-b border-slate-100">
-        {accent && <span aria-hidden className={`h-5 w-1.5 rounded-full ${accent}`} />}
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-bold text-slate-800 leading-tight">{title}</h2>
-          {subtitle && <p className="text-[12px] text-slate-600 mt-0.5">{subtitle}</p>}
-        </div>
-        {typeof count === "number" && (
-          <span className="shrink-0 inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-slate-100 text-slate-700 text-[12px] font-bold">
-            {count}
-          </span>
-        )}
-        {action}
-      </header>
-      <div className="p-2 sm:p-3">{children}</div>
-    </section>
-  );
-}
-
-/** A calm, warm empty state — the warmth lives here. */
-export function EmptyState({ children }) {
-  return (
-    <p className="px-3 py-6 text-center text-[13px] text-slate-600">{children}</p>
-  );
-}
 
 /**
  * A one-line reassurance row for a category with nothing in it — replaces a
@@ -108,10 +56,11 @@ export function CompactZeroState({ children }) {
   );
 }
 
-// ---- Operational-priority tones -------------------------------------------------
+// ---- Operational-priority rail ------------------------------------------------
 // The engine (entryOpStatus in engine/today.ts) decides WHICH tone a booking
-// gets; these maps decide what each tone LOOKS like. One rail + one chip class
-// per tone, so the accent bar, the status chip and the Now strip always match.
+// gets; this map decides what each tone LOOKS like. The rail is the card's
+// only state colour — card surfaces stay white so green can never grow a
+// second meaning again.
 
 /** Left accent rail fill per operational tone. */
 export const RAIL_TONE_CLASS = {
@@ -123,27 +72,6 @@ export const RAIL_TONE_CLASS = {
   neutral: "bg-slate-200",
   muted: "bg-slate-300",
 };
-
-/** Pale tint + AA text per operational tone (chip/label backgrounds). */
-export const CHIP_TONE_CLASS = {
-  coral: "bg-brand-coral/10 text-brand-coral-text",
-  amber: "bg-amber-50 text-amber-800",
-  emerald: "bg-emerald-50 text-emerald-700",
-  cyan: "bg-cyan-50 text-cyan-800",
-  teal: "bg-brand-teal/15 text-brand-teal-text",
-  neutral: "bg-slate-100 text-slate-600",
-  muted: "bg-slate-100 text-slate-500",
-};
-
-/** The single highest-priority status chip for a booking (engine-decided). */
-export function OpStatusChip({ opStatus }) {
-  if (!opStatus) return null;
-  return (
-    <Chip dot className={CHIP_TONE_CLASS[opStatus.tone] || CHIP_TONE_CLASS.neutral}>
-      {opStatus.label}
-    </Chip>
-  );
-}
 
 /**
  * The one status-chip pattern for this page: pale tint + AA text + a leading
@@ -166,26 +94,26 @@ export function Chip({ className = "", style, dot = false, icon = null, title, a
   );
 }
 
-export function StatusPill({ status }) {
-  const d = getStatusDisplay(status);
-  return (
-    <Chip dot className="whitespace-nowrap" style={{ background: d.bg, color: d.color }}>
-      {d.label}
-    </Chip>
-  );
-}
-
 /** Read-only WhatsApp "on my way" signal for a dog waiting to be collected. */
 export function OnTheWayChip({ signal }) {
   if (!signal) return null;
   return (
-    <Chip icon="🚗" className="bg-brand-teal/15 text-brand-teal-text whitespace-nowrap" title={`“${signal.text}”`}>
+    <Chip
+      icon={<Car size={12} strokeWidth={2.5} aria-hidden="true" />}
+      className="bg-brand-teal/15 text-brand-teal-text whitespace-nowrap"
+      title={`“${signal.text}”`}
+    >
       On the way{signal.minutesAgo > 1 ? ` · ${signal.minutesAgo} min ago` : ""}
     </Chip>
   );
 }
 
-/** Welfare / handover chips — surfaced plainly, never editorialised. */
+/**
+ * Welfare / handover chips — surfaced plainly, never editorialised, and never
+ * hidden behind a tap. One chip per fact, in the same coral safety language as
+ * the shared SafetyAlertChip on the Dogs and Humans directories, so a welfare
+ * fact carries the same weight wherever staff meet it.
+ */
 export function WelfareChips({ alerts = [], pregnant = false, notes = "" }) {
   const chips = [];
   if (pregnant) chips.push("Pregnant");
@@ -193,60 +121,16 @@ export function WelfareChips({ alerts = [], pregnant = false, notes = "" }) {
   if (notes && notes.trim()) chips.push(notes.trim());
   if (chips.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1 mt-1.5">
+    <div className="mt-1.5 flex flex-wrap gap-1">
       {chips.map((c, i) => (
-        <Chip key={i} icon="⚑" className="bg-amber-50 text-amber-800">
-          {c}
-        </Chip>
+        <span
+          key={i}
+          className="inline-flex max-w-full items-start gap-1 rounded-md border border-brand-coral/20 bg-brand-coral-light px-1.5 py-0.5 text-micro font-semibold text-brand-coral-text"
+        >
+          <AlertTriangle size={12} aria-hidden="true" className="mt-px shrink-0" />
+          <span className="break-words">{c}</span>
+        </span>
       ))}
-    </div>
-  );
-}
-
-/** Payment fact for the status line — same wording on every card. */
-function PaymentFact({ pay }) {
-  if (!pay || pay.kind === "paid") return null;
-  if (pay.kind === "deposit") {
-    return (
-      <span>
-        Deposit {formatMoney(pay.depositPaid)} paid ·{" "}
-        <span className="font-bold text-slate-800">{formatMoney(pay.amountDue)} balance</span>
-      </span>
-    );
-  }
-  if (pay.kind === "due") {
-    return <span className="font-bold text-slate-800">{formatMoney(pay.amountDue)} due at pick-up</span>;
-  }
-  return <span>{pay.label}</span>;
-}
-
-/**
- * The canonical status line — every booking card on the Today page shows the
- * same facts in the same order: status + since-time, wait duration, payment
- * due. Card-specific extras (pick-up time, "on the way", notes) append via
- * children. `showWaitWord={false}` drops the word "waiting" where the card's
- * headline already says "Waiting for collection". Whether the collection
- * message has gone out is NOT restated here — the primary action already
- * carries that fact ("Send collection message" vs "Mark collected"/"Resend
- * message"), so a separate chip would just repeat it.
- */
-export function BookingStatusLine({ booking, waitMinutes = null, pay = null, showWaitWord = true, children }) {
-  const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
-  const inSalon = booking.status === BOOKING_STATUS.CHECKED_IN || booking.status === BOOKING_STATUS.IN_BATH;
-  const since = formatLondonTime(isReady ? booking.readyAt : inSalon ? booking.checkedInAt : null);
-  // "Booked" (incl. a missing/unknown status, which defaults to it) is the
-  // page's default resting state — every card is Booked until something
-  // happens, so the pill said nothing the position-in-the-list + rail
-  // colour didn't already. Checked in / In bath / Ready / Completed keep
-  // the pill: it's their only text label, and colour alone isn't enough.
-  const isBooked = !booking.status || booking.status === BOOKING_STATUS.BOOKED;
-  return (
-    <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-[13px] text-slate-600">
-      {!isBooked && <StatusPill status={booking.status} />}
-      {since && <span>since {since}</span>}
-      {isReady && <WaitBadge minutes={waitMinutes} withWord={showWaitWord} />}
-      <PaymentFact pay={pay} />
-      {children}
     </div>
   );
 }
@@ -280,159 +164,175 @@ export function SecondaryButton({ onClick, children, ...rest }) {
   );
 }
 
-// ---- Action tiles ---------------------------------------------------------
-// The expanded-row action bar: equal-width cells, icon above a short label.
-// The visible label is always a substring of the aria-label, so screen
-// readers hear the full verb ("Mark collected") while the tile stays compact.
-const TILE_ICON_PATHS = {
-  message: <path d="M8 9h8m-8 4h6M6 18l-3 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H6z" />,
-  cash: (
-    <>
-      <rect x="3" y="7" width="18" height="10" rx="2" />
-      <circle cx="12" cy="12" r="2.5" />
-    </>
-  ),
-  check: <path d="M20 6 9 17l-5-5" />,
-  document: <path d="M14 3v4a1 1 0 0 0 1 1h4M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />,
-  bell: <path d="M10 5a2 2 0 1 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6M9 17v1a3 3 0 0 0 6 0v-1" />,
-  login: <path d="M15 12H3m12 0-4 4m4-4-4-4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />,
-  refresh: <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4m-4 4a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />,
-  dots: (
-    <>
-      <circle cx="5" cy="12" r="1" />
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-    </>
-  ),
-};
-
-export function TileIcon({ name }) {
-  return (
-    <svg
-      width="17"
-      height="17"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      {TILE_ICON_PATHS[name] || null}
-    </svg>
-  );
-}
-
-/** Shared tile chrome — also used by MoreMenu's tile trigger. */
-export const TILE_CLASS =
-  "w-full flex flex-col items-center justify-center gap-0.5 min-h-[48px] px-1 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold leading-tight hover:bg-slate-200 motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-
-export function ActionTile({ icon, label, ariaLabel, onClick, disabled }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={ariaLabel || label} className={TILE_CLASS}>
-      <TileIcon name={icon} />
-      {label}
-    </button>
-  );
-}
-
-/**
- * The payment-method chooser — the one way a payment is recorded from this
- * page, so the method fact is never silently dropped from the takings.
- */
-export function PaymentMethodChooser({ onPick, onCancel }) {
-  return (
-    <div className="flex items-center gap-2 flex-wrap w-full">
-      <span className="text-[13px] font-semibold text-slate-600">Paid by:</span>
-      {PAYMENT_METHODS.map((m) => (
-        <SecondaryButton key={m.id} onClick={() => onPick(m.id)}>{m.label}</SecondaryButton>
-      ))}
-      <button
-        type="button"
-        onClick={onCancel}
-        className="text-[13px] text-slate-500 underline min-h-[44px] px-1 bg-transparent border-none cursor-pointer"
-      >
-        Cancel
-      </button>
-    </div>
-  );
-}
-
 /**
  * The card-level "More" menu — one quiet button that reveals the lower-priority
- * actions, so a card never shows five equal-weight buttons. Keyboard + outside
- * click close it; items are proper menuitems. `items` = [{ label, onClick,
- * disabled }]; renders nothing when empty. `tile` renders the trigger as an
- * ActionTile-shaped cell for the expanded-row action bar.
+ * actions, so a card never shows five equal-weight buttons. The panel renders
+ * through a portal so an ancestor's overflow can never clip it, and it keeps
+ * the full menu keyboard contract its `role="menu"` promises: focus moves to
+ * the first item on open, arrows/Home/End traverse, Escape closes and returns
+ * focus to the trigger, and scrolling dismisses (menus don't float free).
+ * `items` = [{ label, onClick, disabled }]; renders nothing when empty.
  */
-export function MoreMenu({ items, label = "More", menuLabel, tile = false }) {
+export function MoreMenu({ items, label = "More", menuLabel }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
+  const [position, setPosition] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const close = (restoreFocus = false) => {
+    setOpen(false);
+    setPosition(null);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPosition({
+      top: rect.bottom + 4,
+      bottom: null,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, [open]);
+
+  // Second pass: if the panel would run past the bottom of the viewport,
+  // flip it above the trigger — it must always be fully on screen.
+  useLayoutEffect(() => {
+    if (!open || !position || position.bottom != null || !menuRef.current || !triggerRef.current) return;
+    const panel = menuRef.current.getBoundingClientRect();
+    if (panel.bottom > window.innerHeight - 8) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition((previous) => ({
+        ...previous,
+        top: null,
+        bottom: Math.max(8, window.innerHeight - rect.top + 4),
+      }));
+    }
+  }, [open, position]);
+
   useEffect(() => {
-    if (!open) return;
+    // The panel mounts a tick after open (its position is measured first), so
+    // wait for both before wiring focus + dismissal.
+    if (!open || !position) return;
+    // Focus the first enabled item so arrow keys work immediately.
+    const first = menuRef.current?.querySelector('[role="menuitem"]:not(:disabled)');
+    // preventScroll: the fixed panel is already in view, and a focus-scroll
+    // would immediately trip the scroll-dismiss listener below.
+    first?.focus({ preventScroll: true });
+
     const onDocClick = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false);
+      if (triggerRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      close();
     };
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        setOpen(false);
+        close(true);
       }
     };
+    const onScroll = () => close();
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey, true);
+    // Scroll dismisses (menus don't float free of their trigger) — but only
+    // after a beat, so the scroll-into-view that often precedes the opening
+    // tap can finish without instantly closing what it just opened.
+    const scrollArmTimer = setTimeout(() => {
+      window.addEventListener("scroll", onScroll, true);
+    }, 150);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey, true);
+      clearTimeout(scrollArmTimer);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, position]);
 
   const visible = (items || []).filter(Boolean);
   if (visible.length === 0) return null;
 
+  const moveFocus = (delta, edge = null) => {
+    const nodes = [...(menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') || [])];
+    if (nodes.length === 0) return;
+    if (edge === "start") return nodes[0].focus();
+    if (edge === "end") return nodes[nodes.length - 1].focus();
+    const index = nodes.indexOf(document.activeElement);
+    const next = index === -1 ? 0 : (index + delta + nodes.length) % nodes.length;
+    nodes[next].focus();
+  };
+
+  const onMenuKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); moveFocus(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); moveFocus(-1); }
+    else if (e.key === "Home") { e.preventDefault(); moveFocus(0, "start"); }
+    else if (e.key === "End") { e.preventDefault(); moveFocus(0, "end"); }
+    else if (e.key === "Tab") close();
+  };
+
   return (
-    <div ref={wrapRef} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close() : setOpen(true))}
+        // No mousedown focus: near the viewport edge the browser's
+        // focus-scroll would move the button between press and release and
+        // swallow the click entirely. Keyboard focus is unaffected, and item
+        // selection restores focus to this trigger explicitly.
+        onMouseDown={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={menuLabel}
-        className={
-          tile
-            ? TILE_CLASS
-            : "inline-flex items-center gap-1 min-h-[44px] px-3 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
-        }
+        className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2.5 text-[12px] font-semibold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
       >
-        {tile && <TileIcon name="dots" />}
         {label}
-        {!tile && <Chevron open={open} />}
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className={`shrink-0 text-slate-500 motion-safe:transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1 z-20 min-w-[200px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(45,0,75,0.12)] py-1"
-        >
-          {visible.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                item.onClick?.();
-              }}
-              disabled={item.disabled}
-              className="w-full text-left px-3 py-2 text-[13px] font-semibold font-inherit text-slate-700 bg-transparent border-none cursor-pointer transition-colors hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open && position
+        ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label={menuLabel}
+            onKeyDown={onMenuKeyDown}
+            style={position.bottom != null
+              ? { bottom: position.bottom, right: position.right }
+              : { top: position.top, right: position.right }}
+            className="fixed z-[1200] min-w-[210px] max-w-[min(300px,calc(100vw-16px))] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-[0_8px_20px_rgba(45,0,75,0.12)] [max-height:calc(100dvh-16px)]"
+          >
+            {visible.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  close(true);
+                  item.onClick?.();
+                }}
+                disabled={item.disabled}
+                className="w-full cursor-pointer border-none bg-transparent px-3 py-2 text-left text-[13px] font-semibold text-slate-700 outline-none transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple disabled:cursor-not-allowed disabled:text-slate-300"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )
+        : null}
+    </>
   );
 }
 
@@ -452,47 +352,5 @@ export function TertiaryLink({ onClick, tone = "muted", children }) {
     >
       {children}
     </button>
-  );
-}
-
-/**
- * "Mark paid" with the payment-method chooser — the one way a payment is
- * recorded from this page, wherever the dog's single card ends up, so the
- * method fact is never silently dropped from the takings.
- */
-export function MarkPaidAction({ booking, onMarkPaid, variant = "primary" }) {
-  const [choosing, setChoosing] = useState(false);
-  if (choosing) {
-    return (
-      <PaymentMethodChooser
-        onPick={(m) => {
-          onMarkPaid(booking, m);
-          setChoosing(false);
-        }}
-        onCancel={() => setChoosing(false)}
-      />
-    );
-  }
-  const Trigger = variant === "primary" ? PrimaryButton : SecondaryButton;
-  return <Trigger onClick={() => setChoosing(true)}>Mark paid</Trigger>;
-}
-
-/** Rotating chevron for expandable rows — a supporting cue, not the only one. */
-export function Chevron({ open }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`shrink-0 text-slate-500 motion-safe:transition-transform ${open ? "rotate-180" : ""}`}
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
   );
 }
