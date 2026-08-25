@@ -82,8 +82,12 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
     }
     const reminderStatus = allSent ? "sent" : anyPending ? "pending" : null;
 
+    // The row shows one aggregated tick, so the LATEST confirmation's source
+    // decides the wording ('customer' | 'staff'; null-source legacy rows read
+    // as customer — WhatsApp was the only confirm path before the source).
     let confirmed = false;
     let latestConfirmedAt = null;
+    let latestConfirmedBy = null;
     for (const b of bookings ?? []) {
       const groupKey = (b.dogs?.human_id ?? null) ?? `orphan:${b.id}`;
       if (groupKey !== g.customerKey) continue;
@@ -91,6 +95,7 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
         confirmed = true;
         if (!latestConfirmedAt || b.reminder_confirmed_at > latestConfirmedAt) {
           latestConfirmedAt = b.reminder_confirmed_at;
+          latestConfirmedBy = b.reminder_confirmed_source ?? "customer";
         }
       }
     }
@@ -110,6 +115,7 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
       reminderChannel: sentChannel ?? pendingChannel ?? null,
       confirmed,
       reminderConfirmedAt: latestConfirmedAt,
+      reminderConfirmedBy: latestConfirmedBy,
     };
   });
 }

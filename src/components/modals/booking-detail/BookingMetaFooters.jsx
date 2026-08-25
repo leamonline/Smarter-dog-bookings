@@ -18,7 +18,10 @@ export function BookingMetaFooters({ booking }) {
       )}
 
       {booking.reminderConfirmedAt && (
-        <ConfirmedByCustomerFooter at={booking.reminderConfirmedAt} />
+        <ConfirmedFooter
+          at={booking.reminderConfirmedAt}
+          by={booking.reminderConfirmedBy}
+        />
       )}
 
       {booking.staffCapacityOverride && (
@@ -96,7 +99,10 @@ function OverrideAuditFooter({ by, at }) {
   );
 }
 
-function ConfirmedByCustomerFooter({ at }) {
+// `by` is the confirmation source token ('customer' | 'staff'). Rows stamped
+// before the source existed carry 'customer' (backfilled — WhatsApp was the
+// only confirm path then), so the customer wording is also the fallback.
+function ConfirmedFooter({ at, by }) {
   if (!at) return null;
   const when = (() => {
     const d = new Date(at);
@@ -117,7 +123,9 @@ function ConfirmedByCustomerFooter({ at }) {
   return (
     <div className="px-3 py-2.5 mb-3 bg-brand-green-50 border border-brand-green-200 text-brand-green-800 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
       <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Confirmed</span>
-      Customer confirmed via WhatsApp on {when}.
+      {by === "staff"
+        ? `Confirmed by staff on ${when}.`
+        : `Customer confirmed via WhatsApp on ${when}.`}
     </div>
   );
 }

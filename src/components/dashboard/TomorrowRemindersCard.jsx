@@ -45,7 +45,7 @@ function ReminderRow({ row, onOpen, busy }) {
       disabled={!clickable}
       title={
         sent
-          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""}${row.confirmed && row.reminderConfirmedAt ? ` — customer confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""} — click to view`
+          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""}${row.confirmed && row.reminderConfirmedAt ? ` — ${row.reminderConfirmedBy === "staff" ? "staff" : "customer"} confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""} — click to view`
           : busy
             ? "Sending…"
             : "Click to choose a channel and send a reminder"
@@ -70,8 +70,8 @@ function ReminderRow({ row, onOpen, busy }) {
                 className="text-brand-green-700 fill-brand-green-100"
                 aria-label={
                   row.reminderConfirmedAt
-                    ? `Customer confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`
-                    : "Customer confirmed"
+                    ? `${row.reminderConfirmedBy === "staff" ? "Staff" : "Customer"} confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                    : `${row.reminderConfirmedBy === "staff" ? "Staff" : "Customer"} confirmed`
                 }
               />
             )}

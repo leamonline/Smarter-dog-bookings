@@ -204,4 +204,63 @@ describe("groupRemindersByCustomer — confirmed flag", () => {
     const [row] = groupRemindersByCustomer(bookings, new Map());
     expect(row.reminderConfirmedAt).toBe("2026-05-31T15:55:30Z");
   });
+
+  it("takes reminderConfirmedBy from the latest confirmation", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: "2026-05-31T15:53:00Z",
+        reminder_confirmed_source: "customer",
+      },
+      {
+        id: "b-2",
+        slot: "11:00",
+        dog_id: "d-2",
+        dog_name_snapshot: "Rex",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Rex" },
+        reminder_confirmed_at: "2026-05-31T15:55:30Z",
+        reminder_confirmed_source: "staff",
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.reminderConfirmedBy).toBe("staff");
+  });
+
+  it("reads a confirmed row with no source as customer (legacy WhatsApp confirms)", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: "2026-05-31T15:53:00Z",
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.reminderConfirmedBy).toBe("customer");
+  });
+
+  it("leaves reminderConfirmedBy null when nothing is confirmed", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: null,
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.reminderConfirmedBy).toBe(null);
+  });
 });

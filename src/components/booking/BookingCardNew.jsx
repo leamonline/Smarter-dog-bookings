@@ -361,8 +361,16 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 <span
                   data-reminder-confirmation
                   role="status"
-                  aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
-                  title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+                  aria-label={
+                    booking.reminderConfirmedBy === "staff"
+                      ? `Confirmed by staff at ${formatConfirmedAt(booking.reminderConfirmedAt)}`
+                      : `Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`
+                  }
+                  title={
+                    booking.reminderConfirmedBy === "staff"
+                      ? `Confirmed by staff at ${formatConfirmedAt(booking.reminderConfirmedAt)}`
+                      : `Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`
+                  }
                   className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
