@@ -34,7 +34,9 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
   ],
   tue: [
     { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED },
-    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED },
+    // Customer answered their WhatsApp reminder — exercises the customer tick
+    // and the rule that a customer confirmation is never removable by staff.
+    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED, reminderState: "confirmed", reminderConfirmedAt: "2026-07-14T06:50:00Z", reminderConfirmedBy: "customer" },
     // Reminder sent, no reply yet — exercises "Needs confirmation" and the
     // staff Confirm action on the Daily Brief.
     { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED, reminderState: "sent", confirmationChannel: "whatsapp" },

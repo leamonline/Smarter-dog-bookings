@@ -180,6 +180,91 @@ describe("TodayView — selected-date operations", () => {
     expect(await screen.findByText("Jack's booking confirmed")).toBeInTheDocument();
   });
 
+  it("undoes a mis-tapped staff confirmation from the toast", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{
+          ...selectedBooking,
+          reminderState: "sent",
+          reminderSentAt: "2026-07-15T18:00:00Z",
+          confirmationChannel: "whatsapp",
+        }],
+      },
+      onUpdateBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Jack's booking" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
+    expect(onUpdateBooking).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "b-selected",
+        _unconfirmArrival: true,
+        reminderConfirmedAt: null,
+        reminderConfirmedBy: null,
+        reminderState: "sent",
+      }),
+      "2026-07-16",
+      "2026-07-16",
+    );
+    expect(await screen.findByText("Jack's booking is unconfirmed again")).toBeInTheDocument();
+  });
+
+  it("unconfirms a staff-confirmed booking from the card's More menu", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{
+          ...selectedBooking,
+          reminderState: "confirmed",
+          reminderConfirmedAt: "2026-07-16T07:40:00Z",
+          reminderConfirmedBy: "staff",
+        }],
+      },
+      onUpdateBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Unconfirm booking" }));
+
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(onUpdateBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "b-selected",
+        _unconfirmArrival: true,
+        reminderConfirmedAt: null,
+        reminderConfirmedBy: null,
+      }),
+      "2026-07-16",
+      "2026-07-16",
+    );
+  });
+
+  it("reports honestly when the undo is refused because the customer confirmed", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(null);
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{
+          ...selectedBooking,
+          reminderState: "confirmed",
+          reminderConfirmedAt: "2026-07-16T07:40:00Z",
+          reminderConfirmedBy: "staff",
+        }],
+      },
+      onUpdateBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Unconfirm booking" }));
+
+    expect(
+      await screen.findByText(/Couldn't undo — if the customer has just confirmed themselves/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
   it("marks the pressed card busy while its write is in flight", async () => {
     let resolveSave;
     const onUpdateBooking = vi.fn(() => new Promise((resolve) => {

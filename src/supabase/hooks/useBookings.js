@@ -468,6 +468,15 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
               reminder_confirmed_source: "staff",
             }
           : {}),
+        // Undo of a staff confirmation (mis-tap). Clears the pair — but only
+        // through the staff-source guard below, so a customer confirmation
+        // that raced in is never wiped.
+        ...(updatedBooking._unconfirmArrival
+          ? {
+              reminder_confirmed_at: null,
+              reminder_confirmed_source: null,
+            }
+          : {}),
       };
 
       // Optimistic: patch the raw row (incl. booking_date, so a move to
@@ -482,12 +491,17 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         );
       });
 
-      const { data, error: err } = await supabase
+      let updateQuery = supabase
         .from("bookings")
         .update(updatePayload)
-        .eq("id", updatedBooking.id)
-        .select("*")
-        .single();
+        .eq("id", updatedBooking.id);
+      // Unconfirm only ever clears a STAFF stamp: if the customer's own
+      // confirmation landed in between, this matches 0 rows and .single()
+      // errors — the rollback below then restores the local row untouched.
+      if (updatedBooking._unconfirmArrival) {
+        updateQuery = updateQuery.eq("reminder_confirmed_source", "staff");
+      }
+      const { data, error: err } = await updateQuery.select("*").single();
 
       if (err) {
         if (prevRow) {

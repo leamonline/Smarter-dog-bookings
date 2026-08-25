@@ -188,6 +188,13 @@ function CardActions({ entry, lane, display, payment, handlers, isGold, busy }) 
         { label: "Reschedule booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
       ]
       : []),
+    // Escape hatch for a mis-tapped staff Confirm, past the toast's Undo
+    // window. Staff-sourced only: a customer's own confirmation is their
+    // word and is never removable here.
+    lane === "due" && booking.reminderConfirmedBy === "staff" && {
+      label: "Unconfirm booking",
+      onClick: () => handlers.onUnconfirmArrival?.(booking),
+    },
   ].filter(Boolean);
 
   let primary;
