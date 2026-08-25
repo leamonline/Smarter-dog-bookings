@@ -8,9 +8,11 @@
 
 Two staff-facing surfaces built on one pure engine:
 
-- **`/today`** — the default landing screen after staff login: a calm, fast
-  operational work queue answering *"what needs attention right now?"*. The
-  weekly calendar (`/`) stays the scheduling tool and is one tap away.
+- **`/today`** — the default landing screen after staff login: a **live salon
+  board** where each dog is a token in the zone that says where it physically
+  is, answering *"where is Teddy?"* and *"what needs me right now?"* with as
+  little reading as possible. The weekly calendar (`/`) stays the scheduling
+  tool and is one tap away.
 - **Reports** (`/reports`) — the existing cash-up + analytics page, extended
   with six decision-focused reports (2A–2F) below the original KPIs.
 
@@ -19,7 +21,9 @@ logic stays out of components and can't drift between surfaces:
 
 | Module | Powers |
 |---|---|
-| `engine/today.ts` | the `/today` queues (London-time "now", late/unconfirmed/wait/payment/gap selectors, queue builders) |
+| `engine/today.ts` | London-time "now", the late/unconfirmed/wait/payment selectors and the ranked `entryOpStatus` mapping every surface reads |
+| `engine/dailyBrief.ts` | the four zones (`buildDailyBriefBoard`) and the care-step rules |
+| `engine/salonBoard.ts` | the board itself: zone mapping, priority gravity, visual tiers, the per-state action list, drag legality and undo |
 | `engine/reportsAnalytics.ts` | reports 2A–2E |
 | `engine/denials.ts` | report 2F + the gate-message → reason-code mapper |
 
@@ -34,69 +38,150 @@ rather than the device clock, so a mis-set till can't skew "15 min overdue".
 wall-clock) to a real instant — used by the 2C late-cancel window so it's
 correct year-round, BST included.
 
-## The Today view (`src/components/views/TodayView.jsx` + `views/today/`)
+## The salon board (`src/components/views/TodayView.jsx` + `views/today/board/`)
 
-The board is **ranked, not scrolled-to** (August 2026 redesign). There is no
-sticky Now strip and no load-time auto-scroll: the header names the most
-urgent dog in a one-line **"Next:" link** (`selectLiveFocus` +
-`liveFocusContext`) that scrolls-and-flashes the card only on an explicit tap,
-so the date — the guard against wrong-day writes — never leaves the screen.
+`/today` is a **live salon board**, not a list of cards (August 2026 redesign).
+Every dog on the day is one **token** — a face, a name, and one number — placed
+in the zone that says where that dog physically is:
 
-**Operational priority is centralised** in `entryOpStatus` (`engine/today.ts`):
-one ranked mapping (late → unpaid-collected → unconfirmed → ready-waiting →
-ready → in-salon → next → upcoming → collected). The card's 3px **accent
-rail** reads from it (coral = late, amber = unconfirmed, emerald = ready;
-in-progress and upcoming cards are railless — absence of colour is the calm
-state). Rail tones map to classes in `views/today/parts.jsx`
-(`RAIL_TONE_CLASS`). Card surfaces are always white — state never lives in a
-background wash, so green cannot grow a second meaning.
+    Arriving  →  With us  →  Ready  →  Gone home
 
-**The gold rule.** At most **one** filled-yellow primary exists per board —
-the live focus card's — so yellow always means "do this next". Every other
-primary is the outlined tier. A booked, on-time focus earns gold only within
-`GOLD_DUE_SOON_MINUTES` (15) of its slot, and a browsed past/future date fills
-none at all: a calm 6:30am board shows no yellow, deliberately.
+**Position carries the status.** A token in the Ready zone does not also wear a
+"READY" badge, and the zone heading is the only place the noun appears. The
+question staff actually ask — *"where is Teddy?"* — is answered by looking, and
+the answer to *"does anything need me?"* is one sentence at the top of the page.
 
-**The header** (`TodayHeader.jsx`) is one anatomy at every width: the date IS
-the date-picker control; the salon open/closed pill sits beside it; the
-Manage-availability button carries its own state ("No online slots today" /
-"Next online 11:00") as a sub-label. Beneath, one **itemised status
-sentence**: `7 booked · 1 late · 1 to confirm · 1 waiting · £199 to collect`
-(`buildNowCounts` — money is deliberately NOT an act-now count, so the
-numbers can only fall as work gets done; an over-cap day appends a coral
-`15/14 over the daily cap`). The act-now cluster is also the needs-attention
-filter toggle; the filter itself still operates on the union including unpaid
-balances, so an owing dog can never be filtered out of sight.
+The zones are the existing Daily Brief lanes under new labels
+(`due | withUs | ready | home` in `buildDailyBriefBoard`) — **no new statuses, no
+new transitions, no mapping layer**. `engine/salonBoard.ts` adds three pure
+decisions on top and nothing else:
 
-**One `BookingCard` for every lane** (`StatusBoard.jsx`): slot chip (coral
-when late), dog name as calm text, timing on the right, service · owner ·
-money on one line, welfare chips (coral, in the same safety language as the
-directories' `SafetyAlertChip` — never hidden at any width), then the action
-row. The whole card body opens the booking; dog/human files live one tap away
-in the More menu, which renders through a **portal** (never clipped, flips
-above the trigger near the viewport bottom, full menu keyboard contract,
-dismisses on scroll). Lanes are shell-less — a `text-label` heading + count +
-exception ("1 late" / "2 waiting") over cards on the page ground — in a
-content-weighted grid (`1.4fr 1fr 1fr`); empty lanes collapse into one
-reassurance line (`EmptyLaneSummary`) and there is **one page scroll**: no
-lane ever scrolls inside itself.
+| Decision | Function | Rule |
+|---|---|---|
+| Zone | `zoneForStatus` | Booked→Arriving · Checked in / In bath→With us · Ready for pick-up→Ready · Completed→Gone home. Cancelled and unknown statuses map to **null** and surface in the recovery line instead of vanishing |
+| Priority | `buildBoardTokens` | Per-zone ranking + a three-step visual tier (below) |
+| Actions | `tokenActions` | The legal operations for this dog right now — read by the desktop menu, the phone sheet **and** the drag layer, so the three input methods cannot diverge |
 
-**Card primary actions by state:** Booked → Check in (Call/Message appear as
-quiet contextual actions only when late/unconfirmed) · Checked in → Start
-groom · In bath → Ready for collection · Ready + owing → Take £N payment
-(with Mark collected one visible tap away — the unpaid-collection safeguard
-modal still re-checks) · Ready + paid → Mark collected. Actions show an
-in-flight state (`aria-busy`, dimmed) while their write is out, and the card
-flashes once where it lands (`animate-card-flash`, motion-gated). Care-step
-skips confirm through `ConfirmDialog` (ModalShell), never `window.confirm`.
+### Priority gravity (the sort rules)
 
-**The end-of-day strip** (`EndOfDay` in `StatusBoard.jsx`) replaces the boxed
-"Home today" card and "Daily progress" panel: cumulative arrived count, the
-till (`buildTakingsByMethod`), expected revenue and the daily cap on one
-hairline-separated line, with the sent-home list behind a single disclosure.
-Slot availability still comes from `buildSlotOpportunities` →
-`buildAvailabilityView` (**never forks** the capacity engine) via the
-Manage-availability modal.
+Order only changes on a real state change or the 60-second tick — the board must
+not shuffle under a finger, because spatial memory is the point. Every rule ends
+in the booking id, so the order is total and two identical bookings never swap.
+
+| Zone | Order |
+|---|---|
+| Arriving | late first (most overdue leading), then soonest slot |
+| With us | welfare-flagged first, then longest on site; a dog with no `checked_in_at` stamp has no claim and sorts last |
+| Ready | longest wait first. A dog with **no `ready_at`** (legacy rows, pre-2026-07-02) sorts **first** — unknown must surface, never hide |
+| Gone home | most recently collected first |
+
+**Tiers** (`urgent` / `watch` / `calm`) come from the same `entryOpStatus`
+mapping the cards used, so the board can never disagree with the header counts:
+
+- **urgent** — late arrival, collected-but-owing, or a collection wait ≥ 60 min
+  (`READY_URGENT_MINUTES`). Coral ring **and** coral meta text.
+- **watch** — anything on the needs-attention list, an arrival due within 15 min
+  (`DUE_SOON_MINUTES`), or a dog on site ≥ 3 h (`IN_SALON_LONG_MINUTES`).
+- **calm** — everything else. A **browsed past or future date is always calm**
+  (money still owed excepted): nothing on it is happening now, so nothing on it
+  may glow.
+
+Urgency is never carried by colour alone — the ring, the meta text's colour and
+weight, and the token's accessible name all say the same thing.
+
+### What a token shows, and what it deliberately does not
+
+A 64px avatar (72px on a tablet) with deterministic initials — **there are no dog
+photos in this data model**; `groom_photos` is a separate staff-only gallery, not
+a profile picture, and none is fabricated. Then the dog's name and **one** piece
+of context: the appointment time while arriving, elapsed minutes once here.
+
+Three facts earn extra ink, because each costs money or welfare if missed:
+
+- **A welfare note stays on the board at every width.** The existing safety rule
+  (a welfare fact is never hidden behind a tap or a breakpoint) survives the
+  redesign: a flagged dog gets a coral mark on the token **and** its first note
+  printed beneath it, with the full text in the panel.
+- **A balance appears only from Ready onward** — where it actually blocks the
+  handover. A dog mid-groom that will settle at pick-up is routine and must not
+  look like a problem.
+- **"Owner on the way"** — the read-only WhatsApp signal, as a teal mark.
+
+Everything else — service, owner, payment sentence, who confirmed and when, the
+full safety text — lives in the action panel, one press away.
+
+### One panel, two presentations
+
+Press a dog, get that dog's actions. The mental model is identical everywhere;
+only the physical presentation changes.
+
+- **≥ 768px** — `DogActionMenu`, a portalled `role="menu"` anchored beside the
+  token, growing out of its edge. Deliberately **not** a radial menu: a dog
+  offers 3–9 actions and several labels are long ("Take £52 payment"), so arc
+  placement would collide or shrink below a comfortable target and the screen
+  reader order would stop matching the visual one.
+- **< 768px** — `DogActionSheet`, a bottom sheet on `ModalShell`, sized for a
+  thumb at 320px.
+
+Both render the same `tokenActions` list. Actions are state-derived and never
+symmetrical: a collected dog has no "Mark collected", an on-time booking has no
+"Confirm", a booking with no number on file has no "Call".
+
+### Movement, drag and undo
+
+A state change **moves** the token, via FLIP (measure, invert, play — 220 ms,
+one ease-out), because a token that teleports leaves the user asking whether it
+worked. Reduced motion is honoured by doing nothing: the toast and the aria-live
+announcement carry the change instead.
+
+**Drag is an accelerator, never a requirement** (`useTokenDrag`). Forward,
+one zone at a time only — skipping a care step is a decision that deserves the
+confirm dialog, and going backwards is a correction that belongs in the panel
+where the words can be read first. Mouse activates at 6px; **touch needs a
+200 ms hold**, so a busy board can still be scrolled. A drop runs the same
+handler the menu item does, so the unpaid-collection safeguard and the
+staff-reviewed collection notice still fire. Drag is off below 768px, where the
+sheet is faster and there is no room to drag across.
+
+**Undo replaces confirmation** for ordinary reversible moves (check in, start
+groom, ready, collected): the common case costs one tap and the mistake costs
+two. `reverseStatusFor` decides what is reversible; a cancellation ("Didn't
+show") is confirmed, never quietly undone, and the undo write carries
+`_skipCollectionPrompt` so going back never re-opens the owner notice.
+
+### Needs attention
+
+`buildAttentionSummary` — zero reads *"Everything's on track"*; non-zero is one
+press that **dims the calm dogs and rings the exceptional ones where they
+already are**. It never filters them into a separate list: moving a dog to prove
+it needs attention would destroy the spatial memory the board exists to build,
+and the same booking would then appear twice on one screen. Membership is
+exactly the existing `needsAction` union (late, unconfirmed, waiting to be
+collected, unpaid) — a sentence, not a second definition. Turning it on also
+scrolls to the first flagged dog **only if it is off screen**; that press is the
+one place the viewport is allowed to move.
+
+### The header
+
+One anatomy at every width. The date **is** the date-picker control and never
+leaves the screen — it is the only guard against doing today's work on
+Thursday's bookings. Beside it the salon open/closed pill and the
+Manage-availability button carrying its own state. Beneath: the attention
+sentence, the shape of the day (`3 arriving · 6 with us · 2 ready`), and money
+kept secondary (`£286 collected · £152 to collect`), with an over-cap day in
+coral. Deliberately not a KPI row.
+
+### Everything the board did not replace
+
+`AwaitingDepositsCard`, `MissingSizeNotice`, `TodayBriefNotes`, the
+Manage-availability modal (still `buildSlotOpportunities` → `buildAvailabilityView`,
+which **never** forks the capacity engine), `MiniInvoiceModal`, the
+`UnpaidCollectionModal` safeguard, the care-step `ConfirmDialog` and the
+end-of-day facts row (arrived, till by method, expected revenue, capacity) all
+carry over unchanged. Writes go through **one** path — `useBookingActions` →
+the same `onUpdateBooking` the booking detail modal uses — so the three
+BEFORE-INSERT/UPDATE database gates and the optimistic rollback in `useBookings`
+behave exactly as before. There is no second mutation system.
 
 **Typed reminder confirmations.** `needsConfirmation` only clears on
 `bookings.reminder_confirmed_at`, which used to be stamped *only* by the
@@ -116,46 +201,51 @@ their card said "Needs confirmation" indefinitely. Two layers now close that:
    `hooks/useReplyConfirmations.ts` also read the inbox directly for bookings
    still unconfirmed, covering replies that predate (1) and anything outside
    `mark_reminder_confirmed`'s 36-hour window. `applyChatConfirmations` folds
-   the result into the built feed/board so the card, lane warning, "N to
-   confirm" heading and need-action count all agree. This layer never writes and
-   never fabricates a `reminder_confirmed_at` — the green `ConfirmedMark` tick
-   means a recorded confirmation; a derived one renders as a separate
-   "Confirmed in chat" chip carrying the owner's own words.
+   the result into the built board so the token's tier, the zone's exception
+   line and the attention count all agree. This layer never writes and never
+   fabricates a `reminder_confirmed_at`.
 
 The matching lives in **one** place, `supabase/functions/_shared/reminderConfirmation.ts`,
 imported (not mirrored) by both sides. Any cancel / reschedule / "can't make it"
 wording vetoes the whole signal, so "yes, but can we move it?" still reaches a
 human unconfirmed.
 
-**Staff confirmation (customer wins).** An unconfirmed Arriving card also
-offers a quiet **Confirm** action for the owner reached off-channel (phone, in
+**Staff confirmation (customer wins).** An unconfirmed Arriving dog also offers
+a quiet **Confirm booking** action for the owner reached off-channel (phone, in
 person). It writes `reminder_confirmed_at` + `reminder_confirmed_source =
-'staff'` through the ordinary staff update path (the `_confirmArrival` marker
-in `useBookings.updateBooking`), and the `ConfirmedMark` tick then reads
-"Confirmed by staff". If the customer later answers the WhatsApp reminder
-themselves, `mark_reminder_confirmed` **overwrites** the staff stamp with a
-customer one (fresher evidence, straight from the owner) — never the reverse:
-the staff write only happens from a card still showing "Needs confirmation",
-and customer → customer stays idempotent. A date move clears both halves
-(`reset_reminder_on_reschedule`), and each transition emits a correctly
-attributed `reconfirmed` booking event (staff actor vs owner). Authority:
-migration `20260825100000_staff_booking_confirmation.sql`; DB contract test
+'staff'` through the ordinary staff update path (the `_confirmArrival` marker in
+`useBookings.updateBooking`), and the panel then reads "Confirmed by staff". If
+the customer later answers the WhatsApp reminder themselves,
+`mark_reminder_confirmed` **overwrites** the staff stamp with a customer one
+(fresher evidence, straight from the owner) — never the reverse. A date move
+clears both halves (`reset_reminder_on_reschedule`), and each transition emits a
+correctly attributed `reconfirmed` booking event. Authority: migration
+`20260825100000_staff_booking_confirmation.sql`; DB contract test
 `supabase/tests/181_staff_reminder_confirmation.test.sql`.
 
 A mis-tapped staff Confirm is reversible two ways: the success toast carries
-**Undo** for its 10-second life, and a staff-confirmed Arriving card keeps an
-**Unconfirm booking** item in its More menu. Both clear the pair through the
-`_unconfirmArrival` marker, whose update is filtered on
-`reminder_confirmed_source = 'staff'` — so a customer confirmation that raced
-in matches nothing and stands (the UI then says so in an info toast). A
-customer's confirmation is never removable from the UI at all.
+**Undo** for its 10-second life, and the dog's panel keeps an **Unconfirm
+booking** item. Both clear the pair through the `_unconfirmArrival` marker,
+whose update is filtered on `reminder_confirmed_source = 'staff'` — so a
+customer confirmation that raced in matches nothing and stands (the UI then says
+so in an info toast). A customer's confirmation is never removable from the UI.
 
-Actions reuse existing paths: status transitions (which fire `booking_events` +
-the collection-notice modal automatically), `handleOpenBooking`,
-`setShowNewBooking`, inbox deep-link (`/inbox?human=…`). Per-day dismissals are
-local UI state only — they never mutate booking data. "Didn't show" writes
-`cancel_reason = 'No-show'` on a Cancelled booking (there is **no** no-show
-status — see G2).
+"Didn't show" writes `cancel_reason = 'No-show'` on a Cancelled booking (there
+is **no** no-show status — see G2).
+
+### Accessibility contract
+
+Every token is a focusable button whose accessible name is a sentence ("Teddy.
+Ready, waiting 18 min. £52 due. owner Rik Patel."). The menu keeps the full
+`role="menu"` contract — first item focused on open, arrows/Home/End traverse,
+Escape closes and returns focus to the dog, outside click and scroll dismiss.
+**A token that changes zone is a different DOM node in a different list**, so
+focus would otherwise drop to `<body>`; `SalonBoard` remembers the focused
+booking id and restores it after any rearrangement — but only when focus was
+genuinely orphaned, so a modal is never interrupted. Drag has no keyboard
+equivalent because it needs none: every move it performs is a labelled menu
+item. Touch targets are ≥ 44px, urgency is never colour-alone, and there is no
+hover-only information.
 
 ## The reports (`views/ReportsView.jsx`, bands 7–10)
 

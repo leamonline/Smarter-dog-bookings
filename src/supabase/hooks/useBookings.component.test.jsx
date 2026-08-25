@@ -594,14 +594,16 @@ describe("useBookings", () => {
     );
 
     render(<DailyBriefUpdateHarness />);
-    const checkIn = await screen.findByRole("button", { name: "Check in Bella" });
-    fireEvent.click(checkIn);
+    // Press the dog, then Check in from its action panel.
+    fireEvent.click(await screen.findByRole("button", { name: /^Bella\./ }));
+    fireEvent.click(screen.getByRole("button", { name: "Check in — Bella" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check-in could not be saved.",
     );
     expect(screen.queryByText("Couldn't load bookings for this date.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check in Bella" })).toBeInTheDocument();
+    // Bella is still in Arriving — a failed write never moves a dog.
+    expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
   });
 
   it("removeBooking deletes optimistically and reports success", async () => {

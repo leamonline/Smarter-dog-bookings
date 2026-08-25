@@ -1,11 +1,17 @@
-// Daily Brief command centre. Every date-specific selector and mutation is
-// anchored to the selected date, including closed, past and future dates.
+// The live salon board — the staff landing screen.
 //
-// The board is RANKED, not scrolled-to: the header's "Next:" link names the
-// most urgent dog and jumps on request, but the viewport never moves by
-// itself — the date (the guard against wrong-day writes) stays put, and
-// keyboard entry starts at the top of the page like everywhere else.
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+// One dog, one token, in the zone that says where that dog physically is:
+// Arriving → With us → Ready → Gone home. Position carries the status, so the
+// question staff actually ask ("where is Teddy?") is answered by looking
+// rather than by reading a column of badges, and the answer to "does anything
+// need me?" is one sentence at the top.
+//
+// This file composes; it does not decide. Zones, ranking and which actions are
+// legal live in `engine/salonBoard.ts`; every write lives in
+// `useBookingActions`. The viewport still never moves by itself, and the date
+// still never leaves the screen — it is the only guard against doing today's
+// work on Thursday's bookings.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
@@ -14,49 +20,54 @@ import {
   londonWallClockToUtcMs,
   paymentState,
   buildDaySummary,
-  buildNowCounts,
   buildTakingsByMethod,
   buildSlotOpportunities,
   buildAvailabilityView,
-  liveFocusContext,
-  minutesUntilSlot,
-  selectLiveFocus,
   selectDogsMissingSize,
 } from "../../engine/today";
-import { DAY_CAPACITY } from "../../engine/utilisation";
 import {
-  buildDailyBriefBoard,
-  buildDailyBriefFeed,
-  requiresCareSkipConfirmation,
-} from "../../engine/dailyBrief";
+  BOARD_ZONE_META,
+  buildAttentionSummary,
+  buildBoardTokens,
+  buildZoneCounts,
+} from "../../engine/salonBoard";
+import { DAY_CAPACITY } from "../../engine/utilisation";
+import { buildDailyBriefBoard } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
-import { BOOKING_STATUS, NO_SHOW_REASON } from "../../constants/index";
+import { BOOKING_STATUS } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
 import { ConfirmDialog } from "../modals/ConfirmDialog.jsx";
 import { TodayHeader } from "./today/TodayHeader.jsx";
-import { StatusBoard } from "./today/StatusBoard.jsx";
 import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
 import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
+import { useBookingActions } from "./today/useBookingActions.ts";
+import { SalonBoard } from "./today/board/SalonBoard.jsx";
+import { CompletedDogs, EndOfDayFacts } from "./today/board/CompletedDogs.jsx";
+import { UnknownStatusRecovery } from "./today/board/UnknownStatusRecovery.jsx";
 
-// Mirrors the real board: three shell-less lanes of card ghosts.
+// Mirrors the real board: three zones of token ghosts.
 function BoardSkeleton() {
   return (
     <div
-      aria-label="Loading booking status board"
-      className="grid grid-cols-1 items-start gap-6 motion-safe:animate-pulse md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]"
+      aria-label="Loading the salon board"
+      className="grid grid-cols-1 items-start gap-3 motion-safe:animate-pulse md:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]"
     >
-      {[0, 1, 2].map((lane) => (
-        <div key={lane} className="min-w-0">
-          <div className="mb-2.5 h-3 w-24 rounded bg-slate-200/80" />
-          <div className="space-y-2.5">
-            <div className="h-28 rounded-xl border border-brand-paper-line bg-white" />
-            {lane === 0 ? <div className="h-28 rounded-xl border border-brand-paper-line bg-white" /> : null}
+      {[0, 1, 2].map((zone) => (
+        <div key={zone} className="min-w-0 p-2">
+          <div className="mb-3 h-3 w-20 rounded bg-slate-200/80" />
+          <div className="flex gap-3">
+            {Array.from({ length: zone === 0 ? 3 : 2 }, (_, index) => (
+              <div key={index} className="flex flex-col items-center gap-1.5">
+                <div className="size-16 rounded-full bg-slate-200/70" />
+                <div className="h-2.5 w-12 rounded bg-slate-200/60" />
+              </div>
+            ))}
           </div>
         </div>
       ))}
@@ -64,35 +75,11 @@ function BoardSkeleton() {
   );
 }
 
-const BOARD_LANE_BY_STATUS = {
-  [BOOKING_STATUS.BOOKED]: "due",
-  [BOOKING_STATUS.CHECKED_IN]: "withUs",
-  [BOOKING_STATUS.IN_BATH]: "withUs",
-  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
-  [BOOKING_STATUS.COMPLETED]: "home",
-};
-
-// A booked, on-time focus earns the gold primary only once its arrival is
-// this close — before that the board is calm and nothing is yellow.
-const GOLD_DUE_SOON_MINUTES = 15;
-
-const BOARD_LANE_LABEL = {
-  due: "Arriving",
-  withUs: "With us",
-  ready: "Ready to go",
-  home: "Home today",
-  history: "history",
-};
-
-function bookingLane(status) {
-  return BOARD_LANE_BY_STATUS[status] || null;
-}
-
-function boardLaneEntries(board) {
-  return ["due", "withUs", "ready", "home"].flatMap((lane) =>
-    board[lane].map((entry) => [entry.booking.id, {
-      lane,
-      dogName: entry.booking.dogName || "Booking",
+function zoneEntries(tokens) {
+  return ["due", "withUs", "ready", "home"].flatMap((zone) =>
+    tokens[zone].map((token) => [String(token.booking.id), {
+      zone,
+      dogName: token.booking.dogName || "Booking",
     }]),
   );
 }
@@ -122,7 +109,8 @@ export function TodayView({
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Re-tick every minute so "15 min overdue" / "waiting 25 min" stay live.
+  // Re-tick every minute so "15 min late" / "waiting 25 min" stay live, and so
+  // priority gravity re-ranks on a real clock rather than on every render.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -130,22 +118,10 @@ export function TodayView({
   }, []);
 
   const [showAvailability, setShowAvailability] = useState(false);
-  const [invoiceBooking, setInvoiceBooking] = useState(null);
-  const [collectionDueBooking, setCollectionDueBooking] = useState(null);
-  const [pendingCareSkip, setPendingCareSkip] = useState(null);
-  const [showNeedsActionOnly, setShowNeedsActionOnly] = useState(false);
+  const [attentionActive, setAttentionActive] = useState(false);
+  const [selectedTokenId, setSelectedTokenId] = useState(null);
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
-  // In-flight and just-moved cards: the pressed control dims (aria-busy) while
-  // its write is out, and the card flashes once where it lands so a lane move
-  // has visible continuity instead of a silent disappearance.
-  const [busyIds, setBusyIds] = useState(() => new Set());
-  const [flashId, setFlashId] = useState(null);
-  const flashTimerRef = useRef(null);
-  const localLaneMutationIdsRef = useRef(new Set());
-  const previousBoardLanesRef = useRef(null);
-  const focusedBookingIdRef = useRef(null);
-
-  useEffect(() => () => clearTimeout(flashTimerRef.current), []);
+  const previousZonesRef = useRef(null);
 
   const realTodayStr = londonDateStr(now);
   const dateStr = selectedDateStr || realTodayStr;
@@ -167,7 +143,6 @@ export function TodayView({
   const isDayOpen = dayOpenState?.[dateStr] !== false;
 
   // Non-today availability must not inherit the real clock's elapsed slots.
-  // Anchor it to the selected date's start while retaining live cut-offs today.
   const availabilityNow = useMemo(
     () => dateStr === realTodayStr
       ? now
@@ -175,25 +150,60 @@ export function TodayView({
     [dateStr, now, realTodayStr],
   );
 
+  // ---- Display + welfare + payment resolvers ----
+  const resolve = useCallback((booking) => resolveBookingDisplay(booking, dogs, humans), [dogs, humans]);
+  const getWelfare = useCallback((booking) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return { alerts: dog?.alerts || [], pregnant: !!dog?.isPregnant, notes: booking.notes || "" };
+  }, [dogs]);
+  const paymentOf = useCallback((booking) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return paymentState(booking, dog?.customPrice ?? null, configPricing);
+  }, [dogs, configPricing]);
+  const amountDueFor = useCallback((booking) => paymentOf(booking).amountDue ?? null, [paymentOf]);
+
   // ---- Engine selectors ----
   const summary = useMemo(
     () => buildDaySummary(selectedBookings, dogs, configPricing),
     [selectedBookings, dogs, configPricing],
   );
   const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
-  // "Confirmed in chat" — owners who answered the reminder by typing a reply
-  // instead of tapping the Confirm button never stamp reminder_confirmed_at, so
-  // the engine still calls them unconfirmed. Folding the signal into the built
-  // feed (and board) clears the "Needs confirmation" flag everywhere at once:
-  // cards, lane warnings, the "N to confirm" heading and the act-now counts.
+  // Owners who answered the reminder by typing rather than tapping Confirm
+  // never stamp reminder_confirmed_at, so the engine still calls them
+  // unconfirmed. Folding the signal in here clears the flag everywhere at
+  // once: the token's tier, the zone's exception line and the attention count.
   const replyConfirmations = useReplyConfirmations(selectedBookings);
-  const feed = useMemo(
-    () => applyChatConfirmations(
-      buildDailyBriefFeed(selectedBookings, dateStr, now),
-      replyConfirmations,
-    ),
-    [selectedBookings, dateStr, now, replyConfirmations],
+  const board = useMemo(() => {
+    const built = buildDailyBriefBoard(selectedBookings, dateStr, now);
+    return {
+      ...built,
+      due: applyChatConfirmations(built.due, replyConfirmations),
+      withUs: applyChatConfirmations(built.withUs, replyConfirmations),
+      ready: applyChatConfirmations(built.ready, replyConfirmations),
+      home: applyChatConfirmations(built.home, replyConfirmations),
+    };
+  }, [dateStr, now, selectedBookings, replyConfirmations]);
+
+  // A welfare flag lifts a mid-groom dog's prominence, so the pure ranking
+  // layer is handed the ids rather than the dog records.
+  const flaggedBookingIds = useMemo(() => {
+    const flagged = new Set();
+    for (const zone of ["due", "withUs", "ready", "home"]) {
+      for (const entry of board[zone]) {
+        const welfare = getWelfare(entry.booking);
+        if (welfare.pregnant || welfare.alerts.length > 0) flagged.add(String(entry.booking.id));
+      }
+    }
+    return flagged;
+  }, [board, getWelfare]);
+
+  const tokens = useMemo(
+    () => buildBoardTokens({ board, now, isToday, flaggedBookingIds }),
+    [board, now, isToday, flaggedBookingIds],
   );
+  const attention = useMemo(() => buildAttentionSummary(tokens, isToday), [tokens, isToday]);
+  const zoneCounts = useMemo(() => buildZoneCounts(tokens), [tokens]);
+
   const opportunities = useMemo(
     () => buildSlotOpportunities({
       bookings: selectedBookings,
@@ -205,150 +215,97 @@ export function TodayView({
     }),
     [selectedBookings, activeSlots, selectedSettings.overrides, selectedSettings.immediateSlots, availabilityNow, dateStr],
   );
-  const availabilityView = useMemo(() => buildAvailabilityView(opportunities, immediateSet), [opportunities, immediateSet]);
+  const availabilityView = useMemo(
+    () => buildAvailabilityView(opportunities, immediateSet),
+    [opportunities, immediateSet],
+  );
 
-  // "Owner on the way" chips — read-only WhatsApp signal for the dogs currently
-  // waiting to be collected.
-  const readyBookings = useMemo(() => feed.filter((e) => e.stage === "ready").map((e) => e.booking), [feed]);
+  // "Owner on the way" — read-only WhatsApp signal for dogs waiting to go home.
+  const readyBookings = useMemo(() => tokens.ready.map((token) => token.booking), [tokens]);
   const onTheWaySignals = useOnTheWaySignals(readyBookings);
 
-  const visibleFeed = feed;
-  const nowCounts = useMemo(() => buildNowCounts(visibleFeed), [visibleFeed]);
-  const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
-  const displayedFeed = useMemo(
-    () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
-    [showNeedsActionOnly, visibleFeed],
-  );
-  const fullBoard = useMemo(() => {
-    const board = buildDailyBriefBoard(selectedBookings, dateStr, now);
-    return {
-      ...board,
-      due: applyChatConfirmations(board.due, replyConfirmations),
-      withUs: applyChatConfirmations(board.withUs, replyConfirmations),
-      ready: applyChatConfirmations(board.ready, replyConfirmations),
-      home: applyChatConfirmations(board.home, replyConfirmations),
-    };
-  }, [dateStr, now, selectedBookings, replyConfirmations]);
-  const board = useMemo(() => {
-    if (!showNeedsActionOnly) return fullBoard;
-    const keepActionable = (entry) => entry.needsAction;
-    return {
-      due: fullBoard.due.filter(keepActionable),
-      withUs: fullBoard.withUs.filter(keepActionable),
-      ready: fullBoard.ready.filter(keepActionable),
-      home: fullBoard.home.filter(keepActionable),
-      excludedCount: fullBoard.excludedCount,
-      excludedBookings: fullBoard.excludedBookings,
-    };
-  }, [fullBoard, showNeedsActionOnly]);
-  useEffect(() => setShowNeedsActionOnly(false), [dateStr]);
+  const unpaidTotal = useMemo(() => {
+    let total = 0;
+    for (const zone of ["due", "withUs", "ready", "home"]) {
+      for (const token of tokens[zone]) {
+        if (token.entry.owes) total += paymentOf(token.booking).amountDue ?? 0;
+      }
+    }
+    return total;
+  }, [tokens, paymentOf]);
+
+  // ---- Actions (one path, shared by the menu, the sheet and drag-drop) ----
+  const onMessageOwner = useCallback((booking) => {
+    if (booking._ownerId) navigate(`/inbox?human=${booking._ownerId}`);
+    else toast.show("Messaging isn't available for this booking", "info");
+  }, [navigate, toast]);
+
+  const actions = useBookingActions({
+    dateStr,
+    toast,
+    onUpdateBooking,
+    onSendCollection,
+    onOpenBooking,
+    onOpenDog,
+    onOpenHuman,
+    onMessageOwner,
+    amountDueFor,
+  });
+
   useEffect(() => {
-    if (actionCount === 0) setShowNeedsActionOnly(false);
-  }, [actionCount]);
+    setAttentionActive(false);
+    setSelectedTokenId(null);
+  }, [dateStr]);
   useEffect(() => {
-    if (fullBoard.excludedCount === 0 || !import.meta.env?.DEV) return;
+    if (attention.count === 0) setAttentionActive(false);
+  }, [attention.count]);
+
+  useEffect(() => {
+    if (board.excludedCount === 0 || !import.meta.env?.DEV) return;
     // eslint-disable-next-line no-console -- development-only data recovery signal
     console.warn(
-      `Daily Brief excluded ${fullBoard.excludedCount} booking(s) with an unknown or missing status.`,
+      `The salon board excluded ${board.excludedCount} booking(s) with an unknown or missing status.`,
     );
-  }, [fullBoard.excludedCount]);
-  const liveFocus = useMemo(
-    () => (isToday ? selectLiveFocus(displayedFeed) : null),
-    [displayedFeed, isToday],
-  );
-  const liveContext = useMemo(
-    () => (liveFocus ? liveFocusContext(liveFocus, now) : null),
-    [liveFocus, now],
-  );
-  const liveFocusId = liveFocus?.booking.id ?? null;
-  // The gold rule: yellow means "do this NOW". A focus that is merely the
-  // next expected arrival stays outlined until its slot is imminent — a calm
-  // 6:30am board shows no yellow at all, deliberately.
-  const goldId = useMemo(() => {
-    if (!liveFocus) return null;
-    if (liveFocus.stage !== "booked" || liveFocus.isLate) return liveFocus.booking.id;
-    const minutes = minutesUntilSlot(liveFocus.booking.slot || "00:00", now);
-    return minutes <= GOLD_DUE_SOON_MINUTES ? liveFocus.booking.id : null;
-  }, [liveFocus, now]);
-  const nextUp = useMemo(
-    () => (liveFocus && liveContext
-      ? { dogName: liveFocus.booking.dogName || "Booking", text: liveContext.text, tone: liveContext.tone }
-      : null),
-    [liveFocus, liveContext],
-  );
+  }, [board.excludedCount]);
 
-  // The viewport moves only on this explicit request — never on load.
-  const jumpToNext = useCallback(() => {
-    if (!liveFocusId) return;
-    const el = document.getElementById(`today-card-${liveFocusId}`);
-    if (!el) return;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-    el.focus({ preventScroll: true });
-    clearTimeout(flashTimerRef.current);
-    setFlashId(liveFocusId);
-    flashTimerRef.current = setTimeout(() => setFlashId(null), 1400);
-  }, [liveFocusId]);
-
+  // A dog that changes zone because a colleague moved it must be spoken, since
+  // nobody here pressed anything. Moves this session made are already covered
+  // by their own toast, so they are consumed silently.
   useEffect(() => {
-    const onFocusIn = (event) => {
-      focusedBookingIdRef.current = event.target
-        ?.closest?.("[data-booking-id]")
-        ?.getAttribute("data-booking-id") || null;
-    };
-    document.addEventListener("focusin", onFocusIn);
-    return () => document.removeEventListener("focusin", onFocusIn);
-  }, []);
-
-  useEffect(() => {
-    const current = new Map(boardLaneEntries(fullBoard));
-    const previousState = previousBoardLanesRef.current;
-    previousBoardLanesRef.current = { dateStr, lanes: current };
-    if (!previousState || previousState.dateStr !== dateStr) {
-      localLaneMutationIdsRef.current.clear();
+    const current = new Map(zoneEntries(tokens));
+    const previous = previousZonesRef.current;
+    previousZonesRef.current = { dateStr, zones: current };
+    if (!previous || previous.dateStr !== dateStr) {
+      actions.resetLocalMoves();
       return;
     }
 
-    const selectedById = new Map(selectedBookings.map((booking) => [booking.id, booking]));
+    const byId = new Map(selectedBookings.map((booking) => [String(booking.id), booking]));
     const changes = [];
     for (const [id, next] of current) {
-      const previous = previousState.lanes.get(id);
-      if (previous && previous.lane !== next.lane) {
-        changes.push({ id, dogName: next.dogName, from: previous.lane, to: next.lane });
+      const was = previous.zones.get(id);
+      if (was && was.zone !== next.zone) {
+        changes.push({ id, dogName: next.dogName, to: BOARD_ZONE_META[next.zone].title });
       }
     }
-    for (const [id, previous] of previousState.lanes) {
+    for (const [id, was] of previous.zones) {
       if (current.has(id)) continue;
-      const booking = selectedById.get(id);
-      if (booking?.status === BOOKING_STATUS.CANCELLED) {
-        changes.push({ id, dogName: previous.dogName, from: previous.lane, to: "history" });
+      if (byId.get(id)?.status === BOOKING_STATUS.CANCELLED) {
+        changes.push({ id, dogName: was.dogName, to: "cancelled" });
       }
     }
-    if (changes.length === 0) return;
 
-    const remote = changes.filter((change) => {
-      if (!localLaneMutationIdsRef.current.has(change.id)) return true;
-      localLaneMutationIdsRef.current.delete(change.id);
-      return false;
-    });
+    const remote = changes.filter((change) => !actions.consumeLocalMove(change.id));
     if (remote.length === 0) return;
 
     const message = remote.length === 1
-      ? `${remote[0].dogName} moved from ${BOARD_LANE_LABEL[remote[0].from]} to ${BOARD_LANE_LABEL[remote[0].to]}.`
-      : `${remote.length} bookings moved to their latest status.`;
+      ? `${remote[0].dogName} moved to ${remote[0].to}.`
+      : `${remote.length} dogs moved to their latest status.`;
     setBoardAnnouncement("");
     requestAnimationFrame(() => setBoardAnnouncement(message));
     toast.show(message, "info");
-
-    const focusedMove = remote.find((change) => change.id === focusedBookingIdRef.current);
-    if (focusedMove) {
-      requestAnimationFrame(() => {
-        const target = document.querySelector(`[data-booking-id="${focusedMove.id}"]`)
-          || document.querySelector("[data-status-board-root]");
-        target?.focus?.({ preventScroll: true });
-      });
-    }
-  }, [dateStr, fullBoard, selectedBookings, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to arrangement changes only; `actions` is a stable bag of callbacks
+  }, [dateStr, tokens, selectedBookings, toast]);
 
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
@@ -356,288 +313,50 @@ export function TodayView({
   const onOpenReports = useCallback(() => navigate("/reports"), [navigate]);
 
   // Dogs in this week's diary whose RECORD has no size. Anchored to the REAL
-  // today, not the browsed date, so navigating the calendar doesn't change what
-  // is outstanding. Scope is whatever the week loader holds — hence "this week".
+  // today, not the browsed date, so navigating the calendar doesn't change
+  // what is outstanding.
   const dogsMissingSize = useMemo(
     () => selectDogsMissingSize(bookingsByDate, dogs, realTodayStr),
     [bookingsByDate, dogs, realTodayStr],
   );
-
-  // ---- Display + welfare + payment resolvers ----
-  const resolve = useCallback((b) => resolveBookingDisplay(b, dogs, humans), [dogs, humans]);
-  const getWelfare = useCallback((b) => {
-    const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-    return { alerts: dog?.alerts || [], pregnant: !!dog?.isPregnant, notes: b.notes || "" };
-  }, [dogs]);
-  const paymentOf = useCallback((b) => {
-    const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-    return paymentState(b, dog?.customPrice ?? null, configPricing);
-  }, [dogs, configPricing]);
-
-  const unpaidTotal = useMemo(
-    () => visibleFeed.filter((e) => e.owes).reduce((n, e) => n + (paymentOf(e.booking).amountDue ?? 0), 0),
-    [visibleFeed, paymentOf],
-  );
-
-  // ---- Actions (reuse the exact update path the detail modal uses) ----
-  const patch = useCallback(async (
-    b,
-    changes,
-    successMessage,
-    failureMessage = "Booking update could not be saved.",
-    { showFailureToast = true, successAction = null } = {},
-  ) => {
-    const date = b._bookingDate || dateStr;
-    const movesLane = changes.status
-      && bookingLane(changes.status) !== bookingLane(b.status);
-    if (movesLane) localLaneMutationIdsRef.current.add(b.id);
-    setBusyIds((prev) => new Set(prev).add(b.id));
-    let result;
-    try {
-      result = await onUpdateBooking({ ...b, ...changes }, date, date);
-    } catch {
-      result = null;
-    } finally {
-      setBusyIds((prev) => {
-        const next = new Set(prev);
-        next.delete(b.id);
-        return next;
-      });
-    }
-    if (result !== null && result !== false) {
-      if (successMessage) toast.show(successMessage, "success", successAction);
-      if (movesLane) {
-        clearTimeout(flashTimerRef.current);
-        setFlashId(b.id);
-        flashTimerRef.current = setTimeout(() => setFlashId(null), 1400);
-      }
-      return result;
-    }
-    if (movesLane) localLaneMutationIdsRef.current.delete(b.id);
-    if (showFailureToast) {
-      toast.show(failureMessage, "error", {
-        label: "Retry",
-        onClick: () => patch(
-          b,
-          changes,
-          successMessage,
-          failureMessage,
-          { showFailureToast },
-        ),
-      });
-    }
-    return null;
-  }, [onUpdateBooking, toast, dateStr]);
-
-  const performStatusUpdate = useCallback(async (
-    booking,
-    status,
-    successMessage,
-    failureMessage,
-    options = {},
-  ) => patch(
-    booking,
-    {
-      status,
-      ...(options.skipCollectionPrompt ? { _skipCollectionPrompt: true } : {}),
-    },
-    successMessage,
-    failureMessage,
-  ), [patch]);
-
-  const updateStatus = useCallback(async (
-    booking,
-    status,
-    successMessage,
-    failureMessage,
-    options = {},
-  ) => {
-    const skipped = requiresCareSkipConfirmation(booking.status, status);
-    if (skipped && !options.skipConfirmation) {
-      // In-product confirm (never window.confirm — see docs/modal-standard.md).
-      setPendingCareSkip({ booking, status, successMessage, failureMessage, options, skippedText: skipped });
-      return null;
-    }
-    return performStatusUpdate(booking, status, successMessage, failureMessage, options);
-  }, [performStatusUpdate]);
-
-  const confirmCareSkip = useCallback(async () => {
-    const pending = pendingCareSkip;
-    setPendingCareSkip(null);
-    if (!pending) return;
-    await performStatusUpdate(
-      pending.booking,
-      pending.status,
-      pending.successMessage,
-      pending.failureMessage,
-      pending.options,
-    );
-  }, [pendingCareSkip, performStatusUpdate]);
-
-  const onJourneyAction = useCallback(async (booking, action) => {
-    if (action.completed && action.id !== "paid") return null;
-    if (action.id === "checkIn") {
-      return updateStatus(
-        booking,
-        BOOKING_STATUS.CHECKED_IN,
-        `${booking.dogName} checked in — with us now`,
-        "Check-in could not be saved.",
-      );
-    }
-    if (action.id === "startGroom") {
-      return updateStatus(
-        booking,
-        BOOKING_STATUS.IN_BATH,
-        `${booking.dogName} — groom started`,
-        "Starting the groom could not be saved.",
-      );
-    }
-    if (action.id === "ready") {
-      const saved = await updateStatus(
-        booking,
-        BOOKING_STATUS.READY_FOR_PICKUP,
-        `${booking.dogName} is ready to go home`,
-        "Ready for collection could not be saved.",
-        { skipCollectionPrompt: true, skipConfirmation: true },
-      );
-      if (saved) {
-        onSendCollection({
-          ...booking,
-          ...saved,
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
-        });
-      }
-      return saved;
-    }
-    if (action.id === "collected") {
-      return updateStatus(
-        booking,
-        BOOKING_STATUS.COMPLETED,
-        `${booking.dogName} collected — home today`,
-        "Collection could not be saved.",
-      );
-    }
-    if (action.id === "paid") setInvoiceBooking(booking);
-    return null;
-  }, [onSendCollection, updateStatus]);
-
-  const onRequestCollected = useCallback((booking) => {
-    const payment = paymentOf(booking);
-    if (payment.amountDue != null && payment.amountDue > 0) {
-      setCollectionDueBooking(booking);
-      return;
-    }
-    onJourneyAction(booking, { id: "collected", completed: false });
-  }, [onJourneyAction, paymentOf]);
-
-  const onOpenDepositBooking = useCallback(
-    (booking) => onOpenBooking?.(booking.id),
-    [onOpenBooking],
-  );
-  const onOpenInvoice = useCallback((booking) => setInvoiceBooking(booking), []);
-  const onSaveInvoice = useCallback(
-    (booking, invoicePatch) => patch(
-      booking,
-      invoicePatch,
-      "Payment recorded",
-      "Payment could not be saved.",
-      { showFailureToast: false },
-    ),
-    [patch],
-  );
-  const onDidntShow = useCallback(
-    (b) => patch(
-      b,
-      { status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON },
-      `${b.dogName} marked as a no-show`,
-      "Marking this booking as a no-show could not be saved.",
-    ),
-    [patch],
-  );
-  const onMessageOwner = useCallback((b) => {
-    if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
-    else toast.show("Messaging isn't available for this booking", "info");
-  }, [navigate, toast]);
-  // Undo of a staff confirmation (mis-tap): clears the pair. The write path
-  // guards on source='staff', so if the customer's own confirmation raced in
-  // it matches nothing and their word stands — the quiet info toast covers
-  // that case and any save failure alike, with nothing to retry.
-  const onUnconfirmArrival = useCallback(async (b) => {
-    // In-memory revert of the derived reminderState (the server recomputes it
-    // from notification_log on refetch; offline this IS the state): the toast
-    // Undo closes over the pre-confirm booking, so its own reminderState is
-    // the answer; the More-menu path sees the confirmed booking and falls
-    // back to the state stashed at confirm time, then to sent-log evidence.
-    const revertState = b.reminderState === "confirmed"
-      ? b._preConfirmReminderState ?? (b.reminderSentAt ? "sent" : "none")
-      : b.reminderState ?? "none";
-    const result = await patch(
-      b,
-      {
-        _unconfirmArrival: true,
-        reminderConfirmedAt: null,
-        reminderConfirmedBy: null,
-        reminderState: revertState,
-      },
-      `${b.dogName}'s booking is unconfirmed again`,
-      undefined,
-      { showFailureToast: false },
-    );
-    if (!result) {
-      toast.show(
-        "Couldn't undo — if the customer has just confirmed themselves, their confirmation stands.",
-        "info",
-      );
-    }
-  }, [patch, toast]);
-  // Staff confirmation: the owner confirmed off-channel (phone, in person).
-  // The _confirmArrival marker makes the write path stamp
-  // reminder_confirmed_at/_source='staff'; a later customer WhatsApp
-  // confirmation overwrites it server-side. The in-memory fields keep the
-  // offline path (which merges this object verbatim) consistent. The toast's
-  // Undo closes over the pre-confirm booking, so it reverts exactly.
-  const onConfirmArrival = useCallback(
-    (b) => patch(
-      b,
-      {
-        _confirmArrival: true,
-        reminderConfirmedAt: new Date().toISOString(),
-        reminderConfirmedBy: "staff",
-        reminderState: "confirmed",
-        // In-memory only (the DB payload is explicit): lets a later
-        // Unconfirm revert the derived reminderState truthfully offline.
-        _preConfirmReminderState: b.reminderState ?? "none",
-      },
-      `${b.dogName}'s booking confirmed`,
-      "Confirming this booking could not be saved.",
-      { successAction: { label: "Undo", onClick: () => onUnconfirmArrival(b) } },
-    ),
-    [patch, onUnconfirmArrival],
-  );
-  const onNewBookingSlot = useCallback((slot) => onNewBooking({ dateStr, slot }), [onNewBooking, dateStr]);
-  const onToggleImmediate = useCallback((slot) => toggleImmediateSlot(slot), [toggleImmediateSlot]);
 
   const dateLabel = dateObj.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
-  const isEmptyDay = feed.length === 0;
+  const isEmptyDay = selectedBookings.length === 0
+    || (tokens.due.length + tokens.withUs.length + tokens.ready.length + tokens.home.length === 0
+      && board.excludedCount === 0);
   const isRefreshing = bookingsLoading && selectedBookings.length > 0;
 
-  const feedHandlers = {
-    onOpenDog,
-    onOpenHuman,
-    onOpenBooking,
-    onOpenInvoice,
-    onMessageOwner,
-    onConfirmArrival,
-    onUnconfirmArrival,
-    onJourneyAction,
-    onRequestCollected,
-    onDidntShow,
-    onTheWaySignals,
-  };
+  const boardHandlers = useMemo(
+    () => ({ onTokenAction: actions.runTokenAction }),
+    [actions.runTokenAction],
+  );
+
+  /**
+   * Turning highlighting on also takes you to the first dog that needs you,
+   * but only if it is off screen — the viewport never moves on its own, and
+   * the date must stay put. This is the one deliberate exception, on a press.
+   */
+  const toggleAttention = useCallback(() => {
+    setAttentionActive((active) => {
+      const next = !active;
+      if (!next || attention.ids.length === 0) return next;
+      requestAnimationFrame(() => {
+        const target = document.querySelector(
+          `[data-booking-id="${attention.ids[0]}"] [data-dog-token]`,
+        );
+        if (!target) return;
+        const box = target.getBoundingClientRect();
+        if (box.top >= 0 && box.bottom <= window.innerHeight) return;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      });
+      return next;
+    });
+  }, [attention.ids]);
 
   return (
     <div className="min-h-full bg-brand-paper">
@@ -645,22 +364,20 @@ export function TodayView({
         dateLabel={dateLabel}
         dogsBooked={summary.dogsBooked}
         capacityTotal={DAY_CAPACITY}
-        nowCounts={nowCounts}
-        actionCount={actionCount}
+        attention={attention}
+        zoneCounts={zoneCounts}
+        collectedTotal={takings?.total ?? 0}
         unpaidTotal={unpaidTotal}
         isDayOpen={isDayOpen}
         isToday={isToday}
         nextOnlineSlot={availabilityView.nextOnlineSlot}
-        nextUp={nextUp}
-        onJumpToNext={jumpToNext}
         onOpenDatePicker={onOpenDatePicker}
         onManageAvailability={() => setShowAvailability(true)}
-        actionFilterActive={showNeedsActionOnly}
-        onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
+        attentionActive={attentionActive}
+        onToggleAttention={toggleAttention}
       />
 
-      <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6 pb-10">
-
+      <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-5 pb-10">
         <p className="sr-only" aria-live="polite" aria-atomic="true">{boardAnnouncement}</p>
 
         {isRefreshing ? (
@@ -669,14 +386,12 @@ export function TodayView({
           </div>
         ) : null}
 
-        {showNeedsActionOnly && (
-          <p
-            role="status"
-            className="-mb-2 px-0.5 text-[12px] font-semibold text-brand-purple"
-          >
-            Showing {actionCount} {actionCount === 1 ? "booking" : "bookings"} needing attention — late, unconfirmed, waiting to be collected, or unpaid.
+        {attentionActive ? (
+          <p role="status" className="-mb-2 px-1 text-[12px] font-semibold text-brand-purple">
+            Highlighting {attention.count} {attention.count === 1 ? "dog that needs" : "dogs that need"} you —
+            every other dog is dimmed, not hidden.
           </p>
-        )}
+        ) : null}
 
         {bookingsError && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark">
@@ -699,30 +414,42 @@ export function TodayView({
           </>
         ) : (
           <>
-            {isToday && !showNeedsActionOnly && (
+            {isToday && (
               <AwaitingDepositsCard
                 bookings={selectedBookings}
                 now={now}
-                onOpenBooking={onOpenDepositBooking}
+                onOpenBooking={(booking) => onOpenBooking?.(booking.id)}
               />
             )}
+            <UnknownStatusRecovery
+              bookings={board.excludedBookings || []}
+              resolve={resolve}
+              onOpenBooking={onOpenBooking}
+            />
             <div className={isRefreshing ? "opacity-70 motion-safe:transition-opacity" : "motion-safe:transition-opacity"}>
-              <StatusBoard
-                board={board}
+              <SalonBoard
+                tokens={tokens}
                 resolve={resolve}
                 getWelfare={getWelfare}
                 paymentOf={paymentOf}
-                liveFocusId={goldId}
-                isToday={isToday}
-                handlers={feedHandlers}
+                handlers={boardHandlers}
                 onTheWaySignals={onTheWaySignals}
-                busyIds={busyIds}
-                flashId={flashId}
-                summary={summary}
-                takings={takings}
-                capacityTotal={DAY_CAPACITY}
+                busyIds={actions.busyIds}
+                attentionActive={attentionActive}
+                landedId={actions.landedId}
+                selectedId={selectedTokenId}
+                onSelectToken={setSelectedTokenId}
               />
             </div>
+            <CompletedDogs
+              tokens={tokens.home}
+              isToday={isToday}
+              resolve={resolve}
+              paymentOf={paymentOf}
+              onOpenBooking={onOpenBooking}
+              onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
+            />
+            <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
@@ -736,43 +463,43 @@ export function TodayView({
             onClose={() => setShowAvailability(false)}
             view={availabilityView}
             dogsBooked={summary.dogsBooked}
-            onToggleImmediate={onToggleImmediate}
-            onNewBooking={(slot) => { setShowAvailability(false); onNewBookingSlot(slot); }}
+            onToggleImmediate={(slot) => toggleImmediateSlot(slot)}
+            onNewBooking={(slot) => { setShowAvailability(false); onNewBooking({ dateStr, slot }); }}
           />
         )}
-        {pendingCareSkip && (
+        {actions.pendingCareSkip && (
           <ConfirmDialog
-            title={`${pendingCareSkip.booking.dogName} has not ${pendingCareSkip.skippedText}`}
+            title={`${actions.pendingCareSkip.booking.dogName} has not ${actions.pendingCareSkip.skippedText}`}
             body="You can continue anyway — the skipped step is simply left unrecorded."
             confirmLabel="Continue anyway"
             cancelLabel="Go back"
-            onConfirm={confirmCareSkip}
-            onClose={() => setPendingCareSkip(null)}
+            onConfirm={actions.confirmCareSkip}
+            onClose={() => actions.setPendingCareSkip(null)}
           />
         )}
-        {invoiceBooking && (
+        {actions.invoiceBooking && (
           <MiniInvoiceModal
-            booking={invoiceBooking}
-            dog={getDogByIdOrName(dogs, invoiceBooking._dogId || invoiceBooking.dogName)}
+            booking={actions.invoiceBooking}
+            dog={getDogByIdOrName(dogs, actions.invoiceBooking._dogId || actions.invoiceBooking.dogName)}
             configPricing={configPricing}
-            onSave={(invoicePatch) => onSaveInvoice(invoiceBooking, invoicePatch)}
-            onClose={() => setInvoiceBooking(null)}
+            onSave={(invoicePatch) => actions.saveInvoice(actions.invoiceBooking, invoicePatch)}
+            onClose={() => actions.setInvoiceBooking(null)}
           />
         )}
-        {collectionDueBooking && (
+        {actions.collectionDueBooking && (
           <UnpaidCollectionModal
-            booking={collectionDueBooking}
-            amountDue={paymentOf(collectionDueBooking).amountDue ?? 0}
+            booking={actions.collectionDueBooking}
+            amountDue={paymentOf(actions.collectionDueBooking).amountDue ?? 0}
             onTakePayment={() => {
-              setInvoiceBooking(collectionDueBooking);
-              setCollectionDueBooking(null);
+              actions.setInvoiceBooking(actions.collectionDueBooking);
+              actions.setCollectionDueBooking(null);
             }}
             onMarkCollected={async () => {
-              const booking = collectionDueBooking;
-              setCollectionDueBooking(null);
-              await onJourneyAction(booking, { id: "collected", completed: false });
+              const booking = actions.collectionDueBooking;
+              actions.setCollectionDueBooking(null);
+              await actions.markCollected(booking);
             }}
-            onClose={() => setCollectionDueBooking(null)}
+            onClose={() => actions.setCollectionDueBooking(null)}
           />
         )}
       </div>
