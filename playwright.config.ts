@@ -44,6 +44,13 @@ export default defineConfig({
         // WebKit stays deliberately narrow. It exists for cross-browser smoke
         // coverage, and the other specs have never been validated against it —
         // widening it here would trade a real gate for unrelated WebKit noise.
+        //
+        // In CI this testMatch is belt-and-braces, not the mechanism: the PR
+        // gate names each project's specs on its own command line, because it
+        // checks out the pull-request head and so may be running a config
+        // older than the gate. See the comment in ci.yml. It still matters
+        // locally, where `PLAYWRIGHT_PR_SMOKE=1 npx playwright test` should
+        // reproduce what the gate runs.
         {
           name: "mobile-webkit",
           use: { ...devices["iPhone 13"], browserName: "webkit" },
