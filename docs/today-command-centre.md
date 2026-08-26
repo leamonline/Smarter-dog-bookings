@@ -93,8 +93,19 @@ weight, and the token's accessible name all say the same thing.
 
 A 64px avatar (72px on a tablet) with deterministic initials — **there are no dog
 photos in this data model**; `groom_photos` is a separate staff-only gallery, not
-a profile picture, and none is fabricated. Then the dog's name and **one** piece
-of context: the appointment time while arriving, elapsed minutes once here.
+a profile picture, and none is fabricated. Then the dog's name and **at most one**
+piece of context.
+
+Which piece depends on whether the fact belongs to the dog or to its appointment:
+
+- **Once a dog is here**, the number is its own — elapsed time on site, or how
+  long it has been waiting to be collected — so it prints on the token.
+- **While a dog is still arriving**, the time belongs to the *slot*, not to the
+  dog standing in it. Four dogs booked into 09:00 are all "20 min late"
+  together, so printing it under each of them would repeat one fact four times.
+  It is stated once, on the slot heading (see below), and an arriving token
+  prints only what that heading cannot know: **To confirm**, when this
+  particular booking is still unconfirmed.
 
 Three facts earn extra ink, because each costs money or welfare if missed:
 
@@ -109,6 +120,25 @@ Three facts earn extra ink, because each costs money or welfare if missed:
 
 Everything else — service, owner, payment sentence, who confirmed and when, the
 full safety text — lives in the action panel, one press away.
+
+### Arriving is a schedule, so it groups by slot
+
+Arriving is the one zone with an inherent order that is not "how long has this
+been going on" — it is the diary. `groupTokensBySlot` splits it into one group
+per appointment time, each headed by the time, the dog count when there is more
+than one, and the countdown or lateness the whole group shares
+(`08:30 · 4 dogs · 45 min late`). The other zones stay a flat grid, because
+their numbers genuinely differ per dog.
+
+Grouping can never reorder the board: a group takes the position of its first
+dog in the already-ranked token list, and since lateness is a property of the
+slot, ranking by "late first, then soonest" and ordering groups by first
+appearance produce the same sequence. A booking with **no usable slot** must
+never disappear, so those collect in a trailing **Unscheduled** group.
+
+The trade is vertical space — a busy Arriving zone is taller as a schedule than
+as a flat grid, and on a lopsided day the other two zones leave whitespace
+beside it. That is the accepted cost of stating each time once.
 
 ### One panel, two presentations
 

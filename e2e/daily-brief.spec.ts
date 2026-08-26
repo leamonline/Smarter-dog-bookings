@@ -250,10 +250,32 @@ test("urgency is spatial: the late dog leads its zone and is marked, not just co
   // Coco is 45 minutes overdue at 09:15, so it sorts to the front.
   await expect(tokens.first()).toHaveAttribute("data-booking-id", "101");
   await expect(tokens.first()).toHaveAttribute("data-tier", "urgent");
-  // The lateness is stated in words on the token, not implied by the ring.
-  await expect(tokens.first().locator("[data-token-meta]")).toHaveText("45 min late");
+  // The lateness is stated in words — once, on the slot the dog is booked into,
+  // not implied by the ring and not repeated under every dog due then.
+  await expect(
+    arriving.locator('[data-slot-group="08:30"] [data-slot-timing]'),
+  ).toHaveText("45 min late");
   // And spoken in full to a screen reader.
   await expect(dogToken(page, "Coco")).toHaveAccessibleName(/Late, 45 min overdue/);
+});
+
+test("a shared appointment time is stated once, not under every dog booked into it", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  // Max (08:30) and Rex (12:00) are each alone in their slot here, so each
+  // group heads one dog — and neither dog prints its own time.
+  const arriving = zone(page, "Arriving, 2 dogs");
+  const groups = arriving.locator("[data-slot-group]");
+  await expect(groups).toHaveCount(2);
+  await expect(groups.first().getByRole("heading", { level: 3 })).toHaveText("08:30");
+  await expect(arriving.locator("[data-token-meta]")).toHaveCount(0);
+
+  // Every dog is still reachable and still says its own time out loud.
+  await expect(dogToken(page, "Max")).toHaveAccessibleName(/Max\./);
+  await expect(dogToken(page, "Rex")).toHaveAccessibleName(/Arriving/);
 });
 
 test("a quiet early morning shows a calm board and no alarms", async ({ page }) => {

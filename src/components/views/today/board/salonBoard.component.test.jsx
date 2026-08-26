@@ -134,11 +134,52 @@ describe("the board", () => {
     expect(within(cell).queryByText(/Ready for collection/)).not.toBeInTheDocument();
   });
 
-  it("marks urgency on the token with a ring AND the meta text, never colour alone", () => {
+  it("marks urgency with a ring AND words, never colour alone", () => {
     render(<BoardHarness bookings={[booking({ id: "a", dogName: "Late", slot: "08:30" })]} />);
     const cell = document.querySelector('[data-booking-id="a"]');
     expect(cell.dataset.tier).toBe("urgent");
-    expect(cell.querySelector("[data-token-meta]").textContent).toBe("1 hr 30 min late");
+    // The lateness is a fact about the slot, so it is stated on the slot's
+    // heading — in words, in coral — rather than under the dog.
+    const timing = document.querySelector('[data-slot-group="08:30"] [data-slot-timing]');
+    expect(timing.textContent).toBe("1 hr 30 min late");
+    expect(timing.className).toMatch(/text-brand-coral-text/);
+  });
+
+  it("states a shared appointment time once, not under every dog booked into it", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Coco", slot: "09:00" }),
+      booking({ id: "b", dogName: "Teddy", slot: "09:00" }),
+      booking({ id: "c", dogName: "Rex", slot: "12:00" }),
+    ]} />);
+
+    const nine = document.querySelector('[data-slot-group="09:00"]');
+    expect(within(nine).getByRole("heading", { level: 3 })).toHaveTextContent("09:00");
+    expect(within(nine).getByText("2 dogs")).toBeInTheDocument();
+    expect(nine.querySelectorAll("[data-token-cell]")).toHaveLength(2);
+    // Neither of the two dogs repeats the time.
+    expect(nine.querySelectorAll("[data-token-meta]")).toHaveLength(0);
+    expect(document.querySelectorAll("[data-slot-group]")).toHaveLength(2);
+  });
+
+  it("prints on an arriving token only what its slot heading cannot say", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Poppy", slot: "12:00", reminderState: "sent", confirmationChannel: "whatsapp" }),
+      booking({ id: "b", dogName: "Rex", slot: "12:00" }),
+    ]} />);
+    expect(
+      document.querySelector('[data-booking-id="a"] [data-token-meta]').textContent,
+    ).toBe("To confirm");
+    expect(document.querySelector('[data-booking-id="b"] [data-token-meta]')).toBeNull();
+  });
+
+  it("keeps a slotless booking visible in a trailing Unscheduled group", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Timed", slot: "09:00" }),
+      booking({ id: "b", dogName: "Slotless", slot: "" }),
+    ]} />);
+    const groups = [...document.querySelectorAll("[data-slot-group]")];
+    expect(groups.at(-1).dataset.slotGroup).toBe("unscheduled");
+    expect(within(groups.at(-1)).getByText("Slotless")).toBeInTheDocument();
   });
 
   it("keeps a welfare fact visible ON the board, never only behind a tap", () => {
