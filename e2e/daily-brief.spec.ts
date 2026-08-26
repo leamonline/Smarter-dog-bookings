@@ -259,6 +259,36 @@ test("urgency is spatial: the late dog leads its zone and is marked, not just co
   await expect(dogToken(page, "Coco")).toHaveAccessibleName(/Late, 45 min overdue/);
 });
 
+test("the slot time sits beside its dogs on a wide screen and above them below xl", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+
+  // The gutter's breakpoint is measured, not guessed: it takes 80px off the
+  // token grid, which is free at 1280 and costs a whole token column below it
+  // — at which point the "saving" makes the zone TALLER than the heading it
+  // replaced. So the layout must actually flip at xl, not merely look right.
+  const geometry = async () =>
+    page.evaluate(() => {
+      const group = document.querySelector('[data-slot-group="08:30"]')!;
+      const time = group.querySelector("h3")!.getBoundingClientRect();
+      const token = group.querySelector("[data-token-cell]")!.getBoundingClientRect();
+      return { timeRight: time.right, timeBottom: time.bottom, tokenLeft: token.left, tokenTop: token.top };
+    });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/today?date=2026-07-13");
+  await page.getByRole("region", { name: /^Arriving,/ }).waitFor();
+  const wide = await geometry();
+  expect(wide.timeRight).toBeLessThanOrEqual(wide.tokenLeft);
+  expect(wide.timeBottom).toBeGreaterThan(wide.tokenTop);
+
+  await page.setViewportSize({ width: 768, height: 1100 });
+  await page.getByRole("region", { name: /^Arriving,/ }).waitFor();
+  const narrow = await geometry();
+  expect(narrow.timeBottom).toBeLessThanOrEqual(narrow.tokenTop);
+});
+
 test("a shared appointment time is stated once, not under every dog booked into it", async ({
   page,
 }) => {

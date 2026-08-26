@@ -11,7 +11,9 @@
 //
 // Arriving is the exception: it is a schedule, so it groups by appointment
 // time. The time belongs to the slot, not to each dog waiting in it, and is
-// stated once above the dogs due then rather than repeated under every one.
+// stated once per slot rather than repeated under every one — in a left-hand
+// gutter beside its dogs where there is room for one, which costs the group no
+// row of its own.
 import { BOARD_ZONE_META, groupTokensBySlot } from "../../../../engine/salonBoard";
 import { DogToken } from "./DogToken.jsx";
 
@@ -52,7 +54,14 @@ export function BoardZone({
   const renderTokens = (list, testId) => (
     <ul
       data-testid={`${testId}-zone-tokens`}
-      className="grid list-none grid-cols-[repeat(auto-fill,minmax(84px,1fr))] items-start gap-x-1 gap-y-3 sm:grid-cols-[repeat(auto-fill,minmax(92px,1fr))]"
+      className={`grid list-none items-start gap-x-1 gap-y-3 ${
+        // Arriving drops back to the compact track at xl, where the gutter
+        // takes its 80px — that is what keeps the gutter from costing a token
+        // column. Everywhere else it matches the other zones.
+        zone === "due"
+          ? "grid-cols-[repeat(auto-fill,minmax(84px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(92px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(84px,1fr))]"
+          : "grid-cols-[repeat(auto-fill,minmax(84px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(92px,1fr))]"
+      }`}
     >
       {list.map((token) => {
         const id = String(token.booking.id);
@@ -117,8 +126,20 @@ export function BoardZone({
       ) : zone === "due" ? (
         <div data-testid="due-zone-groups" className="flex flex-col gap-2.5">
           {groupTokensBySlot(tokens).map((group) => (
-            <div key={group.key} data-slot-group={group.key} className="min-w-0">
-              <div className="mb-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 px-1">
+            <div
+              key={group.key}
+              data-slot-group={group.key}
+              // The time sits in a left gutter BESIDE its dogs, so a slot costs
+              // no row of its own — but only from xl, and the breakpoint is
+              // measured rather than guessed. The gutter takes 80px off the
+              // token grid, which is free at 1280 (the zone is ~458px and still
+              // fits four tokens) and expensive below it: at 1024 and 768 the
+              // zone is ~350px, the grid drops from three columns to two, and
+              // the layout gets ~11% TALLER than the heading it replaced.
+              // Below xl the heading goes back above its row.
+              className="grid min-w-0 grid-cols-1 xl:grid-cols-[5rem_minmax(0,1fr)] xl:gap-x-2"
+            >
+              <div className="mb-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 px-1 xl:mb-0 xl:flex-col xl:items-start xl:gap-x-0 xl:pt-2">
                 <h3 className="text-[13px] font-bold tabular-nums text-brand-purple">{group.label}</h3>
                 {group.tokens.length > 1 ? (
                   <span className="text-[11px] font-semibold text-slate-500">
@@ -128,7 +149,11 @@ export function BoardZone({
                 {group.timing ? (
                   <span
                     data-slot-timing
-                    className={`text-[11px] font-bold tabular-nums ${
+                    // Balanced wrapping, not a wider gutter: 88px would fit
+                    // "in 1 hr 45 min" on one line but costs a whole token
+                    // column at 1280 (measured: 4 → 3, and the zone gets
+                    // taller than the layout this replaced).
+                    className={`text-[11px] font-bold leading-tight tabular-nums text-balance ${
                       group.tokens[0].tier === "urgent" ? "text-brand-coral-text" : "text-slate-500"
                     }`}
                   >
