@@ -173,6 +173,17 @@ export interface Booking {
    * customer confirmation overwrites it (mark_reminder_confirmed).
    */
   _confirmArrival?: boolean;
+  /**
+   * Transient UI instruction: undo of a staff confirmation. The write path
+   * clears the confirmation pair, filtered on source='staff', so a customer's
+   * own confirmation that raced in is never wiped.
+   */
+  _unconfirmArrival?: boolean;
+  /**
+   * Transient, in-memory only: the derived reminderState before a staff
+   * confirmation, so an Undo can revert it truthfully while offline.
+   */
+  _preConfirmReminderState?: string;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;

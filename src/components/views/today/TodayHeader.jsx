@@ -1,100 +1,40 @@
-// Daily Brief header — one identity row and one status sentence, the same
-// anatomy at every width. The date IS the date-picker control; availability
-// state lives on the button that manages it; the act-now numbers are itemised
-// so the count defines itself ("1 late · 1 to confirm") instead of an opaque
-// "N need action" whose meaning hid in a hover tooltip.
-import { CalendarDays, ChevronDown, ChevronRight, Clock3 } from "lucide-react";
+// The board's header — the day, and whether it is going well.
+//
+// Two lines, one anatomy at every width. The first is identity and control:
+// the date IS the date-picker (it must never leave the screen — it is the only
+// guard against doing today's work on Thursday's bookings), the salon's
+// open/closed state, and the availability button carrying its own status.
+//
+// The second answers the only question worth answering from a distance:
+// "everything's on track", or "2 things need you" — followed by the shape of
+// the day and, quietly, the money. Deliberately NOT a KPI row: every number
+// here either changes what someone does next or is one glance of reassurance.
+import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { PageHeader, PageHeaderPill } from "../../ui/PageHeader.jsx";
 import { formatMoney } from "./parts.jsx";
+import {
+  NeedsAttentionSummary,
+  NEEDS_ATTENTION_DEFINITION,
+} from "./board/NeedsAttentionSummary.jsx";
 
-// The union the needs-attention FILTER shows (money is deliberately part of
-// the filter so an owing dog can never be filtered out of sight, even though
-// it is not part of the act-now counts).
-export const NEEDS_ACTION_DEFINITION =
-  "Needs attention means late arrivals, unconfirmed bookings, dogs waiting to be collected, and unpaid balances.";
-
-function segmentPlural(count, singular, plural = null) {
-  return `${count} ${count === 1 ? singular : plural || `${singular}s`}`;
-}
-
-/**
- * The itemised act-now cluster. Zero → a calm sentence (today only — a past
- * or future date needs no reassurance). Non-zero → one toggle that filters
- * the board to everything needing attention; the segments name the reasons so
- * the number is self-defining.
- */
-function NowCluster({ nowCounts, actionCount, isToday, active, onToggle }) {
-  const { late, toConfirm, waiting, dogs } = nowCounts;
-  if (dogs === 0 && actionCount === 0) {
-    return isToday ? (
-      <span className="text-[13px] font-bold text-brand-teal-text">Nothing needs you yet</span>
-    ) : null;
-  }
-
-  const segments = [
-    late > 0 && { text: `${late} late`, tone: "text-brand-coral-text" },
-    toConfirm > 0 && { text: `${toConfirm} to confirm`, tone: "text-amber-800" },
-    waiting > 0 && { text: `${waiting} waiting`, tone: "text-brand-purple" },
-  ].filter(Boolean);
-  // A day can need attention on money alone (act-now counts all zero).
-  if (segments.length === 0) {
-    segments.push({ text: segmentPlural(actionCount, "to review"), tone: "text-brand-purple" });
-  }
-
-  if (active) {
-    return (
-      <button
-        type="button"
-        aria-pressed="true"
-        aria-label={`Show all bookings; ${actionCount} currently need attention`}
-        aria-describedby="needs-action-definition"
-        data-filter-selected="true"
-        onClick={onToggle}
-        className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control bg-brand-purple px-3 text-[13px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
-      >
-        Showing {actionCount} · Clear
-      </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-pressed="false"
-      aria-label={`Filter to the ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing attention: ${segments.map((s) => s.text).join(", ")}`}
-      aria-describedby="needs-action-definition"
-      data-filter-selected="false"
-      onClick={onToggle}
-      className="group inline-flex min-h-11 shrink-0 items-center gap-x-2 rounded-control px-2 -mx-1 text-[13px] font-bold leading-none outline-none transition-colors hover:bg-brand-coral/[0.06] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
-    >
-      {segments.map((segment, index) => (
-        <span key={segment.text} className={`whitespace-nowrap tabular-nums ${segment.tone}`}>
-          {index > 0 ? <span aria-hidden="true" className="mr-2 font-normal text-slate-300">·</span> : null}
-          {segment.text}
-        </span>
-      ))}
-      <ChevronRight size={13} aria-hidden="true" className="self-center text-slate-400 transition-colors group-hover:text-brand-coral-text" />
-    </button>
-  );
-}
+export { NEEDS_ATTENTION_DEFINITION };
 
 export function TodayHeader({
   dateLabel,
   dogsBooked,
   capacityTotal = DAY_CAPACITY,
-  nowCounts = { late: 0, toConfirm: 0, waiting: 0, dogs: 0 },
-  actionCount = 0,
+  attention = { count: 0, headline: "", ids: [] },
+  zoneCounts = [],
+  collectedTotal = 0,
   unpaidTotal = 0,
   isDayOpen,
   isToday = false,
   nextOnlineSlot = null,
-  nextUp = null,
-  onJumpToNext,
   onOpenDatePicker,
   onManageAvailability,
-  actionFilterActive = false,
-  onToggleActionFilter,
+  attentionActive = false,
+  onToggleAttention,
 }) {
   const availabilityLabel = nextOnlineSlot
     ? `Next online ${nextOnlineSlot}`
@@ -102,12 +42,11 @@ export function TodayHeader({
       ? "No online slots today"
       : "Online booking closed";
   const overCap = dogsBooked > capacityTotal;
+  const shape = zoneCounts.filter((entry) => entry.count > 0);
 
   return (
     <PageHeader title="Daily Brief" className="!mb-4 !min-h-0 !gap-1.5 !py-3">
       <div className="grid w-full gap-1.5">
-        {/* Identity row: the date is the picker; availability state lives on
-            the button that manages it. */}
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
           <button
             type="button"
@@ -141,26 +80,44 @@ export function TodayHeader({
           </button>
         </div>
 
-        {/* Status sentence: booked · act-now (itemised, filters) · money ·
-            over-cap warning · the Next jump. Segments render only when true. */}
         <div
           role="region"
-          aria-label="Daily Brief status"
+          aria-label="Day status"
           className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-slate-600"
         >
-          <span className="whitespace-nowrap">
-            <strong className="font-bold text-brand-purple tabular-nums">{dogsBooked}</strong> booked
-          </span>
-          <NowCluster
-            nowCounts={nowCounts}
-            actionCount={actionCount}
+          <NeedsAttentionSummary
+            summary={attention}
             isToday={isToday}
-            active={actionFilterActive}
-            onToggle={onToggleActionFilter}
+            active={attentionActive}
+            onToggle={onToggleAttention}
           />
-          {unpaidTotal > 0 ? (
-            <span className="whitespace-nowrap">
-              <strong className="font-bold text-brand-purple tabular-nums">{formatMoney(unpaidTotal)}</strong> to collect
+          {shape.length > 0 ? (
+            <span className="min-w-0 whitespace-nowrap" data-testid="board-shape">
+              {shape.map((entry, index) => (
+                <span key={entry.zone} className="whitespace-nowrap">
+                  {index > 0 ? <span aria-hidden="true" className="mx-1.5 text-slate-300">·</span> : null}
+                  <strong className="font-bold text-brand-purple tabular-nums">{entry.count}</strong> {entry.label}
+                </span>
+              ))}
+            </span>
+          ) : null}
+          {collectedTotal > 0 || unpaidTotal > 0 ? (
+            // Money stays secondary: the board is a workflow surface, not a
+            // till. Two numbers, no chart, no panel.
+            <span className="whitespace-nowrap text-slate-500" data-testid="board-money">
+              {collectedTotal > 0 ? (
+                <span className="whitespace-nowrap">
+                  <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(collectedTotal)}</strong> collected
+                </span>
+              ) : null}
+              {collectedTotal > 0 && unpaidTotal > 0 ? (
+                <span aria-hidden="true" className="mx-1.5 text-slate-300">·</span>
+              ) : null}
+              {unpaidTotal > 0 ? (
+                <span className="whitespace-nowrap">
+                  <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(unpaidTotal)}</strong> to collect
+                </span>
+              ) : null}
             </span>
           ) : dogsBooked > 0 ? (
             <span className="whitespace-nowrap font-bold text-brand-teal-text">All paid</span>
@@ -170,26 +127,12 @@ export function TodayHeader({
               <span className="tabular-nums">{dogsBooked}/{capacityTotal}</span> over the daily cap
             </span>
           ) : null}
-          {isToday && nextUp ? (
-            <button
-              type="button"
-              onClick={onJumpToNext}
-              aria-label={`Next: ${nextUp.dogName} — ${nextUp.text}`}
-              className="ml-auto hidden min-h-11 min-w-0 items-center gap-1 rounded-control px-1 text-[13px] font-bold text-brand-purple underline decoration-brand-purple/25 underline-offset-4 outline-none transition-colors hover:decoration-brand-purple md:inline-flex focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
-            >
-              <span className="shrink-0">Next:</span>
-              <span className={`min-w-0 truncate ${nextUp.tone === "overdue" ? "text-brand-coral-text" : ""}`}>
-                {nextUp.dogName} — {nextUp.text}
-              </span>
-              <ChevronDown size={13} aria-hidden="true" className="shrink-0 text-brand-purple/50" />
-            </button>
-          ) : null}
         </div>
       </div>
 
-      {actionCount > 0 ? (
-        <span id="needs-action-definition" className="sr-only">
-          {NEEDS_ACTION_DEFINITION}
+      {attention.count > 0 ? (
+        <span id="needs-attention-definition" className="sr-only">
+          {NEEDS_ATTENTION_DEFINITION}
         </span>
       ) : null}
     </PageHeader>

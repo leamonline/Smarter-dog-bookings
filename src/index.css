@@ -394,6 +394,28 @@ body {
   .animate-card-flash { animation: today-card-flash 1.3s ease-out 1; }
 }
 
+/* Salon board: the ring pulse marking the token an action just landed on.
+   The FLIP transform already carries the travel; this says "and it worked".
+   Motion-gated — under reduced motion the toast and the aria-live carry it. */
+@keyframes token-land {
+  0%   { box-shadow: 0 0 0 0 rgba(45, 0, 75, 0.28); }
+  40%  { box-shadow: 0 0 0 8px rgba(45, 0, 75, 0.10); }
+  100% { box-shadow: 0 0 0 12px rgba(45, 0, 75, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-token-land { animation: token-land 0.6s ease-out 1; }
+}
+
+/* Salon board: the action panel grows out of the token it belongs to. Its
+   transform-origin is set inline to whichever edge the panel opened from. */
+@keyframes token-menu-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-token-menu-in { animation: token-menu-in 0.16s cubic-bezier(0.32, 0.72, 0, 1) 1; }
+}
+
 /* Daily Brief: indeterminate hairline while cached bookings refresh. */
 @keyframes refresh-slide {
   0% { transform: translateX(-120%); }

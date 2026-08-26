@@ -70,13 +70,16 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   declarations, modal/route map, `SalonProvider`. The clearest map of what data exists and how it flows.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
-- **`/today` command centre** — the **default staff landing** (an operational "what needs attention
-  now?" work queue; `/` stays the calendar), plus six decision reports (2A–2F) on `/reports`. Pure
-  engines drive both; deep dive: [docs/today-command-centre.md](docs/today-command-centre.md).
+- **`/today` live salon board** — the **default staff landing** (`/` stays the calendar). Each dog is
+  a **token** in the zone that says where it physically is — Arriving → With us → Ready → Gone home —
+  so position carries the status and a press opens that dog's actions. Zones are the existing lanes
+  relabelled: no new statuses, no new transitions. Plus six decision reports (2A–2F) on `/reports`.
+  Pure engines drive both; deep dive: [docs/today-command-centre.md](docs/today-command-centre.md).
 - `src/engine/` — **pure TS business logic, zero React**: `capacity.ts` (the 2-2-1 engine),
   `bookingRules.ts` (pricing + the `resolveBookingDisplay` selector), `pricing.ts`, `utilisation.ts`,
-  `today.ts` (Today-view selectors + Europe/London time helpers), `reportsAnalytics.ts` + `denials.ts`
-  (decision-report maths).
+  `today.ts` (Today-view selectors + Europe/London time helpers), `salonBoard.ts` (the `/today` board:
+  zone mapping, priority gravity, per-state actions, drag legality, undo), `reportsAnalytics.ts` +
+  `denials.ts` (decision-report maths).
 - `src/constants/` — salon config: `salon.ts` (slots, services, `LARGE_DOG_SLOTS`, statuses),
   `salonSettings.ts` (config defaults), `salonContact.ts`.
 - `src/hooks/` — UI-level state hooks. `src/supabase/hooks/` — data hooks (facades composing focused
