@@ -58,10 +58,10 @@ Two consequences for the decision:
 
 - **The vocabulary needs no new codes for this gate.** Fifteen messages collapse to five
   existing codes. Whatever granularity is chosen, it is a *subset* question, not an
-  extension one. Note in particular that eight distinct large-dog refusals share
-  `large_dog_ineligible` — if report 2F is ever expected to separate "early close" from
-  "back-to-back", that is a deliberate widening to decide now, not a gap to discover
-  later.
+  extension one. Note in particular that ten distinct large-dog refusals, across eleven
+  raise sites, share `large_dog_ineligible` — if report 2F is ever expected to separate
+  "early close" from "back-to-back", that is a deliberate widening to decide now, not a
+  gap to discover later.
 - **The regex fallback is currently correct**, so the migration path the brief describes
   (emit `DETAIL`, keep prose inference as documented fallback) starts from a fallback
   that agrees everywhere. Any disagreement introduced later is a real regression rather
