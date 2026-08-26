@@ -55,7 +55,7 @@ function tokensFor(bookings, isToday = true) {
 }
 
 /** Renders the board with the panel selection hoisted, as TodayView does. */
-function BoardHarness({ bookings, isToday = true, onTokenAction = () => {}, attentionActive = false }) {
+function BoardHarness({ bookings, isToday = true, onTokenAction = () => {}, highlightIds = null }) {
   const tokens = tokensFor(bookings, isToday);
   const [selectedId, setSelectedId] = useState(null);
   return (
@@ -65,14 +65,14 @@ function BoardHarness({ bookings, isToday = true, onTokenAction = () => {}, atte
       getWelfare={getWelfare}
       paymentOf={paymentOf}
       handlers={{ onTokenAction }}
-      attentionActive={attentionActive}
+      highlightIds={highlightIds}
       selectedId={selectedId}
       onSelectToken={setSelectedId}
     />
   );
 }
 
-/** Desktop/tablet: the popover path. jsdom reports no matchMedia match by default. */
+/** Desktop/tablet: the popover path and all three zones side by side. */
 function useWideViewport() {
   vi.stubGlobal("matchMedia", (query) => ({
     matches: /min-width: (768|1024)px/.test(query),
@@ -82,12 +82,28 @@ function useWideViewport() {
   }));
 }
 
+/** A phone: no matchMedia match, so one lane at a time behind the switcher. */
+function usePhoneViewport() {
+  vi.stubGlobal("matchMedia", (query) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
+function switchLane(title) {
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(`^Show ${title},`) }));
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("the board", () => {
+  beforeEach(useWideViewport);
+
   it("always shows all three zones, so a dog is always in the same place", () => {
     render(<BoardHarness bookings={[booking({ id: "a", dogName: "Oscar" })]} />);
     expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
@@ -193,6 +209,16 @@ describe("the board", () => {
     expect(safety.getAttribute("title")).toBe("Pregnant · Bites / Nips");
   });
 
+  it("marks a settled Ready dog with a tick where the balance pill would sit", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Settled", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:40:00Z", payment: "Paid in Full" }),
+    ]} />);
+    const cell = document.querySelector('[data-booking-id="a"]');
+    expect(cell.querySelector("[data-token-paid]")).toBeInTheDocument();
+    expect(cell.querySelector("[data-token-balance]")).toBeNull();
+    expect(screen.getByRole("button", { name: /^Settled\. Ready.*Paid/ })).toBeInTheDocument();
+  });
+
   it("shows a balance on the token only once it blocks the handover", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Arriving" }),
@@ -222,7 +248,9 @@ describe("the board", () => {
   });
 });
 
-describe("the action panel", () => {
+describe("the action panel on a phone", () => {
+  beforeEach(usePhoneViewport);
+
   it("opens a bottom sheet on a phone and lists only the actions this state allows", () => {
     render(<BoardHarness bookings={[booking({ id: "a", dogName: "Oscar" })]} />);
     fireEvent.click(screen.getByRole("button", { name: /^Oscar\./ }));
@@ -246,12 +274,53 @@ describe("the action panel", () => {
     expect(within(sheet).getByText("Bites / Nips")).toBeInTheDocument();
   });
 
-  it("never offers Mark collected to a dog that has already gone home", () => {
+  it("reaches a Ready dog through the lane switcher and offers the right primary", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Daisy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:00:00Z" }),
     ]} />);
+    // The phone shows one lane; Ready is one tap on the switcher, never
+    // several screens below Arriving.
+    switchLane("Ready");
     fireEvent.click(screen.getByRole("button", { name: /^Daisy\./ }));
     expect(screen.getByRole("button", { name: "Mark collected — Daisy" })).toBeInTheDocument();
+  });
+
+  it("shows one lane at a time with counts and an urgency dot on the others", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Oscar", slot: "12:00" }),
+      booking({ id: "b", dogName: "Longwait", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T07:30:00Z" }),
+    ]} />);
+
+    // Only the active lane renders its dogs…
+    expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /^Ready,/ })).not.toBeInTheDocument();
+    // …but every lane stays readable from the switcher, urgency included:
+    // Longwait has been ready 90 minutes, past the urgent threshold.
+    expect(screen.getByRole("button", { name: "Show Ready, 1 dog, 1 urgent" })).toBeInTheDocument();
+
+    switchLane("Ready");
+    expect(screen.getByRole("region", { name: "Ready, 1 dog" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /^Arriving,/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Longwait")).toBeInTheDocument();
+  });
+
+  it("changes lane on a deliberate horizontal swipe, and never on a vertical scroll", () => {
+    render(<BoardHarness bookings={[
+      booking({ id: "a", dogName: "Oscar", slot: "12:00" }),
+      booking({ id: "b", dogName: "Inside", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:40:00Z" }),
+    ]} />);
+    const lanes = screen.getByRole("region", { name: "Arriving, 1 dog" }).parentElement;
+
+    // A vertical scroll that drifts sideways stays put.
+    fireEvent.touchStart(lanes, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchEnd(lanes, { changedTouches: [{ clientX: 140, clientY: 300 }] });
+    expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
+
+    // A real swipe left advances one lane.
+    fireEvent.touchStart(lanes, { touches: [{ clientX: 300, clientY: 100 }] });
+    fireEvent.touchEnd(lanes, { changedTouches: [{ clientX: 120, clientY: 110 }] });
+    expect(screen.getByRole("region", { name: "With us, 1 dog" })).toBeInTheDocument();
+    expect(screen.getByText("Inside")).toBeInTheDocument();
   });
 
   it("runs the chosen action through the one shared handler and closes", () => {
@@ -350,42 +419,78 @@ describe("the action panel on a pointer device", () => {
 });
 
 describe("needs attention", () => {
+  beforeEach(useWideViewport);
+
   const attentionBookings = [
     booking({ id: "a", dogName: "Late", slot: "08:30" }),
     booking({ id: "b", dogName: "Calm", slot: "12:30", payment: "Paid in Full" }),
   ];
 
   it("dims the calm dogs instead of removing them — position is the point", () => {
-    render(<BoardHarness bookings={attentionBookings} attentionActive />);
+    render(<BoardHarness bookings={attentionBookings} highlightIds={new Set(["a"])} />);
     expect(screen.getByText("Late")).toBeInTheDocument();
     expect(screen.getByText("Calm")).toBeInTheDocument();
     const calm = document.querySelector('[data-booking-id="b"] [data-dog-token]');
     const late = document.querySelector('[data-booking-id="a"] [data-dog-token]');
-    expect(calm.className).toMatch(/opacity-35/);
+    // Softened deliberately: highlighting raises the important dogs; it must
+    // not make the rest of the application look disabled.
+    expect(calm.className).toMatch(/opacity-55/);
     expect(late.className).toMatch(/opacity-100/);
   });
 
   it("reassures instead of showing an empty warning area when nothing is wrong", () => {
     const summary = buildAttentionSummary(tokensFor([booking({ id: "b", slot: "12:30", payment: "Paid in Full" })]), true);
-    render(<NeedsAttentionSummary summary={summary} isToday active={false} onToggle={() => {}} />);
+    render(<NeedsAttentionSummary summary={summary} isToday activeReason={null} onSelectReason={() => {}} />);
     expect(screen.getByText("Everything's on track")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("offers one press that highlights the exceptions, and says how many", () => {
-    const onToggle = vi.fn();
+  it("itemises the reasons so the number defines itself, one segment per press", () => {
+    const onSelectReason = vi.fn();
+    const at = (minutesAgo) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
+    const summary = buildAttentionSummary(tokensFor([
+      booking({ id: "a", dogName: "Late", slot: "08:30" }),
+      booking({ id: "w", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(30) }),
+    ]), true);
+    render(
+      <NeedsAttentionSummary
+        summary={summary}
+        dueNow={52}
+        isToday
+        activeReason={null}
+        onSelectReason={onSelectReason}
+      />,
+    );
+
+    // No opaque total — each segment names its reason and count.
+    expect(screen.queryByText(/things need you/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Highlight 1 late/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Highlight 1 waiting/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Highlight £52 due/ }));
+    expect(onSelectReason).toHaveBeenCalledWith("unpaid");
+  });
+
+  it("marks the active segment and clears it on a second press", () => {
+    const onSelectReason = vi.fn();
     const summary = buildAttentionSummary(tokensFor(attentionBookings), true);
-    render(<NeedsAttentionSummary summary={summary} isToday active={false} onToggle={onToggle} />);
-    const control = screen.getByRole("button", { name: /Highlight the 1 dog needing attention/ });
-    expect(control).toHaveTextContent("1 thing needs you");
-    fireEvent.click(control);
-    expect(onToggle).toHaveBeenCalled();
+    render(
+      <NeedsAttentionSummary
+        summary={summary}
+        isToday
+        activeReason="late"
+        onSelectReason={onSelectReason}
+      />,
+    );
+    const active = screen.getByRole("button", { name: "Stop highlighting 1 late" });
+    expect(active).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(active);
+    expect(onSelectReason).toHaveBeenCalledWith(null);
   });
 
   it("stays quiet on a browsed date — nothing on it is happening now", () => {
     const summary = buildAttentionSummary(tokensFor([booking({ id: "b", slot: "12:30" })], false), false);
     const { container } = render(
-      <NeedsAttentionSummary summary={summary} isToday={false} active={false} onToggle={() => {}} />,
+      <NeedsAttentionSummary summary={summary} isToday={false} activeReason={null} onSelectReason={() => {}} />,
     );
     expect(container).toBeEmptyDOMElement();
   });

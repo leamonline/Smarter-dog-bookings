@@ -7,7 +7,7 @@
 // board/salonBoard.component.test.jsx. This file is about the page: that the
 // right handler runs with the right payload, and that the safeguards hold.
 import { act, render, screen, fireEvent, within, waitFor } from "@testing-library/react";
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 import { TodayHeader } from "./TodayHeader.jsx";
@@ -15,6 +15,18 @@ import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodayView } from "../TodayView.jsx";
 
 const noop = () => {};
+
+// The page tests run at the desktop breakpoint: all three zones visible, the
+// popover panel. Phone behaviour (one lane, the sheet) is covered by
+// board/salonBoard.component.test.jsx.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query) => ({
+    matches: /min-width: (768|1024)px/.test(query),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -84,12 +96,12 @@ function token(dogName) {
 
 function openDog(dogName) {
   fireEvent.click(token(dogName));
-  return screen.getByRole("dialog");
+  return screen.getByRole("menu", { name: `Actions for ${dogName}` });
 }
 
 /** An action row inside the open panel. */
 function action(name) {
-  return screen.getByRole("button", { name });
+  return screen.getByRole("menuitem", { name });
 }
 
 describe("the board page — selected-date operations", () => {
@@ -357,8 +369,10 @@ describe("the board page — selected-date operations", () => {
       configPricing: { "full-groom": { small: 5000 } },
     });
 
-    expect(screen.getByRole("region", { name: "Day status" })).toHaveTextContent("£50 to collect");
-    expect(screen.getByRole("group", { name: "End of day" })).toHaveTextContent("Expected £50");
+    // One financial voice per surface: the strip says what is due right now,
+    // the end-of-day facts carry the day total.
+    expect(screen.getByRole("button", { name: /Highlight £50 due/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "End of day" })).toHaveTextContent("Taken £0 of £50");
     expect(document.querySelector('[data-booking-id="b-selected"] [data-token-balance]').textContent).toBe("£50");
 
     openDog("Jack");
@@ -462,7 +476,7 @@ describe("the board page — selected-date operations", () => {
     expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
   });
 
-  it("highlights the dogs needing attention in place, dimming the rest rather than hiding them", () => {
+  it("highlights one reason's dogs in place, dimming the rest rather than hiding them", () => {
     const waiting = {
       ...selectedBooking,
       id: "b-action",
@@ -487,25 +501,26 @@ describe("the board page — selected-date operations", () => {
       },
     });
 
-    const control = screen.getByRole("button", { name: /Highlight the 1 dog needing attention/ });
-    expect(control).toHaveAttribute("aria-pressed", "false");
-    expect(control).toHaveTextContent("1 thing needs you");
-    fireEvent.click(control);
+    // The strip names the reason with its count — no opaque total.
+    const segment = screen.getByRole("button", { name: /Highlight 1 waiting/ });
+    expect(segment).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(segment);
 
-    const active = screen.getByRole("button", { name: /Stop highlighting/ });
+    const active = screen.getByRole("button", { name: "Stop highlighting 1 waiting" });
     expect(active).toHaveAttribute("aria-pressed", "true");
-    expect(active).toHaveTextContent("Highlighting 1 · Clear");
     // Both dogs are still on the board, in their own zones.
     expect(token("Ruby")).toBeInTheDocument();
     expect(token("Milo")).toBeInTheDocument();
-    expect(token("Milo").className).toMatch(/opacity-35/);
+    expect(token("Milo").className).toMatch(/opacity-55/);
+    expect(token("Ruby").className).toMatch(/opacity-100/);
     expect(
-      screen.getByText(/Highlighting 1 dog that needs you/),
+      screen.getByText(/Highlighting 1 dogs waiting to be collected — every other dog is dimmed, not hidden/),
     ).toHaveAttribute("role", "status");
 
     fireEvent.click(active);
     expect(token("Milo").className).toMatch(/opacity-100/);
   });
+
 
   it.each([
     ["past", "2026-07-13", new Date(2026, 6, 13)],
@@ -632,29 +647,41 @@ describe("the board page — selected-date operations", () => {
 });
 
 describe("TodayHeader", () => {
-  const attention = (over = {}) => ({ count: 0, headline: "Everything's on track", ids: [], ...over });
+  const attention = (over = {}) => ({
+    count: 0,
+    headline: "Everything's on track",
+    ids: [],
+    reasons: { late: [], toConfirm: [], waiting: [], unpaid: [] },
+    ...over,
+  });
   const zoneCounts = [
     { zone: "due", label: "arriving", count: 3 },
     { zone: "withUs", label: "with us", count: 6 },
     { zone: "ready", label: "ready", count: 2 },
   ];
 
-  it("keeps the page heading accessible and makes the date the picker control", () => {
+  it("keeps the page heading accessible and itemises the attention strip", () => {
     const onOpenDatePicker = vi.fn();
-    const onToggleAttention = vi.fn();
+    const onSelectAttentionReason = vi.fn();
     render(
       <TodayHeader
         dateLabel="Tuesday 14 July"
         dogsBooked={11}
-        attention={attention({ count: 2, headline: "2 things need you", ids: ["a", "b"] })}
+        attention={attention({
+          count: 2,
+          headline: "2 things need you",
+          ids: ["a", "b"],
+          reasons: { late: ["a"], toConfirm: [], waiting: ["b"], unpaid: ["b"] },
+        })}
         zoneCounts={zoneCounts}
         collectedTotal={286}
+        dueNow={88}
         unpaidTotal={152}
         isDayOpen
         isToday
         onOpenDatePicker={onOpenDatePicker}
         onManageAvailability={vi.fn()}
-        onToggleAttention={onToggleAttention}
+        onSelectAttentionReason={onSelectAttentionReason}
       />,
     );
 
@@ -664,15 +691,21 @@ describe("TodayHeader", () => {
     expect(screen.getByRole("button", { name: "Manage availability — No online slots today" })).toBeInTheDocument();
 
     const status = screen.getByRole("region", { name: "Day status" });
-    expect(status).toHaveTextContent("2 things need you");
+    // The strip itemises — the opaque "N things need you" total is gone.
+    expect(status).not.toHaveTextContent("things need you");
+    expect(status).toHaveTextContent("1 late");
+    expect(status).toHaveTextContent("1 waiting");
+    expect(status).toHaveTextContent("£88 due");
     expect(status).toHaveTextContent("3 arriving");
     expect(status).toHaveTextContent("6 with us");
     expect(status).toHaveTextContent("2 ready");
+    // One financial voice here: the till. Due-now lives in the strip; the day
+    // total lives in the end-of-day facts.
     expect(status).toHaveTextContent("£286 collected");
-    expect(status).toHaveTextContent("£152 to collect");
+    expect(status).not.toHaveTextContent("to collect");
 
-    fireEvent.click(within(status).getByRole("button", { name: /Highlight the 2 dogs needing attention/ }));
-    expect(onToggleAttention).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(status).getByRole("button", { name: /Highlight 1 late/ }));
+    expect(onSelectAttentionReason).toHaveBeenCalledWith("late");
   });
 
   it("reassures in a whole sentence when nothing needs doing, with no control to press", () => {
@@ -687,7 +720,7 @@ describe("TodayHeader", () => {
         isToday
         onOpenDatePicker={noop}
         onManageAvailability={noop}
-        onToggleAttention={noop}
+        onSelectAttentionReason={noop}
       />,
     );
 
@@ -697,27 +730,34 @@ describe("TodayHeader", () => {
     expect(within(status).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("gives the highlight control an explicit visible selected state", () => {
+  it("gives the active segment an explicit visible selected state", () => {
     render(
       <TodayHeader
         dateLabel="Tuesday 14 July"
         dogsBooked={11}
-        attention={attention({ count: 6, headline: "6 things need you", ids: ["a"] })}
+        attention={attention({
+          count: 6,
+          headline: "6 things need you",
+          ids: ["a"],
+          reasons: { late: ["a", "b", "c"], toConfirm: [], waiting: [], unpaid: [] },
+        })}
         zoneCounts={zoneCounts}
         unpaidTotal={482}
         isDayOpen
         isToday
-        attentionActive
+        attentionReason="late"
         onOpenDatePicker={noop}
         onManageAvailability={noop}
-        onToggleAttention={noop}
+        onSelectAttentionReason={noop}
       />,
     );
 
-    const control = screen.getByRole("button", { name: "Stop highlighting; 6 dogs need attention" });
+    const control = screen.getByRole("button", { name: "Stop highlighting 3 late" });
     expect(control).toHaveAttribute("aria-pressed", "true");
-    expect(control).toHaveAttribute("data-attention-state", "focused");
-    expect(control).toHaveTextContent("Highlighting 6 · Clear");
+    expect(control.parentElement.closest("[data-attention-state]")).toHaveAttribute(
+      "data-attention-state",
+      "focused",
+    );
   });
 
   it("skips the reassurance on a browsed non-today date", () => {
@@ -732,7 +772,7 @@ describe("TodayHeader", () => {
         isToday={false}
         onOpenDatePicker={noop}
         onManageAvailability={noop}
-        onToggleAttention={noop}
+        onSelectAttentionReason={noop}
       />,
     );
     expect(screen.queryByText("Everything's on track")).not.toBeInTheDocument();
@@ -752,7 +792,7 @@ describe("TodayHeader", () => {
         isToday
         onOpenDatePicker={noop}
         onManageAvailability={noop}
-        onToggleAttention={noop}
+        onSelectAttentionReason={noop}
       />,
     );
 
@@ -771,7 +811,7 @@ describe("TodayHeader", () => {
         isDayOpen={false}
         onOpenDatePicker={noop}
         onManageAvailability={noop}
-        onToggleAttention={noop}
+        onSelectAttentionReason={noop}
       />,
     );
     expect(screen.getByText(/salon closed/i)).toBeInTheDocument();

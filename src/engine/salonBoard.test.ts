@@ -265,6 +265,21 @@ describe("token text", () => {
     expect(tokens.due[0].meta).toBeNull();
   });
 
+  it("stops claiming a dog is 'late' once it plainly has not arrived", () => {
+    // 08:00 at 10:00 London is exactly the 2-hour threshold: past it, "N hrs
+    // late" reads as "still expected any moment", which is no longer the
+    // truth. The slot heading still carries when it was due.
+    const tokens = tokensFor([booking({ id: "a", slot: "08:00" })]);
+    expect(tokens.due[0].slotTiming).toBe("No arrival");
+    expect(tokens.due[0].statusText).toBe("No arrival, due 08:00");
+    expect(tokens.due[0].tier).toBe("urgent");
+  });
+
+  it("keeps honest lateness wording under the no-arrival threshold", () => {
+    const tokens = tokensFor([booking({ id: "a", slot: "09:30" })]);
+    expect(tokens.due[0].statusText).toBe("Late, 30 min overdue");
+  });
+
   it("prints on an arriving token only what its slot heading cannot say", () => {
     const tokens = tokensFor([
       booking({ id: "a", slot: "11:00", reminderState: "sent", confirmationChannel: "whatsapp" }),
@@ -368,6 +383,32 @@ describe("needs attention", () => {
     expect(summary.count).toBe(1);
     expect(summary.headline).toBe("1 thing needs you");
     expect(summary.ids).toEqual(["a"]);
+    // …but the strip can still name both reasons, pointing at the same dog.
+    expect(summary.reasons.late).toEqual(["a"]);
+    expect(summary.reasons.toConfirm).toEqual(["a"]);
+  });
+
+  it("breaks the union down by reason so a segment can highlight exactly its dogs", () => {
+    const at = (minutesAgo: number) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
+    const tokens = tokensFor([
+      booking({ id: "late-dog", slot: "08:30" }),
+      booking({ id: "waiting-dog", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(30) }),
+      booking({
+        id: "unpaid-dog",
+        status: BOOKING_STATUS.COMPLETED,
+        completedAt: at(60),
+        payment: "Due at Pick-up",
+      }),
+      booking({ id: "calm-dog", slot: "12:30", payment: "Paid in Full" }),
+    ]);
+    const summary = buildAttentionSummary(tokens, true);
+    expect(summary.reasons.late).toEqual(["late-dog"]);
+    expect(summary.reasons.waiting).toEqual(["waiting-dog"]);
+    // The waiting dog owes too, so it appears under unpaid as well — a dog can
+    // carry several reasons without being counted twice in the union.
+    expect(summary.reasons.unpaid.sort()).toEqual(["unpaid-dog", "waiting-dog"]);
+    expect(summary.reasons.toConfirm).toEqual([]);
+    expect(summary.count).toBe(3);
   });
 
   it("pluralises and lists every id needing attention", () => {

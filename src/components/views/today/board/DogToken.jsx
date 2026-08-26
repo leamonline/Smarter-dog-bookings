@@ -12,7 +12,7 @@
 //   • an actionable balance — only from Ready onward, where it blocks handover
 //   • urgency            — carried by the ring AND the meta text's colour AND
 //                          the accessible name, so never by colour alone
-import { AlertTriangle, Car } from "lucide-react";
+import { AlertTriangle, Car, Check } from "lucide-react";
 import { DogTokenAvatar } from "./DogTokenAvatar.jsx";
 
 /**
@@ -20,10 +20,13 @@ import { DogTokenAvatar } from "./DogTokenAvatar.jsx";
  * meta text changes weight as well as hue, and the token's accessible name
  * spells the state out in words.
  */
+// One strict colour language: purple is neutral, amber is "soon", coral is
+// genuinely exceptional — so when a whole column IS exceptional, the words
+// ("No arrival") still carry the story colour alone cannot.
 const TIER_RING = {
   urgent: "ring-2 ring-brand-coral",
   watch: "ring-[1.5px] ring-amber-400",
-  calm: "ring-1 ring-brand-paper-line",
+  calm: "ring-1 ring-brand-purple/15",
 };
 
 const TIER_META = {
@@ -62,6 +65,7 @@ export function DogToken({
   welfare,
   amountDue = null,
   showBalance = false,
+  showPaid = false,
   onTheWay = false,
   density = "regular",
   selected = false,
@@ -86,6 +90,7 @@ export function DogToken({
     dogName,
     token.statusText,
     hasBalance ? `${moneyLabel(amountDue)} due` : null,
+    showPaid ? "Paid" : null,
     onTheWay ? "Owner on the way" : null,
     ownerName ? `owner ${ownerName}` : null,
     facts.length ? `Safety note: ${facts.join(". ")}` : null,
@@ -117,7 +122,7 @@ export function DogToken({
         className={`group flex w-full min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 pb-1.5 pt-1 outline-none transition-[opacity,transform,background-color] duration-200 ease-out
           focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2
           ${draggable ? "touch-manipulation" : ""}
-          ${dimmed ? "opacity-35" : "opacity-100"}
+          ${dimmed ? "opacity-55" : "opacity-100"}
           ${busy ? "cursor-progress" : "cursor-pointer"}
           hover:bg-brand-purple/[0.04] motion-safe:active:scale-[0.97]`}
       >
@@ -162,6 +167,16 @@ export function DogToken({
               className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white bg-brand-coral px-1.5 text-[10px] font-bold leading-[16px] text-white tabular-nums"
             >
               {moneyLabel(amountDue)}
+            </span>
+          ) : showPaid ? (
+            // The settled counterpart of the £ badge, in the same seat: a
+            // Ready dog with nothing left to take hands over without a pause.
+            <span
+              data-token-paid
+              aria-hidden="true"
+              className="absolute -bottom-1 left-1/2 inline-flex size-4 -translate-x-1/2 items-center justify-center rounded-full border border-white bg-emerald-600 text-white"
+            >
+              <Check size={10} strokeWidth={3.5} />
             </span>
           ) : null}
         </span>

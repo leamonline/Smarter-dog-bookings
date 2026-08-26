@@ -103,6 +103,13 @@ export const DUE_SOON_MINUTES = 15;
 export const READY_URGENT_MINUTES = 60;
 /** Longer than any normal groom — a dog on site this long is worth a look. */
 export const IN_SALON_LONG_MINUTES = 180;
+/**
+ * Past this, "N hrs late" stops being the truth. At 3pm a dog due at 09:00 is
+ * not "6 hrs late" in any human sense — it has not arrived. The wording flips
+ * to "No arrival" so the operator reads the actual story; the slot heading
+ * still says when it was due, and the tier stays urgent.
+ */
+export const NO_ARRIVAL_MINUTES = 120;
 
 export interface BoardToken {
   entry: DailyBriefBoardEntry;
@@ -252,7 +259,11 @@ function metaFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToda
 function slotTimingFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToday: boolean): string | null {
   if (zone !== "due" || !isToday) return null;
   if (!entry.booking.slot || !Number.isFinite(entry.slotMinutes)) return null;
-  if (entry.isLate) return `${formatDuration(entry.overdueMinutes)} late`;
+  if (entry.isLate) {
+    return entry.overdueMinutes >= NO_ARRIVAL_MINUTES
+      ? "No arrival"
+      : `${formatDuration(entry.overdueMinutes)} late`;
+  }
   const until = minutesUntilSlot(entry.booking.slot, now);
   return until <= 0 ? "Due now" : `in ${formatDuration(until)}`;
 }
@@ -265,7 +276,11 @@ function slotTimingFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, 
 function statusTextFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToday: boolean): string {
   const meta = BOARD_ZONE_META[zone];
   if (zone === "due") {
-    if (isToday && entry.isLate) return `Late, ${formatDuration(entry.overdueMinutes)} overdue`;
+    if (isToday && entry.isLate) {
+      return entry.overdueMinutes >= NO_ARRIVAL_MINUTES
+        ? `No arrival, due ${entry.booking.slot || "unknown time"}`
+        : `Late, ${formatDuration(entry.overdueMinutes)} overdue`;
+    }
     if (!entry.booking.slot) return "Arriving, time missing";
     if (!isToday) return `Arriving ${entry.booking.slot}`;
     const until = minutesUntilSlot(entry.booking.slot, now);
@@ -337,39 +352,65 @@ export function buildBoardTokens({
 
 // ---- Needs attention ---------------------------------------------------------
 
+/** The attention reasons, in the order the strip states them. */
+export type AttentionReason = "late" | "toConfirm" | "waiting" | "unpaid";
+
 export interface AttentionSummary {
   /** Distinct dogs needing something. */
   count: number;
-  /** The one-line headline: reassurance, or the ask. */
+  /** The one-line reassurance for a clear day; unused once segments render. */
   headline: string;
-  /** Booking ids to highlight when attention mode is on. */
+  /** Every booking id needing attention (the union across reasons). */
   ids: string[];
+  /**
+   * The same ids broken down by WHY, so the strip can say "2 late · 1 to
+   * confirm · £88 due" instead of an opaque total, and highlight exactly the
+   * dogs one segment names. A dog can appear under several reasons.
+   */
+  reasons: Record<AttentionReason, string[]>;
 }
 
+const REASON_KEY: Record<string, AttentionReason> = {
+  late: "late",
+  confirmation: "toConfirm",
+  collection: "waiting",
+  payment: "unpaid",
+};
+
 /**
- * "Everything's on track" / "2 things need you". Membership is exactly the
- * existing `needsAction` union (late, unconfirmed, waiting to be collected,
- * unpaid after arrival) — this adds a sentence, not a second definition.
+ * "Everything's on track" — or exactly what is not, itemised. Membership is
+ * exactly the existing `needsAction` union (late, unconfirmed, waiting to be
+ * collected, unpaid after arrival) — this names the reasons, it does not
+ * invent a second definition.
  */
 export function buildAttentionSummary(tokens: BoardTokens, isToday: boolean): AttentionSummary {
   const ids: string[] = [];
+  const reasons: Record<AttentionReason, string[]> = {
+    late: [],
+    toConfirm: [],
+    waiting: [],
+    unpaid: [],
+  };
   for (const zone of BOARD_ZONES) {
     for (const token of tokens[zone]) {
-      if (token.needsAttention) ids.push(String(token.booking.id));
+      const id = String(token.booking.id);
+      if (token.needsAttention) ids.push(id);
+      for (const reason of token.entry.actionReasons ?? []) {
+        const key = REASON_KEY[reason];
+        if (key) reasons[key].push(id);
+      }
     }
   }
   const count = ids.length;
-  if (count === 0) {
-    return {
-      count,
-      headline: isToday ? "Everything's on track" : "Nothing outstanding",
-      ids,
-    };
-  }
   return {
     count,
-    headline: count === 1 ? "1 thing needs you" : `${count} things need you`,
+    headline: count === 0
+      ? (isToday ? "Everything's on track" : "Nothing outstanding")
+      : count === 1
+        ? "1 thing needs you"
+        : `${count} things need you`,
     ids,
+    reasons,
   };
 }
 

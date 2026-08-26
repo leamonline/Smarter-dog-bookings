@@ -17,6 +17,15 @@ function zone(page: Page, name: string) {
   return page.getByRole("region", { name });
 }
 
+/** On a phone, bring a lane into view via the switcher; a no-op elsewhere. */
+async function showLane(page: Page, title: string) {
+  // count() does not wait, so settle the board first — otherwise a call made
+  // straight after goto() no-ops against the loading skeleton.
+  await page.locator("[data-salon-board-root]").waitFor();
+  const tab = page.getByRole("button", { name: new RegExp(`^Show ${title},`) });
+  if (await tab.count()) await tab.click();
+}
+
 /** The panel that is already open, in whichever shape this width uses. */
 async function openPanelFor(page: Page, dogName: string) {
   const menu = page.getByRole("menu", { name: `Actions for ${dogName}` });
@@ -62,14 +71,24 @@ test("the board keeps its three zones usable at every supported width", async ({
     })),
   ).toEqual({ documentFits: true, bodyFits: true });
 
-  // All three zones are always present — a dog is always in the same place.
-  await expect(zone(page, "Arriving, 2 dogs")).toBeVisible();
-  await expect(zone(page, "With us, 2 dogs")).toBeVisible();
-  await expect(zone(page, "Ready, 1 dog")).toBeVisible();
-
-  await expect(zone(page, "Arriving, 2 dogs")).toContainText("Max");
-  await expect(zone(page, "With us, 2 dogs")).toContainText("Bella");
-  await expect(zone(page, "Ready, 1 dog")).toContainText("Luna");
+  if (testInfo.project.name === "mobile") {
+    // A phone shows ONE lane behind the switcher — stacking all three buried
+    // Ready several screens below Arriving exactly when its dogs matter most.
+    await expect(page.getByRole("group", { name: "Board zones" })).toBeVisible();
+    await expect(zone(page, "Arriving, 2 dogs")).toContainText("Max");
+    await expect(page.getByRole("region", { name: /^With us,/ })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Show With us,/ }).click();
+    await expect(zone(page, "With us, 2 dogs")).toContainText("Bella");
+    await page.getByRole("button", { name: /^Show Ready,/ }).click();
+    await expect(zone(page, "Ready, 1 dog")).toContainText("Luna");
+    await page.getByRole("button", { name: /^Show Arriving,/ }).click();
+  } else {
+    // Wider screens keep all three zones in place at once.
+    await expect(page.getByRole("group", { name: "Board zones" })).toHaveCount(0);
+    await expect(zone(page, "Arriving, 2 dogs")).toContainText("Max");
+    await expect(zone(page, "With us, 2 dogs")).toContainText("Bella");
+    await expect(zone(page, "Ready, 1 dog")).toContainText("Luna");
+  }
 
   // Finished work collapses to one line; a bad status still shouts.
   const home = page.getByRole("region", { name: /^Gone home, 1 dog/ });
@@ -80,7 +99,7 @@ test("the board keeps its three zones usable at every supported width", async ({
   await expect(page.getByRole("alert").filter({ hasText: "status fixed" })).toBeVisible();
 
   // Every token is a comfortable target, whatever the pointer.
-  for (const name of ["Max", "Bella", "Luna"]) {
+  for (const name of testInfo.project.name === "mobile" ? ["Max"] : ["Max", "Bella", "Luna"]) {
     const box = await dogToken(page, name).boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
     expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -122,10 +141,16 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
   await maxPanel.getByRole("menuitem", { name: /^Check in/ })
     .or(maxPanel.getByRole("button", { name: /^Check in/ }))
     .press("Enter");
-  // Max moved zone, and focus came back to the dog that moved — the board
-  // keeps its place under a keyboard exactly as it does under a finger.
+  // Max moved zone — on a phone the destination lane is one switcher tap away.
+  await showLane(page, "With us");
   await expect(zone(page, "With us, 3 dogs")).toContainText("Max");
-  await expect(max).toBeFocused();
+
+  // On desktop, focus came back to the dog that moved — the board keeps its
+  // place under a keyboard exactly as under a finger. (On a phone the token
+  // unmounted with its lane, so there is nothing to focus.)
+  if (await page.getByRole("group", { name: "Board zones" }).count() === 0) {
+    await expect(max).toBeFocused();
+  }
 
   // The rest of the journey, still without a mouse: Ready fires the
   // staff-reviewed collection notice, then the balance is taken.
@@ -138,6 +163,7 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
     .press("Enter");
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
   await page.getByRole("button", { name: "Not now" }).click();
+  await showLane(page, "Ready");
   await expect(zone(page, "Ready, 2 dogs")).toContainText("Charlie");
 
   await dogToken(page, "Charlie").click();
@@ -192,6 +218,7 @@ test("a phone gets a bottom sheet, not a menu, and it fits at 320px", async ({ p
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");
 
+  await page.getByRole("button", { name: /^Show Ready,/ }).click();
   await dogToken(page, "Luna").click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
@@ -214,6 +241,7 @@ test("a phone gets a bottom sheet, not a menu, and it fits at 320px", async ({ p
   await sheet.getByRole("button", { name: /^Mark collected/ }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("region", { name: /^Gone home, 2 dogs/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Show Ready, 0 dogs/ })).toBeVisible();
 });
 
 test("checking a dog in moves it between zones and offers Undo", async ({ page }) => {
@@ -221,7 +249,9 @@ test("checking a dog in moves it between zones and offers Undo", async ({ page }
   await page.goto("/today?date=2026-07-14");
 
   await expect(zone(page, "Arriving, 3 dogs")).toContainText("Coco");
-  await expect(zone(page, "With us, 0 dogs")).toBeVisible();
+  await expect(
+    zone(page, "With us, 0 dogs").or(page.getByRole("button", { name: /^Show With us, 0 dogs/ })).first(),
+  ).toBeVisible();
 
   const panel = await openDog(page, "Coco");
   await panel.getByRole("button", { name: /^Check in/ }).or(
@@ -230,13 +260,19 @@ test("checking a dog in moves it between zones and offers Undo", async ({ page }
 
   // The dog is now in the next zone, and the move is repairable in one press.
   await expect(zone(page, "Arriving, 2 dogs")).toContainText("Teddy");
+  await showLane(page, "With us");
   await expect(zone(page, "With us, 1 dog")).toContainText("Coco");
   await expect(page.getByText("Coco checked in — with us now")).toBeVisible();
 
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByText("Coco moved back to arriving")).toBeVisible();
+  await showLane(page, "Arriving");
   await expect(zone(page, "Arriving, 3 dogs")).toContainText("Coco");
-  await expect(zone(page, "With us, 0 dogs")).toBeVisible();
+  await showLane(page, "With us");
+  await expect(
+    zone(page, "With us, 0 dogs").or(page.getByRole("button", { name: /^Show With us, 0 dogs/ })).first(),
+  ).toBeVisible();
+  await showLane(page, "Arriving");
 });
 
 test("urgency is spatial: the late dog leads its zone and is marked, not just coloured", async ({
@@ -314,13 +350,18 @@ test("a quiet early morning shows a calm board and no alarms", async ({ page }) 
 
   await expect(zone(page, "Arriving, 3 dogs").locator("[data-token-cell]")).toHaveCount(3);
   await expect(page.locator('[data-tier="urgent"]')).toHaveCount(0);
-  // Empty zones say so in one quiet line; they do not disappear, because
-  // their position is what makes the board readable.
-  await expect(zone(page, "With us, 0 dogs")).toContainText("Nobody in");
-  await expect(zone(page, "Ready, 0 dogs")).toContainText("Nobody waiting");
+  // Empty zones say so in one quiet line (or, on a phone, keep an honest zero
+  // on their switcher tab); they never disappear.
+  if (await page.getByRole("group", { name: "Board zones" }).count()) {
+    await expect(page.getByRole("button", { name: /^Show With us, 0 dogs/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Show Ready, 0 dogs/ })).toBeVisible();
+  } else {
+    await expect(zone(page, "With us, 0 dogs")).toContainText("Nobody in");
+    await expect(zone(page, "Ready, 0 dogs")).toContainText("Nobody waiting");
+  }
 });
 
-test("the header answers 'does anything need me?' and highlighting keeps every dog in place", async ({
+test("the strip itemises what needs you, and one segment highlights just its dogs", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -328,19 +369,18 @@ test("the header answers 'does anything need me?' and highlighting keeps every d
   await page.goto("/today?date=2026-07-14");
 
   const status = page.getByRole("region", { name: "Day status" });
-  await expect(status).toContainText(/thing(s)? need(s)? you/);
-  await expect(status).toContainText(/\d+ arriving/);
+  // No opaque total: each segment names its reason and count.
+  await expect(status).not.toContainText("things need you");
+  const lateSegment = status.getByRole("button", { name: /Highlight \d+ late/ });
+  await expect(lateSegment).toHaveAttribute("aria-pressed", "false");
 
   const totalTokens = await page.locator("[data-token-cell]").count();
-  const highlight = page.getByRole("button", { name: /Highlight the .* needing attention/ });
-  await expect(highlight).toHaveAttribute("aria-pressed", "false");
-  await highlight.focus();
+  await lateSegment.focus();
   await page.keyboard.press("Enter");
 
-  const active = page.getByRole("button", { name: /Stop highlighting/ });
+  const active = status.getByRole("button", { name: /Stop highlighting \d+ late/ });
   await expect(active).toHaveAttribute("aria-pressed", "true");
-  await expect(active).toContainText("Clear");
-  await expect(page.getByText(/Highlighting \d+ dogs? that needs? you/)).toBeVisible();
+  await expect(page.getByText(/Highlighting \d+ late arrivals/)).toBeVisible();
 
   // Nothing was removed — the calm dogs are dimmed, not hidden, so the board
   // a groomer memorised is still the board in front of them.
@@ -349,6 +389,7 @@ test("the header answers 'does anything need me?' and highlighting keeps every d
     await page.locator('[data-token-cell][data-needs-attention="true"]').count(),
   ).toBeGreaterThan(0);
 });
+
 
 test("staff confirm an unconfirmed arrival, and can undo it two ways", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
@@ -504,12 +545,15 @@ test("the mini invoice fits without scrolling at every supported viewport", asyn
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-13");
 
+  // Charlie starts mid-groom — one switcher tap away on a phone.
+  await showLane(page, "With us");
   const panel = await openDog(page, "Charlie");
   await panel
     .getByRole("menuitem", { name: /^Ready for collection/ })
     .or(panel.getByRole("button", { name: /^Ready for collection/ }))
     .click();
   await page.getByRole("button", { name: "Not now" }).click();
+  await showLane(page, "Ready");
 
   const readyPanel = await openDog(page, "Charlie");
   await readyPanel
@@ -565,9 +609,13 @@ test("compact widths keep one header anatomy and no sideways scroll", async ({ p
   await expect(availability).toBeVisible();
   expect((await availability.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
-  // Zones stack on a phone; every one still present, still in journey order.
-  const headings = await page.locator("[data-drop-zone] h2").allInnerTexts();
-  expect(headings.map((text) => text.toLowerCase())).toEqual(["arriving", "with us", "ready"]);
+  // One lane at a time on a phone; the switcher keeps all three reachable in
+  // journey order, with their counts.
+  const tabs = page.getByRole("group", { name: "Board zones" }).getByRole("button");
+  await expect(tabs).toHaveCount(3);
+  await expect(tabs.nth(0)).toContainText("Arriving");
+  await expect(tabs.nth(1)).toContainText("With us");
+  await expect(tabs.nth(2)).toContainText("Ready");
 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
