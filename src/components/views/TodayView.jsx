@@ -118,7 +118,9 @@ export function TodayView({
   }, []);
 
   const [showAvailability, setShowAvailability] = useState(false);
-  const [attentionActive, setAttentionActive] = useState(false);
+  // Which attention reason is highlighted, or null. Per-reason rather than a
+  // single union toggle: "highlight the 2 late dogs" beats "highlight all 11".
+  const [attentionReason, setAttentionReason] = useState(null);
   const [selectedTokenId, setSelectedTokenId] = useState(null);
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
   const previousZonesRef = useRef(null);
@@ -234,6 +236,27 @@ export function TodayView({
     return total;
   }, [tokens, paymentOf]);
 
+  // The actionable balance — money on dogs from Ready onward, where taking it
+  // is what unblocks the door. This is the strip's £ figure; the whole-day
+  // total (including dogs not yet arrived) stays in the end-of-day facts.
+  const dueNow = useMemo(() => {
+    const ids = new Set(attention.reasons.unpaid);
+    let total = 0;
+    for (const zone of ["due", "withUs", "ready", "home"]) {
+      for (const token of tokens[zone]) {
+        if (ids.has(String(token.booking.id))) {
+          total += paymentOf(token.booking).amountDue ?? 0;
+        }
+      }
+    }
+    return total;
+  }, [attention.reasons.unpaid, tokens, paymentOf]);
+
+  const highlightIds = useMemo(
+    () => (attentionReason ? new Set(attention.reasons[attentionReason]) : null),
+    [attentionReason, attention.reasons],
+  );
+
   // ---- Actions (one path, shared by the menu, the sheet and drag-drop) ----
   const onMessageOwner = useCallback((booking) => {
     if (booking._ownerId) navigate(`/inbox?human=${booking._ownerId}`);
@@ -253,12 +276,16 @@ export function TodayView({
   });
 
   useEffect(() => {
-    setAttentionActive(false);
+    setAttentionReason(null);
     setSelectedTokenId(null);
   }, [dateStr]);
   useEffect(() => {
-    if (attention.count === 0) setAttentionActive(false);
-  }, [attention.count]);
+    // A reason whose last dog was dealt with clears itself — an empty
+    // highlight would dim the whole board for nothing.
+    if (attentionReason && attention.reasons[attentionReason].length === 0) {
+      setAttentionReason(null);
+    }
+  }, [attention.reasons, attentionReason]);
 
   useEffect(() => {
     if (board.excludedCount === 0 || !import.meta.env?.DEV) return;
@@ -320,6 +347,13 @@ export function TodayView({
     [bookingsByDate, dogs, realTodayStr],
   );
 
+  const ATTENTION_STATUS_COPY = {
+    late: "late arrivals",
+    toConfirm: "bookings to confirm",
+    waiting: "dogs waiting to be collected",
+    unpaid: "unpaid balances",
+  };
+
   const dateLabel = dateObj.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -336,27 +370,26 @@ export function TodayView({
   );
 
   /**
-   * Turning highlighting on also takes you to the first dog that needs you,
-   * but only if it is off screen — the viewport never moves on its own, and
-   * the date must stay put. This is the one deliberate exception, on a press.
+   * Selecting a segment also takes you to the first dog it names, but only if
+   * that dog is off screen — the viewport never moves on its own, and the
+   * date must stay put. This is the one deliberate exception, on a press.
    */
-  const toggleAttention = useCallback(() => {
-    setAttentionActive((active) => {
-      const next = !active;
-      if (!next || attention.ids.length === 0) return next;
-      requestAnimationFrame(() => {
-        const target = document.querySelector(
-          `[data-booking-id="${attention.ids[0]}"] [data-dog-token]`,
-        );
-        if (!target) return;
-        const box = target.getBoundingClientRect();
-        if (box.top >= 0 && box.bottom <= window.innerHeight) return;
-        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-        target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-      });
-      return next;
+  const selectAttentionReason = useCallback((reason) => {
+    setAttentionReason(reason);
+    if (!reason) return;
+    const firstId = attention.reasons[reason]?.[0];
+    if (!firstId) return;
+    requestAnimationFrame(() => {
+      const target = document.querySelector(
+        `[data-booking-id="${firstId}"] [data-dog-token]`,
+      );
+      if (!target) return;
+      const box = target.getBoundingClientRect();
+      if (box.top >= 0 && box.bottom <= window.innerHeight) return;
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
     });
-  }, [attention.ids]);
+  }, [attention.reasons]);
 
   return (
     <div className="min-h-full bg-brand-paper">
@@ -367,14 +400,15 @@ export function TodayView({
         attention={attention}
         zoneCounts={zoneCounts}
         collectedTotal={takings?.total ?? 0}
+        dueNow={dueNow}
         unpaidTotal={unpaidTotal}
         isDayOpen={isDayOpen}
         isToday={isToday}
         nextOnlineSlot={availabilityView.nextOnlineSlot}
         onOpenDatePicker={onOpenDatePicker}
         onManageAvailability={() => setShowAvailability(true)}
-        attentionActive={attentionActive}
-        onToggleAttention={toggleAttention}
+        attentionReason={attentionReason}
+        onSelectAttentionReason={selectAttentionReason}
       />
 
       <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-5 pb-10">
@@ -386,10 +420,10 @@ export function TodayView({
           </div>
         ) : null}
 
-        {attentionActive ? (
+        {attentionReason ? (
           <p role="status" className="-mb-2 px-1 text-[12px] font-semibold text-brand-purple">
-            Highlighting {attention.count} {attention.count === 1 ? "dog that needs" : "dogs that need"} you —
-            every other dog is dimmed, not hidden.
+            Highlighting {new Set(attention.reasons[attentionReason]).size}{" "}
+            {ATTENTION_STATUS_COPY[attentionReason]} — every other dog is dimmed, not hidden.
           </p>
         ) : null}
 
@@ -435,14 +469,16 @@ export function TodayView({
                 handlers={boardHandlers}
                 onTheWaySignals={onTheWaySignals}
                 busyIds={actions.busyIds}
-                attentionActive={attentionActive}
+                highlightIds={highlightIds}
                 landedId={actions.landedId}
+                boardKey={dateStr}
                 selectedId={selectedTokenId}
                 onSelectToken={setSelectedTokenId}
               />
             </div>
             <CompletedDogs
               tokens={tokens.home}
+              landedId={actions.landedId}
               isToday={isToday}
               resolve={resolve}
               paymentOf={paymentOf}

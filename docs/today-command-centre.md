@@ -79,7 +79,11 @@ in the booking id, so the order is total and two identical bookings never swap.
 mapping the cards used, so the board can never disagree with the header counts:
 
 - **urgent** — late arrival, collected-but-owing, or a collection wait ≥ 60 min
-  (`READY_URGENT_MINUTES`). Coral ring **and** coral meta text.
+  (`READY_URGENT_MINUTES`). Coral ring **and** coral words. Past 2 hours
+  (`NO_ARRIVAL_MINUTES`) the wording flips from "N hrs late" — which reads as
+  "still expected any moment" — to **"No arrival"**, with the slot heading
+  still carrying when it was due. The tier stays urgent; only the story told
+  changes.
 - **watch** — anything on the needs-attention list, an arrival due within 15 min
   (`DUE_SOON_MINUTES`), or a dog on site ≥ 3 h (`IN_SALON_LONG_MINUTES`).
 - **calm** — everything else. A **browsed past or future date is always calm**
@@ -115,7 +119,8 @@ Three facts earn extra ink, because each costs money or welfare if missed:
   printed beneath it, with the full text in the panel.
 - **A balance appears only from Ready onward** — where it actually blocks the
   handover. A dog mid-groom that will settle at pick-up is routine and must not
-  look like a problem.
+  look like a problem. Its settled counterpart: a **paid Ready dog carries a
+  small ✓** in the same seat, so "just hand over" is visible without a press.
 - **"Owner on the way"** — the read-only WhatsApp signal, as a teal mark.
 
 Everything else — service, owner, payment sentence, who confirmed and when, the
@@ -164,10 +169,15 @@ Press a dog, get that dog's actions. The mental model is identical everywhere;
 only the physical presentation changes.
 
 - **≥ 768px** — `DogActionMenu`, a portalled `role="menu"` anchored beside the
-  token, growing out of its edge. Deliberately **not** a radial menu: a dog
-  offers 3–9 actions and several labels are long ("Take £52 payment"), so arc
-  placement would collide or shrink below a comfortable target and the screen
-  reader order would stop matching the visual one.
+  token, growing out of its edge, in **three tiers of weight** matching how
+  often each action is needed mid-groom: the workflow transition dominates as
+  one large filled button, contact and payment sit in a compact row beneath
+  it, and reference material (booking details, files, reversals) is a quiet
+  list at the bottom. All items keep `role="menuitem"` in DOM order, so arrow
+  traversal is unchanged by the visual grouping. Deliberately **not** a radial
+  menu: a dog offers 3–9 actions and several labels are long ("Take £52
+  payment"), so arc placement would collide or shrink below a comfortable
+  target and the screen reader order would stop matching the visual one.
 - **< 768px** — `DogActionSheet`, a bottom sheet on `ModalShell`, sized for a
   thumb at 320px.
 
@@ -199,17 +209,40 @@ show") is confirmed, never quietly undone, and the undo write carries
 
 ### Needs attention
 
-`buildAttentionSummary` — zero reads *"Everything's on track"*; non-zero is one
-press that **dims the calm dogs and rings the exceptional ones where they
-already are**. It never filters them into a separate list: moving a dog to prove
-it needs attention would destroy the spatial memory the board exists to build,
-and the same booking would then appear twice on one screen. Membership is
-exactly the existing `needsAction` union (late, unconfirmed, waiting to be
-collected, unpaid) — a sentence, not a second definition. Turning it on also
-scrolls to the first flagged dog **only if it is off screen**; that press is the
-one place the viewport is allowed to move.
+`buildAttentionSummary` — zero reads *"Everything's on track"*; non-zero renders
+an **itemised strip, one segment per reason**: `2 late · 1 to confirm · 3
+waiting · £88 due`. An opaque "11 things need you" sounded urgent but forced a
+second round of interpretation; the segments make the number define itself.
+Pressing a segment **dims the calm dogs (to 55%, never lower — highlighting
+raises the important dogs, it must not make the application look disabled) and
+rings exactly the dogs that segment names, where they already are**. It never
+filters them into a separate list: moving a dog to prove it needs attention
+would destroy the spatial memory the board exists to build. Membership is
+exactly the existing `needsAction` union — the segments name reasons, they do
+not invent a second definition. The `£` segment carries the **due-now** amount
+(dogs from Ready onward, where taking it unblocks the door); the whole-day
+total lives in the end-of-day facts, and the header's money says only what is
+in the till — one financial voice per surface. Selecting a segment also scrolls
+to its first dog **only if that dog is off screen**; that press is the one
+place the viewport is allowed to move.
+
+### The phone shows one lane at a time
+
+Below 768px the three zones do not stack. Stacking buried Ready several screens
+beneath Arriving exactly when its dogs mattered most — mid-afternoon, with
+owners at the door. Instead a **segmented switcher** (`Arriving 6 · With us 2 ·
+Ready 3`) shows one lane at a time: every lane's count stays readable from one
+row, a coral dot marks a lane holding an urgent dog so nothing hides behind the
+tab you are not on, and a deliberate horizontal swipe (≥56px, and clearly more
+horizontal than vertical, so a drifting scroll never changes lane) moves
+between neighbours. The switcher resets to Arriving when the browsed date
+changes. Wider screens keep all three zones in place at once — the switcher
+never renders there. Each zone also sits on a **2% tinted surface** at every
+width, so the emptiness has structure: a lane reads as a place dogs stand, not
+leftover page.
 
 ### The header
+
 
 One anatomy at every width. The date **is** the date-picker control and never
 leaves the screen — it is the only guard against doing today's work on

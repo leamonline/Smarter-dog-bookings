@@ -15,7 +15,7 @@
 // habit transfers.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { DogActionList } from "./DogActionList.jsx";
+
 
 const PANEL_WIDTH = 248;
 const GAP = 10;
@@ -150,6 +150,12 @@ export function DogActionMenu({
 
   if (!position) return null;
 
+  const primary = actions.find((action) => action.kind === "primary") ?? null;
+  const secondary = actions.filter((action) => action.kind === "default");
+  const reference = actions.filter((action) => action.kind === "quiet");
+  const secondaryClass =
+    "inline-flex min-h-11 items-center rounded-control border border-brand-purple/25 bg-white px-3 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/[0.05] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
+
   const transformOrigin =
     position.origin === "left" ? "left center" : position.origin === "right" ? "right center" : "top center";
 
@@ -189,8 +195,70 @@ export function DogActionMenu({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-col gap-1 border-t border-brand-paper-line pt-2">
-        <DogActionList actions={actions} onSelect={onSelect} dogName={dogName} busy={busy} />
+      {/* Three tiers of weight, matching how often each is needed mid-groom:
+          the workflow transition dominates, contact/payment sit in one compact
+          row, and reference material (files, details, reversals) is a quiet
+          list at the bottom. All stay role=menuitem in DOM order, so the
+          arrow-key traversal is unchanged by the visual grouping. */}
+      <div className="flex flex-col gap-1.5 border-t border-brand-paper-line pt-2">
+        {primary ? (
+          <button
+            type="button"
+            role="menuitem"
+            aria-label={`${primary.label} — ${dogName}`}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            onClick={() => onSelect(primary)}
+            className="flex min-h-12 w-full items-center justify-center rounded-control bg-brand-purple px-3 text-[15px] font-bold text-white outline-none transition-colors hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {primary.label}
+          </button>
+        ) : null}
+        {secondary.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {secondary.map((action) => action.href ? (
+              <a
+                key={action.id}
+                href={action.href}
+                role="menuitem"
+                aria-label={`${action.label} about ${dogName}`}
+                onClick={() => onSelect(action)}
+                className={secondaryClass}
+              >
+                {action.label}
+              </a>
+            ) : (
+              <button
+                key={action.id}
+                type="button"
+                role="menuitem"
+                aria-label={`${action.label} — ${dogName}`}
+                disabled={busy}
+                aria-busy={busy || undefined}
+                onClick={() => onSelect(action)}
+                className={secondaryClass}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {reference.length > 0 ? (
+          <div className="mt-0.5 flex flex-col border-t border-brand-paper-line pt-1">
+            {reference.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                role="menuitem"
+                aria-label={`${action.label} — ${dogName}`}
+                onClick={() => onSelect(action)}
+                className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-[13px] font-semibold text-slate-600 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

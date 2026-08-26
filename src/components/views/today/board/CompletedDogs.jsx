@@ -15,12 +15,17 @@ import { Check, ChevronDown } from "lucide-react";
 import { DogTokenAvatar } from "./DogTokenAvatar.jsx";
 import { PaymentState, dogCountLabel, formatMoney } from "../parts.jsx";
 
-export function CompletedDogs({ tokens, isToday, resolve, paymentOf, onOpenBooking, onOpenToken }) {
+export function CompletedDogs({ tokens, landedId = null, isToday, resolve, paymentOf, onOpenBooking, onOpenToken }) {
   const [expanded, setExpanded] = useState(false);
   if (tokens.length === 0) return null;
 
   const unpaid = tokens.filter((token) => token.entry.actionReasons?.includes("payment")).length;
   const label = isToday ? "gone home" : "went home";
+  // A dog that just landed here flashes the closed line once, so "Belle left
+  // READY and entered DONE" is seen, not inferred. Motion-gated in CSS; the
+  // toast and aria-live carry it under reduced motion.
+  const justLanded = landedId != null
+    && tokens.some((token) => String(token.booking.id) === String(landedId));
 
   return (
     <section
@@ -32,7 +37,9 @@ export function CompletedDogs({ tokens, isToday, resolve, paymentOf, onOpenBooki
         aria-expanded={expanded}
         aria-label={`${expanded ? "Hide" : "Show"} ${dogCountLabel(tokens.length)} ${label}`}
         onClick={() => setExpanded((value) => !value)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-control px-1 text-[13px] font-bold text-slate-600 outline-none transition-colors hover:bg-brand-purple/[0.04] hover:text-brand-purple focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+        className={`inline-flex min-h-11 items-center gap-2 rounded-control px-1 text-[13px] font-bold text-slate-600 outline-none transition-colors hover:bg-brand-purple/[0.04] hover:text-brand-purple focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${
+          justLanded ? "motion-safe:animate-token-land" : ""
+        }`}
       >
         <Check size={15} strokeWidth={3} aria-hidden="true" className="text-brand-teal" />
         <span className="tabular-nums">{tokens.length}</span> {label}
@@ -112,18 +119,37 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
       ) : (
         <span className="whitespace-nowrap">No dogs have arrived yet</span>
       )}
-      {takings && takings.total > 0 ? (
-        <span className="min-w-0">
-          Taken <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(takings.total)}</strong>
-          {takings.byMethod.map((method) => (
-            <span key={method.method} className="whitespace-nowrap">
-              {" · "}{method.label} <span className="tabular-nums">{formatMoney(method.amount)}</span>
-            </span>
-          ))}
+      <span
+        className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"
+        aria-label={`Taken ${formatMoney(takings?.total ?? 0)} of ${formatMoney(summary.expectedRevenue)} expected`}
+      >
+        <span className="whitespace-nowrap">
+          Taken{" "}
+          <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(takings?.total ?? 0)}</strong>
+          {" "}of{" "}
+          <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(summary.expectedRevenue)}</strong>
         </span>
-      ) : null}
-      <span className="whitespace-nowrap">
-        Expected <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(summary.expectedRevenue)}</strong>
+        {summary.expectedRevenue > 0 ? (
+          // The day's takings at a glance — one quiet bar, no chart, because
+          // this page is a workflow surface, not an accounting screen.
+          <span
+            aria-hidden="true"
+            data-takings-bar
+            className="inline-block h-1.5 w-24 overflow-hidden rounded-full bg-brand-purple/10"
+          >
+            <span
+              className="block h-full rounded-full bg-brand-teal"
+              style={{ width: `${Math.min(100, Math.round(((takings?.total ?? 0) / summary.expectedRevenue) * 100))}%` }}
+            />
+          </span>
+        ) : null}
+        {takings && takings.total > 0
+          ? takings.byMethod.map((method) => (
+            <span key={method.method} className="whitespace-nowrap text-slate-500">
+              {method.label} <span className="tabular-nums">{formatMoney(method.amount)}</span>
+            </span>
+          ))
+          : null}
       </span>
       <span className={`whitespace-nowrap ${overCap ? "font-bold text-brand-coral-text" : ""}`}>
         Capacity{" "}

@@ -7,7 +7,9 @@
 //
 // Layout by device, because a board is a physical thing and the device is the
 // table it sits on:
-//   phone        zones stack; a press opens a bottom sheet
+//   phone        ONE lane at a time behind a segmented switcher (stacking all
+//                three buried Ready several screens below Arriving exactly
+//                when its dogs matter most); a press opens a bottom sheet
 //   tablet ⬍     two columns, Ready spanning underneath — vertical, still spatial
 //   tablet ⬌ +   three columns; the real board, with Arriving weighted wider
 //                because it is the zone that fills up first
@@ -69,15 +71,23 @@ export function SalonBoard({
   handlers = {},
   onTheWaySignals = null,
   busyIds = null,
-  attentionActive = false,
+  /** Booking ids to raise; everything else dims (never hides). Null = off. */
+  highlightIds = null,
   landedId = null,
   selectedId = null,
   onSelectToken,
+  /** Resets the phone's active lane when the browsed date changes. */
+  boardKey = "",
 }) {
   const isTabletUp = useMediaQuery("(min-width: 768px)");
   const isWide = useMediaQuery("(min-width: 1024px)");
   const [dragAnnouncement, setDragAnnouncement] = useState("");
   const lastFocusedId = useRef(null);
+  // The phone's one visible lane. Journey-order default (Arriving); the date
+  // changing resets it so yesterday's browsing never leaks into today.
+  const [activeZone, setActiveZone] = useState("due");
+  const swipeStart = useRef(null);
+  useEffect(() => setActiveZone("due"), [boardKey]);
 
   const density = isTabletUp && !isWide ? "roomy" : "regular";
 
@@ -145,6 +155,9 @@ export function SalonBoard({
       // changes how long a Ready dog's wait actually matters, so it belongs
       // on the token — as a mark, with the words in the panel.
       onTheWay: onTheWaySignals?.[String(token.booking.id)] ?? null,
+      // The settled counterpart of the balance pill, Ready only — where "paid,
+      // just hand over" is the fact that unblocks the door.
+      showPaid: token.zone === "ready" && payment?.kind === "paid",
     };
   }, [getWelfare, onTheWaySignals, paymentOf, resolve]);
 
@@ -242,11 +255,65 @@ export function SalonBoard({
         </p>
       ) : null}
 
+      {!isTabletUp ? (
+        // The lane switcher. Counts keep the whole day readable from one row,
+        // and a coral dot marks a lane holding an urgent dog, so nothing can
+        // hide behind the tab you are not on.
+        <div
+          role="group"
+          aria-label="Board zones"
+          className="flex gap-1 rounded-xl bg-brand-purple/[0.05] p-1"
+        >
+          {ACTIVE_BOARD_ZONES.map((zone) => {
+            const active = activeZone === zone;
+            const urgent = tokens[zone].filter((token) => token.tier === "urgent").length;
+            const meta = BOARD_ZONE_META[zone];
+            return (
+              <button
+                key={zone}
+                type="button"
+                aria-pressed={active}
+                data-zone-tab={zone}
+                aria-label={`Show ${meta.title}, ${tokens[zone].length} ${tokens[zone].length === 1 ? "dog" : "dogs"}${urgent ? `, ${urgent} urgent` : ""}`}
+                onClick={() => setActiveZone(zone)}
+                className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1 ${
+                  active ? "bg-white text-brand-purple shadow-sm" : "text-slate-600"
+                }`}
+              >
+                <span className="truncate">{meta.title}</span>
+                <span className="tabular-nums text-[12px]">{tokens[zone].length}</span>
+                {urgent > 0 ? (
+                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-brand-coral" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div
         aria-describedby={isTabletUp ? "salon-board-drag-hint" : undefined}
+        onTouchStart={isTabletUp ? undefined : (event) => {
+          const touch = event.touches[0];
+          swipeStart.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchEnd={isTabletUp ? undefined : (event) => {
+          const start = swipeStart.current;
+          swipeStart.current = null;
+          const touch = event.changedTouches[0];
+          if (!start || !touch) return;
+          const dx = touch.clientX - start.x;
+          const dy = touch.clientY - start.y;
+          // A deliberate horizontal swipe only: a vertical scroll that drifts
+          // sideways must never change lane under the thumb.
+          if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 2) return;
+          const index = ACTIVE_BOARD_ZONES.indexOf(activeZone);
+          const next = ACTIVE_BOARD_ZONES[index + (dx < 0 ? 1 : -1)];
+          if (next) setActiveZone(next);
+        }}
         className="grid min-w-0 grid-cols-1 items-start gap-x-3 gap-y-2 md:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]"
       >
-        {ACTIVE_BOARD_ZONES.map((zone) => (
+        {(isTabletUp ? ACTIVE_BOARD_ZONES : [activeZone]).map((zone) => (
           <BoardZone
             key={zone}
             zone={zone}
@@ -256,7 +323,7 @@ export function SalonBoard({
             dropActive={drag?.targetZone === zone}
             dropEligible={!!eligibleZone && eligibleZone === zone && drag?.targetZone !== zone}
             selectedId={selectedId}
-            attentionActive={attentionActive}
+            highlightIds={highlightIds}
             busyIds={busyIds}
             draggingId={draggingId}
             landedId={landedId}

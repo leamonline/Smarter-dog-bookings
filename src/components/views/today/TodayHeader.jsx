@@ -24,17 +24,19 @@ export function TodayHeader({
   dateLabel,
   dogsBooked,
   capacityTotal = DAY_CAPACITY,
-  attention = { count: 0, headline: "", ids: [] },
+  attention = { count: 0, headline: "", ids: [], reasons: { late: [], toConfirm: [], waiting: [], unpaid: [] } },
   zoneCounts = [],
   collectedTotal = 0,
+  /** Actionable balance across the strip's unpaid dogs (Ready onward). */
+  dueNow = 0,
   unpaidTotal = 0,
   isDayOpen,
   isToday = false,
   nextOnlineSlot = null,
   onOpenDatePicker,
   onManageAvailability,
-  attentionActive = false,
-  onToggleAttention,
+  attentionReason = null,
+  onSelectAttentionReason,
 }) {
   const availabilityLabel = nextOnlineSlot
     ? `Next online ${nextOnlineSlot}`
@@ -87,9 +89,10 @@ export function TodayHeader({
         >
           <NeedsAttentionSummary
             summary={attention}
+            dueNow={dueNow}
             isToday={isToday}
-            active={attentionActive}
-            onToggle={onToggleAttention}
+            activeReason={attentionReason}
+            onSelectReason={onSelectAttentionReason}
           />
           {shape.length > 0 ? (
             <span className="min-w-0 whitespace-nowrap" data-testid="board-shape">
@@ -101,25 +104,15 @@ export function TodayHeader({
               ))}
             </span>
           ) : null}
-          {collectedTotal > 0 || unpaidTotal > 0 ? (
-            // Money stays secondary: the board is a workflow surface, not a
-            // till. Two numbers, no chart, no panel.
+          {collectedTotal > 0 ? (
+            // One financial voice per surface: the header says what is in the
+            // till, the strip says what is due right now, and the end-of-day
+            // facts carry the day total. Repeating all three here made the
+            // same story speak in several voices at once.
             <span className="whitespace-nowrap text-slate-500" data-testid="board-money">
-              {collectedTotal > 0 ? (
-                <span className="whitespace-nowrap">
-                  <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(collectedTotal)}</strong> collected
-                </span>
-              ) : null}
-              {collectedTotal > 0 && unpaidTotal > 0 ? (
-                <span aria-hidden="true" className="mx-1.5 text-slate-300">·</span>
-              ) : null}
-              {unpaidTotal > 0 ? (
-                <span className="whitespace-nowrap">
-                  <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(unpaidTotal)}</strong> to collect
-                </span>
-              ) : null}
+              <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(collectedTotal)}</strong> collected
             </span>
-          ) : dogsBooked > 0 ? (
+          ) : dogsBooked > 0 && unpaidTotal === 0 ? (
             <span className="whitespace-nowrap font-bold text-brand-teal-text">All paid</span>
           ) : null}
           {overCap ? (

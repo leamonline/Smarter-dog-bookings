@@ -37,7 +37,7 @@ export function BoardZone({
   dropActive = false,
   dropEligible = false,
   selectedId = null,
-  attentionActive = false,
+  highlightIds = null,
   busyIds,
   draggingId = null,
   landedId = null,
@@ -75,11 +75,12 @@ export function BoardZone({
             welfare={info.welfare}
             amountDue={info.amountDue}
             showBalance={info.showBalance}
+            showPaid={!!info.showPaid}
             onTheWay={!!info.onTheWay}
             density={density}
             selected={selectedId === id}
-            dimmed={attentionActive && !token.needsAttention}
-            highlighted={attentionActive && token.needsAttention}
+            dimmed={!!highlightIds && !highlightIds.has(id)}
+            highlighted={!!highlightIds && highlightIds.has(id)}
             busy={busyIds?.has(id)}
             dragging={draggingId === id}
             landed={landedId === id}
@@ -99,7 +100,10 @@ export function BoardZone({
       data-drop-active={dropActive ? "true" : "false"}
       data-zone-count={tokens.length}
       aria-label={`${meta.title}, ${countLabel}`}
-      className={`relative flex min-w-0 flex-col rounded-2xl p-2 transition-colors duration-150 ${className} ${
+      // A 2% tint gives the emptiness structure: the lane reads as a place
+      // dogs stand, not leftover page. Deliberately faint — the tokens stay
+      // the loudest thing on the board.
+      className={`relative flex min-w-0 flex-col rounded-2xl bg-brand-purple/[0.025] p-2.5 transition-colors duration-150 ${className} ${
         dropActive
           ? "bg-brand-purple/[0.07] outline-2 outline-dashed outline-offset-[-2px] outline-brand-purple/40"
           : dropEligible
