@@ -1,7 +1,7 @@
 // The reason-code contract (#665): what the gates EMIT must equal what the
 // prose mapper would INFER.
 //
-// Migration 20260825120000 makes each booking gate state its reason in the
+// Migration 20260826120000 makes each booking gate state its reason in the
 // exception's DETAIL. mapDenialReason still carries the message patterns as a
 // documented fallback — for the two gates deliberately left bare, for the
 // browser engine's own refusals (which never travel through PostgreSQL), and
@@ -25,7 +25,7 @@ import { DENIAL_REASON_LABELS, mapDenialReason } from "./denials";
 
 const MIGRATION = fileURLToPath(
   new URL(
-    "../../supabase/migrations/20260825120000_gate_reason_codes.sql",
+    "../../supabase/migrations/20260826120000_gate_reason_codes.sql",
     import.meta.url,
   ),
 );

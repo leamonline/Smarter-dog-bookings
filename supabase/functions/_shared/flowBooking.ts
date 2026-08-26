@@ -558,7 +558,7 @@ export type GroupConfirmResult =
       /**
        * The reason code the gate EMITTED (#665). Preferred over inferring one
        * from `detail`; absent when the gate deliberately carries no code, or
-       * the database predates migration 20260825120000.
+       * the database predates migration 20260826120000.
        */
       detailCode?: string;
     };

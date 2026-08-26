@@ -26,7 +26,7 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
 /**
  * Categorise a booking-gate rejection into a stable reason code.
  *
- * Since migration 20260825120000 the gates EMIT their code in the exception's
+ * Since migration 20260826120000 the gates EMIT their code in the exception's
  * DETAIL field (#665), so pass `details` and it is used directly. That is the
  * contract: the component that made the decision states it, rather than having
  * it guessed from the prose it happened to produce.

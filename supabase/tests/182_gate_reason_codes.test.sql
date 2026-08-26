@@ -1,6 +1,6 @@
 -- Reason-code contract: every booking gate states WHY it refused (#665).
 --
--- Until 20260825120000 the reason a booking was refused was re-derived by
+-- Until 20260826120000 the reason a booking was refused was re-derived by
 -- regex over the gate's prose (mapDenialReason). This file proves the gates
 -- now EMIT the code in the exception's DETAIL field, and that they still say
 -- exactly what they said before.

@@ -44,7 +44,7 @@ export const KNOWN_DENIAL_CODES: ReadonlySet<string> = new Set([
  * MIRRORS mapDenialReason in src/engine/denials.ts, which is the source of
  * truth.
  *
- * Since migration 20260825120000 the gates EMIT their code in DETAIL (#665),
+ * Since migration 20260826120000 the gates EMIT their code in DETAIL (#665),
  * so `details` is used directly when it names a known code. The message
  * patterns remain the documented fallback — for a gate deliberately left bare,
  * and for a database not yet carrying that migration. Order matters: more

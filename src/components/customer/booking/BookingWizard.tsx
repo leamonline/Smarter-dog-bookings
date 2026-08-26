@@ -100,7 +100,7 @@ function fmtDateForReason(dateStr: string): string {
 interface RepoErrorShape {
   message?: string;
   code?: string;
-  // The gates emit their reason code here since migration 20260825120000
+  // The gates emit their reason code here since migration 20260826120000
   // (#665). PostgREST surfaces a raised DETAIL as `details`, and supabase-js
   // passes it through untouched.
   details?: string | null;
