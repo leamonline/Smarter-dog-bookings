@@ -16,6 +16,29 @@ function initialsFromUser(user) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// The wordmark as brand-purple ink on the light bar — /logo.png is a
+// black-on-transparent lockup, so a CSS mask recolours it to match the
+// chrome exactly (same technique as DogSilhouette). Source is 4:1, so
+// keep width = 4 × height for a crisp `contain` fit.
+function BrandWordmark({ className = "" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`block bg-brand-purple ${className}`}
+      style={{
+        WebkitMaskImage: "url(/logo.png)",
+        maskImage: "url(/logo.png)",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskPosition: "left center",
+        maskPosition: "left center",
+      }}
+    />
+  );
+}
+
 const PawIcon = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-teal" aria-hidden="true">
     <ellipse cx="8" cy="7" rx="2.5" ry="3" /><ellipse cx="16" cy="7" rx="2.5" ry="3" /><ellipse cx="4.5" cy="13" rx="2" ry="2.5" /><ellipse cx="19.5" cy="13" rx="2" ry="2.5" /><ellipse cx="12" cy="17" rx="5" ry="4" />
@@ -52,15 +75,18 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
 
   return (
     <>
-      {/* ── Desktop header (lg+) ── */}
-      <div className="hidden lg:flex items-center gap-2 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white">
+      {/* ── Desktop header (lg+) ──
+          Quiet chrome: white surface, hairline rule, ink typography. The
+          nav frames the work rather than competing with it — the only
+          saturated colour up here is signal (badges, the one CTA). */}
+      <div className="hidden lg:flex items-center gap-2 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-white text-slate-700 border-b border-slate-200">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
-          <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-8 w-auto xl:h-9" />
+          <BrandWordmark className="h-7 w-28" />
         </NavLink>
 
         {/* Primary nav — sits inline next to the logo to keep the right
-            side clear for the New booking CTA. Each section keeps its own
-            accent so staff recognise it by colour. */}
+            side clear for the New booking CTA. One uniform active state;
+            the icon + label pair does the wayfinding. */}
         <nav className="flex items-center gap-0.5 ml-1 xl:ml-2" aria-label="Primary">
           {PRIMARY_NAV.filter(
             (item) => !item.ownerFeature || showBookingWorkspace,
@@ -80,8 +106,8 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 className={({ isActive }) =>
                   `group relative inline-flex shrink-0 items-center gap-1 h-10 px-0.5 xl:px-2.5 rounded-xl no-underline transition-all duration-150 ${
                     isActive
-                      ? `${item.activeBg} font-bold`
-                      : "bg-transparent text-white/85 hover:bg-white/10 hover:text-white font-semibold"
+                      ? "bg-brand-purple/[0.07] text-brand-purple font-bold"
+                      : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-brand-purple font-semibold"
                   }`
                 }
                 title={item.label}
@@ -113,13 +139,14 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
 
         <div className="flex-1" />
 
-        {/* Primary CTA — New booking. Mustard on purple, the one loud
-            action in the header. */}
+        {/* Primary CTA — New booking. The one filled control in the bar:
+            solid purple, no glow, so the board below keeps gold for "the
+            next thing to do". */}
         {onNewBooking && (
           <button
             type="button"
             onClick={onNewBooking}
-            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
+            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-brand-purple text-white cursor-pointer transition-colors hover:bg-brand-purple-light font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
             aria-label="New booking (press N)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -137,7 +164,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           <button
             type="button"
             onClick={onNewClient}
-            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold whitespace-nowrap bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 font-[inherit] focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border border-slate-200 bg-white text-slate-700 cursor-pointer transition-colors hover:border-brand-purple/30 hover:text-brand-purple font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
             aria-label="New client"
           >
             <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
@@ -154,10 +181,10 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             aria-expanded={openMenu === "tools"}
             aria-haspopup="menu"
             title="Tools and settings"
-            className={`tap-target w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
+            className={`tap-target w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors ${
               openMenu === "tools"
-                ? "bg-white/20 text-white"
-                : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"
+                ? "bg-slate-100 text-brand-purple"
+                : "text-slate-500 hover:bg-slate-100 hover:text-brand-purple"
             }`}
           >
             <Menu size={18} strokeWidth={2.2} aria-hidden="true" />
@@ -205,10 +232,10 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             aria-expanded={openMenu === "account"}
             aria-haspopup="menu"
             title="Account"
-            className={`tap-target w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all font-display text-sm font-extrabold ${
+            className={`tap-target w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors font-display text-sm font-extrabold ${
               openMenu === "account"
-                ? "bg-brand-yellow text-brand-purple"
-                : "bg-[#f3edfb] text-brand-purple hover:bg-white"
+                ? "bg-brand-purple text-white"
+                : "bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/15"
             }`}
           >
             {initials || (
@@ -249,10 +276,12 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         </div>
       </div>
 
-      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ── */}
-      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-brand-purple text-white">
+      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ──
+          Light like the desktop bar; the nav strip directly below carries
+          the hairline rule, so together they read as one quiet header. */}
+      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-white text-slate-700">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
-          <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
+          <BrandWordmark className="h-6 w-24" />
         </NavLink>
         <div className="flex-1" />
         {/* The one persistent booking entry point on mobile — every screen,
@@ -262,7 +291,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             type="button"
             onClick={onNewBooking}
             aria-label="New booking"
-            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-bold bg-brand-purple text-white cursor-pointer transition-colors hover:bg-brand-purple-light shrink-0 focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -279,8 +308,8 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             aria-label="Menu"
             aria-expanded={openMenu === "mobile"}
             aria-haspopup="menu"
-            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
-              openMenu === "mobile" ? "bg-white/20 text-white" : "bg-white/10 text-white hover:bg-white/20"
+            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors ${
+              openMenu === "mobile" ? "bg-slate-100 text-brand-purple" : "text-slate-500 hover:bg-slate-100 hover:text-brand-purple"
             }`}
           >
             <Menu size={20} strokeWidth={2.2} aria-hidden="true" />
