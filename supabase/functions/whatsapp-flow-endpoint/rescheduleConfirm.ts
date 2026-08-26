@@ -20,6 +20,13 @@ export type RescheduleConfirmFailure = {
    * silently strip the detail on the reschedule path.
    */
   detail?: string;
+  /**
+   * The reason code the gate EMITTED in DETAIL (#665). Declared here for the
+   * same reason `detail` is: this type re-describes the adapter's failure
+   * shape, so omitting it would silently strip the emitted code on the
+   * reschedule path and quietly send that path back to prose inference.
+   */
+  detailCode?: string;
 };
 
 export type RescheduleConfirmSuccess = {

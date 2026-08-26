@@ -121,6 +121,8 @@ export interface InsertResult {
   id?: string;
   errorCode?: string;
   errorMessage?: string;
+  /** The reason code the gate emitted in DETAIL (#665), if any. */
+  errorDetails?: string;
 }
 
 /** Existing booking on a date — the slim shape the 2-2-1 engine reads. */
@@ -146,6 +148,8 @@ export interface GroupInsertResult {
   replayed?: boolean;
   errorCode?: string;
   errorMessage?: string;
+  /** The reason code the gate emitted in DETAIL (#665), if any. */
+  errorDetails?: string;
 }
 
 // ── Injected IO surface ────────────────────────────────────────
@@ -551,6 +555,12 @@ export type GroupConfirmResult =
        * must never be rendered to a customer.
        */
       detail?: string;
+      /**
+       * The reason code the gate EMITTED (#665). Preferred over inferring one
+       * from `detail`; absent when the gate deliberately carries no code, or
+       * the database predates migration 20260825120000.
+       */
+      detailCode?: string;
     };
 
 /**
@@ -695,8 +705,9 @@ export async function confirmGroupBooking(
     return {
       ok: false,
       kind: "slot_taken",
-      message: friendlyDenialMessage(res.errorMessage),
+      message: friendlyDenialMessage(res.errorMessage, res.errorDetails),
       detail: res.errorMessage,
+      detailCode: res.errorDetails,
     };
   }
   return {
@@ -706,6 +717,7 @@ export async function confirmGroupBooking(
     // code to translate — but it must not reach a customer verbatim either.
     message: "Sorry, we couldn’t save that booking. Please try again, or reply here and we’ll help.",
     detail: res.errorMessage,
+    detailCode: res.errorDetails,
   };
 }
 
@@ -727,6 +739,8 @@ export type ConfirmResult =
       message: string;
       /** Raw gate/database message; diagnostic only, never shown. */
       detail?: string;
+      /** The reason code the gate emitted in DETAIL (#665), if any. */
+      detailCode?: string;
     };
 
 const CAPACITY_TRIGGER_SQLSTATE = "P0001";
@@ -760,8 +774,9 @@ export async function confirmBooking(db: FlowDb, input: ConfirmInput): Promise<C
     return {
       ok: false,
       kind: "slot_taken",
-      message: friendlyDenialMessage(result.errorMessage),
+      message: friendlyDenialMessage(result.errorMessage, result.errorDetails),
       detail: result.errorMessage,
+      detailCode: result.errorDetails,
     };
   }
   return {
@@ -769,6 +784,7 @@ export async function confirmBooking(db: FlowDb, input: ConfirmInput): Promise<C
     kind: "error",
     message: "Sorry, we couldn’t save that booking. Please try again, or reply here and we’ll help.",
     detail: result.errorMessage,
+    detailCode: result.errorDetails,
   };
 }
 

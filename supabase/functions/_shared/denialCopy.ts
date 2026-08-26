@@ -29,12 +29,37 @@
 // "contact us" means: inside WhatsApp, "message us on WhatsApp" would be odd,
 // so those lines say "just reply here" instead.
 
+// The complete reason vocabulary, mirroring the keys of DENIAL_REASON_LABELS in
+// src/engine/denials.ts. A code emitted by a gate is validated against this
+// before it is trusted, so a DETAIL carrying anything else falls through to the
+// prose patterns rather than inventing a category.
+export const KNOWN_DENIAL_CODES: ReadonlySet<string> = new Set([
+  "capacity_2_2_1", "daily_cap", "slot_full", "seat_blocked",
+  "large_dog_ineligible", "calendar_closed", "past_date", "past_cutoff",
+  "pregnant", "customer_slot_blocked", "double_booked", "unavailable", "unknown",
+]);
+
 /**
- * Best-effort categorisation of a booking-gate rejection into a reason code.
+ * Categorise a booking-gate rejection into a reason code.
  * MIRRORS mapDenialReason in src/engine/denials.ts, which is the source of
- * truth. Order matters: more specific patterns first.
+ * truth.
+ *
+ * Since migration 20260825120000 the gates EMIT their code in DETAIL (#665),
+ * so `details` is used directly when it names a known code. The message
+ * patterns remain the documented fallback — for a gate deliberately left bare,
+ * and for a database not yet carrying that migration. Order matters: more
+ * specific patterns first.
  */
-export function mapDenialReason(message?: string | null): string {
+export function mapDenialReason(
+  message?: string | null,
+  details?: string | null,
+): string {
+  // Emitted beats inferred. Guarded against a DETAIL used for anything else:
+  // only a value that is one of our codes is trusted.
+  const emitted = (details || "").trim();
+  if (emitted && KNOWN_DENIAL_CODES.has(emitted)) {
+    return emitted;
+  }
   const m = (message || "").toLowerCase();
   if (!m) return "unknown";
   if (m.includes("pregnant")) return "pregnant";
@@ -47,7 +72,11 @@ export function mapDenialReason(message?: string | null): string {
   if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close|conditional:/.test(m)) {
     return "large_dog_ineligible";
   }
-  if (m.includes("same-day")) return "past_cutoff";
+  // Both same-day refusals from validate_booking_calendar. "too close to the
+  // start time" is the 30-minute cutoff and used to match nothing here, so it
+  // fell through to "unknown" — which #681 makes fail closed, denying those
+  // customers the alternative times that past_cutoff exists to offer.
+  if (m.includes("same-day") || m.includes("too close to the start time")) return "past_cutoff";
   if (m.includes("in the past")) return "past_date";
   if (m.includes("blocked")) return "seat_blocked";
   if (m.includes("closed")) return "calendar_closed";
@@ -99,8 +128,11 @@ export const RETRYABLE_DENIAL_REASONS: ReadonlySet<string> = new Set([
 ]);
 
 /** Whether the Flow should offer other times on the same day for this refusal. */
-export function canRetryAnotherTime(message?: string | null): boolean {
-  return RETRYABLE_DENIAL_REASONS.has(mapDenialReason(message));
+export function canRetryAnotherTime(
+  message?: string | null,
+  details?: string | null,
+): boolean {
+  return RETRYABLE_DENIAL_REASONS.has(mapDenialReason(message, details));
 }
 
 /**
@@ -112,8 +144,11 @@ export function canRetryAnotherTime(message?: string | null): boolean {
  * on. `unknown` falls back to a safe generic rather than leaking whatever
  * string arrived.
  */
-export function friendlyDenialMessage(message?: string | null): string {
-  switch (mapDenialReason(message)) {
+export function friendlyDenialMessage(
+  message?: string | null,
+  details?: string | null,
+): string {
+  switch (mapDenialReason(message, details)) {
     case "pregnant":
       // Clinical/policy, not capacity jargon — keep the meaning intact.
       return "Pregnant dogs need a quick chat first — just reply here and we’ll look after her properly. 🐾";

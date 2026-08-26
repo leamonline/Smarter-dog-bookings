@@ -357,12 +357,13 @@ async function logFlowDenial(
   state: FlowState,
   message: string | undefined,
   alternativeShown: boolean,
+  detailCode?: string,
 ): Promise<void> {
   try {
     const dogIds = state.dog_ids ?? [];
     const firstId = dogIds[0];
     await supabase.rpc("log_booking_denial", {
-      p_reason_code: mapDenialReason(message),
+      p_reason_code: mapDenialReason(message, detailCode),
       p_source: "whatsapp_flow",
       p_requested_date: state.date ?? null,
       p_slot: state.drop_off ?? null,
@@ -481,7 +482,7 @@ async function handleConfirm(
     }
 
     if (result.kind === "old_visit_unavailable") {
-      await logFlowDenial(supabase, session, state, result.detail ?? result.message, false);
+      await logFlowDenial(supabase, session, state, result.detail ?? result.message, false, result.detailCode);
       return screenResponse("BOOKING_FAILED", {
         message: result.message === RESCHEDULE_CUTOFF_MSG
           ? RESCHEDULE_CUTOFF_MSG
@@ -491,10 +492,10 @@ async function handleConfirm(
 
     // Only offer other times when another time could actually resolve this
     // refusal (issue #680) AND there is genuinely something else to offer.
-    if (result.kind === "slot_taken" && allowRetry && canRetryAnotherTime(result.detail)) {
+    if (result.kind === "slot_taken" && allowRetry && canRetryAnotherTime(result.detail, result.detailCode)) {
       const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       if (slots.length) {
-        await logFlowDenial(supabase, session, state, result.detail ?? result.message, true);
+        await logFlowDenial(supabase, session, state, result.detail ?? result.message, true, result.detailCode);
         await saveSession(supabase, session.flow_token, {
           screen: "SELECT_TIME_RETRY",
           state,
@@ -518,7 +519,7 @@ async function handleConfirm(
     if (result.kind === "slot_taken") {
       await failSession(supabase, session.flow_token);
     }
-    await logFlowDenial(supabase, session, state, result.detail ?? result.message, false);
+    await logFlowDenial(supabase, session, state, result.detail ?? result.message, false, result.detailCode);
     return screenResponse("BOOKING_FAILED", {
       message: result.message ?? "Couldn't save the booking.",
     });
@@ -551,17 +552,17 @@ async function handleConfirm(
   // Defensive fallback for an adapter that reports a reschedule-only error on
   // this ordinary booking path.
   if (res.kind === "old_visit_unavailable") {
-    await logFlowDenial(supabase, session, state, res.detail ?? res.message, false);
+    await logFlowDenial(supabase, session, state, res.detail ?? res.message, false, res.detailCode);
     await failSession(supabase, session.flow_token);
     return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
 
   // Capacity-prevented and another time could fix it — offer the other times,
   // but only if there actually are some (issue #680).
-  if (res.kind === "slot_taken" && allowRetry && canRetryAnotherTime(res.detail)) {
+  if (res.kind === "slot_taken" && allowRetry && canRetryAnotherTime(res.detail, res.detailCode)) {
     const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
     if (slots.length) {
-      await logFlowDenial(supabase, session, state, res.detail ?? res.message, true);
+      await logFlowDenial(supabase, session, state, res.detail ?? res.message, true, res.detailCode);
       await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
       return screenResponse("SELECT_TIME_RETRY", {
         date_label: formatDateLong(state.date),
@@ -573,7 +574,7 @@ async function handleConfirm(
   }
 
   // Hard rejection (no retry offered) — capacity-prevented demand, logged best-effort.
-  await logFlowDenial(supabase, session, state, res.detail ?? res.message, false);
+  await logFlowDenial(supabase, session, state, res.detail ?? res.message, false, res.detailCode);
   await failSession(supabase, session.flow_token);
   return screenResponse("BOOKING_FAILED", { message: res.message });
 }

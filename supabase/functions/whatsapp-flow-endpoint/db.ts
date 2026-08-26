@@ -162,7 +162,12 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         .select("id")
         .single();
       if (error) {
-        return { errorCode: error.code, errorMessage: error.message };
+        return {
+          errorCode: error.code,
+          errorMessage: error.message,
+          // The gate's emitted reason code (#665), when the database sent one.
+          errorDetails: error.details ?? undefined,
+        };
       }
       return { id: (data as { id: string }).id };
     },
@@ -229,7 +234,12 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_human_id: humanId,
       });
       if (error) {
-        return { errorCode: error.code, errorMessage: error.message };
+        return {
+          errorCode: error.code,
+          errorMessage: error.message,
+          // The gate's emitted reason code (#665), when the database sent one.
+          errorDetails: error.details ?? undefined,
+        };
       }
       const ids = Array.isArray(data)
         ? (data as Array<{ id: string }>).map((r) => r.id)
@@ -269,7 +279,12 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_expected_old_snapshot: old.expectedOldSnapshot ?? null,
       });
       if (error) {
-        return { errorCode: error.code, errorMessage: error.message };
+        return {
+          errorCode: error.code,
+          errorMessage: error.message,
+          // The gate's emitted reason code (#665), when the database sent one.
+          errorDetails: error.details ?? undefined,
+        };
       }
       const row = (Array.isArray(data) ? data[0] : data) as
         | {
