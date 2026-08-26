@@ -1,8 +1,8 @@
 // ── Shared staff navigation config ────────────────────────────────
 // One source of truth for the desktop header nav, the mobile icon
-// strip, and the context-row section title. Each item carries its own
-// brand accent so the active pill is instantly recognisable — staff
-// don't have to read the label to know where they are.
+// strip, and the context-row section title. Wayfinding is carried by
+// the icon + label pair and one uniform active state — the nav is
+// quiet chrome, so the day's work below it holds all the colour.
 import { DogSilhouette } from "../decor/index.jsx";
 
 // Primary sections — shown in the desktop nav and the mobile strip.
@@ -11,9 +11,6 @@ export const PRIMARY_NAV = [
   {
     to: "/today",
     label: "Daily Brief",
-    // White pill — brand-purple would vanish against the purple header/strip.
-    activeBg: "bg-white text-brand-purple shadow-[0_2px_8px_rgba(255,255,255,0.35)]",
-    activeText: "text-brand-purple",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="4" />
@@ -24,8 +21,6 @@ export const PRIMARY_NAV = [
   {
     to: "/",
     label: "Bookings",
-    activeBg: "bg-brand-yellow text-brand-purple shadow-[0_2px_8px_rgba(254,204,19,0.5)]",
-    activeText: "text-brand-yellow",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -39,8 +34,6 @@ export const PRIMARY_NAV = [
     to: "/booking-workspace",
     label: "Booking Desk",
     ownerFeature: "booking_workspace_enabled",
-    activeBg: "bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.45)]",
-    activeText: "text-brand-coral",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z" />
@@ -52,8 +45,6 @@ export const PRIMARY_NAV = [
   {
     to: "/dogs",
     label: "Dogs",
-    activeBg: "bg-brand-cyan text-white shadow-[0_2px_8px_rgba(0,184,224,0.5)]",
-    activeText: "text-brand-cyan",
     // Uses the brand silhouette via the same CSS-mask technique as
     // FloatingDecor — fills with currentColor so it follows the
     // active/inactive nav colour exactly.
@@ -62,8 +53,6 @@ export const PRIMARY_NAV = [
   {
     to: "/humans",
     label: "Humans",
-    activeBg: "bg-brand-teal text-white shadow-[0_2px_8px_rgba(45,139,122,0.5)]",
-    activeText: "text-brand-teal-light",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4" />
@@ -74,8 +63,6 @@ export const PRIMARY_NAV = [
   {
     to: "/inbox",
     label: "Inbox",
-    activeBg: "bg-brand-whatsapp text-white shadow-[0_2px_8px_rgba(37,211,102,0.5)]",
-    activeText: "text-brand-whatsapp",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -85,8 +72,6 @@ export const PRIMARY_NAV = [
   {
     to: "/reports",
     label: "Reports",
-    activeBg: "bg-brand-purple-light text-white shadow-[0_2px_8px_rgba(91,61,128,0.5)]",
-    activeText: "text-brand-purple-light",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="4" y="14" width="4" height="7" rx="1" />

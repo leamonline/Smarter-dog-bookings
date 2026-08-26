@@ -4,9 +4,10 @@ import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCo
 import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 
 // ── Mobile/tablet primary nav (below lg) ──────────────────────────
-// A purple strip of labelled tabs directly under the top bar. Every icon
+// A quiet strip of labelled tabs directly under the top bar. Every icon
 // carries a visible text label — staff should never have to guess what a
-// glyph means — and the active tab is a solid per-section accent pill.
+// glyph means — and the active tab is a soft purple-tinted pill. The
+// chrome stays light so the day's work below it holds the colour.
 // Badges (Inbox unread, Humans approvals) ride on the icon.
 export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false }) {
   const { unread: waUnread } = useWhatsAppUnread();
@@ -17,7 +18,7 @@ export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false })
 
   return (
     <nav
-      className="lg:hidden -mx-4 sm:-mx-6 px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-brand-purple shadow-md"
+      className="lg:hidden -mx-4 sm:-mx-6 px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
       aria-label="Primary"
     >
       {MOBILE_NAV.filter(
@@ -42,8 +43,8 @@ export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false })
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[52px] px-0.5 rounded-xl no-underline motion-safe:transition-colors duration-150 ${
                 isActive
-                  ? `${item.activeBg} font-bold`
-                  : "text-white/85 hover:bg-white/10 hover:text-white font-semibold"
+                  ? "bg-brand-purple/[0.07] text-brand-purple font-bold"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-brand-purple font-semibold"
               }`
             }
           >
