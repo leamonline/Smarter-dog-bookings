@@ -136,9 +136,27 @@ slot, ranking by "late first, then soonest" and ordering groups by first
 appearance produce the same sequence. A booking with **no usable slot** must
 never disappear, so those collect in a trailing **Unscheduled** group.
 
-The trade is vertical space — a busy Arriving zone is taller as a schedule than
-as a flat grid, and on a lopsided day the other two zones leave whitespace
-beside it. That is the accepted cost of stating each time once.
+**The time sits in a left gutter beside its dogs from `xl` up**, so a slot costs
+no row of its own; below `xl` the heading goes back above its row. That
+breakpoint is measured, not guessed. The gutter takes 80px off the token grid,
+which is free at 1280 (the zone is ~458px and still fits four tokens) and
+expensive below it — at 1024 and 768 the zone is ~350px, the grid drops from
+three columns to two, and the "saving" makes the zone **11-12% taller** than
+the heading it replaced. Measured on a 13-dog Arriving zone:
+
+| Width | Heading above | Gutter beside |
+|---|---|---|
+| 1280 | 716px | **588px** (−18%) |
+| 1024 | 826px | 919px (+11%) — so: heading |
+| 768 | 874px | 983px (+12%) — so: heading |
+| 390 | 826px | — zones stack, height costs nothing beside anything |
+
+For the same reason the gutter is 80px and not 88px: the wider gutter fits
+`in 1 hr 45 min` on one line but drops 1280 from four token columns to three
+and pushes the zone back to 698px. The long strings wrap balanced instead.
+`e2e/daily-brief.spec.ts` asserts the flip geometrically — the time is left of
+its first token at 1280 and above it at 768 — so the breakpoint cannot
+silently regress.
 
 ### One panel, two presentations
 
