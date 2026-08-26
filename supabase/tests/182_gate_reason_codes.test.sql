@@ -193,8 +193,11 @@ select is(
 -- what the prose mapper already inferred; re-categorising it is a separate
 -- decision, deliberately not taken here.
 set local session_replication_role = replica;
+-- Seat keys are an OBJECT ("0"/"1"), not an array: both gates read
+-- `overrides -> slot ->> '0'`, and the capacity trigger walks it with
+-- jsonb_each_text, which errors outright on an array. Same shape as 036.
 update public.day_settings
-   set overrides = '{"11:00": ["blocked", "blocked"]}'::jsonb
+   set overrides = '{"11:00": {"0": "blocked", "1": "blocked"}}'::jsonb
  where setting_date = date '2099-01-05';
 set local session_replication_role = default;
 
