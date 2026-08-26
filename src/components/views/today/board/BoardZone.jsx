@@ -8,8 +8,16 @@
 // The tokens inside wrap into an auto-filling grid, so a zone holding one dog
 // is one row tall and a zone holding twenty is five — the board grows with the
 // day rather than reserving a stadium for it.
-import { BOARD_ZONE_META } from "../../../../engine/salonBoard";
+//
+// Arriving is the exception: it is a schedule, so it groups by appointment
+// time. The time belongs to the slot, not to each dog waiting in it, and is
+// stated once above the dogs due then rather than repeated under every one.
+import { BOARD_ZONE_META, groupTokensBySlot } from "../../../../engine/salonBoard";
 import { DogToken } from "./DogToken.jsx";
+
+function dogCountLabel(count) {
+  return `${count} ${count === 1 ? "dog" : "dogs"}`;
+}
 
 function exceptionFor(zone, tokens) {
   const urgent = tokens.filter((token) => token.tier === "urgent").length;
@@ -39,7 +47,42 @@ export function BoardZone({
 }) {
   const meta = BOARD_ZONE_META[zone];
   const exception = exceptionFor(zone, tokens);
-  const countLabel = `${tokens.length} ${tokens.length === 1 ? "dog" : "dogs"}`;
+  const countLabel = dogCountLabel(tokens.length);
+
+  const renderTokens = (list, testId) => (
+    <ul
+      data-testid={`${testId}-zone-tokens`}
+      className="grid list-none grid-cols-[repeat(auto-fill,minmax(84px,1fr))] items-start gap-x-1 gap-y-3 sm:grid-cols-[repeat(auto-fill,minmax(92px,1fr))]"
+    >
+      {list.map((token) => {
+        const id = String(token.booking.id);
+        const info = tokenMeta(token);
+        return (
+          <DogToken
+            key={id}
+            token={token}
+            dogName={info.dogName}
+            ownerName={info.ownerName}
+            welfare={info.welfare}
+            amountDue={info.amountDue}
+            showBalance={info.showBalance}
+            onTheWay={!!info.onTheWay}
+            density={density}
+            selected={selectedId === id}
+            dimmed={attentionActive && !token.needsAttention}
+            highlighted={attentionActive && token.needsAttention}
+            busy={busyIds?.has(id)}
+            dragging={draggingId === id}
+            landed={landedId === id}
+            draggable={dragEnabled}
+            onActivate={onActivateToken}
+            onPointerDown={(event) => onTokenPointerDown?.(event, token)}
+            registerRef={registerTokenRef}
+          />
+        );
+      })}
+    </ul>
+  );
 
   return (
     <section
@@ -71,39 +114,34 @@ export function BoardZone({
         >
           {meta.empty}
         </p>
+      ) : zone === "due" ? (
+        <div data-testid="due-zone-groups" className="flex flex-col gap-2.5">
+          {groupTokensBySlot(tokens).map((group) => (
+            <div key={group.key} data-slot-group={group.key} className="min-w-0">
+              <div className="mb-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 px-1">
+                <h3 className="text-[13px] font-bold tabular-nums text-brand-purple">{group.label}</h3>
+                {group.tokens.length > 1 ? (
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {dogCountLabel(group.tokens.length)}
+                  </span>
+                ) : null}
+                {group.timing ? (
+                  <span
+                    data-slot-timing
+                    className={`text-[11px] font-bold tabular-nums ${
+                      group.tokens[0].tier === "urgent" ? "text-brand-coral-text" : "text-slate-500"
+                    }`}
+                  >
+                    {group.timing}
+                  </span>
+                ) : null}
+              </div>
+              {renderTokens(group.tokens, `${zone}-${group.key}`)}
+            </div>
+          ))}
+        </div>
       ) : (
-        <ul
-          data-testid={`${zone}-zone-tokens`}
-          className="grid list-none grid-cols-[repeat(auto-fill,minmax(84px,1fr))] items-start gap-x-1 gap-y-3 sm:grid-cols-[repeat(auto-fill,minmax(92px,1fr))]"
-        >
-          {tokens.map((token) => {
-            const id = String(token.booking.id);
-            const info = tokenMeta(token);
-            return (
-              <DogToken
-                key={id}
-                token={token}
-                dogName={info.dogName}
-                ownerName={info.ownerName}
-                welfare={info.welfare}
-                amountDue={info.amountDue}
-                showBalance={info.showBalance}
-                onTheWay={!!info.onTheWay}
-                density={density}
-                selected={selectedId === id}
-                dimmed={attentionActive && !token.needsAttention}
-                highlighted={attentionActive && token.needsAttention}
-                busy={busyIds?.has(id)}
-                dragging={draggingId === id}
-                landed={landedId === id}
-                draggable={dragEnabled}
-                onActivate={onActivateToken}
-                onPointerDown={(event) => onTokenPointerDown?.(event, token)}
-                registerRef={registerTokenRef}
-              />
-            );
-          })}
-        </ul>
+        renderTokens(tokens, zone)
       )}
     </section>
   );

@@ -9,6 +9,7 @@ import {
   buildZoneCounts,
   canDragToken,
   dropZoneFor,
+  groupTokensBySlot,
   moveForDrag,
   reverseStatusFor,
   tokenActions,
@@ -245,20 +246,33 @@ describe("visual tiers", () => {
 });
 
 describe("token text", () => {
-  it("shows the appointment time while arriving and the elapsed time once here", () => {
+  it("shows the elapsed time on a dog that is here, and the countdown on its slot", () => {
     const tokens = tokensFor([
       booking({ id: "a", slot: "11:00" }),
       booking({ id: "b", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:30:00Z" }),
       booking({ id: "c", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
     ]);
-    expect(tokens.due[0].meta).toBe("11:00");
+    // The appointment time belongs to the slot, not to the dog standing in it.
+    expect(tokens.due[0].meta).toBeNull();
+    expect(tokens.due[0].slotTiming).toBe("in 1 hr");
     expect(tokens.withUs[0].meta).toBe("30 min");
     expect(tokens.ready[0].meta).toBe("18 min");
   });
 
-  it("says how late a dog is instead of when it was due", () => {
+  it("says how late a slot is, once, rather than under each dog waiting in it", () => {
     const tokens = tokensFor([booking({ id: "a", slot: "09:30" })]);
-    expect(tokens.due[0].meta).toBe("30 min late");
+    expect(tokens.due[0].slotTiming).toBe("30 min late");
+    expect(tokens.due[0].meta).toBeNull();
+  });
+
+  it("prints on an arriving token only what its slot heading cannot say", () => {
+    const tokens = tokensFor([
+      booking({ id: "a", slot: "11:00", reminderState: "sent", confirmationChannel: "whatsapp" }),
+      booking({ id: "b", slot: "11:00" }),
+    ]);
+    const meta = (id: string) => tokens.due.find((t) => t.booking.id === id)?.meta;
+    expect(meta("a")).toBe("To confirm");
+    expect(meta("b")).toBeNull();
   });
 
   it("never repeats the zone's own word on the token, but does spell it out for a screen reader", () => {
@@ -276,9 +290,67 @@ describe("token text", () => {
       NOW,
     );
     const tokens = buildBoardTokens({ board, now: NOW, isToday: false });
-    expect(tokens.due[0].meta).toBe("09:30");
+    expect(tokens.due[0].meta).toBeNull();
+    expect(tokens.due[0].slotTiming).toBeNull();
     expect(tokens.due[0].statusText).toBe("Arriving 09:30");
     expect(tokens.due[0].tier).toBe("calm");
+  });
+});
+
+describe("Arriving grouped by appointment", () => {
+  it("states a shared time once, however many dogs are booked into it", () => {
+    const groups = groupTokensBySlot(tokensFor([
+      booking({ id: "a", dogName: "Coco", slot: "09:00" }),
+      booking({ id: "b", dogName: "Teddy", slot: "09:00" }),
+      booking({ id: "c", dogName: "Pip", slot: "09:00" }),
+      booking({ id: "d", dogName: "Rex", slot: "12:00" }),
+    ]).due);
+
+    expect(groups.map((group) => group.label)).toEqual(["09:00", "12:00"]);
+    expect(names(groups[0].tokens)).toEqual(["Coco", "Teddy", "Pip"]);
+    expect(groups[0].timing).toBe("1 hr late");
+    expect(groups[1].timing).toBe("in 2 hrs");
+    // And not one of those dogs repeats it.
+    for (const group of groups) {
+      for (const token of group.tokens) expect(token.meta).toBeNull();
+    }
+  });
+
+  it("takes each group's position from its first dog, so grouping never reorders the board", () => {
+    const tokens = tokensFor([
+      booking({ id: "a", dogName: "Later", slot: "12:00" }),
+      booking({ id: "b", dogName: "Late", slot: "08:30" }),
+      booking({ id: "c", dogName: "Soon", slot: "10:30" }),
+      booking({ id: "d", dogName: "AlsoLate", slot: "08:30" }),
+    ]).due;
+    const groups = groupTokensBySlot(tokens);
+    expect(groups.flatMap((group) => names(group.tokens))).toEqual(names(tokens));
+  });
+
+  it("keeps a booking with no usable slot visible in a trailing Unscheduled group", () => {
+    const groups = groupTokensBySlot(tokensFor([
+      booking({ id: "a", dogName: "Timed", slot: "09:00" }),
+      booking({ id: "b", dogName: "Slotless", slot: "" }),
+      booking({ id: "c", dogName: "Nonsense", slot: "not-a-time" }),
+    ]).due);
+
+    expect(groups.at(-1)).toMatchObject({ key: "unscheduled", label: "Unscheduled", timing: null });
+    expect(names(groups.at(-1)!.tokens).sort()).toEqual(["Nonsense", "Slotless"]);
+    expect(groups.flatMap((group) => group.tokens)).toHaveLength(3);
+  });
+
+  it("states no countdown on a browsed date — the label already is the time", () => {
+    const board = buildDailyBriefBoard(
+      [booking({ id: "a", slot: "09:00", _bookingDate: "2026-07-21" })],
+      "2026-07-21",
+      NOW,
+    );
+    const groups = groupTokensBySlot(buildBoardTokens({ board, now: NOW, isToday: false }).due);
+    expect(groups[0]).toMatchObject({ label: "09:00", timing: null });
+  });
+
+  it("returns nothing at all for an empty zone", () => {
+    expect(groupTokensBySlot([])).toEqual([]);
   });
 });
 

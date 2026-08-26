@@ -549,8 +549,10 @@ describe("the board page — selected-date operations", () => {
 
     expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
     expect(screen.queryByText("Everything's on track")).not.toBeInTheDocument();
-    // A slot time on a browsed date is not a countdown: no live timing at all.
-    expect(document.querySelector(`[data-booking-id="paid-${dateStr}"] [data-token-meta]`).textContent).toBe("10:30");
+    // A slot time on a browsed date is not a countdown: the group states the
+    // time, and no live timing appears anywhere.
+    expect(document.querySelector('[data-slot-group="10:30"] h3').textContent).toBe("10:30");
+    expect(document.querySelector('[data-slot-group="10:30"] [data-slot-timing]')).toBeNull();
     expect(document.querySelector(`[data-booking-id="paid-${dateStr}"]`).dataset.tier).toBe("calm");
 
     const endOfDay = screen.getByRole("group", { name: "End of day" });
@@ -621,10 +623,10 @@ describe("the board page — selected-date operations", () => {
       dayOpenState: { "2026-07-15": true },
     });
 
-    const meta = () => document.querySelector('[data-booking-id="b-today"] [data-token-meta]').textContent;
-    expect(meta()).toBe("55 min late");
+    const timing = () => document.querySelector('[data-slot-group="08:30"] [data-slot-timing]').textContent;
+    expect(timing()).toBe("55 min late");
     await act(() => vi.advanceTimersByTimeAsync(60_000));
-    expect(meta()).toBe("56 min late");
+    expect(timing()).toBe("56 min late");
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });

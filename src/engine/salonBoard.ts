@@ -116,11 +116,20 @@ export interface BoardToken {
    */
   rank: number;
   /**
-   * The ONE piece of context the token shows: the appointment time while a dog
-   * is arriving, elapsed minutes once it is here. Never a status word — the
-   * zone already said that.
+   * The ONE piece of context the token shows. Once a dog is here that is its
+   * elapsed time, which genuinely differs per dog. While it is still arriving
+   * the time is a property of the SLOT, not of the dog — several dogs booked
+   * into 09:00 would otherwise each print "09:00" — so it moves to the slot
+   * heading (`slotTiming`) and the token prints only what the heading cannot
+   * say: that this particular booking still needs confirming.
    */
   meta: string | null;
+  /**
+   * Arriving only: the countdown or lateness every dog in this slot shares,
+   * stated once on the group heading. Null on a browsed date (where the slot
+   * label already IS the time) and for a booking with no slot.
+   */
+  slotTiming: string | null;
   /** The full spoken status, for the token's accessible name. */
   statusText: string;
   /** True when this dog is on the needs-attention list. */
@@ -218,8 +227,10 @@ function tierFor(
  */
 function metaFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToday: boolean): string | null {
   if (zone === "due") {
-    if (isToday && entry.isLate) return `${formatDuration(entry.overdueMinutes)} late`;
-    return entry.booking.slot || null;
+    // The slot heading carries the time for the whole group. All that is left
+    // for the token is the thing the heading cannot know: whether THIS booking
+    // is still unconfirmed.
+    return entry.isUnconfirmed ? "To confirm" : null;
   }
   if (!isToday) return entry.booking.slot || null;
   if (zone === "withUs") {
@@ -231,6 +242,19 @@ function metaFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToda
     return wait == null ? entry.booking.slot || null : formatDuration(wait);
   }
   return entry.timingLabel;
+}
+
+/**
+ * The relative time every dog in an Arriving slot shares. Stated once, on the
+ * group heading, because it is a fact about the appointment rather than about
+ * any one dog: four dogs booked into 09:00 are all "20 min late" together.
+ */
+function slotTimingFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, isToday: boolean): string | null {
+  if (zone !== "due" || !isToday) return null;
+  if (!entry.booking.slot || !Number.isFinite(entry.slotMinutes)) return null;
+  if (entry.isLate) return `${formatDuration(entry.overdueMinutes)} late`;
+  const until = minutesUntilSlot(entry.booking.slot, now);
+  return until <= 0 ? "Due now" : `in ${formatDuration(until)}`;
 }
 
 /**
@@ -296,6 +320,7 @@ export function buildBoardTokens({
         tier: tierFor(entry, zone, now, isToday),
         rank: rankWithinZone(entry, zone, now, flaggedBookingIds?.has(idOf(entry)) ?? false),
         meta: metaFor(entry, zone, now, isToday),
+        slotTiming: slotTimingFor(entry, zone, now, isToday),
         statusText: statusTextFor(entry, zone, now, isToday),
         needsAttention: entry.needsAction,
       }))
@@ -355,6 +380,63 @@ export function buildZoneCounts(tokens: BoardTokens): Array<{ zone: BoardZone; l
     count: tokens[zone].length,
     label: BOARD_ZONE_META[zone].title.toLowerCase(),
   }));
+}
+
+// ---- Arriving, grouped by appointment ----------------------------------------
+
+export interface BoardSlotGroup {
+  /** Stable key: the slot time, or "unscheduled". */
+  key: string;
+  /** The visible heading — the slot time, or "Unscheduled". */
+  label: string;
+  /** The countdown or lateness shared by every dog in this slot, today only. */
+  timing: string | null;
+  tokens: BoardToken[];
+}
+
+/**
+ * Group the Arriving zone by appointment time.
+ *
+ * Arriving is the one zone that is inherently a schedule, and a time belongs to
+ * the slot rather than to each dog standing in it. Printing it under every
+ * token repeats the same fact three or four times on a busy morning — exactly
+ * the duplicate labelling this board exists to remove — so it is stated once
+ * per group instead, and the tokens beneath carry only their own exceptions.
+ *
+ * Order is taken from the already-ranked token list: a group takes the
+ * position of its first dog, so the ranking is preserved exactly and grouping
+ * can never reorder the board. A booking with no usable slot must never
+ * disappear, so those collect in a trailing "Unscheduled" group.
+ */
+export function groupTokensBySlot(tokens: BoardToken[]): BoardSlotGroup[] {
+  const groups: BoardSlotGroup[] = [];
+  const bySlot = new Map<string, BoardSlotGroup>();
+  const unscheduled: BoardSlotGroup = {
+    key: "unscheduled",
+    label: "Unscheduled",
+    timing: null,
+    tokens: [],
+  };
+
+  for (const token of tokens) {
+    const slot = token.booking.slot;
+    if (!slot || !Number.isFinite(token.entry.slotMinutes)) {
+      unscheduled.tokens.push(token);
+      continue;
+    }
+    let group = bySlot.get(slot);
+    if (!group) {
+      // Every dog in a slot shares its slot and the same `now`, so the first
+      // token's timing is the whole group's timing — never recomputed here.
+      group = { key: slot, label: slot, timing: token.slotTiming, tokens: [] };
+      bySlot.set(slot, group);
+      groups.push(group);
+    }
+    group.tokens.push(token);
+  }
+
+  if (unscheduled.tokens.length > 0) groups.push(unscheduled);
+  return groups;
 }
 
 // ---- Actions -----------------------------------------------------------------
