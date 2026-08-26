@@ -24,12 +24,33 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
 };
 
 /**
- * Best-effort categorisation of a booking-gate rejection message into a reason
- * code. The full message is stored separately (reason_detail), so an "unknown"
- * here still preserves the raw text — this only drives the ranked breakdown.
+ * Categorise a booking-gate rejection into a stable reason code.
+ *
+ * Since migration 20260826120000 the gates EMIT their code in the exception's
+ * DETAIL field (#665), so pass `details` and it is used directly. That is the
+ * contract: the component that made the decision states it, rather than having
+ * it guessed from the prose it happened to produce.
+ *
+ * The message patterns below remain as the documented fallback, for three
+ * cases that are all real: a gate deliberately left bare (the dog-integrity
+ * check, which #681 documents as `unknown`), the browser engine's own refusals
+ * — which never travel through PostgreSQL and so have no DETAIL — and any
+ * database not yet carrying the migration.
+ *
+ * The full message is stored separately (reason_detail), so an "unknown" here
+ * still preserves the raw text; this only drives the ranked breakdown.
  * Order matters: more specific patterns first.
  */
-export function mapDenialReason(message?: string | null): string {
+export function mapDenialReason(
+  message?: string | null,
+  details?: string | null,
+): string {
+  // Emitted beats inferred. Guarded against a DETAIL used for anything else:
+  // only a value that is one of our codes is trusted.
+  const emitted = (details || "").trim();
+  if (emitted && Object.prototype.hasOwnProperty.call(DENIAL_REASON_LABELS, emitted)) {
+    return emitted;
+  }
   const m = (message || "").toLowerCase();
   if (!m) return "unknown";
   if (m.includes("pregnant")) return "pregnant";
@@ -46,7 +67,11 @@ export function mapDenialReason(message?: string | null): string {
   // large_dog_ineligible — issue #665's third divergence, with report 2F as
   // the casualty.
   if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close|conditional:/.test(m)) return "large_dog_ineligible";
-  if (m.includes("same-day")) return "past_cutoff";
+  // Both same-day refusals from validate_booking_calendar. "too close to the
+  // start time" is the 30-minute cutoff and used to match nothing here, so it
+  // fell through to "unknown" — which #681 makes fail closed, denying those
+  // customers the alternative times that past_cutoff exists to offer.
+  if (m.includes("same-day") || m.includes("too close to the start time")) return "past_cutoff";
   if (m.includes("in the past")) return "past_date";
   if (m.includes("blocked")) return "seat_blocked";
   if (m.includes("closed")) return "calendar_closed";
@@ -71,8 +96,11 @@ export function mapDenialReason(message?: string | null): string {
  * on-screen text changes here. `unknown` falls back to a safe generic rather
  * than leaking whatever string arrived.
  */
-export function friendlyDenialMessage(message?: string | null): string {
-  switch (mapDenialReason(message)) {
+export function friendlyDenialMessage(
+  message?: string | null,
+  details?: string | null,
+): string {
+  switch (mapDenialReason(message, details)) {
     case "pregnant":
       // Kept close to the trigger's own wording — this one is a clinical/policy
       // message, not capacity jargon, so we don't soften its meaning.

@@ -100,6 +100,10 @@ function fmtDateForReason(dateStr: string): string {
 interface RepoErrorShape {
   message?: string;
   code?: string;
+  // The gates emit their reason code here since migration 20260826120000
+  // (#665). PostgREST surfaces a raised DETAIL as `details`, and supabase-js
+  // passes it through untouched.
+  details?: string | null;
 }
 
 const STEP_TITLES = [
@@ -617,13 +621,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       // can never drift.
       const cause = err as RepoErrorShape | null;
       const msg: string = cause?.message || "";
+      const denialDetails: string | null = cause?.details ?? null;
       const isTriggerError =
         cause?.code === "P0001" ||                          // raise_exception
         /Slot is full|2-2-1|Large dog|Capped at 1|early close|Back-to-back/i.test(msg);
       // A gate rejection is capacity-prevented demand — log it best-effort.
       if (isTriggerError) {
         fireDenialLog({
-          reasonCode: mapDenialReason(msg),
+          reasonCode: mapDenialReason(msg, denialDetails),
           requestedDate: selectedDate,
           slot: slotAllocation?.dropOffTime ?? null,
           size: selectedDogs[0]?.size ?? null,
