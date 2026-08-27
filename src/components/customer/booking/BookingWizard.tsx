@@ -106,6 +106,10 @@ interface RepoErrorShape {
   details?: string | null;
 }
 
+// Reschedule rejections the wizard recognises and writes specific copy for.
+// They are ordinary outcomes, not faults, so they are not reported as errors.
+const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04"];
+
 const STEP_TITLES = [
   "Select dogs",
   "Choose services",
@@ -648,6 +652,35 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           dogCount: selectedDogs.length,
           reasonDetail: msg,
           alternativeShown: false,
+        });
+      }
+      // Everything the chain below recognises is accounted for: a gate refusal
+      // is counted as capacity-prevented demand above, and each reschedule
+      // code has its own copy. Anything else reaches the customer as "please
+      // try again" and, until this call, was recorded NOWHERE -- no denial
+      // row (isTriggerError is false), no Sentry event. Production bears out
+      // what that costs: across July and August ~13% of confirmations never
+      // became a booking, while booking_denials recorded two refusals in the
+      // same window. The funnel's largest leak was its least visible one.
+      //
+      // Deliberately NOT written to booking_denials: that table means
+      // capacity-prevented demand, and report 2F reads it as such. A network
+      // failure is not a refusal, and filing it as one would corrupt the very
+      // metric this makes measurable.
+      if (!isTriggerError && !HANDLED_RESCHEDULE_CODES.includes(cause?.code ?? "")) {
+        logger.error("Customer booking submission failed", err, {
+          tags: {
+            component: "BookingWizard",
+            op: rescheduleFrom ? "reschedule_customer_booking" : "create_customer_booking_group",
+            code: cause?.code ?? "none",
+          },
+          // Operationally useful, and no more identifying than the denial row
+          // this failure would have produced had it been a refusal.
+          extra: {
+            requestedDate: selectedDate,
+            slot: slotAllocation?.dropOffTime ?? null,
+            dogCount: selectedDogs.length,
+          },
         });
       }
       setError(
