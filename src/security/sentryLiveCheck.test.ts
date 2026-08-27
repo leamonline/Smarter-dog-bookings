@@ -18,6 +18,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySentryChunk,
+  classifyServiceWorkerResponse,
   findSentryChunk,
   precachedAssets,
 } from "../../scripts/check-sentry-live.mjs";
@@ -88,5 +89,56 @@ describe("precachedAssets", () => {
     );
     expect(findSentryChunk(["assets/not-sentry-abc.js"])).toBeUndefined();
     expect(findSentryChunk(["assets/vendor-sentry-abc.js"])).toBeUndefined();
+  });
+});
+
+describe("classifyServiceWorkerResponse", () => {
+  // Found by running the check against this PR's own Vercel preview. Protected
+  // previews answer /sw.js with a 302 to an SSO page, which fetch follows to a
+  // perfectly successful HTML response — so the script read an auth page as a
+  // service worker with no assets in it and blamed the build layout. An access
+  // problem reported as a build problem is the kind of wrong answer that costs
+  // someone an afternoon.
+  it("accepts a service worker served directly as javascript", () => {
+    expect(
+      classifyServiceWorkerResponse({
+        redirected: false,
+        contentType: "application/javascript; charset=utf-8",
+      }),
+    ).toBe("ok");
+    expect(
+      classifyServiceWorkerResponse({
+        redirected: false,
+        contentType: "text/javascript",
+      }),
+    ).toBe("ok");
+  });
+
+  it("rejects anything it was redirected to", () => {
+    // A build serves sw.js at its own origin. A redirect means something else
+    // answered, whatever it then returned.
+    expect(
+      classifyServiceWorkerResponse({
+        redirected: true,
+        contentType: "application/javascript",
+      }),
+    ).toBe("unreachable");
+  });
+
+  it("rejects a login page wearing a 200", () => {
+    expect(
+      classifyServiceWorkerResponse({
+        redirected: false,
+        contentType: "text/html; charset=utf-8",
+      }),
+    ).toBe("unreachable");
+  });
+
+  it("proceeds when the server states no content type", () => {
+    // Absent is not the same as wrong; the asset checks downstream still have
+    // to agree before any verdict is reported.
+    expect(
+      classifyServiceWorkerResponse({ redirected: false, contentType: null }),
+    ).toBe("ok");
   });
 });

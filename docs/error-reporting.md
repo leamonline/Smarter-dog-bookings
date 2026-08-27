@@ -25,7 +25,13 @@ npm run check:sentry                       # production
 npm run check:sentry -- https://some.url   # any deployed origin
 ```
 
-It reports `ACTIVE` or `INACTIVE` and exits `0` or `1`.
+It reports `ACTIVE` or `INACTIVE` and exits `0` or `1`. It exits `2` and says so
+when it could not read a build at all.
+
+**It needs an origin it can read unauthenticated.** Vercel preview deployments
+sit behind deployment protection and answer `/sw.js` with a redirect to an SSO
+page, so the check reports the access problem rather than a verdict. Point it at
+production, or at a preview with protection disabled.
 
 The check reads the deployed artefact rather than a configuration screen,
 because the failure most worth catching is a variable that was set but never

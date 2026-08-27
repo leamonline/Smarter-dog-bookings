@@ -67,12 +67,46 @@ export function findSentryChunk(assetPaths) {
   return assetPaths.find((asset) => /assets\/sentry-[^/]*\.js$/.test(asset));
 }
 
-async function fetchText(url) {
+/**
+ * Did this origin actually serve a build, or something else wearing a 200?
+ *
+ * A Vercel preview with deployment protection answers /sw.js with a 302 to an
+ * SSO page, which fetch follows to a perfectly successful HTML response. Read
+ * naively that looks like a service worker with no assets in it, and the
+ * script blames the build layout for what is really an access problem. Say
+ * which it is instead of guessing.
+ */
+export function classifyServiceWorkerResponse({ redirected, contentType }) {
+  if (redirected) return "unreachable";
+  if (contentType && !/javascript|ecmascript/i.test(contentType)) {
+    return "unreachable";
+  }
+  return "ok";
+}
+
+async function fetchText(url, { expectJavaScript = false } = {}) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText} for ${url}`);
   }
+  if (
+    expectJavaScript &&
+    classifySentryResponse(response) === "unreachable"
+  ) {
+    throw new Error(
+      `${url} did not serve JavaScript (ended at ${response.url}). ` +
+        "If this is a Vercel preview, deployment protection is likely on — " +
+        "this check needs an origin it can read unauthenticated.",
+    );
+  }
   return response.text();
+}
+
+function classifySentryResponse(response) {
+  return classifyServiceWorkerResponse({
+    redirected: response.redirected,
+    contentType: response.headers.get("content-type"),
+  });
 }
 
 function absolute(origin, assetPath) {
@@ -83,7 +117,9 @@ async function main() {
   const origin = (process.argv[2] || DEFAULT_ORIGIN).replace(/\/+$/, "");
   process.stdout.write(`Checking browser error reporting at ${origin}\n`);
 
-  const serviceWorker = await fetchText(`${origin}/sw.js`);
+  const serviceWorker = await fetchText(`${origin}/sw.js`, {
+    expectJavaScript: true,
+  });
   const assets = precachedAssets(serviceWorker);
   if (assets.length === 0) {
     throw new Error(
@@ -101,7 +137,9 @@ async function main() {
     );
   }
 
-  const source = await fetchText(absolute(origin, sentryChunk));
+  const source = await fetchText(absolute(origin, sentryChunk), {
+    expectJavaScript: true,
+  });
   const verdict = classifySentryChunk(source);
 
   process.stdout.write(`  ${sentryChunk} — ${source.length} bytes\n`);
