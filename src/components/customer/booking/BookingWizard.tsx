@@ -542,6 +542,9 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             requestError?.message || "The reschedule request could not be saved.",
           );
           (err as { code?: string }).code = requestError?.code;
+          // Same catch block, same denial log — so this path must carry the
+          // emitted reason code too, or it silently reverts to prose (#665).
+          (err as { details?: string | null }).details = requestError?.details ?? null;
           throw err;
         }
         setRequestSent(true);
@@ -558,9 +561,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         : await createMany(supabase, inputs);
       if (insertError) {
         // Preserve the original Postgres error code so the catch
-        // block's trigger-error matcher (P0001) still fires.
+        // block's trigger-error matcher (P0001) still fires, and the DETAIL
+        // so the gate's own reason code survives (#665). Re-wrapping with
+        // only `code` is what kept the emitted code from ever reaching the
+        // mapper on this path.
         const err = new Error(insertError.message);
         (err as { code?: string }).code = insertError.code;
+        (err as { details?: string | null }).details = insertError.details ?? null;
         throw err;
       }
 
@@ -618,7 +625,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       // verbatim (reasonDetail) but never show them to a customer — friendlyDenialMessage
       // turns them into reassuring, actionable copy. Both go through the same
       // mapDenialReason categoriser so the on-screen text and the logged reason
-      // can never drift.
+      // can never drift — which means BOTH must be given the same inputs. Pass
+      // `denialDetails` to each: it carries the reason code the gate itself
+      // emitted (#665), which outranks anything inferred from the prose. Handing
+      // it to only one of them is a drift this comment would still have claimed
+      // was impossible, so BookingWizard.denialReasonCode.component.test.tsx
+      // holds the two together.
       const cause = err as RepoErrorShape | null;
       const msg: string = cause?.message || "";
       const denialDetails: string | null = cause?.details ?? null;
@@ -648,7 +660,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           : cause?.code === "SDC04"
             ? "Please select the same dog or dogs as the groom you’re moving."
           : isTriggerError
-            ? friendlyDenialMessage(msg)
+            ? friendlyDenialMessage(msg, denialDetails)
             : "Sorry, we couldn’t save that booking change. Please try again, or message us if it keeps happening.",
       );
     } finally {
