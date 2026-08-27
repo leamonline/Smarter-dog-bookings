@@ -170,7 +170,13 @@ export async function listImmediateSlots(
 export async function createMany(
   client: SupabaseClient,
   inputs: CreateBookingInput[],
-): Promise<{ ids: string[]; error: { code?: string; message: string } | null }> {
+): Promise<{
+  ids: string[];
+  // `details` carries the reason code the gate EMITTED (#665). Narrowing the
+  // error to {code, message} here is what made the emitted code unreachable
+  // from the portal wizard, leaving it on prose inference alone.
+  error: { code?: string; message: string; details?: string | null } | null;
+}> {
   if (inputs.length === 0) return { ids: [], error: null };
 
   const { data, error } = await createCustomerBookingGroup(client, {
@@ -187,7 +193,11 @@ export async function createMany(
   if (error) {
     return {
       ids: [],
-      error: { code: (error as { code?: string }).code, message: error.message },
+      error: {
+        code: (error as { code?: string }).code,
+        message: error.message,
+        details: (error as { details?: string | null }).details ?? null,
+      },
     };
   }
   return {

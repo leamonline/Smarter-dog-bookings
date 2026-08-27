@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { cancelCustomerBooking, rescheduleCustomerBooking } from "./bookingsRepo";
+import { cancelCustomerBooking, createMany, rescheduleCustomerBooking } from "./bookingsRepo";
 
 const TARGET = "40000000-0000-4000-8000-000000000001";
 const GROUP = "40000000-0000-4000-8000-000000000010";
@@ -210,5 +210,57 @@ describe("rescheduleCustomerBooking", () => {
       p_reason: "Rescheduled to 15 Jun 2099 at 9:00am",
     });
     expect(result).toEqual({ ids: replacementIds, error: null });
+  });
+});
+
+// The gates emit their reason code in the exception's DETAIL (#665), and
+// PostgREST surfaces it as `details`. This repository narrowed the error to
+// {code, message}, which silently discarded the code before any consumer could
+// prefer it — leaving the portal wizard on prose inference while appearing to
+// honour the contract. cancelCustomerBooking has had a test for exactly this
+// property since it was written; createMany never did.
+describe("createMany", () => {
+  const input = [
+    {
+      dogId: "dog-1",
+      bookingDate: "2099-06-15",
+      slot: "09:00",
+      service: "full-groom",
+      size: "small",
+    },
+  ];
+
+  it("preserves the reason code the gate emitted in DETAIL", async () => {
+    const { client } = fakeClient({
+      data: null,
+      error: {
+        code: "P0001",
+        message: "Slot is full",
+        details: "large_dog_ineligible",
+      },
+    });
+
+    const result = await createMany(client, input);
+
+    expect(result.ids).toEqual([]);
+    expect(result.error).toEqual({
+      code: "P0001",
+      message: "Slot is full",
+      details: "large_dog_ineligible",
+    });
+  });
+
+  it("reports no code rather than undefined when a gate emits none", async () => {
+    // Two raise sites are deliberately bare, and a database predating the
+    // migration emits nothing. `null` is the documented "fall back to prose"
+    // signal, so it must be stated, not left absent.
+    const { client } = fakeClient({
+      data: null,
+      error: { code: "P0001", message: "Slot is full" },
+    });
+
+    const result = await createMany(client, input);
+
+    expect(result.error?.details).toBeNull();
   });
 });
