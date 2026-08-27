@@ -93,7 +93,9 @@ The evidence and distinctions behind this table live in
   feeds, postcode lookup). See [Edge Functions](#edge-functions) below.
 - **External services** — Meta WhatsApp Cloud API, Anthropic Claude (AI
   receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), APITier (UK
-  postcode lookup), Cloudflare Turnstile (login CAPTCHA), Sentry (error reporting).
+  postcode lookup), Cloudflare Turnstile (login CAPTCHA), Sentry (error reporting —
+  integrated but **not currently enabled**; no DSN is set, so the app reports nothing.
+  See [docs/error-reporting.md](docs/error-reporting.md)).
 
 Repo layout:
 
