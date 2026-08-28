@@ -5,6 +5,7 @@ import {
   computeServiceValue,
   computeOutcomes,
   computeSourceMix,
+  attributionRole,
   computeRetentionCandidates,
   actualGroomMinutes,
   computeCollectedByMethod,
@@ -390,5 +391,95 @@ describe("late cancellation classification", () => {
         slot: "08:30",
       }),
     ).toBe(false);
+  });
+});
+
+// Attribution is split across TWO columns because two write paths record it
+// differently: trg_set_booking_creator stamps created_by_role from auth.uid(),
+// and the WhatsApp Flow books through a service-role RPC that has no auth.uid()
+// -- so it sets source='whatsapp_flow' instead, exactly as its migration says.
+//
+// The report read only created_by_role, so every WhatsApp booking landed in
+// "Unknown": 12 of them across July and August 2026, growing month on month
+// (4 then 8), while ROLE_LABELS had carried an "ai: WhatsApp AI" entry for them
+// all along. The channel the salon is actively investing in was the one the
+// report could not name.
+describe("attributionRole", () => {
+  it("prefers created_by_role, which authenticated writes always carry", () => {
+    expect(attributionRole(b({ created_by_role: "customer" }))).toBe("customer");
+    expect(attributionRole(b({ created_by_role: "staff" }))).toBe("staff");
+  });
+
+  it("falls back to source for service-role writes that have no actor", () => {
+    expect(
+      attributionRole(b({ created_by_role: null, source: "whatsapp_flow" })),
+    ).toBe("ai");
+  });
+
+  it("lets created_by_role win when the two columns disagree", () => {
+    // Precedence has to be pinned by a case where the columns give DIFFERENT
+    // answers. staff + staff_manual cannot do it -- both map to "staff", so
+    // either ordering passes and the assertion proves nothing.
+    expect(
+      attributionRole(b({ created_by_role: "customer", source: "whatsapp_flow" })),
+    ).toBe("customer");
+    expect(
+      attributionRole(b({ created_by_role: "staff", source: "whatsapp_flow" })),
+    ).toBe("staff");
+  });
+
+  it("agrees with itself when both columns point the same way", () => {
+    // staff_manual rows are stamped by a staff member and then re-tagged, so
+    // they carry both. Either column answers correctly here.
+    expect(
+      attributionRole(b({ created_by_role: "staff", source: "staff_manual" })),
+    ).toBe("staff");
+  });
+
+  it("maps staff_manual on its own to staff", () => {
+    expect(
+      attributionRole(b({ created_by_role: null, source: "staff_manual" })),
+    ).toBe("staff");
+  });
+
+  it("does not invent a channel from an unrecognised source", () => {
+    // Anything a write path does not actually set stays Unknown rather than
+    // becoming a bucket nobody can explain.
+    expect(
+      attributionRole(b({ created_by_role: null, source: "something_else" })),
+    ).toBe("unknown");
+  });
+
+  it("calls a row with neither unknown, which is what it is", () => {
+    // These predate the 27 June 2026 creator-stamping migration. Unknown is
+    // the honest bucket, not a defect to paper over.
+    expect(attributionRole(b({ created_by_role: null }))).toBe("unknown");
+  });
+});
+
+describe("computeSourceMix labels the WhatsApp channel", () => {
+  const bookings = [
+    b({ created_by_role: "customer", status: "Completed" }),
+    b({ created_by_role: "staff", status: "Completed" }),
+    b({ created_by_role: null, source: "whatsapp_flow", status: "Completed" }),
+    b({ created_by_role: null, status: "Completed" }),
+  ];
+  const mix = computeSourceMix(bookings, {}, 90, TODAY, isOpen);
+
+  it("reports WhatsApp bookings under their own label, not Unknown", () => {
+    const ai = mix.bySource.find((r) => r.role === "ai");
+    expect(ai?.label).toBe("WhatsApp AI");
+    expect(ai?.n).toBe(1);
+  });
+
+  it("still counts a genuinely unattributable row as Unknown", () => {
+    expect(mix.bySource.find((r) => r.role === "unknown")?.n).toBe(1);
+  });
+
+  it("leaves the self-service headline definition unchanged", () => {
+    // selfServicePct counts the `customer` bucket only. Whether a WhatsApp
+    // Flow booking should also count as self-service is a product question
+    // about a headline number, deliberately not decided here.
+    expect(mix.selfServicePct).toBeCloseTo(25, 5);
   });
 });
