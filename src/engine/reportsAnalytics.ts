@@ -446,6 +446,34 @@ export interface SourceRow {
   cancelRatePct: number;
 }
 
+/**
+ * Which bucket a booking belongs to in the source mix.
+ *
+ * TWO columns carry attribution, because two write paths record it differently.
+ * `created_by_role` is stamped by trg_set_booking_creator from auth.uid(), so
+ * it is present for anything an authenticated staff member or customer books --
+ * and its own column comment says it is "NULL for service-role / legacy rows".
+ * The WhatsApp Flow books through a SERVICE-ROLE RPC, which has no auth.uid(),
+ * which is exactly why that RPC sets `source = 'whatsapp_flow'` instead: its
+ * migration says "so these are distinguishable from portal bookings".
+ *
+ * Reading only `created_by_role` therefore files every WhatsApp booking under
+ * "Unknown" -- 12 of them in July and August 2026, and rising -- while
+ * ROLE_LABELS has carried an "ai: WhatsApp AI" entry for them the whole time.
+ * Falling back to `source` is what makes that label reachable.
+ *
+ * Rows with neither are genuinely unattributable: they predate the 27 June 2026
+ * creator-stamping migration, and "Unknown" is the honest bucket for them.
+ */
+export function attributionRole(booking: AnalyticsBooking): string {
+  if (booking.created_by_role) return booking.created_by_role;
+  // Only the source values a write path actually sets are mapped; anything
+  // else stays Unknown rather than inventing a channel.
+  if (booking.source === "whatsapp_flow") return "ai";
+  if (booking.source === "staff_manual") return "staff";
+  return "unknown";
+}
+
 export function computeSourceMix(
   bookings: AnalyticsBooking[],
   dogMap: DogCustomPriceMap,
@@ -458,7 +486,7 @@ export function computeSourceMix(
 
   const acc: Record<string, { all: AnalyticsBooking[]; countable: AnalyticsBooking[] }> = {};
   bWindow.forEach((b) => {
-    const role = b.created_by_role || "unknown";
+    const role = attributionRole(b);
     (acc[role] ||= { all: [], countable: [] }).all.push(b);
     if (isCountableBooking(b)) acc[role].countable.push(b);
   });
