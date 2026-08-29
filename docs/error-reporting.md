@@ -1,9 +1,13 @@
 # Browser error reporting (Sentry)
 
-**Status as of 27 August 2026: integrated, tested, and NOT enabled in
-production.** The code is complete and the redaction is wired; no `VITE_SENTRY_DSN`
-is set, so nothing has ever been sent. Enabling it is a configuration step, not
-a code change — see [Enabling it](#enabling-it).
+**Status as of 28 August 2026: LIVE in production.** `VITE_SENTRY_DSN` is set,
+the build carries the SDK, and `npm run check:sentry` reports `ACTIVE` — the
+deployed chunk is 86,201 bytes, matching a local DSN-set build byte for byte.
+
+It had never sent an event before this. The section below is kept because the
+detection method is what makes the claim checkable rather than assumed, and
+because the same silence returns the moment the variable is removed or a build
+ships without it.
 
 ## Why this file exists
 
@@ -87,9 +91,13 @@ describes the two redaction passes in full. In short:
 `Sentry.init` also sets `sendDefaultPii: false` and `tracesSampleRate: 0` — no
 performance tracing, so enabling this sends errors only.
 
-Because none of this has ever executed against real traffic, treat the first
-week after enabling as a review period: check that events arrive, and read a
-sample to confirm the redaction behaves as described before relying on it.
+**This redaction ran for the first time on 28 August 2026.** Until then it had
+never executed against real traffic — it was correct by construction and by
+unit test, which is not the same as proven. Treat the first week as a review
+period: confirm events are arriving, then read a sample and check the pattern
+pass (phone, email, postcode, token, UUID) and the key pass (names, addresses,
+notes, message content) actually fire on real payloads. Report anything that
+leaks rather than assuming the tests covered it.
 
 ## Related
 

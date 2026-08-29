@@ -184,8 +184,8 @@ The current code integrates with:
 - Anthropic for the staff-reviewed WhatsApp assistant and summaries;
 - APITier for postcode lookup;
 - Cloudflare Turnstile for login abuse protection;
-- Sentry for error reporting — integrated but **not currently enabled**, so no
-  events are sent ([error-reporting.md](../error-reporting.md)); and
+- Sentry for error reporting — live since 28 August 2026, verifiable with
+  `npm run check:sentry` ([error-reporting.md](../error-reporting.md)); and
 - browser Web Push providers through VAPID.
 
 Secrets belong in Supabase/Vercel/GitHub secret stores or trusted local
