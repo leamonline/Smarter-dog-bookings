@@ -31,15 +31,17 @@ exception message. It reports through [`logger.error`](../src/lib/logger.ts)
 once; the logger owns the Sentry submission, so the same exception is not
 captured a second time.
 
-**Submission is currently inactive.** No `VITE_SENTRY_DSN` is set on the
-production deployment, and [`initSentry`](../src/lib/sentry.js) returns early
-without one — so `captureException` is a no-op and every `logger.error` call
-site in the app reports to nothing. This was established on 27 August 2026 by
-inspecting the deployed bundle, and [`npm run check:sentry`](error-reporting.md)
-re-checks it in one command. Everything below describes the contract that
-applies **once a DSN is configured**; it has not yet run against real traffic.
-Enabling it is a configuration step: see
-[`docs/error-reporting.md`](error-reporting.md).
+**Submission is live as of 28 August 2026.** `VITE_SENTRY_DSN` is set on the
+production deployment, so [`initSentry`](../src/lib/sentry.js) initialises and
+`captureException` reaches Sentry. It was inactive until then — every
+`logger.error` call site in the app reported to nothing — which is why
+[`npm run check:sentry`](error-reporting.md) exists: it answers the question
+from the deployed artefact rather than from a settings screen, and a build that
+ships without the variable goes silent again exactly as before.
+
+The redaction below has therefore only been running against real traffic since
+28 August. It is correct by construction and by unit test; a sample of live
+events should still be read before it is relied upon.
 
 Before Sentry accepts an event, [`sentryBeforeSend`](../src/lib/sentry.js)
 redacts in two passes.
@@ -65,8 +67,8 @@ tags that call sites set still identify where a failure happened.
 diagnostic and developer-authored — but still goes through the pattern pass.
 
 Together this preserves a useful error class and support reference without
-retaining customer identifiers in the report — by construction, though not yet
-by observation, for the reason given above.
+retaining customer identifiers in the report — by construction and by unit
+test. Observation against live events began on 28 August 2026.
 
 ## Verification guards
 
