@@ -120,6 +120,8 @@ interface FunnelCall {
   sessionId: string;
   stepIndex?: number | null;
   occurredAt?: string | null;
+  failureCode?: string | null;
+  failureDetail?: string | null;
 }
 
 function funnelCalls(): FunnelCall[] {
@@ -262,5 +264,60 @@ describe("BookingWizard funnel telemetry", () => {
     const [firstStarted, secondStarted] = funnelCalls().filter((c) => c.step === "started");
     expect(secondStarted.sessionId).not.toBe(firstStarted.sessionId);
     expect(secondStarted.stepIndex).toBe(0);
+  });
+
+  // #708: a confirm that produces no booking must leave a database-visible
+  // confirm_failed row on the same session, carrying the governed failure
+  // code — logger.error reaches nothing in production until Sentry exists.
+  it("logs confirm_failed with server_error when the write path returns a coded error", async () => {
+    mocks.draft.value = {
+      step: 5,
+      selectedDogs: [{ dogId: "dog-1", name: "Alfie", size: "small" }],
+      services: { "dog-1": "full-groom" },
+      selectedDate: "2099-06-15",
+      slotAllocation: allocation,
+    };
+    mocks.createMany.mockResolvedValue({
+      ids: [],
+      error: { code: "23505", message: "duplicate key value violates unique constraint", details: null },
+    });
+    const user = userEvent.setup();
+    renderWizard();
+    await user.click(await screen.findByRole("button", { name: "Confirm appointment" }));
+    await waitFor(() =>
+      expect(funnelCalls().map((c) => c.step)).toContain("confirm_failed"),
+    );
+
+    const calls = funnelCalls();
+    expect(calls.map((c) => c.step)).toEqual(["started", "confirm", "confirm_failed"]);
+    const failed = calls[2];
+    expect(failed.failureCode).toBe("server_error");
+    expect(failed.failureDetail).toContain("[23505]");
+    // Same attempt, ordered after the confirm it explains.
+    expect(failed.sessionId).toBe(calls[1].sessionId);
+    expect(failed.stepIndex).toBe(2);
+    // The attempt did NOT end: the session survives so a retry stays joined.
+    expect(sessionStorage.getItem(FUNNEL_SESSION_KEY)).not.toBeNull();
+    expect(funnelCalls().map((c) => c.step)).not.toContain("booked");
+  });
+
+  it("logs confirm_failed with network_failed when the request never got a response", async () => {
+    mocks.draft.value = {
+      step: 5,
+      selectedDogs: [{ dogId: "dog-1", name: "Alfie", size: "small" }],
+      services: { "dog-1": "full-groom" },
+      selectedDate: "2099-06-15",
+      slotAllocation: allocation,
+    };
+    // supabase-js surfaces a fetch rejection as a codeless wrapped message.
+    mocks.listOnDateForCapacity.mockRejectedValue(new TypeError("Failed to fetch"));
+    const user = userEvent.setup();
+    renderWizard();
+    await user.click(await screen.findByRole("button", { name: "Confirm appointment" }));
+    await waitFor(() =>
+      expect(funnelCalls().map((c) => c.step)).toContain("confirm_failed"),
+    );
+    const failed = funnelCalls().find((c) => c.step === "confirm_failed");
+    expect(failed?.failureCode).toBe("network_failed");
   });
 });

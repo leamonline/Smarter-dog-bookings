@@ -30,6 +30,7 @@ import {
   dogStepBlocker,
   type FunnelBlockedReason,
 } from "../../../engine/funnelBlockers";
+import { categoriseConfirmFailure, type ConfirmFailure } from "../../../engine/confirmFailure";
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
@@ -482,6 +483,34 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       /* telemetry must never surface into the wizard */
     }
   }, []);
+  /**
+   * Record that a confirm click produced no booking, and why (#708).
+   *
+   * This is the database-visible half of the failure report: logger.error
+   * below reaches Sentry only once a DSN is configured, but the funnel
+   * table demonstrably works in production — it is how #708 was measured.
+   * Logged through claimFunnelStep like any step, so it carries the same
+   * session id and ordering fields and joins directly against "confirm".
+   */
+  const fireConfirmFailed = useCallback((failure: ConfirmFailure) => {
+    try {
+      if (!supabase) return;
+      const claim = claimFunnelStep("confirm_failed");
+      if (!claim) return;
+      logFunnelEvent(supabase, {
+        sessionId: claim.sessionId,
+        step: "confirm_failed",
+        stepIndex: claim.stepIndex,
+        occurredAt: new Date().toISOString(),
+        humanId: funnelMeta.current.humanId,
+        dogCount: funnelMeta.current.dogCount,
+        failureCode: failure.code,
+        failureDetail: failure.detail,
+      }).then(undefined, () => {});
+    } catch {
+      /* telemetry must never surface into the wizard */
+    }
+  }, []);
 
   // "started" is the one funnel event with no user click behind it, so a
   // mount effect is genuinely needed. fireFunnel is stable ([] deps), and the
@@ -560,6 +589,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           dogCount: selectedDogs.length,
           reasonDetail: "Chosen slot no longer available at final confirm (client re-check).",
           alternativeShown: true,
+        });
+        fireConfirmFailed({
+          code: "slot_taken_recheck",
+          detail: "Chosen slot no longer available at final confirm (client re-check).",
         });
         setError("Sorry, that time slot is no longer available — please choose another.");
         setSlotAllocation(null);
@@ -705,14 +738,23 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           alternativeShown: false,
         });
       }
-      // Everything the chain below recognises is accounted for: a gate refusal
-      // is counted as capacity-prevented demand above, and each reschedule
-      // code has its own copy. Anything else reaches the customer as "please
-      // try again" and, until this call, was recorded NOWHERE -- no denial
-      // row (isTriggerError is false), no Sentry event. Production bears out
-      // what that costs: across July and August ~13% of confirmations never
-      // became a booking, while booking_denials recorded two refusals in the
-      // same window. The funnel's largest leak was its least visible one.
+      // EVERY failed confirm gets a confirm_failed funnel row, whatever the
+      // cause: it joins against "confirm" on the same session id, so the 21
+      // attempts #708 could only count become attempts it can explain. The
+      // governed code separates the candidates the client can observe —
+      // network vs structured server error vs gate — and total network loss
+      // that swallows this write too remains visible as the ABSENCE of any
+      // row, which is now a sharper signal, not a lost one.
+      fireConfirmFailed(
+        categoriseConfirmFailure(cause, {
+          isTriggerError,
+          isHandledReschedule: HANDLED_RESCHEDULE_CODES.includes(cause?.code ?? ""),
+        }),
+      );
+      // Anything unrecognised below reaches the customer as "please try
+      // again" and additionally goes to logger.error — which reaches Sentry
+      // only once a DSN is configured (#707), which is why the funnel row
+      // above is the record of authority for #708.
       //
       // Deliberately NOT written to booking_denials: that table means
       // capacity-prevented demand, and report 2F reads it as such. A network
