@@ -95,6 +95,18 @@ export const PRIMARY_NAV = [
       </svg>
     ),
   },
+  {
+    to: "/unfinished",
+    label: "Unfinished",
+    activeBg: "bg-brand-teal text-white shadow-[0_2px_8px_rgba(45,139,122,0.5)]",
+    activeText: "text-brand-teal",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    ),
+  },
 ];
 
 // Settings — reached via the header tools menu / mobile menu sheet.
@@ -132,6 +144,7 @@ export function sectionTitleFor(pathname) {
   if (pathname.startsWith("/humans")) return "Humans";
   if (pathname.startsWith("/inbox")) return "Inbox";
   if (pathname.startsWith("/reports")) return "Reports";
+  if (pathname.startsWith("/unfinished")) return "Unfinished business";
   if (pathname.startsWith("/settings")) return "Settings";
   return "Bookings";
 }

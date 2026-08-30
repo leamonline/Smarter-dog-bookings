@@ -137,6 +137,11 @@ const WeekCalendarView = lazy(() =>
     default: module.WeekCalendarView,
   })),
 );
+const UnfinishedView = lazy(() =>
+  import("./components/views/UnfinishedView.jsx").then((module) => ({
+    default: module.UnfinishedView,
+  })),
+);
 const ReportsLayout = lazy(() =>
   import("./components/views/reports/ReportsLayout.jsx").then((module) => ({
     default: module.ReportsLayout,
@@ -213,6 +218,7 @@ const appLoadingShell = (
 const ROUTE_CHUNK_IMPORTS = [
   ["/today", () => import("./components/views/TodayView.jsx")],
   ["/booking-workspace", () => import("./components/views/booking-workspace/BookingWorkspaceView.jsx")],
+  ["/unfinished", () => import("./components/views/UnfinishedView.jsx")],
   ["/inbox", () => import("./components/views/inbox/InboxView.jsx")],
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
@@ -1175,6 +1181,15 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       toggleImmediateSlot={toggleImmediateSlot}
                       onRefresh={refetchBookings}
                       configPricing={salonConfig?.pricing}
+                    />
+                  } />
+                  <Route path="/unfinished" element={
+                    <UnfinishedView
+                      dogs={dogs}
+                      humans={humans}
+                      dogsById={dogsById}
+                      humansById={humansById}
+                      onOpenBooking={handleOpenBooking}
                     />
                   } />
                   <Route path="/" element={
