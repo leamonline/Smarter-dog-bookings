@@ -16,6 +16,15 @@ function initialsFromUser(user) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// Unfinished business — past appointments still needing an action. Lives in
+// the menus rather than the primary nav: an eighth top-level item overflows
+// the header and the mobile strip, which the e2e width guards catch.
+const UnfinishedIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+  </svg>
+);
+
 const PawIcon = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-teal" aria-hidden="true">
     <ellipse cx="8" cy="7" rx="2.5" ry="3" /><ellipse cx="16" cy="7" rx="2.5" ry="3" /><ellipse cx="4.5" cy="13" rx="2" ry="2.5" /><ellipse cx="19.5" cy="13" rx="2" ry="2.5" /><ellipse cx="12" cy="17" rx="5" ry="4" />
@@ -170,6 +179,13 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[230px] overflow-hidden animate-[fadeIn_0.12s_ease-out]"
             >
               <button
+                onClick={() => { navigate("/unfinished"); setOpenMenu(null); }}
+                className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
+              >
+                {UnfinishedIcon}
+                Unfinished business
+              </button>
+              <button
                 onClick={() => { navigate("/settings"); setOpenMenu(null); }}
                 className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
               >
@@ -300,6 +316,13 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                   Week overview
                 </button>
               )}
+              <button
+                onClick={() => { navigate("/unfinished"); setOpenMenu(null); }}
+                className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
+              >
+                {UnfinishedIcon}
+                Unfinished business
+              </button>
               <button
                 onClick={() => { navigate("/settings"); setOpenMenu(null); }}
                 className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
