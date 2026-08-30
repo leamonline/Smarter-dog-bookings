@@ -25,6 +25,15 @@ export interface FunnelSessionRecord {
   /** Next step index to hand out; strictly increases across the attempt. */
   stepIndex: number;
   startedLogged: boolean;
+  /**
+   * Blocked reasons already logged for this attempt.
+   *
+   * Optional, and absent on records minted before blocked reasons existed:
+   * requiring it in isValidRecord would reject every in-flight session the
+   * moment this ships, minting fresh ids mid-attempt and inflating the
+   * "started" count exactly when someone is reading the funnel.
+   */
+  blockersLogged?: string[];
 }
 
 export interface FunnelStepClaim {
@@ -112,6 +121,24 @@ export function claimFunnelStep(step: string): FunnelStepClaim | null {
     if (record.startedLogged) return null;
     record.startedLogged = true;
   }
+  const claim: FunnelStepClaim = { sessionId: record.id, stepIndex: record.stepIndex };
+  record.stepIndex += 1;
+  writeRecord(record);
+  return claim;
+}
+
+/**
+ * Claim the right to log one blocked reason for this attempt, once.
+ *
+ * The wizard evaluates its blockers on render, so without this a customer
+ * sitting on an empty dog step would emit a row per render and drown the
+ * signal in its own repetition. Returns null once the reason is spent.
+ */
+export function claimFunnelBlocker(reason: string): FunnelStepClaim | null {
+  const record = getOrCreateFunnelSession();
+  const logged = record.blockersLogged ?? [];
+  if (logged.includes(reason)) return null;
+  record.blockersLogged = [...logged, reason];
   const claim: FunnelStepClaim = { sessionId: record.id, stepIndex: record.stepIndex };
   record.stepIndex += 1;
   writeRecord(record);

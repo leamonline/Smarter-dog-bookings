@@ -372,6 +372,12 @@ export function logFunnelEvent(
     occurredAt?: string | null;
     humanId?: string | null;
     dogCount?: number | null;
+    /**
+     * Set only when the wizard could offer no way forward at this step.
+     * Never set to explain a customer who had a choice and left anyway —
+     * that is not observable. See src/engine/funnelBlockers.ts.
+     */
+    blockedReason?: string | null;
   },
 ) {
   return client.rpc("log_funnel_event", {
@@ -381,6 +387,7 @@ export function logFunnelEvent(
     p_occurred_at: input.occurredAt ?? null,
     p_human_id: input.humanId ?? null,
     p_dog_count: input.dogCount ?? null,
+    p_blocked_reason: input.blockedReason ?? null,
   });
 }
 

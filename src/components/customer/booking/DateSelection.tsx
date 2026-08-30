@@ -23,6 +23,16 @@ interface DateSelectionProps {
   page?: number;
   onPageChange?: (page: number) => void;
   pageCache?: Map<string, DatePageAvailability>;
+  /**
+   * Reports how many days on the current page the customer can actually
+   * pick. The wizard uses it to record a funnel blocker when the first page
+   * offers nothing — it never changes what this component renders.
+   */
+  onAvailabilitySummary?: (summary: {
+    pageIndex: number;
+    openDayCount: number;
+    complete: boolean;
+  }) => void;
 }
 
 export interface DatePageAvailability {
@@ -107,6 +117,7 @@ export function DateSelection({
   page: controlledPage,
   onPageChange,
   pageCache: controlledPageCache,
+  onAvailabilitySummary,
 }: DateSelectionProps) {
   const [today] = useState(startOfToday);
   const pageCount = Math.max(1, Math.ceil(bookingHorizonDays / PAGE_SIZE));
@@ -268,6 +279,20 @@ export function DateSelection({
     return "open";
   };
 
+  // Computed once per page and reused by the grid below. dayStateFor runs the
+  // capacity engine per day, so counting open days with a second pass would
+  // double that work across a 28-day page.
+  const dayStates = new Map<string, DayState>();
+  for (const date of days) dayStates.set(toDateStr(date), dayStateFor(date));
+  const openDayCount = [...dayStates.values()].filter((state) => state === "open").length;
+
+  const summaryComplete = !displayLoading && visibleAvailability?.complete === true;
+  const summaryRef = useRef(onAvailabilitySummary);
+  summaryRef.current = onAvailabilitySummary;
+  useEffect(() => {
+    summaryRef.current?.({ pageIndex: currentPage, openDayCount, complete: summaryComplete });
+  }, [currentPage, openDayCount, summaryComplete]);
+
   const todayAvailable = (() => {
     if (displayLoading || currentPage !== 0 || !immediate.date || immediate.slots.length === 0) return false;
     if (visibleAvailability?.occupancyByDate && dogsForEngine.length > 0) {
@@ -379,7 +404,7 @@ export function DateSelection({
             {gridCells.map((date, index) => {
               if (!date) return <div key={`empty-${index}`} />;
               const dateStr = toDateStr(date);
-              const state = dayStateFor(date);
+              const state = dayStates.get(dateStr) ?? dayStateFor(date);
               const selectable = state === "open";
               const selected = selectedDate === dateStr;
               const longLabel = date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
