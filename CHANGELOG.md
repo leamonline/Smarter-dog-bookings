@@ -83,6 +83,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Record every confirm click that produced no booking in the database, with a
+  governed failure code (#708). The 21 unexplained confirm failures were
+  reported only through `logger.error`, which reaches nothing in production
+  until Sentry is enabled — while the funnel table demonstrably works there,
+  being how #708 was measured in the first place. The wizard now logs a
+  `confirm_failed` funnel event on every failure path, on the same session id
+  as the `confirm` it explains, carrying one of six observable categories
+  (`gate_rejected`, `reschedule_rule`, `slot_taken_recheck`, `network_failed`,
+  `server_error`, `unknown`) plus a truncated structured diagnostic. The set is
+  governed by a CHECK mirroring `CONFIRM_FAILURE_CODES`, with a test pinning
+  the two; the RPC drops unrecognised values to null rather than raising. A
+  confirm with neither `booked` nor `confirm_failed` remains possible and
+  remains a finding — navigation away, or network loss too total to log — so
+  #708's Sentry criterion stands; this narrows the residue rather than
+  replacing it. Migration `20260830223000`; no booking write-path change.
+
 - Record **why** a booking-wizard step could not be completed, on the two
   steps that lose the most people. Measured against the clean window (after
   the per-attempt session fix on 23 August), the largest two drops are both

@@ -378,6 +378,12 @@ export function logFunnelEvent(
      * that is not observable. See src/engine/funnelBlockers.ts.
      */
     blockedReason?: string | null;
+    /**
+     * Set only on step = "confirm_failed": why a confirm click produced no
+     * booking (#708). Governed set — see src/engine/confirmFailure.ts.
+     */
+    failureCode?: string | null;
+    failureDetail?: string | null;
   },
 ) {
   return client.rpc("log_funnel_event", {
@@ -388,6 +394,8 @@ export function logFunnelEvent(
     p_human_id: input.humanId ?? null,
     p_dog_count: input.dogCount ?? null,
     p_blocked_reason: input.blockedReason ?? null,
+    p_failure_code: input.failureCode ?? null,
+    p_failure_detail: input.failureDetail ?? null,
   });
 }
 

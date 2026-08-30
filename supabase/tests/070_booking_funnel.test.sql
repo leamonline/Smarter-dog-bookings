@@ -1,6 +1,7 @@
 -- booking_funnel_events + log_funnel_event (migrations 20260704120000,
 -- 20260823171500, which adds the optional client-side ordering fields
--- step_index / occurred_at, and 20260830203000, which adds blocked_reason).
+-- step_index / occurred_at, 20260830203000, which adds blocked_reason, and
+-- 20260830223000, which adds failure_code / failure_detail for #708).
 --
 -- Verifies: the fire-and-forget RPC lets an ordinary authenticated (non-staff)
 -- session write; RLS keeps the table staff-read-only; anon cannot execute the
@@ -9,7 +10,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(13);
 
 -- Seed a staff profile (FK to auth.users skipped in replica mode).
 set local session_replication_role = replica;
@@ -79,6 +80,43 @@ select is(
     where session_id = '33333333-2222-4333-8444-555555555555'::uuid),
   null,
   'an unrecognised blocked_reason is stored as null, not as itself'
+);
+
+-- failure_code / failure_detail (#708): the confirm_failed event. Same
+-- posture as blocked_reason — an unrecognised code is dropped to null, never
+-- raised, and the detail is truncated so a runaway message cannot bloat the
+-- table.
+reset role;
+set local request.jwt.claims = '{"sub":"e0000000-0000-4000-8000-00000000007e","role":"authenticated"}';
+set local role authenticated;
+
+select lives_ok(
+  $$ select public.log_funnel_event('44444444-2222-4333-8444-555555555555'::uuid, 'confirm_failed', null, 1, 2, '2026-08-30T10:00:00Z'::timestamptz, null, 'server_error', '[23505] duplicate key value violates unique constraint') $$,
+  'a governed failure_code with detail is accepted'
+);
+
+select lives_ok(
+  $$ select public.log_funnel_event('55555555-2222-4333-8444-555555555555'::uuid, 'confirm_failed', null, 1, 2, '2026-08-30T10:00:00Z'::timestamptz, null, 'not_a_real_code', repeat('x', 900)) $$,
+  'an unrecognised failure_code does not raise'
+);
+
+reset role;
+set local request.jwt.claims = '{"sub":"f0000000-0000-4000-8000-00000000007f","role":"authenticated"}';
+set local role authenticated;
+
+select is(
+  (select failure_code || ' / ' || failure_detail from public.booking_funnel_events
+    where session_id = '44444444-2222-4333-8444-555555555555'::uuid),
+  'server_error / [23505] duplicate key value violates unique constraint',
+  'a governed failure_code and its detail are stored verbatim'
+);
+
+select is(
+  (select array[failure_code is null, char_length(failure_detail) = 300]
+     from public.booking_funnel_events
+    where session_id = '55555555-2222-4333-8444-555555555555'::uuid),
+  array[true, true],
+  'an unrecognised failure_code is stored as null and the detail is truncated to 300 chars'
 );
 
 -- Anon cannot execute the RPC.
