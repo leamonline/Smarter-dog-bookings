@@ -83,6 +83,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Record **why** a booking-wizard step could not be completed, on the two
+  steps that lose the most people. Measured against the clean window (after
+  the per-attempt session fix on 23 August), the largest two drops are both
+  at the front of the wizard, before anyone sees a price or a slot:
+  `started → select_dogs` and `select_dogs → select_date`. The funnel could
+  say where people left but never why.
+
+  The new `blocked_reason` is written **only** when the wizard had nothing to
+  offer — no dogs on file, every dog ineligible, or a first calendar page with
+  no open day. It is never written to explain someone who had a usable choice
+  and left anyway, because that is not observable and inventing it would put
+  guessed intent into a table people will trust. An abandoned attempt with no
+  reason is itself the finding: the customer had options and still went away.
+
+  The vocabulary is governed by a CHECK constraint mirroring
+  `FUNNEL_BLOCKED_REASONS`, with a test pinning the two together, so a typo
+  cannot quietly invent a fourth category. The RPC drops an unrecognised value
+  to null rather than raising — this is fire-and-forget telemetry, and a stale
+  client must never cost a customer their booking; the CHECK is the backstop.
+  Reasons are claimed once per attempt, because the blockers are evaluated on
+  render and would otherwise bury their own signal in repetition.
+
 - Rescope B3 (#623) from *canonical capacity evaluator and reason contract* to
   **guard capacity parity across runtimes**, on the evidence of the 129-case
   measurement: the capacity semantics do not diverge, PostgreSQL was correct in

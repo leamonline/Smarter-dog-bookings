@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   FUNNEL_SESSION_KEY,
+  claimFunnelBlocker,
   claimFunnelStep,
   clearFunnelSession,
   getOrCreateFunnelSession,
@@ -133,5 +134,60 @@ describe("funnelSession without sessionStorage (privacy mode / non-DOM)", () => 
     const next = claimFunnelStep("select_dogs");
     expect(next?.sessionId).toBe(started?.sessionId);
     expect(next?.stepIndex).toBe(1);
+  });
+});
+
+describe("claimFunnelBlocker", () => {
+  beforeEach(() => {
+    globalWithStorage.sessionStorage = new FakeSessionStorage();
+    clearFunnelSession();
+  });
+
+  afterEach(() => {
+    delete globalWithStorage.sessionStorage;
+  });
+
+  it("allows a reason once and refuses it thereafter", () => {
+    // The wizard evaluates blockers on render; without this a customer
+    // sitting on an empty dog step would emit a row per render.
+    expect(claimFunnelBlocker("no_dogs_on_file")).not.toBeNull();
+    expect(claimFunnelBlocker("no_dogs_on_file")).toBeNull();
+    expect(claimFunnelBlocker("no_dogs_on_file")).toBeNull();
+  });
+
+  it("tracks each reason separately", () => {
+    expect(claimFunnelBlocker("no_dogs_on_file")).not.toBeNull();
+    expect(claimFunnelBlocker("no_open_days_in_first_page")).not.toBeNull();
+    expect(claimFunnelBlocker("no_open_days_in_first_page")).toBeNull();
+  });
+
+  it("shares the attempt's session id and keeps step indexes moving forward", () => {
+    const step = claimFunnelStep("started");
+    const blocker = claimFunnelBlocker("no_dogs_on_file");
+    expect(blocker?.sessionId).toBe(step?.sessionId);
+    expect(blocker!.stepIndex).toBeGreaterThan(step!.stepIndex);
+  });
+
+  it("lets the next attempt report the same reason again", () => {
+    const first = claimFunnelBlocker("no_dogs_on_file");
+    clearFunnelSession();
+    const second = claimFunnelBlocker("no_dogs_on_file");
+    expect(second).not.toBeNull();
+    expect(second?.sessionId).not.toBe(first?.sessionId);
+  });
+
+  it("accepts a session minted before blocked reasons existed", () => {
+    // Records already in a customer's sessionStorage have no blockersLogged.
+    // Rejecting them would mint a fresh id mid-attempt and inflate "started"
+    // exactly when someone is reading the funnel.
+    globalWithStorage.sessionStorage = new FakeSessionStorage();
+    (globalWithStorage.sessionStorage as FakeSessionStorage).setItem(
+      FUNNEL_SESSION_KEY,
+      JSON.stringify({ id: "legacy-session-id", stepIndex: 4, startedLogged: true }),
+    );
+    const claim = claimFunnelBlocker("no_eligible_dogs");
+    expect(claim?.sessionId).toBe("legacy-session-id");
+    expect(claim?.stepIndex).toBe(4);
+    expect(claimFunnelBlocker("no_eligible_dogs")).toBeNull();
   });
 });

@@ -24,7 +24,12 @@ import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
-import { claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
+import { claimFunnelBlocker, claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
+import {
+  dateStepBlocker,
+  dogStepBlocker,
+  type FunnelBlockedReason,
+} from "../../../engine/funnelBlockers";
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
@@ -450,6 +455,34 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       /* telemetry must never surface into the wizard */
     }
   }, []);
+  /**
+   * Record that the wizard could offer no way forward at this step.
+   *
+   * Separate from fireFunnel because the two answer different questions:
+   * fireFunnel says which step was reached, this says why the customer could
+   * not leave it. Logged at most once per reason per attempt — the blockers
+   * are evaluated on render, so without the claim an empty dog step would
+   * emit a row per render and bury its own signal.
+   */
+  const fireBlocker = useCallback((step: string, reason: FunnelBlockedReason) => {
+    try {
+      if (!supabase) return;
+      const claim = claimFunnelBlocker(reason);
+      if (!claim) return;
+      logFunnelEvent(supabase, {
+        sessionId: claim.sessionId,
+        step,
+        stepIndex: claim.stepIndex,
+        occurredAt: new Date().toISOString(),
+        humanId: funnelMeta.current.humanId,
+        dogCount: funnelMeta.current.dogCount,
+        blockedReason: reason,
+      }).then(undefined, () => {});
+    } catch {
+      /* telemetry must never surface into the wizard */
+    }
+  }, []);
+
   // "started" is the one funnel event with no user click behind it, so a
   // mount effect is genuinely needed. fireFunnel is stable ([] deps), and the
   // startedLogged flag persisted with the session record makes this once per
@@ -457,6 +490,24 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   useEffect(() => {
     fireFunnel("started");
   }, [fireFunnel]);
+
+  // The two front-of-wizard blockers. Both are evaluated from state the
+  // wizard already holds, and both only fire when the customer genuinely had
+  // nothing to pick — someone who had a choice and left anyway is recorded by
+  // the ABSENCE of a reason, which is the more interesting case.
+  useEffect(() => {
+    if (step !== 1) return;
+    const reason = dogStepBlocker(dogs, dogsLoading);
+    if (reason) fireBlocker("select_dogs", reason);
+  }, [step, dogs, dogsLoading, fireBlocker]);
+
+  const handleDateAvailability = useCallback(
+    (summary: { pageIndex: number; openDayCount: number; complete: boolean }) => {
+      const reason = dateStepBlocker(summary);
+      if (reason) fireBlocker("select_date", reason);
+    },
+    [fireBlocker],
+  );
 
   const handleConfirm = async () => {
     if (!slotAllocation || !selectedDate) return;
@@ -1031,6 +1082,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             page={datePage}
             onPageChange={setDatePage}
             pageCache={datePageCache.current}
+            onAvailabilitySummary={handleDateAvailability}
           />
         )}
 
