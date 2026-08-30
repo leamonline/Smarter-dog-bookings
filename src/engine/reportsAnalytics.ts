@@ -507,7 +507,13 @@ export function computeSourceMix(
     })
     .sort((a, b) => b.n - a.n);
 
-  const selfServicePct = totalCountable > 0 ? ((acc["customer"]?.countable.length || 0) / totalCountable) * 100 : 0;
+  // Decision (30 Aug 2026, recorded on #665's thread): a WhatsApp Flow booking
+  // IS customer self-service — the customer initiates and completes it with no
+  // staff involvement — so the headline counts both channels. The report's
+  // insight line names them, so the definition is visible, not silent.
+  const selfServiceCount =
+    (acc["customer"]?.countable.length || 0) + (acc["ai"]?.countable.length || 0);
+  const selfServicePct = totalCountable > 0 ? (selfServiceCount / totalCountable) * 100 : 0;
   return { bySource, selfServicePct, totalCountable };
 }
 

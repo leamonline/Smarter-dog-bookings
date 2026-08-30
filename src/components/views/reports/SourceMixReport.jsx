@@ -16,7 +16,7 @@ export function SourceMixReport({ sourceMix }) {
 
   const insight =
     totalCountable > 0
-      ? `${selfServicePct.toFixed(0)}% of bookings are now customer self-service.`
+      ? `${selfServicePct.toFixed(0)}% of bookings are customer self-service (portal + WhatsApp).`
       : undefined;
 
   return (
