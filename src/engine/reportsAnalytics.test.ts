@@ -229,7 +229,7 @@ describe("computeSourceMix (2E)", () => {
     const staff = mix.bySource.find((s) => s.role === "staff")!;
     expect(staff.n).toBe(2);
     expect(staff.pct).toBe(50); // 2 of 4 countable
-    expect(mix.selfServicePct).toBe(25); // customer share of countable
+    expect(mix.selfServicePct).toBe(25); // self-service share (customer + ai; no ai rows here)
   });
 
   it("computes cancel rate per source over all bookings", () => {
@@ -476,10 +476,12 @@ describe("computeSourceMix labels the WhatsApp channel", () => {
     expect(mix.bySource.find((r) => r.role === "unknown")?.n).toBe(1);
   });
 
-  it("leaves the self-service headline definition unchanged", () => {
-    // selfServicePct counts the `customer` bucket only. Whether a WhatsApp
-    // Flow booking should also count as self-service is a product question
-    // about a headline number, deliberately not decided here.
-    expect(mix.selfServicePct).toBeCloseTo(25, 5);
+  it("counts portal AND WhatsApp bookings as self-service", () => {
+    // Decision recorded 30 Aug 2026 on #665's thread: a Flow booking is
+    // customer self-service in substance — no staff involvement — so the
+    // headline counts customer + ai. Fixture: customer 1 + ai 1 of 4
+    // countable. Staff and unknown must stay excluded: either leaking in
+    // would read 75 here.
+    expect(mix.selfServicePct).toBeCloseTo(50, 5);
   });
 });

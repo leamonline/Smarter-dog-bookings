@@ -189,9 +189,11 @@ select is(
 );
 
 -- Both seats blocked refuses from the CALENDAR gate, not capacity — the
--- finding recorded in the 20 August brief. It keeps calendar_closed, which is
--- what the prose mapper already inferred; re-categorising it is a separate
--- decision, deliberately not taken here.
+-- finding recorded in the 20 August brief. Since migration 20260830120000
+-- (owner decision, 30 Aug 2026, #665) it emits seat_blocked: the DAY is not
+-- closed, that SLOT is, and seat_blocked is retryable so the Flow offers
+-- other same-day times. The message stays byte-identical; the prose mapper's
+-- calendar_closed inference remains only as the pre-migration fallback.
 set local session_replication_role = replica;
 -- Seat keys are an OBJECT ("0"/"1"), not an array: both gates read
 -- `overrides -> slot ->> '0'`, and the capacity trigger walks it with
@@ -205,8 +207,8 @@ select is(
   pg_temp.detail_of(
     $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
        values (date '2099-01-05', '11:00', '61610000-0000-4000-8000-000000000001', 'small', 'full-groom') $$),
-  'calendar_closed',
-  'calendar: both seats blocked emits calendar_closed, unchanged from the prose mapper'
+  'seat_blocked',
+  'calendar: both seats blocked emits seat_blocked — the slot is blocked, the day is not closed'
 );
 
 set local session_replication_role = replica;

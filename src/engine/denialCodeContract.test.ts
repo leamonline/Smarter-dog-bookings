@@ -23,12 +23,28 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DENIAL_REASON_LABELS, mapDenialReason } from "./denials";
 
-const MIGRATION = fileURLToPath(
-  new URL(
-    "../../supabase/migrations/20260826120000_gate_reason_codes.sql",
-    import.meta.url,
-  ),
-);
+/**
+ * The migrations that define emitted codes, in apply order. A later migration
+ * redefines a gate, so for any message it raises, its code is the effective
+ * contract — exactly how PostgreSQL resolves the same sequence.
+ */
+const MIGRATIONS = [
+  "../../supabase/migrations/20260826120000_gate_reason_codes.sql",
+  "../../supabase/migrations/20260830120000_seat_blocked_reason.sql",
+].map((rel) => fileURLToPath(new URL(rel, import.meta.url)));
+
+/**
+ * Sites where the EMITTED code deliberately diverges from what the prose
+ * mapper infers. The prose inference is kept as the documented fallback for a
+ * database predating the migration; wherever the migration is applied, the
+ * emitted code wins. Owner decision, 30 Aug 2026, recorded on #665.
+ */
+const DELIBERATE_PROSE_DIVERGENCES: Record<string, string> = {
+  // The slot is staff-blocked; the day is not closed. Emits seat_blocked
+  // (retryable — the Flow offers other same-day times); the wording still
+  // reads "closed", so prose alone infers calendar_closed.
+  "That time slot is closed on this date": "calendar_closed",
+};
 
 interface EmittedRaise {
   message: string;
@@ -84,8 +100,8 @@ function firstMessage(stmt: string): string | null {
   return positional ? positional[1].replace(/''/g, "'") : null;
 }
 
-function emittedRaises(): EmittedRaise[] {
-  const sql = readFileSync(MIGRATION, "utf8");
+function emittedRaisesIn(path: string): EmittedRaise[] {
+  const sql = readFileSync(path, "utf8");
   const rows: EmittedRaise[] = [];
   for (const stmt of raiseStatements(sql)) {
     const code = stmt.match(/detail\s*=\s*'([a-z_0-9]+)'/);
@@ -97,13 +113,38 @@ function emittedRaises(): EmittedRaise[] {
   return rows;
 }
 
+/** The effective contract: later migrations override earlier, per message. */
+function emittedRaises(): EmittedRaise[] {
+  const byMessage = new Map<string, EmittedRaise>();
+  for (const path of MIGRATIONS) {
+    for (const row of emittedRaisesIn(path)) byMessage.set(row.message, row);
+  }
+  return [...byMessage.values()];
+}
+
 describe("gate reason codes agree with the prose mapper", () => {
   const raises = emittedRaises();
 
-  it("reads every emitted code out of the migration", () => {
-    // 26 sites carry a code; the daily-cap raise puts its format string after
-    // the keyword, so all 26 resolve to a message.
-    expect(raises.length).toBe(26);
+  it("reads every emitted code out of the migrations", () => {
+    // 26 raise sites in the base migration collapse to 22 distinct messages
+    // (some wording is shared across gates); the 20260830 re-issue of the
+    // calendar gate carries the same six messages, so the effective contract
+    // stays at 22 — the re-issue adds nothing and loses nothing.
+    expect(emittedRaisesIn(MIGRATIONS[0]).length).toBe(26);
+    expect(emittedRaisesIn(MIGRATIONS[1]).length).toBe(6);
+    expect(raises.length).toBe(22);
+  });
+
+  it("lets the re-issue change ONLY the code it exists to change", () => {
+    // The strongest property of the layering: for every message, the
+    // effective code equals the base migration's code except at the one site
+    // the 20260830 migration reclassifies. A re-issue that drifted any other
+    // site would fail here by name.
+    const base = new Map(emittedRaisesIn(MIGRATIONS[0]).map((r) => [r.message, r.code]));
+    const changed = raises
+      .filter((r) => base.get(r.message) !== r.code)
+      .map((r) => `${r.message} → ${r.code}`);
+    expect(changed).toEqual(["That time slot is closed on this date → seat_blocked"]);
   });
 
   it("emits only codes that are in the vocabulary", () => {
@@ -122,11 +163,30 @@ describe("gate reason codes agree with the prose mapper", () => {
   it.each(emittedRaises().map((r) => [r.code, r.message] as const))(
     "%s ← %s",
     (code, message) => {
+      const proseFallback = DELIBERATE_PROSE_DIVERGENCES[message];
+      if (proseFallback) {
+        // A documented divergence: the prose fallback stays put for databases
+        // predating the migration, and the emitted code wins where it applies.
+        // Anywhere else, silent disagreement is still a failure.
+        expect(mapDenialReason(message)).toBe(proseFallback);
+        expect(mapDenialReason(message, code)).toBe(code);
+        return;
+      }
       // The mapper, given only the prose, must reach the code the gate emits.
       // A disagreement means one of the two is wrong, and silently so.
       expect(mapDenialReason(message)).toBe(code);
     },
   );
+
+  it("reclassifies both-seats-blocked as seat_blocked in the effective contract", () => {
+    // Owner decision, 30 Aug 2026 (#665): the slot is blocked, the day is not
+    // closed. seat_blocked is retryable, so the Flow offers other same-day
+    // times instead of claiming the salon is shut.
+    const site = raises.find(
+      (r) => r.message === "That time slot is closed on this date",
+    );
+    expect(site?.code).toBe("seat_blocked");
+  });
 
   it("prefers the emitted code over the prose when they disagree", () => {
     // The whole point of the contract: the gate's own answer wins.
