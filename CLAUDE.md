@@ -29,11 +29,13 @@ npm ci
 npm run dev            # Vite dev server on :5173  (needs VITE_ creds, see below)
 npm run build          # production build → dist/
 npm run preview        # serve the built app
-npm run lint           # eslint + scripts/check-import-extensions.mjs
+npm run lint           # eslint + repo check scripts (import extensions, duplicate files,
+                       #   lockfile platform, hosted-Supabase target guard)
 npm run typecheck      # tsc --noEmit (app + tsconfig.node-tests.json)
 npm run test           # all Vitest (test:logic = node, test:component = jsdom)
 npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sample data
 npm run check:migrations  # validate migration filenames/order
+npm run check:sentry   # is browser error reporting actually live on prod? (ACTIVE/INACTIVE)
 ```
 
 **CI bar (`.github/workflows/ci.yml`, Node 24):** `lint → check:docs → typecheck → check-migrations →
@@ -48,7 +50,9 @@ Names only — never commit values. Full documented list: [.env.example](.env.ex
 
 - **Browser (`VITE_`, bundled into the client — never put a secret here):**
   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (legacy fallback `VITE_SUPABASE_ANON_KEY`),
-  `VITE_TURNSTILE_SITE_KEY`, optional `VITE_SENTRY_DSN` / `VITE_SENTRY_ENVIRONMENT`,
+  `VITE_TURNSTILE_SITE_KEY`, `VITE_SENTRY_DSN` / `VITE_SENTRY_ENVIRONMENT` (error reporting is
+  **LIVE in prod** since 28 Aug 2026 — verify with `npm run check:sentry`; see
+  [docs/error-reporting.md](docs/error-reporting.md)),
   `VITE_FORCE_OFFLINE` (set `=1` for offline/sample-data mode; used by E2E). Missing Supabase vars
   in a **prod** build is a hard error page; in dev it just goes offline.
 - **Server/admin scripts only (NEVER `VITE_`):** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
@@ -77,9 +81,12 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   Pure engines drive both; deep dive: [docs/today-command-centre.md](docs/today-command-centre.md).
 - `src/engine/` — **pure TS business logic, zero React**: `capacity.ts` (the 2-2-1 engine),
   `bookingRules.ts` (pricing + the `resolveBookingDisplay` selector), `pricing.ts`, `utilisation.ts`,
-  `today.ts` (Today-view selectors + Europe/London time helpers), `salonBoard.ts` (the `/today` board:
-  zone mapping, priority gravity, per-state actions, drag legality, undo), `reportsAnalytics.ts` +
-  `denials.ts` (decision-report maths).
+  `today.ts` (Today-view selectors), `londonTime.ts` (shared Europe/London wall-clock helpers),
+  `salonBoard.ts` (the `/today` board: zone mapping, priority gravity, per-state actions, drag
+  legality, undo), `dailyBrief.ts`, `reportsAnalytics.ts` + `denials.ts` (decision-report maths;
+  `denials.ts` maps gate rejections → stable reason codes), and the booking-funnel telemetry trio
+  `funnel.ts` / `funnelBlockers.ts` / `confirmFailure.ts` (why wizard attempts stall or a confirm
+  produced no booking — DB-visible via `booking_funnel_events`).
 - `src/constants/` — salon config: `salon.ts` (slots, services, `LARGE_DOG_SLOTS`, statuses),
   `salonSettings.ts` (config defaults), `salonContact.ts`.
 - `src/hooks/` — UI-level state hooks. `src/supabase/hooks/` — data hooks (facades composing focused
@@ -96,17 +103,17 @@ These are the rules most easily broken by a careless change. The capacity rules 
 dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 - **Bookable slots:** the canonical grid is `08:30`–`13:00`, **30-minute** intervals (10 slots) —
-  `SALON_SLOTS` [salon.ts](src/constants/salon.ts#L1); `SLOT_MINUTES = 30` [utilisation.ts](src/engine/utilisation.ts#L82).
+  `SALON_SLOTS` [salon.ts](src/constants/salon.ts#L1); `SLOT_MINUTES = 30` [utilisation.ts](src/engine/utilisation.ts#L85).
   Staff can add per-date **extra slots** after 13:00 (`day_settings.extra_slots`); the bookable grid
   for a date is `active_slots_for(date)` = canonical ∪ sanitised extras
   ([migration 20260702170000](supabase/migrations/20260702170000_extra_slots_bookable.sql); TS mirror
   `buildSlotGrid` in [slotGrid.ts](src/engine/slotGrid.ts) + `_shared/salonConstants.ts`). Extra slots
   reach **customers only as same-day "last minute" openings** (see below); staff book them any day.
   Large dogs are never extra-slot eligible.
-- **Open days:** Mon–Wed. `ALL_DAYS` defaults `mon/tue/wed` open [salon.ts](src/constants/salon.ts#L16);
+- **Open days:** Mon–Wed. `ALL_DAYS` defaults `mon/tue/wed` open [salon.ts](src/constants/salon.ts#L35);
   at runtime the authoritative open/closed days live in the DB (`day_settings`, read by
   `validate_booking_calendar()`). ⚠️ A second, conflicting default exists — `DEFAULT_BUSINESS_HOURS`
-  in [salonSettings.ts](src/constants/salonSettings.ts#L14) lists Mon–Sat 08:00–17:00; it's a settings
+  in [salonSettings.ts](src/constants/salonSettings.ts#L15) lists Mon–Sat 08:00–17:00; it's a settings
   template, **not** the booking constraint. Don't treat it as the hours.
 - **Capacity — the "2-2-1" rule:** each slot holds **2 seats** (2 small/medium dogs, or 1 large dog
   that usually takes the whole slot). The 2-2-1 rule caps throughput across *consecutive* slots: you
@@ -116,11 +123,11 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `validate_booking_capacity()` ([migration 20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql)) (original trigger; the latest baseline definition is in [migration 20260712115759](supabase/migrations/20260712115759_legal_risk_tranche1.sql) — always search every migration for qualified and unqualified definitions before editing).
 - **Large dogs:** slot-dependent seat cost + conditional rules (1 seat at 08:30/09:00/12:00; 2-seat
   full takeover at 12:30/13:00; a 12:00 large dog early-closes 13:00). `LARGE_DOG_SLOTS`
-  [salon.ts](src/constants/salon.ts#L31); logic in `canBookSlot` [capacity.ts](src/engine/capacity.ts#L261).
+  [salon.ts](src/constants/salon.ts#L50); logic in `canBookSlot` [capacity.ts](src/engine/capacity.ts#L282).
 - **Daily cap:** **14 dogs/day** (`salon_config.daily_dog_cap`), enforced for non-staff only via a
   per-date advisory lock ([migration 20260622100000](supabase/migrations/20260622100000_daily_dog_cap.sql)).
   This is a separate throughput cap, **not** slots×2. Frontend mirror: `findGroupedSlots`
-  [capacity.ts](src/engine/capacity.ts#L560).
+  [capacity.ts](src/engine/capacity.ts#L618).
 - **Double-booking prevention:** same dog can't book the same slot twice (`canBookSlot` +
   unique constraint on `(dog_id, booking_date, slot)` for non-cancelled rows). Concurrent inserts are
   serialised by per-slot + per-date advisory locks in the capacity trigger. Cancelled rows free capacity.
@@ -133,7 +140,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   multi-dog group needs **every** assigned slot flagged. Future dates unchanged (portal: tomorrow+28;
   the WhatsApp Flow shows "Today — last minute" when flagged).
 - **Services:** only 4 are bookable — Full Groom, Bath & Brush, Bath & De-shed, Puppy Groom
-  ([salon.ts](src/constants/salon.ts#L9); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
+  ([salon.ts](src/constants/salon.ts#L28); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
   Sensitive Shampoo, Anal Glands.
 - **Walk-ins (nail clip, anal gland, ear clean):** ✅ as stated, **not booked at all**. There is no
   walk-in booking type; the WhatsApp agent only recognises them by keyword and replies "pop in
@@ -148,7 +155,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 ## Conventions
 
-- **JS-first, TS bolted on:** ~189 `.js/.jsx` vs ~36 `.ts/.tsx`; `tsconfig` has `checkJs: false`, so
+- **JS-first, TS bolted on:** ~357 `.js/.jsx` vs ~114 `.ts/.tsx` (non-test); `tsconfig` has `checkJs: false`, so
   `.js` files get **no** type checking. New logic-heavy code → `.ts`/`.tsx`; React components are
   usually `.jsx`. Engine/logic in TS, UI in JSX.
 - **No Redux.** State = React Context (`SalonContext`, `ToastContext`) + custom hooks. Data hooks are
@@ -206,8 +213,13 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   from `dogs.size`). Staff INSERT directly via RLS. Don't re-add a customer INSERT policy.
 - **Every non-staff booking insert passes three `BEFORE INSERT` gates on `bookings`** — calendar
   (`enforce_booking_calendar`), capacity (`validate_booking_capacity`), and pregnancy
-  (`enforce_dog_not_pregnant`) — each bypassing on `is_staff()`. All raise **P0001**; the wizard maps on
-  `error.code` / message, so preserve it. The gates are **table-level**, so any new booking route (RPC,
+  (`enforce_dog_not_pregnant`) — each bypassing on `is_staff()`. All raise **P0001**, and since
+  [migration 20260826120000](supabase/migrations/20260826120000_gate_reason_codes.sql) every gate also
+  emits a **stable machine-readable reason code in the exception's `DETAIL` field** (e.g.
+  `capacity_2_2_1`, `daily_cap`, `seat_blocked`, `pregnant`) alongside — never instead of — the human
+  message. `mapDenialReason` in [denials.ts](src/engine/denials.ts) prefers `DETAIL` and falls back to
+  prose matching; the wizard and denial telemetry depend on both, so preserve the code, the DETAIL
+  contract, and the message shape (governed by `denialCodeContract.test.ts`). The gates are **table-level**, so any new booking route (RPC,
   Edge Function, future path) inherits all three automatically — don't re-implement them per-RPC.
 - **Two Supabase clients** (`client.js` staff, `customerClient.js` customer) use separate auth storage
   keys so sessions don't clobber each other. Keep them separate.
