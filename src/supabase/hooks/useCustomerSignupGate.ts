@@ -2,6 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient";
 import { logger } from "../../lib/logger";
 
+interface GateHumanRecord {
+  id?: string | null;
+}
+
+export type CustomerSignupStatus = "approved" | "onboarding" | "pending";
+
+export interface CustomerSignupGateResult {
+  status: CustomerSignupStatus;
+  loading: boolean;
+  refresh: () => Promise<void>;
+}
+
 /**
  * Decides where a linked customer sits in the "Join the Pack" self-signup
  * lifecycle, by reading their OWN humans row (RLS customer_select_own_human).
@@ -22,11 +34,13 @@ import { logger } from "../../lib/logger";
  * Fails OPEN ("approved") on a read error so a transient glitch can't trap a
  * customer — the booking RPC still enforces approval server-side.
  */
-export function useCustomerSignupGate(humanRecord) {
+export function useCustomerSignupGate(
+  humanRecord: GateHumanRecord | null | undefined,
+): CustomerSignupGateResult {
   const humanId = humanRecord?.id || null;
-  const [status, setStatus] = useState("approved");
+  const [status, setStatus] = useState<CustomerSignupStatus>("approved");
   const [loading, setLoading] = useState(true);
-  const [loadedId, setLoadedId] = useState(null);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
   const read = useCallback(async () => {
     if (!supabase || !humanId) {

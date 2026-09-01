@@ -14,7 +14,7 @@ vi.mock("../../supabase/hooks/useWhatsAppUnread.js", () => ({
   useWhatsAppUnread: () => unreadState,
 }));
 
-vi.mock("../../supabase/hooks/usePendingSignupsCount.js", () => ({
+vi.mock("../../supabase/hooks/usePendingSignupsCount", () => ({
   usePendingSignupsCount: () => signupState,
 }));
 

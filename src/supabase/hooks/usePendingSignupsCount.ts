@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/usePendingSignupsCount.js
+// src/supabase/hooks/usePendingSignupsCount.ts
 //
 // Tiny hook for the AppToolbar "Humans" badge: how many self-signup
 // customers are waiting for staff approval. A pending signup is a humans
@@ -21,19 +21,25 @@ import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import { e2eFixtureCount } from "./e2eFixtureCounts.js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
+export interface PendingSignupsState {
+  count: number;
+  loading: boolean;
+}
 
 const e2ePendingSignups = e2eFixtureCount(
   import.meta.env.VITE_E2E_PENDING_SIGNUPS,
   import.meta.env.VITE_FORCE_OFFLINE === "1",
 );
-let state = {
+let state: PendingSignupsState = {
   count: e2ePendingSignups,
   loading: true,
 };
-let channel = null;
-const listeners = new Set();
+let channel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
 
-function setState(next) {
+function setState(next: Partial<PendingSignupsState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
@@ -84,12 +90,12 @@ function startChannel() {
 }
 
 function stopChannel() {
-  if (!channel) return;
+  if (!channel || !supabase) return;
   supabase.removeChannel(channel);
   channel = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void) {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannel();
@@ -101,7 +107,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): PendingSignupsState {
   return state;
 }
 
@@ -110,6 +116,6 @@ registerResume(() => {
   if (listeners.size > 0) refresh();
 });
 
-export function usePendingSignupsCount() {
+export function usePendingSignupsCount(): PendingSignupsState {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
