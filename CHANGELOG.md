@@ -83,6 +83,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Route the customer dashboard's data access through the repository layer
+  (Debt #12/#13 burn-down): `CustomerDashboard.jsx` and `BookingCard.jsx` no
+  longer import the Supabase client or hand-build snake_case queries in JSX.
+  A new `useCustomerDashboardData` hook owns dogs, the 180-day booking window,
+  older pages, trusted contacts and contact-detail saves over
+  `dogsRepo`/`bookingsRepo`; BookingCard cancels via
+  `useCustomerBookingActions` and reads deposit bank details via
+  `useCustomerDepositSettings`. Bookings now cross the boundary as app-shaped
+  `CustomerBookingSummary` objects (camelCase, joined dog snapshot), so a
+  Postgres column rename can no longer silently break the portal, and both
+  files left the ESLint `no-restricted-imports` burn-down allowlist. No
+  behaviour change for customers.
 - Record every confirm click that produced no booking in the database, with a
   governed failure code (#708). The 21 unexplained confirm failures were
   reported only through `logger.error`, which reaches nothing in production

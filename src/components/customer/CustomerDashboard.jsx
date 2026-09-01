@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { customerSupabase as supabase } from "../../supabase/customerClient";
+import { useCustomerDashboardData } from "../../supabase/hooks/useCustomerDashboardData";
 import { useDraftPersistence } from "../../hooks/useDraftPersistence.js";
 import { toDateStr } from "../../supabase/transforms";
 import { MyDetailsCard } from "./MyDetailsCard.jsx";
@@ -11,14 +11,9 @@ import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { logger } from "../../lib/logger";
 import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
-import {
-  listCustomerTrustedHumans,
-  updateCustomerContactDetails,
-} from "../../supabase/rpc";
 import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
@@ -35,20 +30,27 @@ const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const [dogs, setDogs] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [trustedHumans, setTrustedHumans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    dogs,
+    bookings,
+    olderBookings,
+    trustedHumans,
+    loading,
+    loadError,
+    hasMorePast,
+    loadingMore,
+    loadMore,
+    refreshBookings,
+    saveContactDetails,
+    updateDog,
+    addDog,
+  } = useCustomerDashboardData(humanRecord);
   const [editing, setEditing] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [pastExpanded, setPastExpanded] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [olderBookings, setOlderBookings] = useState([]);
-  const [hasMorePast, setHasMorePast] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [loadError, setLoadError] = useState(null);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -91,70 +93,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
   const humanName = `${humanRecord?.name || ""} ${humanRecord?.surname || ""}`.trim();
 
-  useEffect(() => {
-    if (!supabase || !humanRecord?.id) { setLoading(false); return; }
-    let cancelled = false;
-
-    async function fetchData() {
-      try {
-        const { data: dogRows, error: dogErr } = await supabase
-          .from("dogs")
-          .select("*")
-          .eq("human_id", humanRecord.id)
-          .order("name");
-        if (dogErr) throw dogErr;
-        if (cancelled) return;
-        setDogs(dogRows || []);
-
-        const dogIds = (dogRows || []).map(d => d.id);
-        if (dogIds.length > 0) {
-          const pastDate = new Date();
-          pastDate.setDate(pastDate.getDate() - 180);
-          const pastStr = toDateStr(pastDate);
-
-          const { data: bookingRows, error: bookErr } = await supabase
-            .from("bookings")
-            .select("*, dogs(name, breed, size)")
-            .in("dog_id", dogIds)
-            .gte("booking_date", pastStr)
-            .order("booking_date", { ascending: false })
-            .order("slot", { ascending: false });
-          if (bookErr) throw bookErr;
-          if (cancelled) return;
-          setBookings(bookingRows || []);
-
-          const { count } = await supabase
-            .from("bookings")
-            .select("id", { count: "exact", head: true })
-            .in("dog_id", dogIds)
-            .lt("booking_date", pastStr);
-          if (!cancelled) setHasMorePast((count || 0) > 0);
-        }
-
-        const { data: trustedLinks, error: trustedErr } =
-          await listCustomerTrustedHumans(supabase);
-        if (trustedErr) throw trustedErr;
-
-        if (!cancelled) setTrustedHumans(trustedLinks || []);
-      } catch (err) {
-        logger.error("CustomerDashboard fetch failed", err, {
-          tags: { component: "CustomerDashboard", op: "fetchData" },
-        });
-        // Don't surface the raw fetch/RLS error; a dropped connection gets its own line.
-        if (!cancelled) setLoadError(friendlySaveError(err, "We couldn't load your details. Please refresh, or message us if it keeps happening."));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchData();
-    return () => { cancelled = true; };
-  }, [humanRecord]);
-
   const handleSave = useCallback(async () => {
-    if (!supabase || !humanRecord?.id) return;
     setSaving(true);
     setSaveError(null);
-    const { error: err } = await updateCustomerContactDetails(supabase, {
+    const { error: err, saved } = await saveContactDetails({
       name: details.name,
       surname: details.surname,
       address: details.address,
@@ -176,10 +118,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       );
       return;
     }
+    if (!saved) return;
     clearDetailsDraft();
     setEditing(false);
     toast.show("Details saved", "success");
-  }, [humanRecord, details, toast, clearDetailsDraft]);
+  }, [humanRecord, details, toast, clearDetailsDraft, saveContactDetails]);
 
   const handleCancel = useCallback(() => {
     setSaveError(null);
@@ -197,38 +140,18 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord, clearDetailsDraft]);
 
-  const handleLoadMore = useCallback(async () => {
-    if (!supabase) return;
-    const dogIds = dogs.map(d => d.id);
-    if (dogIds.length === 0) return;
-    setLoadingMore(true);
-    const alreadyLoaded = [...bookings, ...olderBookings];
-    const oldestDate = alreadyLoaded.reduce((min, b) => b.booking_date < min ? b.booking_date : min, alreadyLoaded[0]?.booking_date || toDateStr(new Date()));
-    const { data: moreRows } = await supabase
-      .from("bookings")
-      .select("*, dogs(name, breed, size)")
-      .in("dog_id", dogIds)
-      .lt("booking_date", oldestDate)
-      .order("booking_date", { ascending: false })
-      .order("slot", { ascending: false })
-      .limit(20);
-    setOlderBookings(prev => [...prev, ...(moreRows || [])]);
-    if (!moreRows || moreRows.length < 20) setHasMorePast(false);
-    setLoadingMore(false);
-  }, [dogs, bookings, olderBookings]);
-
   const today = toDateStr(new Date());
 
   const upcomingBookings = useMemo(() =>
-    bookings.filter(b => b.booking_date >= today && b.status !== BOOKING_STATUS.CANCELLED)
-      .sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.slot.localeCompare(b.slot)),
+    bookings.filter(b => b.bookingDate >= today && b.status !== BOOKING_STATUS.CANCELLED)
+      .sort((a, b) => a.bookingDate.localeCompare(b.bookingDate) || a.slot.localeCompare(b.slot)),
     [bookings, today]
   );
 
   const pastBookings = useMemo(() =>
-    [...bookings.filter(b => b.booking_date < today), ...olderBookings]
+    [...bookings.filter(b => b.bookingDate < today), ...olderBookings]
       .filter(b => b.status !== BOOKING_STATUS.CANCELLED)
-      .sort((a, b) => b.booking_date.localeCompare(a.booking_date) || b.slot.localeCompare(a.slot)),
+      .sort((a, b) => b.bookingDate.localeCompare(a.bookingDate) || b.slot.localeCompare(a.slot)),
     [bookings, olderBookings, today]
   );
 
@@ -241,8 +164,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (upcomingBookings.length > 0) return null;
     if (pastBookings.length === 0) return null;
     const last = pastBookings[0];
-    const lastDog = last.dogs?.name || dogs[0]?.name || "your pup";
-    const lastDate = new Date(last.booking_date + "T00:00:00");
+    const lastDog = last.dog?.name || dogs[0]?.name || "your pup";
+    const lastDate = new Date(last.bookingDate + "T00:00:00");
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const daysAgo = Math.round((today - lastDate) / 86400000);
     const weeksAgo = Math.max(1, Math.round(daysAgo / 7));
@@ -263,34 +186,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const lastGroomByDog = useMemo(() => {
     const map = {};
     for (const b of pastBookings) {
-      if (!b.dog_id || map[b.dog_id]) continue;
-      map[b.dog_id] = b.booking_date;
+      if (!b.dogId || map[b.dogId]) continue;
+      map[b.dogId] = b.bookingDate;
     }
     return map;
   }, [pastBookings]);
-
-  const refreshBookings = useCallback(async () => {
-    if (!supabase) throw new Error("Customer bookings are unavailable");
-    const dogIds = dogs.map((dog) => dog.id);
-    if (dogIds.length === 0) {
-      setBookings([]);
-      return;
-    }
-
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 180);
-    const pastStr = toDateStr(pastDate);
-    const { data, error: refreshError } = await supabase
-      .from("bookings")
-      .select("*, dogs(name, breed, size)")
-      .in("dog_id", dogIds)
-      .gte("booking_date", pastStr)
-      .order("booking_date", { ascending: false })
-      .order("slot", { ascending: false });
-
-    if (refreshError) throw refreshError;
-    setBookings(data || []);
-  }, [dogs]);
 
   if (loading) {
     return (
@@ -368,7 +268,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
           {loadError && (
             <div role="alert" className="portal-section--full portal-alert portal-alert--error">
-              {loadError}
+              {/* Don't surface the raw fetch/RLS error; a dropped connection gets its own line. */}
+              {friendlySaveError(loadError, "We couldn't load your details. Please refresh, or message us if it keeps happening.")}
             </div>
           )}
 
@@ -399,12 +300,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               lastGroomByDog={lastGroomByDog}
               humanId={humanRecord?.id}
               onBook={handleBook}
-              onDogUpdated={(row) =>
-                setDogs(prev => prev.map(d => (d.id === row.id ? { ...d, ...row } : d)))
-              }
-              onDogAdded={(row) =>
-                setDogs(prev => (prev.some(d => d.id === row.id) ? prev : [...prev, row]))
-              }
+              onDogUpdated={updateDog}
+              onDogAdded={addDog}
             />
 
             <TrustedHumansSection trustedHumans={trustedHumans} />
@@ -419,7 +316,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               setPastExpanded={setPastExpanded}
               hasMorePast={hasMorePast}
               loadingMore={loadingMore}
-              onLoadMore={handleLoadMore}
+              onLoadMore={loadMore}
               onSubscribe={upcomingBookings.length > 0 ? () => setShowCalendarModal(true) : null}
             />
           </div>

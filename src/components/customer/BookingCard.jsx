@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { customerSupabase as supabase } from "../../supabase/customerClient";
-import { cancelCustomerBooking, getDepositSettings } from "../../supabase/repositories/bookingsRepo";
+import { useCustomerBookingActions } from "../../supabase/hooks/useCustomerBookingActions";
+import { useCustomerDepositSettings } from "../../supabase/hooks/useDepositSettings.js";
 import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
@@ -48,30 +48,22 @@ function friendlyCancellationError(error) {
 
 export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
   const navigate = useNavigate();
+  const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
-  const [depositBank, setDepositBank] = useState(null);
 
-  // Raw snake_case row → the shape isAwaitingDeposit reads.
+  // Bookings arrive app-shaped (CustomerBookingSummary) from the repository —
+  // isAwaitingDeposit reads the camelCase fields directly.
   const nextBooking = upcomingBookings[0];
   const awaitingDeposit = nextBooking
     ? isAwaitingDeposit({
-        depositRequired: nextBooking.deposit_required === true,
-        depositReceivedAt: nextBooking.deposit_received_at ?? null,
+        depositRequired: nextBooking.depositRequired === true,
+        depositReceivedAt: nextBooking.depositReceivedAt ?? null,
         payment: nextBooking.payment ?? null,
         status: nextBooking.status ?? null,
       })
     : false;
 
-  useEffect(() => {
-    if (!awaitingDeposit || !supabase) return undefined;
-    let cancelled = false;
-    getDepositSettings(supabase).then((s) => {
-      if (!cancelled) setDepositBank(s.bank);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [awaitingDeposit]);
+  const { bank: depositBank } = useCustomerDepositSettings(awaitingDeposit);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
   const [otherReason, setOtherReason] = useState("");
@@ -80,16 +72,16 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const [cancellationCommitted, setCancellationCommitted] = useState(false);
 
   const next = upcomingBookings[0];
-  const dogName = next?.dogs?.name || dogs[0]?.name || "your pup";
+  const dogName = next?.dog?.name || dogs[0]?.name || "your pup";
   const requiresStaffApproval = upcomingBookings.some((booking) => {
     const sameVisit =
-      next?.visit_id && booking.visit_id && booking.visit_id === next.visit_id;
+      next?.visitId && booking.visitId && booking.visitId === next.visitId;
     const sameLegacyGroup =
-      next?.group_id &&
-      booking.group_id === next.group_id &&
-      booking.booking_date === next.booking_date;
+      next?.groupId &&
+      booking.groupId === next.groupId &&
+      booking.bookingDate === next.bookingDate;
     return (
-      booking.staff_capacity_override === true &&
+      booking.staffCapacityOverride === true &&
       (booking.id === next?.id || sameVisit || sameLegacyGroup)
     );
   });
@@ -117,8 +109,8 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   }
 
   // ----- Booked state -----
-  const day = dayLabel(next.booking_date);
-  const dateStr = formatDate(next.booking_date);
+  const day = dayLabel(next.bookingDate);
+  const dateStr = formatDate(next.bookingDate);
   const timeStr = formatSlot(next.slot);
 
   const handleRescheduleConfirm = () => {
@@ -157,14 +149,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     setSaving(true);
     setCancelError(null);
     try {
-      if (!supabase) {
-        setCancelError(
-          "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.",
-        );
-        return;
-      }
-
-      const { receipt, error } = await cancelCustomerBooking(supabase, {
+      const { receipt, error } = await cancelBooking({
         bookingId: next.id,
         reason: cleaned,
       });
@@ -224,9 +209,9 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
           >
             <strong>Deposit needed to hold this booking.</strong>
             <DepositHoldInstructions
-              amount={next.deposit_amount ?? 10}
-              reference={next.deposit_reference ?? null}
-              dueBy={next.deposit_due_by ?? null}
+              amount={next.depositAmount ?? 10}
+              reference={next.depositReference ?? null}
+              dueBy={next.depositDueBy ?? null}
               bank={depositBank}
               compact
             />

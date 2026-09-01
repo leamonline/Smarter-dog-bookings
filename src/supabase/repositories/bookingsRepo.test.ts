@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { cancelCustomerBooking, createMany, rescheduleCustomerBooking } from "./bookingsRepo";
+import {
+  cancelCustomerBooking,
+  createMany,
+  hasCustomerBookingsBefore,
+  listCustomerBookings,
+  listOlderCustomerBookings,
+  rescheduleCustomerBooking,
+} from "./bookingsRepo";
 
 const TARGET = "40000000-0000-4000-8000-000000000001";
 const GROUP = "40000000-0000-4000-8000-000000000010";
@@ -262,5 +269,147 @@ describe("createMany", () => {
     const result = await createMany(client, input);
 
     expect(result.error?.details).toBeNull();
+  });
+});
+
+describe("customer dashboard reads", () => {
+  const DOG = "42000000-0000-4000-8000-000000000001";
+
+  const dbRow = {
+    id: TARGET,
+    booking_date: "2099-06-15",
+    slot: "09:00",
+    size: "small",
+    service: "full-groom",
+    status: "Booked",
+    payment: "Due at Pick-up",
+    dog_id: DOG,
+    visit_id: null,
+    group_id: GROUP,
+    staff_capacity_override: true,
+    deposit_required: true,
+    deposit_received_at: null,
+    deposit_amount: 10,
+    deposit_reference: "SDG-7K3M",
+    deposit_due_by: "2099-06-14T09:00:00Z",
+    dogs: { name: "Alfie", breed: "Boston Terrier", size: "small" },
+  };
+
+  // Thenable chainable builder standing in for the PostgREST query object.
+  function fakeQueryClient(result: unknown) {
+    const calls: Record<string, unknown[][]> = {};
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "in", "gte", "lt", "order", "limit"]) {
+      calls[m] = [];
+      q[m] = vi.fn((...args: unknown[]) => {
+        calls[m].push(args);
+        return q;
+      });
+    }
+    q.then = (
+      resolve: (v: unknown) => unknown,
+      reject: (e: unknown) => unknown,
+    ) => Promise.resolve(result).then(resolve, reject);
+    const from = vi.fn(() => q);
+    return { client: { from } as unknown as SupabaseClient, from, calls };
+  }
+
+  it("maps a snake_case row (with joined dog) to the app shape", async () => {
+    const { client } = fakeQueryClient({ data: [dbRow], error: null });
+
+    const { bookings, error } = await listCustomerBookings(client, {
+      dogIds: [DOG],
+      sinceDate: "2099-01-01",
+    });
+
+    expect(error).toBeNull();
+    expect(bookings).toEqual([
+      {
+        id: TARGET,
+        bookingDate: "2099-06-15",
+        slot: "09:00",
+        size: "small",
+        service: "full-groom",
+        status: "Booked",
+        payment: "Due at Pick-up",
+        dogId: DOG,
+        visitId: null,
+        groupId: GROUP,
+        staffCapacityOverride: true,
+        depositRequired: true,
+        depositReceivedAt: null,
+        depositAmount: 10,
+        depositReference: "SDG-7K3M",
+        depositDueBy: "2099-06-14T09:00:00Z",
+        dog: { name: "Alfie", breed: "Boston Terrier", size: "small" },
+      },
+    ]);
+  });
+
+  it("returns empty without querying when the customer has no dogs", async () => {
+    const { client, from } = fakeQueryClient({ data: [], error: null });
+
+    const recent = await listCustomerBookings(client, {
+      dogIds: [],
+      sinceDate: "2099-01-01",
+    });
+    const older = await listOlderCustomerBookings(client, {
+      dogIds: [],
+      beforeDate: "2099-01-01",
+      limit: 20,
+    });
+    const more = await hasCustomerBookingsBefore(client, {
+      dogIds: [],
+      beforeDate: "2099-01-01",
+    });
+
+    expect(recent).toEqual({ bookings: [], error: null });
+    expect(older).toEqual({ bookings: [], error: null });
+    expect(more).toBe(false);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a query error as an Error and no rows", async () => {
+    const { client } = fakeQueryClient({
+      data: null,
+      error: { message: "permission denied" },
+    });
+
+    const { bookings, error } = await listCustomerBookings(client, {
+      dogIds: [DOG],
+      sinceDate: "2099-01-01",
+    });
+
+    expect(bookings).toEqual([]);
+    expect(error?.message).toBe("permission denied");
+  });
+
+  it("passes the page limit through on the older page", async () => {
+    const { client, calls } = fakeQueryClient({ data: [dbRow], error: null });
+
+    await listOlderCustomerBookings(client, {
+      dogIds: [DOG],
+      beforeDate: "2099-06-15",
+      limit: 20,
+    });
+
+    expect(calls.limit).toEqual([[20]]);
+    expect(calls.lt).toEqual([["booking_date", "2099-06-15"]]);
+  });
+
+  it("answers the has-more probe from the count and degrades to false on error", async () => {
+    const yes = fakeQueryClient({ count: 3, error: null });
+    const no = fakeQueryClient({ count: 0, error: null });
+    const broken = fakeQueryClient({ count: null, error: { message: "boom" } });
+
+    expect(
+      await hasCustomerBookingsBefore(yes.client, { dogIds: [DOG], beforeDate: "2099-01-01" }),
+    ).toBe(true);
+    expect(
+      await hasCustomerBookingsBefore(no.client, { dogIds: [DOG], beforeDate: "2099-01-01" }),
+    ).toBe(false);
+    expect(
+      await hasCustomerBookingsBefore(broken.client, { dogIds: [DOG], beforeDate: "2099-01-01" }),
+    ).toBe(false);
   });
 });
