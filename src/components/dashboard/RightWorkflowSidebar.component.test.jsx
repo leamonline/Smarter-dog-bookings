@@ -29,7 +29,7 @@ vi.mock("../../supabase/hooks/useWhatsAppSummary.js", () => ({
 vi.mock("../../supabase/hooks/useTomorrowReminders.js", () => ({
   useTomorrowReminders: () => remindersState,
 }));
-vi.mock("../../supabase/hooks/useWaitlistUpcoming.js", () => ({
+vi.mock("../../supabase/hooks/useWaitlistUpcoming", () => ({
   useWaitlistUpcoming: () => waitlistState,
 }));
 vi.mock("../../supabase/hooks/useTodos.js", () => ({

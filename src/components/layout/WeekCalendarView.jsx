@@ -7,7 +7,7 @@ import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
-import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
+import { useWaitlist } from "../../supabase/hooks/useWaitlist";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
