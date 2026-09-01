@@ -9,8 +9,7 @@ import { DAY_CAPACITY } from "../../engine/utilisation";
 import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
-import { listOnDateForCapacity } from "../../supabase/repositories/bookingsRepo";
-import { supabase } from "../../supabase/client";
+import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -67,6 +66,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
 
   // Detailed slot occupancy for the chosen day (the month hooks only carry
   // per-day counts, not per-slot detail) via the get_slot_occupancy RPC.
+  const availability = useStaffAvailability();
   const [dayBookings, setDayBookings] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   useEffect(() => {
@@ -74,12 +74,12 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
     let cancelled = false;
     (async () => {
       setSlotsLoading(true);
-      if (!supabase) { setDayBookings([]); setSlotsLoading(false); return; }
-      const { bookings } = await listOnDateForCapacity(supabase, selectedDateStr);
+      if (!availability.connected) { setDayBookings([]); setSlotsLoading(false); return; }
+      const { bookings } = await availability.loadDayOccupancy(selectedDateStr);
       if (!cancelled) { setDayBookings(bookings); setSlotsLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [selectedDateStr]);
+  }, [selectedDateStr, availability]);
 
   // Calendar day state. Past / closed / fully-booked → greyed (not selectable).
   const dayStatus = (date) => {
