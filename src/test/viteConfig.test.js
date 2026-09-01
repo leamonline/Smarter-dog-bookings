@@ -22,6 +22,14 @@ describe("vite config", () => {
     expect(manualChunks("/x/node_modules/react-router/dist/main.js")).toBe("router");
     expect(manualChunks("/x/node_modules/react-aria/dist/main.js")).toBeUndefined();
     expect(manualChunks("/x/node_modules/@supabase/supabase-js/index.js")).toBe("supabase");
+    // supabase-js is a thin facade; the weight is in its scoped sub-packages,
+    // which must land in the same group or the "supabase" chunk is a stub
+    // and the real client code drifts into whichever lazy chunk imports it.
+    for (const pkg of ["auth-js", "postgrest-js", "realtime-js", "storage-js", "functions-js", "phoenix"]) {
+      expect(manualChunks(`/x/node_modules/@supabase/${pkg}/dist/module/index.js`)).toBe("supabase");
+    }
+    // Sentry's Supabase integration lives under @sentry, not @supabase:
+    expect(manualChunks("/x/node_modules/@sentry/core/build/esm/integrations/supabase.js")).toBe("sentry");
     expect(manualChunks("/x/node_modules/@sentry/react/index.js")).toBe("sentry");
     expect(manualChunks("/x/node_modules/@sentry-internal/replay/index.js")).toBe("sentry");
     // App code must stay on Rollup's natural per-lazy() boundaries.
