@@ -468,7 +468,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     size: dog.size,
     dogName: "",
     breed: "",
-    service: "full-groom" as any,
+    service: "full-groom",
     owner: "",
     status: BOOKING_STATUS.BOOKED,
     addons: [],

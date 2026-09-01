@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
-import { supabase } from "../../../supabase/client";
+import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
 
@@ -39,6 +39,7 @@ function skipLabel(reason) {
 
 export function BroadcastMessageModal({ defaultDate, onClose }) {
   const toast = useToast();
+  const messaging = useStaffMessaging();
   const [date, setDate] = useState(defaultDate || todayStr());
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,8 +55,10 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
     setBusy(true);
     setError(null);
     try {
-      const { data, error: invokeErr } = await supabase.functions.invoke("broadcast-message", {
-        body: { booking_date: date, reason: reason.trim(), dry_run: dryRun },
+      const { data, error: invokeErr } = await messaging.broadcastMessage({
+        bookingDate: date,
+        reason: reason.trim(),
+        dryRun,
       });
       if (invokeErr) throw new Error(await parseSupabaseFunctionError(invokeErr, "Broadcast failed"));
       if (data?.error) throw new Error(data.error);

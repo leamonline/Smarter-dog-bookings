@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Send } from "lucide-react";
-import { supabase } from "../../../supabase/client";
+import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures.js";
@@ -25,6 +25,7 @@ function relativeTime(iso) {
 // phone-edit guard) and resend.
 export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateHuman }) {
   const toast = useToast();
+  const messaging = useStaffMessaging();
   const [editing, setEditing] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -77,10 +78,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
         // One staff-callable function dispatches to the right notify function
         // server-side (its unchanged trigger path), so this card never needs
         // the webhook secret.
-        const { error: invokeErr } = await supabase.functions.invoke(
-          "resend-booking-notification",
-          { body: { booking_id: booking.id, trigger_type: trigger } },
-        );
+        const { error: invokeErr } = await messaging.resendBookingNotification(booking.id, trigger);
         if (invokeErr) {
           anyError = true;
           let detail = invokeErr.message ?? "Resend failed";

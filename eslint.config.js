@@ -65,10 +65,11 @@ export default [
           ignoreRestSiblings: true,
         },
       ],
-      // Warn (not error): the register's Debt #2 hot sites are typed; the
-      // remaining ~116 sites shrink as files are touched. Warnings keep
-      // them visible without blocking CI — promote to error when the
-      // count reaches zero.
+      // Debt #2: `any` is an ERROR in non-test application code (the block
+      // below promotes it) and a warning in tests, where fixtures still
+      // carry ~65 sites that shrink as files are touched. The non-test
+      // count reached zero on 1 September 2026 (PRs #734, #735); keep it
+      // there — type the boundary rather than widening it.
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-empty-object-type": "error",
       "@typescript-eslint/no-unused-expressions": "error",
@@ -104,6 +105,13 @@ export default [
     // on for .js/.jsx (where it actually catches undeclared-variable bugs).
     files: ["**/*.ts", "**/*.tsx"],
     rules: { "no-undef": "off" },
+  },
+  {
+    // Debt #2 — no `any` in non-test application code. Test files keep the
+    // warning above so fixture shortcuts stay visible without blocking CI.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/test/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "error" },
   },
   {
     // Debt #22 — bare console is banned in app code. Route through
@@ -175,11 +183,7 @@ export default [
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
       "src/components/customer/booking/BookingWizard.tsx",
-      "src/components/dashboard/TomorrowRemindersCard.jsx",
-      "src/components/modals/RescheduleModal.jsx",
-      "src/components/modals/booking-detail/DeliveryFailureCard.jsx",
       "src/components/modals/collection-notice/CollectionNoticeModal.jsx",
-      "src/components/modals/day-closure/BroadcastMessageModal.jsx",
       "src/components/modals/send-reminder/SendReminderModal.jsx",
       "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
       "src/components/views/inbox/hooks/useCustomerContext.js",
