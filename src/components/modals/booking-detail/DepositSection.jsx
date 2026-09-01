@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PiggyBank } from "lucide-react";
-import { useDepositSettings } from "../../../supabase/hooks/useDepositSettings.js";
+import { useDepositSettings } from "../../../supabase/hooks/useDepositSettings";
 import { isAwaitingDeposit } from "../../../engine/deposits";
 
 // Awaiting-deposit panel on the booking detail modal. Renders only while

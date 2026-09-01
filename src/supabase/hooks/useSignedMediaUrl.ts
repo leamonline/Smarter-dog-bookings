@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useSignedMediaUrl.js
+// src/supabase/hooks/useSignedMediaUrl.ts
 //
 // Signed-URL resolution for inbound WhatsApp media stored in the
 // private 'whatsapp-media' bucket (staff-only read policy; mirrors the
@@ -18,15 +18,15 @@ import { logger } from "../../lib/logger";
 const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
 const SIGNED_URL_TTL_SECONDS = 3600;
 
-const urlCache = new Map();
+const urlCache = new Map<string, string>();
 
 /**
  * Resolve a storage path to a signed display URL. Returns null while
  * loading, on failure, or offline (no Supabase client) — callers fall
  * back to the "📷 Photo" chip in those cases.
  */
-export function useSignedMediaUrl(path) {
-  const [url, setUrl] = useState(() => (path ? urlCache.get(path) ?? null : null));
+export function useSignedMediaUrl(path: string | null | undefined): string | null {
+  const [url, setUrl] = useState<string | null>(() => (path ? urlCache.get(path) ?? null : null));
 
   useEffect(() => {
     if (!path || !supabase) return undefined;

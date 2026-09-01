@@ -8,10 +8,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../client";
 import { customerSupabase } from "../customerClient";
-import { getDepositSettings } from "../repositories/bookingsRepo";
+import { getDepositSettings, type DepositSettings } from "../repositories/bookingsRepo";
 
-export function useDepositSettings(enabled = true) {
-  const [bank, setBank] = useState(null);
+type BankDetails = DepositSettings["bank"];
+
+export interface DepositSettingsState {
+  bank: BankDetails;
+  releaseHours: number;
+}
+
+export function useDepositSettings(enabled = true): DepositSettingsState {
+  const [bank, setBank] = useState<BankDetails>(null);
   const [releaseHours, setReleaseHours] = useState(12);
 
   useEffect(() => {
@@ -30,8 +37,8 @@ export function useDepositSettings(enabled = true) {
   return { bank, releaseHours };
 }
 
-export function useCustomerDepositSettings(enabled = true) {
-  const [bank, setBank] = useState(null);
+export function useCustomerDepositSettings(enabled = true): DepositSettingsState {
+  const [bank, setBank] = useState<BankDetails>(null);
   const [releaseHours, setReleaseHours] = useState(12);
 
   useEffect(() => {

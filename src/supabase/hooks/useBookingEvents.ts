@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useBookingEvents.js
+// src/supabase/hooks/useBookingEvents.ts
 //
 // Lightweight feed of recent booking life-cycle events for the
 // dashboard's BookingHistoryCard. Reads from booking_events (an
@@ -15,11 +15,42 @@ import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
 
-export function useBookingEvents({ limit = 10 } = {}) {
-  const [events, setEvents] = useState([]);
+type BookingEventRow = Database["public"]["Tables"]["booking_events"]["Row"];
+
+/** The projection the dashboard feed reads (a subset of booking_events). */
+export type BookingEvent = Pick<
+  BookingEventRow,
+  | "id"
+  | "booking_id"
+  | "event_type"
+  | "customer_name"
+  | "dog_name"
+  | "dog_breed"
+  | "service"
+  | "booking_date"
+  | "slot"
+  | "previous_booking_date"
+  | "previous_slot"
+  | "cancel_reason"
+  | "actor_id"
+  | "actor_role"
+  | "actor_name"
+  | "occurred_at"
+>;
+
+export interface UseBookingEventsResult {
+  events: BookingEvent[];
+  loading: boolean;
+  error: unknown;
+  refresh: () => Promise<void>;
+}
+
+export function useBookingEvents({ limit = 10 }: { limit?: number } = {}): UseBookingEventsResult {
+  const [events, setEvents] = useState<BookingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<unknown>(null);
 
   const refresh = useCallback(async () => {
     if (!supabase) {
@@ -58,7 +89,7 @@ export function useBookingEvents({ limit = 10 } = {}) {
         () => refresh(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase!.removeChannel(channel); };
   }, [refresh]);
 
   // Reconcile on resume so booking_events missed while asleep appear.
