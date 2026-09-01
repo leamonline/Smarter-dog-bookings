@@ -13,7 +13,7 @@
 import { useMemo, useState } from "react";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { supabase } from "../../supabase/client";
+import { useStaffMessaging } from "../../supabase/hooks/useStaffMessaging";
 import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveRemindersTone } from "./tone/reminders";
@@ -109,6 +109,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
     data ?? fallback;
 
   const toast = useToast();
+  const messaging = useStaffMessaging();
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [modalRow, setModalRow] = useState(null);
 
@@ -128,9 +129,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       // One anchor booking_id — the edge function expands it to every dog
       // this customer has that day and sends a single combined reminder.
       const { data: result, error: invokeErr } =
-        await supabase.functions.invoke("notify-booking-reminder", {
-          body: { booking_id: row.anchorBookingId },
-        });
+        await messaging.sendBookingReminder(row.anchorBookingId);
       if (invokeErr) {
         let detail = invokeErr.message ?? "Reminder failed";
         try {
