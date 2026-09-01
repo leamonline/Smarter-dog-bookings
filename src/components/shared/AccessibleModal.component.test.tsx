@@ -242,3 +242,30 @@ describe("AccessibleModal — stacked dialogs", () => {
     bottom.unmount();
   });
 });
+
+describe("AccessibleModal — aria-labelledby", () => {
+  // Folded in from a one-off root-level check (test-aria.component.test.tsx)
+  // that Vitest never ran because its include is src/**.
+  it("applies aria-labelledby from titleId", () => {
+    render(
+      <AccessibleModal onClose={() => {}} titleId="my-modal-title">
+        <div id="my-modal-title">Modal Title</div>
+        <p>Modal Content</p>
+      </AccessibleModal>,
+    );
+    const dialog = document.body.querySelector('[aria-modal="true"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("my-modal-title");
+  });
+
+  it("omits aria-labelledby when titleId is undefined", () => {
+    render(
+      <AccessibleModal onClose={() => {}}>
+        <p>Modal Content</p>
+      </AccessibleModal>,
+    );
+    const dialog = document.body.querySelector('[aria-modal="true"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute("aria-labelledby")).toBeNull();
+  });
+});
