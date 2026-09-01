@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useOwnerBookingEvents.js
+// src/supabase/hooks/useOwnerBookingEvents.ts
 //
 // Booking-event timeline for ONE owner, used by the Human Profile. Scopes
 // booking_events to the bookings of this owner's dogs:
@@ -17,19 +17,39 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { logger } from "../../lib/logger";
+import type { BookingEvent } from "./useBookingEvents";
 
 const EVENT_COLUMNS =
   "id, booking_id, event_type, customer_name, dog_name, dog_breed, service, booking_date, slot, previous_booking_date, previous_slot, cancel_reason, actor_id, actor_role, actor_name, occurred_at";
 
-export function useOwnerBookingEvents({ dogIds, limit = 20 } = {}) {
-  const [events, setEvents] = useState([]);
+export interface UseOwnerBookingEventsOptions {
+  /** The owner's dog ids; falsy entries and duplicates are ignored. */
+  dogIds?: ReadonlyArray<string | null | undefined>;
+  limit?: number;
+}
+
+export interface UseOwnerBookingEventsResult {
+  events: BookingEvent[];
+  loading: boolean;
+  error: unknown;
+  refresh: () => Promise<void>;
+}
+
+export function useOwnerBookingEvents({
+  dogIds,
+  limit = 20,
+}: UseOwnerBookingEventsOptions = {}): UseOwnerBookingEventsResult {
+  const [events, setEvents] = useState<BookingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<unknown>(null);
 
   // Stable key so the effect doesn't re-run when the caller passes a fresh
   // array holding the same ids on every render.
   const dogIdKey = useMemo(
-    () => [...new Set((dogIds || []).filter(Boolean))].sort().join(","),
+    () =>
+      [...new Set((dogIds || []).filter((id): id is string => Boolean(id)))]
+        .sort()
+        .join(","),
     [dogIds],
   );
 
@@ -74,12 +94,13 @@ export function useOwnerBookingEvents({ dogIds, limit = 20 } = {}) {
 
   useEffect(() => {
     if (!supabase) return;
+    const client = supabase;
     setLoading(true);
     refresh();
     // booking_events realtime can't be server-filtered to this owner's
     // booking ids, so refresh on any insert — cheap while a single profile
     // modal is open, and the re-query re-scopes to this owner.
-    const channel = supabase
+    const channel = client
       .channel(uniqueChannelName(CHANNELS.humanCardBookingEvents))
       .on(
         "postgres_changes",
@@ -88,7 +109,7 @@ export function useOwnerBookingEvents({ dogIds, limit = 20 } = {}) {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [refresh]);
 

@@ -24,13 +24,13 @@ vi.mock("../../hooks/useAutosave.js", () => ({
   useAutosave: () => ({ status: "idle", flushNow: vi.fn() }),
 }));
 
-vi.mock("../../supabase/hooks/useStaffName.js", () => ({
+vi.mock("../../supabase/hooks/useStaffName", () => ({
   useStaffName: () => ({ name: "" }),
 }));
 
 // RecurringBookingModal fetches its chain on mount; stub the hook so the
 // series test exercises mounting, not Supabase.
-vi.mock("../../supabase/hooks/useGroupBookings.js", () => ({
+vi.mock("../../supabase/hooks/useGroupBookings", () => ({
   useGroupBookings: () => ({
     chainBookings: [],
     loading: false,

@@ -11,7 +11,7 @@ vi.mock("../client", () => ({
   },
 }));
 
-const { useOwnerBookingEvents } = await import("./useOwnerBookingEvents.js");
+const { useOwnerBookingEvents } = await import("./useOwnerBookingEvents");
 
 function makeStub({ bookingRows = [{ id: "bk-1" }], events = [] } = {}) {
   const eventsLimit = vi.fn(() => Promise.resolve({ data: events, error: null }));

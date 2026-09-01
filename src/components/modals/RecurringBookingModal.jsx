@@ -4,7 +4,7 @@ import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { SIZE_THEME, SIZE_FALLBACK, SERVICES } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { useGroupBookings } from "../../supabase/hooks/useGroupBookings.js";
+import { useGroupBookings } from "../../supabase/hooks/useGroupBookings";
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
