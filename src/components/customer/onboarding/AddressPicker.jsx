@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
+import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
 import { MapPin, Loader2, Search } from "lucide-react";
 
 /**
@@ -22,6 +22,7 @@ import { MapPin, Loader2, Search } from "lucide-react";
  */
 export function AddressPicker({ existingAddress = "", onChange }) {
   const trimmedExisting = existingAddress?.trim() || "";
+  const onboarding = useCustomerOnboardingActions();
   const [editing, setEditing] = useState(!trimmedExisting);
 
   const [postcode, setPostcode] = useState("");
@@ -83,10 +84,7 @@ export function AddressPicker({ existingAddress = "", onChange }) {
     setSelectedIndex("");
     setLookupStatus("searching");
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke(
-        "postcode-lookup",
-        { body: { postcode: pc } },
-      );
+      const { data, error: fnErr } = await onboarding.lookupPostcode(pc);
       if (fnErr) {
         let payload = null;
         try {
