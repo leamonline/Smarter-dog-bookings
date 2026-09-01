@@ -67,7 +67,7 @@ interface SupabaseFns {
     updates: Partial<Human> & Record<string, unknown>,
   ) => Promise<Human | null | undefined>;
   // updateConfig accepts a value OR an updater function and resolves to an
-  // outcome object (useSalonConfig.js) — the settings panels all call it
+  // outcome object (useSalonConfig.ts) — the settings panels all call it
   // with `(prev) => ...` and branch on `result?.ok === false`, neither of
   // which the original (config) => Promise<void> shape allowed.
   sbUpdateConfig: (

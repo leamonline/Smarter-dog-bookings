@@ -3,38 +3,99 @@ import { supabase } from "../client";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchSalonConfigRow } from "../queries/bootQueries.js";
 import { dbConfigToApp, appConfigToDb } from "../transforms";
+import type { DbConfigRow } from "../transforms";
 import { createDefaultSalonConfig } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
 import { useBookingPolicyRuntime } from "./useBookingPolicyRuntime";
+import type { Database, Json } from "../database.types";
+import type { SalonConfig } from "../../types/index";
 
-function isValidAuthoritativeRow(row, expectedId) {
+type SalonConfigRow = Database["public"]["Tables"]["salon_config"]["Row"];
+type SalonConfigInsert = Database["public"]["Tables"]["salon_config"]["Insert"];
+type SalonConfigUpdate = Database["public"]["Tables"]["salon_config"]["Update"];
+
+/** The (id, updated_at) pair a guarded save must match to be accepted. */
+interface AuthoritativeRowRef {
+  id: string;
+  updatedAt: string | null;
+}
+
+export type UpdateConfigResult = { ok: true } | { ok: false; error: string };
+
+/** Either a full replacement config or a functional update from the last accepted one. */
+export type ConfigUpdater = SalonConfig | ((previous: SalonConfig) => SalonConfig);
+
+/**
+ * A row carrying enough identity to act as the save authority. Both the boot
+ * prefetch and the JS query helpers hand back untyped data, so the guard
+ * takes `unknown` and only promises the two columns it actually inspects.
+ */
+type IdentifiedRow = Pick<SalonConfigRow, "id" | "updated_at">;
+
+function isValidAuthoritativeRow(row: unknown, expectedId?: string): row is IdentifiedRow {
+  if (typeof row !== "object" || row === null) return false;
+  const candidate = row as Partial<IdentifiedRow>;
   return (
-    typeof row?.id === "string" &&
-    row.id.length > 0 &&
-    (expectedId === undefined || row.id === expectedId) &&
-    (typeof row.updated_at === "string" || row.updated_at === null)
+    typeof candidate.id === "string" &&
+    candidate.id.length > 0 &&
+    (expectedId === undefined || candidate.id === expectedId) &&
+    (typeof candidate.updated_at === "string" || candidate.updated_at === null)
   );
+}
+
+/**
+ * The generated row types the jsonb columns as Json; narrow them once for the
+ * transform. Optional columns stay optional so a partial row (offline seeds,
+ * test fixtures) still folds onto the defaults inside dbConfigToApp.
+ */
+function toConfigRow(row: Partial<SalonConfigRow>): DbConfigRow {
+  return {
+    default_pickup_offset: row.default_pickup_offset ?? null,
+    pricing: (row.pricing as DbConfigRow["pricing"]) ?? null,
+    enforce_capacity: row.enforce_capacity ?? null,
+    daily_dog_cap: row.daily_dog_cap ?? null,
+    large_dog_slots: (row.large_dog_slots as DbConfigRow["large_dog_slots"]) ?? null,
+    settings: (row.settings as DbConfigRow["settings"]) ?? null,
+  };
+}
+
+/** Reverse direction: the app shape is plain data, so it serialises to jsonb as-is. */
+function toDbPayload(config: SalonConfig): SalonConfigInsert & SalonConfigUpdate {
+  const out = appConfigToDb(config);
+  return {
+    default_pickup_offset: out.default_pickup_offset,
+    pricing: out.pricing as Json,
+    enforce_capacity: out.enforce_capacity,
+    daily_dog_cap: out.daily_dog_cap,
+    large_dog_slots: out.large_dog_slots as Json,
+    settings: out.settings as unknown as Json,
+  };
+}
+
+export interface UseSalonConfigOptions {
+  /** True for owners — only they pass the owner_insert_salon_config RLS check, so only they seed. */
+  canSeed?: boolean;
 }
 
 // `canSeed` is true when the caller is an owner — only owners pass the
 // owner_insert_salon_config RLS check, so we only attempt the seed in that case.
-export function useSalonConfig({ canSeed = false } = {}) {
+export function useSalonConfig({ canSeed = false }: UseSalonConfigOptions = {}) {
   const bookingPolicy = useBookingPolicyRuntime();
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState<SalonConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const configRef = useRef(null);
-  const rowRef = useRef(null);
-  const saveQueueRef = useRef(Promise.resolve());
+  const [error, setError] = useState<string | null>(null);
+  const configRef = useRef<SalonConfig | null>(null);
+  const rowRef = useRef<AuthoritativeRowRef | null>(null);
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const externalAuthorityGenerationRef = useRef(0);
 
-  const installConfig = useCallback((nextConfig) => {
+  const installConfig = useCallback((nextConfig: SalonConfig | null) => {
     configRef.current = nextConfig;
     setConfig(nextConfig);
   }, []);
 
-  const installAuthoritativeRow = useCallback((row) => {
-    const nextConfig = dbConfigToApp(row);
+  const installAuthoritativeRow = useCallback((row: Partial<SalonConfigRow>): boolean => {
+    const nextConfig = dbConfigToApp(toConfigRow(row));
     const hasIdentityAndVersion = isValidAuthoritativeRow(row);
 
     rowRef.current = hasIdentityAndVersion
@@ -44,9 +105,9 @@ export function useSalonConfig({ canSeed = false } = {}) {
     return hasIdentityAndVersion;
   }, [installConfig]);
 
-  const recoverAuthoritativeConfig = useCallback(async (previousConfig) => {
-    let latest;
-    let reloadError;
+  const recoverAuthoritativeConfig = useCallback(async (previousConfig: SalonConfig): Promise<boolean> => {
+    let latest: unknown;
+    let reloadError: unknown;
     try {
       ({ data: latest, error: reloadError } = await fetchSalonConfigRow(supabase));
     } catch (err) {
@@ -71,6 +132,9 @@ export function useSalonConfig({ canSeed = false } = {}) {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
+    // Narrowed once here; the nested async function below would otherwise
+    // lose the null check.
+    const client = supabase;
     const controller = new AbortController();
 
     async function fetch() {
@@ -80,7 +144,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
         // same SELECT ourselves, as before. The owner-seed branch below
         // is untouched either way.
         const { data, error: err } = await (takeBootPrefetch("salonConfig") ??
-          fetchSalonConfigRow(supabase, controller.signal));
+          fetchSalonConfigRow(client, controller.signal));
 
         if (controller.signal.aborted) return;
         if (err) {
@@ -98,9 +162,9 @@ export function useSalonConfig({ canSeed = false } = {}) {
         // owner sign-in will create the row.
         if (canSeed) {
           const defaultConfig = createDefaultSalonConfig();
-          const { data: inserted, error: insErr } = await supabase
+          const { data: inserted, error: insErr } = await client
             .from("salon_config")
-            .insert(appConfigToDb(defaultConfig))
+            .insert(toDbPayload(defaultConfig))
             .select()
             .abortSignal(controller.signal)
             .single();
@@ -126,10 +190,10 @@ export function useSalonConfig({ canSeed = false } = {}) {
   // Turns are serialised so functional updates always start from the last
   // accepted config, rather than from a possibly stale render snapshot.
   const updateConfig = useCallback(
-    (updaterOrValue) => {
+    (updaterOrValue: ConfigUpdater): Promise<UpdateConfigResult> => {
       const isUpdater = typeof updaterOrValue === "function";
       const enqueuedAuthorityGeneration = externalAuthorityGenerationRef.current;
-      const turn = saveQueueRef.current.then(async () => {
+      const turn = saveQueueRef.current.then(async (): Promise<UpdateConfigResult> => {
         const previousConfig = configRef.current || createDefaultSalonConfig();
         if (
           !isUpdater &&
@@ -141,7 +205,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
           };
         }
 
-        const nextConfig = isUpdater
+        const nextConfig = typeof updaterOrValue === "function"
           ? updaterOrValue(previousConfig)
           : updaterOrValue;
         installConfig(nextConfig);
@@ -160,7 +224,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
         try {
           let query = supabase
             .from("salon_config")
-            .update(appConfigToDb(nextConfig))
+            .update(toDbPayload(nextConfig))
             .eq("id", authoritativeRow.id);
           query = authoritativeRow.updatedAt === null
             ? query.is("updated_at", null)
@@ -211,7 +275,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
           installConfig(previousConfig);
           return {
             ok: false,
-            error: err?.message || "Couldn't save settings.",
+            error: (err instanceof Error && err.message) || "Couldn't save settings.",
           };
         }
       });
