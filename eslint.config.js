@@ -187,8 +187,6 @@ export default [
       "src/components/customer/onboarding/JoinThePackOnboarding.jsx",
       "src/components/customer/onboarding/ProfileGate.jsx",
       "src/components/customer/onboarding/SetPasswordGate.jsx",
-      "src/components/modals/collection-notice/CollectionNoticeModal.jsx",
-      "src/components/modals/send-reminder/SendReminderModal.jsx",
       "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
       "src/components/views/inbox/hooks/useCustomerContext.js",
       "src/components/views/inbox/hooks/useInboxMessageSearch.js",

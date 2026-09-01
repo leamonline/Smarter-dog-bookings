@@ -17,7 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
-import { supabase } from "../../../supabase/client";
+import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
+import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
@@ -48,6 +49,8 @@ function whatsappAvailability(h) {
 
 export function CollectionNoticeModal({ booking, onClose }) {
   const toast = useToast();
+  const contacts = useStaffContacts();
+  const messaging = useStaffMessaging();
   const [step, setStep] = useState("ask");
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +82,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
       setLoading(true);
       setContactsUnavailable("");
       setContactLoadError("");
-      if (!supabase) {
+      if (!contacts.connected) {
         setRecipients([]);
         setContactsUnavailable(
           "Collection messaging isn't available with sample data. Contact the customer directly.",
@@ -93,20 +96,11 @@ export function CollectionNoticeModal({ booking, onClose }) {
         return;
       }
       try {
-        const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
         const [ownerRes, linkRes, dayRes] = await Promise.all([
-          supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
-          supabase
-            .from("human_trusted_contacts")
-            .select("trusted_id, relationship")
-            .eq("human_id", ownerId),
+          contacts.getContactCard(ownerId),
+          contacts.listTrustedContactLinks(ownerId),
           booking?._bookingDate
-            ? supabase
-                .from("bookings")
-                .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
-                .eq("booking_date", booking._bookingDate)
-                .eq("dogs.human_id", ownerId)
-                .neq("status", "Cancelled")
+            ? contacts.listOwnerBookingsOnDate(booking._bookingDate, ownerId)
             : Promise.resolve({ data: null, error: null }),
         ]);
         if (ownerRes.error || linkRes.error || dayRes.error) {
@@ -139,7 +133,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
 
         let trusted = [];
         if (trustedIds.length) {
-          const trustedRes = await supabase.from("humans").select(ownerCols).in("id", trustedIds);
+          const trustedRes = await contacts.listContactCards(trustedIds);
           if (trustedRes.error) throw new Error("Trusted contact query failed");
           trusted = (trustedRes.data ?? []).map((h) => ({
             ...h,
@@ -167,7 +161,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [step, ownerId, booking?.id, booking?._bookingDate, contactLoadAttempt]);
+  }, [step, ownerId, booking?.id, booking?._bookingDate, contactLoadAttempt, contacts]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
@@ -195,15 +189,12 @@ export function CollectionNoticeModal({ booking, onClose }) {
           dog_name: dogName,
           minutes: minutes.trim(),
         });
-        const { data, error } = await supabase.functions.invoke("whatsapp-send", {
-          body: {
-            mode: "template",
-            to: phoneE164,
-            template_name: READY_TEMPLATE.name,
-            language: READY_TEMPLATE.language,
-            params,
-            human_id: recipient.id,
-          },
+        const { data, error } = await messaging.sendWhatsAppTemplate({
+          to: phoneE164,
+          templateName: READY_TEMPLATE.name,
+          language: READY_TEMPLATE.language,
+          params,
+          humanId: recipient.id,
         });
         if (error) throw new Error(await parseSupabaseFunctionError(error, "WhatsApp send failed"));
         if (data?.error) throw new Error(data.detail || data.error);
@@ -215,7 +206,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, toast],
+    [sendingId, minutesValid, dogName, minutes, toast, messaging],
   );
 
   const askBody = (
