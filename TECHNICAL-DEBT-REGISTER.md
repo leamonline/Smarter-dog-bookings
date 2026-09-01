@@ -6,6 +6,47 @@ sustained workstream (week+).
 
 > **Status note (June 2026):** Register written ~May 2026. Statuses below were added June 2026 after the overhaul (PRs **#246–#261**), each verified against the current code. Original findings are untouched; a quote-block status per debt sits directly under each table.
 
+> **Status refresh (1 September 2026):** every figure below was re-measured
+> against `main` on 1 September 2026 (see the
+> [repository assessment](docs/research/2026-09-01-repository-assessment-and-plan.md)
+> for method). The June quote-blocks are left as history; the table here is the
+> current view. Where June and September disagree, September wins.
+
+## Status refresh — 1 September 2026
+
+| Debt | June 2026 | September 2026 | Evidence (1 Sept) |
+|---|---|---|---|
+| 1 JS-first, TS bolted on | Partially closed | **Open, static** | 357 non-test `.js/.jsx` vs 120 `.ts/.tsx`; `checkJs: false`; 6 `.js` hooks in `src/hooks`, 36 non-test `.js` files in `src/supabase/hooks` (was 21). |
+| 2 `any` escape hatches | Closed (≈116-warning baseline) | **Open, concentrated** | 127 `no-explicit-any` warnings: 65 in tests, 62 in non-test code, of which 20 in `useDogs.ts`, 41 across `hooks/humans/*`, 1 in `engine/capacity.ts`. |
+| 3 ESLint safety rules | Closed | Closed | Unchanged. |
+| 4 `.js` extensions on TS imports | Closed | Closed | `check-import-extensions` still in `npm run lint`. |
+| 5 `useHumans.ts` god file | Closed | Closed | 103 lines. |
+| 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Regressed** | 730 lines. |
+| 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Regressed** | 541 lines. |
+| 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
+| 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
+| 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Open, moved** | `InboxView.jsx` is a one-line re-export; the cascade now lives in `views/inbox/workspace/InboxWorkspaceController.jsx` (760 lines). |
+| 11 `App.jsx` hub | Open, worse (1,025 LoC) | **Open, worse again** | 1,525 lines. |
+| 12 Direct Supabase client in components | Frozen + baselined (29 files) | **Burning down** | 21 files on the allowlist; see the burn-down table under Debt 12. |
+| 13 snake_case leaks into customer components | Partially closed | Closed for the customer surface | Dashboard, BookingCard and dog forms consume repository-shaped objects. |
+| 14 Two dog maps | Closed | Closed | Unchanged. |
+| 15 Pricing as display string | Partially closed (2 stragglers) | **Closed** | `PRICING` is now integer pence (`constants/salon.ts:63`); zero `replace(/[^0-9.]/g` re-parse sites remain. |
+| 16 Realtime channel names | Closed | Closed | `realtimeChannels.ts` registry unchanged. |
+| 17 Direct storage access | Closed | Closed | `no-restricted-globals` still enforced. |
+| 18 Raw booking-status literals | Closed (3 display leftovers) | Closed, not re-audited | 23 raw `"Booked"`/`"Cancelled"`/`"Checked in"` literals remain outside `constants/salon.ts`, mostly in engine and report code; not re-audited for display copy vs comparison. |
+| 19 Dog size constants | Closed | Closed | Unchanged. |
+| 20 Hardcoded phone number | Closed | Closed | Unchanged. |
+| 21 RPC string literals | Closed | Closed | `rpc.ts` remains the registry (1,182 lines). |
+| 22 Bare `console` | Largely closed (17 carve-outs) | **Closed** | Carve-outs down to the two intentional ones (`lib/logger.ts`, `supabase/seed.ts`). |
+| 23 Errors not surfaced | Partially closed | Partially closed | Convention only; still no documented rule. |
+| 24 Catch-variable style / unhandled `.then()` | Open (10 sites) | **Closed** | 0 non-test `catch (e)` sites; the `fetchDogsForHuman` `.then()` is gone from `ComposeNewModal.jsx`. |
+| 25 Untested critical paths | Closed (residual: drag-and-drop) | Residual confirmed | `useSlotDragAndDrop.ts` has no test and sits at 22% statements / 0% branches; 13 Deno test files under `supabase/functions/`. |
+
+Three items regressed since June without anyone noticing (6, 7, 9) and one keeps
+growing (11). None is a bug; all are the natural drift of a busy codebase
+without a size guard. A line-count ratchet test on the five named files would
+make the next regression visible in CI instead of in the next audit.
+
 ## Mixed paradigms & weak typing
 
 | What hurts | Why it hurts | Cost |
@@ -60,18 +101,19 @@ sustained workstream (week+).
 | **16. Realtime channel names are global string literals.** `useTodos.js:34` (`"salon-todos"`), `useWaitlist.js:48` (`"waitlist_changes"`), `useWhatsAppSummary.js:190/214`, `useWhatsAppInbox.js:221`, etc. Some include `Date.now()`, most don't. | Mounting two instances of the same hook in dev (HMR, double-render) can collide on shared channels. The pattern is inconsistent — `useHumans.ts:173` and `useMonthBookings.js:63` use random suffixes, others don't. | S |
 | **17. `sessionStorage` accessed directly in `src/lib/chunkReload.js`** (lines 25, 31, 51). Only call site, but no wrapper means future storage adds will copy this pattern. | Privacy-mode failures handled inline (`// sessionStorage can throw in privacy modes`); next developer reinventing the same workaround is likely. | S |
 
-> **Debt 12 — Status (June 2026):** PARTIALLY CLOSED — `src/supabase/repositories/` (`bookingsRepo.ts`, `dogsRepo.ts`, `humansRepo.ts`, created pre-run) now backs `BookingWizard`, customer `BookingCard` and `SlotSelection`, but 24 non-test component files still import the Supabase client directly and there is no `no-restricted-imports` guard.
+> **Debt 12 — Status:** FROZEN + BURNING DOWN. `eslint.config.js` bans importing `supabase/client` / `supabase/customerClient` from `src/components/**` (`no-restricted-imports`, added July 2026); the `ignores` allowlist is the burn-down list and may only shrink. Repositories live in `src/supabase/repositories/` (`bookingsRepo.ts`, `dogsRepo.ts`, `humansRepo.ts`, …).
 >
-> **Debt 12 — Update (July 2026):** FROZEN + baselined — `eslint.config.js` now bans importing `supabase/client` / `supabase/customerClient` from `src/components/**` (`no-restricted-imports`), so no NEW component can hand-build a query in JSX; the 29 current offenders are an explicit `ignores` allowlist that may only SHRINK as files migrate to the hooks/repositories layer. The count is a burn-down list, not a ceiling — remove a file from the allowlist as you route it through a repo.
+> | When | Left the allowlist | Via | Remaining |
+> |---|---|---|---|
+> | June 2026 | `BookingWizard` (partially), customer `BookingCard`, `SlotSelection` routed through repos | pre-run | 24 (no guard yet) |
+> | July 2026 | — (guard added, baseline frozen) | `eslint.config.js` | 29 |
+> | Sept 2026 | `CustomerDashboard.jsx`, `customer/BookingCard.jsx` | `useCustomerDashboardData`, `useCustomerBookingActions`, `useCustomerDepositSettings` (#719) | 27 |
+> | Sept 2026 | `DogsSection.jsx`, `booking/AddDogInline.tsx`, `TrustedHumansSection.jsx` | `useCustomerDogActions` over `dogsRepo` (#720) | 24 |
+> | Sept 2026 | `AddToCalendarButton.tsx`, `CalendarSubscribeModal.tsx` | `useCustomerCalendarFeed` (#721) | 22 |
+> | Sept 2026 | `views/settings/CalendarSettings.jsx` | `calendarFeedActions` core + `useStaffCalendarFeed` (#722) | 21 |
 >
-> **Debt 12 — Update (September 2026):** BURN-DOWN CONTINUES — `CustomerDashboard.jsx` and `customer/BookingCard.jsx` left the allowlist: the dashboard's reads/writes moved behind `useCustomerDashboardData` (over `dogsRepo`/`bookingsRepo` + typed RPCs), and BookingCard now uses `useCustomerBookingActions` + `useCustomerDepositSettings`. 27 files remain on the allowlist.
->
-> **Debt 12 — Update (September 2026, second slice):** `DogsSection.jsx`, `booking/AddDogInline.tsx` and `TrustedHumansSection.jsx` also left the allowlist — dog create/edit now routes through `useCustomerDogActions` over `dogsRepo` (the snake→camel normalisation moved to the repository), and TrustedHumansSection had no client usage at all. 24 files remain.
->
-> **Debt 12 — Update (September 2026, third slice):** `AddToCalendarButton.tsx` and `CalendarSubscribeModal.tsx` left the allowlist — calendar-feed token fetch, URL construction and revocation moved into `useCustomerCalendarFeed`. Every file under `src/components/customer/` except the booking wizard's own screens is now client-free. 22 files remain.
->
-> **Debt 12 — Update (September 2026, fourth slice):** `views/settings/CalendarSettings.jsx` left the allowlist — the calendar-feed logic was extracted into a client-agnostic `calendarFeedActions` core shared by `useCustomerCalendarFeed` and a new `useStaffCalendarFeed`, keeping the two Supabase clients separate. 21 files remain.
->
+> **Still on the allowlist (1 September 2026), grouped by the slice that would clear them:** wizard screens — `customer/booking/BookingWizard.tsx`, `DateSelection.tsx`, `SlotSelection.tsx`; customer onboarding — `AddressPicker.jsx`, `JoinThePackOnboarding.jsx`, `ProfileGate.jsx`, `SetPasswordGate.jsx`; staff modals — `RescheduleModal.jsx`, `booking-detail/DeliveryFailureCard.jsx`, `collection-notice/CollectionNoticeModal.jsx`, `day-closure/BroadcastMessageModal.jsx`, `send-reminder/SendReminderModal.jsx`, `dashboard/TomorrowRemindersCard.jsx`; inbox — `compose-new/ComposeNewModal.jsx`, `inbox/hooks/useCustomerContext.js`, `useInboxMessageSearch.js`, `useSlotCapacityPreview.js`; reports — `reports/useWeeklyCashUp.js`; auth — `auth/LoginPage.jsx`, `auth/ResetPasswordPage.jsx`. Remove a file from the allowlist in the same PR that routes it through a hook or repository.
+
 > **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
 >
 > **Debt 13 — Update (September 2026):** CLOSED for the customer dashboard — the dashboard/BookingCard/AppointmentsSection surface now consumes app-shaped `CustomerBookingSummary`/`CustomerDog` objects; the snake_case↔camelCase mapping lives in `bookingsRepo.ts`/`dogsRepo.ts` where it belongs.
