@@ -10,7 +10,7 @@ import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
 import { fetchTrustedContactsForHuman } from "./useTrustedContacts";
-import type { HumansMap, SetHumansMap } from "./helpers";
+import type { HumanEntry, HumanRowLike, HumansByIdMap, HumansMap, SetHumansByIdMap, SetHumansMap } from "./helpers";
 
 export function useHumanLookups({
   humans,
@@ -21,9 +21,9 @@ export function useHumanLookups({
   markTrustedHydrated,
 }: {
   humans: HumansMap;
-  humansById: HumansMap;
+  humansById: HumansByIdMap;
   setHumans: SetHumansMap;
-  setHumansById: SetHumansMap;
+  setHumansById: SetHumansByIdMap;
   // From useTrustedContacts: which ids already have a full profile
   // (including trusted contacts) in the caches.
   isTrustedHydrated: (humanId: string) => boolean;
@@ -59,7 +59,7 @@ export function useHumanLookups({
 
       if (err || !data) return null;
 
-      const entry: any = buildHumanMapEntry(data);
+      const entry: HumanEntry = buildHumanMapEntry(data);
       // buildHumanMapEntry stubs trustedContacts to []; the human profile
       // modal reads them, so hydrate the trusted side here. Without this,
       // any customer past the first paginated page (PAGE_SIZE = 50) opened
@@ -75,7 +75,7 @@ export function useHumanLookups({
       // under the name and remove any prior UUID-keyed copy of the same
       // row so HumansView doesn't render two cards with the same React key.
       setHumans((prev) => {
-        const next: Record<string, any> = { ...prev };
+        const next: HumansMap = { ...prev };
         delete next[data.id];
         next[entry.fullName || data.id] = entry;
         return next;
@@ -112,7 +112,7 @@ export function useHumanLookups({
 
       if (err || !data) return null;
 
-      const entry: any = buildHumanMapEntry(data);
+      const entry: HumanEntry = buildHumanMapEntry(data);
 
       const { trustedContacts, trustedIds } = await fetchTrustedContactsForHuman(data.id);
       entry.trustedContacts = trustedContacts;
@@ -121,7 +121,7 @@ export function useHumanLookups({
 
       setHumansById((prev) => ({ ...prev, [data.id]: entry }));
       setHumans((prev) => {
-        const next: Record<string, any> = { ...prev };
+        const next: HumansMap = { ...prev };
         delete next[data.id];
         next[entry.fullName || data.id] = entry;
         return next;
@@ -152,7 +152,7 @@ export function useHumanLookups({
       ]);
 
       const seen = new Set<string>();
-      const rows: any[] = [];
+      const rows: HumanRowLike[] = [];
       for (const data of [nameResult.data, surnameResult.data, phoneResult.data]) {
         for (const row of data || []) {
           if (!row?.id || seen.has(row.id)) continue;
@@ -162,9 +162,9 @@ export function useHumanLookups({
       }
       if (rows.length === 0) return [];
 
-      const additionsById: Record<string, any> = {};
-      const additionsByName: Record<string, any> = {};
-      const entries: any[] = [];
+      const additionsById: HumansByIdMap = {};
+      const additionsByName: HumansMap = {};
+      const entries: HumanEntry[] = [];
       for (const row of rows) {
         const entry = buildHumanMapEntry(row);
         entries.push(entry);
@@ -175,7 +175,7 @@ export function useHumanLookups({
       setHumans((prev) => {
         // Drop any stale UUID-keyed entries first — same pattern as
         // ensureHumansByIds, keeps the map name-keyed.
-        const next: Record<string, any> = {};
+        const next: HumansMap = {};
         for (const [k, v] of Object.entries(prev)) {
           if (!additionsById[k]) next[k] = v;
         }
@@ -245,8 +245,8 @@ export function useHumanLookups({
       // double-insert every owner — once under the UUID and once under
       // the fullName from the main fetch — which surfaced as a React
       // duplicate-key warning on HumansView (same id rendered twice).
-      const additionsById: Record<string, any> = {};
-      const additionsByName: Record<string, any> = {};
+      const additionsById: HumansByIdMap = {};
+      const additionsByName: HumansMap = {};
       for (const row of rows) {
         const entry = buildHumanMapEntry(row);
         additionsById[row.id] = entry;
@@ -257,7 +257,7 @@ export function useHumanLookups({
         // Drop any stale UUID-keyed entries we may have inserted before
         // this fix shipped — keeps the map name-keyed for the rest of
         // its lifetime.
-        const next: Record<string, any> = {};
+        const next: HumansMap = {};
         for (const [k, v] of Object.entries(prev)) {
           if (!additionsById[k]) next[k] = v;
         }

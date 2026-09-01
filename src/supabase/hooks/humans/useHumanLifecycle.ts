@@ -12,7 +12,7 @@ import {
   mergeHumans as mergeHumansRpc,
 } from "../../rpc";
 import { logger } from "../../../lib/logger";
-import type { SetHumansMap } from "./helpers";
+import type { HumanEntry, SetHumansByIdMap, SetHumansMap } from "./helpers";
 import type { Dispatch, SetStateAction } from "react";
 
 export function useHumanLifecycle({
@@ -22,9 +22,9 @@ export function useHumanLifecycle({
   setDirectoryHumans,
 }: {
   setHumans: SetHumansMap;
-  setHumansById: SetHumansMap;
+  setHumansById: SetHumansByIdMap;
   setTotalCount: Dispatch<SetStateAction<number>>;
-  setDirectoryHumans: Dispatch<SetStateAction<any[]>>;
+  setDirectoryHumans: Dispatch<SetStateAction<HumanEntry[]>>;
 }) {
   /**
    * Merge the "loser" human into the "winner" via the merge_humans RPC,
@@ -62,9 +62,7 @@ export function useHumanLifecycle({
       });
       setHumans((prev) => {
         const next = { ...prev };
-        const entry = Object.entries(next).find(
-          ([, h]: [string, any]) => h.id === loserId,
-        );
+        const entry = Object.entries(next).find(([, h]) => h.id === loserId);
         if (entry) delete next[entry[0]];
         return next;
       });
@@ -121,10 +119,8 @@ export function useHumanLifecycle({
       });
       setHumans((prev) => {
         const next = { ...prev };
-        const entry = Object.entries(next).find(
-          ([, h]: [string, any]) => h.id === humanId,
-        );
-        if (entry) next[entry[0]] = { ...(entry[1] as any), approvedAt };
+        const entry = Object.entries(next).find(([, h]) => h.id === humanId);
+        if (entry) next[entry[0]] = { ...entry[1], approvedAt };
         return next;
       });
       return { ok: true };
@@ -164,9 +160,7 @@ export function useHumanLifecycle({
       });
       setHumans((prev) => {
         const next = { ...prev };
-        const entry = Object.entries(next).find(
-          ([, h]: [string, any]) => h.id === humanId,
-        );
+        const entry = Object.entries(next).find(([, h]) => h.id === humanId);
         if (entry) delete next[entry[0]];
         return next;
       });

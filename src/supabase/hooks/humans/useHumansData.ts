@@ -10,8 +10,12 @@ import { CHANNELS, uniqueChannelName } from "../../realtimeChannels";
 import { searchHumansDirectory } from "../../rpc";
 import { logger } from "../../../lib/logger";
 import { safeGet, safeSet } from "../../../lib/storage";
-import { buildHumanMapEntry } from "./helpers";
-import type { HumansMap } from "./helpers";
+import { buildHumanMapEntry, isRawHumanCacheRow } from "./helpers";
+import type { HumanCacheEntry, HumanEntry, HumanRowLike, HumansByIdMap, HumansMap } from "./helpers";
+import type { Database } from "../../database.types";
+import type { RealtimePostgresDeletePayload } from "@supabase/supabase-js";
+
+type HumanRow = Database["public"]["Tables"]["humans"]["Row"];
 
 const PAGE_SIZE = 50;
 
@@ -40,7 +44,7 @@ export function useHumansData({
   startDirectoryFetch?: boolean;
 }) {
   const [humans, setHumans] = useState<HumansMap>({});
-  const [humansById, setHumansById] = useState<HumansMap>({});
+  const [humansById, setHumansById] = useState<HumansByIdMap>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -49,7 +53,7 @@ export function useHumansData({
   // Server-driven directory state. directoryHumans is the ordered,
   // filtered list the directory grid renders (distinct from the humans /
   // humansById lookup caches, which other views inject owners into).
-  const [directoryHumans, setDirectoryHumans] = useState<any[]>([]);
+  const [directoryHumans, setDirectoryHumans] = useState<HumanEntry[]>([]);
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [dirSort, setDirSortState] = useState<"first" | "last">(() =>
     safeGet("local", "humansDirSort") === "last" ? "last" : "first",
@@ -63,7 +67,7 @@ export function useHumansData({
   });
   const [dirLetter, setDirLetterState] = useState<string | null>(null);
 
-  const directoryRef = useRef<any[]>([]);
+  const directoryRef = useRef<HumanEntry[]>([]);
   const queryRef = useRef<{
     search: string;
     filters: DirFilters;
@@ -129,11 +133,12 @@ export function useHumansData({
         return;
       }
 
-      const result = (data || {}) as { rows?: any[]; total?: number; letters?: string[] };
+      // The RPC returns Json; this is the shape search_humans_directory builds.
+      const result = (data || {}) as { rows?: HumanRowLike[]; total?: number; letters?: string[] };
       const rows = Array.isArray(result.rows) ? result.rows : [];
       const entries = rows.map((row) => buildHumanMapEntry(row));
 
-      const byId: Record<string, any> = {};
+      const byId: Record<string, HumanEntry> = {};
       for (const e of entries) {
         byId[e.id] = e;
       }
@@ -147,8 +152,8 @@ export function useHumansData({
       // stub has none. Done per-map against each map's own `prev`; both maps
       // hold the same underlying entry/array references, so the preserved
       // data stays in sync.
-      const preserveTrusted = (prevEntry: any, fresh: any) =>
-        prevEntry?.trustedContacts?.length && !fresh.trustedContacts?.length
+      const preserveTrusted = (prevEntry: HumanCacheEntry | undefined, fresh: HumanEntry): HumanEntry =>
+        prevEntry && !isRawHumanCacheRow(prevEntry) && prevEntry.trustedContacts?.length && !fresh.trustedContacts?.length
           ? {
               ...fresh,
               trustedContacts: prevEntry.trustedContacts,
@@ -164,7 +169,7 @@ export function useHumansData({
       setHumans((prev) => {
         // Keep the map name-keyed; drop any stale UUID-keyed copies of these
         // ids so HumansView never renders the same human twice.
-        const next: Record<string, any> = {};
+        const next: HumansMap = {};
         for (const [k, v] of Object.entries(prev)) {
           if (!byId[k]) next[k] = v;
         }
@@ -219,23 +224,22 @@ export function useHumansData({
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "humans" },
-        (payload: any) => {
-          const oldRow = payload.old;
-          if (!oldRow?.id) return;
+        (payload: RealtimePostgresDeletePayload<HumanRow>) => {
+          // A DELETE payload carries only the replica-identity columns.
+          const oldId = payload.old?.id;
+          if (!oldId) return;
           setHumansById((prev) => {
             const next = { ...prev };
-            delete next[oldRow.id];
+            delete next[oldId];
             return next;
           });
           setHumans((prev) => {
             const next = { ...prev };
-            const entry = Object.entries(next).find(
-              ([, human]: [string, any]) => human.id === oldRow.id,
-            );
+            const entry = Object.entries(next).find(([, human]) => human.id === oldId);
             if (entry) delete next[entry[0]];
             return next;
           });
-          setDirectoryHumans((prev) => prev.filter((h) => h.id !== oldRow.id));
+          setDirectoryHumans((prev) => prev.filter((h) => h.id !== oldId));
           setTotalCount((c) => Math.max(0, c - 1));
         },
       )
@@ -298,7 +302,7 @@ export function useHumansData({
    * records never leak into the directory grid or search; the archived set
    * is small, so a single unpaginated read is fine.
    */
-  const fetchArchivedHumans = useCallback(async (): Promise<any[]> => {
+  const fetchArchivedHumans = useCallback(async (): Promise<HumanEntry[]> => {
     if (!supabase) return [];
     const { data, error: err } = await supabase
       .from("humans")
@@ -313,7 +317,7 @@ export function useHumansData({
       });
       return [];
     }
-    return (data || []).map((row: any) => buildHumanMapEntry(row));
+    return (data || []).map((row) => buildHumanMapEntry(row));
   }, []);
 
   return {

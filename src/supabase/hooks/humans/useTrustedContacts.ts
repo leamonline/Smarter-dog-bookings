@@ -14,7 +14,7 @@ import { findHumanByIdOrName } from "../../transforms";
 import { looksLikeUuid } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
 import { fullNameFromRow } from "./helpers";
-import type { HumansMap, TrustedContact } from "./helpers";
+import type { HumanPatch, HumansByIdMap, HumansMap, TrustedContact } from "./helpers";
 
 // Resolve { id -> fullName } for a set of human ids. Used to label
 // trusted contacts whose row sits past the paginated humans window —
@@ -88,7 +88,7 @@ export async function fetchTrustedContactsForHuman(
   if (!trustedRows || trustedRows.length === 0) return empty;
 
   const names = await fetchHumanNamesByIds(
-    trustedRows.map((row: any) => row.trusted_id).filter(Boolean),
+    trustedRows.map((row) => row.trusted_id).filter(Boolean),
   );
 
   const trustedContacts: TrustedContact[] = [];
@@ -111,9 +111,9 @@ export type ReplaceTrustedLinksResult =
 
 export type ReplaceTrustedLinks = (args: {
   humanId: string;
-  updates: Record<string, any>;
+  updates: HumanPatch;
   prevHumans: HumansMap;
-  prevHumansById: HumansMap;
+  prevHumansById: HumansByIdMap;
   currentTrustedContacts: TrustedContact[];
 }) => Promise<ReplaceTrustedLinksResult>;
 
@@ -160,23 +160,25 @@ export function useTrustedContacts() {
       // silently unlinks that person. Fall back to the raw UUID when resolution
       // misses; only entries with no usable id are skipped.
       if (hasTrustedContactsUpdate) {
-        for (const entry of updates.trustedContacts as any[]) {
-          const rawId = entry?.id ?? entry;
-          const resolved = findHumanByIdOrName(prevHumansById, prevHumans, rawId);
-          const id = (resolved as any)?.id || (looksLikeUuid(rawId) ? rawId : null);
+        for (const entry of updates.trustedContacts ?? []) {
+          // Entries arrive as { id, relationship } objects or as bare ids / names.
+          const rawId = typeof entry === "string" ? entry : entry?.id;
+          const resolved = findHumanByIdOrName(prevHumansById, prevHumans, rawId ?? null);
+          const id = resolved?.id || (rawId && looksLikeUuid(rawId) ? rawId : null);
           if (!id) continue;
+          const label = typeof entry === "string" ? undefined : entry?.relationship;
           nextPairs.push({
             id,
             relationship:
-              typeof entry?.relationship === "string"
-                ? entry.relationship.trim()
+              typeof label === "string"
+                ? label.trim()
                 : existingRelationshipById.get(id) || "",
           });
         }
       } else {
-        for (const value of updates.trustedIds as any[]) {
+        for (const value of updates.trustedIds ?? []) {
           const resolved = findHumanByIdOrName(prevHumansById, prevHumans, value);
-          const id = (resolved as any)?.id || (looksLikeUuid(value) ? value : null);
+          const id = resolved?.id || (looksLikeUuid(value) ? value : null);
           if (!id) continue;
           nextPairs.push({
             id,
@@ -212,7 +214,7 @@ export function useTrustedContacts() {
       const nameById = new Map<string, string>();
       const missingIds: string[] = [];
       for (const pair of nextPairs) {
-        const resolved = findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any;
+        const resolved = findHumanByIdOrName(prevHumansById, prevHumans, pair.id);
         if (resolved?.fullName) nameById.set(pair.id, resolved.fullName);
         else missingIds.push(pair.id);
       }

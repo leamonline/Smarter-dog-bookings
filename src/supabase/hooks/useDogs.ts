@@ -11,7 +11,8 @@ import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
 import { logger } from "../../lib/logger";
 import { safeGet, safeSet } from "../../lib/storage";
 import type { Database } from "../database.types";
-import type { DbDogRow, DbHumanRow } from "../transforms";
+import type { DbDogRow } from "../transforms";
+import type { HumanCacheEntry } from "./humans/helpers";
 import type { Dog, DogSize } from "../../types/index";
 import type {
   RealtimePostgresDeletePayload,
@@ -24,8 +25,8 @@ const PAGE_SIZE = 50;
 type DogRow = Database["public"]["Tables"]["dogs"]["Row"];
 type DogUpdate = Database["public"]["Tables"]["dogs"]["Update"];
 
-/** The owner lookup map useHumans maintains (raw human rows + a display name). */
-export type HumansById = Record<string, DbHumanRow & { fullName: string }>;
+/** The owner lookup map useHumans maintains (see humans/helpers for its two shapes). */
+export type HumansById = Record<string, HumanCacheEntry>;
 
 /** A search_dogs_directory row: a dog row plus the joined owner_* fields. */
 interface DirectoryDogRow extends DbDogRow {
