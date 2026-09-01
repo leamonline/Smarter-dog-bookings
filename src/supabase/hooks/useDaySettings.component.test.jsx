@@ -19,7 +19,7 @@ vi.mock("../bootPrefetch.js", () => ({
 }));
 
 const { takeBootPrefetch } = await import("../bootPrefetch.js");
-const { useDaySettings } = await import("./useDaySettings.js");
+const { useDaySettings } = await import("./useDaySettings");
 
 const weekStart = new Date(2026, 4, 18); // Mon 18 May 2026
 
