@@ -7,15 +7,48 @@ import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
 import { closeDayWithRearrangementTasks } from "../rpc";
+import type { Database } from "../database.types";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { DaySettings, SlotOverrides } from "../../types/index";
 
-function getDefaultOpen(dateObj) {
+type DaySettingsRow = Database["public"]["Tables"]["day_settings"]["Row"];
+
+/**
+ * A day as held in this hook's week map. `isOpen` is nullable because the
+ * column is; every write path normalises it to a boolean via mergeSetting.
+ */
+export type WeekDaySetting = Omit<DaySettings, "isOpen"> & { isOpen: boolean | null };
+export type WeekDaySettingsMap = Record<string, WeekDaySetting>;
+
+/** upsertSetting's outcome: the merged setting, or the error after rollback. */
+export type DaySettingResult =
+  | { ok: true; value: DaySettings }
+  | { ok: false; error: string };
+
+type DaySettingUpdater =
+  | Partial<DaySettings>
+  | ((current: WeekDaySetting) => Partial<DaySettings>);
+
+/** The generated row types `overrides` / `extra_slots` as Json; narrow them once. */
+function fromRow(
+  row: Pick<DaySettingsRow, "is_open" | "overrides" | "extra_slots" | "immediate_slots">,
+): WeekDaySetting {
+  return {
+    isOpen: row.is_open,
+    overrides: (row.overrides as Record<string, SlotOverrides> | null) || {},
+    extraSlots: (row.extra_slots as string[] | null) || [],
+    immediateSlots: row.immediate_slots || [],
+  };
+}
+
+function getDefaultOpen(dateObj: Date): boolean {
   const dayOfWeek = dateObj.getDay(); // 0=Sun
   const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   return ALL_DAYS[dayIndex]?.defaultOpen ?? false;
 }
 
-function buildWeekDefaults(weekStart) {
-  const defaults = {};
+function buildWeekDefaults(weekStart: Date): WeekDaySettingsMap {
+  const defaults: WeekDaySettingsMap = {};
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
@@ -30,7 +63,10 @@ function buildWeekDefaults(weekStart) {
   return defaults;
 }
 
-function mergeSetting(current = {}, updates = {}) {
+function mergeSetting(
+  current: Partial<WeekDaySetting> = {},
+  updates: Partial<DaySettings> = {},
+): DaySettings {
   return {
     isOpen: updates.isOpen ?? current.isOpen ?? false,
     overrides: updates.overrides ?? current.overrides ?? {},
@@ -39,23 +75,26 @@ function mergeSetting(current = {}, updates = {}) {
   };
 }
 
-export function useDaySettings(weekStart) {
+export function useDaySettings(weekStart: Date | null | undefined) {
   // daySettings: { "2026-03-25": { isOpen, overrides, extraSlots }, ... }
-  const [daySettings, setDaySettings] = useState({});
+  const [daySettings, setDaySettings] = useState<WeekDaySettingsMap>({});
   // Mutations need the latest setting synchronously. Reading a value assigned
   // inside React's functional state updater is racy because React may defer
   // that updater until after the async persistence path has already started.
-  const daySettingsRef = useRef({});
+  const daySettingsRef = useRef<WeekDaySettingsMap>({});
   const [loading, setLoading] = useState(true);
 
-  const commitDaySettings = useCallback((updater) => {
+  const commitDaySettings = useCallback(
+    (updater: WeekDaySettingsMap | ((prev: WeekDaySettingsMap) => WeekDaySettingsMap)) => {
     const next =
       typeof updater === "function"
         ? updater(daySettingsRef.current)
         : updater;
     daySettingsRef.current = next;
     setDaySettings(next);
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!weekStart) {
@@ -71,6 +110,8 @@ export function useDaySettings(weekStart) {
       setLoading(false);
       return;
     }
+    // Narrowed once; the nested async function and cleanup keep the check.
+    const client = supabase;
 
     const controller = new AbortController();
 
@@ -88,7 +129,7 @@ export function useDaySettings(weekStart) {
       const { data, error } = await (takeBootPrefetch("daySettingsWeek", {
         startStr,
       }) ??
-        fetchDaySettingsWeek(supabase, startStr, endStr, controller.signal));
+        fetchDaySettingsWeek(client, startStr, endStr, controller.signal));
 
       if (controller.signal.aborted) return;
 
@@ -101,14 +142,9 @@ export function useDaySettings(weekStart) {
         return;
       }
 
-      const merged = { ...defaults };
-      for (const row of data || []) {
-        merged[row.setting_date] = {
-          isOpen: row.is_open,
-          overrides: row.overrides || {},
-          extraSlots: row.extra_slots || [],
-          immediateSlots: row.immediate_slots || [],
-        };
+      const merged: WeekDaySettingsMap = { ...defaults };
+      for (const row of (data || []) as DaySettingsRow[]) {
+        merged[row.setting_date] = fromRow(row);
       }
 
       commitDaySettings(merged);
@@ -118,22 +154,20 @@ export function useDaySettings(weekStart) {
     fetchSettings();
 
     // Real-time subscription for day_settings within the current week
-    const channel = supabase
+    const channel = client
       .channel(uniqueChannelName(CHANNELS.daySettings))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "day_settings" },
-        (payload) => {
-          const row = payload.new;
-          if (!row || row.setting_date < startStr || row.setting_date > endStr) return;
+        (payload: RealtimePostgresChangesPayload<DaySettingsRow>) => {
+          // On DELETE `new` is empty, so the missing setting_date returns
+          // here and the row keeps its last value until the next fetch.
+          const row = payload.new as Partial<DaySettingsRow>;
+          const settingDate = row?.setting_date;
+          if (!settingDate || settingDate < startStr || settingDate > endStr) return;
           commitDaySettings((prev) => ({
             ...prev,
-            [row.setting_date]: {
-              isOpen: row.is_open,
-              overrides: row.overrides || {},
-              extraSlots: row.extra_slots || [],
-              immediateSlots: row.immediate_slots || [],
-            },
+            [settingDate]: fromRow(row as DaySettingsRow),
           }));
         },
       )
@@ -141,12 +175,16 @@ export function useDaySettings(weekStart) {
 
     return () => {
       controller.abort();
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [weekStart, commitDaySettings]);
 
-  const upsertSetting = useCallback(async (dateStr, updater, persistence = "settings") => {
-    const prevSetting = daySettingsRef.current[dateStr] || {
+  const upsertSetting = useCallback(async (
+    dateStr: string,
+    updater: DaySettingUpdater,
+    persistence: "settings" | "atomic-closure" = "settings",
+  ): Promise<DaySettingResult> => {
+    const prevSetting: WeekDaySetting = daySettingsRef.current[dateStr] || {
       isOpen: false,
       overrides: {},
       extraSlots: [],
@@ -196,7 +234,7 @@ export function useDaySettings(weekStart) {
   }, [commitDaySettings]);
 
   const toggleDayOpen = useCallback(
-    (dateStr, nextIsOpen) =>
+    (dateStr: string, nextIsOpen?: boolean) =>
       upsertSetting(
         dateStr,
         (current) => ({
@@ -211,10 +249,10 @@ export function useDaySettings(weekStart) {
   );
 
   const setOverride = useCallback(
-    (dateStr, slot, seatIndex, action) =>
+    (dateStr: string, slot: string, seatIndex: number, action: SlotOverrides[number]) =>
       upsertSetting(dateStr, (current) => {
-        const overrides = { ...(current.overrides || {}) };
-        const slotOv = { ...(overrides[slot] || {}) };
+        const overrides: Record<string, SlotOverrides> = { ...(current.overrides || {}) };
+        const slotOv: SlotOverrides = { ...(overrides[slot] || {}) };
 
         if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
         else slotOv[seatIndex] = action;
@@ -231,7 +269,7 @@ export function useDaySettings(weekStart) {
   // slot same-day until 30 minutes before it starts (the DB enforces the
   // rule; this just flips the flag). Add/remove semantics like setOverride.
   const toggleImmediateSlot = useCallback(
-    (dateStr, slot) =>
+    (dateStr: string, slot: string) =>
       upsertSetting(dateStr, (current) => {
         const existing = current.immediateSlots || [];
         return {
@@ -244,7 +282,7 @@ export function useDaySettings(weekStart) {
   );
 
   const addExtraSlot = useCallback(
-    (dateStr) =>
+    (dateStr: string) =>
       upsertSetting(dateStr, (current) => {
         const existing = current.extraSlots || [];
         const lastSlot =
@@ -265,7 +303,7 @@ export function useDaySettings(weekStart) {
   );
 
   const removeExtraSlot = useCallback(
-    (dateStr) =>
+    (dateStr: string) =>
       upsertSetting(dateStr, (current) => {
         const existing = current.extraSlots || [];
         if (existing.length === 0) return {};
