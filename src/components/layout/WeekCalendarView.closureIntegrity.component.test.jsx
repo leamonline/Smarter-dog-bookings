@@ -13,7 +13,7 @@ vi.mock("../../supabase/hooks/useTodos.js", () => ({
     addTodos: mocks.addTodos,
   }),
 }));
-vi.mock("../../supabase/hooks/useWaitlist.js", () => ({
+vi.mock("../../supabase/hooks/useWaitlist", () => ({
   useWaitlist: () => ({
     waitlist: [],
     loading: false,

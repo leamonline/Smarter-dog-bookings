@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useWaitlistUpcoming.js
+// src/supabase/hooks/useWaitlistUpcoming.ts
 //
 // Returns waitlist entries whose target_date is today or tomorrow —
 // the window the right-rail Waitlist card uses to flip into the
@@ -13,19 +13,30 @@ import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
 
-function toDateStr(d) {
+type WaitlistRow = Database["public"]["Tables"]["waitlist_entries"]["Row"];
+
+/** The projection the right-rail card needs: identity plus the date to bucket on. */
+export type UpcomingWaitlistEntry = Pick<WaitlistRow, "id" | "target_date">;
+
+export interface UseWaitlistUpcomingResult {
+  entries: UpcomingWaitlistEntry[];
+  loading: boolean;
+}
+
+function toDateStr(d: Date): string {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function useWaitlistUpcoming() {
-  const [entries, setEntries] = useState([]);
+export function useWaitlistUpcoming(): UseWaitlistUpcomingResult {
+  const [entries, setEntries] = useState<UpcomingWaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchEntries = useCallback(async (signal) => {
+  const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     if (!supabase) {
       setLoading(false);
       return;
@@ -72,10 +83,11 @@ export function useWaitlistUpcoming() {
       setLoading(false);
       return;
     }
+    const client = supabase;
     const controller = new AbortController();
     fetchEntries(controller.signal);
 
-    const channel = supabase
+    const channel = client
       .channel(CHANNELS.waitlistUpcoming)
       .on(
         "postgres_changes",
@@ -88,7 +100,7 @@ export function useWaitlistUpcoming() {
 
     return () => {
       controller.abort();
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [fetchEntries]);
 

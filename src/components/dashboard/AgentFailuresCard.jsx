@@ -12,7 +12,7 @@
 import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RightRailCard } from "./RightRailCard.jsx";
-import { useAgentFailures } from "../../supabase/hooks/useAgentFailures.js";
+import { useAgentFailures } from "../../supabase/hooks/useAgentFailures";
 
 /** Show last 5 digits of the phone number, masked. */
 function maskPhone(phone) {
