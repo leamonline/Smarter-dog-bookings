@@ -83,6 +83,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Route customer dog create/edit through the repository layer (Debt #12
+  burn-down, second slice): `DogsSection.jsx` and `booking/AddDogInline.tsx`
+  no longer import the Supabase client — both write through a new
+  `useCustomerDogActions` hook over `dogsRepo`, where the snake_case↔camelCase
+  mapping for `update_customer_dog` now lives (`updateForCustomer` returns a
+  deliberate partial so fields the RPC doesn't return, like the pregnancy
+  flag, survive an edit). `TrustedHumansSection.jsx`, which had no client
+  usage left, also came off the ESLint burn-down allowlist (27 → 24). No
+  behaviour change for customers.
 - Route the customer dashboard's data access through the repository layer
   (Debt #12/#13 burn-down): `CustomerDashboard.jsx` and `BookingCard.jsx` no
   longer import the Supabase client or hand-build snake_case queries in JSX.

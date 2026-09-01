@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
-import { customerSupabase as supabase } from "../../supabase/customerClient";
-import { updateCustomerDog } from "../../supabase/rpc";
+import { useCustomerDogActions } from "../../supabase/hooks/useCustomerDogActions";
 import { getSizeForBreed } from "../../constants/breeds";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
@@ -67,6 +66,7 @@ function lastGroomLabel(dateStr) {
 
 function DogRow({ dog, lastGroomDate, onSaved }) {
   const toast = useToast();
+  const { updateDog } = useCustomerDogActions();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -98,10 +98,9 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    if (!supabase) return;
     setSaving(true);
     setError(null);
-    const { data, error: rpcErr } = await updateCustomerDog(supabase, {
+    const { dog: updated, error: rpcErr } = await updateDog({
       dogId: dog.id,
       name: form.name,
       breed: form.breed,
@@ -113,13 +112,14 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
       setError(errorFromRpc(rpcErr));
       return;
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    if (row && onSaved) {
-      onSaved({ ...dog, ...row, reportedSize: row.reported_size ?? null });
+    // `updated` is a partial (the RPC doesn't return is_pregnant), so merge
+    // it over the existing dog rather than replacing it.
+    if (updated && onSaved) {
+      onSaved({ ...dog, ...updated });
     }
     setEditing(false);
     toast.show(`${(form.name || dog.name || "Dog").trim()}'s details saved`, "success");
-  }, [dog, form, onSaved, toast]);
+  }, [dog, form, onSaved, toast, updateDog]);
 
   if (editing) {
     return (

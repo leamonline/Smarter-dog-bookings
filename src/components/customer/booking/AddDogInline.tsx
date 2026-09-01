@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
+import { useCustomerDogActions } from "../../../supabase/hooks/useCustomerDogActions";
 import { getSizeForBreed } from "../../../constants/breeds";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
-import { createForHuman } from "../../../supabase/repositories/dogsRepo";
 import { friendlySaveError } from "../../../utils/friendlyError";
 
 interface AddDogInlineProps {
@@ -14,6 +13,7 @@ interface AddDogInlineProps {
 }
 
 export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProps) {
+  const { createDog } = useCustomerDogActions();
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [size, setSize] = useState<DogSize | null>(null);
@@ -31,12 +31,10 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
     setSaving(true);
     setError(null);
     try {
-      if (!supabase) throw new Error("Not connected");
-
       const finalBreed = breed.trim();
       const dogSize = size || getSizeForBreed(finalBreed) as DogSize || null;
 
-      const { dog, error: err } = await createForHuman(supabase, {
+      const { dog, error: err } = await createDog({
         humanId,
         name: name.trim(),
         breed: finalBreed || null,
