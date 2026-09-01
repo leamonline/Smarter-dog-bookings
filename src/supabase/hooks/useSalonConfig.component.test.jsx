@@ -23,7 +23,7 @@ vi.mock("../bootPrefetch.js", () => ({
 }));
 
 const { takeBootPrefetch } = await import("../bootPrefetch.js");
-const { useSalonConfig } = await import("./useSalonConfig.js");
+const { useSalonConfig } = await import("./useSalonConfig");
 
 // Realistic salon_config row (dbConfigToApp folds defaults over nulls).
 const CONFIG_ROW = {

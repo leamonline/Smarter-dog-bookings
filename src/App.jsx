@@ -18,7 +18,7 @@ import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
 import { useDogs } from "./supabase/hooks/useDogs";
 import { useBookings } from "./supabase/hooks/useBookings.js";
-import { useSalonConfig } from "./supabase/hooks/useSalonConfig.js";
+import { useSalonConfig } from "./supabase/hooks/useSalonConfig";
 import { useDaySettings } from "./supabase/hooks/useDaySettings";
 import { useWeekNav } from "./hooks/useWeekNav.js";
 import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup.js";

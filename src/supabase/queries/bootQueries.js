@@ -22,7 +22,7 @@ export function fetchBookingsWeek(client, startStr, endStr, signal) {
 }
 
 // The salon_config SELECT (maybeSingle) from useSalonConfig (src/supabase/
-// hooks/useSalonConfig.js). SELECT only — the owner-seed branch stays in the
+// hooks/useSalonConfig.ts). SELECT only — the owner-seed branch stays in the
 // hook.
 export function fetchSalonConfigRow(client, signal) {
   const query = client.from("salon_config").select("*").limit(1);

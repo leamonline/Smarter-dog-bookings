@@ -38,7 +38,7 @@ vi.mock("../../../contexts/SalonContext", () => ({
   }),
 }));
 
-vi.mock("../../../supabase/hooks/useSalonConfig.js", () => ({
+vi.mock("../../../supabase/hooks/useSalonConfig", () => ({
   useSalonConfig: () => ({ config: { dailyDogCap: 14 }, loading: false, error: null }),
 }));
 
