@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
 import { friendlySaveError } from "../../../utils/friendlyError";
 import { isRealPersonName } from "../../../utils/text";
-import { completeCustomerProfile } from "../../../supabase/rpc";
+import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -27,6 +26,7 @@ import {
  */
 export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
   const toast = useToast();
+  const onboarding = useCustomerOnboardingActions();
 
   const [name, setName] = useState(humanRecord?.name?.trim() || "");
   const [surname, setSurname] = useState(humanRecord?.surname?.trim() || "");
@@ -54,11 +54,11 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!canSubmit || !supabase || !humanRecord?.id) return;
+    if (!canSubmit || !onboarding.connected || !humanRecord?.id) return;
     setSaving(true);
     setError(null);
 
-    const { error: err } = await completeCustomerProfile(supabase, {
+    const { error: err } = await onboarding.completeProfile({
       name: name.trim(),
       surname: surname.trim(),
       address: addr.address || existingAddress,

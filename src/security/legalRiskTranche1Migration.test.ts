@@ -160,10 +160,15 @@ describe("Tranche 1 human write boundary", () => {
   });
 
   it("routes both customer surfaces through the narrow wrappers", () => {
-    // The dashboard's data access moved behind useCustomerDashboardData
-    // (Debt #12); the narrow-RPC contract now holds at the hook.
+    // Both surfaces' data access moved behind hooks (Debt #12): the
+    // dashboard behind useCustomerDashboardData, the profile gate behind
+    // useCustomerOnboardingActions. The narrow-RPC contract now holds at
+    // each hook, and no surface or hook updates `humans` directly.
     const profileGate = readProjectFile(
       "src/components/customer/onboarding/ProfileGate.jsx",
+    );
+    const onboardingHook = readProjectFile(
+      "src/supabase/hooks/useCustomerOnboardingActions.ts",
     );
     const dashboard = readProjectFile(
       "src/components/customer/CustomerDashboard.jsx",
@@ -172,12 +177,13 @@ describe("Tranche 1 human write boundary", () => {
       "src/supabase/hooks/useCustomerDashboardData.ts",
     );
 
-    expect(profileGate).toContain("completeCustomerProfile");
+    expect(profileGate).toContain("useCustomerOnboardingActions");
+    expect(onboardingHook).toContain("completeCustomerProfile");
     expect(dashboard).toContain("useCustomerDashboardData");
     expect(dashboardHook).toContain("updateCustomerContactDetails");
-    expect(profileGate).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
-    expect(dashboard).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
-    expect(dashboardHook).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
+    for (const source of [profileGate, onboardingHook, dashboard, dashboardHook]) {
+      expect(source).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
+    }
   });
 });
 
