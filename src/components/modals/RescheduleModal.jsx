@@ -8,7 +8,7 @@ import { getDefaultOpenForDate } from "../../engine/utils";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
-import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
+import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];

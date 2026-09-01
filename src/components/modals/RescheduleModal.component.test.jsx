@@ -13,7 +13,7 @@ let monthState;
 vi.mock("../../supabase/hooks/useMonthBookings.js", () => ({
   useMonthBookings: () => ({ monthBookingsByDate: monthState.bookingsByDate, monthBookingsLoading: false }),
 }));
-vi.mock("../../supabase/hooks/useMonthDaySettings.js", () => ({
+vi.mock("../../supabase/hooks/useMonthDaySettings", () => ({
   useMonthDaySettings: () => ({ monthDaySettings: {}, monthDayOpenState: monthState.openState, monthDaySettingsLoading: false }),
 }));
 vi.mock("../../supabase/client", () => ({ supabase: {} }));
