@@ -66,6 +66,8 @@ sustained workstream (week+).
 >
 > **Debt 12 — Update (September 2026):** BURN-DOWN CONTINUES — `CustomerDashboard.jsx` and `customer/BookingCard.jsx` left the allowlist: the dashboard's reads/writes moved behind `useCustomerDashboardData` (over `dogsRepo`/`bookingsRepo` + typed RPCs), and BookingCard now uses `useCustomerBookingActions` + `useCustomerDepositSettings`. 27 files remain on the allowlist.
 >
+> **Debt 12 — Update (September 2026, second slice):** `DogsSection.jsx`, `booking/AddDogInline.tsx` and `TrustedHumansSection.jsx` also left the allowlist — dog create/edit now routes through `useCustomerDogActions` over `dogsRepo` (the snake→camel normalisation moved to the repository), and TrustedHumansSection had no client usage at all. 24 files remain.
+>
 > **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
 >
 > **Debt 13 — Update (September 2026):** CLOSED for the customer dashboard — the dashboard/BookingCard/AppointmentsSection surface now consumes app-shaped `CustomerBookingSummary`/`CustomerDog` objects; the snake_case↔camelCase mapping lives in `bookingsRepo.ts`/`dogsRepo.ts` where it belongs.

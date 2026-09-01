@@ -328,13 +328,21 @@ describe("Tranche 1 dog size authority boundary", () => {
   });
 
   it("normalises edited reported size into the customer model", () => {
+    // Dog edits route through useCustomerDogActions → dogsRepo (Debt #12);
+    // the snake→camel normalisation now lives at the repository boundary and
+    // DogsSection merges the partial over the existing dog (preserving
+    // fields the RPC doesn't return, like the pregnancy flag).
+    const dogsRepo = readProjectFile("src/supabase/repositories/dogsRepo.ts");
     const dogsSection = readProjectFile(
       "src/components/customer/DogsSection.jsx",
     );
 
-    expect(dogsSection).toMatch(
-      /onSaved\(\{\s*\.\.\.dog,\s*\.\.\.row,\s*reportedSize:\s*row\.reported_size\s*\?\?\s*null\s*\}\)/,
+    expect(dogsRepo).toMatch(
+      /reportedSize:\s*\(row\.reported_size as DogSize \| null\)\s*\?\?\s*null/,
     );
+    expect(dogsSection).toContain("useCustomerDogActions");
+    expect(dogsSection).toMatch(/onSaved\(\{\s*\.\.\.dog,\s*\.\.\.updated\s*\}\)/);
+    expect(dogsSection).not.toContain("updateCustomerDog(");
   });
 });
 

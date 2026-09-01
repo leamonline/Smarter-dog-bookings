@@ -4,7 +4,7 @@
 // them with SECURITY DEFINER functions.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DogSize } from "../../constants/salon";
-import { createCustomerDog } from "../rpc";
+import { createCustomerDog, updateCustomerDog } from "../rpc";
 
 export interface CustomerDog {
   id: string;
@@ -61,6 +61,56 @@ export async function createForHuman(
       size: null,
       reportedSize: (row.reported_size as DogSize | null) ?? null,
       isPregnant: false, // a freshly-added dog is never pregnant; staff set it later
+      dob: (row as { dob?: string | null }).dob ?? null,
+    },
+    error: null,
+  };
+}
+
+// The fields update_customer_dog returns, app-shaped. Deliberately a partial
+// of CustomerDog: the RPC doesn't return is_pregnant, so callers merge this
+// over their existing dog object rather than replacing it (a true pregnancy
+// flag in local state must survive a name edit).
+export interface CustomerDogUpdate {
+  id: string;
+  name: string;
+  breed: string;
+  size: DogSize | null;
+  reportedSize: DogSize | null;
+  dob: string | null;
+}
+
+// Edit a customer's own dog through the SECURITY DEFINER RPC (ownership
+// validated server-side; authoritative size is cleared when breed/reported
+// size change). Error messages are preserved verbatim — DogsSection maps the
+// RPC's stable codes (not_authenticated, dog_not_found, …) to friendly copy.
+export async function updateForCustomer(
+  client: SupabaseClient,
+  { dogId, name, breed, size, dob }: {
+    dogId: string;
+    name: string;
+    breed: string;
+    size: string;
+    dob: string | null;
+  },
+): Promise<{ dog: CustomerDogUpdate | null; error: Error | null }> {
+  const { data, error } = await updateCustomerDog(client, {
+    dogId,
+    name,
+    breed,
+    size,
+    dob,
+  });
+  if (error) return { dog: null, error: new Error(error.message) };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { dog: null, error: new Error("update_customer_dog returned no row") };
+  return {
+    dog: {
+      id: row.id,
+      name: row.name ?? "",
+      breed: row.breed ?? "",
+      size: (row.size as DogSize | null) ?? null,
+      reportedSize: (row.reported_size as DogSize | null) ?? null,
       dob: (row as { dob?: string | null }).dob ?? null,
     },
     error: null,
