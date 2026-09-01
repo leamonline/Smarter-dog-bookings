@@ -25,21 +25,21 @@ import { BookingCard } from "./BookingCard.jsx";
 
 const base = {
   id: "40000000-0000-4000-8000-000000000001",
-  booking_date: "2099-06-15",
+  bookingDate: "2099-06-15",
   slot: "09:00",
   service: "full-groom",
   status: "Booked",
   payment: "Due at Pick-up",
-  dogs: { name: "Alfie" },
+  dog: { name: "Alfie" },
 };
 
 const awaiting = {
   ...base,
-  deposit_required: true,
-  deposit_reference: "SDG-7K3M",
-  deposit_due_by: "2099-06-14T09:00:00Z",
-  deposit_received_at: null,
-  deposit_amount: 10,
+  depositRequired: true,
+  depositReference: "SDG-7K3M",
+  depositDueBy: "2099-06-14T09:00:00Z",
+  depositReceivedAt: null,
+  depositAmount: 10,
 };
 
 function renderCard(next) {
@@ -78,7 +78,7 @@ describe("BookingCard — awaiting deposit", () => {
   });
 
   it("shows nothing once the deposit is received", () => {
-    renderCard({ ...awaiting, payment: "Deposit Paid", deposit_received_at: "2099-06-13T10:00:00Z" });
+    renderCard({ ...awaiting, payment: "Deposit Paid", depositReceivedAt: "2099-06-13T10:00:00Z" });
     expect(screen.queryByText(/deposit needed/i)).toBeNull();
   });
 });

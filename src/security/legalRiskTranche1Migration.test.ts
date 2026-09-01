@@ -159,18 +159,25 @@ describe("Tranche 1 human write boundary", () => {
     expect(completion).toContain(preservingAssignment);
   });
 
-  it("routes both customer components through the narrow wrappers", () => {
+  it("routes both customer surfaces through the narrow wrappers", () => {
+    // The dashboard's data access moved behind useCustomerDashboardData
+    // (Debt #12); the narrow-RPC contract now holds at the hook.
     const profileGate = readProjectFile(
       "src/components/customer/onboarding/ProfileGate.jsx",
     );
     const dashboard = readProjectFile(
       "src/components/customer/CustomerDashboard.jsx",
     );
+    const dashboardHook = readProjectFile(
+      "src/supabase/hooks/useCustomerDashboardData.ts",
+    );
 
     expect(profileGate).toContain("completeCustomerProfile");
-    expect(dashboard).toContain("updateCustomerContactDetails");
+    expect(dashboard).toContain("useCustomerDashboardData");
+    expect(dashboardHook).toContain("updateCustomerContactDetails");
     expect(profileGate).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
     expect(dashboard).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
+    expect(dashboardHook).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
   });
 });
 
@@ -405,6 +412,9 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
     const dashboard = readProjectFile(
       "src/components/customer/CustomerDashboard.jsx",
     );
+    const dashboardHook = readProjectFile(
+      "src/supabase/hooks/useCustomerDashboardData.ts",
+    );
 
     expect(rpc).toContain("export interface CustomerTrustedHumanRow");
     expect(rpc).toContain("listCustomerTrustedHumans");
@@ -412,8 +422,9 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
     expect(rpc).toMatch(
       /listCustomerTrustedHumans[\s\S]{0,300}overrideTypes<CustomerTrustedHumanRow\[\],\s*\{\s*merge:\s*false\s*\}>/,
     );
-    expect(dashboard).toContain("listCustomerTrustedHumans");
+    expect(dashboardHook).toContain("listCustomerTrustedHumans");
     expect(dashboard).not.toContain('.from("human_trusted_contacts")');
+    expect(dashboardHook).not.toContain('.from("human_trusted_contacts")');
   });
 
   it("does not pass a mutation callback to the read-only section", () => {
@@ -692,6 +703,9 @@ describe("Tranche 1 customer cancellation boundary", () => {
       "src/supabase/repositories/bookingsRepo.ts",
     );
     const card = readProjectFile("src/components/customer/BookingCard.jsx");
+    const actionsHook = readProjectFile(
+      "src/supabase/hooks/useCustomerBookingActions.ts",
+    );
     const wizard = readProjectFile(
       "src/components/customer/booking/BookingWizard.tsx",
     );
@@ -699,20 +713,32 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(repo).toContain("cancelCustomerBooking");
     expect(repo).not.toContain("cancelMany");
     expect(repo).not.toContain("listIdsInGroup");
-    expect(card).toContain("cancelCustomerBooking");
+    // The card cancels through the action hook (Debt #12), which itself may
+    // only call the one narrow repository command.
+    expect(card).toContain("useCustomerBookingActions");
+    expect(actionsHook).toContain("cancelCustomerBooking");
+    expect(actionsHook).not.toContain("cancelMany");
+    expect(actionsHook).not.toContain("listIdsInGroup");
     expect(wizard).toContain("rescheduleCustomerBooking");
     expect(wizard).not.toContain("cancelCustomerBooking");
     expect(wizard).not.toContain("rescheduleFrom.groupId");
   });
 
   it("makes the dashboard refresh callback await the bookings reread", () => {
+    // refreshBookings lives in useCustomerDashboardData now; it must still
+    // reread through the repository and rethrow so BookingCard can report a
+    // committed-but-unrefreshed cancellation honestly.
+    const dashboardHook = readProjectFile(
+      "src/supabase/hooks/useCustomerDashboardData.ts",
+    );
     const dashboard = readProjectFile(
       "src/components/customer/CustomerDashboard.jsx",
     );
 
-    expect(dashboard).toMatch(
-      /const\s+refreshBookings\s*=\s*useCallback\(async\s*\(\)\s*=>[\s\S]*?\.from\(["']bookings["']\)[\s\S]*?if\s*\([^)]*error[^)]*\)\s*throw/i,
+    expect(dashboardHook).toMatch(
+      /const\s+refreshBookings\s*=\s*useCallback\(async\s*\(\)\s*=>[\s\S]*?listCustomerBookings\([\s\S]*?if\s*\([^)]*error[^)]*\)\s*throw/i,
     );
+    expect(dashboardHook).not.toContain("setRefreshKey");
     expect(dashboard).not.toContain("setRefreshKey");
   });
 });
