@@ -1,9 +1,14 @@
 # Issue #614 shared PostgreSQL concurrency driver follow-up
 
-**Status:** Active
+**Status:** Completed
 **Issue:** [#614](https://github.com/leamonline/Smarter-dog-bookings/issues/614) (closed; corrective follow-up to merged PR #626)
+**Implementation pull request:**
+[#629](https://github.com/leamonline/Smarter-dog-bookings/pull/629)
+**Corrective hotfix pull request:**
+[#632](https://github.com/leamonline/Smarter-dog-bookings/pull/632)
 **Base:** `origin/main@9c7285ef6b30fd341707e501d0ee82a029ea86fe`
-**Last verified:** 10 August 2026
+**Last verified:** 31 August 2026 against
+`main@94a249659ad2eed94dc4a7e787e7ab028b5e4cd1`
 **Owners:** `scripts/postgres-concurrency-driver.sh`, the two existing
 concurrency scenario scripts, their static guard test, database CI path filters,
 and bounded database-test documentation
@@ -182,6 +187,35 @@ git diff --check
   participant outcomes.
 - The corrective pull request's exact head SHA passes the GitHub database gate
   that failed on both post-merge `main` runs.
+
+## Completion
+
+Pull request [#629](https://github.com/leamonline/Smarter-dog-bookings/pull/629) routed both established scenario scripts
+through the shared `scripts/postgres-concurrency-driver.sh` and merged as
+`807de0e335f24f4f3608d06c0a47512180a7797a`. The post-merge database gate then
+failed twice on `main` in the WhatsApp concurrency scenario — run
+[31430269666](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31430269666) at
+`807de0e335f24f4f3608d06c0a47512180a7797a` and run
+[31430597128](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31430597128) at
+`9c7285ef6b30fd341707e501d0ee82a029ea86fe` — the watchdog `EXIT`-trap
+inheritance window recorded under current behaviour above.
+
+Corrective pull request [#632](https://github.com/leamonline/Smarter-dog-bookings/pull/632) closed that window at exact
+head `09937e3743e4cf077343ecf1691d0c97c76a6e23` and merged as
+`7c589e20afb8f764e474116926b337c2e139e999`. The previously failing GitHub
+database gate passed on that exact `main` commit
+([run 31438584819](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/31438584819), 10 August 2026),
+satisfying the final definition-of-done criterion.
+
+Re-verified 31 August 2026 against
+`main@94a249659ad2eed94dc4a7e787e7ab028b5e4cd1`: both scenario scripts still
+`source` the shared driver, the static guard
+`src/security/whatsappRescheduleConcurrencyGuard.test.ts` remains in the logic
+suite, and the database gate's most recent `main` run passed on 30 August 2026
+([run 33337830396](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/33337830396) at
+`53a4e266d03a6ded13ac0fda901841f32ecb3dd9`). The driver has since received one
+further lifecycle fix — pull request [#645](https://github.com/leamonline/Smarter-dog-bookings/pull/645), a lost-watchdog
+TERM stall — made in one place precisely because both scenarios now share it.
 
 ## Open questions
 

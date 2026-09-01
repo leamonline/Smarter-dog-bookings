@@ -281,6 +281,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Documentation
 
+- Close out the two stale active plans whose issues completed on 10 August
+  2026: the issue #614 shared PostgreSQL concurrency-driver follow-up
+  (delivered by PRs #629 and #632) and the issue #618 hosted Supabase target
+  guard (delivered by PR #628). Both files move from `docs/plans/active/` to
+  `docs/plans/completed/` unrewritten, gaining a completion record with exact
+  head and merge SHAs, the database-gate runs that first failed and then
+  passed, and a fresh re-verification against current `main`. The only
+  remaining active plan is the issue #603 programme plan.
+
 - Add a `SessionStart` hook that provisions the local database-test stack for
   Claude Code on the web: Node 24 on `PATH` (the container defaults to 22, so
   `npm ci` fails on `engines.node` before doing anything useful), npm
