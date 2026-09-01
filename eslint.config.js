@@ -174,8 +174,6 @@ export default [
       "**/*.spec.{js,jsx,ts,tsx}",
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
-      "src/components/customer/AddToCalendarButton.tsx",
-      "src/components/customer/CalendarSubscribeModal.tsx",
       "src/components/customer/booking/BookingWizard.tsx",
       "src/components/customer/booking/DateSelection.tsx",
       "src/components/customer/booking/SlotSelection.tsx",

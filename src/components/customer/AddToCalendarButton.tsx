@@ -4,8 +4,7 @@
 
 import { useState, useCallback } from "react";
 import { Calendar } from "lucide-react";
-import { customerSupabase as supabase } from "../../supabase/customerClient";
-import { getOrCreateCalendarFeedToken } from "../../supabase/rpc";
+import { useCustomerCalendarFeed } from "../../supabase/hooks/useCustomerCalendarFeed";
 import { logger } from "../../lib/logger";
 
 interface AddToCalendarButtonProps {
@@ -17,31 +16,18 @@ interface AddToCalendarButtonProps {
 }
 
 export function AddToCalendarButton({ bookingId, compact, pill }: AddToCalendarButtonProps) {
+  const { getEventDownloadUrl } = useCustomerCalendarFeed();
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
-    if (!supabase || loading) return;
+    if (loading) return;
     setLoading(true);
 
     try {
-      // Get or create a feed token for the current customer
-      const { data: token, error } = await getOrCreateCalendarFeedToken(
-        supabase,
-        "customer",
-      );
-
-      if (error || !token) {
-        logger.error("Failed to get calendar token", error, {
-          tags: { surface: "customer", op: "calendar-download-token" },
-        });
-        return;
-      }
-
-      // Build the Edge Function URL for single-event download
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!baseUrl) return;
-
-      const url = `${baseUrl}/functions/v1/calendar-ics?booking_id=${encodeURIComponent(bookingId)}&token=${encodeURIComponent(token)}`;
+      // Token fetch + URL construction live in the hook; null means the
+      // client/env is unavailable or the token failed (already logged).
+      const url = await getEventDownloadUrl(bookingId);
+      if (!url) return;
 
       // Trigger download — this opens the native "Add to Calendar" dialog on mobile
       window.open(url, "_blank");
@@ -52,7 +38,7 @@ export function AddToCalendarButton({ bookingId, compact, pill }: AddToCalendarB
     } finally {
       setLoading(false);
     }
-  }, [bookingId, loading]);
+  }, [bookingId, loading, getEventDownloadUrl]);
 
   if (pill) {
     return (
