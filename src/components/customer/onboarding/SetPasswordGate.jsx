@@ -12,6 +12,9 @@ import { PawPrint, Eye, EyeOff, KeyRound } from "lucide-react";
 // verbatim, so the two can never silently disagree.
 const MIN_PASSWORD_LENGTH = 8;
 
+const BREACHED_PASSWORD_ERROR =
+  "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one.";
+
 /**
  * Blocking screen that requires a customer to set a password before they
  * reach the dashboard. Shown by CustomerApp when the account has no
@@ -25,8 +28,10 @@ const MIN_PASSWORD_LENGTH = 8;
  *
  * mode: "set"   → first time ("Set a password")
  *       "reset" → after forgot-password ("Set a new password")
+ * reason: "breach" → the reset was forced because the password the customer
+ *         just signed in with is known to be compromised; the copy says so.
  */
-export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut }) {
+export function SetPasswordGate({ mode = "set", reason, username, onComplete, onSignOut }) {
   const toast = useToast();
 
   const [password, setPassword] = useState("");
@@ -36,7 +41,13 @@ export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut 
   const [error, setError] = useState(null);
 
   const isReset = mode === "reset";
+  const isBreach = reason === "breach";
   const heading = isReset ? "Set a new password" : "Set a password";
+  const subtitle = isBreach
+    ? "The password you just used has appeared in a known data breach, so it isn't safe to keep. Please choose a new one before carrying on."
+    : isReset
+      ? "Choose a new password — you'll use it with your mobile number to sign in from now on."
+      : "Set a password so next time you can sign in with just your mobile number and password — no waiting for a text.";
 
   const canSubmit =
     password.length >= MIN_PASSWORD_LENGTH && password === confirm && !saving;
@@ -65,9 +76,7 @@ export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut 
     // Fails open, so a network blip never blocks setting a password.
     if (await isPasswordPwned(password)) {
       setSaving(false);
-      setError(
-        "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one.",
-      );
+      setError(BREACHED_PASSWORD_ERROR);
       return;
     }
 
@@ -75,9 +84,16 @@ export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut 
     setSaving(false);
 
     if (err) {
-      // Surface the server message verbatim — covers a stricter project-wide
-      // password policy than our client check expects.
-      setError(err.message || "We couldn't save your password. Please try again.");
+      // If the project ever gains server-side leaked-password protection,
+      // Supabase rejects a breached password with code "weak_password" —
+      // give that the same friendly copy as our own check. Any other server
+      // message is surfaced verbatim so a stricter project-wide password
+      // policy than our client check expects can never silently disagree.
+      setError(
+        err.code === "weak_password"
+          ? BREACHED_PASSWORD_ERROR
+          : err.message || "We couldn't save your password. Please try again.",
+      );
       return;
     }
 
@@ -100,9 +116,7 @@ export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut 
             {heading}
           </h1>
           <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-            {isReset
-              ? "Choose a new password — you'll use it with your mobile number to sign in from now on."
-              : "Set a password so next time you can sign in with just your mobile number and password — no waiting for a text."}
+            {subtitle}
           </p>
         </div>
 

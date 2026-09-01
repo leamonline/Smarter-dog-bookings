@@ -18,7 +18,14 @@ vi.mock("../../lib/logger.js", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
+// The sign-in leaked-password check is a network call to HaveIBeenPwned;
+// stub it and drive the verdict from globalThis so each test can pick one.
+vi.mock("../../utils/pwnedPassword", () => ({
+  isPasswordPwned: vi.fn(async () => globalThis.__pwnedVerdict === true),
+}));
+
 const { useCustomerAuth } = await import("./useCustomerAuth.js");
+const { isPasswordPwned } = await import("../../utils/pwnedPassword");
 
 function makeStub({
   session = null,
@@ -92,6 +99,7 @@ function makeStub({
 describe("useCustomerAuth", () => {
   beforeEach(() => {
     setSupabase(undefined);
+    globalThis.__pwnedVerdict = false;
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -624,6 +632,95 @@ describe("useCustomerAuth", () => {
   });
 
   // ── verifyOtp ────────────────────────────────────────────────────────
+
+  it("signInWithPassword leaves the gate closed when the password is not known-breached", async () => {
+    const stub = makeStub({ session: null, onFile: true, hasPassword: true });
+    setSupabase(stub);
+    const { result } = renderHook(() => useCustomerAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.checkPhone("07700 900111");
+    });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.signInWithPassword("a-fine-password", "captcha-token");
+    });
+    expect(isPasswordPwned).toHaveBeenCalledWith("a-fine-password");
+    expect(outcome.passwordCompromised).toBe(false);
+    expect(result.current.mustSetPassword).toBe(false);
+    expect(result.current.passwordCompromised).toBe(false);
+  });
+
+  it("signInWithPassword forces a new password when HaveIBeenPwned knows the one just used", async () => {
+    globalThis.__pwnedVerdict = true;
+    const stub = makeStub({ session: null, onFile: true, hasPassword: true });
+    setSupabase(stub);
+    const { result } = renderHook(() => useCustomerAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.checkPhone("07700 900111");
+    });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.signInWithPassword("password", "captcha-token");
+    });
+    // The sign-in itself still succeeds — the gate, not a refusal, does the work.
+    expect(outcome.data?.user?.phone).toBe("+447700900111");
+    expect(outcome.passwordCompromised).toBe(true);
+    expect(result.current.mustSetPassword).toBe(true);
+    expect(result.current.passwordCompromised).toBe(true);
+
+    // Completing the gate clears both flags together.
+    await act(async () => {
+      result.current.clearMustSetPassword();
+    });
+    expect(result.current.mustSetPassword).toBe(false);
+    expect(result.current.passwordCompromised).toBe(false);
+  });
+
+  it("signInWithPassword also honours the server's own weakPassword warning", async () => {
+    const stub = makeStub({
+      session: null,
+      onFile: true,
+      hasPassword: true,
+      passwordSignInResult: {
+        data: { user: { phone: "+447700900111" }, weakPassword: { reasons: ["pwned"] } },
+        error: null,
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useCustomerAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.checkPhone("07700 900111");
+    });
+    await act(async () => {
+      await result.current.signInWithPassword("server-says-weak", "captcha-token");
+    });
+    expect(result.current.mustSetPassword).toBe(true);
+    expect(result.current.passwordCompromised).toBe(true);
+  });
+
+  it("signInWithPassword does not consult HaveIBeenPwned when the sign-in itself fails", async () => {
+    globalThis.__pwnedVerdict = true;
+    const stub = makeStub({
+      session: null,
+      onFile: true,
+      hasPassword: true,
+      passwordSignInResult: { data: null, error: { message: "Invalid login credentials" } },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useCustomerAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.checkPhone("07700 900111");
+    });
+    await act(async () => {
+      await result.current.signInWithPassword("wrong-pw", "captcha-token");
+    });
+    expect(isPasswordPwned).not.toHaveBeenCalledWith("wrong-pw");
+    expect(result.current.mustSetPassword).toBe(false);
+  });
 
   it("verifyOtp surfaces a bad code without opening the set-password gate", async () => {
     const stub = makeStub({

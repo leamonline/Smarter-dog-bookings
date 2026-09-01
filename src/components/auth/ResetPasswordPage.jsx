@@ -78,7 +78,13 @@ export function ResetPasswordPage() {
     setSaving(false);
 
     if (err) {
-      setError(err.message || "Something went wrong updating your password — the link might've expired. Give it another go or ask for a new one.");
+      // Server-side leaked-password protection (if ever enabled) rejects a
+      // breached password with code "weak_password"; match our own copy.
+      setError(
+        err.code === "weak_password"
+          ? "That password isn't safe — it's been in a data breach. Pick a different one."
+          : err.message || "Something went wrong updating your password — the link might've expired. Give it another go or ask for a new one.",
+      );
       return;
     }
 

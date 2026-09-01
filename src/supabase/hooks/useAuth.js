@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { isPasswordPwned } from "../../utils/pwnedPassword";
 import { supabase } from "../client";
 import { primeBootPrefetch } from "../bootPrefetch.js";
 import { logger } from "../../lib/logger";
@@ -10,6 +11,11 @@ export function useAuth() {
   const [staffProfile, setStaffProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // True when the password used for the current sign-in is known to be
+  // compromised (HaveIBeenPwned, or the server's weakPassword warning).
+  // Staff have no in-app change-password screen, so App shows a banner
+  // pointing at the forgot-password flow rather than forcing a gate.
+  const [passwordCompromised, setPasswordCompromised] = useState(false);
 
   const fetchProfile = useCallback(async (userId) => {
     if (!supabase || !userId) return null;
@@ -198,7 +204,19 @@ export function useAuth() {
       setUser(data?.user ?? null);
       setStaffProfile(profile);
 
-      return { data };
+      // Leaked-password check at sign-in: the server's weakPassword warning
+      // (Pro-plan protection) or the same k-anonymity HaveIBeenPwned check
+      // the reset page runs. Fails open; never blocks the sign-in itself.
+      const compromised =
+        Boolean(data?.weakPassword) || (await isPasswordPwned(password));
+      if (compromised) {
+        logger.warn("Staff signed in with a known-breached password", {
+          tags: { hook: "useAuth", op: "signIn" },
+        });
+      }
+      setPasswordCompromised(compromised);
+
+      return { data, passwordCompromised: compromised };
     } catch (err) {
       logger.error("Sign in error", err, {
         tags: { hook: "useAuth", op: "signIn" },
@@ -222,6 +240,11 @@ export function useAuth() {
 
     setUser(null);
     setStaffProfile(null);
+    setPasswordCompromised(false);
+  }, []);
+
+  const clearPasswordCompromised = useCallback(() => {
+    setPasswordCompromised(false);
   }, []);
 
   const isOwner = staffProfile?.role === ROLES.owner;
@@ -236,5 +259,7 @@ export function useAuth() {
     signOut,
     isOwner,
     displayName,
+    passwordCompromised,
+    clearPasswordCompromised,
   };
 }

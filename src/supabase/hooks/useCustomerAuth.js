@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { isPasswordPwned } from "../../utils/pwnedPassword";
 import { customerSupabase as supabase } from "../customerClient";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
@@ -62,6 +63,10 @@ export function useCustomerAuth() {
   // already has one (has_password stays true). In-memory only — if the
   // tab is closed mid-reset, the old password simply still works.
   const [mustSetPassword, setMustSetPassword] = useState(false);
+  // True when the password the customer just signed in with is known to be
+  // compromised (HaveIBeenPwned, or the server's own weakPassword warning).
+  // Drives the breach-specific copy on the forced set-password gate.
+  const [passwordCompromised, setPasswordCompromised] = useState(false);
 
   /**
    * Look up — and permanently link — the human record for the
@@ -356,7 +361,22 @@ export function useCustomerAuth() {
       return { error: err };
     }
 
-    return { data };
+    // Leaked-password check at sign-in. Supabase's own protection (a Pro
+    // feature) would return data.weakPassword here; on any plan we also run
+    // the same k-anonymity HaveIBeenPwned check the set-password gate uses.
+    // A hit forces a new password before the dashboard, with copy that says
+    // why. Fails open: a network blip never blocks a sign-in.
+    const compromised =
+      Boolean(data?.weakPassword) || (await isPasswordPwned(password));
+    if (compromised) {
+      logger.warn("Customer signed in with a known-breached password; requiring a new one", {
+        tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
+      });
+      setPasswordCompromised(true);
+      setMustSetPassword(true);
+    }
+
+    return { data, passwordCompromised: compromised };
   }, []);
 
   // Verify the OTP code. Pass { isReset: true } from the forgot-password
@@ -428,6 +448,7 @@ export function useCustomerAuth() {
 
   const clearMustSetPassword = useCallback(() => {
     setMustSetPassword(false);
+    setPasswordCompromised(false);
   }, []);
 
   // Sign out
@@ -440,6 +461,7 @@ export function useCustomerAuth() {
     setPhone("");
     phoneRef.current = "";
     setMustSetPassword(false);
+    setPasswordCompromised(false);
   }, []);
 
   // Reset to phone-entry step
@@ -449,6 +471,7 @@ export function useCustomerAuth() {
     phoneRef.current = "";
     setError(null);
     setMustSetPassword(false);
+    setPasswordCompromised(false);
   }, []);
 
   return {
@@ -462,6 +485,7 @@ export function useCustomerAuth() {
     // so there's no separate state to race). undefined while unlinked.
     hasPassword: humanRecord?.has_password,
     mustSetPassword,
+    passwordCompromised,
     checkPhone,
     sendOtp,
     signInWithPassword,

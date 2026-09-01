@@ -250,6 +250,8 @@ export default function App() {
     signIn,
     signOut,
     isOwner,
+    passwordCompromised,
+    clearPasswordCompromised,
   } = useAuth();
   const isOnline = !!supabase;
   const from = location.state?.from;
@@ -319,6 +321,8 @@ export default function App() {
       isOwner={isOwner}
       signOut={signOut}
       isOnline={isOnline}
+      passwordCompromised={passwordCompromised}
+      onDismissPasswordWarning={clearPasswordCompromised}
     />
   );
 }
@@ -354,7 +358,15 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
   );
 }
 
-function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
+function AuthedApp({
+  user,
+  staffProfile,
+  isOwner,
+  signOut,
+  isOnline,
+  passwordCompromised = false,
+  onDismissPasswordWarning,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const canAccessBookingWorkspace =
@@ -935,6 +947,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
         <NetworkOfflineBanner />
         {dataError && !errorDismissed && (
           <ErrorBanner message={dataError} onClose={() => setErrorDismissed(true)} />
+        )}
+        {passwordCompromised && (
+          <ErrorBanner
+            title="Your password has appeared in a data breach"
+            message="It still works, but it isn't safe to keep. Sign out, choose “Forgot password?” on the login screen and set a new one."
+            onClose={onDismissPasswordWarning}
+          />
         )}
 
         <AppToolbar
