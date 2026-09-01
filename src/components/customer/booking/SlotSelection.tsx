@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
-import { listOnDateForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
-import { getBookingRules, type HumanBookingRules } from "../../../supabase/repositories/humansRepo";
+import { useCustomerAvailability } from "../../../supabase/hooks/useCustomerAvailability";
 import { partitionSlotsForHuman } from "../../../engine/deposits";
 import { toDateStr } from "../../../supabase/transforms";
 import type { WizardDog, SlotAllocation } from "../../../types/index";
@@ -58,6 +56,7 @@ export function SlotSelection({
   const [preferredSlots, setPreferredSlots] = useState<SlotAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const availability = useCustomerAvailability();
 
   useEffect(() => {
     if (!selectedDate || selectedDogs.length === 0) return;
@@ -67,24 +66,15 @@ export function SlotSelection({
       setLoading(true);
       setLoadError(null);
       try {
-        if (!supabase) {
+        if (!availability.connected) {
           setAvailableSlots([]);
           return;
         }
-        // Full occupancy via the get_slot_occupancy SECURITY DEFINER RPC —
-        // the per-customer bookings RLS would otherwise hide other
-        // customers' bookings and let full slots show as available. Blocked
-        // seats (staff overrides) come from get_blocked_seats: day_settings is
-        // staff-only, so without this the engine can't see a blocked seat and
-        // would offer it. listBlockedSeats degrades to {} on error.
-        const [{ bookings, error }, { byDate: blockedByDate }, immediateRes, rules] = await Promise.all([
-          listOnDateForCapacity(supabase, selectedDate),
-          listBlockedSeats(supabase, selectedDate, selectedDate),
-          listImmediateSlots(supabase),
-          // Per-human rules (null = none / fetch failed — fail open, the DB
-          // trigger is the authority on blocked slots).
-          humanId ? getBookingRules(supabase, humanId) : Promise.resolve<HumanBookingRules | null>(null),
-        ]);
+        // Occupancy (SECURITY DEFINER RPC, so other customers' bookings count),
+        // staff blocked seats, today's flagged slots and this owner's rules —
+        // see useCustomerAvailability for why each read exists.
+        const [{ bookings, error }, { byDate: blockedByDate }, immediateRes, rules] =
+          await availability.loadDayAvailability(selectedDate, humanId);
 
         if (cancelled) return;
 
@@ -143,7 +133,7 @@ export function SlotSelection({
     })();
 
     return () => { cancelled = true; };
-  }, [selectedDate, selectedDogs, onNoAvailability, humanId]);
+  }, [selectedDate, selectedDogs, onNoAvailability, humanId, availability]);
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
   const isToday = selectedDate === toDateStr(new Date());

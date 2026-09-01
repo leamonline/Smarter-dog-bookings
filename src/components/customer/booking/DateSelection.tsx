@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
-import { getOpenDays } from "../../../supabase/rpc";
-import { listRangeForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
+import { useCustomerAvailability } from "../../../supabase/hooks/useCustomerAvailability";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
@@ -46,7 +44,6 @@ export interface DatePageAvailability {
 type DayState = "closed" | "full" | "open";
 
 const PAGE_SIZE = 28;
-const BLOCKED_SEAT_CHUNK_DAYS = 14;
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function toDateStr(d: Date): string {
@@ -64,28 +61,6 @@ function incompletePage(rangeKey: string): DatePageAvailability {
     blockedByDate: {},
     complete: false,
   };
-}
-
-function blockedSeatChunks(
-  startDate: string,
-  endDate: string,
-): Array<{ startDate: string; endDate: string }> {
-  const chunks: Array<{ startDate: string; endDate: string }> = [];
-  const cursor = new Date(`${startDate}T00:00:00`);
-  const finalDate = new Date(`${endDate}T00:00:00`);
-  while (cursor <= finalDate) {
-    const chunkStart = new Date(cursor);
-    const chunkEnd = new Date(cursor);
-    chunkEnd.setDate(chunkEnd.getDate() + BLOCKED_SEAT_CHUNK_DAYS - 1);
-    if (chunkEnd > finalDate) chunkEnd.setTime(finalDate.getTime());
-    chunks.push({
-      startDate: toDateStr(chunkStart),
-      endDate: toDateStr(chunkEnd),
-    });
-    cursor.setTime(chunkEnd.getTime());
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return chunks;
 }
 
 function startOfToday(): Date {
@@ -129,6 +104,7 @@ export function DateSelection({
   const [loading, setLoading] = useState(true);
   const internalPageCache = useRef(new Map<string, DatePageAvailability>());
   const pageCache = controlledPageCache ?? internalPageCache.current;
+  const availability = useCustomerAvailability();
 
   useEffect(() => {
     if (requestedPage <= pageCount - 1) return;
@@ -156,12 +132,12 @@ export function DateSelection({
   // once per mounted date step so paging cannot multiply RPC traffic.
   useEffect(() => {
     let cancelled = false;
-    if (!supabase) return;
-    void listImmediateSlots(supabase).then((result) => {
+    if (!availability.connected) return;
+    void availability.loadImmediateSlots().then((result) => {
       if (!cancelled) setImmediate(result);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [availability]);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,8 +150,7 @@ export function DateSelection({
 
     void (async () => {
       setLoading(true);
-      const client = supabase;
-      if (!client) {
+      if (!availability.connected) {
         if (!cancelled) {
           setPageAvailability(incompletePage(rangeKey));
           setLoading(false);
@@ -184,15 +159,8 @@ export function DateSelection({
       }
 
       try {
-        const [openRes, occRes, blockedResults] = await Promise.all([
-          getOpenDays(client, { startDate: rangeStart, endDate: rangeEnd }),
-          listRangeForCapacity(client, rangeStart, rangeEnd),
-          Promise.all(
-            blockedSeatChunks(rangeStart, rangeEnd).map((chunk) =>
-              listBlockedSeats(client, chunk.startDate, chunk.endDate)
-            ),
-          ),
-        ]);
+        const [openRes, occRes, blockedResults] =
+          await availability.loadPageAvailability(rangeStart, rangeEnd);
         if (cancelled) return;
 
         const daySettings: Record<string, { is_open: boolean }> = {};
@@ -252,7 +220,7 @@ export function DateSelection({
     })();
 
     return () => { cancelled = true; };
-  }, [pageCache, rangeEnd, rangeKey, rangeStart]);
+  }, [availability, pageCache, rangeEnd, rangeKey, rangeStart]);
 
   const visibleAvailability =
     pageAvailability?.rangeKey === rangeKey ? pageAvailability : null;

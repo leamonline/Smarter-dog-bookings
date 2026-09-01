@@ -175,8 +175,6 @@ export default [
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
       "src/components/customer/booking/BookingWizard.tsx",
-      "src/components/customer/booking/DateSelection.tsx",
-      "src/components/customer/booking/SlotSelection.tsx",
       "src/components/customer/onboarding/AddressPicker.jsx",
       "src/components/customer/onboarding/JoinThePackOnboarding.jsx",
       "src/components/customer/onboarding/ProfileGate.jsx",
