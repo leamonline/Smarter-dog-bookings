@@ -2,47 +2,30 @@
 // Staff settings tab for calendar sync — subscribe to a feed of all bookings.
 
 import { useState, useCallback, useEffect } from "react";
-import { supabase } from "../../../supabase/client";
-import {
-  getOrCreateCalendarFeedToken,
-  revokeCalendarFeedToken,
-} from "../../../supabase/rpc";
+import { useStaffCalendarFeed } from "../../../supabase/hooks/useStaffCalendarFeed";
 import { logger } from "../../../lib/logger";
 
 export function CalendarSettings() {
+  const { getFeedSubscribeUrl, revokeToken } = useStaffCalendarFeed();
   const [feedUrl, setFeedUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
   const fetchToken = useCallback(async () => {
-    if (!supabase) return;
     setLoading(true);
 
     try {
-      const { data: token, error } = await getOrCreateCalendarFeedToken(
-        supabase,
-        "staff",
-      );
-
-      if (error || !token) {
-        logger.error("Failed to get calendar token:", error);
-        setLoading(false);
-        return;
-      }
-
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!baseUrl) return;
-
-      const httpsUrl = `${baseUrl}/functions/v1/calendar-feed?token=${encodeURIComponent(token)}`;
-      const webcalUrl = httpsUrl.replace(/^https?:\/\//, "webcal://");
+      // Token fetch + webcal URL construction live in the hook; null means
+      // unavailable client/env or a failed token (already logged).
+      const webcalUrl = await getFeedSubscribeUrl();
       setFeedUrl(webcalUrl);
     } catch (err) {
       logger.error("Calendar settings error:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getFeedSubscribeUrl]);
 
   useEffect(() => {
     fetchToken();
@@ -67,18 +50,18 @@ export function CalendarSettings() {
   }, [feedUrl]);
 
   const handleRegenerate = useCallback(async () => {
-    if (!supabase || regenerating) return;
+    if (regenerating) return;
     setRegenerating(true);
 
     try {
-      await revokeCalendarFeedToken(supabase, "staff");
+      await revokeToken();
       await fetchToken();
     } catch (err) {
       logger.error("Regenerate error:", err);
     } finally {
       setRegenerating(false);
     }
-  }, [regenerating, fetchToken]);
+  }, [regenerating, fetchToken, revokeToken]);
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.2s_ease-in]">

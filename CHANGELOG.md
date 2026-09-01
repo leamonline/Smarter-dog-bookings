@@ -83,6 +83,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Route the staff calendar-feed settings through a data hook (Debt #12
+  burn-down, fourth slice): `views/settings/CalendarSettings.jsx` no longer
+  imports the Supabase client. The calendar-feed implementation is now one
+  client-agnostic core (`calendarFeedActions`) shared by
+  `useCustomerCalendarFeed` and a new `useStaffCalendarFeed`, with each hook
+  binding its own client so the two auth sessions stay separate. Same
+  truthful-state improvement as the customer modal: with no client the staff
+  tab shows its "Unable to generate feed URL" state instead of loading
+  forever. ESLint burn-down allowlist 22 → 21.
 - Route the customer calendar-feed actions through a data hook (Debt #12
   burn-down, third slice): `AddToCalendarButton.tsx` and
   `CalendarSubscribeModal.tsx` no longer import the Supabase client — token
