@@ -69,6 +69,15 @@ export default defineConfig({
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
             return "react-vendor";
           }
+          // NB: a build WITHOUT VITE_SUPABASE_URL / _PUBLISHABLE_KEY (E2E,
+          // a fresh clone, CI without secrets) logs `Generated an empty
+          // chunk: "supabase"`. That is expected, not a broken matcher:
+          // src/supabase/client.ts and customerClient.ts only call
+          // createClient() when the credentials exist, so Rollup tree-shakes
+          // the whole library out and the chunk it was assigned to is
+          // empty. A credentialed build (Vercel production) emits a
+          // ~217 KB supabase-*.js. src/test/viteConfig.test.js pins the
+          // routing of every @supabase/* sub-package into this group.
           if (/node_modules\/@supabase\//.test(id)) {
             return "supabase";
           }
