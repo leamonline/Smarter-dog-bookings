@@ -6,7 +6,7 @@ import { resolveBookingDisplay } from "../../../engine/bookingRules";
 import { buildWeeklyCashUp } from "../../../engine/cashup";
 import { toDateStr } from "../../../supabase/transforms";
 import { fmtSlot } from "../../../hooks/useReportsData";
-import { useDaySettings } from "../../../supabase/hooks/useDaySettings.js";
+import { useDaySettings } from "../../../supabase/hooks/useDaySettings";
 import { Badge, SectionLabel, SkeletonText } from "../../ui/index.js";
 import { useWeeklyCashUp } from "./useWeeklyCashUp.js";
 
