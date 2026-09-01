@@ -23,7 +23,7 @@ import type { PersistedSalonSettings } from "../constants/salonSettings";
 // Raw DB row interfaces (only used in this file)
 // ============================================================
 
-interface DbHumanRow {
+export interface DbHumanRow {
   id: string;
   name: string;
   surname: string;
@@ -45,10 +45,11 @@ interface DbHumanRow {
   ai_whatsapp_allowed?: boolean | null;
 }
 
-interface DbDogRow {
+export interface DbDogRow {
   id: string;
   name: string;
-  breed: string;
+  /** Nullable so a generated `dogs` Row (breed: string | null) is assignable. */
+  breed: string | null;
   age: string | null;
   dob: string | null;
   sex?: string | null;
@@ -61,7 +62,8 @@ interface DbDogRow {
   human_id: string | null;
   alerts: string[] | null;
   groom_notes: string | null;
-  custom_price: number | undefined;
+  /** Nullable so a generated `dogs` Row (custom_price: number | null) is assignable. */
+  custom_price: number | null | undefined;
   last_groomed_date?: string | null;
 }
 
@@ -325,7 +327,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       _humanId: row.human_id || null,
       alerts: row.alerts || [],
       groomNotes: row.groom_notes || "",
-      customPrice: row.custom_price,
+      customPrice: row.custom_price ?? undefined,
       lastGroomedDate: row.last_groomed_date || null,
     };
   }
