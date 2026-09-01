@@ -83,6 +83,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Route the customer calendar-feed actions through a data hook (Debt #12
+  burn-down, third slice): `AddToCalendarButton.tsx` and
+  `CalendarSubscribeModal.tsx` no longer import the Supabase client — token
+  fetch, Edge-Function URL construction and token revocation live in a new
+  `useCustomerCalendarFeed` hook. One truthful-state improvement: with no
+  Supabase client the subscribe modal now shows its "Unable to generate
+  calendar link" state instead of spinning forever. ESLint burn-down
+  allowlist 24 → 22; the whole customer dashboard folder is now client-free.
 - Route customer dog create/edit through the repository layer (Debt #12
   burn-down, second slice): `DogsSection.jsx` and `booking/AddDogInline.tsx`
   no longer import the Supabase client — both write through a new
