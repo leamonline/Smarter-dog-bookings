@@ -83,6 +83,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Route the staff calendar-feed settings through a data hook (Debt #12
+  burn-down, fourth slice): `views/settings/CalendarSettings.jsx` no longer
+  imports the Supabase client. The calendar-feed implementation is now one
+  client-agnostic core (`calendarFeedActions`) shared by
+  `useCustomerCalendarFeed` and a new `useStaffCalendarFeed`, with each hook
+  binding its own client so the two auth sessions stay separate. Same
+  truthful-state improvement as the customer modal: with no client the staff
+  tab shows its "Unable to generate feed URL" state instead of loading
+  forever. ESLint burn-down allowlist 22 → 21.
+- Route the customer calendar-feed actions through a data hook (Debt #12
+  burn-down, third slice): `AddToCalendarButton.tsx` and
+  `CalendarSubscribeModal.tsx` no longer import the Supabase client — token
+  fetch, Edge-Function URL construction and token revocation live in a new
+  `useCustomerCalendarFeed` hook. One truthful-state improvement: with no
+  Supabase client the subscribe modal now shows its "Unable to generate
+  calendar link" state instead of spinning forever. ESLint burn-down
+  allowlist 24 → 22; the whole customer dashboard folder is now client-free.
+- Route customer dog create/edit through the repository layer (Debt #12
+  burn-down, second slice): `DogsSection.jsx` and `booking/AddDogInline.tsx`
+  no longer import the Supabase client — both write through a new
+  `useCustomerDogActions` hook over `dogsRepo`, where the snake_case↔camelCase
+  mapping for `update_customer_dog` now lives (`updateForCustomer` returns a
+  deliberate partial so fields the RPC doesn't return, like the pregnancy
+  flag, survive an edit). `TrustedHumansSection.jsx`, which had no client
+  usage left, also came off the ESLint burn-down allowlist (27 → 24). No
+  behaviour change for customers.
+- Route the customer dashboard's data access through the repository layer
+  (Debt #12/#13 burn-down): `CustomerDashboard.jsx` and `BookingCard.jsx` no
+  longer import the Supabase client or hand-build snake_case queries in JSX.
+  A new `useCustomerDashboardData` hook owns dogs, the 180-day booking window,
+  older pages, trusted contacts and contact-detail saves over
+  `dogsRepo`/`bookingsRepo`; BookingCard cancels via
+  `useCustomerBookingActions` and reads deposit bank details via
+  `useCustomerDepositSettings`. Bookings now cross the boundary as app-shaped
+  `CustomerBookingSummary` objects (camelCase, joined dog snapshot), so a
+  Postgres column rename can no longer silently break the portal, and both
+  files left the ESLint `no-restricted-imports` burn-down allowlist. No
+  behaviour change for customers.
 - Record every confirm click that produced no booking in the database, with a
   governed failure code (#708). The 21 unexplained confirm failures were
   reported only through `logger.error`, which reaches nothing in production

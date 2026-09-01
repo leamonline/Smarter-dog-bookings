@@ -174,13 +174,6 @@ export default [
       "**/*.spec.{js,jsx,ts,tsx}",
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
-      "src/components/customer/AddToCalendarButton.tsx",
-      "src/components/customer/BookingCard.jsx",
-      "src/components/customer/CalendarSubscribeModal.tsx",
-      "src/components/customer/CustomerDashboard.jsx",
-      "src/components/customer/DogsSection.jsx",
-      "src/components/customer/TrustedHumansSection.jsx",
-      "src/components/customer/booking/AddDogInline.tsx",
       "src/components/customer/booking/BookingWizard.tsx",
       "src/components/customer/booking/DateSelection.tsx",
       "src/components/customer/booking/SlotSelection.tsx",
@@ -199,7 +192,6 @@ export default [
       "src/components/views/inbox/hooks/useInboxMessageSearch.js",
       "src/components/views/inbox/hooks/useSlotCapacityPreview.js",
       "src/components/views/reports/useWeeklyCashUp.js",
-      "src/components/views/settings/CalendarSettings.jsx",
     ],
     rules: {
       "no-restricted-imports": [

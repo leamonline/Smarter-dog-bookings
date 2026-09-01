@@ -479,6 +479,147 @@ export async function cancelCustomerBooking(
   }
 }
 
+// App-shaped booking for the customer dashboard: camelCase fields plus the
+// joined dog snapshot. Only the columns the dashboard actually renders —
+// keep the select list below in step with this shape.
+export interface CustomerBookingSummary {
+  id: string;
+  bookingDate: string;
+  slot: string;
+  size: string | null;
+  service: string | null;
+  status: string | null;
+  payment: string | null;
+  dogId: string | null;
+  visitId: string | null;
+  groupId: string | null;
+  staffCapacityOverride: boolean;
+  depositRequired: boolean;
+  depositReceivedAt: string | null;
+  depositAmount: number | null;
+  depositReference: string | null;
+  depositDueBy: string | null;
+  dog: { name: string; breed: string; size: string | null } | null;
+}
+
+const CUSTOMER_BOOKING_COLUMNS =
+  "id, booking_date, slot, size, service, status, payment, dog_id, visit_id, " +
+  "group_id, staff_capacity_override, deposit_required, deposit_received_at, " +
+  "deposit_amount, deposit_reference, deposit_due_by, dogs(name, breed, size)";
+
+interface DbCustomerBookingRow {
+  id: string;
+  booking_date: string;
+  slot: string;
+  size: string | null;
+  service: string | null;
+  status: string | null;
+  payment: string | null;
+  dog_id: string | null;
+  visit_id: string | null;
+  group_id: string | null;
+  staff_capacity_override: boolean | null;
+  deposit_required: boolean | null;
+  deposit_received_at: string | null;
+  deposit_amount: number | null;
+  deposit_reference: string | null;
+  deposit_due_by: string | null;
+  dogs: { name: string | null; breed: string | null; size: string | null } | null;
+}
+
+function dbRowToCustomerBooking(row: DbCustomerBookingRow): CustomerBookingSummary {
+  return {
+    id: row.id,
+    bookingDate: row.booking_date,
+    slot: row.slot,
+    size: row.size ?? null,
+    service: row.service ?? null,
+    status: row.status ?? null,
+    payment: row.payment ?? null,
+    dogId: row.dog_id ?? null,
+    visitId: row.visit_id ?? null,
+    groupId: row.group_id ?? null,
+    staffCapacityOverride: row.staff_capacity_override === true,
+    depositRequired: row.deposit_required === true,
+    depositReceivedAt: row.deposit_received_at ?? null,
+    depositAmount: row.deposit_amount ?? null,
+    depositReference: row.deposit_reference ?? null,
+    depositDueBy: row.deposit_due_by ?? null,
+    dog: row.dogs
+      ? {
+          name: row.dogs.name ?? "",
+          breed: row.dogs.breed ?? "",
+          size: row.dogs.size ?? null,
+        }
+      : null,
+  };
+}
+
+// Bookings for the customer's dogs from `sinceDate` forward (RLS scopes the
+// rows to the signed-in customer; the dog filter keeps the query honest).
+// Newest first, matching the dashboard's display order.
+export async function listCustomerBookings(
+  client: SupabaseClient,
+  { dogIds, sinceDate }: { dogIds: string[]; sinceDate: string },
+): Promise<{ bookings: CustomerBookingSummary[]; error: Error | null }> {
+  if (dogIds.length === 0) return { bookings: [], error: null };
+  const { data, error } = await client
+    .from("bookings")
+    .select(CUSTOMER_BOOKING_COLUMNS)
+    .in("dog_id", dogIds)
+    .gte("booking_date", sinceDate)
+    .order("booking_date", { ascending: false })
+    .order("slot", { ascending: false });
+  if (error) return { bookings: [], error: new Error(error.message) };
+  return {
+    bookings: ((data ?? []) as unknown as DbCustomerBookingRow[]).map(
+      dbRowToCustomerBooking,
+    ),
+    error: null,
+  };
+}
+
+// Older page for "Load more past appointments": bookings strictly before
+// `beforeDate`, newest first, capped at `limit`.
+export async function listOlderCustomerBookings(
+  client: SupabaseClient,
+  { dogIds, beforeDate, limit }: { dogIds: string[]; beforeDate: string; limit: number },
+): Promise<{ bookings: CustomerBookingSummary[]; error: Error | null }> {
+  if (dogIds.length === 0) return { bookings: [], error: null };
+  const { data, error } = await client
+    .from("bookings")
+    .select(CUSTOMER_BOOKING_COLUMNS)
+    .in("dog_id", dogIds)
+    .lt("booking_date", beforeDate)
+    .order("booking_date", { ascending: false })
+    .order("slot", { ascending: false })
+    .limit(limit);
+  if (error) return { bookings: [], error: new Error(error.message) };
+  return {
+    bookings: ((data ?? []) as unknown as DbCustomerBookingRow[]).map(
+      dbRowToCustomerBooking,
+    ),
+    error: null,
+  };
+}
+
+// Whether any bookings exist before `beforeDate` — drives the "Load more"
+// button without fetching rows. Degrades to false on error (the button
+// simply doesn't show; the recent list already rendered).
+export async function hasCustomerBookingsBefore(
+  client: SupabaseClient,
+  { dogIds, beforeDate }: { dogIds: string[]; beforeDate: string },
+): Promise<boolean> {
+  if (dogIds.length === 0) return false;
+  const { count, error } = await client
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .in("dog_id", dogIds)
+    .lt("booking_date", beforeDate);
+  if (error) return false;
+  return (count ?? 0) > 0;
+}
+
 // Customer asks to be told if a slot frees up on a given date.
 export async function joinWaitlist(
   client: SupabaseClient,

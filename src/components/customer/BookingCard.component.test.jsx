@@ -17,6 +17,7 @@ vi.mock("../../supabase/repositories/bookingsRepo", () => ({
   cancelCustomerBooking: mocks.cancelCustomerBooking,
   listIdsInGroup: mocks.listIdsInGroup,
   cancelMany: mocks.cancelMany,
+  getDepositSettings: () => Promise.resolve({ bank: null, releaseHours: 12 }),
 }));
 
 vi.mock("./AddToCalendarButton.tsx", () => ({
@@ -27,16 +28,16 @@ import { BookingCard } from "./BookingCard.jsx";
 
 const booking = {
   id: "40000000-0000-4000-8000-000000000001",
-  group_id: "40000000-0000-4000-8000-000000000010",
-  booking_date: "2099-06-15",
+  groupId: "40000000-0000-4000-8000-000000000010",
+  bookingDate: "2099-06-15",
   slot: "09:00",
   service: "full-groom",
-  dogs: { name: "Alfie" },
+  dog: { name: "Alfie" },
 };
 
 const receipt = {
   targetBookingId: booking.id,
-  bookingGroupId: booking.group_id,
+  bookingGroupId: booking.groupId,
   cancelledBookingIds: [booking.id],
   cancelledCount: 1,
   cancelledAt: "2026-07-12T14:30:00.000Z",
@@ -122,7 +123,7 @@ describe("BookingCard cancellation", () => {
     const user = userEvent.setup();
     renderCard(
       vi.fn().mockResolvedValue(undefined),
-      [{ ...booking, staff_capacity_override: true }],
+      [{ ...booking, staffCapacityOverride: true }],
     );
 
     await user.click(
@@ -147,18 +148,18 @@ describe("BookingCard cancellation", () => {
       [
         {
           ...booking,
-          group_id: null,
-          visit_id: visitId,
-          staff_capacity_override: false,
+          groupId: null,
+          visitId,
+          staffCapacityOverride: false,
         },
         {
           ...booking,
           id: "40000000-0000-4000-8000-000000000002",
-          dog_id: "42000000-0000-4000-8000-000000000002",
-          group_id: null,
-          visit_id: visitId,
-          staff_capacity_override: true,
-          dogs: { name: "Mabel" },
+          dogId: "42000000-0000-4000-8000-000000000002",
+          groupId: null,
+          visitId,
+          staffCapacityOverride: true,
+          dog: { name: "Mabel" },
         },
       ],
     );

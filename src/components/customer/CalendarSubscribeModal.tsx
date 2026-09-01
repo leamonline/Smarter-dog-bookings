@@ -4,11 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal";
-import { customerSupabase as supabase } from "../../supabase/customerClient";
-import {
-  getOrCreateCalendarFeedToken,
-  revokeCalendarFeedToken,
-} from "../../supabase/rpc";
+import { useCustomerCalendarFeed } from "../../supabase/hooks/useCustomerCalendarFeed";
 import { logger } from "../../lib/logger";
 
 interface CalendarSubscribeModalProps {
@@ -16,6 +12,7 @@ interface CalendarSubscribeModalProps {
 }
 
 export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps) {
+  const { getFeedSubscribeUrl, revokeToken } = useCustomerCalendarFeed();
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -24,7 +21,6 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
   const tokenFetchControllerRef = useRef<AbortController | null>(null);
 
   const fetchToken = useCallback(async () => {
-    if (!supabase) return;
     tokenFetchControllerRef.current?.abort();
     const controller = new AbortController();
     tokenFetchControllerRef.current = controller;
@@ -32,26 +28,10 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
     setLoading(true);
 
     try {
-      const { data: token, error } = await getOrCreateCalendarFeedToken(
-        supabase,
-        "customer",
-      ).abortSignal(controller.signal);
-
+      // Token fetch + webcal URL construction live in the hook; null means
+      // unavailable client/env or a failed token (already logged).
+      const webcalUrl = await getFeedSubscribeUrl(controller.signal);
       if (controller.signal.aborted) return;
-      if (error || !token) {
-        logger.error("Failed to get calendar token", error, {
-          tags: { surface: "customer", op: "calendar-subscribe-token" },
-        });
-        setLoading(false);
-        return;
-      }
-
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!baseUrl) return;
-
-      // webcal:// is the standard protocol prefix for calendar subscriptions
-      const httpsUrl = `${baseUrl}/functions/v1/calendar-feed?token=${encodeURIComponent(token)}`;
-      const webcalUrl = httpsUrl.replace(/^https?:\/\//, "webcal://");
       setFeedUrl(webcalUrl);
     } catch (err) {
       if (controller.signal.aborted) return;
@@ -61,7 +41,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, []);
+  }, [getFeedSubscribeUrl]);
 
   useEffect(() => {
     fetchToken();
@@ -88,13 +68,12 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
   }, [feedUrl]);
 
   const handleRegenerate = useCallback(async () => {
-    if (!supabase || regenerating) return;
+    if (regenerating) return;
     setRegenerating(true);
 
     try {
-      // Revoke old token
-      await revokeCalendarFeedToken(supabase, "customer");
-      // Generate new one
+      // Revoke old token, then generate a new one
+      await revokeToken();
       await fetchToken();
     } catch (err) {
       logger.error("Calendar token regenerate error", err, {
@@ -103,7 +82,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
     } finally {
       setRegenerating(false);
     }
-  }, [regenerating, fetchToken]);
+  }, [regenerating, fetchToken, revokeToken]);
 
   return (
     <AccessibleModal

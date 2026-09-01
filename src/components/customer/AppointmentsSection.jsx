@@ -70,13 +70,13 @@ export function AppointmentsSection({
       {pastExpanded && !isEmpty && (
         <div id="past-appointments-list" className="mt-3">
           {pastBookings.map(b => {
-            const dogName = b.dogs?.name ? titleCase(b.dogs.name) : "your dog";
-            const size = b.dogs?.size || b.size;
+            const dogName = b.dog?.name ? titleCase(b.dog.name) : "your dog";
+            const size = b.dog?.size || b.size;
             const service = SERVICE_LABELS[b.service] || b.service;
             const price = priceLabelFor(b.service, size);
             return (
               <div key={b.id} className="portal-past-row">
-                <span className="portal-past-row-date">{formatDate(b.booking_date)}</span>
+                <span className="portal-past-row-date">{formatDate(b.bookingDate)}</span>
                 <span className="portal-past-row-service">
                   {service}
                   <span className="text-[var(--sd-ink-light)] font-normal"> · {dogName}</span>
