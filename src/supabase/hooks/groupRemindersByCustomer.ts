@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/groupRemindersByCustomer.js
+// src/supabase/hooks/groupRemindersByCustomer.ts
 //
 // Pure grouping for the "Tomorrow's reminders" panel. Collapses a flat
 // list of bookings into one row per customer, so a customer with several
@@ -13,31 +13,87 @@
 // (dog deleted) get a per-booking key so they never merge with anyone.
 // ============================================================
 
-function joinNamesAmp(names) {
+/** The booking columns the grouping reads, as useTomorrowReminders selects them. */
+export interface ReminderBookingRow {
+  id: string;
+  slot: string;
+  dog_id?: string | null;
+  dog_name_snapshot?: string | null;
+  owner_name_snapshot?: string | null;
+  reminder_confirmed_at?: string | null;
+  /** 'customer' | 'staff'; null on legacy rows, which read as customer. */
+  reminder_confirmed_source?: string | null;
+  /** Embedded dogs(human_id, name); null when the dog was deleted. */
+  dogs?: { human_id: string | null; name?: string | null } | null;
+}
+
+/** One notification_log row per booking, keyed by booking_id in the sentMap. */
+export interface ReminderLogEntry {
+  status?: string | null;
+  sent_at?: string | null;
+  channel?: string | null;
+}
+
+export type ReminderStatus = "sent" | "pending" | null;
+
+/** One row per customer on the reminders panel. */
+export interface CustomerReminderRow {
+  customerKey: string;
+  customerName: string;
+  dogNames: string[];
+  dogNamesDisplay: string;
+  bookingIds: string[];
+  anchorBookingId: string;
+  slots: string[];
+  slot: string | null;
+  multiSlot: boolean;
+  reminderStatus: ReminderStatus;
+  reminderSentAt: string | null;
+  reminderChannel: string | null;
+  confirmed: boolean;
+  reminderConfirmedAt: string | null;
+  reminderConfirmedBy: string | null;
+}
+
+interface CustomerGroup {
+  customerKey: string;
+  customerName: string;
+  /** dog_id -> display name; first (earliest slot) wins */
+  dogsById: Map<string, string>;
+  bookingIds: string[];
+  slots: Set<string>;
+}
+
+function joinNamesAmp(names: string[]): string {
   if (names.length === 0) return "";
   if (names.length === 1) return names[0];
   return names.slice(0, -1).join(", ") + " & " + names[names.length - 1];
 }
 
+function groupKeyFor(b: ReminderBookingRow): string {
+  return b.dogs?.human_id ?? `orphan:${b.id}`;
+}
+
 /**
- * @param {Array<object>} bookings - rows ordered by slot ascending, each with
- *   { id, slot, dog_id, dog_name_snapshot, owner_name_snapshot, dogs?: { human_id, name } }
- * @param {Map<string, { status, sent_at, channel }>} sentMap - reminder log keyed by booking_id
- * @returns {Array<object>} one row per customer
+ * @param bookings rows ordered by slot ascending
+ * @param sentMap reminder log keyed by booking_id
+ * @returns one row per customer
  */
-export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
-  const groups = new Map();
+export function groupRemindersByCustomer(
+  bookings: ReadonlyArray<ReminderBookingRow> | null | undefined,
+  sentMap: ReadonlyMap<string, ReminderLogEntry> = new Map(),
+): CustomerReminderRow[] {
+  const groups = new Map<string, CustomerGroup>();
 
   for (const b of bookings ?? []) {
-    const humanId = b.dogs?.human_id ?? null;
-    const key = humanId ?? `orphan:${b.id}`;
+    const key = groupKeyFor(b);
 
     let group = groups.get(key);
     if (!group) {
       group = {
         customerKey: key,
         customerName: b.owner_name_snapshot || "Unknown customer",
-        dogsById: new Map(), // dog_id -> display name; first (earliest slot) wins
+        dogsById: new Map(),
         bookingIds: [],
         slots: new Set(),
       };
@@ -62,9 +118,9 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
     //   null    — otherwise (clickable)
     let allSent = g.bookingIds.length > 0;
     let anyPending = false;
-    let sentChannel = null;
-    let pendingChannel = null;
-    let latestSentAt = null;
+    let sentChannel: string | null = null;
+    let pendingChannel: string | null = null;
+    let latestSentAt: string | null = null;
     for (const bid of g.bookingIds) {
       const log = sentMap.get(bid);
       if (log?.status === "sent") {
@@ -80,17 +136,16 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
         }
       }
     }
-    const reminderStatus = allSent ? "sent" : anyPending ? "pending" : null;
+    const reminderStatus: ReminderStatus = allSent ? "sent" : anyPending ? "pending" : null;
 
     // The row shows one aggregated tick, so the LATEST confirmation's source
     // decides the wording ('customer' | 'staff'; null-source legacy rows read
     // as customer — WhatsApp was the only confirm path before the source).
     let confirmed = false;
-    let latestConfirmedAt = null;
-    let latestConfirmedBy = null;
+    let latestConfirmedAt: string | null = null;
+    let latestConfirmedBy: string | null = null;
     for (const b of bookings ?? []) {
-      const groupKey = (b.dogs?.human_id ?? null) ?? `orphan:${b.id}`;
-      if (groupKey !== g.customerKey) continue;
+      if (groupKeyFor(b) !== g.customerKey) continue;
       if (b.reminder_confirmed_at) {
         confirmed = true;
         if (!latestConfirmedAt || b.reminder_confirmed_at > latestConfirmedAt) {

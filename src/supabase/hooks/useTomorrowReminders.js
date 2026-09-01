@@ -25,7 +25,7 @@ import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
-import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
+import { groupRemindersByCustomer } from "./groupRemindersByCustomer";
 
 // Reminders always target the literal next day — staff send them the
 // afternoon/evening before, whatever day of the week that lands on. A

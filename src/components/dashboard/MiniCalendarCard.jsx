@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toDateStr } from "../../supabase/transforms";
 import { getDefaultOpenForDate } from "../../engine/utils";
-import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
+import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { dayCircleStyle, startOfDay } from "../layout/DayTab.jsx";

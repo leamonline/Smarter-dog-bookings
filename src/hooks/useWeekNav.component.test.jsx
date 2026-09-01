@@ -5,7 +5,7 @@ import { AppToolbar } from "../components/layout/AppToolbar.jsx";
 import { MobileNavStrip } from "../components/layout/MobileNavStrip.jsx";
 import { useWeekNav } from "./useWeekNav.js";
 
-vi.mock("../supabase/hooks/useWhatsAppUnread.js", () => ({
+vi.mock("../supabase/hooks/useWhatsAppUnread", () => ({
   useWhatsAppUnread: () => ({ unread: 0 }),
 }));
 

@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useWhatsAppUnread.js
+// src/supabase/hooks/useWhatsAppUnread.ts
 //
 // Tiny hook for the AppToolbar unread badge. Separate from
 // useWhatsAppInbox deliberately — the full inbox hook fetches
@@ -29,29 +29,35 @@
 // ============================================================
 
 import { useSyncExternalStore } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import { e2eFixtureCount } from "./e2eFixtureCounts.js";
 
+export interface WhatsAppUnreadState {
+  unread: number;
+  loading: boolean;
+}
+
 const e2eUnread = e2eFixtureCount(
   import.meta.env.VITE_E2E_WHATSAPP_UNREAD,
   import.meta.env.VITE_FORCE_OFFLINE === "1",
 );
-let state = {
+let state: WhatsAppUnreadState = {
   unread: e2eUnread,
   loading: true,
 };
-let channel = null;
-const listeners = new Set();
+let channel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
 
-function setState(next) {
+function setState(next: Partial<WhatsAppUnreadState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (!supabase) {
     if (state.loading) setState({ loading: false });
     return;
@@ -90,12 +96,12 @@ function startChannel() {
 }
 
 function stopChannel() {
-  if (!channel) return;
+  if (!channel || !supabase) return;
   supabase.removeChannel(channel);
   channel = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannel();
@@ -107,7 +113,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): WhatsAppUnreadState {
   return state;
 }
 
@@ -117,6 +123,6 @@ registerResume(() => {
   if (listeners.size > 0) refresh();
 });
 
-export function useWhatsAppUnread() {
+export function useWhatsAppUnread(): WhatsAppUnreadState {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
