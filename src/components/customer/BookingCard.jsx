@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerBookingActions } from "../../supabase/hooks/useCustomerBookingActions";
-import { useCustomerDepositSettings } from "../../supabase/hooks/useDepositSettings.js";
+import { useCustomerDepositSettings } from "../../supabase/hooks/useDepositSettings";
 import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";

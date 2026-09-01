@@ -21,7 +21,7 @@
 // ============================================================
 
 import { useState, useMemo } from "react";
-import { useBookingEvents } from "../../supabase/hooks/useBookingEvents.js";
+import { useBookingEvents } from "../../supabase/hooks/useBookingEvents";
 import { eventSentence, EVENT_TONE, formatRelative } from "../../lib/bookingEventFormat.js";
 import { ChevronDown, ChevronUp } from "lucide-react";
 

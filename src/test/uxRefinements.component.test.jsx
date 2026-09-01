@@ -40,7 +40,7 @@ vi.mock("../supabase/hooks/useTomorrowReminders.js", () => ({
   })
 }));
 
-vi.mock("../supabase/hooks/useBookingEvents.js", () => ({
+vi.mock("../supabase/hooks/useBookingEvents", () => ({
   useBookingEvents: () => ({
     events: [
       { id: "e1", event_type: "created", occurred_at: "2026-05-18T10:00:00Z" }

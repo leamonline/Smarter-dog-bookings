@@ -8,7 +8,7 @@
 // renders broken.
 // ============================================================
 
-import { useSignedMediaUrl } from "../../../../supabase/hooks/useSignedMediaUrl.js";
+import { useSignedMediaUrl } from "../../../../supabase/hooks/useSignedMediaUrl";
 import { mediaPresentation } from "./messageContent";
 
 export function InboundMediaImage({ path, mediaType = "image" }) {
