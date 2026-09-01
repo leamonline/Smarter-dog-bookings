@@ -10,9 +10,20 @@ import { findHumanByIdOrName } from "../../transforms";
 import { stripFormatChars } from "../../../utils/phone.js";
 import { isRealPersonName } from "../../../utils/text";
 import { logger } from "../../../lib/logger";
-import { buildHumanMapEntry } from "./helpers";
+import { buildHumanMapEntry, humanEntryToRow, isRawHumanCacheRow } from "./helpers";
 import type { Database } from "../../database.types";
-import type { HumansMap, SetHumansMap, TrustedContact } from "./helpers";
+import type {
+  HumanCacheEntry,
+  HumanEntry,
+  HumanPatch,
+  HumanRowLike,
+  HumansByIdMap,
+  HumansMap,
+  NewHumanInput,
+  SetHumansByIdMap,
+  SetHumansMap,
+  TrustedContact,
+} from "./helpers";
 import type { ReplaceTrustedLinks } from "./useTrustedContacts";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -26,15 +37,15 @@ export function useHumanMutations({
   replaceTrustedLinks,
 }: {
   humans: HumansMap;
-  humansById: HumansMap;
+  humansById: HumansByIdMap;
   setHumans: SetHumansMap;
-  setHumansById: SetHumansMap;
+  setHumansById: SetHumansByIdMap;
   setError: Dispatch<SetStateAction<string | null>>;
   setTotalCount: Dispatch<SetStateAction<number>>;
   replaceTrustedLinks: ReplaceTrustedLinks;
 }) {
   const updateHuman = useCallback(
-    async (humanIdentifier: string, updates: Record<string, any>) => {
+    async (humanIdentifier: string, updates: HumanPatch) => {
       const existingHuman = findHumanByIdOrName(
         humansById,
         humans,
@@ -66,10 +77,12 @@ export function useHumanMutations({
           delete next[currentFullName];
         }
 
+        // The optimistic entry layers a camelCase patch over whichever shape
+        // the cache held; the write-back below replaces it with a clean row.
         next[nextKey] = {
           ...(next[currentFullName] || prev[currentFullName] || {}),
           ...optimisticHuman,
-        };
+        } as HumanEntry;
 
         return next;
       });
@@ -80,7 +93,7 @@ export function useHumanMutations({
           ...(prev[existingHuman.id] || {}),
           ...updates,
           fullName: optimisticHuman.fullName,
-        },
+        } as HumanCacheEntry,
       }));
 
       if (!supabase) {
@@ -115,11 +128,21 @@ export function useHumanMutations({
       if (updates.archivedAt !== undefined)
         dbUpdates.archived_at = updates.archivedAt;
 
-      let savedRow = prevHumansById[existingHuman.id] || {
-        id: existingHuman.id,
-        name: existingHuman.name,
-        surname: existingHuman.surname,
-      };
+      // Start from the cached row so a trusted-contacts-only save (no
+      // dbUpdates, so no fresh row from the database) still rebuilds the
+      // entry from real values. The cache may hold either shape; an
+      // app-shaped entry is mapped back to row fields rather than read as
+      // blanks.
+      const cached = prevHumansById[existingHuman.id];
+      let savedRow: HumanRowLike = cached
+        ? isRawHumanCacheRow(cached)
+          ? cached
+          : humanEntryToRow(cached)
+        : {
+            id: existingHuman.id,
+            name: existingHuman.name,
+            surname: existingHuman.surname,
+          };
 
       if (Object.keys(dbUpdates).length > 0) {
         const { data, error: updateErr } = await supabase
@@ -142,12 +165,12 @@ export function useHumanMutations({
         savedRow = data || savedRow;
       }
 
+      const currentTrusted = humans[currentFullName];
       let trustedNames: string[] =
         updates.trustedIds !== undefined
           ? updates.trustedIds
-          : humans[currentFullName]?.trustedIds || [];
-      let savedTrustedContacts: TrustedContact[] =
-        humans[currentFullName]?.trustedContacts || [];
+          : currentTrusted?.trustedIds || [];
+      let savedTrustedContacts: TrustedContact[] = currentTrusted?.trustedContacts || [];
 
       const hasTrustedContactsUpdate = updates.trustedContacts !== undefined;
       const hasTrustedIdsUpdate = updates.trustedIds !== undefined;
@@ -161,7 +184,7 @@ export function useHumanMutations({
           updates,
           prevHumans,
           prevHumansById,
-          currentTrustedContacts: humans[currentFullName]?.trustedContacts || [],
+          currentTrustedContacts: currentTrusted?.trustedContacts || [],
         });
 
         if (!replaced.ok) {
@@ -178,8 +201,8 @@ export function useHumanMutations({
       const savedFullName = `${savedRow.name} ${savedRow.surname}`;
       const savedHuman = {
         id: savedRow.id,
-        name: savedRow.name,
-        surname: savedRow.surname,
+        name: savedRow.name ?? "",
+        surname: savedRow.surname ?? "",
         fullName: savedFullName,
         phone: savedRow.phone || "",
         sms: savedRow.sms || false,
@@ -192,7 +215,7 @@ export function useHumanMutations({
         notes: savedRow.notes || "",
         historyFlag: savedRow.history_flag || "",
         reminderHours: savedRow.reminder_hours ?? 24,
-        reminderChannels: savedRow.reminder_channels || ["whatsapp"],
+        reminderChannels: (savedRow.reminder_channels as string[] | null | undefined) || ["whatsapp"],
         preferredSlots: savedRow.preferred_slots || [],
         blockedSlots: savedRow.blocked_slots || [],
         depositRequired: savedRow.deposit_required === true,
@@ -223,7 +246,7 @@ export function useHumanMutations({
   );
 
   const addHuman = useCallback(
-    async (humanData: Record<string, any>) => {
+    async (humanData: NewHumanInput) => {
       // Backstop for EVERY human-creation path (Add Human, New client wizard,
       // AddDogModal's inline new owner, trusted contacts): a record whose name
       // is blank or a placeholder ("?", "-", "n/a"…) is unfindable later and
@@ -325,11 +348,12 @@ export function useHumanMutations({
         }));
 
         return savedHuman;
-      } catch (err: any) {
+      } catch (err) {
         logger.error("addHuman threw", err, {
           tags: { hook: "useHumans", op: "addHuman" },
         });
-        const msg = err?.message || "Failed to add human. Please try again.";
+        const msg =
+          (err instanceof Error && err.message) || "Failed to add human. Please try again.";
         setError((prev) => prev || msg);
         throw err instanceof Error ? err : new Error(msg);
       }
@@ -355,9 +379,7 @@ export function useHumanMutations({
       });
       setHumans((prev) => {
         const next = { ...prev };
-        const entry = Object.entries(next).find(
-          ([, human]: [string, any]) => human.id === humanId,
-        );
+        const entry = Object.entries(next).find(([, human]) => human.id === humanId);
         if (entry) delete next[entry[0]];
         return next;
       });

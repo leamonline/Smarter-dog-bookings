@@ -159,11 +159,13 @@ function buildHumanFullName(row: DbHumanRow): string {
 // Lookup functions
 // ============================================================
 
-export function findHumanByIdOrName(
-  humansById: Record<string, DbHumanRow & { fullName: string }>,
+export function findHumanByIdOrName<
+  T extends { id: string; fullName: string },
+>(
+  humansById: Record<string, T>,
   humansOrValue: Record<string, Human> | string | null,
   maybeValue?: string | null,
-): (DbHumanRow & { fullName: string }) | Human | { id: string; name: string; surname: string; phone: string; sms: boolean; whatsapp: boolean; email: string; fb: string; insta: string; tiktok: string; address: string; notes: string; history_flag: string; fullName: string } | null {
+): T | Human | { id: string; name: string; surname: string; phone: string; sms: boolean; whatsapp: boolean; email: string; fb: string; insta: string; tiktok: string; address: string; notes: string; history_flag: string; fullName: string } | null {
   const humans = maybeValue === undefined ? null : humansOrValue as Record<string, Human> | null;
   const value = maybeValue === undefined ? humansOrValue as string | null : maybeValue;
 
@@ -303,7 +305,7 @@ export function buildHumansById(rows: DbHumanRow[]): Record<string, DbHumanRow &
   return byId;
 }
 
-export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHumanRow & { fullName: string }>): Record<string, Dog> {
+export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, { fullName: string }>): Record<string, Dog> {
   const map: Record<string, Dog> = {};
   for (const row of rows) {
     const owner = humansById[row.human_id || ""];
