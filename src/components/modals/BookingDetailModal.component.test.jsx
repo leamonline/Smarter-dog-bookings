@@ -20,7 +20,7 @@ vi.mock("../../hooks/useAutosave.js", () => ({
   useAutosave: () => ({ status: "idle", flushNow: vi.fn() }),
 }));
 
-vi.mock("../../supabase/hooks/useStaffName.js", () => ({
+vi.mock("../../supabase/hooks/useStaffName", () => ({
   useStaffName: () => ({ name: "" }),
 }));
 
