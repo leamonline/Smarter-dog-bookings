@@ -118,7 +118,7 @@ interface DbBookingRow {
   }>;
 }
 
-interface DbConfigRow {
+export interface DbConfigRow {
   default_pickup_offset: number | null;
   // Integer pence going forward; legacy "£42" strings tolerated during the
   // pence migration (readers normalise via pricePenceFromTableValue).
