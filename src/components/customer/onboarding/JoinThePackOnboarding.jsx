@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
-import { submitCustomerSignup } from "../../../supabase/rpc";
+import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
@@ -91,6 +90,7 @@ function dogReady(d) {
  */
 export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   const toast = useToast();
+  const onboarding = useCustomerOnboardingActions();
 
   // Persist the in-progress signup to localStorage so leaving the page (back
   // button, refresh, tab close) doesn't wipe everything the customer typed.
@@ -170,7 +170,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   }
 
   async function handleSubmit() {
-    if (!step1Valid || !dogsValid || !supabase) return;
+    if (!step1Valid || !dogsValid || !onboarding.connected) return;
     setSaving(true);
     setError(null);
 
@@ -210,7 +210,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       };
     });
 
-    const { error: err } = await submitCustomerSignup(supabase, { owner, dogs: dogPayload });
+    const { error: err } = await onboarding.submitSignup({ owner, dogs: dogPayload });
     setSaving(false);
     if (err) {
       // Never surface the raw signup RPC / DB error to the customer.

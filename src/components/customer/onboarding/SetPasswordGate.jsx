@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
+import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { isPasswordPwned } from "../../../utils/pwnedPassword";
@@ -33,6 +33,7 @@ const BREACHED_PASSWORD_ERROR =
  */
 export function SetPasswordGate({ mode = "set", reason, username, onComplete, onSignOut }) {
   const toast = useToast();
+  const onboarding = useCustomerOnboardingActions();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -64,7 +65,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
       setError("Those passwords don't match. Please check and try again.");
       return;
     }
-    if (!supabase) {
+    if (!onboarding.connected) {
       setError("We couldn't save your password just now. Please try again.");
       return;
     }
@@ -80,7 +81,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
       return;
     }
 
-    const { error: err } = await supabase.auth.updateUser({ password });
+    const { error: err } = await onboarding.setPassword(password);
     setSaving(false);
 
     if (err) {
