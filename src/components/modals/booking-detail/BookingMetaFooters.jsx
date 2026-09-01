@@ -1,4 +1,4 @@
-import { useStaffName } from "../../../supabase/hooks/useStaffName.js";
+import { useStaffName } from "../../../supabase/hooks/useStaffName";
 
 /**
  * Audit footers shown under the booking cards: a customer-confirmation

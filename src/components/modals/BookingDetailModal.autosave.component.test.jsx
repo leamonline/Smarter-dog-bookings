@@ -13,7 +13,7 @@ vi.mock("../../hooks/useGroomPhotos.js", () => ({
   }),
 }));
 
-vi.mock("../../supabase/hooks/useStaffName.js", () => ({
+vi.mock("../../supabase/hooks/useStaffName", () => ({
   useStaffName: () => ({ name: "" }),
 }));
 

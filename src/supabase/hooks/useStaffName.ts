@@ -18,15 +18,24 @@ import { logger } from "../../lib/logger";
  *   - `loading` is true on the first render after a uuid is supplied,
  *     until the fetch settles.
  */
-const cache = new Map(); // user_id -> displayName | null (null means "fetched, not found")
-const pending = new Map(); // user_id -> Promise<displayName | null>
+export interface UseStaffNameResult {
+  name: string | null;
+  loading: boolean;
+}
 
-async function fetchOne(userId) {
+// user_id -> displayName | null (null means "fetched, not found")
+const cache = new Map<string, string | null>();
+// user_id -> in-flight lookup
+const pending = new Map<string, Promise<string | null>>();
+
+async function fetchOne(userId: string | null | undefined): Promise<string | null> {
   if (!supabase || !userId) return null;
-  if (pending.has(userId)) return pending.get(userId);
+  const inFlight = pending.get(userId);
+  if (inFlight) return inFlight;
+  const client = supabase;
 
-  const p = (async () => {
-    const { data, error } = await supabase
+  const p = (async (): Promise<string | null> => {
+    const { data, error } = await client
       .from("staff_profiles")
       .select("display_name")
       .eq("user_id", userId)
@@ -48,8 +57,8 @@ async function fetchOne(userId) {
   return name;
 }
 
-export function useStaffName(userId) {
-  const [name, setName] = useState(() => (userId ? cache.get(userId) ?? null : null));
+export function useStaffName(userId: string | null | undefined): UseStaffNameResult {
+  const [name, setName] = useState<string | null>(() => (userId ? cache.get(userId) ?? null : null));
   const [loading, setLoading] = useState(() => Boolean(userId && !cache.has(userId)));
   const mountedRef = useRef(true);
 
@@ -67,7 +76,7 @@ export function useStaffName(userId) {
       return;
     }
     if (cache.has(userId)) {
-      setName(cache.get(userId));
+      setName(cache.get(userId) ?? null);
       setLoading(false);
       return;
     }

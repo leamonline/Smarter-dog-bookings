@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { History } from "lucide-react";
 import { getDogsForHuman } from "../../../utils/directorySearch";
-import { useOwnerBookingEvents } from "../../../supabase/hooks/useOwnerBookingEvents.js";
+import { useOwnerBookingEvents } from "../../../supabase/hooks/useOwnerBookingEvents";
 import {
   eventSentence,
   EVENT_TONE,
