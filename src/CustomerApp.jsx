@@ -40,6 +40,7 @@ function CustomerAppContent() {
     phone,
     hasPassword,
     mustSetPassword,
+    passwordCompromised,
     checkPhone,
     sendOtp,
     signInWithPassword,
@@ -132,6 +133,7 @@ function CustomerAppContent() {
     return (
       <SetPasswordGate
         mode={mustSetPassword ? "reset" : "set"}
+        reason={passwordCompromised ? "breach" : undefined}
         username={user?.phone ?? phone}
         onSignOut={signOut}
         onComplete={async () => {

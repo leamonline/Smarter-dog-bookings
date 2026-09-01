@@ -19,6 +19,10 @@ vi.mock("../bootPrefetch.js", () => ({
   _resetBootPrefetchForTests: vi.fn(),
 }));
 
+vi.mock("../../utils/pwnedPassword", () => ({
+  isPasswordPwned: vi.fn(async () => globalThis.__pwnedVerdictStaff === true),
+}));
+
 const { primeBootPrefetch } = await import("../bootPrefetch.js");
 const { useAuth } = await import("./useAuth.js");
 
@@ -69,6 +73,7 @@ function makeSupabaseStub({ session = null, order = [], singleImpl } = {}) {
 beforeEach(() => {
   setSupabase(undefined);
   primeBootPrefetch.mockReset();
+  globalThis.__pwnedVerdictStaff = false;
 });
 
 afterEach(() => {
@@ -206,5 +211,69 @@ describe("useAuth profile fetch dedupe", () => {
     await waitFor(() => expect(stub.from).toHaveBeenCalledTimes(2));
     expect(result.current.user?.id).toBe("user-2");
     expect(result.current.staffProfile).toEqual(PROFILE);
+  });
+});
+
+describe("useAuth leaked-password check at sign-in", () => {
+  function withPasswordSignIn(stub, result) {
+    stub.auth.signInWithPassword = vi.fn(() => Promise.resolve(result));
+    return stub;
+  }
+
+  it("signs in normally and reports no warning for a password HaveIBeenPwned does not know", async () => {
+    const stub = withPasswordSignIn(makeSupabaseStub(), {
+      data: { user: SESSION.user, session: SESSION },
+      error: null,
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.signIn("bleep@smarterdog.test", "a-fine-password");
+    });
+    expect(outcome.passwordCompromised).toBe(false);
+    expect(result.current.passwordCompromised).toBe(false);
+    expect(result.current.user?.id).toBe("user-1");
+  });
+
+  it("still signs in but flags a known-breached password, and the flag can be dismissed", async () => {
+    globalThis.__pwnedVerdictStaff = true;
+    const stub = withPasswordSignIn(makeSupabaseStub(), {
+      data: { user: SESSION.user, session: SESSION },
+      error: null,
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.signIn("bleep@smarterdog.test", "password");
+    });
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.passwordCompromised).toBe(true);
+    expect(result.current.user?.id).toBe("user-1");
+    expect(result.current.passwordCompromised).toBe(true);
+
+    await act(async () => {
+      result.current.clearPasswordCompromised();
+    });
+    expect(result.current.passwordCompromised).toBe(false);
+  });
+
+  it("honours the server's weakPassword warning even when the local check is clear", async () => {
+    const stub = withPasswordSignIn(makeSupabaseStub(), {
+      data: { user: SESSION.user, session: SESSION, weakPassword: { reasons: ["pwned"] } },
+      error: null,
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.signIn("bleep@smarterdog.test", "server-says-weak");
+    });
+    expect(result.current.passwordCompromised).toBe(true);
   });
 });
