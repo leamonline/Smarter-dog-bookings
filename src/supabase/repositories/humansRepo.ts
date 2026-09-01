@@ -122,3 +122,40 @@ export async function getBookingRules(
     depositRequired: data.deposit_required === true,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Staff messaging contact reads (Debt #12). Thin, column-explicit reads that
+// CollectionNoticeModal and SendReminderModal used to build inline. Results
+// are returned raw ({ data, error }) so the modals keep their own error
+// handling; the columns are the exact projections they read.
+// ---------------------------------------------------------------------------
+
+/** The columns the collection-notice recipient list renders. */
+export const CONTACT_CARD_COLS = "id, name, surname, phone, whatsapp_opted_out";
+
+/** One contact card by human id (owner or trusted contact). */
+export function getContactCard(client: SupabaseClient, humanId: string) {
+  return client.from("humans").select(CONTACT_CARD_COLS).eq("id", humanId).maybeSingle();
+}
+
+/** Contact cards for a set of human ids (the owner's trusted contacts). */
+export function listContactCards(client: SupabaseClient, humanIds: string[]) {
+  return client.from("humans").select(CONTACT_CARD_COLS).in("id", humanIds);
+}
+
+/** The one-way trust links from an owner: who they trust, and as what. */
+export function listTrustedContactLinks(client: SupabaseClient, humanId: string) {
+  return client
+    .from("human_trusted_contacts")
+    .select("trusted_id, relationship")
+    .eq("human_id", humanId);
+}
+
+/** The columns the reminder channel picker gates on (contact details + opt-outs). */
+export const REMINDER_CONTACT_COLS =
+  "id, name, surname, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";
+
+/** One customer's reminder contact details by human id. */
+export function getReminderContact(client: SupabaseClient, humanId: string) {
+  return client.from("humans").select(REMINDER_CONTACT_COLS).eq("id", humanId).maybeSingle();
+}

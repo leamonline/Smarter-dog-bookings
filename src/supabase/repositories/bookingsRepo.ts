@@ -672,3 +672,26 @@ export async function getDepositSettings(client: SupabaseClient): Promise<Deposi
         : 12,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Staff messaging reads (Debt #12), returned raw for the modals that own the
+// error handling.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every non-cancelled booking on a date whose dog belongs to an owner, with
+ * the dog joined — the collection notice names every dog ready for pick-up.
+ */
+export function listOwnerBookingsOnDate(client: SupabaseClient, date: string, ownerId: string) {
+  return client
+    .from("bookings")
+    .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
+    .eq("booking_date", date)
+    .eq("dogs.human_id", ownerId)
+    .neq("status", "Cancelled");
+}
+
+/** The service on each of a set of bookings (the reminder's service line). */
+export function listServicesForBookings(client: SupabaseClient, bookingIds: string[]) {
+  return client.from("bookings").select("id, service").in("id", bookingIds);
+}

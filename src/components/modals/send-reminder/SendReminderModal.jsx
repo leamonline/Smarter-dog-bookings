@@ -13,7 +13,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
-import { supabase } from "../../../supabase/client";
+import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
+import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
@@ -88,6 +89,8 @@ function ChannelPill({ channel, available, active, onSelect }) {
 
 export function SendReminderModal({ row, targetDate, onClose, onSent }) {
   const toast = useToast();
+  const contacts = useStaffContacts();
+  const messaging = useStaffMessaging();
   const [human, setHuman] = useState(null);
   const [serviceIds, setServiceIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,16 +107,8 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
       setLoading(true);
       const humanId = isOrphan ? null : row.customerKey;
       const [humanRes, bookingsRes] = await Promise.all([
-        humanId
-          ? supabase
-              .from("humans")
-              .select(
-                "id, name, surname, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out",
-              )
-              .eq("id", humanId)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase.from("bookings").select("id, service").in("id", row?.bookingIds ?? []),
+        humanId ? contacts.getReminderContact(humanId) : Promise.resolve({ data: null }),
+        contacts.listServicesForBookings(row?.bookingIds ?? []),
       ]);
       if (cancelled) return;
       setHuman(humanRes.data ?? null);
@@ -126,7 +121,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
     return () => {
       cancelled = true;
     };
-  }, [row, isOrphan]);
+  }, [row, isOrphan, contacts]);
 
   const availability = useMemo(() => computeAvailability(human), [human]);
 
@@ -148,9 +143,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
     setSending(true);
     setError(null);
     try {
-      const { data, error: invokeErr } = await supabase.functions.invoke("reminder-send", {
-        body: { booking_id: row.anchorBookingId, ...channelPayload },
-      });
+      const { data, error: invokeErr } = await messaging.sendReminder(row.anchorBookingId, channelPayload);
       if (invokeErr) throw new Error(await parseSupabaseFunctionError(invokeErr, "Reminder failed"));
       if (data?.error) throw new Error(data.detail || data.error);
       toast.show(

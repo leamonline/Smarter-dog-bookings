@@ -37,6 +37,33 @@ export async function sendBookingReminder(anchorBookingId: string) {
   });
 }
 
+/** whatsapp-send in template mode: one approved Meta template to one number, logged to the inbox. */
+export async function sendWhatsAppTemplate(input: {
+  to: string;
+  templateName: string;
+  language: string;
+  params: unknown;
+  humanId: string;
+}) {
+  return requireClient().functions.invoke("whatsapp-send", {
+    body: {
+      mode: "template",
+      to: input.to,
+      template_name: input.templateName,
+      language: input.language,
+      params: input.params,
+      human_id: input.humanId,
+    },
+  });
+}
+
+/** reminder-send: the staff-composed reminder on the chosen channel for one anchor booking. */
+export async function sendReminder(anchorBookingId: string, channelPayload: Record<string, unknown>) {
+  return requireClient().functions.invoke("reminder-send", {
+    body: { booking_id: anchorBookingId, ...channelPayload },
+  });
+}
+
 const messaging = {
   /** False in sample-data mode or before credentials exist; the actions throw. */
   get connected(): boolean {
@@ -45,6 +72,8 @@ const messaging = {
   resendBookingNotification,
   broadcastMessage,
   sendBookingReminder,
+  sendWhatsAppTemplate,
+  sendReminder,
 };
 
 export type StaffMessaging = typeof messaging;
