@@ -25,6 +25,21 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  coverage:
+    # Coverage ratchet on src/engine and src/supabase/repositories (thresholds
+    # in vitest.config.ts). Its own job so the instrumented run — several
+    # minutes slower than plain `npm run test` — never lengthens the build
+    # job's critical path; it runs alongside agent-tests and the browser gate.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run coverage
+
   agent-tests:
     # Deno-runtime tests for the Edge Functions (their own runtime, not vitest):
     # the whatsapp-agent dispatch-contract tests, plus the pure staff-push

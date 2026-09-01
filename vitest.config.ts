@@ -15,6 +15,23 @@ export default defineConfig({
     // Keep jsdom workers within the memory available on local and CI runners.
     // Unbounded parallelism causes unrelated component tests to hit timeouts.
     maxWorkers: 4,
+    // Coverage ratchet (assessment item 1.8). Thresholds sit a point or two
+    // under the measured level on 1 September 2026 (engine 96.1 / 88.0 /
+    // 95.8 / 97.4; repositories 73.6 / 75.7 / 81.7 / 77.6 — statements /
+    // branches / functions / lines) so coverage cannot fall silently on the
+    // two directories that own the booking rules and the DB boundary. Raise
+    // a threshold when the measured figure moves up; never lower one to get
+    // green — fix the coverage instead. Enforced by the `coverage` CI job.
+    coverage: {
+      provider: "v8",
+      include: ["src/engine/**", "src/supabase/repositories/**"],
+      exclude: ["**/*.test.*", "**/*.d.ts", "src/engine/capacityParityFixtures.ts"],
+      reporter: ["text-summary"],
+      thresholds: {
+        "src/engine/**": { statements: 95, branches: 86, functions: 94, lines: 96 },
+        "src/supabase/repositories/**": { statements: 72, branches: 74, functions: 80, lines: 76 },
+      },
+    },
     projects: [
       {
         test: {
