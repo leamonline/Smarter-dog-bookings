@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient";
 import { logger } from "../../lib/logger";
 
+interface GateHumanRecord {
+  id?: string | null;
+}
+
+export interface CustomerProfileGateResult {
+  complete: boolean;
+  loading: boolean;
+  refresh: () => Promise<void>;
+}
+
 /**
  * Decides whether a logged-in customer has a complete-enough profile to use
  * the portal: a first name, a surname, an address, and a recorded agreement
@@ -20,14 +30,16 @@ import { logger } from "../../lib/logger";
  * transient read failure shouldn't trap a customer behind a gate they can't
  * get past — and the booking RPC still enforces the requirement server-side.
  */
-export function useCustomerProfileGate(humanRecord) {
+export function useCustomerProfileGate(
+  humanRecord: GateHumanRecord | null | undefined,
+): CustomerProfileGateResult {
   const humanId = humanRecord?.id || null;
   const [complete, setComplete] = useState(false);
   const [loading, setLoading] = useState(true);
   // The humanId we last have a result for. While this lags the current
   // humanId, we're between records — report loading so the caller never
   // flashes the dashboard for the frame before the read effect fires.
-  const [loadedId, setLoadedId] = useState(null);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
   const read = useCallback(async () => {
     if (!supabase || !humanId) {

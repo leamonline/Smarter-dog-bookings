@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
-import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
+import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount";
 import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 
 // ── Mobile/tablet primary nav (below lg) ──────────────────────────

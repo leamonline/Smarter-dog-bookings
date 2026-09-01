@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink, ClipboardList } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
-import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
+import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount";
 import { navTargetFor, PRIMARY_NAV } from "./navConfig.jsx";
 
 // Two-letter initials for the account avatar — prefers a display name,
