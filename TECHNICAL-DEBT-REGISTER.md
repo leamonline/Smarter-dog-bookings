@@ -70,6 +70,8 @@ sustained workstream (week+).
 >
 > **Debt 12 — Update (September 2026, third slice):** `AddToCalendarButton.tsx` and `CalendarSubscribeModal.tsx` left the allowlist — calendar-feed token fetch, URL construction and revocation moved into `useCustomerCalendarFeed`. Every file under `src/components/customer/` except the booking wizard's own screens is now client-free. 22 files remain.
 >
+> **Debt 12 — Update (September 2026, fourth slice):** `views/settings/CalendarSettings.jsx` left the allowlist — the calendar-feed logic was extracted into a client-agnostic `calendarFeedActions` core shared by `useCustomerCalendarFeed` and a new `useStaffCalendarFeed`, keeping the two Supabase clients separate. 21 files remain.
+>
 > **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
 >
 > **Debt 13 — Update (September 2026):** CLOSED for the customer dashboard — the dashboard/BookingCard/AppointmentsSection surface now consumes app-shaped `CustomerBookingSummary`/`CustomerDog` objects; the snake_case↔camelCase mapping lives in `bookingsRepo.ts`/`dogsRepo.ts` where it belongs.
