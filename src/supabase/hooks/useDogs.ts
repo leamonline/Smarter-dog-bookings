@@ -11,15 +11,63 @@ import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
 import { logger } from "../../lib/logger";
 import { safeGet, safeSet } from "../../lib/storage";
 import type { Database } from "../database.types";
+import type { DbDogRow, DbHumanRow } from "../transforms";
+import type { Dog, DogSize } from "../../types/index";
+import type {
+  RealtimePostgresDeletePayload,
+  RealtimePostgresInsertPayload,
+  RealtimePostgresUpdatePayload,
+} from "@supabase/supabase-js";
 
 const PAGE_SIZE = 50;
+
+type DogRow = Database["public"]["Tables"]["dogs"]["Row"];
+type DogUpdate = Database["public"]["Tables"]["dogs"]["Update"];
+
+/** The owner lookup map useHumans maintains (raw human rows + a display name). */
+export type HumansById = Record<string, DbHumanRow & { fullName: string }>;
+
+/** A search_dogs_directory row: a dog row plus the joined owner_* fields. */
+interface DirectoryDogRow extends DbDogRow {
+  owner_name?: string | null;
+  owner_surname?: string | null;
+  owner_phone?: string | null;
+  owner_whatsapp?: boolean | null;
+}
+
+/** App-shaped patch accepted by updateDog (camelCase, any subset). */
+export type DogPatch = Partial<Omit<Dog, "id" | "_humanId">> & {
+  /** Soft-archive marker: an ISO timestamp to archive, null to unarchive. */
+  archivedAt?: string | null;
+};
+
+/** What the Add Dog modal / New client wizard hand to addDog. */
+export interface NewDogInput {
+  name: string;
+  breed: string;
+  age?: string | null;
+  dob?: string | null;
+  /** The modal's field name; stored as `sex`. */
+  gender?: string | null;
+  microchip?: string | null;
+  neutered?: boolean | null;
+  vet?: string | null;
+  colour?: string | null;
+  size?: DogSize | null;
+  /** Owner id or display name, resolved via findHumanByIdOrName. */
+  humanId?: string | null;
+  alerts?: string[];
+  groomNotes?: string | null;
+  /** The New client wizard's freshly-created owner, before humansById re-renders. */
+  _ownerOverride?: { id: string; fullName?: string } | null;
+}
 
 // Build a Dogs Directory entry from a search_dogs_directory row. Mirrors
 // dbDogsToMap's dog shape but also folds on the joined owner_* fields the RPC
 // returns, so the card can render the owner name + tel/WhatsApp links without
 // depending on the paginated humansById map. Owner placeholders ("Null" etc.)
 // are stripped via sanitiseFieldValue, same as the rest of the directory.
-function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
+function buildDirectoryDogEntry(row: DirectoryDogRow, humansById: HumansById) {
   const owner = humansById?.[row.human_id || ""];
   const ownerName = sanitiseFieldValue(row.owner_name);
   const ownerSurname = sanitiseFieldValue(row.owner_surname);
@@ -30,12 +78,12 @@ function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
     name: row.name,
     breed: sanitiseFieldValue(row.breed),
     age: row.age || "",
-    size: row.size || null,
+    size: (row.size as DogSize | null) || null,
     humanId: ownerFullName || row.human_id || "",
     _humanId: row.human_id || null,
     alerts: row.alerts || [],
     groomNotes: row.groom_notes || "",
-    customPrice: row.custom_price,
+    customPrice: row.custom_price ?? undefined,
     // Server-resolved owner display fields (from the RPC's join), read by DogsView.
     ownerFullName,
     ownerPhone: row.owner_phone || "",
@@ -43,8 +91,10 @@ function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
   };
 }
 
+export type DirectoryDog = ReturnType<typeof buildDirectoryDogEntry>;
+
 export function useDogs(
-  humansById: Record<string, any>,
+  humansById: HumansById,
   // Boot-path deferral (mirrors useHumansData): while startDirectoryFetch is
   // false, the page-0 directory fetch and the realtime-triggered refetches
   // are held back so the 50-row directory read stays off the dashboard's
@@ -56,8 +106,8 @@ export function useDogs(
   // Single source of truth for dog records: raw DB rows keyed by id.
   // The app-shaped `dogs` map is DERIVED from this below (Debt #14) —
   // the two can no longer drift because only one of them is state.
-  const [dogsById, setDogsById] = useState<Record<string, any>>({});
-  const [dogsByHumanId, setDogsByHumanId] = useState<Record<string, any[]>>({});
+  const [dogsById, setDogsById] = useState<Record<string, DbDogRow>>({});
+  const [dogsByHumanId, setDogsByHumanId] = useState<Record<string, Dog[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -69,7 +119,7 @@ export function useDogs(
   // ordered / filtered / paginated list the grid renders; the dogs / dogsById
   // maps stay the lookup caches other views read. effectiveSearch is the
   // debounced term that actually drives the fetch; searchQuery mirrors the input.
-  const [directoryDogs, setDirectoryDogs] = useState<any[]>([]);
+  const [directoryDogs, setDirectoryDogs] = useState<DirectoryDog[]>([]);
   const [dogAvailableLetters, setDogAvailableLetters] = useState<string[]>([]);
   const [effectiveSearch, setEffectiveSearch] = useState("");
   const [dirSort, setDirSortState] = useState<"name" | "recent">(() =>
@@ -92,7 +142,7 @@ export function useDogs(
 
   // Refs of the loaded directory list (for load-more's offset) and the active
   // query (so realtime refetches and load-more reuse the current params).
-  const directoryRef = useRef<any[]>([]);
+  const directoryRef = useRef<DirectoryDog[]>([]);
   const queryRef = useRef<{
     search: string;
     filters: { size: string | null; alert: boolean; incomplete: boolean };
@@ -192,7 +242,8 @@ export function useDogs(
         return;
       }
 
-      const result = (data || {}) as { rows?: any[]; total?: number; letters?: string[] };
+      // The RPC returns Json; this is the shape search_dogs_directory builds.
+      const result = (data || {}) as { rows?: DirectoryDogRow[]; total?: number; letters?: string[] };
       const rows = Array.isArray(result.rows) ? result.rows : [];
       const entries = rows.map((row) =>
         buildDirectoryDogEntry(row, humansByIdRef.current || {}),
@@ -247,24 +298,27 @@ export function useDogs(
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dogs" },
-        (payload: any) => {
+        (payload: RealtimePostgresDeletePayload<DogRow>) => {
+          // A DELETE payload carries only the old row's replica-identity
+          // columns, so every field is optional; the id is all we need.
           const oldRow = payload.old;
-          if (!oldRow?.id) return;
+          const oldId = oldRow?.id;
+          if (!oldId) return;
           setDogsById((prev) => {
             const next = { ...prev };
-            const cached = next[oldRow.id];
+            const cached = next[oldId];
             invalidateHuman(oldRow.human_id ?? cached?.human_id);
-            delete next[oldRow.id];
+            delete next[oldId];
             return next;
           });
-          setDirectoryDogs((prev) => prev.filter((d) => d.id !== oldRow.id));
+          setDirectoryDogs((prev) => prev.filter((d) => d.id !== oldId));
           setTotalCount((c) => Math.max(0, c - 1));
         },
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "dogs" },
-        (payload: any) => {
+        (payload: RealtimePostgresInsertPayload<DogRow>) => {
           invalidateHuman(payload.new?.human_id);
           // While the directory fetch is deferred, skip the refetch — the
           // first fetch (with current params) runs when the flag flips.
@@ -275,7 +329,7 @@ export function useDogs(
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "dogs" },
-        (payload: any) => {
+        (payload: RealtimePostgresUpdatePayload<DogRow>) => {
           invalidateHuman(payload.old?.human_id);
           invalidateHuman(payload.new?.human_id);
           if (!startDirectoryFetchRef.current) return;
@@ -349,7 +403,7 @@ export function useDogs(
   // as a plain list (not merged into the active caches) so archived dogs never
   // leak into the grid, search or the lookup caches bookings read. The archived
   // set is small, so a single unpaginated read with the owner embedded is fine.
-  const fetchArchivedDogs = useCallback(async (): Promise<any[]> => {
+  const fetchArchivedDogs = useCallback(async (): Promise<DirectoryDog[]> => {
     if (!supabase) return [];
     const { data, error: err } = await supabase
       .from("dogs")
@@ -363,7 +417,7 @@ export function useDogs(
       });
       return [];
     }
-    return (data || []).map((row: any) =>
+    return (data || []).map((row) =>
       buildDirectoryDogEntry(
         {
           ...row,
@@ -378,12 +432,12 @@ export function useDogs(
   }, []);
 
   const updateDog = useCallback(
-    async (dogIdentifier: string, updates: Record<string, any>) => {
+    async (dogIdentifier: string, updates: DogPatch) => {
       const existingDog =
         dogsById[dogIdentifier] ||
         dogs[dogIdentifier] ||
         Object.values(dogs).find(
-          (dog: any) => dog.id === dogIdentifier || dog.name === dogIdentifier,
+          (dog) => dog.id === dogIdentifier || dog.name === dogIdentifier,
         );
 
       if (!existingDog) return;
@@ -396,7 +450,7 @@ export function useDogs(
       // Translate the app-shape patch to row shape FIRST: the optimistic
       // write goes into dogsById (the single source of truth) and the
       // derived `dogs` map picks it up on the same render.
-      const dbUpdates: Database["public"]["Tables"]["dogs"]["Update"] = {};
+      const dbUpdates: DogUpdate = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.breed !== undefined) dbUpdates.breed = updates.breed;
       if (updates.age !== undefined) dbUpdates.age = updates.age;
@@ -404,7 +458,8 @@ export function useDogs(
       if (updates.sex !== undefined) dbUpdates.sex = updates.sex;
       if (updates.microchip !== undefined) dbUpdates.microchip = updates.microchip;
       if (updates.neutered !== undefined) dbUpdates.neutered = updates.neutered;
-      if (updates.isPregnant !== undefined) dbUpdates.is_pregnant = updates.isPregnant;
+      // is_pregnant is NOT NULL in the schema; a null patch means "not pregnant".
+      if (updates.isPregnant !== undefined) dbUpdates.is_pregnant = updates.isPregnant ?? false;
       if (updates.vet !== undefined) dbUpdates.vet = updates.vet;
       if (updates.colour !== undefined) dbUpdates.colour = updates.colour;
       if (updates.groomNotes !== undefined)
@@ -500,7 +555,7 @@ export function useDogs(
   );
 
   const addDog = useCallback(
-    async (dogData: Record<string, any>) => {
+    async (dogData: NewDogInput) => {
       // Normally resolve the owner from the live map. The New client wizard
       // creates a human + dog in the same tick, before humansById has
       // re-rendered with the new owner, so it hands the freshly-created owner
@@ -508,7 +563,7 @@ export function useDogs(
       // would never save. Other callers don't pass it and behave as before.
       const owner = dogData._ownerOverride?.id
         ? dogData._ownerOverride
-        : findHumanByIdOrName(humansById, dogData.humanId);
+        : findHumanByIdOrName(humansById, dogData.humanId ?? null);
 
       if (!owner?.id) {
         logger.error("Owner not found", undefined, {
@@ -677,7 +732,7 @@ export function useDogs(
         name: row.name,
         breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
-        size: (row.size as any) || null,
+        size: (row.size as DogSize | null) || null,
         humanId: owner ? owner.fullName : (row.human_id || ""),
         _humanId: row.human_id || null,
         alerts: row.alerts || [],
@@ -710,7 +765,7 @@ export function useDogs(
       name: data.name,
       breed: data.breed,
       age: data.age || "",
-      size: (data.size as any) || null,
+      size: (data.size as DogSize | null) || null,
       humanId: owner ? owner.fullName : (data.human_id || ""),
       _humanId: data.human_id || null,
       alerts: data.alerts || [],
@@ -757,7 +812,7 @@ export function useDogs(
     }
 
     const rows = data || [];
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, Dog[]> = {};
     for (const id of missing) grouped[id] = [];
     for (const row of rows) {
       const hid = row.human_id;
@@ -773,12 +828,12 @@ export function useDogs(
         neutered: row.neutered ?? null,
         vet: row.vet || null,
         colour: row.colour || null,
-        size: row.size || null,
+        size: (row.size as DogSize | null) || null,
         humanId: humansById?.[hid]?.fullName || hid,
         _humanId: hid,
         alerts: row.alerts || [],
         groomNotes: row.groom_notes || "",
-        customPrice: row.custom_price,
+        customPrice: row.custom_price ?? undefined,
       };
       (grouped[hid] = grouped[hid] || []).push(dog);
     }
@@ -832,7 +887,7 @@ export function useDogs(
       const rows = data || [];
       if (rows.length === 0) return;
 
-      const byIdAdditions: Record<string, any> = {};
+      const byIdAdditions: Record<string, DogRow> = {};
       for (const row of rows) {
         byIdAdditions[row.id] = row;
       }
