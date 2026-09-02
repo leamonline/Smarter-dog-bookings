@@ -21,7 +21,7 @@ sustained workstream (week+).
 | 3 ESLint safety rules | Closed | Closed | Unchanged. |
 | 4 `.js` extensions on TS imports | Closed | Closed | `check-import-extensions` still in `npm run lint`. |
 | 5 `useHumans.ts` god file | Closed | Closed | 103 lines. |
-| 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Regressed, worse** | 943 lines as `useWhatsAppInbox.ts` (2 Sept): the September TypeScript conversion added row types and typed realtime handlers without extracting anything; the five `inbox/` sub-hooks still hold the extracted logic. Next candidate for a seam review. |
+| 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Closed again (2 Sept 2026)** | `useWhatsAppInbox.ts` is 595 lines: the row types moved to `hooks/inbox/inboxTypes.ts`, the pure list helpers to `inboxListHelpers.ts` and the two reads to `inboxFetchers.ts` (the hook re-exports them, importers unchanged). `src/debtSizeRatchet.test.ts` now caps this file, `HumanCardModal.jsx` and `BookingDetailModal.jsx` so 6, 7 and 9 cannot regress unseen. |
 | 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Regressed** | 541 lines. |
 | 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
@@ -44,10 +44,10 @@ sustained workstream (week+).
 
 Three items regressed since June without anyone noticing (6, 7, 9) and one kept
 growing (11). None is a bug; all are the natural drift of a busy codebase
-without a size guard. Item 11 now has that guard (`src/appShell.test.ts`, added
-2 September 2026 with the shell extraction); 6, 7 and 9 do not, and 6 has grown
-again since the 1 September count. A line-count ratchet on those three would
-make the next regression visible in CI instead of in the next audit.
+without a size guard. Item 11 has that guard (`src/appShell.test.ts`, added 2 September 2026 with
+the shell extraction) and, since the same day, so do 6, 7 and 9
+(`src/debtSizeRatchet.test.ts`): the next regression fails CI instead of
+waiting for the next audit.
 
 ## Mixed paradigms & weak typing
 
