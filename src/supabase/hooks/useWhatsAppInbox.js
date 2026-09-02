@@ -39,7 +39,7 @@ import {
   parseSupabaseFunctionError,
 } from "./inbox/helpers";
 import { useOutboundSender } from "./inbox/useOutboundSender";
-import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
+import { useConversationLifecycle } from "./inbox/useConversationLifecycle";
 import { useConversationNotes } from "./inbox/useConversationNotes";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
