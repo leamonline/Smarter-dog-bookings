@@ -27,7 +27,7 @@ sustained workstream (week+).
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
 | 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Open, moved** | `InboxView.jsx` is a one-line re-export; the cascade now lives in `views/inbox/workspace/InboxWorkspaceController.jsx` (760 lines). |
 | 11 `App.jsx` hub | Open, worse (1,025 LoC) | **Open, worse again** | 1,525 lines. |
-| 12 Direct Supabase client in components | Frozen + baselined (29 files) | **Burning down** | 3 files on the allowlist; see the burn-down table under Debt 12. |
+| 12 Direct Supabase client in components | Frozen + baselined (29 files) | **Burning down** | 2 files on the allowlist; see the burn-down table under Debt 12. |
 | 13 snake_case leaks into customer components | Partially closed | Closed for the customer surface | Dashboard, BookingCard and dog forms consume repository-shaped objects. |
 | 14 Two dog maps | Closed | Closed | Unchanged. |
 | 15 Pricing as display string | Partially closed (2 stragglers) | **Closed** | `PRICING` is now integer pence (`constants/salon.ts:63`); zero `replace(/[^0-9.]/g` re-parse sites remain. |
@@ -116,9 +116,12 @@ make the next regression visible in CI instead of in the next audit.
 > | Sept 2026 | `modals/RescheduleModal.jsx`, `booking-detail/DeliveryFailureCard.jsx`, `day-closure/BroadcastMessageModal.jsx`, `dashboard/TomorrowRemindersCard.jsx` | `useStaffMessaging` over three staff Edge Functions + `useStaffAvailability` over the occupancy repo (Tier 1.1c) | 11 |
 > | Sept 2026 | `collection-notice/CollectionNoticeModal.jsx`, `send-reminder/SendReminderModal.jsx` | `useStaffContacts` over new column-explicit humans/bookings repository reads + `useStaffMessaging.sendWhatsAppTemplate` / `sendReminder` (Tier 1.1d) | 8 |
 > | Sept 2026 | `customer/booking/BookingWizard.tsx` | `useCustomerBookingWizard`, a stable singleton binding the customer client to the existing booking/dog/rules repositories and denial/funnel RPCs; the one raw deposit read-back moved into `bookingsRepo.listDepositStamps` (Tier 1.1e) | 7 |
+> | Sept 2026 | `reports/useWeeklyCashUp.js` | `useStaffWeekSnapshot`, a singleton over `fetchBookingsWeek` plus new `dogsRepo.listCashUpDogs` / `humansRepo.listCashUpHumans` reads (Tier 1.1g) | 2 |
+>
 > | Sept 2026 | `compose-new/ComposeNewModal.jsx`, `inbox/hooks/useCustomerContext.js`, `useInboxMessageSearch.js`, `useSlotCapacityPreview.js` | `useStaffContacts` (+ `getHumanById` / `searchHumansAndDogs` / `listDogsForHuman`) and a new `useStaffInboxReads` singleton over new repository reads (`getCustomerContextProfile`, `listCustomerContextDogs`, `listRecentPastForOwner`, `listTrustedContactsWithNames`, `listSeatsOnDate`, and `whatsappRepo.searchMessageConversationIds`) (Tier 1.1f) | 3 |
 >
-> **Still on the allowlist (2 September 2026), grouped by the slice that would clear them:** reports — `reports/useWeeklyCashUp.js`; auth — `auth/LoginPage.jsx`, `auth/ResetPasswordPage.jsx`. Remove a file from the allowlist in the same PR that routes it through a hook or repository.
+>
+> **Still on the allowlist (2 September 2026):** auth — `auth/LoginPage.jsx`, `auth/ResetPasswordPage.jsx`. Remove a file from the allowlist in the same PR that routes it through a hook or repository.
 
 > **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
 >

@@ -182,7 +182,6 @@ export default [
       "**/*.spec.{js,jsx,ts,tsx}",
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
-      "src/components/views/reports/useWeeklyCashUp.js",
     ],
     rules: {
       "no-restricted-imports": [
