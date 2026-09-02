@@ -21,6 +21,15 @@ const PORT = Number(process.env.PLAYWRIGHT_PORT) || 4173;
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
 const isPullRequestSmoke = process.env.PLAYWRIGHT_PR_SMOKE === "1";
+// Hosted sandboxes (Claude Code on the web, similar containers) ship a
+// pre-installed Chromium rather than the headless-shell build this Playwright
+// version downloads. Point PLAYWRIGHT_CHROMIUM_EXECUTABLE at that binary (for
+// example /opt/pw-browsers/chromium) and every Chromium project launches it;
+// unset, Playwright uses its own managed browser exactly as before.
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+const chromiumLaunch = chromiumExecutable
+  ? { launchOptions: { executablePath: chromiumExecutable } }
+  : {};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -39,7 +48,7 @@ export default defineConfig({
     ? [
         {
           name: "desktop",
-          use: { ...devices["Desktop Chrome"], browserName: "chromium" },
+          use: { ...devices["Desktop Chrome"], browserName: "chromium", ...chromiumLaunch },
         },
         // WebKit stays deliberately narrow. It exists for cross-browser smoke
         // coverage, and the other specs have never been validated against it —
@@ -60,15 +69,15 @@ export default defineConfig({
     : [
         {
           name: "desktop",
-          use: { ...devices["Desktop Chrome"], browserName: "chromium" },
+          use: { ...devices["Desktop Chrome"], browserName: "chromium", ...chromiumLaunch },
         },
         {
           name: "tablet",
-          use: { ...devices["iPad (gen 7)"], browserName: "chromium" },
+          use: { ...devices["iPad (gen 7)"], browserName: "chromium", ...chromiumLaunch },
         },
         {
           name: "mobile",
-          use: { ...devices["iPhone 13"], browserName: "chromium" },
+          use: { ...devices["iPhone 13"], browserName: "chromium", ...chromiumLaunch },
         },
       ],
   webServer: {
