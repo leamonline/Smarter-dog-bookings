@@ -20,7 +20,7 @@ vi.mock("../../hooks/useGroomPhotos", () => ({
   }),
 }));
 
-vi.mock("../../hooks/useAutosave.js", () => ({
+vi.mock("../../hooks/useAutosave", () => ({
   useAutosave: () => ({ status: "idle", flushNow: vi.fn() }),
 }));
 

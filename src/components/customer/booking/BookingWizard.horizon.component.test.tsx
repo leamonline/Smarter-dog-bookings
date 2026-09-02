@@ -12,7 +12,7 @@ vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: { rpc: mocks.rpc },
 }));
 
-vi.mock("../../../hooks/useDraftPersistence.js", () => ({
+vi.mock("../../../hooks/useDraftPersistence", () => ({
   useDraftPersistence: () => ({
     restored: {
       step: 3,

@@ -21,7 +21,7 @@ import { useBookings } from "./supabase/hooks/useBookings.js";
 import { useSalonConfig } from "./supabase/hooks/useSalonConfig";
 import { useDaySettings } from "./supabase/hooks/useDaySettings";
 import { useWeekNav } from "./hooks/useWeekNav";
-import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup.js";
+import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup";
 import { useOfflineState } from "./hooks/useOfflineState.js";
 import { useModalState } from "./hooks/useModalState";
 import { useBookingActions } from "./hooks/useBookingActions";
