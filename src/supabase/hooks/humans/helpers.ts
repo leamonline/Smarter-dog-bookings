@@ -1,7 +1,7 @@
 // Shared helpers and types for the useHumans surface. Extracted from the
 // monolithic hook (Debt #5) so the smaller sub-hooks can reuse them without
 // dragging the rest of the directory state along — same precedent as
-// inbox/helpers.js.
+// inbox/helpers.ts.
 import type { Dispatch, SetStateAction } from "react";
 import { sanitiseFieldValue } from "../../../utils/sanitiseFieldValue";
 import type { DbHumanRow } from "../../transforms";

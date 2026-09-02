@@ -8,6 +8,27 @@
 // that changes.
 export const SEND_FUNCTION_PATH = "whatsapp-send";
 
+/** The outcome shape every inbox action returns. */
+export type InboxActionResult<T = object> =
+  | ({ ok: true } & T)
+  | { ok: false; reason: string };
+
+/**
+ * What supabase-js hands back for a failed edge-function invoke: an Error
+ * whose `context` is the Response, so the JSON body must be read off it.
+ * Typed structurally so tests can pass a plain object.
+ */
+interface FunctionErrorLike {
+  message?: string;
+  context?: { json?: () => Promise<unknown> };
+}
+
+interface FunctionErrorBody {
+  error?: unknown;
+  reason?: unknown;
+  detail?: unknown;
+}
+
 // Supabase wraps non-2xx responses from edge functions in
 // FunctionsHttpError. The actual JSON payload is hidden behind
 // error.context.json(); pull it out so error toasts and Sentry tags
@@ -17,10 +38,13 @@ export const SEND_FUNCTION_PATH = "whatsapp-send";
 // Edge functions in this repo use {error, detail} on most paths and
 // {error, reason} on whatsapp-generate-reply specifically. Try all
 // three keys so the shared helper covers both shapes.
-export async function parseSupabaseFunctionError(error, fallbackMessage) {
+export async function parseSupabaseFunctionError(
+  error: FunctionErrorLike,
+  fallbackMessage: string,
+): Promise<string> {
   let detail = error.message ?? fallbackMessage;
   try {
-    const errorBody = await error.context?.json?.();
+    const errorBody = (await error.context?.json?.()) as FunctionErrorBody | null | undefined;
     if (errorBody) {
       const parts = [
         errorBody.error,

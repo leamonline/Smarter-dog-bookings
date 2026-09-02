@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useOutboundSender } = await import("./useOutboundSender.js");
+const { useOutboundSender } = await import("./useOutboundSender");
 
 function makeStub({ invokeResult = { error: null } } = {}) {
   return {

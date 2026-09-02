@@ -18,7 +18,7 @@ import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
+import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
