@@ -10,7 +10,7 @@ import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } fr
 // (the originals declared 1-arg/void shapes that the implementations never
 // had — PR #255's "latent drift" findings 2 and 3):
 //   - updateBooking is 3-arg (booking, fromDateStr, toDateStr) and resolves
-//     to the saved booking or null (useBookings.js), and callers
+//     to the saved booking or null (useBookings.ts), and callers
 //     (useBookingSave) branch on that result.
 //   - updateDog / updateHuman take (idOrName, updates) and resolve to the
 //     saved record, null on failure, or undefined for an unknown record
@@ -91,7 +91,7 @@ interface OfflineFns {
   // in the same way as the pre-#259 handleUpdate.
   handleAdd: (booking: Booking, targetDateStr?: string) => Promise<Booking>;
   handleAddToDate: (booking: Booking, dateStr: string) => void;
-  // Resolves true after the optimistic removal (useOfflineState.js); the
+  // Resolves true after the optimistic removal (useOfflineState.ts); the
   // original declared void.
   handleRemove: (bookingId: string) => Promise<boolean>;
   // Same shape as sbUpdateBooking: the offline handler also applies

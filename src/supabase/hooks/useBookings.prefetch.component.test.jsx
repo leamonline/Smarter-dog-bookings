@@ -21,7 +21,7 @@ vi.mock("../bootPrefetch.js", () => ({
 }));
 
 const { takeBootPrefetch } = await import("../bootPrefetch.js");
-const { useBookings } = await import("./useBookings.js");
+const { useBookings } = await import("./useBookings");
 
 const ROW = {
   id: "booking-1",

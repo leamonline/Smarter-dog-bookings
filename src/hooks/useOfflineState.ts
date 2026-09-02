@@ -15,10 +15,42 @@ import {
 } from "../data/sample.js";
 import { toDateStr } from "../supabase/transforms";
 import { getDefaultOpenForDate } from "../engine/utils";
+import type {
+  Booking,
+  BookingsByDate,
+  DaySettings,
+  Dog,
+  Human,
+  SalonConfig,
+  SlotOverrides,
+} from "../types/index";
+
+export type OfflineDaySettingsMap = Record<string, DaySettings>;
+type SeatAction = SlotOverrides[number];
+type ConfigUpdater = SalonConfig | ((prev: SalonConfig) => SalonConfig);
+
+/** A dog as the offline directory holds it: the app Dog plus any extra form fields. */
+type OfflineDog = Dog & Record<string, unknown>;
+type OfflineHuman = Human & Record<string, unknown>;
+
+// The sample fixtures are deliberately loose JS; widen them once here to
+// the app shapes the offline state holds.
+const SAMPLE_DOG_MAP = SAMPLE_DOGS as unknown as Record<string, OfflineDog>;
+const SAMPLE_HUMAN_MAP = SAMPLE_HUMANS as unknown as Record<string, OfflineHuman>;
+const SAMPLE_WEEK = SAMPLE_BOOKINGS_BY_DAY as unknown as Record<string, Booking[]>;
+
+function emptyDay(dateObj: Date): DaySettings {
+  return {
+    isOpen: getDefaultOpenForDate(dateObj),
+    overrides: {},
+    extraSlots: [],
+    immediateSlots: [],
+  };
+}
 
 // Convert sample bookings to date-based format for a given week
-function buildOfflineBookingsByDate(weekStart) {
-  const dayToOffset = {
+function buildOfflineBookingsByDate(weekStart: Date): BookingsByDate {
+  const dayToOffset: Record<string, number> = {
     mon: 0,
     tue: 1,
     wed: 2,
@@ -27,18 +59,18 @@ function buildOfflineBookingsByDate(weekStart) {
     sat: 5,
     sun: 6,
   };
-  const result = {};
-  for (const [dayKey, bookings] of Object.entries(SAMPLE_BOOKINGS_BY_DAY)) {
+  const result: BookingsByDate = {};
+  for (const [dayKey, bookings] of Object.entries(SAMPLE_WEEK)) {
     const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + dayToOffset[dayKey]);
+    d.setDate(weekStart.getDate() + (dayToOffset[dayKey] ?? 0));
     const dateStr = toDateStr(d);
     result[dateStr] = bookings;
   }
   return result;
 }
 
-function buildDefaultDaySettings(weekStart) {
-  const settings = {};
+function buildDefaultDaySettings(weekStart: Date): OfflineDaySettingsMap {
+  const settings: OfflineDaySettingsMap = {};
   ALL_DAYS.forEach((day, i) => {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
@@ -52,14 +84,14 @@ function buildDefaultDaySettings(weekStart) {
   return settings;
 }
 
-export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
-  const [offlineDogs, setOfflineDogs] = useState(SAMPLE_DOGS);
-  const [offlineHumans, setOfflineHumans] = useState(SAMPLE_HUMANS);
-  const [offlineBookings, setOfflineBookings] = useState(() =>
+export function useOfflineState(weekStart: Date, currentDateStr: string, currentDateObj: Date) {
+  const [offlineDogs, setOfflineDogs] = useState<Record<string, OfflineDog>>(SAMPLE_DOG_MAP);
+  const [offlineHumans, setOfflineHumans] = useState<Record<string, OfflineHuman>>(SAMPLE_HUMAN_MAP);
+  const [offlineBookings, setOfflineBookings] = useState<BookingsByDate>(() =>
     buildOfflineBookingsByDate(weekStart),
   );
-  const [offlineConfig, setOfflineConfig] = useState(() => createDefaultSalonConfig());
-  const [offlineDaySettings, setOfflineDaySettings] = useState(() =>
+  const [offlineConfig, setOfflineConfig] = useState<SalonConfig>(() => createDefaultSalonConfig());
+  const [offlineDaySettings, setOfflineDaySettings] = useState<OfflineDaySettingsMap>(() =>
     buildDefaultDaySettings(weekStart),
   );
 
@@ -74,7 +106,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   // --- Dog/Human CRUD ---
 
   const offlineUpdateDog = useCallback(
-    (dogIdentifier, updates) => {
+    (dogIdentifier: string, updates: Partial<OfflineDog>): OfflineDog | null => {
       // Resolve outside the setState updater so the result can be RETURNED:
       // callers (useBookingSave via useBookingActions) treat a nullish
       // result as "dog not found / save failed", mirroring the online
@@ -88,8 +120,8 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
       );
       if (!found) return null;
       const [key, dog] = found;
-      const merged = { ...dog, ...updates };
-      const nextKey = updates.name || dog.name || key;
+      const merged: OfflineDog = { ...dog, ...updates };
+      const nextKey = (updates.name as string | undefined) || dog.name || key;
       setOfflineDogs((prev) => {
         const next = { ...prev };
         delete next[key];
@@ -101,7 +133,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     [offlineDogs],
   );
 
-  const offlineUpdateHuman = useCallback((humanIdentifier, updates) => {
+  const offlineUpdateHuman = useCallback((humanIdentifier: string, updates: Partial<OfflineHuman>): OfflineHuman | null => {
     const found = Object.entries(offlineHumans).find(
       ([key, human]) =>
         key === humanIdentifier ||
@@ -114,7 +146,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     const nextName = updates.name ?? human.name;
     const nextSurname = updates.surname ?? human.surname;
     const nextKey = `${nextName} ${nextSurname}`.trim();
-    const merged = { ...human, ...updates, fullName: nextKey };
+    const merged: OfflineHuman = { ...human, ...updates, fullName: nextKey };
 
     setOfflineHumans((prev) => {
       const next = { ...prev };
@@ -125,7 +157,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     return merged;
   }, [offlineHumans]);
 
-  const offlineUpdateConfig = useCallback((updater) => {
+  const offlineUpdateConfig = useCallback((updater: ConfigUpdater): { ok: true } => {
     setOfflineConfig((prev) =>
       typeof updater === "function" ? updater(prev) : updater,
     );
@@ -134,7 +166,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     return { ok: true };
   }, []);
 
-  const offlineAddHuman = useCallback((humanData) => {
+  const offlineAddHuman = useCallback((humanData: Partial<Human> & { name: string; surname: string }): OfflineHuman => {
     const key = `${humanData.name} ${humanData.surname}`.trim();
     const newHuman = {
       id: `h-${Date.now()}`,
@@ -146,13 +178,13 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
       historyFlag: "",
       trustedIds: [],
       trustedContacts: [],
-    };
+    } as OfflineHuman;
     setOfflineHumans((prev) => ({ ...prev, [key]: newHuman }));
     return newHuman;
   }, []);
 
   const offlineAddDog = useCallback(
-    (dogData) => {
+    (dogData: Partial<Dog> & { name: string; humanId: string }): OfflineDog => {
       const humanEntry = Object.values(offlineHumans).find(
         (human) =>
           human.id === dogData.humanId ||
@@ -166,7 +198,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
         alerts: [],
         groomNotes: dogData.groomNotes || "",
         customPrice: undefined,
-      };
+      } as OfflineDog;
       setOfflineDogs((prev) => ({ ...prev, [dogData.name]: newDog }));
       return newDog;
     },
@@ -176,7 +208,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   // --- Booking CRUD ---
 
   const offlineHandleAdd = useCallback(
-    async (booking, targetDateStr = currentDateStr) => {
+    async (booking: Booking, targetDateStr: string = currentDateStr): Promise<Booking> => {
       setOfflineBookings((prev) => ({
         ...prev,
         [targetDateStr]: [...(prev[targetDateStr] || []), booking],
@@ -186,7 +218,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     [currentDateStr],
   );
 
-  const offlineHandleAddToDate = useCallback((booking, dateStr) => {
+  const offlineHandleAddToDate = useCallback((booking: Booking, dateStr: string) => {
     setOfflineBookings((prev) => ({
       ...prev,
       [dateStr]: [...(prev[dateStr] || []), booking],
@@ -194,7 +226,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   }, []);
 
   const offlineHandleRemove = useCallback(
-    async (bookingId) => {
+    async (bookingId: string): Promise<boolean> => {
       setOfflineBookings((prev) => ({
         ...prev,
         [currentDateStr]: (prev[currentDateStr] || []).filter(
@@ -207,7 +239,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   );
 
   const offlineHandleUpdate = useCallback(
-    async (updatedBooking, fromDateStr, toDateStrValue) => {
+    async (updatedBooking: Booking, fromDateStr: string, toDateStrValue: string): Promise<Booking> => {
       setOfflineBookings((prev) => {
         const newState = { ...prev };
         if (fromDateStr === toDateStrValue) {
@@ -232,16 +264,11 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
 
   // --- Day settings ---
 
-  const offlineToggleDayOpen = useCallback((nextIsOpen) => {
+  const offlineToggleDayOpen = useCallback((nextIsOpen?: boolean) => {
     setOfflineDaySettings((prev) => ({
       ...prev,
       [currentDateStr]: {
-        ...(prev[currentDateStr] || {
-          isOpen: getDefaultOpenForDate(currentDateObj),
-          overrides: {},
-          extraSlots: [],
-          immediateSlots: [],
-        }),
+        ...(prev[currentDateStr] || emptyDay(currentDateObj)),
         isOpen:
           typeof nextIsOpen === "boolean"
             ? nextIsOpen
@@ -254,16 +281,11 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   }, [currentDateStr, currentDateObj]);
 
   const offlineHandleOverride = useCallback(
-    (slot, seatIndex, action) => {
+    (slot: string, seatIndex: number, action: SeatAction): { ok: true } => {
       setOfflineDaySettings((prev) => {
-        const current = prev[currentDateStr] || {
-          isOpen: getDefaultOpenForDate(currentDateObj),
-          overrides: {},
-          extraSlots: [],
-          immediateSlots: [],
-        };
-        const overrides = { ...current.overrides };
-        const slotOv = { ...(overrides[slot] || {}) };
+        const current = prev[currentDateStr] || emptyDay(currentDateObj);
+        const overrides: Record<string, SlotOverrides> = { ...current.overrides };
+        const slotOv: SlotOverrides = { ...(overrides[slot] || {}) };
         if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
         else slotOv[seatIndex] = action;
         if (Object.keys(slotOv).length === 0) delete overrides[slot];
@@ -279,14 +301,9 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   // suite and the offline preview. Synchronous + infallible like
   // offlineHandleOverride.
   const offlineToggleImmediateSlot = useCallback(
-    (slot) => {
+    (slot: string): { ok: true } => {
       setOfflineDaySettings((prev) => {
-        const current = prev[currentDateStr] || {
-          isOpen: getDefaultOpenForDate(currentDateObj),
-          overrides: {},
-          extraSlots: [],
-          immediateSlots: [],
-        };
+        const current = prev[currentDateStr] || emptyDay(currentDateObj);
         const existing = current.immediateSlots || [];
         const immediateSlots = existing.includes(slot)
           ? existing.filter((s) => s !== slot)
@@ -300,12 +317,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
 
   const offlineHandleAddSlot = useCallback(() => {
     setOfflineDaySettings((prev) => {
-      const current = prev[currentDateStr] || {
-        isOpen: getDefaultOpenForDate(currentDateObj),
-        overrides: {},
-        extraSlots: [],
-        immediateSlots: [],
-      };
+      const current = prev[currentDateStr] || emptyDay(currentDateObj);
       const existing = current.extraSlots || [];
       const lastSlot =
         existing.length > 0
@@ -329,12 +341,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
 
   const offlineHandleRemoveSlot = useCallback(() => {
     setOfflineDaySettings((prev) => {
-      const current = prev[currentDateStr] || {
-        isOpen: getDefaultOpenForDate(currentDateObj),
-        overrides: {},
-        extraSlots: [],
-        immediateSlots: [],
-      };
+      const current = prev[currentDateStr] || emptyDay(currentDateObj);
       const existing = current.extraSlots || [];
       if (existing.length === 0) return prev;
       return {

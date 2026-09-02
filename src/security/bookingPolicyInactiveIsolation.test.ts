@@ -142,7 +142,7 @@ describe("the inactive policy does not reach production consumers", () => {
   });
 
   it("leaves the staff booking UI on the legacy path", () => {
-    const hook = readFileSync(join(root, "src/supabase/hooks/useBookings.js"), "utf8");
+    const hook = readFileSync(join(root, "src/supabase/hooks/useBookings.ts"), "utf8");
     // create_staff_booking_group has no Terms requirement and creates a
     // legacy_compat visit, so ordinary staff booking keeps working with the
     // policy inactive and no Terms published.

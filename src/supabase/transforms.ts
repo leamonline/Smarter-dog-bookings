@@ -67,7 +67,7 @@ export interface DbDogRow {
   last_groomed_date?: string | null;
 }
 
-interface DbBookingRow {
+export interface DbBookingRow {
   id: string;
   slot: string;
   size: string;
