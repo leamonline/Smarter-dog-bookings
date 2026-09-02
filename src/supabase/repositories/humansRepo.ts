@@ -151,6 +151,29 @@ export function listTrustedContactLinks(client: SupabaseClient, humanId: string)
     .eq("human_id", humanId);
 }
 
+/** The humans columns the inbox customer-context panel reads. */
+export const CUSTOMER_CONTEXT_COLS =
+  "id, name, surname, phone, email, address, notes, sms, whatsapp, history_flag";
+
+/** One customer's context row for the inbox panel; raw PostgREST result. */
+export function getCustomerContextProfile(client: SupabaseClient, humanId: string, signal?: AbortSignal) {
+  const q = client.from("humans").select(CUSTOMER_CONTEXT_COLS).eq("id", humanId);
+  return (signal ? q.abortSignal(signal) : q).maybeSingle();
+}
+
+/**
+ * Trusted contacts with the contact's own name embedded through the
+ * trusted_id FK (the "humans!trusted_id" alias is the named-relationship
+ * syntax), so the inbox panel needs no second lookup. Raw PostgREST result.
+ */
+export function listTrustedContactsWithNames(client: SupabaseClient, humanId: string, signal?: AbortSignal) {
+  const q = client
+    .from("human_trusted_contacts")
+    .select("trusted_id, relationship, trusted:humans!trusted_id(id, name, surname)")
+    .eq("human_id", humanId);
+  return signal ? q.abortSignal(signal) : q;
+}
+
 /** The columns the reminder channel picker gates on (contact details + opt-outs). */
 export const REMINDER_CONTACT_COLS =
   "id, name, surname, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";

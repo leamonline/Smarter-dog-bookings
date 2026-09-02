@@ -13,7 +13,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client";
+import { useStaffInboxReads } from "../../../../supabase/hooks/useStaffInboxReads";
 import { logger } from "../../../../lib/logger";
 
 const MIN_QUERY_LENGTH = 2;
@@ -23,13 +23,8 @@ const DEBOUNCE_MS = 300;
 // conversation ids, and the list itself is the recent window anyway.
 const MATCH_LIMIT = 2000;
 
-// Escape the LIKE wildcards so a query containing % or _ matches those
-// characters literally rather than acting as a pattern.
-function escapeLike(value) {
-  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-}
-
 export function useInboxMessageSearch(query) {
+  const inboxReads = useStaffInboxReads();
   const [messageMatchIds, setMessageMatchIds] = useState(() => new Set());
   const [searching, setSearching] = useState(false);
   const trimmed = (query ?? "").trim();
@@ -37,7 +32,7 @@ export function useInboxMessageSearch(query) {
   useEffect(() => {
     // No client in offline / sample-data mode (VITE_FORCE_OFFLINE), and
     // nothing to search below the minimum query length.
-    if (!supabase || trimmed.length < MIN_QUERY_LENGTH) {
+    if (!inboxReads.connected || trimmed.length < MIN_QUERY_LENGTH) {
       setMessageMatchIds(new Set());
       setSearching(false);
       return undefined;
@@ -48,16 +43,14 @@ export function useInboxMessageSearch(query) {
 
     const handle = window.setTimeout(async () => {
       try {
-        const { data, error } = await supabase
-          .from("whatsapp_messages")
-          .select("conversation_id")
-          .ilike("content", `%${escapeLike(trimmed)}%`)
-          .limit(MATCH_LIMIT);
+        // LIKE-wildcard escaping lives in the repository with the query.
+        const { conversationIds, error } = await inboxReads.searchMessageConversationIds(
+          trimmed,
+          MATCH_LIMIT,
+        );
         if (error) throw error;
         if (cancelled) return;
-        setMessageMatchIds(
-          new Set((data ?? []).map((row) => row.conversation_id).filter(Boolean)),
-        );
+        setMessageMatchIds(new Set(conversationIds));
       } catch (err) {
         if (cancelled) return;
         logger.error("inbox message search failed", err, {
@@ -73,7 +66,7 @@ export function useInboxMessageSearch(query) {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [trimmed]);
+  }, [trimmed, inboxReads]);
 
   return { messageMatchIds, searching };
 }

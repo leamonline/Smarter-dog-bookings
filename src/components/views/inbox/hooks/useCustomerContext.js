@@ -18,7 +18,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client";
+import { useStaffInboxReads } from "../../../../supabase/hooks/useStaffInboxReads";
 import { registerResume } from "../../../../supabase/refreshOnResume.js";
 import { SAMPLE_CUSTOMER_CONTEXT } from "../../../../data/sample.js";
 import { logger } from "../../../../lib/logger";
@@ -44,6 +44,7 @@ function todayDateStr() {
 }
 
 export function useCustomerContext(humanId) {
+  const inboxReads = useStaffInboxReads();
   const [data, setData] = useState(EMPTY_RESULT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -64,8 +65,6 @@ export function useCustomerContext(humanId) {
       controller.abort();
     }, CUSTOMER_CONTEXT_TIMEOUT_MS);
 
-    const withSignal = (query) => query.abortSignal(controller.signal);
-
     const stopLoading = () => {
       window.clearTimeout(timeoutId);
       if (!cancelled) setLoading(false);
@@ -79,7 +78,7 @@ export function useCustomerContext(humanId) {
       return undefined;
     }
 
-    if (!supabase) {
+    if (!inboxReads.connected) {
       // Offline / unconfigured client. Serve the shared fixture when there is
       // one so the Customer section renders populated for visual review;
       // otherwise fall back to the empty shape, which is what the panel's
@@ -98,46 +97,16 @@ export function useCustomerContext(humanId) {
     (async () => {
       try {
         const today = todayDateStr();
-        const [humanRes, dogsRes, lastBookingRes, trustedRes] = await Promise.all([
-          withSignal(supabase
-            .from("humans")
-            .select(
-              "id, name, surname, phone, email, address, notes, sms, whatsapp, history_flag",
-            )
-            .eq("id", humanId))
-            .maybeSingle(),
-          withSignal(supabase
-            .from("dogs")
-            .select("id, name, breed, age, size, alerts, groom_notes")
-            .eq("human_id", humanId)
-            .order("name")),
-          // Recent past bookings across all of this customer's dogs.
-          // `dogs!inner` filters to bookings whose dog belongs to humanId.
-          // Ordered newest-first: row 0 is the "last booking" shown on the
-          // customer card, and the same rows give each dog its most recent
-          // service, which prefills the booking pane's service selectors.
-          // Bounded — a customer's recent history, not their whole life.
-          withSignal(supabase
-            .from("bookings")
-            .select(
-              "id, booking_date, slot, service, status, size, dog_id, dogs!inner(name, human_id)",
-            )
-            .eq("dogs.human_id", humanId)
-            .lt("booking_date", today)
-            .order("booking_date", { ascending: false })
-            .order("slot", { ascending: false })
-            .limit(40)),
-          // Trusted contacts: join through humans on trusted_id so we
-          // can display the contact's name + relationship without a
-          // separate lookup. The "humans" alias on trusted_id is the
-          // Supabase syntax for a named FK relationship.
-          withSignal(supabase
-            .from("human_trusted_contacts")
-            .select(
-              "trusted_id, relationship, trusted:humans!trusted_id(id, name, surname)",
-            )
-            .eq("human_id", humanId)),
-        ]);
+        // Four reads in parallel through the repository layer; the shaping
+        // below is unchanged. Recent PAST bookings across all of this
+        // customer's dogs, newest-first: row 0 is the "last booking" on the
+        // customer card, and the same rows give each dog its most recent
+        // service, which prefills the booking pane's service selectors.
+        const [humanRes, dogsRes, lastBookingRes, trustedRes] =
+          await inboxReads.loadCustomerContext(humanId, {
+            before: today,
+            signal: controller.signal,
+          });
 
         if (cancelled) return;
         window.clearTimeout(timeoutId);
@@ -237,7 +206,7 @@ export function useCustomerContext(humanId) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [humanId, refreshKey]);
+  }, [humanId, refreshKey, inboxReads]);
 
   return { ...data, loading, error, refetch };
 }

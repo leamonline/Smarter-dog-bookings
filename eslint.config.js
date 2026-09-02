@@ -183,10 +183,6 @@ export default [
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
       "src/components/customer/booking/BookingWizard.tsx",
-      "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
-      "src/components/views/inbox/hooks/useCustomerContext.js",
-      "src/components/views/inbox/hooks/useInboxMessageSearch.js",
-      "src/components/views/inbox/hooks/useSlotCapacityPreview.js",
       "src/components/views/reports/useWeeklyCashUp.js",
     ],
     rules: {

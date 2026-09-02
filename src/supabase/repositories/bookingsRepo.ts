@@ -695,3 +695,44 @@ export function listOwnerBookingsOnDate(client: SupabaseClient, date: string, ow
 export function listServicesForBookings(client: SupabaseClient, bookingIds: string[]) {
   return client.from("bookings").select("id, service").in("id", bookingIds);
 }
+
+/**
+ * A customer's recent PAST bookings across all their dogs, newest first.
+ * `dogs!inner` filters to bookings whose dog belongs to the owner. Bounded:
+ * recent history, not a lifetime. Raw PostgREST result.
+ */
+export function listRecentPastForOwner(
+  client: SupabaseClient,
+  { humanId, before, limit = 40 }: { humanId: string; before: string; limit?: number },
+  signal?: AbortSignal,
+) {
+  const q = client
+    .from("bookings")
+    .select("id, booking_date, slot, service, status, size, dog_id, dogs!inner(name, human_id)")
+    .eq("dogs.human_id", humanId)
+    .lt("booking_date", before)
+    .order("booking_date", { ascending: false })
+    .order("slot", { ascending: false })
+    .limit(limit);
+  return signal ? q.abortSignal(signal) : q;
+}
+
+/** The seat-level columns the inbox capacity preview feeds to the engine. */
+export interface SeatRow {
+  id: string;
+  slot: string;
+  size: string;
+  dog_id: string;
+}
+
+/** Every booking on one date as seats (id, slot, size, dog) for the capacity engine. */
+export async function listSeatsOnDate(
+  client: SupabaseClient,
+  date: string,
+): Promise<{ rows: SeatRow[]; error: Error | null }> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("id, slot, size, dog_id")
+    .eq("booking_date", date);
+  return { rows: (data ?? []) as SeatRow[], error: error ?? null };
+}
