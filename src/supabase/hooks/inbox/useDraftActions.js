@@ -21,7 +21,7 @@
 import { useCallback } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
-import { SEND_FUNCTION_PATH } from "./helpers.js";
+import { SEND_FUNCTION_PATH } from "./helpers";
 
 export function useDraftActions({
   draft,

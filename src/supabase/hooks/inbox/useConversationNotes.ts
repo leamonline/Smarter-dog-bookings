@@ -1,15 +1,36 @@
 import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
+import type { InboxActionResult } from "./helpers";
 
-export function useConversationNotes({ selectedId, setConversations }) {
-  const updateConversationNotes = useCallback(async (notes, conversationId) => {
+/** The slice of a conversation row this hook touches; the list holds richer objects. */
+interface ConversationWithNotes {
+  id: string;
+  notes?: string | null;
+}
+
+export interface UseConversationNotesArgs<T extends ConversationWithNotes> {
+  selectedId: string | null | undefined;
+  setConversations: Dispatch<SetStateAction<T[]>>;
+}
+
+export interface UseConversationNotesResult {
+  updateConversationNotes: (notes: string, conversationId?: string | null) => Promise<InboxActionResult>;
+}
+
+export function useConversationNotes<T extends ConversationWithNotes>({
+  selectedId,
+  setConversations,
+}: UseConversationNotesArgs<T>): UseConversationNotesResult {
+  const updateConversationNotes = useCallback(async (notes: string, conversationId?: string | null): Promise<InboxActionResult> => {
     const id = conversationId ?? selectedId;
     if (!id) return { ok: false, reason: "no conversation selected" };
 
     const nextNotes = notes.trim() ? notes : null;
 
     try {
+      if (!supabase) throw new Error("Not connected");
       const { error } = await supabase
         .from("whatsapp_conversations")
         .update({ notes: nextNotes })
