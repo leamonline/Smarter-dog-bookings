@@ -1,17 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { customerSupabase as supabase } from "../../../supabase/customerClient";
-import {
-  createMany,
-  joinWaitlist,
-  listOnDateForCapacity,
-  listBlockedSeats,
-  listImmediateSlots,
-  getDepositSettings,
-  requestCustomerOverrideReschedule,
-  rescheduleCustomerBooking,
-} from "../../../supabase/repositories/bookingsRepo";
-import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
+import { useCustomerBookingWizard } from "../../../supabase/hooks/useCustomerBookingWizard";
+import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence";
 import {
   SALON_SLOTS,
@@ -23,7 +13,7 @@ import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
-import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
+import type { BookingDenialInput } from "../../../supabase/rpc";
 import { claimFunnelBlocker, claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
 import {
   dateStepBlocker,
@@ -34,10 +24,8 @@ import { categoriseConfirmFailure, type ConfirmFailure } from "../../../engine/c
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
-  resolveCustomerPortalPolicy,
   type CustomerPortalPolicy,
 } from "../../../supabase/customerBookingRules";
-import { getBookingRules } from "../../../supabase/repositories/humansRepo";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
@@ -208,6 +196,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     save: saveDraft,
     clear: clearDraft,
   } = useDraftPersistence(draftKey, { enabled: !rescheduleFrom });
+  const wizard = useCustomerBookingWizard();
   const draft = restored as unknown as BookingDraft | null;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => draft?.step ?? 1);
@@ -256,8 +245,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   // unmounted wizard, so a transient read never blocks a customer booking.
   useEffect(() => {
     let cancelled = false;
-    if (!supabase) return;
-    void resolveCustomerPortalPolicy(supabase, (rpcError) => {
+    if (!wizard.connected) return;
+    void wizard.resolvePortalPolicy((rpcError) => {
       logger.error("Failed to fetch customer booking rules", rpcError, {
         tags: { component: "BookingWizard", op: "current_customer_booking_rules" },
       });
@@ -271,15 +260,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       });
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [wizard]);
 
   // Per-owner deposit rule. Best-effort and fail-open, exactly like SlotSelection's
   // own read: the DB stamping trigger remains the authority, so a failure here
   // only means step 5 stays quiet about deposits.
   useEffect(() => {
     let cancelled = false;
-    if (!supabase) return;
-    void getBookingRules(supabase, humanRecord.id)
+    if (!wizard.connected) return;
+    void wizard.getBookingRules(humanRecord.id)
       .then((rules) => {
         if (!cancelled && rules) setDepositRequired(rules.depositRequired);
       })
@@ -289,7 +278,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         });
       });
     return () => { cancelled = true; };
-  }, [humanRecord.id]);
+  }, [humanRecord.id, wizard]);
 
   // Focus the step heading when the step changes (A2: focus management)
   useEffect(() => {
@@ -321,7 +310,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const dogsFetchControllerRef = useRef<AbortController | null>(null);
 
   const fetchDogs = useCallback(async () => {
-    if (!supabase) return;
+    if (!wizard.connected) return;
     dogsFetchControllerRef.current?.abort();
     const controller = new AbortController();
     dogsFetchControllerRef.current = controller;
@@ -329,8 +318,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setDogsLoading(true);
     setDogsError(null);
     try {
-      if (!supabase) throw new Error("Not connected");
-      const { dogs: rows, error: fetchErr } = await listForHuman(supabase, {
+      if (!wizard.connected) throw new Error("Not connected");
+      const { dogs: rows, error: fetchErr } = await wizard.listDogs({
         humanId: humanRecord.id,
         signal: controller.signal,
       });
@@ -355,7 +344,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     } finally {
       if (!controller.signal.aborted) setDogsLoading(false);
     }
-  }, [humanRecord.id]);
+  }, [humanRecord.id, wizard]);
 
   useEffect(() => {
     fetchDogs();
@@ -390,8 +379,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       // try/catch, so it must not throw synchronously OR reject — either could
       // change what the customer sees. Swallow both.
       try {
-        if (!supabase) return;
-        logBookingDenial(supabase, { ...input, source: "portal", humanId: humanRecord.id }).then(
+        if (!wizard.connected) return;
+        wizard.logDenial({ ...input, source: "portal", humanId: humanRecord.id }).then(
           undefined,
           () => {},
         );
@@ -399,7 +388,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         /* never surface a logging failure into the booking flow */
       }
     },
-    [humanRecord.id],
+    [humanRecord.id, wizard],
   );
   const handleNoAvailability = useCallback(
     (info: { date: string; isToday: boolean }) => {
@@ -440,11 +429,11 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   }, [humanRecord.id, selectedDogs.length]);
   const fireFunnel = useCallback((funnelStep: string) => {
     try {
-      if (!supabase) return;
+      if (!wizard.connected) return;
       const claim = claimFunnelStep(funnelStep);
       if (!claim) return;
       const occurredAt = new Date().toISOString();
-      logFunnelEvent(supabase, {
+      wizard.logFunnel({
         sessionId: claim.sessionId,
         step: funnelStep,
         stepIndex: claim.stepIndex,
@@ -455,7 +444,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     } catch {
       /* telemetry must never surface into the wizard */
     }
-  }, []);
+  }, [wizard]);
   /**
    * Record that the wizard could offer no way forward at this step.
    *
@@ -467,10 +456,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
    */
   const fireBlocker = useCallback((step: string, reason: FunnelBlockedReason) => {
     try {
-      if (!supabase) return;
+      if (!wizard.connected) return;
       const claim = claimFunnelBlocker(reason);
       if (!claim) return;
-      logFunnelEvent(supabase, {
+      wizard.logFunnel({
         sessionId: claim.sessionId,
         step,
         stepIndex: claim.stepIndex,
@@ -482,7 +471,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     } catch {
       /* telemetry must never surface into the wizard */
     }
-  }, []);
+  }, [wizard]);
   /**
    * Record that a confirm click produced no booking, and why (#708).
    *
@@ -494,10 +483,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
    */
   const fireConfirmFailed = useCallback((failure: ConfirmFailure) => {
     try {
-      if (!supabase) return;
+      if (!wizard.connected) return;
       const claim = claimFunnelStep("confirm_failed");
       if (!claim) return;
-      logFunnelEvent(supabase, {
+      wizard.logFunnel({
         sessionId: claim.sessionId,
         step: "confirm_failed",
         stepIndex: claim.stepIndex,
@@ -510,7 +499,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     } catch {
       /* telemetry must never surface into the wizard */
     }
-  }, []);
+  }, [wizard]);
 
   // "started" is the one funnel event with no user click behind it, so a
   // mount effect is genuinely needed. fireFunnel is stable ([] deps), and the
@@ -546,14 +535,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setSubmitting(true);
     setError(null);
     try {
-      if (!supabase) throw new Error("Not connected");
+      if (!wizard.connected) throw new Error("Not connected");
 
       const [{ bookings, error: rereadError }, { byDate: blockedByDate }, immediate] =
-        await Promise.all([
-          listOnDateForCapacity(supabase, selectedDate),
-          listBlockedSeats(supabase, selectedDate, selectedDate),
-          listImmediateSlots(supabase),
-        ]);
+        await wizard.loadConfirmAvailability(selectedDate);
       if (rereadError) throw rereadError;
 
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
@@ -619,7 +604,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const reason = `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`;
       if (rescheduleFrom && approvalRequired) {
         const { request, error: requestError } =
-          await requestCustomerOverrideReschedule(supabase, {
+          await wizard.requestOverrideReschedule({
             bookingId: rescheduleFrom.id,
             bookingDate: selectedDate,
             bookings: inputs,
@@ -640,13 +625,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       }
 
       const { ids: insertedIds, error: insertError } = rescheduleFrom
-        ? await rescheduleCustomerBooking(supabase, {
+        ? await wizard.reschedule({
             bookingId: rescheduleFrom.id,
             bookingDate: selectedDate,
             bookings: inputs,
             reason,
           })
-        : await createMany(supabase, inputs);
+        : await wizard.createBookings(inputs);
       if (insertError) {
         // Preserve the original Postgres error code so the catch
         // block's trigger-error matcher (P0001) still fires, and the DETAIL
@@ -671,16 +656,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         // amount per dog, so a two-dog visit holds twice one dog's deposit —
         // reading row[0] alone told the customer half of what they owed, and an
         // underpayment cannot be matched, so the appointment would be released.
-        const { data: depRows, error: depositReadError } = await supabase
-          .from("bookings")
-          .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
-          .in("id", insertedIds);
+        const { rows: depRows, error: depositReadError } = await wizard.listDepositStamps(insertedIds);
         if (depositReadError || !depRows || depRows.length === 0) {
           throw depositReadError ?? new Error("New booking could not be read back");
         }
         const depositRows = depRows.filter((row) => row.deposit_required);
         if (depositRows.length > 0) {
-          const depositSettings = await getDepositSettings(supabase);
+          const depositSettings = await wizard.getDepositSettings();
           // Prefer whatever the stamping trigger wrote per row; fall back to the
           // flat per-dog constant for any row it left null (which is every row in
           // production today). deposit_amount is stored in pounds, not pence.
@@ -799,8 +781,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setSubmitting(true);
     setError(null);
     try {
-      if (!supabase) throw new Error("Not connected");
-      const { error: waitErr } = await joinWaitlist(supabase, {
+      if (!wizard.connected) throw new Error("Not connected");
+      const { error: waitErr } = await wizard.joinWaitlist({
         humanId: humanRecord.id,
         targetDate: selectedDate,
       });

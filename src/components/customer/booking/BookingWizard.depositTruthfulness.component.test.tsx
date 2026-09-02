@@ -55,6 +55,17 @@ vi.mock("../../../supabase/repositories/bookingsRepo", () => ({
   getDepositSettings: mocks.getDepositSettings,
   requestCustomerOverrideReschedule: vi.fn(),
   rescheduleCustomerBooking: vi.fn(),
+  // Mirrors the real read so the `from` stub below keeps driving it.
+  listDepositStamps: async (
+    client: { from: (table: string) => { select: (cols: string) => { in: (col: string, ids: string[]) => Promise<{ data: unknown[] | null; error: Error | null }> } } },
+    ids: string[],
+  ) => {
+    const { data, error } = await client
+      .from("bookings")
+      .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
+      .in("id", ids);
+    return { rows: data ?? [], error: error ?? null };
+  },
 }));
 
 vi.mock("../../../engine/capacity", () => ({

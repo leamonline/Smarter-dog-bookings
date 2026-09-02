@@ -182,7 +182,6 @@ export default [
       "**/*.spec.{js,jsx,ts,tsx}",
       "src/components/auth/LoginPage.jsx",
       "src/components/auth/ResetPasswordPage.jsx",
-      "src/components/customer/booking/BookingWizard.tsx",
       "src/components/views/reports/useWeeklyCashUp.js",
     ],
     rules: {
