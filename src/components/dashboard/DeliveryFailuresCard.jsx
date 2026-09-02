@@ -13,7 +13,7 @@ import { RightRailCard } from "./RightRailCard.jsx";
 import {
   useDeliveryFailures,
   triggerLabel,
-} from "../../supabase/hooks/useDeliveryFailures.js";
+} from "../../supabase/hooks/useDeliveryFailures";
 
 function fmtDate(iso) {
   if (!iso) return "";

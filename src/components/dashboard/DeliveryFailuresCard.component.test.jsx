@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 // The card calls useDeliveryFailures() as a fallback even when `data` is
 // passed; stub the module (and its triggerLabel export) so the test needs no
 // Supabase client.
-vi.mock("../../supabase/hooks/useDeliveryFailures.js", () => ({
+vi.mock("../../supabase/hooks/useDeliveryFailures", () => ({
   useDeliveryFailures: () => ({ failures: [], count: 0, loading: false }),
   triggerLabel: (t) => t,
 }));

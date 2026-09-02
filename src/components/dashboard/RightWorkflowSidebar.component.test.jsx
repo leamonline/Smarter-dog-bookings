@@ -26,13 +26,13 @@ let todosState;
 vi.mock("../../supabase/hooks/useWhatsAppSummary", () => ({
   useWhatsAppSummary: () => inboxState,
 }));
-vi.mock("../../supabase/hooks/useTomorrowReminders.js", () => ({
+vi.mock("../../supabase/hooks/useTomorrowReminders", () => ({
   useTomorrowReminders: () => remindersState,
 }));
 vi.mock("../../supabase/hooks/useWaitlistUpcoming", () => ({
   useWaitlistUpcoming: () => waitlistState,
 }));
-vi.mock("../../supabase/hooks/useTodos.js", () => ({
+vi.mock("../../supabase/hooks/useTodos", () => ({
   useTodos: () => todosState,
 }));
 

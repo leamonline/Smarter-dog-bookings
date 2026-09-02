@@ -21,7 +21,7 @@ import {
   validateDepositAmount,
 } from "../../engine/bookingRules";
 import { toDateStr } from "../../supabase/transforms";
-import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
+import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures";
 
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
 import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";

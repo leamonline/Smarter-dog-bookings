@@ -12,7 +12,7 @@ vi.mock("../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: mocks.showToast }),
 }));
 
-vi.mock("../../supabase/hooks/useTodos.js", () => ({
+vi.mock("../../supabase/hooks/useTodos", () => ({
   useTodos: () => ({
     todos: [
       {

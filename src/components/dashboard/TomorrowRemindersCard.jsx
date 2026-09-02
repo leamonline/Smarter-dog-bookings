@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useMemo, useState } from "react";
-import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
+import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useStaffMessaging } from "../../supabase/hooks/useStaffMessaging";
 import { CheckCircle2, Circle, Clock, Send } from "lucide-react";

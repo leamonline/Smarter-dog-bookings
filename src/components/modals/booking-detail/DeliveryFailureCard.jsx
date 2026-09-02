@@ -3,7 +3,7 @@ import { AlertTriangle, Send } from "lucide-react";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
-import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures.js";
+import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
 
 function relativeTime(iso) {
   if (!iso) return "";
