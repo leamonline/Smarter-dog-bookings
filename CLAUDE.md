@@ -76,7 +76,9 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   `/humans/:id` ↔ profile modals), `SalonProvider`, the route map
   ([StaffRoutes.jsx](src/components/layout/StaffRoutes.jsx)) and the modal stack
   ([StaffModals.jsx](src/components/layout/StaffModals.jsx)). `useStaffAppData` is the clearest map of
-  what data exists and how it flows; a ratchet test (`src/appShell.test.ts`) keeps App.jsx thin.
+  what data exists and how it flows; a ratchet test (`src/appShell.test.ts`) keeps App.jsx thin. Staff
+  views read shared salon data and core actions via `useSalon()` ([SalonContext.tsx](src/contexts/SalonContext.tsx))
+  and take only their per-view controls as props — follow that shape for new views.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
 - **`/today` live salon board** — the **default staff landing** (`/` stays the calendar). Each dog is

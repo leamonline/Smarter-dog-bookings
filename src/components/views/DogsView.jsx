@@ -24,6 +24,7 @@ import {
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 import { DogSizeMark, ProfileArrow } from "./directory/IdentityMarker.jsx";
 import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
+import { useSalon } from "../../contexts/SalonContext";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -241,11 +242,6 @@ const VIEW_OPTIONS = [
 ];
 
 export function DogsView({
-  dogs,
-  humans,
-  onOpenDog,
-  onAddDog,
-  onAddHuman,
   hasMore,
   totalCount,
   loadMore,
@@ -253,7 +249,6 @@ export function DogsView({
   searchQuery,
   isSearching,
   isInitialLoading = false,
-  isOnline = true,
   loadError = null,
   // Server-driven directory (null when offline → client fallback below)
   directoryDogs = null,
@@ -267,6 +262,9 @@ export function DogsView({
   fetchArchivedDogs,
   onUpdateDog,
 }) {
+  // Shared salon data + actions come from SalonContext (Debt 11). onUpdateDog
+  // stays a prop: the directory edits through the raw Supabase updater.
+  const { dogs, humans, onOpenDog, onAddDog, onAddHuman, isOnline = true } = useSalon();
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);

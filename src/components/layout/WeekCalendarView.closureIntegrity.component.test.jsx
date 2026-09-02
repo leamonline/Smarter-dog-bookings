@@ -70,22 +70,19 @@ vi.mock("../dashboard/CapacityCard.jsx", () => ({
 }));
 
 import { WeekCalendarView } from "./WeekCalendarView.jsx";
+import { SalonProvider } from "../../contexts/SalonContext";
 
 const currentDateObj = new Date("2026-08-10T12:00:00");
 
+// The calendar reads shared salon data from SalonContext (Debt 11), so the
+// harness provides it the way App.jsx does; unrelated provider props are stubs.
 function renderCalendar(toggleDayOpen) {
   return render(
-    <WeekCalendarView
-      selectedDay={0}
-      setSelectedDay={vi.fn()}
-      dates={[
-        {
-          dateObj: currentDateObj,
-          dateStr: "2026-08-10",
-        },
-      ]}
-      currentDateObj={currentDateObj}
-      currentDateStr="2026-08-10"
+    <SalonProvider
+      dogs={{}}
+      humans={{}}
+      dogsByHumanId={{}}
+      ensureDogsForHumans={vi.fn()}
       bookingsByDate={{
         "2026-08-10": [
           {
@@ -101,17 +98,31 @@ function renderCalendar(toggleDayOpen) {
       bookingsError={null}
       daySettings={{}}
       dayOpenState={{ "2026-08-10": true }}
-      dogs={{}}
-      dogsByHumanId={{}}
-      ensureDogsForHumans={vi.fn()}
-      humans={{}}
+      currentDateStr="2026-08-10"
+      currentDateObj={currentDateObj}
+      onAdd={vi.fn()}
+      onUpdate={vi.fn()}
+      onRemove={vi.fn()}
+      onUpdateDog={vi.fn()}
+      onUpdateHuman={vi.fn()}
+      onOpenHuman={vi.fn()}
+      onOpenDog={vi.fn()}
+    >
+    <WeekCalendarView
+      selectedDay={0}
+      setSelectedDay={vi.fn()}
+      dates={[
+        {
+          dateObj: currentDateObj,
+          dateStr: "2026-08-10",
+        },
+      ]}
       currentSettings={{
         isOpen: true,
         overrides: {},
         extraSlots: [],
         immediateSlots: [],
       }}
-      handleUpdate={vi.fn()}
       handleOverride={vi.fn()}
       toggleImmediateSlot={vi.fn()}
       handleAddSlot={vi.fn()}
@@ -122,9 +133,9 @@ function renderCalendar(toggleDayOpen) {
       handleDatePick={vi.fn()}
       setShowNewBooking={vi.fn()}
       draftPick={null}
-      onOpenHuman={vi.fn()}
       onRefresh={vi.fn()}
-    />,
+    />
+    </SalonProvider>,
   );
 }
 

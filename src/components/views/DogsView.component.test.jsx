@@ -10,12 +10,38 @@ vi.mock("../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: vi.fn() }),
 }));
 
+import { SalonProvider } from "../../contexts/SalonContext";
+
 const { DogsView } = await import("./DogsView.jsx");
 
 // Server directory entries carry the joined owner_* fields (ownerFullName/
 // ownerPhone), so they resolve without a humans map.
 const rex = { id: "d1", name: "Rex", breed: "Boxer", size: "large", age: "3", alerts: [], ownerFullName: "Sarah Jones", ownerPhone: "07700900111" };
 const bella = { id: "d2", name: "Bella", breed: "Poodle", size: "small", age: "", alerts: ["Nervous of clippers"], ownerFullName: "Dave Smith", ownerPhone: "07700900112" };
+
+// The view reads shared salon data from SalonContext (Debt 11), so the
+// harness provides it the way App.jsx does; unrelated provider props are stubs.
+function salonProps(overrides = {}) {
+  return {
+    dogs: {},
+    humans: {},
+    bookingsByDate: {},
+    daySettings: {},
+    dayOpenState: {},
+    currentDateStr: "2026-08-10",
+    currentDateObj: new Date("2026-08-10T12:00:00"),
+    onAdd: vi.fn(),
+    onUpdate: vi.fn(),
+    onRemove: vi.fn(),
+    onUpdateDog: vi.fn(),
+    onUpdateHuman: vi.fn(),
+    onAddHuman: vi.fn(),
+    onAddDog: vi.fn(),
+    onOpenHuman: vi.fn(),
+    onOpenDog: vi.fn(),
+    ...overrides,
+  };
+}
 
 function renderView(overrides = {}) {
   const props = {
@@ -44,7 +70,12 @@ function renderView(overrides = {}) {
     onUpdateDog: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
-  render(<DogsView {...props} />);
+  const { dogs, humans, onOpenDog, onAddDog, onAddHuman, isOnline, ...viewProps } = props;
+  render(
+    <SalonProvider {...salonProps({ dogs, humans, onOpenDog, onAddDog, onAddHuman, isOnline })}>
+      <DogsView {...viewProps} />
+    </SalonProvider>,
+  );
   return props;
 }
 
