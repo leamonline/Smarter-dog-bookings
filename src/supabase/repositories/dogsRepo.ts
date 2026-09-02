@@ -134,3 +134,9 @@ export async function listForHuman(
     error: null,
   };
 }
+
+/** The dog columns the weekly cash-up needs (custom price + names); raw PostgREST result. */
+export function listCashUpDogs(client: SupabaseClient, signal?: AbortSignal) {
+  const q = client.from("dogs").select("id, name, breed, human_id, custom_price, size");
+  return signal ? q.abortSignal(signal) : q;
+}
