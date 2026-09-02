@@ -1,0 +1,1311 @@
+{
+  "$comment": "Supabase advisor baseline for the hosted project. Regenerate with `npm run check:advisors -- --update` after deliberately accepting or fixing findings; see docs/supabase-advisors.md.",
+  "project_ref": "nlzhllhkigmsvrzduefz",
+  "recorded_at": "2026-09-02",
+  "security": [
+    {
+      "cache_key": "anon_security_definer_function_executable_public_booking_policy_runtime_",
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.booking_policy_runtime()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_policy_runtime`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "anon_security_definer_function_executable_public_booking_policy_runtime_status_",
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.booking_policy_runtime_status()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_policy_runtime_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "anon_security_definer_function_executable_public_get_public_open_days_",
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_open_days()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_open_days`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "anon_security_definer_function_executable_public_get_public_salon_facts_",
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_salon_facts()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_salon_facts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "auth_leaked_password_protection",
+      "name": "auth_leaked_password_protection",
+      "level": "WARN",
+      "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_apply_whatsapp_booking_action_p_action_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.apply_whatsapp_booking_action(p_action_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/apply_whatsapp_booking_action`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_approve_booking_visit_p_visit_id uuid, p_expected_visit_revision integer, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.approve_booking_visit(p_visit_id uuid, p_expected_visit_revision integer, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/approve_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_approve_customer_signup_p_human_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.approve_customer_signup(p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/approve_customer_signup`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_booking_policy_runtime_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.booking_policy_runtime()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_policy_runtime`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_booking_policy_runtime_status_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.booking_policy_runtime_status()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_policy_runtime_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_booking_refund_calendar_status_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.booking_refund_calendar_status()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_refund_calendar_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_cancel_customer_booking_p_booking_id uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.cancel_customer_booking(p_booking_id uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancel_customer_booking`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_cancel_customer_booking_visit_p_visit_id uuid, p_review_id uuid, p_idempotency_key uuid, p_reason text, p_paid_deposit_outcome text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.cancel_customer_booking_visit(p_visit_id uuid, p_review_id uuid, p_idempotency_key uuid, p_reason text, p_paid_deposit_outcome text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancel_customer_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_cancel_customer_credit_refund_p_refund_due_id uuid, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.cancel_customer_credit_refund(p_refund_due_id uuid, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancel_customer_credit_refund`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_cancel_staff_booking_visit_p_visit_id uuid, p_expected_revision integer, p_idempotency_key uuid, p_reason text, p_paid_deposit_outcome text, p_prepayment_handling text, p_record_incident boolean, p_incident_kind text, p_prepayment_target_visit_id uuid, p_prepayment_refund_due_at timestamp with time zone",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.cancel_staff_booking_visit(p_visit_id uuid, p_expected_revision integer, p_idempotency_key uuid, p_reason text, p_paid_deposit_outcome text, p_prepayment_handling text, p_record_incident boolean, p_incident_kind text, p_prepayment_target_visit_id uuid, p_prepayment_refund_due_at timestamp with time zone)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cancel_staff_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_complete_customer_profile_p_name text, p_surname text, p_address text, p_postcode text, p_policies_version text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.complete_customer_profile(p_name text, p_surname text, p_address text, p_postcode text, p_policies_version text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/complete_customer_profile`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_customer_booking_group_p_bookings jsonb, p_booking_date date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_customer_booking_group(p_bookings jsonb, p_booking_date date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_customer_booking_group`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_customer_dog_p_name text, p_breed text, p_size text, p_human_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_customer_dog(p_name text, p_breed text, p_size text, p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_customer_dog`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_pending_customer_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_pending_customer()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_pending_customer`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_staff_booking_from_conversation_p_conversation_id uuid, p_payload jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_staff_booking_from_conversation(p_conversation_id uuid, p_payload jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_staff_booking_from_conversation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_staff_booking_visit_p_bookings jsonb, p_booking_date date, p_human_id uuid, p_idempotency_key uuid, p_terms_notice_method text, p_source text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_staff_booking_visit(p_bookings jsonb, p_booking_date date, p_human_id uuid, p_idempotency_key uuid, p_terms_notice_method text, p_source text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_staff_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_create_staff_visit_p_human_id uuid, p_date date, p_key text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.create_staff_visit(p_human_id uuid, p_date date, p_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_staff_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_current_booking_rules_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.current_booking_rules()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/current_booking_rules`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_current_customer_booking_rules_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.current_customer_booking_rules()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/current_customer_booking_rules`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_decide_booking_change_request_p_request_id uuid, p_expected_request_revision integer, p_decision text, p_reason text, p_idempotency_key uuid, p_record_incident boolean",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.decide_booking_change_request(p_request_id uuid, p_expected_request_revision integer, p_decision text, p_reason text, p_idempotency_key uuid, p_record_incident boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/decide_booking_change_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_decide_customer_override_reschedule_request_p_request_id uuid, p_decision text, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.decide_customer_override_reschedule_request(p_request_id uuid, p_decision text, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/decide_customer_override_reschedule_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_decline_booking_visit_p_visit_id uuid, p_expected_visit_revision integer, p_customer_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.decline_booking_visit(p_visit_id uuid, p_expected_visit_revision integer, p_customer_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/decline_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_dismiss_delivery_failure_p_booking_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.dismiss_delivery_failure(p_booking_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/dismiss_delivery_failure`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_extend_refund_calendar_p_holidays jsonb, p_calendar_version text, p_covers_to date, p_calendar_source text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.extend_refund_calendar(p_holidays jsonb, p_calendar_version text, p_covers_to date, p_calendar_source text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/extend_refund_calendar`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_ai_whatsapp_settings_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_ai_whatsapp_settings()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_ai_whatsapp_settings`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_blocked_seats_p_start date, p_end date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_blocked_seats(p_start date, p_end date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_blocked_seats`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_booking_visit_backfill_review_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_booking_visit_backfill_review()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_booking_visit_backfill_review`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_booking_visit_policy_events_p_from date, p_to date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_booking_visit_policy_events(p_from date, p_to date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_booking_visit_policy_events`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_customer_booking_visit_capabilities_p_visit_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_customer_booking_visit_capabilities(p_visit_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_customer_booking_visit_capabilities`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_customer_credit_balance_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_customer_credit_balance()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_customer_credit_balance`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_immediate_slots_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_immediate_slots()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_immediate_slots`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_occupancy_range_p_from date, p_to date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_occupancy_range(p_from date, p_to date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_occupancy_range`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_open_days_p_start date, p_end date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_open_days(p_start date, p_end date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_open_days`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_or_create_calendar_feed_token_p_feed_type text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_or_create_calendar_feed_token(p_feed_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_or_create_calendar_feed_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_public_open_days_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_open_days()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_open_days`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_public_salon_facts_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_salon_facts()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_salon_facts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_slot_occupancy_p_date date",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_slot_occupancy(p_date date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_slot_occupancy`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_staff_customer_credit_balance_p_human_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_staff_customer_credit_balance(p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_staff_customer_credit_balance`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_is_owner_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.is_owner()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_owner`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_is_staff_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.is_staff()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_staff`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_link_customer_to_human_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.link_customer_to_human()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/link_customer_to_human`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_list_customer_booking_visits_p_include_history boolean",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.list_customer_booking_visits(p_include_history boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_customer_booking_visits`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_list_customer_trusted_humans_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.list_customer_trusted_humans()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_customer_trusted_humans`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_list_staff_booking_policy_attention_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.list_staff_booking_policy_attention()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_staff_booking_policy_attention`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_list_staff_booking_visit_p_visit_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.list_staff_booking_visit(p_visit_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_staff_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_log_booking_denial_p_reason_code text, p_source text, p_requested_date date, p_slot text, p_size text, p_service text, p_dog_count integer, p_reason_detail text, p_alternative_shown boolean, p_alternative_taken boolean, p_human_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.log_booking_denial(p_reason_code text, p_source text, p_requested_date date, p_slot text, p_size text, p_service text, p_dog_count integer, p_reason_detail text, p_alternative_shown boolean, p_alternative_taken boolean, p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/log_booking_denial`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_log_funnel_event_p_session_id uuid, p_step text, p_human_id uuid, p_dog_count integer, p_step_index integer, p_occurred_at timestamp with time zone, p_blocked_reason text, p_failure_code text, p_failure_detail text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.log_funnel_event(p_session_id uuid, p_step text, p_human_id uuid, p_dog_count integer, p_step_index integer, p_occurred_at timestamp with time zone, p_blocked_reason text, p_failure_code text, p_failure_detail text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/log_funnel_event`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_mark_booking_visit_no_show_p_visit_id uuid, p_expected_visit_revision integer, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.mark_booking_visit_no_show(p_visit_id uuid, p_expected_visit_revision integer, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/mark_booking_visit_no_show`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_mark_whatsapp_conversation_read_p_conversation_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.mark_whatsapp_conversation_read(p_conversation_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/mark_whatsapp_conversation_read`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_merge_humans_p_winner uuid, p_loser uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.merge_humans(p_winner uuid, p_loser uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/merge_humans`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_preview_booking_visit_backfill_reconciliation_p_review_key text, p_action text, p_payload jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.preview_booking_visit_backfill_reconciliation(p_review_key text, p_action text, p_payload jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/preview_booking_visit_backfill_reconciliation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_preview_customer_cancel_visit_p_visit_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.preview_customer_cancel_visit(p_visit_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/preview_customer_cancel_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_preview_legacy_visit_opening_money_p_visit_id uuid, p_classification text, p_evidence jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.preview_legacy_visit_opening_money(p_visit_id uuid, p_classification text, p_evidence jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/preview_legacy_visit_opening_money`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_record_booking_incident_p_visit_id uuid, p_expected_visit_revision integer, p_kind text, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.record_booking_incident(p_visit_id uuid, p_expected_visit_revision integer, p_kind text, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/record_booking_incident`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_record_customer_booking_contact_p_visit_id uuid, p_expected_visit_revision integer, p_channel text, p_contacted_at timestamp with time zone, p_idempotency_key uuid, p_provider_message_id text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.record_customer_booking_contact(p_visit_id uuid, p_expected_visit_revision integer, p_channel text, p_contacted_at timestamp with time zone, p_idempotency_key uuid, p_provider_message_id text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/record_customer_booking_contact`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_record_legacy_visit_opening_money_p_visit_id uuid, p_expected_hash text, p_classification text, p_evidence jsonb, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.record_legacy_visit_opening_money(p_visit_id uuid, p_expected_hash text, p_classification text, p_evidence jsonb, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/record_legacy_visit_opening_money`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_record_visit_deposit_outcome_p_visit_id uuid, p_expected_visit_revision integer, p_outcome text, p_bank_received_at timestamp with time zone, p_staff_reference text, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.record_visit_deposit_outcome(p_visit_id uuid, p_expected_visit_revision integer, p_outcome text, p_bank_received_at timestamp with time zone, p_staff_reference text, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/record_visit_deposit_outcome`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_reject_customer_signup_p_human_id uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.reject_customer_signup(p_human_id uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reject_customer_signup`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_replace_trusted_contacts_p_human_id uuid, p_contacts jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.replace_trusted_contacts(p_human_id uuid, p_contacts jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/replace_trusted_contacts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_request_customer_credit_refund_p_amount_pence integer, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.request_customer_credit_refund(p_amount_pence integer, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/request_customer_credit_refund`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_request_customer_override_reschedule_p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.request_customer_override_reschedule(p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/request_customer_override_reschedule`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_reschedule_customer_booking_p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.reschedule_customer_booking(p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reschedule_customer_booking`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_reschedule_staff_booking_visit_p_visit_id uuid, p_expected_revision integer, p_booking_date date, p_slot_assignments jsonb, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.reschedule_staff_booking_visit(p_visit_id uuid, p_expected_revision integer, p_booking_date date, p_slot_assignments jsonb, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reschedule_staff_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_resolve_visit_deposit_money_p_visit_id uuid, p_expected_visit_revision integer, p_resolution text, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.resolve_visit_deposit_money(p_visit_id uuid, p_expected_visit_revision integer, p_resolution text, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/resolve_visit_deposit_money`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_revoke_calendar_feed_token_p_feed_type text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.revoke_calendar_feed_token(p_feed_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revoke_calendar_feed_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_set_ai_whatsapp_enabled_p_enabled boolean",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.set_ai_whatsapp_enabled(p_enabled boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_ai_whatsapp_enabled`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_set_booking_incident_waiver_p_incident_id uuid, p_expected_incident_revision integer, p_waived boolean, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.set_booking_incident_waiver(p_incident_id uuid, p_expected_incident_revision integer, p_waived boolean, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_booking_incident_waiver`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_set_customer_booking_intake_enabled_p_enabled boolean, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.set_customer_booking_intake_enabled(p_enabled boolean, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_customer_booking_intake_enabled`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_set_customer_deposit_override_p_human_id uuid, p_mode text, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.set_customer_deposit_override(p_human_id uuid, p_mode text, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_customer_deposit_override`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_settle_booking_refund_due_p_refund_due_id uuid, p_actual_paid_at timestamp with time zone, p_bank_reference text, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.settle_booking_refund_due(p_refund_due_id uuid, p_actual_paid_at timestamp with time zone, p_bank_reference text, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/settle_booking_refund_due`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_submit_customer_signup_p_owner jsonb, p_dogs jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.submit_customer_signup(p_owner jsonb, p_dogs jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/submit_customer_signup`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_update_booking_rules_p_rules jsonb",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.update_booking_rules(p_rules jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_booking_rules`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_update_customer_contact_details_p_name text, p_surname text, p_address text, p_postcode text, p_email text, p_whatsapp boolean, p_fb text, p_insta text, p_tiktok text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.update_customer_contact_details(p_name text, p_surname text, p_address text, p_postcode text, p_email text, p_whatsapp boolean, p_fb text, p_insta text, p_tiktok text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_customer_contact_details`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_update_customer_dog_p_dog_id uuid, p_name text, p_breed text, p_size text, p_dob text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.update_customer_dog(p_dog_id uuid, p_name text, p_breed text, p_size text, p_dob text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_customer_dog`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_update_staff_booking_visit_p_visit_id uuid, p_expected_revision integer, p_changes jsonb, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.update_staff_booking_visit(p_visit_id uuid, p_expected_revision integer, p_changes jsonb, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_staff_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_waive_visit_deposit_requirement_p_visit_id uuid, p_expected_visit_revision integer, p_reason text, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.waive_visit_deposit_requirement(p_visit_id uuid, p_expected_visit_revision integer, p_reason text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/waive_visit_deposit_requirement`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_withdraw_customer_booking_change_request_p_request_id uuid, p_idempotency_key uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.withdraw_customer_booking_change_request(p_request_id uuid, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/withdraw_customer_booking_change_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_withdraw_customer_booking_visit_p_visit_id uuid, p_idempotency_key uuid, p_reason text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.withdraw_customer_booking_visit(p_visit_id uuid, p_idempotency_key uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/withdraw_customer_booking_visit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_ai_whatsapp_settings",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.ai_whatsapp_settings\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_change_destination_reservations",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_destination_reservations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_change_requests",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_requests\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_customer_contact_events",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_customer_contact_events\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_deposit_bank_instruction_versions",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_bank_instruction_versions\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_deposit_money_reconciliations",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_money_reconciliations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_deposit_transfer_reservations",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_transfer_reservations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_financial_ledger",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_financial_ledger\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_late_deposit_satisfaction_requests",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_late_deposit_satisfaction_requests\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_legacy_money_audit",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_legacy_money_audit\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_lineages",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_lineages\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_audit",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_audit\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_incident_audit",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incident_audit\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_incidents",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incidents\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_settings",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_settings_audit",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings_audit\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_policy_versions",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_versions\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_refund_calendar_coverage",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_refund_calendar_coverage\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_refund_non_working_days",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_refund_non_working_days\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_service_prepayment_reconciliations",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_terms_publication_versions",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_terms_publication_versions\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_visit_backfill_reconciliation_audit",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_backfill_reconciliation_audit\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_visit_deposits",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_visit_service_payments",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_service_payments\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_booking_visits",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_customer_booking_rule_overrides",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.customer_booking_rule_overrides\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_customer_credit_reservations",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.customer_credit_reservations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_whatsapp_reschedule_receipts",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.whatsapp_reschedule_receipts\\` has RLS enabled, but no policies exist"
+    }
+  ],
+  "performance": [
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_change_destination_reservations_booking_change_destination_re_request_id_human_id_source_v_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_destination_reservations\\` has a foreign key \\`booking_change_destination_re_request_id_human_id_source_v_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_change_destination_reservations_booking_change_destination_reservations_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_destination_reservations\\` has a foreign key \\`booking_change_destination_reservations_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_change_requests_booking_change_requests_decided_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_requests\\` has a foreign key \\`booking_change_requests_decided_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_change_requests_booking_change_requests_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_requests\\` has a foreign key \\`booking_change_requests_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_change_requests_booking_change_requests_source_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_change_requests\\` has a foreign key \\`booking_change_requests_source_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_customer_contact_events_booking_customer_contact_events_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_customer_contact_events\\` has a foreign key \\`booking_customer_contact_events_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_customer_contact_events_booking_customer_contact_events_visit_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_customer_contact_events\\` has a foreign key \\`booking_customer_contact_events_visit_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_bank_instruction_versions_booking_deposit_bank_instruction_versions_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_bank_instruction_versions\\` has a foreign key \\`booking_deposit_bank_instruction_versions_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_money_reconciliations_booking_deposit_money_reconciliations_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_money_reconciliations\\` has a foreign key \\`booking_deposit_money_reconciliations_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_money_reconciliations_booking_deposit_money_reconciliations_resolution_event_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_money_reconciliations\\` has a foreign key \\`booking_deposit_money_reconciliations_resolution_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_money_reconciliations_booking_deposit_money_reconciliations_resolved_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_money_reconciliations\\` has a foreign key \\`booking_deposit_money_reconciliations_resolved_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_money_reconciliations_booking_deposit_money_reconciliations_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_money_reconciliations\\` has a foreign key \\`booking_deposit_money_reconciliations_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_transfer_reservations_booking_deposit_transfer_rese_destination_visit_id_human_i_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_transfer_reservations\\` has a foreign key \\`booking_deposit_transfer_rese_destination_visit_id_human_i_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_transfer_reservations_booking_deposit_transfer_reservat_source_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_transfer_reservations\\` has a foreign key \\`booking_deposit_transfer_reservat_source_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_deposit_transfer_reservations_booking_deposit_transfer_reservations_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_deposit_transfer_reservations\\` has a foreign key \\`booking_deposit_transfer_reservations_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_events_booking_events_policy_code_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_events\\` has a foreign key \\`booking_events_policy_code_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_financial_ledger_booking_financial_ledger_coverage_fk",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_financial_ledger\\` has a foreign key \\`booking_financial_ledger_coverage_fk\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_financial_ledger_booking_financial_ledger_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_financial_ledger\\` has a foreign key \\`booking_financial_ledger_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_financial_ledger_booking_financial_ledger_related_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_financial_ledger\\` has a foreign key \\`booking_financial_ledger_related_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_financial_ledger_booking_financial_ledger_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_financial_ledger\\` has a foreign key \\`booking_financial_ledger_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_late_deposit_satisfaction_requests_booking_late_deposit_satisfaction_req_terms_publication_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_late_deposit_satisfaction_requests\\` has a foreign key \\`booking_late_deposit_satisfaction_req_terms_publication_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_late_deposit_satisfaction_requests_booking_late_deposit_satisfaction_reques_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_late_deposit_satisfaction_requests\\` has a foreign key \\`booking_late_deposit_satisfaction_reques_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_late_deposit_satisfaction_requests_booking_late_deposit_satisfaction_requests_decided_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_late_deposit_satisfaction_requests\\` has a foreign key \\`booking_late_deposit_satisfaction_requests_decided_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_late_deposit_satisfaction_requests_booking_late_deposit_satisfaction_requests_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_late_deposit_satisfaction_requests\\` has a foreign key \\`booking_late_deposit_satisfaction_requests_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_legacy_money_audit_booking_legacy_money_audit_visit_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_legacy_money_audit\\` has a foreign key \\`booking_legacy_money_audit_visit_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_lineages_booking_lineages_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_lineages\\` has a foreign key \\`booking_lineages_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_audit_booking_policy_audit_actor_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_audit\\` has a foreign key \\`booking_policy_audit_actor_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_audit_booking_policy_audit_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_audit\\` has a foreign key \\`booking_policy_audit_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_incident_audit_booking_policy_incident_audit_actor_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incident_audit\\` has a foreign key \\`booking_policy_incident_audit_actor_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_incidents_booking_policy_incidents_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incidents\\` has a foreign key \\`booking_policy_incidents_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_incidents_booking_policy_incidents_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incidents\\` has a foreign key \\`booking_policy_incidents_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_incidents_booking_policy_incidents_waived_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_incidents\\` has a foreign key \\`booking_policy_incidents_waived_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_settings_audit_booking_policy_settings_audit_actor_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings_audit\\` has a foreign key \\`booking_policy_settings_audit_actor_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_settings_booking_policy_settings_current_bank_instruction_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings\\` has a foreign key \\`booking_policy_settings_current_bank_instruction_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_settings_booking_policy_settings_current_terms_publication_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings\\` has a foreign key \\`booking_policy_settings_current_terms_publication_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_policy_settings_booking_policy_settings_updated_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_policy_settings\\` has a foreign key \\`booking_policy_settings_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_refund_calendar_coverage_booking_refund_calendar_coverage_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_refund_calendar_coverage\\` has a foreign key \\`booking_refund_calendar_coverage_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconc_target_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconc_target_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconciliat_obligation_event_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconciliat_obligation_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconciliatio_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconciliatio_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconciliations_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconciliations_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconciliations_resolved_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconciliations_resolved_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_service_prepayment_reconciliations_booking_service_prepayment_reconciliations_target_visit_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_service_prepayment_reconciliations\\` has a foreign key \\`booking_service_prepayment_reconciliations_target_visit_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_terms_publication_versions_booking_terms_publication_versions_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_terms_publication_versions\\` has a foreign key \\`booking_terms_publication_versions_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_deposits_booking_visit_deposits_bank_instruction_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has a foreign key \\`booking_visit_deposits_bank_instruction_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_deposits_booking_visit_deposits_disposition_event_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has a foreign key \\`booking_visit_deposits_disposition_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_deposits_booking_visit_deposits_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has a foreign key \\`booking_visit_deposits_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_deposits_booking_visit_deposits_satisfaction_event_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has a foreign key \\`booking_visit_deposits_satisfaction_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_deposits_booking_visit_deposits_terms_publication_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_deposits\\` has a foreign key \\`booking_visit_deposits_terms_publication_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_service_payments_booking_visit_service_payments_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_service_payments\\` has a foreign key \\`booking_visit_service_payments_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_service_payments_booking_visit_service_payments_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_service_payments\\` has a foreign key \\`booking_visit_service_payments_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visit_service_payments_booking_visit_service_payments_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visit_service_payments\\` has a foreign key \\`booking_visit_service_payments_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visits_booking_visits_eligibility_policy_code_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has a foreign key \\`booking_visits_eligibility_policy_code_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visits_booking_visits_lineage_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has a foreign key \\`booking_visits_lineage_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visits_booking_visits_policy_code_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has a foreign key \\`booking_visits_policy_code_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visits_booking_visits_terms_notice_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has a foreign key \\`booking_visits_terms_notice_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_booking_visits_booking_visits_terms_publication_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.booking_visits\\` has a foreign key \\`booking_visits_terms_publication_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_customer_booking_rule_overrides_customer_booking_rule_overrides_recorded_by_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.customer_booking_rule_overrides\\` has a foreign key \\`customer_booking_rule_overrides_recorded_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_customer_credit_reservations_customer_credit_reservations_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.customer_credit_reservations\\` has a foreign key \\`customer_credit_reservations_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_customer_credit_reservations_customer_credit_reservations_visit_id_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.customer_credit_reservations\\` has a foreign key \\`customer_credit_reservations_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unused_index_public_booking_change_destination_reservations_booking_change_destinations_request_revision_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_change_destinations_request_revision_idx\\` on table \\`public.booking_change_destination_reservations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_change_requests_booking_change_requests_pending_staff_queue_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_change_requests_pending_staff_queue_idx\\` on table \\`public.booking_change_requests\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_change_requests_booking_change_requests_proposed_received_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_change_requests_proposed_received_idx\\` on table \\`public.booking_change_requests\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_change_requests_booking_change_requests_source_received_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_change_requests_source_received_idx\\` on table \\`public.booking_change_requests\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_denials_idx_booking_denials_date",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_booking_denials_date\\` on table \\`public.booking_denials\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_deposit_money_reconciliations_booking_deposit_recon_visit_time_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_deposit_recon_visit_time_idx\\` on table \\`public.booking_deposit_money_reconciliations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_events_booking_events_visit_id_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_events_visit_id_idx\\` on table \\`public.booking_events\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_financial_ledger_booking_financial_ledger_refund_due_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_financial_ledger_refund_due_idx\\` on table \\`public.booking_financial_ledger\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_financial_ledger_booking_financial_ledger_refund_due_time_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_financial_ledger_refund_due_time_idx\\` on table \\`public.booking_financial_ledger\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_financial_ledger_booking_financial_ledger_related_visit_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_financial_ledger_related_visit_idx\\` on table \\`public.booking_financial_ledger\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_financial_ledger_booking_financial_ledger_settles_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_financial_ledger_settles_idx\\` on table \\`public.booking_financial_ledger\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_financial_ledger_booking_financial_ledger_visit_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_financial_ledger_visit_idx\\` on table \\`public.booking_financial_ledger\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_policy_audit_booking_policy_audit_visit_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_policy_audit_visit_idx\\` on table \\`public.booking_policy_audit\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_policy_incident_audit_booking_incident_audit_incident_time_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_incident_audit_incident_time_idx\\` on table \\`public.booking_policy_incident_audit\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_policy_incidents_booking_policy_incidents_human_date_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_policy_incidents_human_date_idx\\` on table \\`public.booking_policy_incidents\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_service_prepayment_reconciliations_booking_service_recon_visit_time_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_service_recon_visit_time_idx\\` on table \\`public.booking_service_prepayment_reconciliations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_visit_deposits_booking_visit_deposits_awaiting_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_visit_deposits_awaiting_idx\\` on table \\`public.booking_visit_deposits\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_visit_service_payments_booking_visit_service_payments_visit_revision_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_visit_service_payments_visit_revision_idx\\` on table \\`public.booking_visit_service_payments\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_visits_booking_visits_active_confirmed_date_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_visits_active_confirmed_date_idx\\` on table \\`public.booking_visits\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_booking_visits_booking_visits_staff_approval_queue_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_visits_staff_approval_queue_idx\\` on table \\`public.booking_visits\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_data_access_log_idx_data_access_log_created",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_data_access_log_created\\` on table \\`public.data_access_log\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_humans_idx_humans_preferred_channel",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_humans_preferred_channel\\` on table \\`public.humans\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_salon_todos_idx_salon_todos_booking_visit_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_salon_todos_booking_visit_id\\` on table \\`public.salon_todos\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_salon_todos_idx_salon_todos_human_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_salon_todos_human_id\\` on table \\`public.salon_todos\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_salon_todos_idx_salon_todos_open_closure_date",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_salon_todos_open_closure_date\\` on table \\`public.salon_todos\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_waitlist_entries_idx_waitlist_entries_human_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_waitlist_entries_human_id\\` on table \\`public.waitlist_entries\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_ai_action_audit_idx_ai_action_audit_created",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_ai_action_audit_created\\` on table \\`public.whatsapp_ai_action_audit\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_ai_action_audit_idx_ai_action_audit_outcome",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_ai_action_audit_outcome\\` on table \\`public.whatsapp_ai_action_audit\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_ai_action_audit_idx_whatsapp_ai_action_audit_draft_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_ai_action_audit_draft_id\\` on table \\`public.whatsapp_ai_action_audit\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_booking_actions_idx_whatsapp_booking_actions_applied_booking_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_booking_actions_applied_booking_id\\` on table \\`public.whatsapp_booking_actions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_booking_actions_idx_whatsapp_booking_actions_awaiting_confirm",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_booking_actions_awaiting_confirm\\` on table \\`public.whatsapp_booking_actions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_booking_actions_idx_whatsapp_booking_actions_confirm_msg",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_booking_actions_confirm_msg\\` on table \\`public.whatsapp_booking_actions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_booking_actions_idx_whatsapp_booking_actions_decided_by",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_booking_actions_decided_by\\` on table \\`public.whatsapp_booking_actions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_booking_actions_idx_whatsapp_booking_actions_draft_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_booking_actions_draft_id\\` on table \\`public.whatsapp_booking_actions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_conversations_idx_whatsapp_conversations_closed_at",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_conversations_closed_at\\` on table \\`public.whatsapp_conversations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_conversations_idx_whatsapp_conversations_closure_suggested",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_conversations_closure_suggested\\` on table \\`public.whatsapp_conversations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_conversations_idx_whatsapp_conversations_state",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_conversations_state\\` on table \\`public.whatsapp_conversations\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_drafts_idx_whatsapp_drafts_handoff",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_drafts_handoff\\` on table \\`public.whatsapp_drafts\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_drafts_idx_whatsapp_drafts_high_risk",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_drafts_high_risk\\` on table \\`public.whatsapp_drafts\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_drafts_idx_whatsapp_drafts_trigger_message_id",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_drafts_trigger_message_id\\` on table \\`public.whatsapp_drafts\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_flow_sessions_idx_whatsapp_flow_sessions_expires",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_flow_sessions_expires\\` on table \\`public.whatsapp_flow_sessions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_flow_sessions_idx_whatsapp_flow_sessions_phone",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_flow_sessions_phone\\` on table \\`public.whatsapp_flow_sessions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_manage_sessions_whatsapp_manage_sessions_expires_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`whatsapp_manage_sessions_expires_idx\\` on table \\`public.whatsapp_manage_sessions\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_messages_whatsapp_messages_in_reply_to_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`whatsapp_messages_in_reply_to_idx\\` on table \\`public.whatsapp_messages\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_templates_idx_whatsapp_templates_status",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`idx_whatsapp_templates_status\\` on table \\`public.whatsapp_templates\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_smarter_dog_private_booking_change_reviews_booking_change_reviews_customer_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`booking_change_reviews_customer_idx\\` on table \\`smarter_dog_private.booking_change_reviews\\` has not been used"
+    }
+  ]
+}

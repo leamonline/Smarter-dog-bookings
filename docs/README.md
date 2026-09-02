@@ -75,6 +75,8 @@ These files remain authoritative for their bounded topics:
   contract for every deployable Edge Function, and what it does not prove.
 - [`node-runtime.md`](node-runtime.md) — the supported Node version, where it is
   declared, and how a bump is kept consistent.
+- [`supabase-advisors.md`](supabase-advisors.md) — the accepted Supabase advisor
+  findings, why each is accepted, and the `check:advisors` diff against the baseline.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and

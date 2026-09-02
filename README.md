@@ -245,6 +245,9 @@ These aren't expressible as migrations — set them once per project:
   isn't available, so the security advisor will keep flagging it (known/accepted while the
   project stays on Free; the in-app HIBP check at password-set time is the compensating control).
   Revisit on upgrade.
+  Every accepted advisor finding (this one included) is recorded in
+  [`supabase/advisors/baseline.json`](supabase/advisors/baseline.json); `npm run check:advisors` diffs the
+  live advisors against it, and [docs/supabase-advisors.md](docs/supabase-advisors.md) gives each reason.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
 
 ### Customer portal login with Twilio Verify
