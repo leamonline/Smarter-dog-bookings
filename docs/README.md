@@ -2,8 +2,9 @@
 
 **Status:** Active
 **Authority:** Navigation and source-precedence guide
-**Last verified:** 11 August 2026 against
-`main@e01823e8d4b79504a1454b6349ca61e6631fe094`
+**Last verified:** 2 September 2026 against
+`main@e456aa00cdf2ff8b22fb8df473f7095a9f080a91`
+(the map and its links; earlier baseline 11 August 2026 at `main@e01823e8`)
 
 This repository contains years of useful design notes, implementation plans and
 operational evidence. This page explains which source answers which question.

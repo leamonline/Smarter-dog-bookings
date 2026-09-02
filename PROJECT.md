@@ -5,6 +5,7 @@
 **Programme:** issue #603 and child issues #604–#612
 **Repository baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
 **Last verified:** 9 August 2026
+**Verification status (2 September 2026):** the baseline above is historical. 159 merges (350 commits) have landed on `main` since 9 August — Tranche A, the reason-code contract, staff confirmation, error reporting, the capacity parity harness and the September debt burn-down (see CHANGELOG.md). The North Star, invariants and programme boundaries below were re-read against that history and still hold; line-level claims about specific files have not been re-verified and may name paths that have since moved (the debt register and CLAUDE.md carry the current map).
 
 > **North Star:** one appointment operation should have one authoritative
 > identity, one server-owned decision, one atomic mutation, one durable customer
