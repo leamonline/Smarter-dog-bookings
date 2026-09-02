@@ -20,7 +20,7 @@ import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
-import { e2eFixtureCount } from "./e2eFixtureCounts.js";
+import { e2eFixtureCount } from "./e2eFixtureCounts";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface PendingSignupsState {

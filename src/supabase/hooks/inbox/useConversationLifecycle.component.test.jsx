@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useConversationLifecycle } = await import("./useConversationLifecycle.js");
+const { useConversationLifecycle } = await import("./useConversationLifecycle");
 
 function makeStub({ updateResult = { error: null }, currentUserId = "user-1" } = {}) {
   const update = vi.fn(() => ({

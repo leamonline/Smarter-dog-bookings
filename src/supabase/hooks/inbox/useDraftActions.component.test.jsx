@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useDraftActions } = await import("./useDraftActions.js");
+const { useDraftActions } = await import("./useDraftActions");
 
 function makeStub({
   invokeResult = { data: { ok: true }, error: null },

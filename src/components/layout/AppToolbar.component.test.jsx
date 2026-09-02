@@ -10,7 +10,7 @@ import { PRIMARY_NAV } from "./navConfig.jsx";
 const unreadState = { unread: 0 };
 const signupState = { count: 0 };
 
-vi.mock("../../supabase/hooks/useWhatsAppUnread.js", () => ({
+vi.mock("../../supabase/hooks/useWhatsAppUnread", () => ({
   useWhatsAppUnread: () => unreadState,
 }));
 

@@ -20,7 +20,11 @@ import { useLocation } from "react-router-dom";
 
 const IDLE_TIMEOUT_MS = 2500;
 
-export function useDirectoryWarmup({ newBookingOpen = false } = {}) {
+export interface UseDirectoryWarmupOptions {
+  newBookingOpen?: boolean;
+}
+
+export function useDirectoryWarmup({ newBookingOpen = false }: UseDirectoryWarmupOptions = {}): boolean {
   const { pathname } = useLocation();
   const [latched, setLatched] = useState(false);
 
@@ -44,7 +48,7 @@ export function useDirectoryWarmup({ newBookingOpen = false } = {}) {
   // not exist, e.g. jsdom).
   useEffect(() => {
     let cancelled = false;
-    let idleHandle = null;
+    let idleHandle: number | null = null;
     const fire = () => {
       if (!cancelled) setLatched(true);
     };

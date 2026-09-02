@@ -26,7 +26,7 @@ import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
-import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
+import { groupRemindersByCustomer } from "./groupRemindersByCustomer";
 import type { Database } from "../database.types";
 
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];

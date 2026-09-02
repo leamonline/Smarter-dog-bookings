@@ -1,6 +1,6 @@
 // Regression coverage for the Inbox booking pane showing the wrong
 // open/closed state and zero bookings once paged outside the staff
-// calendar's currently-loaded week. See useInboxDiaryData.js for why this
+// calendar's currently-loaded week. See useInboxDiaryData.ts for why this
 // hook exists instead of reusing useDaySettings/useBookings directly.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -15,7 +15,7 @@ vi.mock("../client", () => ({
   },
 }));
 
-const { useInboxDiaryData } = await import("./useInboxDiaryData.js");
+const { useInboxDiaryData } = await import("./useInboxDiaryData");
 
 function makeChannel() {
   const channel = {};

@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
-import { useDraftPersistence } from "./useDraftPersistence.js";
+import { useDraftPersistence } from "./useDraftPersistence";
 
 const KEY = "sdb:draft:test:abc";
 const DAY_MS = 24 * 60 * 60 * 1000;

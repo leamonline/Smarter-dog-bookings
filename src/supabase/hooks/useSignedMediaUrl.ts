@@ -3,7 +3,7 @@
 //
 // Signed-URL resolution for inbound WhatsApp media stored in the
 // private 'whatsapp-media' bucket (staff-only read policy; mirrors the
-// groom-photos signed-URL approach in hooks/useGroomPhotos.js);
+// groom-photos signed-URL approach in hooks/useGroomPhotos.ts);
 // lives in supabase/hooks (not the component tree) per the Debt-#12 lint guard.
 //
 // Module-level cache so scrolling a long thread doesn't re-sign the

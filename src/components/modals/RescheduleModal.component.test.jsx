@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 let monthState;
-vi.mock("../../supabase/hooks/useMonthBookings.js", () => ({
+vi.mock("../../supabase/hooks/useMonthBookings", () => ({
   useMonthBookings: () => ({ monthBookingsByDate: monthState.bookingsByDate, monthBookingsLoading: false }),
 }));
 vi.mock("../../supabase/hooks/useMonthDaySettings", () => ({

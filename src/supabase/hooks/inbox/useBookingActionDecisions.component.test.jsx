@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useBookingActionDecisions } = await import("./useBookingActionDecisions.js");
+const { useBookingActionDecisions } = await import("./useBookingActionDecisions");
 
 function makeStub({
   updateResult = { error: null },

@@ -7,7 +7,7 @@ import { render, screen, fireEvent, within, waitFor } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
-vi.mock("../../hooks/useGroomPhotos.js", () => ({
+vi.mock("../../hooks/useGroomPhotos", () => ({
   useGroomPhotos: () => ({
     fetchPhotosForDog: vi.fn(() => Promise.resolve([])),
     uploadPhoto: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../../hooks/useGroomPhotos.js", () => ({
   }),
 }));
 
-vi.mock("../../hooks/useAutosave.js", () => ({
+vi.mock("../../hooks/useAutosave", () => ({
   useAutosave: () => ({ status: "idle", flushNow: vi.fn() }),
 }));
 

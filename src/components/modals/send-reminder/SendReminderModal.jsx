@@ -16,7 +16,7 @@ import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
+import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { formatDateShort, formatTime } from "../../../lib/reminders/templates.js";
 import { SERVICES } from "../../../constants/salon.ts";

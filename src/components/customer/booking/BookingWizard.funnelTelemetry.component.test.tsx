@@ -37,7 +37,7 @@ vi.mock("../../../supabase/customerClient", () => ({
   },
 }));
 
-vi.mock("../../../hooks/useDraftPersistence.js", () => ({
+vi.mock("../../../hooks/useDraftPersistence", () => ({
   useDraftPersistence: () => ({
     restored: mocks.draft.value,
     save: vi.fn(),

@@ -28,7 +28,7 @@ import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { DAILY_DOG_CAP } from "../../../../constants/salon";
 import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox.js";
-import { useInboxDiaryData } from "../../../../supabase/hooks/useInboxDiaryData.js";
+import { useInboxDiaryData } from "../../../../supabase/hooks/useInboxDiaryData";
 import { useSalonConfig } from "../../../../supabase/hooks/useSalonConfig";
 import { useToast } from "../../../../contexts/ToastContext.jsx";
 import { Spinner } from "../../../ui/Spinner.jsx";

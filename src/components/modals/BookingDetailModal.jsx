@@ -35,7 +35,7 @@ import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
-import { useAutosave } from "../../hooks/useAutosave.js";
+import { useAutosave } from "../../hooks/useAutosave";
 import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
 

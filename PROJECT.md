@@ -131,7 +131,7 @@ production environment has been freshly queried.
 | Release compatibility | The migration-applied check exists, but there is no generic runtime capability projection joining app, Edge and schema support. | issue #607 |
 | Browser gate | Pull requests intentionally skip Playwright; all configured desktop, tablet and mobile projects run Chromium. | [CI workflow](.github/workflows/ci.yml), [Playwright config](playwright.config.ts) |
 | Edge authentication | CI deploys functions with `--no-verify-jwt`; in-function checks are the boundary. The complete caller/authentication inventory and discovery guard do not yet exist. | [Supabase config](supabase/config.toml), [Edge deployment workflow](.github/workflows/deploy-edge-functions.yml) |
-| AI assistance | Known-customer generation is staff-invoked; auto-send and autonomous booking require global and per-conversation gates that default off, plus risk checks. | [WhatsApp agent](supabase/functions/whatsapp-agent/handler.ts), [AI mode controls](src/supabase/hooks/inbox/useAIModeControls.js) |
+| AI assistance | Known-customer generation is staff-invoked; auto-send and autonomous booking require global and per-conversation gates that default off, plus risk checks. | [WhatsApp agent](supabase/functions/whatsapp-agent/handler.ts), [AI mode controls](src/supabase/hooks/inbox/useAIModeControls.ts) |
 | Measurement | Funnel, denial, notification and AI audit signals exist, but operation identity, ownership and decision use are incomplete. | [measurement catalogue](docs/specifications/measurement-catalogue.md) |
 
 ### Unverified prior aggregate observation

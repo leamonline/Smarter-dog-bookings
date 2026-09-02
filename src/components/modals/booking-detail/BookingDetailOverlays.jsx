@@ -4,7 +4,7 @@ import { canBookSlot } from "../../../engine/capacity";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { toDateStr } from "../../../supabase/transforms";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { useGroomPhotos } from "../../../hooks/useGroomPhotos.js";
+import { useGroomPhotos } from "../../../hooks/useGroomPhotos";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 import { ExitConfirmDialog } from "./ExitConfirmDialog.jsx";
 

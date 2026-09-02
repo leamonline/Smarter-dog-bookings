@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useAIModeControls } = await import("./useAIModeControls.js");
+const { useAIModeControls } = await import("./useAIModeControls");
 
 function makeStub({ updateResult = { error: null } } = {}) {
   const update = vi.fn(() => ({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
-import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
+import { useDraftPersistence } from "../../../hooks/useDraftPersistence";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";

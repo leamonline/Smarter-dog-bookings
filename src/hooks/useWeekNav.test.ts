@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mondayIndexedDayOfWeek } from "./useWeekNav.js";
+import { mondayIndexedDayOfWeek } from "./useWeekNav";
 
 describe("mondayIndexedDayOfWeek", () => {
   it("returns 0 for Monday", () => {
