@@ -10,17 +10,12 @@ import {
   BOOKING_STATUS,
   getStatusDisplay,
 } from "../../constants/index";
-import { getDefaultOpenForDate } from "../../engine/utils";
-import { excludeCancelled } from "../../engine/occupancy";
 import {
   getAllowedServicesForSize,
   getDogByIdOrName,
   getHumanByIdOrName,
-  normalizeServiceForSize,
   computeBookingPricing,
-  validateDepositAmount,
 } from "../../engine/bookingRules";
-import { toDateStr } from "../../supabase/transforms";
 import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures";
 
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
@@ -34,8 +29,9 @@ import { ReminderCard } from "./booking-detail/ReminderCard.jsx";
 import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
+import { resolveEditDay } from "./booking-detail/resolveEditDay";
+import { useBookingDetailAutosave } from "./booking-detail/useBookingDetailAutosave";
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
-import { useAutosave } from "../../hooks/useAutosave";
 import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
 
@@ -144,25 +140,15 @@ export function BookingDetailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking.id]);
 
-  const editDateStr = toDateStr(editData.date);
-  const editSettings = daySettings[editDateStr] || {
-    isOpen:
-      dayOpenState?.[editDateStr] !== undefined
-        ? dayOpenState[editDateStr]
-        : getDefaultOpenForDate(editData.date),
-    overrides: {},
-    extraSlots: [],
-  };
-  const editDayOpen =
-    dayOpenState?.[editDateStr] !== undefined
-      ? dayOpenState[editDateStr]
-      : editSettings.isOpen;
-  // Cancelled rows free their seat, so exclude them before the reschedule
-  // slot-picker (canBookSlot / getSeatStatesForSlot) and useSlotAvailability
-  // treat the day as occupied — otherwise a cancelled booking phantom-blocks
-  // an open slot.
-  const editDayBookings = excludeCancelled(bookingsByDate[editDateStr] || []);
-  const otherBookings = editDayBookings.filter((b) => b.id !== booking.id);
+  // The day being edited: its settings, open/closed state and the other live
+  // bookings competing for its seats (cancelled rows and this booking excluded).
+  const { editDateStr, editSettings, editDayOpen, otherBookings } = resolveEditDay({
+    editDate: editData.date,
+    bookingId: booking.id,
+    daySettings,
+    dayOpenState,
+    bookingsByDate,
+  });
 
   const { editActiveSlots } = useSlotAvailability({
     editDateStr,
@@ -250,48 +236,17 @@ export function BookingDetailModal({
     onUpdateDog,
   });
 
-  // Autosave — lightweight save of booking fields while editing
-  const autosaveFn = useCallback(async () => {
-    if (!editData.slot) return;
-    const depositValidationError = validateDepositAmount(
-      editData.payment,
-      editData.depositAmount,
-      pricing.subtotal,
-    );
-    if (depositValidationError) {
-      setSaveError(depositValidationError);
-      throw new Error(depositValidationError);
-    }
-    const newDateStr = toDateStr(editData.date);
-    // Resolve the chosen pick-up once and persist BOTH name and id — see the
-    // note in useBookingSave: updateBooking reads pickup_by_id from
-    // `_pickupById` first, so the id must be refreshed or the change is lost.
-    const pickedPickup = getHumanByIdOrName(humans, editData.pickupBy);
-    await onUpdate(
-      {
-        ...booking,
-        service: normalizeServiceForSize(editData.service, booking.size),
-        addons: editData.addons,
-        pickupBy: pickedPickup?.fullName || editData.pickupBy,
-        _pickupById: pickedPickup?.id ?? null,
-        payment: editData.payment,
-        // Mirror useBookingSave: the ledger fields travel with Paid in Full
-        // (the DB trigger clears them whenever payment moves off it).
-        paymentMethod: editData.payment === "Paid in Full" ? editData.paymentMethod : null,
-        paidAmount: editData.payment === "Paid in Full" ? editData.paidAmount : null,
-        depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
-        slot: editData.slot,
-      },
-      currentDateStr,
-      newDateStr,
-    );
-  }, [editData, booking, humans, currentDateStr, onUpdate, pricing.subtotal, setSaveError]);
-
-  const { status: autosaveStatus } = useAutosave(
+  // Autosave — lightweight save of booking fields while editing.
+  const { autosaveStatus } = useBookingDetailAutosave({
+    booking,
     editData,
-    autosaveFn,
-    { delay: 2000, enabled: isEditing },
-  );
+    isEditing,
+    humans,
+    currentDateStr,
+    subtotal: pricing.subtotal,
+    setSaveError,
+    onUpdate,
+  });
 
   return (
     <ModalShell
