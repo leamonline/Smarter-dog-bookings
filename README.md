@@ -347,6 +347,15 @@ npm run flow:publish
 npm run flow:send
 ```
 
+**End-to-end tests in a hosted sandbox.** `npm run e2e` builds the app and serves it **offline** (sample
+data, no Supabase) on port 4173, so it never touches real customer data. Where Playwright cannot download
+its own browser (Claude Code on the web pre-installs Chromium at `/opt/pw-browsers/chromium`), point it
+at the installed binary; unset, Playwright uses its managed browser exactly as CI does:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium npm run e2e -- --project=desktop
+```
+
 ## Deploy
 
 ### Frontend (Vercel)

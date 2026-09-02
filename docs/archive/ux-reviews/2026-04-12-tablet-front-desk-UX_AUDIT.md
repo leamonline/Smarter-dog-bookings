@@ -1,3 +1,5 @@
+> **Historical (archived 2 September 2026).** The 12 April 2026 tablet front-desk UX audit. Its "Top 5" blockers were worked through the June 2026 plans (see `../superpowers/plans/2026-06-09-fable5-codebase-overhaul.md`); the current UX authorities are `docs/ux/` and `docs/modal-standard.md`.
+
 # UX Audit Report — SmarterDog Booking App
 
 **Date:** 12 April 2026

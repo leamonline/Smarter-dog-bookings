@@ -1,3 +1,5 @@
+> **Historical (archived 2 September 2026).** Design QA notes for the Daily Brief state-and-density refinement that followed PR #536. The screenshots it cites lived in the untracked `.superpowers/` working area. The shipped Daily Brief is documented in `docs/today-command-centre.md`.
+
 # Design QA — Daily Brief state and density refinement
 
 - Source visual truth: the pre-change Daily Brief captures from PR #536 at `.superpowers/sdd/annotation-qa/daily-brief-desktop-after.png` and `.superpowers/sdd/annotation-qa/daily-brief-mobile-after-latest.png`.

@@ -91,9 +91,9 @@ These files remain authoritative for their bounded topics:
   behaviour.
 - [`superpowers/runbooks/`](superpowers/runbooks/) — production and operational
   procedures. Treat embedded evidence as dated unless it is freshly rerun.
-- [`../DESIGN.md`](../DESIGN.md) and [`.design-sync/`](../.design-sync/) — design
-  system evidence. `DESIGN.md` contains historical sections; its own status
-  notice governs them.
+- [`.design-sync/`](../.design-sync/) — design system evidence. The early rebrand spec
+  ([`archive/DESIGN.md`](archive/DESIGN.md)) is superseded; `src/index.css` and
+  [`modal-standard.md`](modal-standard.md) are canonical.
 
 ## Document status vocabulary
 
@@ -114,6 +114,9 @@ completed plan to make its history look cleaner.
 
 - `docs/archive/` is retained history. Link to it when it explains a decision,
   but do not revive an archived task merely because its file exists.
+  The dated root reports moved here on 2 September 2026 (assessment item 2.7):
+  the May 2026 QA pass and security scan, the superseded launch plan, design
+  spec and inbox plan, and the UX reviews under [`archive/ux-reviews/`](archive/ux-reviews/).
 - `docs/private/`, `.env.local` and `flow-keys/` may contain sensitive or
   operational material. Do not inspect, quote, move or commit their contents
   unless the task explicitly requires it and the appropriate authority exists.

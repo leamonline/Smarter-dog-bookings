@@ -34,6 +34,7 @@ npm run lint           # eslint + repo check scripts (import extensions, duplica
 npm run typecheck      # tsc --noEmit (app + tsconfig.node-tests.json)
 npm run test           # all Vitest (test:logic = node, test:component = jsdom)
 npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sample data
+                       #   (sandbox: PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium)
 npm run check:migrations  # validate migration filenames/order
 npm run check:sentry   # is browser error reporting actually live on prod? (ACTIVE/INACTIVE)
 npm run check:advisors # diff the hosted Supabase advisors against supabase/advisors/baseline.json
