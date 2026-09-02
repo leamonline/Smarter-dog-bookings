@@ -6,6 +6,8 @@
 
 **Last verified:** 11 August 2026 against the A2 branch code
 
+**Verification status (2 September 2026):** historical snapshot. About 150 merges have landed since; the flags and routes named below were not re-walked in this pass. Where a row cites a file, the debt register and CLAUDE.md carry the current path (several hooks and views moved in the September burn-down). Treat the matrix as the 11 August state until a re-verification pass bumps this line.
+
 This page separates repository support from a capability that a staff member
 can actually use. It is intentionally a code-verified snapshot: flags, routes
 and production callers below are linked so a later activation is visible in

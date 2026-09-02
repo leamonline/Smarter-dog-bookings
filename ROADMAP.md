@@ -4,6 +4,7 @@
 **Authority:** Evidence gates and dependency order for issue #603
 **Baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
 **Last verified:** 9 August 2026
+**Verification status (2 September 2026):** the baseline above is historical — 159 merges have landed since. The programme order and the `STOP` disposition below are current (re-checked against the issues and the decision record on 2 September 2026); the Tranche A evidence rows cite the SHAs they were attested at and are not re-verified here.
 
 This roadmap has no promised dates. Movement is evidence-led: a tranche starts
 only when its entry conditions are true and exits only with the named proof.
@@ -15,7 +16,7 @@ order and STOP/GO boundary.
 | Horizon | Work | Decision |
 |---|---|---|
 | **Done** | Tranche A: A0 measurement, A1 capacity proof, A2 interface truth, A3 Edge authentication, A4 release and Supabase target gates | Complete. Evidence attested at `main@9e12bac`. |
-| **Now** | Nothing. The gate is closed: **`STOP` recorded 15 August 2026** by [@leamonline](https://github.com/leamonline) | Manual contact retained. See the [decision record](docs/research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record). |
+| **Now** | Nothing. The gate is closed: **`STOP` recorded 15 August 2026** by [@leamonline](https://github.com/leamonline) | Manual contact retained. See the [decision record](docs/research/2026-08-09-reschedule-automation-go-no-go.md#required-decision-record). Reconsider only when both halves of the [resumption trigger](docs/research/2026-08-09-reschedule-automation-go-no-go.md#resumption-trigger) hold: the owner finds manual contacting burdensome, and the approved Meta template route plus an authorised production check can be supplied. |
 | **Deferred** | Tranche B: B1 #607 → B2 #610 → B4 #604/#609 remain serial and deferred by the `STOP`. **B3 #608 is rescoped and decoupled** (19 Aug 2026) — it carries no migration, so it is not part of that chain. | A future start for B1/B2/B4 needs a fresh **GO** against one exact `main` SHA, with A0–A4 re-established at that SHA. |
 | **Later** | Expand notification types; migrate remaining visit reads/writes; consider separate policy activation; retire compatibility paths after observation | Each is a new decision, not implied by B4. |
 
