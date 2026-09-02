@@ -41,9 +41,9 @@ import {
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useConversationNotes } from "./inbox/useConversationNotes.js";
-import { useAIModeControls } from "./inbox/useAIModeControls.js";
-import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
-import { useDraftActions } from "./inbox/useDraftActions.js";
+import { useAIModeControls } from "./inbox/useAIModeControls";
+import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions";
+import { useDraftActions } from "./inbox/useDraftActions";
 import { markWhatsappConversationRead } from "../rpc";
 import { registerResume } from "../refreshOnResume.js";
 

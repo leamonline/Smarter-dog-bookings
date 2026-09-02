@@ -18,24 +18,65 @@
 // setConversations as setters — same plumbing pattern as
 // useAIModeControls.
 import { useCallback } from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { applyWhatsappBookingAction } from "../../rpc";
+import type { Json } from "../../database.types";
 
-export function useBookingActionDecisions({
+/** The action fields this hook reads; the thread holds the full whatsapp_booking_actions row. */
+export interface PendingBookingAction {
+  id: string;
+}
+
+/** The conversation fields this hook writes; the list holds richer objects. */
+export interface BookingActionConversation {
+  id: string;
+  has_pending_booking_action?: boolean | null;
+}
+
+export type BookingActionResult =
+  | { ok: true; bookingId?: unknown }
+  | { ok: false; reason: string };
+
+export interface UseBookingActionDecisionsArgs<
+  A extends PendingBookingAction,
+  C extends BookingActionConversation,
+> {
+  actionInFlight: boolean;
+  setActionInFlight: (inFlight: boolean) => void;
+  setBookingActions: Dispatch<SetStateAction<A[]>>;
+  setConversations: Dispatch<SetStateAction<C[]>>;
+  selectedIdRef: MutableRefObject<string | null | undefined>;
+}
+
+export interface UseBookingActionDecisionsResult {
+  applyBookingAction: (actionId: string, editedPayload?: Json | null) => Promise<BookingActionResult>;
+  rejectBookingAction: (actionId: string, reason?: string | null) => Promise<BookingActionResult>;
+}
+
+function failure(err: unknown): BookingActionResult {
+  return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+}
+
+export function useBookingActionDecisions<
+  A extends PendingBookingAction,
+  C extends BookingActionConversation,
+>({
   actionInFlight,
   setActionInFlight,
   setBookingActions,
   setConversations,
   selectedIdRef,
-}) {
+}: UseBookingActionDecisionsArgs<A, C>): UseBookingActionDecisionsResult {
   const applyBookingAction = useCallback(
-    async (actionId, editedPayload = null) => {
+    async (actionId: string, editedPayload: Json | null = null): Promise<BookingActionResult> => {
       if (!actionId || actionInFlight) {
         return { ok: false, reason: "no action or action in flight" };
       }
       setActionInFlight(true);
       try {
+        if (!supabase) throw new Error("Not connected");
         // If the staff member edited the proposal (e.g. moved the date,
         // changed the slot, or fixed the service), persist the new
         // payload onto the action row before running the RPC. The RPC
@@ -68,10 +109,7 @@ export function useBookingActionDecisions({
         logger.error("applyBookingAction failed", err, {
           tags: { hook: "useBookingActionDecisions", op: "applyBookingAction" },
         });
-        return {
-          ok: false,
-          reason: err instanceof Error ? err.message : String(err),
-        };
+        return failure(err);
       } finally {
         setActionInFlight(false);
       }
@@ -80,12 +118,13 @@ export function useBookingActionDecisions({
   );
 
   const rejectBookingAction = useCallback(
-    async (actionId, reason = "") => {
+    async (actionId: string, reason: string | null = ""): Promise<BookingActionResult> => {
       if (!actionId || actionInFlight) {
         return { ok: false, reason: "no action or action in flight" };
       }
       setActionInFlight(true);
       try {
+        if (!supabase) throw new Error("Not connected");
         const { error } = await supabase
           .from("whatsapp_booking_actions")
           .update({
@@ -115,10 +154,7 @@ export function useBookingActionDecisions({
         logger.error("rejectBookingAction failed", err, {
           tags: { hook: "useBookingActionDecisions", op: "rejectBookingAction" },
         });
-        return {
-          ok: false,
-          reason: err instanceof Error ? err.message : String(err),
-        };
+        return failure(err);
       } finally {
         setActionInFlight(false);
       }
