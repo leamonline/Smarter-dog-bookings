@@ -17,8 +17,8 @@ const BUDGETS: Array<{ file: string; maxLines: number; debt: string }> = [
   { file: "./supabase/hooks/useWhatsAppInbox.ts", maxLines: 620, debt: "Debt 6" },
   // Debt 7 — 541 lines on 2 Sept 2026 (399 when closed in June).
   { file: "./components/modals/HumanCardModal.jsx", maxLines: 560, debt: "Debt 7" },
-  // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June).
-  { file: "./components/modals/BookingDetailModal.jsx", maxLines: 550, debt: "Debt 9" },
+  // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June); 487 after the edit-day/autosave extraction.
+  { file: "./components/modals/BookingDetailModal.jsx", maxLines: 500, debt: "Debt 9" },
 ];
 
 describe("register size ratchet (Debt 6, 7, 9)", () => {

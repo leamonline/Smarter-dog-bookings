@@ -10,7 +10,7 @@ import type { Booking, Dog } from "../types/index";
 // dog field must stay optional — hence Partial<Dog> rather than Dog.
 type EditableDogData = Partial<Dog> | null | undefined;
 
-interface EditData {
+export interface EditData {
   service: string;
   pickupBy: string;
   payment: string;
