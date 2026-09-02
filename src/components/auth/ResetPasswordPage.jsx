@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../supabase/client";
+import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 import { isPasswordPwned } from "../../utils/pwnedPassword";
 
@@ -10,6 +10,7 @@ import { isPasswordPwned } from "../../utils/pwnedPassword";
  * via onAuthStateChange (PASSWORD_RECOVERY event), giving us a session to work with.
  */
 export function ResetPasswordPage() {
+  const authActions = useStaffAuthActions();
   const [ready, setReady] = useState(false);       // recovery session established
   const [expired, setExpired] = useState(false);   // link is invalid/expired
   const [email, setEmail] = useState("");          // staff email from the recovery session
@@ -23,9 +24,9 @@ export function ResetPasswordPage() {
   const readyRef = useRef(false);
 
   useEffect(() => {
-    if (!supabase) { setExpired(true); return; }
+    if (!authActions.connected) { setExpired(true); return; }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = authActions.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         readyRef.current = true;
         setReady(true);
@@ -33,7 +34,7 @@ export function ResetPasswordPage() {
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
+    authActions.getSession().then(({ data }) => {
       if (data?.session) {
         readyRef.current = true;
         setReady(true);
@@ -49,7 +50,7 @@ export function ResetPasswordPage() {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, []);
+  }, [authActions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,7 +75,7 @@ export function ResetPasswordPage() {
       return;
     }
 
-    const { error: err } = await supabase.auth.updateUser({ password });
+    const { error: err } = await authActions.updatePassword(password);
     setSaving(false);
 
     if (err) {
