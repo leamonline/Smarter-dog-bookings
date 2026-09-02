@@ -24,7 +24,7 @@ vi.mock("../../utils/pwnedPassword", () => ({
 }));
 
 const { primeBootPrefetch } = await import("../bootPrefetch.js");
-const { useAuth } = await import("./useAuth.js");
+const { useAuth } = await import("./useAuth");
 
 const PROFILE = {
   id: "sp-1",
