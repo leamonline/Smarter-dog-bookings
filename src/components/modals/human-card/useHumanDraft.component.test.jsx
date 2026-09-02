@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, screen } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 import { useHumanDraft } from "./useHumanDraft.js";
+import { HumanPhoneTakenError } from "../../../supabase/hooks/humans/phoneTaken";
 
 const human = {
   id: "human-1",
@@ -106,6 +107,73 @@ describe("useHumanDraft", () => {
       }),
     );
     expect(result.current.isEditing).toBe(false);
+  });
+
+  it("saveHuman reports a failed write instead of claiming the profile saved", async () => {
+    const onUpdateHuman = vi.fn().mockResolvedValue(null);
+    const { result } = renderDraft({ onUpdateHuman });
+    act(() => result.current.startEdit("name"));
+    act(() => result.current.setDraftField("notes", "unsaved"));
+
+    await act(async () => {
+      await result.current.saveHuman();
+    });
+    expect(result.current.isEditing).toBe(true);
+    expect(screen.getByText(/couldn't save those changes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/profile saved/i)).not.toBeInTheDocument();
+  });
+
+  it("hands a taken phone number to onPhoneTaken and leaves edit mode once it is handled", async () => {
+    const onUpdateHuman = vi
+      .fn()
+      .mockRejectedValue(new HumanPhoneTakenError("+447700900222"));
+    const onPhoneTaken = vi.fn().mockResolvedValue(true);
+    const { result } = renderDraft({ onUpdateHuman, onPhoneTaken });
+    act(() => result.current.startEdit("name"));
+    act(() => result.current.setDraftField("phone", "07700 900222"));
+
+    await act(async () => {
+      await result.current.saveHuman();
+    });
+    expect(onPhoneTaken).toHaveBeenCalledWith(
+      "+447700900222",
+      expect.objectContaining({ phone: "+447700900222", name: "Sarah" }),
+    );
+    expect(result.current.isEditing).toBe(false);
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("keeps the draft open when onPhoneTaken backs out", async () => {
+    const onUpdateHuman = vi
+      .fn()
+      .mockRejectedValue(new HumanPhoneTakenError("+447700900222"));
+    const onPhoneTaken = vi.fn().mockResolvedValue(false);
+    const { result } = renderDraft({ onUpdateHuman, onPhoneTaken });
+    act(() => result.current.startEdit("name"));
+    act(() => result.current.setDraftField("phone", "07700 900222"));
+
+    await act(async () => {
+      await result.current.saveHuman();
+    });
+    expect(result.current.isEditing).toBe(true);
+    expect(result.current.draft.phone).toBe("07700 900222");
+  });
+
+  it("falls back to a toast for a taken phone when no onPhoneTaken is wired", async () => {
+    const onUpdateHuman = vi
+      .fn()
+      .mockRejectedValue(new HumanPhoneTakenError("+447700900222"));
+    const { result } = renderDraft({ onUpdateHuman });
+    act(() => result.current.startEdit("name"));
+    act(() => result.current.setDraftField("phone", "07700 900222"));
+
+    await act(async () => {
+      await result.current.saveHuman();
+    });
+    expect(result.current.isEditing).toBe(true);
+    expect(
+      screen.getByText(/already on another customer's record/i),
+    ).toBeInTheDocument();
   });
 
   it("saveHuman is a no-op when the draft is clean", async () => {

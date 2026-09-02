@@ -4305,6 +4305,10 @@ export type Database = {
           whatsapp: boolean
         }[]
       }
+      link_pending_signup: {
+        Args: { p_existing: string; p_pending: string }
+        Returns: undefined
+      }
       list_customer_booking_visits: {
         Args: { p_include_history?: boolean }
         Returns: Json

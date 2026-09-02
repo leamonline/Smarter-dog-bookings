@@ -169,6 +169,60 @@ describe("useHumanMutations updateHuman", () => {
     expect(result.current.humans["Sarah Jones"].notes).toBe("");
   });
 
+  it("throws a typed HumanPhoneTakenError when the phone loses to humans_phone_unique", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const stub = makeStub((ctx) =>
+      ctx.op === "update"
+        ? {
+            data: null,
+            error: {
+              code: "23505",
+              message:
+                'duplicate key value violates unique constraint "humans_phone_unique"',
+            },
+          }
+        : undefined,
+    );
+    const { result } = renderMutations({ stub });
+
+    let thrown;
+    await act(async () => {
+      try {
+        await result.current.updateHuman("h1", { phone: "+447700900222" });
+      } catch (err) {
+        thrown = err;
+      }
+    });
+
+    expect(thrown?.name).toBe("HumanPhoneTakenError");
+    expect(thrown?.phone).toBe("+447700900222");
+    // Rolled back like any other failure — the number never lands locally.
+    expect(result.current.humans["Sarah Jones"].phone).toBe("07700900111");
+  });
+
+  it("keeps the plain-null contract for a unique violation that is not the phone", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const stub = makeStub((ctx) =>
+      ctx.op === "update"
+        ? {
+            data: null,
+            error: {
+              code: "23505",
+              message:
+                'duplicate key value violates unique constraint "humans_name_surname_key"',
+            },
+          }
+        : undefined,
+    );
+    const { result } = renderMutations({ stub });
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.updateHuman("h1", { surname: "Smith" });
+    });
+    expect(saved).toBeNull();
+  });
+
   it("returns null without touching the DB for an unknown identifier", async () => {
     const stub = makeStub();
     const { result } = renderMutations({ stub });

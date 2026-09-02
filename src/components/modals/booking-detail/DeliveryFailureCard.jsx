@@ -4,6 +4,7 @@ import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
+import { isHumanPhoneTakenError } from "../../../supabase/hooks/humans/phoneTaken";
 
 function relativeTime(iso) {
   if (!iso) return "";
@@ -64,6 +65,13 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
       }
       toast.show("Number updated — you can resend now", "success");
       setEditing(false);
+    } catch (err) {
+      toast.show(
+        isHumanPhoneTakenError(err)
+          ? "That number is already on another customer's record — open their profile to move it"
+          : "Couldn't save that number — give it another go",
+        "error",
+      );
     } finally {
       setSavingPhone(false);
     }
