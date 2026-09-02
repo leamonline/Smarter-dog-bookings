@@ -723,6 +723,9 @@ describe("Tranche 1 customer cancellation boundary", () => {
     const wizard = readProjectFile(
       "src/components/customer/booking/BookingWizard.tsx",
     );
+    const wizardHook = readProjectFile(
+      "src/supabase/hooks/useCustomerBookingWizard.ts",
+    );
 
     expect(repo).toContain("cancelCustomerBooking");
     expect(repo).not.toContain("cancelMany");
@@ -733,7 +736,12 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(actionsHook).toContain("cancelCustomerBooking");
     expect(actionsHook).not.toContain("cancelMany");
     expect(actionsHook).not.toContain("listIdsInGroup");
-    expect(wizard).toContain("rescheduleCustomerBooking");
+    // The wizard reschedules through its data hook (Debt #12), which itself
+    // may only call the one reschedule command and never the cancel one.
+    expect(wizard).toContain("useCustomerBookingWizard");
+    expect(wizard).toContain("wizard.reschedule(");
+    expect(wizardHook).toContain("rescheduleCustomerBooking");
+    expect(wizardHook).not.toContain("cancelCustomerBooking");
     expect(wizard).not.toContain("cancelCustomerBooking");
     expect(wizard).not.toContain("rescheduleFrom.groupId");
   });
