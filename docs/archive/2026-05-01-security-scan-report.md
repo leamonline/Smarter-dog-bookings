@@ -1,3 +1,5 @@
+> **Superseded (annotated 2 September 2026).** Point-in-time scan from 1 May 2026, kept for history. Its two findings have since been addressed: the broad CORS on `whatsapp-send` is replaced by the per-function origin allowlists in `supabase/functions/_shared/` (secrets `*_ALLOWED_ORIGINS`, see `docs/edge-function-auth.md`), and `npm audit` now runs clean (rerun 2 September 2026: 0 vulnerabilities). Current security authorities: `docs/edge-function-auth.md`, `docs/hosted-supabase-target-guard.md` and the `src/security/` guard tests.
+
 # Security Scan Report
 
 Date: 2026-05-01

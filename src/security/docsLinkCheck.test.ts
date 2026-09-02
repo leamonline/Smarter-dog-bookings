@@ -28,7 +28,7 @@ describe("documentation link governance", () => {
     expect(
       filterGovernedMarkdownFiles([
         "README.md",
-        "INBOX-PLAN.md",
+        "ROADMAP.md",
         ".design-sync/conventions.md",
         "supabase/tests/README.md",
         "docs/archive/old.md",
@@ -38,8 +38,8 @@ describe("documentation link governance", () => {
       ]),
     ).toEqual([
       ".design-sync/conventions.md",
-      "INBOX-PLAN.md",
       "README.md",
+      "ROADMAP.md",
       "supabase/tests/README.md",
     ]);
 
@@ -53,7 +53,7 @@ describe("documentation link governance", () => {
     expect(discovered).toEqual(
       expect.arrayContaining([
         ".design-sync/conventions.md",
-        "INBOX-PLAN.md",
+        "ROADMAP.md",
         "supabase/tests/README.md",
       ]),
     );
