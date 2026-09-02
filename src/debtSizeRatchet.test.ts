@@ -16,8 +16,9 @@ const BUDGETS: Array<{ file: string; maxLines: number; debt: string }> = [
   // Debt 6 — 943 lines on 2 Sept 2026, 595 after the types/helpers/fetchers split.
   { file: "./supabase/hooks/useWhatsAppInbox.ts", maxLines: 620, debt: "Debt 6" },
   // Debt 7 — 541 lines on 2 Sept 2026 (399 when closed in June); 457 after the
-  // trusted-owner extraction, 544 once #774 added the pending-signup link flow.
-  { file: "./components/modals/HumanCardModal.jsx", maxLines: 560, debt: "Debt 7" },
+  // trusted-owner extraction, 544 once #774 added the pending-signup link flow,
+  // 488 after that flow moved to usePendingSignupLink.
+  { file: "./components/modals/HumanCardModal.jsx", maxLines: 500, debt: "Debt 7" },
   // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June).
   { file: "./components/modals/BookingDetailModal.jsx", maxLines: 550, debt: "Debt 9" },
 ];

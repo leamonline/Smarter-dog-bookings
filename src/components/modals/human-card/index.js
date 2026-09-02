@@ -20,3 +20,4 @@ export { useHumanDraft } from "./useHumanDraft.js";
 export { useHumanCardActions } from "./useHumanCardActions.js";
 export { useResolvedHuman } from "./useResolvedHuman.js";
 export { useTrustedOwnerLinks } from "./useTrustedOwnerLinks.js";
+export { usePendingSignupLink } from "./usePendingSignupLink.js";
