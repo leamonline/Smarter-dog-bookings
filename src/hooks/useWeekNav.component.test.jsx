@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { AppToolbar } from "../components/layout/AppToolbar.jsx";
 import { MobileNavStrip } from "../components/layout/MobileNavStrip.jsx";
-import { useWeekNav } from "./useWeekNav.js";
+import { useWeekNav } from "./useWeekNav";
 
 vi.mock("../supabase/hooks/useWhatsAppUnread", () => ({
   useWhatsAppUnread: () => ({ unread: 0 }),

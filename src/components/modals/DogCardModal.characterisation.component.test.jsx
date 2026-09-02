@@ -16,7 +16,7 @@ const groomPhotoMocks = vi.hoisted(() => ({
   updatePhotoNotes: vi.fn(),
 }));
 
-vi.mock("../../hooks/useGroomPhotos.js", () => ({
+vi.mock("../../hooks/useGroomPhotos", () => ({
   useGroomPhotos: () => groomPhotoMocks,
 }));
 
