@@ -176,3 +176,50 @@ a product decision.
   repository assessment; see [`../whatsapp-agent.md`](../whatsapp-agent.md).
 - UX and accessibility: the June review under
   [`../ux-review-2026-06.md`](../ux-review-2026-06.md) is the authority there.
+
+## 7. Status — 2 September 2026
+
+One day after the plan was written. Every item that needed no owner decision
+has been delivered; what remains is listed by why it remains. PR numbers link
+the evidence.
+
+| Item | Status | Where |
+|---|---|---|
+| 0.1 Dependabot PRs | Done | #717, #718 merged |
+| 0.2 PR #716 | Done | closed out |
+| 0.3 Leaked-password protection | **Owner decision** (Supabase Pro plan); the app-side HIBP check landed | README "Manual Supabase dashboard settings" |
+| 0.4 Empty `supabase` manual chunk | Done | `vite.config.js` + guard test |
+| 0.5 Root test file | Done | moved under `src/` |
+| 0.6 Package metadata | Done | `package.json` |
+| 0.7 Register refresh | Done | register "Status refresh" table (re-refreshed 2 Sept) |
+| 1.1 `no-restricted-imports` allowlist | **Done — allowlist empty** | slices a–h, #759–#762; register Debt 12 closed |
+| 1.2 `no-explicit-any` burn-down | Done — error for non-test source | register Debt 2 |
+| 1.3 `.js` data hooks → TypeScript | **Done — 0 `.js` hooks left** | batches a–q, #740–#758; register Debt 1 |
+| 1.4 Shrink `App.jsx` | Done (both halves) | #763 (546 lines, ratchet test), #764 (views on `SalonContext`); Debt 11 closed |
+| 1.5 Split the inbox controller | Done, slice a (760 → 372 lines, `?filter=` in the URL) | #765; Debt 10 reduced; the JS workspace-state hook remains |
+| 1.6 Seam review | Done; one split executed | #766; register "Seam review — 2 September 2026" |
+| 1.7 Thin coverage spots | Done | drag-and-drop + `londonTime` tests |
+| 1.8 Coverage thresholds | Done | `vitest.config.ts`, CI `coverage` job |
+| 2.1 Protect `main` | **Owner-configured** (branch protection + auto-merge on 2 Sept); required-checks list still to confirm — see the `github-advanced-security` note below | GitHub settings |
+| 2.2 Major-version upgrade plan | Done (plan only) | #771, `docs/plans/active/2026-09-02-major-version-upgrades.md` |
+| 2.3 E2E in remote containers | Done | #767, `PLAYWRIGHT_CHROMIUM_EXECUTABLE` |
+| 2.4 Unindexed foreign keys | **Deferred — owner-scheduled database work** | baseline records the 60 |
+| 2.5 Unused indexes | **Deferred by design** (a further month of statistics) | baseline records the 46 |
+| 2.6 Advisor baseline + `check:advisors` | Done; first live run green (dispatched 2 Sept) | #769, `check-advisors-drift.yml` |
+| 2.7 Root tidy | Done | #768 |
+| 3.1 Finished `#603` children | #608 closed as superseded (successors #623/#665/#667 all closed); **#612 needs an owner decision** (close as A0-delivered, or keep as the umbrella) | issue comments 2 Sept |
+| 3.2 Governing docs re-verified | Done (honest verification lines; `docs/README.md` bumped) | #770 |
+| 3.3 `#604` STOP trigger visible to staff | Done | #770, README + ROADMAP |
+| 3.4 One Debt 12 ledger | Already satisfied | register |
+
+**External blockers, not this repository's:** ESLint 10 (`eslint-plugin-react`
+peer range) and TypeScript 7 (`typescript-eslint` peer range) — see the
+upgrade plan; and the `github-advanced-security` check, which fails on every
+PR because GitHub's Copilot code-scanning agent cannot start its model
+session — it is not a finding against any change here.
+
+**The single best next engineering task:** a Debt 6 seam review of
+`useWhatsAppInbox.ts` (943 lines, regressed again during its TypeScript
+conversion), with a line-count ratchet for it and for Debt 7 and 9 in the same
+PR — the three named regressions in the status table are the only debt rows
+still moving the wrong way.
