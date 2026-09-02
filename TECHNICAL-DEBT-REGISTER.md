@@ -25,7 +25,7 @@ sustained workstream (week+).
 | 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Regressed** | 541 lines. |
 | 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
-| 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Open, moved** | `InboxView.jsx` is a one-line re-export; the cascade now lives in `views/inbox/workspace/InboxWorkspaceController.jsx` (760 lines). |
+| 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Reduced (2 Sept 2026)** | `InboxWorkspaceController.jsx` is 372 lines (from 760) and orchestrates only: the six list modes live in `inboxListModel.ts` (pure, tested) + `useInboxListState.ts` with the mode in the URL (`/inbox?filter=unread`); toast-wrapped actions in `useInboxActionHandlers.ts`; the outbound composer in `useOutboundCompose.ts`; `?conversation=` / `?human=` in `useInboxDeepLinks.ts`; the close-N pill in `BulkActionBar.jsx`. |
 | 11 `App.jsx` hub | Open, worse (1,025 LoC) | **Reduced (2 Sept 2026)** | 546 lines (from 1,544). Data layer → `useStaffAppData`, drawer session → `useBookingSession`, profile URLs → `useProfileRouting`, routes → `StaffRoutes`, modals → `StaffModals`; `appShell.test.ts` ratchets the line count. Views still take their props (the "behind `SalonProvider`" half of 1.4 is open). |
 | 12 Direct Supabase client in components | Frozen + baselined (29 files) | **Closed (2 Sept 2026)** | 0 files on the allowlist; the `ignores` list now holds only the test globs. See the burn-down table under Debt 12. |
 | 13 snake_case leaks into customer components | Partially closed | Closed for the customer surface | Dashboard, BookingCard and dog forms consume repository-shaped objects. |
@@ -87,6 +87,8 @@ make the next regression visible in CI instead of in the next audit.
 > **Debt 9 — Status (June 2026):** CLOSED in #251 — `BookingDetailModal.jsx` is 392 LoC; the nested overlays are hoisted into `booking-detail/BookingDetailOverlays.jsx` and sibling cards.
 >
 > **Debt 10 — Status (June 2026):** OPEN — verified still present: `views/inbox/InboxView.jsx` is 706 LoC (was 708); the list-mode cascade remains.
+>
+> **Debt 10 — Update (September 2026):** REDUCED — assessment item 1.5, slice a. The controller (`views/inbox/workspace/InboxWorkspaceController.jsx`) is 372 lines, down from 760, and no longer owns the list-mode cascade: the six modes are pure functions in `inboxListModel.ts` (split, count, filter, search, summary — unit-tested) composed by `useInboxListState.ts`, which reads and writes the mode as `?filter=<mode>` so a filtered inbox is a shareable URL (absent = the active queue; unknown values fall back to it; search and the bulk selection stay local and the selection still clears on any mode change). The toast-wrapped actions, the outbound composer, the two deep-link params and the bulk pill each have their own file. The 30-case `InboxView` component test passes unchanged, which is what the June note asked for: a no-op extraction, not a rewrite. Still open: the workspace state hook (`useInboxWorkspaceState.js`, 245 lines) is JS, and the list pane's chip row still switches on the mode string.
 >
 > **Debt 11 — Status (June 2026):** OPEN — verified still present, and worse: `App.jsx` has grown to 1,025 LoC and remains the routing/modal/prop hub.
 >
