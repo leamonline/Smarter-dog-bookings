@@ -16,7 +16,7 @@ import { PAYMENT_METHODS } from "../../constants/salon";
 import { isAwaitingDeposit } from "../../engine/deposits";
 import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
+import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures";
 
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({

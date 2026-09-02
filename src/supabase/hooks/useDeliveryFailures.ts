@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useDeliveryFailures.js
+// src/supabase/hooks/useDeliveryFailures.ts
 //
 // Surfaces FAILED customer notifications (booking confirmation / reminder /
 // ready / cancellation) so staff can spot an undeliverable message, fix the
@@ -17,24 +17,66 @@
 // ============================================================
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
+
+type NotificationLogRow = Database["public"]["Tables"]["notification_log"]["Row"];
+type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type DismissalRow = Database["public"]["Tables"]["notification_dismissals"]["Row"];
+
+/** The columns refresh() selects from notification_log for the supersession pass. */
+type NotificationLogSelect = Pick<
+  NotificationLogRow,
+  "booking_id" | "human_id" | "trigger_type" | "channel" | "status" | "error_message" | "created_at"
+>;
+
+/** Per-trigger failure the booking pill / detail card renders. */
+export type FailureInfo = Pick<
+  NotificationLogRow,
+  "trigger_type" | "channel" | "error_message" | "created_at" | "human_id"
+>;
+
+type BookingMeta = Pick<
+  BookingRow,
+  "id" | "booking_date" | "slot" | "dog_name_snapshot" | "owner_name_snapshot" | "status"
+>;
+
+/** One dashboard-card row per booking that still has a live failed notification. */
+export interface DeliveryFailure {
+  bookingId: string;
+  bookingDate: string | null;
+  slot: string | null;
+  customerName: string;
+  dogName: string;
+  triggers: string[];
+  latestError: string | null;
+  latestAt: string | null;
+}
+
+interface DeliveryFailuresState {
+  byBooking: Map<string, FailureInfo[]>;
+  failures: DeliveryFailure[];
+  loading: boolean;
+  error: unknown;
+}
 
 // Only look back so far — a months-old failed confirmation for a long-past
 // appointment isn't actionable, and it keeps the supersession fetch small.
 const LOOKBACK_DAYS = 120;
 
 // Human-readable label per notification trigger_type.
-const TRIGGER_LABEL = {
+const TRIGGER_LABEL: Record<string, string> = {
   confirmed: "Confirmation",
   reminder: "Reminder",
   ready: "Ready-for-collection",
   cancelled: "Cancellation",
 };
 
-export function triggerLabel(triggerType) {
+export function triggerLabel(triggerType: string): string {
   return TRIGGER_LABEL[triggerType] || triggerType;
 }
 
@@ -42,7 +84,10 @@ export function triggerLabel(triggerType) {
 // dismissal whose timestamp is >= the booking's most recent failure
 // (latestAt). A newer failure (latestAt > dismissed_at) re-surfaces it.
 // ISO timestamps (both UTC) compare correctly as strings.
-export function applyDismissals(failures, dismissals) {
+export function applyDismissals<T extends { bookingId: string; latestAt?: string | null }>(
+  failures: T[],
+  dismissals: Map<string, string> | null | undefined,
+): T[] {
   if (!dismissals || dismissals.size === 0) return failures;
   return failures.filter((f) => {
     const dismissedAt = dismissals.get(f.bookingId);
@@ -52,7 +97,7 @@ export function applyDismissals(failures, dismissals) {
   });
 }
 
-let state = {
+let state: DeliveryFailuresState = {
   // Map<booking_id, FailureInfo[]> — FailureInfo = { trigger_type, channel,
   // error_message, created_at, human_id }
   byBooking: new Map(),
@@ -61,8 +106,8 @@ let state = {
   loading: true,
   error: null,
 };
-let channel = null;
-const listeners = new Set();
+let channel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
 
 // Under vitest the booking pill renders in many suites; opening a real
 // realtime socket / hitting the network there is both noisy (undici WS errors)
@@ -70,12 +115,12 @@ const listeners = new Set();
 // hook to inject failures. Matches the import.meta.env.MODE guard in lib/sentry.
 const IS_TEST = import.meta.env?.MODE === "test";
 
-function setState(next) {
+function setState(next: Partial<DeliveryFailuresState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (!supabase || IS_TEST) {
     if (state.loading) setState({ loading: false });
     return;
@@ -94,7 +139,11 @@ async function refresh() {
     if (failedErr) throw failedErr;
 
     const failedBookingIds = [
-      ...new Set((failedRows ?? []).map((r) => r.booking_id).filter(Boolean)),
+      ...new Set(
+        (failedRows ?? [])
+          .map((r) => r.booking_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
     ];
 
     if (failedBookingIds.length === 0) {
@@ -113,17 +162,22 @@ async function refresh() {
       .order("created_at", { ascending: false });
     if (allErr) throw allErr;
 
-    const latestByTuple = new Map();
+    const latestByTuple = new Map<string, NotificationLogSelect>();
     for (const r of allRows ?? []) {
       const key = `${r.booking_id}|${r.trigger_type}|${r.human_id ?? ""}`;
       if (!latestByTuple.has(key)) latestByTuple.set(key, r); // first = newest
     }
 
-    const byBooking = new Map();
+    const byBooking = new Map<string, FailureInfo[]>();
     for (const r of latestByTuple.values()) {
       if (r.status !== "failed") continue;
-      if (!byBooking.has(r.booking_id)) byBooking.set(r.booking_id, []);
-      byBooking.get(r.booking_id).push({
+      if (!r.booking_id) continue;
+      let infos = byBooking.get(r.booking_id);
+      if (!infos) {
+        infos = [];
+        byBooking.set(r.booking_id, infos);
+      }
+      infos.push({
         trigger_type: r.trigger_type,
         channel: r.channel,
         error_message: r.error_message,
@@ -135,7 +189,7 @@ async function refresh() {
     // 3. Enrich for the dashboard list: customer + dog + date per failed
     //    booking, straight off the booking snapshots (no humans join).
     const liveBookingIds = [...byBooking.keys()];
-    let bookingMeta = new Map();
+    let bookingMeta = new Map<string, BookingMeta>();
     if (liveBookingIds.length > 0) {
       const { data: bookings } = await supabase
         .from("bookings")
@@ -144,20 +198,20 @@ async function refresh() {
       bookingMeta = new Map((bookings ?? []).map((b) => [b.id, b]));
     }
 
-    const failures = liveBookingIds
+    const failures: DeliveryFailure[] = liveBookingIds
       .map((bid) => {
         const infos = byBooking.get(bid) || [];
-        const meta = bookingMeta.get(bid) || {};
-        const newest = infos.reduce(
-          (a, b) => (a && a.created_at > b.created_at ? a : b),
+        const meta = bookingMeta.get(bid);
+        const newest = infos.reduce<FailureInfo | null>(
+          (a, b) => (a && (a.created_at || "") > (b.created_at || "") ? a : b),
           null,
         );
         return {
           bookingId: bid,
-          bookingDate: meta.booking_date || null,
-          slot: meta.slot || null,
-          customerName: meta.owner_name_snapshot || "Customer",
-          dogName: meta.dog_name_snapshot || "",
+          bookingDate: meta?.booking_date || null,
+          slot: meta?.slot || null,
+          customerName: meta?.owner_name_snapshot || "Customer",
+          dogName: meta?.dog_name_snapshot || "",
           triggers: infos.map((i) => i.trigger_type),
           latestError: newest?.error_message || null,
           latestAt: newest?.created_at || null,
@@ -168,14 +222,19 @@ async function refresh() {
     // Dashboard-only: hide failures the staff have dismissed (unless they
     // failed again since). Missing table/RLS (e.g. migration not yet applied)
     // degrades to "no dismissals" so the card still renders.
-    let dismissals = new Map();
+    let dismissals = new Map<string, string>();
     if (liveBookingIds.length > 0) {
       const { data: dRows, error: dErr } = await supabase
         .from("notification_dismissals")
         .select("booking_id, dismissed_at")
         .in("booking_id", liveBookingIds);
       if (!dErr) {
-        dismissals = new Map((dRows ?? []).map((d) => [d.booking_id, d.dismissed_at]));
+        dismissals = new Map(
+          (dRows ?? []).map((d: Pick<DismissalRow, "booking_id" | "dismissed_at">) => [
+            d.booking_id,
+            d.dismissed_at,
+          ]),
+        );
       }
     }
 
@@ -196,7 +255,7 @@ async function refresh() {
 // it from the local list, then persists via the SECURITY DEFINER RPC (DB
 // clock + is_staff()). On error, refresh() restores the true state. Inert in
 // tests / offline, matching the rest of this module.
-async function dismiss(bookingId) {
+async function dismiss(bookingId: string): Promise<void> {
   if (!bookingId || !supabase || IS_TEST) return;
   setState({ failures: state.failures.filter((f) => f.bookingId !== bookingId) });
   const { error } = await supabase.rpc("dismiss_delivery_failure", {
@@ -228,12 +287,12 @@ function startChannel() {
 }
 
 function stopChannel() {
-  if (!channel) return;
+  if (!channel || !supabase) return;
   supabase.removeChannel(channel);
   channel = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannel();
@@ -245,7 +304,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): DeliveryFailuresState {
   return state;
 }
 
@@ -253,11 +312,20 @@ registerResume(() => {
   if (listeners.size > 0) refresh();
 });
 
+export interface UseDeliveryFailuresResult {
+  failures: DeliveryFailure[];
+  count: number;
+  loading: boolean;
+  error: unknown;
+  refresh: () => Promise<void>;
+  dismiss: (bookingId: string) => Promise<void>;
+}
+
 // Full set — for the dashboard "delivery failures" card.
-export function useDeliveryFailures() {
+export function useDeliveryFailures(): UseDeliveryFailuresResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const refresh_ = useCallback(() => refresh(), []);
-  const dismiss_ = useCallback((bookingId) => dismiss(bookingId), []);
+  const dismiss_ = useCallback((bookingId: string) => dismiss(bookingId), []);
   return {
     failures: snapshot.failures,
     count: snapshot.failures.length,
@@ -270,7 +338,9 @@ export function useDeliveryFailures() {
 
 // Per-booking selector — for the badge on a booking pill / the detail card.
 // Returns the FailureInfo[] for this booking, or null.
-export function useBookingDeliveryFailure(bookingId) {
+export function useBookingDeliveryFailure(
+  bookingId: string | null | undefined,
+): FailureInfo[] | null {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return useMemo(() => {
     if (!bookingId) return null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyDismissals } from "./useDeliveryFailures.js";
+import { applyDismissals } from "./useDeliveryFailures";
 
 const f = (bookingId, latestAt) => ({ bookingId, latestAt, customerName: "X" });
 

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
 }));
 
-vi.mock("../../supabase/hooks/useTodos.js", () => ({
+vi.mock("../../supabase/hooks/useTodos", () => ({
   useTodos: () => ({
     todos: [],
     addTodos: mocks.addTodos,
@@ -22,10 +22,10 @@ vi.mock("../../supabase/hooks/useWaitlist", () => ({
     leaveWaitlist: vi.fn(),
   }),
 }));
-vi.mock("../../supabase/hooks/useTomorrowReminders.js", () => ({
+vi.mock("../../supabase/hooks/useTomorrowReminders", () => ({
   useTomorrowReminders: () => ({ totalCount: 0, sentCount: 0 }),
 }));
-vi.mock("../../supabase/hooks/useDeliveryFailures.js", () => ({
+vi.mock("../../supabase/hooks/useDeliveryFailures", () => ({
   useDeliveryFailures: () => ({ count: 0 }),
 }));
 vi.mock("../../contexts/ToastContext.jsx", () => ({

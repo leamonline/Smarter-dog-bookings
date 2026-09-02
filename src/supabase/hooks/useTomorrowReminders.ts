@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useTomorrowReminders.js
+// src/supabase/hooks/useTomorrowReminders.ts
 //
 // Dashboard helper for the "Tomorrow's reminders" panel. Returns ONE
 // row per customer on the next salon-open day (a customer with several
@@ -21,17 +21,73 @@
 // ============================================================
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
+import type { Database } from "../database.types";
+
+type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type DogRow = Database["public"]["Tables"]["dogs"]["Row"];
+type NotificationLogRow = Database["public"]["Tables"]["notification_log"]["Row"];
+
+/** The columns the reminders join from dogs for grouping. */
+export type ReminderDogJoin = Pick<DogRow, "human_id" | "name">;
+
+/** One booking row as refresh() selects it, with the dogs embed. */
+export type ReminderBooking = Pick<
+  BookingRow,
+  | "id"
+  | "slot"
+  | "service"
+  | "status"
+  | "booking_date"
+  | "dog_id"
+  | "dog_name_snapshot"
+  | "owner_name_snapshot"
+  | "reminder_confirmed_at"
+  | "reminder_confirmed_source"
+> & { dogs: ReminderDogJoin | null };
+
+/** A reminder log row keyed into sentMap. */
+export type ReminderLog = Pick<
+  NotificationLogRow,
+  "booking_id" | "status" | "sent_at" | "channel"
+>;
+
+/** One customer-collapsed row the dashboard card renders. */
+export interface TomorrowReminderRow {
+  customerKey: string;
+  customerName: string;
+  dogNames: string[];
+  dogNamesDisplay: string;
+  bookingIds: string[];
+  anchorBookingId: string;
+  slots: string[];
+  slot: string | null;
+  multiSlot: boolean;
+  reminderStatus: "sent" | "pending" | null;
+  reminderSentAt: string | null;
+  reminderChannel: string | null;
+  confirmed: boolean;
+  reminderConfirmedAt: string | null;
+  reminderConfirmedBy: string | null;
+}
+
+interface TomorrowRemindersState {
+  targetDate: string;
+  rows: TomorrowReminderRow[];
+  loading: boolean;
+  error: unknown;
+}
 
 // Reminders always target the literal next day — staff send them the
 // afternoon/evening before, whatever day of the week that lands on. A
 // closed tomorrow simply shows "0 bookings". (Replaces the old
 // getNextWorkingDay helper, whose Mon/Tue/Wed-only schedule was stale.)
-function getTomorrowDateStr(from) {
+function getTomorrowDateStr(from?: Date | null): string {
   // Anchor to UK time so a late-night session past midnight UTC still
   // shows the date the salon would call "tomorrow".
   const today = from ?? new Date();
@@ -41,21 +97,21 @@ function getTomorrowDateStr(from) {
   return d.toISOString().slice(0, 10);
 }
 
-let state = {
+let state: TomorrowRemindersState = {
   targetDate: getTomorrowDateStr(),
   rows: [],
   loading: true,
   error: null,
 };
-let channel = null;
-const listeners = new Set();
+let channel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
 
-function setState(next) {
+function setState(next: Partial<TomorrowRemindersState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (!supabase) {
     if (state.loading) setState({ loading: false });
     return;
@@ -80,7 +136,7 @@ async function refresh() {
     if (bookingsErr) throw bookingsErr;
 
     const bookingIds = (bookings ?? []).map((b) => b.id);
-    const sentMap = new Map();
+    const sentMap = new Map<string, ReminderLog>();
     if (bookingIds.length > 0) {
       const { data: logs, error: logsErr } = await supabase
         .from("notification_log")
@@ -91,6 +147,7 @@ async function refresh() {
       // Prefer the most recent 'sent' row per booking; fall back to a
       // 'pending' row to indicate "in flight"; ignore failed ones.
       for (const log of logs ?? []) {
+        if (!log.booking_id) continue;
         const existing = sentMap.get(log.booking_id);
         if (!existing || log.status === "sent") {
           sentMap.set(log.booking_id, log);
@@ -100,7 +157,7 @@ async function refresh() {
 
     setState({
       targetDate,
-      rows: groupRemindersByCustomer(bookings ?? [], sentMap),
+      rows: groupRemindersByCustomer(bookings ?? [], sentMap) as TomorrowReminderRow[],
       loading: false,
     });
   } catch (err) {
@@ -129,12 +186,12 @@ function startChannel() {
 }
 
 function stopChannel() {
-  if (!channel) return;
+  if (!channel || !supabase) return;
   supabase.removeChannel(channel);
   channel = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannel();
@@ -146,7 +203,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): TomorrowRemindersState {
   return state;
 }
 
@@ -156,7 +213,17 @@ registerResume(() => {
   if (listeners.size > 0) refresh();
 });
 
-export function useTomorrowReminders() {
+export interface UseTomorrowRemindersResult {
+  targetDate: string;
+  rows: TomorrowReminderRow[];
+  sentCount: number;
+  totalCount: number;
+  loading: boolean;
+  error: unknown;
+  refresh: () => Promise<void>;
+}
+
+export function useTomorrowReminders(): UseTomorrowRemindersResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const refresh_ = useCallback(() => refresh(), []);
   const sentCount = useMemo(
