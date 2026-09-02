@@ -70,8 +70,13 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
 
 - `src/index.jsx` — entry. Routes `/customer/*` → `CustomerApp.jsx`, `/reset-password` standalone,
   everything else → `App.jsx`. If Supabase creds are missing it renders error pages instead.
-- **`src/App.jsx` — read this first.** The staff app: auth gate, all data-hook
-  declarations, modal/route map, `SalonProvider`. The clearest map of what data exists and how it flows.
+- **`src/App.jsx` — read this first.** The staff shell: auth gate, then `AuthedApp` composes
+  `useStaffAppData` (every data hook, online/offline resolved — [src/hooks/useStaffAppData.ts](src/hooks/useStaffAppData.ts)),
+  `useBookingSession` (new-booking drawer session + park/resume), `useProfileRouting` (`/dogs/:id`,
+  `/humans/:id` ↔ profile modals), `SalonProvider`, the route map
+  ([StaffRoutes.jsx](src/components/layout/StaffRoutes.jsx)) and the modal stack
+  ([StaffModals.jsx](src/components/layout/StaffModals.jsx)). `useStaffAppData` is the clearest map of
+  what data exists and how it flows; a ratchet test (`src/appShell.test.ts`) keeps App.jsx thin.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
 - **`/today` live salon board** — the **default staff landing** (`/` stays the calendar). Each dog is
