@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useTodos.js
+// src/supabase/hooks/useTodos.ts
 //
 // Salon to-do list, shared across every component that mounts the hook.
 //
@@ -16,6 +16,7 @@
 // ============================================================
 
 import { useSyncExternalStore, useMemo } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../client";
 import {
   completeClosureRearrangementTask,
@@ -23,24 +24,37 @@ import {
 } from "../rpc";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
+import type { Database } from "../database.types";
 
-let state = { todos: [], loading: true, error: null };
-let channel = null;
-const listeners = new Set();
+export type Todo = Database["public"]["Tables"]["salon_todos"]["Row"];
 
-function setState(next) {
+export type TodoResult = { ok: true } | { ok: false; error: string };
+
+interface TodosState {
+  todos: Todo[];
+  loading: boolean;
+  error: string | null;
+}
+
+let state: TodosState = { todos: [], loading: true, error: null };
+let channel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
+
+function setState(next: Partial<TodosState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
 
 // Stable ordering — sort_order first, created_at as the tiebreak.
-function orderedTodos(query) {
+function orderedTodos<Q extends { order: (column: string, options: { ascending: boolean }) => Q }>(
+  query: Q,
+): Q {
   return query
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (!supabase) {
     if (state.loading) setState({ loading: false });
     return;
@@ -71,12 +85,12 @@ function startChannel() {
 }
 
 function stopChannel() {
-  if (!channel) return;
+  if (!channel || !supabase) return;
   supabase.removeChannel(channel);
   channel = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannel();
@@ -88,7 +102,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): TodosState {
   return state;
 }
 
@@ -106,7 +120,7 @@ registerResume(() => {
 // previous per-instance hook exactly — only the state plumbing changed
 // (module store instead of React useState).
 
-async function addTodo(text) {
+async function addTodo(text: string): Promise<TodoResult> {
   if (!supabase || !text.trim()) return { ok: true };
   const maxOrder =
     state.todos.length > 0
@@ -126,7 +140,7 @@ async function addTodo(text) {
   return { ok: true };
 }
 
-async function toggleTodo(id) {
+async function toggleTodo(id: string): Promise<TodoResult> {
   const todo = state.todos.find((t) => t.id === id);
   if (!supabase || !todo) return { ok: true };
   if ((todo.kind || "general") !== "general") {
@@ -151,7 +165,7 @@ async function toggleTodo(id) {
   return { ok: true };
 }
 
-async function removeTodo(id) {
+async function removeTodo(id: string): Promise<TodoResult> {
   if (!supabase) return { ok: true };
   const todo = state.todos.find((candidate) => candidate.id === id);
   if (todo && (todo.kind || "general") !== "general") {
@@ -176,7 +190,7 @@ async function removeTodo(id) {
   return { ok: true };
 }
 
-async function moveTodo(index, direction) {
+async function moveTodo(index: number, direction: number): Promise<TodoResult> {
   const target = index + direction;
   if (target < 0 || target >= state.todos.length) return { ok: true };
 
@@ -197,12 +211,16 @@ async function moveTodo(index, direction) {
   ]);
   if (a.error || b.error) {
     setState({ todos: prev });
-    return { ok: false, error: (a.error || b.error).message || "Couldn't reorder." };
+    return { ok: false, error: (a.error || b.error)?.message || "Couldn't reorder." };
   }
   return { ok: true };
 }
 
-async function decideRescheduleRequest(requestId, decision, reason) {
+async function decideRescheduleRequest(
+  requestId: string,
+  decision: "approve" | "deny",
+  reason: string,
+): Promise<TodoResult> {
   if (!supabase) {
     return { ok: false, error: "Couldn't decide that request." };
   }
@@ -229,7 +247,7 @@ async function decideRescheduleRequest(requestId, decision, reason) {
   return { ok: true };
 }
 
-async function completeClosureTask(taskId) {
+async function completeClosureTask(taskId: string): Promise<TodoResult> {
   if (!supabase) {
     return { ok: false, error: "Couldn't check that closure task." };
   }
@@ -268,7 +286,20 @@ const actions = {
   completeClosureTask,
 };
 
-export function useTodos() {
+export interface UseTodosResult extends TodosState {
+  addTodo: (text: string) => Promise<TodoResult>;
+  toggleTodo: (id: string) => Promise<TodoResult>;
+  removeTodo: (id: string) => Promise<TodoResult>;
+  moveTodo: (index: number, direction: number) => Promise<TodoResult>;
+  decideRescheduleRequest: (
+    requestId: string,
+    decision: "approve" | "deny",
+    reason: string,
+  ) => Promise<TodoResult>;
+  completeClosureTask: (taskId: string) => Promise<TodoResult>;
+}
+
+export function useTodos(): UseTodosResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return useMemo(
     () => ({

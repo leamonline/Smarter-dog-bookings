@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
-import { useTodos } from "../../supabase/hooks/useTodos.js";
+import { useTodos } from "../../supabase/hooks/useTodos";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
