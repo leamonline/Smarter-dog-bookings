@@ -12,7 +12,7 @@ import {
   rescheduleCustomerBooking,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
-import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
+import { useDraftPersistence } from "../../../hooks/useDraftPersistence";
 import {
   SALON_SLOTS,
   DAILY_DOG_CAP,

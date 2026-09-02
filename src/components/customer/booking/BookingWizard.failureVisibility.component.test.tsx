@@ -49,7 +49,7 @@ vi.mock("../../../supabase/customerClient", () => ({
   customerSupabase: { rpc: mocks.rpc, from: mocks.from },
 }));
 
-vi.mock("../../../hooks/useDraftPersistence.js", () => ({
+vi.mock("../../../hooks/useDraftPersistence", () => ({
   useDraftPersistence: () => ({
     restored: mocks.draft.value,
     save: vi.fn(),

@@ -9,7 +9,7 @@ import { safeGet, safeSet, safeRemove } from "../lib/storage";
  * React state only, so leaving the page wipes everything the customer typed.
  * This hook gives those forms a durable draft:
  *
- *   const { restored, save, clear } = useDraftPersistence(key);
+ *   const { restored, save, clear } = useDraftPersistence<Draft>(key);
  *   const [name, setName] = useState(() => restored?.name ?? "");
  *   useEffect(() => { save({ name, ... }); }, [save, name, ...]);
  *   // on successful submit / cancel: clear();
@@ -21,25 +21,42 @@ import { safeGet, safeSet, safeRemove } from "../lib/storage";
  * Keys should be namespaced per signed-in user so two customers on a shared
  * device never see each other's draft, e.g. `sdb:draft:signup:<humanId>`.
  *
- * @param {string} key — localStorage key for this draft
- * @param {object} options
- * @param {boolean} options.enabled — when false, reads/writes are no-ops (default true)
- * @param {number} options.maxAgeMs — ignore drafts older than this (default 7 days)
- * @returns {{ restored: object|null, save: (data: object) => void, clear: () => void }}
+ * The draft type parameter is a trust boundary, not a guarantee: whatever was
+ * in storage is returned as `T` without validation, so consumers should read
+ * fields defensively (`restored?.name ?? ""`).
  */
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-function readDraft(key, maxAgeMs) {
+export interface UseDraftPersistenceOptions {
+  /** When false, reads/writes are no-ops (default true). */
+  enabled?: boolean;
+  /** Ignore drafts older than this (default 7 days). */
+  maxAgeMs?: number;
+}
+
+export interface UseDraftPersistenceResult<T> {
+  restored: T | null;
+  save: (data: T) => void;
+  clear: () => void;
+}
+
+interface StoredDraft<T> {
+  savedAt?: number;
+  data?: T | null;
+}
+
+function readDraft<T>(key: string, maxAgeMs: number): T | null {
   const raw = safeGet("local", key);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || !("data" in parsed)) return null;
-    if (typeof parsed.savedAt === "number" && Date.now() - parsed.savedAt > maxAgeMs) {
+    const stored = parsed as StoredDraft<T>;
+    if (typeof stored.savedAt === "number" && Date.now() - stored.savedAt > maxAgeMs) {
       safeRemove("local", key);
       return null;
     }
-    return parsed.data ?? null;
+    return stored.data ?? null;
   } catch {
     // Corrupt JSON — treat as no draft. (Storage failures are already
     // swallowed by safeGet/safeRemove above.)
@@ -47,17 +64,20 @@ function readDraft(key, maxAgeMs) {
   }
 }
 
-export function useDraftPersistence(key, { enabled = true, maxAgeMs = DEFAULT_MAX_AGE_MS } = {}) {
+export function useDraftPersistence<T>(
+  key: string,
+  { enabled = true, maxAgeMs = DEFAULT_MAX_AGE_MS }: UseDraftPersistenceOptions = {},
+): UseDraftPersistenceResult<T> {
   // Read the draft exactly once, on first render, so consumers can use it in
   // lazy useState initialisers. A ref (not state) keeps this stable across
   // re-renders without triggering its own render.
-  const restoredRef = useRef(undefined);
+  const restoredRef = useRef<T | null | undefined>(undefined);
   if (restoredRef.current === undefined) {
-    restoredRef.current = enabled ? readDraft(key, maxAgeMs) : null;
+    restoredRef.current = enabled ? readDraft<T>(key, maxAgeMs) : null;
   }
 
   const save = useCallback(
-    (data) => {
+    (data: T) => {
       if (!enabled) return;
       // Quota exceeded / storage unavailable is swallowed by safeSet — a lost
       // draft is acceptable, a crash isn't.

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerDashboardData } from "../../supabase/hooks/useCustomerDashboardData";
-import { useDraftPersistence } from "../../hooks/useDraftPersistence.js";
+import { useDraftPersistence } from "../../hooks/useDraftPersistence";
 import { toDateStr } from "../../supabase/transforms";
 import { MyDetailsCard } from "./MyDetailsCard.jsx";
 import { DogsSection } from "./DogsSection.jsx";
