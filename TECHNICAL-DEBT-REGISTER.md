@@ -94,6 +94,22 @@ make the next regression visible in CI instead of in the next audit.
 >
 > **Debt 11 — Update (September 2026, part 2):** CLOSED — the second half of assessment item 1.4. `SalonContext` now also carries `dogsByHumanId`, `ensureDogsForHumans`, `onAddDog`, `isOnline`, `bookingsLoading` and `bookingsError` (and its `dayOpenState` type is the per-date map it always was at runtime). `WeekCalendarView`, `HumansView` and `DogsView` read the shared data and core actions through `useSalon()` instead of props: 33 → 16, 26 → 18 and 25 → 18 respectively (four of the calendar's props were dead — passed by the shell, never read). What remains on each view is genuinely per-view: week navigation, day-settings actions and the drawer link on the calendar; the server-driven directory controls (pagination, search, sort, filters, letters) on the directories. New views should take the same shape: shared salon state via `useSalon()`, per-view controls as props.
 
+### Seam review — 2 September 2026 (assessment item 1.6)
+
+The next tier of large files, reviewed for a *seam* (a place the file already
+divides along a responsibility) rather than for size. Size alone is not debt;
+four of these sit on the booking write path, so a split there is only worth
+its risk when the seam is clean and the tests already guard it.
+
+| File | Lines | Verdict | Seam / recommendation |
+|---|---|---|---|
+| `src/supabase/repositories/bookingPolicyRepo.ts` | 1,486 → 152 | **Split (this note)** | 1,334 lines were runtime type guards for the three RPC projections; three reads and their error normaliser were the repository. The guards now live in `bookingPolicyProjectionGuards.ts` (same directory, so the repositories coverage ratchet still counts them); the repo imports the four projection guards plus the two primitives its error normaliser shares. Pure move; the 19 repository tests pass unchanged. |
+| `src/supabase/rpc.ts` | 1,182 | **Leave** | A flat registry of 79 typed RPC wrappers. Long, but every entry is independent and findable by name; splitting by domain would only add a layer of re-exports. Revisit if it starts carrying logic. |
+| `src/engine/today.ts` | 1,069 | **Leave, seam noted** | Pure, zero-React, already divided by 15 section headers (status, late arrivals, payments, capacity, day summary, queues, feed, priority, live focus, takings, missing sizes) with two test files. A `today/` folder with a barrel would keep the seven importers intact, but it would trade one well-indexed file for nine with cross-imports and no behavioural guard gained. Split the first section that grows past ~200 lines on its own. |
+| `src/supabase/hooks/useDogs.ts` | 931 | **Split next (its own PR, L)** | The same shape `useHumans` had before Debt 5: pagination + directory controls, mutations (`updateDog`/`addDog`/`deleteDog`), and the id-based hydrators (`fetchDogById`, `ensureDogsForHumans`, `ensureDogsByIds`) in one hook with 12 `useState`s. Mirror `hooks/humans/`: `useDogsDirectory`, `useDogMutations`, `useDogLookups` composed by a thin `useDogs`. The two component tests (`useDogs`, `useDogs.deferral`) are the guard. |
+| `src/components/customer/booking/BookingWizard.tsx` | 1,165 | **Seam noted, not now** | The customer write path, with seven component tests. Two clean seams: the funnel/denial telemetry quartet (`fireDenialLog`, `fireFunnel`, `fireBlocker`, `fireConfirmFailed`, ~110 lines) → `useWizardTelemetry`; and the date-page availability cache + `handleDateAvailability` → `useWizardAvailability`. Each is a hook extraction the existing tests would validate as a no-op. Do them separately from any behaviour change. |
+| `src/components/modals/NewBookingModal.jsx` | 834 | **Seam noted, not now** | The staff write path. The three one-shot prefill effects (owner, dog, entries — lines ~121–233) and the pending-dialog state (past-date confirm, capacity override, notify picker, confirmation method) are separable into `useNewBookingPrefill` and `useNewBookingDialogs`. No component test covers the modal as a whole, so add one before extracting. |
+
 ## Leaky abstractions
 
 | What hurts | Why it hurts | Cost |
