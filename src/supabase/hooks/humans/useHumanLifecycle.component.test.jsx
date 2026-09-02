@@ -111,6 +111,73 @@ describe("useHumanLifecycle mergeHumans", () => {
   });
 });
 
+describe("useHumanLifecycle linkPendingSignup", () => {
+  it("guards against missing ids, self-links and sample-data mode", async () => {
+    const { result } = renderHook(() => useHarness());
+
+    expect(await result.current.linkPendingSignup("", "h2", "+447700900222")).toEqual({
+      ok: false,
+      error: "Missing human id",
+    });
+    expect(await result.current.linkPendingSignup("h1", "h1", "+447700900222")).toEqual({
+      ok: false,
+      error: "Cannot link a record to itself",
+    });
+    expect(
+      (await result.current.linkPendingSignup("h1", "h2", "+447700900222")).ok,
+    ).toBe(false);
+  });
+
+  it("calls link_pending_signup, drops the shell and patches the kept record's phone", async () => {
+    const stub = makeStub();
+    setSupabase(stub);
+    const { result } = renderHook(() => useHarness());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.linkPendingSignup("h1", "h2", "+447700900222");
+    });
+
+    expect(outcome).toEqual({ ok: true });
+    expect(stub.rpc).toHaveBeenCalledWith("link_pending_signup", {
+      p_existing: "h1",
+      p_pending: "h2",
+    });
+    expect(result.current.humansById.h2).toBeUndefined();
+    expect(result.current.humans["Dave Smith"]).toBeUndefined();
+    expect(result.current.humansById.h1.phone).toBe("+447700900222");
+    expect(result.current.humans["Sarah Jones"].phone).toBe("+447700900222");
+    expect(result.current.directoryHumans.map((h) => h.id)).toEqual(["h1"]);
+    expect(result.current.directoryHumans[0].phone).toBe("+447700900222");
+    expect(result.current.totalCount).toBe(1);
+  });
+
+  it("leaves both records untouched when the RPC refuses", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setSupabase(
+      makeStub((fn) =>
+        fn === "link_pending_signup"
+          ? { data: null, error: { message: "link_pending_signup: h2 is not a pending self-signup" } }
+          : { data: null, error: null },
+      ),
+    );
+    const { result } = renderHook(() => useHarness());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.linkPendingSignup("h1", "h2", "+447700900222");
+    });
+
+    expect(outcome).toEqual({
+      ok: false,
+      error: "link_pending_signup: h2 is not a pending self-signup",
+    });
+    expect(result.current.humansById.h2.id).toBe("h2");
+    expect(result.current.humansById.h1.phone).toBeUndefined();
+    expect(result.current.totalCount).toBe(2);
+  });
+});
+
 describe("useHumanLifecycle signup approval", () => {
   it("approveSignup calls the RPC, sends the welcome and marks the human approved", async () => {
     const stub = makeStub();

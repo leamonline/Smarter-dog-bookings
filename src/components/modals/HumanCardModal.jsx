@@ -6,6 +6,7 @@ import {
   getHumanByIdOrName,
 } from "../../engine/bookingRules";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { titleCase } from "../../utils/text";
 import {
   HumanBookingHistory,
   HumanEventTimeline,
@@ -49,6 +50,7 @@ export function HumanCardModal({
   bookingsByDate,
   fetchHumanById,
   findHumanByFullName,
+  findHumanByPhone,
   searchHumansByTerm,
   // Optional callbacks the parent can wire later. When omitted,
   // useHumanCardActions stubs each one with a logger.warn so they can
@@ -63,10 +65,17 @@ export function HumanCardModal({
   // signup_submitted_at set; the header surfaces the badge + buttons.
   onApproveSignup,
   onRejectSignup,
+  // A number save that collides with an unapproved portal signup's shell:
+  // link_pending_signup moves the verified number + login here instead.
+  onLinkPendingSignup,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
+  // { hit, phone, updates, resolve } while the "Link this signup?" prompt is
+  // up; `resolve` hands the outcome back to useHumanDraft.saveHuman.
+  const [pendingLink, setPendingLink] = useState(null);
+  const [linking, setLinking] = useState(false);
 
   // Resolve the human: the live map entry when present (so edits flow
   // straight through), otherwise an on-demand fetch held in LOCAL state so
@@ -180,6 +189,70 @@ export function HumanCardModal({
     [onUpdateHuman, human, humans, humanFullName, toast, loadTrusted],
   );
 
+  // A phone save lost to humans_phone_unique. Work out who holds the number:
+  // an unapproved portal signup shell can be linked onto this record in one
+  // tap (that is the whole "existing customer signed up with a new number"
+  // case); anyone else is named so staff know where to look.
+  const handlePhoneTaken = useCallback(
+    async (phone, updates) => {
+      const hit = findHumanByPhone ? await findHumanByPhone(phone) : null;
+      if (hit?.isPendingSignup && onLinkPendingSignup) {
+        return new Promise((resolve) => {
+          setPendingLink({ hit, phone, updates, resolve });
+        });
+      }
+      const who = hit ? titleCase(`${hit.name || ""} ${hit.surname || ""}`.trim()) : "";
+      toast.show(
+        who
+          ? `${phone} is already on ${who}'s record — open their profile to move it`
+          : "That number is already on another customer's record",
+        "error",
+      );
+      return false;
+    },
+    [findHumanByPhone, onLinkPendingSignup, toast],
+  );
+
+  const handleCancelLink = () => {
+    pendingLink?.resolve(false);
+    setPendingLink(null);
+  };
+
+  const handleConfirmLink = async () => {
+    if (!pendingLink || linking) return;
+    const { hit, phone, updates, resolve } = pendingLink;
+    const id = human.id || humanId;
+    setLinking(true);
+    try {
+      const res = await onLinkPendingSignup(id, hit.id, phone);
+      if (!res?.ok) {
+        toast.show(res?.error || "Couldn't link that signup — give it another go", "error");
+        resolve(false);
+        return;
+      }
+      // The number is on this record now; re-run the save so the rest of
+      // the draft (name, address, notes…) lands too.
+      let restSaved = true;
+      if (onUpdateHuman) {
+        try {
+          restSaved = (await onUpdateHuman(id, updates)) !== null;
+        } catch {
+          restSaved = false;
+        }
+      }
+      toast.show(
+        restSaved
+          ? `Linked ${phone} to ${humanFullName} — they can book from the portal now`
+          : `Linked ${phone} to ${humanFullName}, but the other edits didn't save — try again`,
+        restSaved ? "success" : "error",
+      );
+      resolve(true);
+    } finally {
+      setLinking(false);
+      setPendingLink(null);
+    }
+  };
+
   // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
   // input focus, "E" shortcut. Paused while a confirm dialog is open.
   const {
@@ -201,7 +274,8 @@ export function HumanCardModal({
     human,
     humanId,
     onUpdateHuman,
-    shortcutPaused: pendingDelete || pendingExit,
+    onPhoneTaken: handlePhoneTaken,
+    shortcutPaused: pendingDelete || pendingExit || !!pendingLink,
   });
 
   // Card-level actions: copy phone, open booking, overflow menu, and
@@ -494,6 +568,19 @@ export function HumanCardModal({
             }
           }}
           onCancel={() => setPendingArchive(false)}
+        />
+      )}
+
+      {pendingLink && (
+        <ConfirmDialog
+          title={`Link this signup to ${humanFullName}?`}
+          message={`${pendingLink.phone} was verified through a portal signup that isn't linked to anyone yet. Linking puts that number and login on ${humanFullName}'s record, approves them to book, and removes the placeholder.`}
+          confirmLabel={linking ? "Linking…" : "Link and update number"}
+          cancelLabel="Not now"
+          variant="primary"
+          pending={linking}
+          onConfirm={handleConfirmLink}
+          onCancel={handleCancelLink}
         />
       )}
 

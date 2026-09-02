@@ -10,6 +10,7 @@ import {
   approveCustomerSignup,
   rejectCustomerSignup,
   mergeHumans as mergeHumansRpc,
+  linkPendingSignup as linkPendingSignupRpc,
 } from "../../rpc";
 import { logger } from "../../../lib/logger";
 import type { HumanEntry, SetHumansByIdMap, SetHumansMap } from "./helpers";
@@ -70,6 +71,63 @@ export function useHumanLifecycle({
       return { ok: true };
     },
     [setHumans, setHumansById, setTotalCount],
+  );
+
+  /**
+   * Join an unapproved portal self-signup shell onto an existing customer
+   * via link_pending_signup: the shell's verified phone + portal login move
+   * to the kept record, the shell is merged away and deleted, and the
+   * customer is approved to book — one transaction server-side. The shell
+   * is dropped from the local maps and the kept record's phone patched
+   * optimistically; realtime reconciles the rest.
+   */
+  const linkPendingSignup = useCallback(
+    async (
+      existingId: string,
+      pendingId: string,
+      phone: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!existingId || !pendingId) return { ok: false, error: "Missing human id" };
+      if (existingId === pendingId)
+        return { ok: false, error: "Cannot link a record to itself" };
+      if (!supabase)
+        return { ok: false, error: "Linking needs the live database — you're on sample data." };
+
+      const { error: err } = await linkPendingSignupRpc(supabase, {
+        existingId,
+        pendingId,
+      });
+      if (err) {
+        logger.error("Failed to link pending signup", err, {
+          tags: { hook: "useHumans", op: "linkPendingSignup" },
+        });
+        return { ok: false, error: err.message || "Failed to link that signup" };
+      }
+
+      const patchPhone = <T extends { id?: string; phone?: string | null }>(entry: T): T =>
+        phone && entry?.id === existingId ? { ...entry, phone } : entry;
+
+      setHumansById((prev) => {
+        const next = { ...prev };
+        delete next[pendingId];
+        if (next[existingId]) next[existingId] = patchPhone(next[existingId]);
+        return next;
+      });
+      setHumans((prev) => {
+        const next = { ...prev };
+        for (const [key, h] of Object.entries(next)) {
+          if (h.id === pendingId) delete next[key];
+          else if (h.id === existingId) next[key] = patchPhone(h);
+        }
+        return next;
+      });
+      setDirectoryHumans((prev) =>
+        prev.filter((h) => h.id !== pendingId).map((h) => patchPhone(h)),
+      );
+      setTotalCount((c) => Math.max(0, c - 1));
+      return { ok: true };
+    },
+    [setHumans, setHumansById, setTotalCount, setDirectoryHumans],
   );
 
   /**
@@ -171,5 +229,5 @@ export function useHumanLifecycle({
     [setHumans, setHumansById, setTotalCount, setDirectoryHumans],
   );
 
-  return { mergeHumans, approveSignup, rejectSignup };
+  return { mergeHumans, linkPendingSignup, approveSignup, rejectSignup };
 }
