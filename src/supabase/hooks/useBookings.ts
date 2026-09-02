@@ -472,12 +472,15 @@ export function useBookings(
         snapshot.row = base.find((r) => r.id === bookingId) || null;
         return base.filter((r) => r.id !== bookingId);
       });
-      const removedRow = snapshot.row;
 
       const { error: err } = await supabase
         .from("bookings")
         .delete()
         .eq("id", bookingId);
+
+      // Read only after the await: React runs the updater when it flushes,
+      // which is before the network round-trip resolves.
+      const removedRow = snapshot.row;
 
       if (err) {
         if (removedRow) setRows((prev) => [...(prev || []), removedRow]);
@@ -573,7 +576,6 @@ export function useBookings(
           r.id === updatedBooking.id ? { ...r, ...updatePayload } : r,
         );
       });
-      const prevRow = snapshot.row;
 
       let updateQuery = supabase
         .from("bookings")
@@ -587,6 +589,8 @@ export function useBookings(
       }
       const { data: updated, error: err } = await updateQuery.select("*").single();
       const data = updated as DbBookingRow | null;
+      // Read only after the await, for the same reason as removeBooking.
+      const prevRow = snapshot.row;
 
       if (err || !data) {
         if (prevRow) {
