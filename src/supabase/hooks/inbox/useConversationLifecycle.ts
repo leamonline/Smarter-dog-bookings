@@ -18,17 +18,62 @@ import { useCallback } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 
-export function useConversationLifecycle({
+/** The conversation fields resolve reads; the list holds richer objects. */
+export interface LifecycleConversation {
+  id: string;
+  closure_suggested_reason?: string | null;
+}
+
+/** `{ ok: false }` with no reason is the "nothing selected / busy" early return. */
+export type LifecycleResult<T = object> =
+  | ({ ok: true } & T)
+  | { ok: false; reason?: string };
+
+export interface UseConversationLifecycleArgs<T extends LifecycleConversation> {
+  selectedId: string | null | undefined;
+  actionInFlight: boolean;
+  setActionInFlight: (inFlight: boolean) => void;
+  conversations: ReadonlyArray<T>;
+}
+
+export interface UseConversationLifecycleResult {
+  takeoverConversation: () => Promise<LifecycleResult>;
+  releaseConversation: () => Promise<LifecycleResult>;
+  /** On success carries the closure reason that was written. */
+  resolveConversation: () => Promise<LifecycleResult<{ reason: string }>>;
+  reopenConversation: (conversationId?: string | null) => Promise<LifecycleResult>;
+  /** On success carries the ids it closed so an undo toast can reopen exactly those. */
+  bulkResolveConversations: (ids: ReadonlyArray<string | null | undefined> | null | undefined) => Promise<LifecycleResult<{ ids: string[] }>>;
+  bulkReopenConversations: (ids: ReadonlyArray<string | null | undefined> | null | undefined) => Promise<LifecycleResult>;
+}
+
+const CLEARED_CLOSURE = {
+  closed_at: null,
+  closure_reason: null,
+  closure_suggested_at: null,
+  closure_suggested_reason: null,
+};
+
+function failure(err: unknown): { ok: false; reason: string } {
+  return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+}
+
+function requireClient() {
+  if (!supabase) throw new Error("Not connected");
+  return supabase;
+}
+
+export function useConversationLifecycle<T extends LifecycleConversation>({
   selectedId,
   actionInFlight,
   setActionInFlight,
   conversations,
-}) {
-  const takeoverConversation = useCallback(async () => {
+}: UseConversationLifecycleArgs<T>): UseConversationLifecycleResult {
+  const takeoverConversation = useCallback(async (): Promise<LifecycleResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
     try {
-      const { error } = await supabase
+      const { error } = await requireClient()
         .from("whatsapp_conversations")
         .update({ state: "human_takeover" })
         .eq("id", selectedId);
@@ -38,17 +83,17 @@ export function useConversationLifecycle({
       logger.error("takeoverConversation failed", err, {
         tags: { hook: "useConversationLifecycle", op: "takeoverConversation" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, setActionInFlight]);
 
-  const releaseConversation = useCallback(async () => {
+  const releaseConversation = useCallback(async (): Promise<LifecycleResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
     try {
-      const { error } = await supabase
+      const { error } = await requireClient()
         .from("whatsapp_conversations")
         .update({ state: "ai_handling" })
         .eq("id", selectedId);
@@ -58,13 +103,13 @@ export function useConversationLifecycle({
       logger.error("releaseConversation failed", err, {
         tags: { hook: "useConversationLifecycle", op: "releaseConversation" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, setActionInFlight]);
 
-  const resolveConversation = useCallback(async () => {
+  const resolveConversation = useCallback(async (): Promise<LifecycleResult<{ reason: string }>> => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
 
@@ -73,10 +118,11 @@ export function useConversationLifecycle({
     const reason = inheritedReason || "manual";
 
     try {
-      const { data: userRes } = await supabase.auth.getUser();
+      const client = requireClient();
+      const { data: userRes } = await client.auth.getUser();
       const userId = userRes?.user?.id ?? null;
 
-      const { error } = await supabase
+      const { error } = await client
         .from("whatsapp_conversations")
         .update({
           closed_at: new Date().toISOString(),
@@ -92,25 +138,20 @@ export function useConversationLifecycle({
       logger.error("resolveConversation failed", err, {
         tags: { hook: "useConversationLifecycle", op: "resolveConversation" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, setActionInFlight, conversations]);
 
-  const reopenConversation = useCallback(async (conversationId) => {
+  const reopenConversation = useCallback(async (conversationId?: string | null): Promise<LifecycleResult> => {
     const id = conversationId ?? selectedId;
     if (!id || actionInFlight) return { ok: false };
     setActionInFlight(true);
     try {
-      const { error } = await supabase
+      const { error } = await requireClient()
         .from("whatsapp_conversations")
-        .update({
-          closed_at: null,
-          closure_reason: null,
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
+        .update(CLEARED_CLOSURE)
         .eq("id", id);
       if (error) throw error;
       return { ok: true };
@@ -118,7 +159,7 @@ export function useConversationLifecycle({
       logger.error("reopenConversation failed", err, {
         tags: { hook: "useConversationLifecycle", op: "reopenConversation" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
@@ -130,15 +171,18 @@ export function useConversationLifecycle({
   // closing" pills. closed_by is stamped from auth.uid() so it can't be spoofed.
   // Returns the ids it closed so the caller's undo toast can reopen exactly
   // those.
-  const bulkResolveConversations = useCallback(async (ids) => {
-    const targetIds = (ids || []).filter(Boolean);
+  const bulkResolveConversations = useCallback(async (
+    ids: ReadonlyArray<string | null | undefined> | null | undefined,
+  ): Promise<LifecycleResult<{ ids: string[] }>> => {
+    const targetIds = (ids || []).filter((id): id is string => Boolean(id));
     if (targetIds.length === 0 || actionInFlight) return { ok: false };
     setActionInFlight(true);
     try {
-      const { data: userRes } = await supabase.auth.getUser();
+      const client = requireClient();
+      const { data: userRes } = await client.auth.getUser();
       const userId = userRes?.user?.id ?? null;
 
-      const { error } = await supabase
+      const { error } = await client
         .from("whatsapp_conversations")
         .update({
           closed_at: new Date().toISOString(),
@@ -154,7 +198,7 @@ export function useConversationLifecycle({
       logger.error("bulkResolveConversations failed", err, {
         tags: { hook: "useConversationLifecycle", op: "bulkResolveConversations" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
@@ -162,19 +206,16 @@ export function useConversationLifecycle({
 
   // Undo for a bulk close: reopens every id in one round-trip. Mirrors
   // reopenConversation but across the captured set.
-  const bulkReopenConversations = useCallback(async (ids) => {
-    const targetIds = (ids || []).filter(Boolean);
+  const bulkReopenConversations = useCallback(async (
+    ids: ReadonlyArray<string | null | undefined> | null | undefined,
+  ): Promise<LifecycleResult> => {
+    const targetIds = (ids || []).filter((id): id is string => Boolean(id));
     if (targetIds.length === 0) return { ok: false };
     setActionInFlight(true);
     try {
-      const { error } = await supabase
+      const { error } = await requireClient()
         .from("whatsapp_conversations")
-        .update({
-          closed_at: null,
-          closure_reason: null,
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
+        .update(CLEARED_CLOSURE)
         .in("id", targetIds);
       if (error) throw error;
       return { ok: true };
@@ -182,7 +223,7 @@ export function useConversationLifecycle({
       logger.error("bulkReopenConversations failed", err, {
         tags: { hook: "useConversationLifecycle", op: "bulkReopenConversations" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
