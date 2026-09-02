@@ -122,11 +122,11 @@ production environment has been freshly queried.
 
 | Area | Confirmed current state | Evidence |
 |---|---|---|
-| Appointment writes | Live staff creation and update paths use `bookings` rows. `useBookings.updateBooking` directly updates one row. | [useBookings.js](src/supabase/hooks/useBookings.js) |
+| Appointment writes | Live staff creation and update paths use `bookings` rows. `useBookings.updateBooking` directly updates one row. | [useBookings.ts](src/supabase/hooks/useBookings.ts) |
 | Visit foundation | `booking_visits`, lineages, read projections, atomic command SQL and a typed `CustomerVisitSuccessReceipt` exist in the repository. The legacy paths remain authoritative. | [migrations.md](docs/migrations.md), [bookingVisitReceipt.ts](src/supabase/bookingVisitReceipt.ts) |
 | Policy state | `previous_day_1500_v1` is defined with no effective instant. V1 mutation commands are deliberately dark and have no production caller. | [bookingPolicyInactiveIsolation.test.ts](src/security/bookingPolicyInactiveIsolation.test.ts) |
 | Capacity | Browser and Deno preflights exist; the PostgreSQL trigger is the final write guard. Rule copies and some rejection semantics can still drift. | [capacity-engine.md](docs/capacity-engine.md) |
-| Staff reschedule messaging | A staff move can update the diary without creating a durable visit-level customer notification. | [useBookings.js](src/supabase/hooks/useBookings.js), issue #604 |
+| Staff reschedule messaging | A staff move can update the diary without creating a durable visit-level customer notification. | [useBookings.ts](src/supabase/hooks/useBookings.ts), issue #604 |
 | Notifications | `notification_log` tracks booking/trigger-oriented delivery, but there is no governed visit-operation intent plus append-only attempt history. | [notification_log migration](supabase/migrations/20260403160647_notification_log.sql), issue #610 |
 | Release compatibility | The migration-applied check exists, but there is no generic runtime capability projection joining app, Edge and schema support. | issue #607 |
 | Browser gate | Pull requests intentionally skip Playwright; all configured desktop, tablet and mobile projects run Chromium. | [CI workflow](.github/workflows/ci.yml), [Playwright config](playwright.config.ts) |

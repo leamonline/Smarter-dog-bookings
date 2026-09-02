@@ -24,7 +24,7 @@ own [`playwright.config.ts`](../../playwright.config.ts) was **not** modified.
 
 **The offline fixture calendar.** [`src/data/sample.js`](../../src/data/sample.js) is keyed by
 *weekday*, mapped onto the visible week by
-[`useOfflineState.js`](../../src/hooks/useOfflineState.js). So:
+[`useOfflineState.ts`](../../src/hooks/useOfflineState.ts). So:
 
 | Fixture day | Date used | Contents |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ the largest fixture day is 7 dogs against a cap of 14.
 | E6 | `grep` for `entryOpStatus\|OpStatusChip\|RAIL_TONE_CLASS\|CHIP_TONE_CLASS` across `src/**`, executed 2026-08-24 | Current, executed | **Zero rendered consumers.** The only hits are `engine/today.ts` (definition), `engine/today.test.ts` (12 assertions) and a *comment* in `parts.jsx` L112 | Proves absence of import, not absence of intent |
 | E7 | [`TodayHeader.jsx`](../../src/components/views/today/TodayHeader.jsx) @`9817fe8` | Current | `OperationalFact` renders `value` above `label` with **no coupling** — `value={lateCount > 0 ? lateCount : "On time"}` under `label="Late"`. `SecondaryTotals` prints `{dogsBooked}/{capacityTotal}` with one unconditional class | Static read |
 | E8 | `grep` importers for `TodayKpiRow`, `BookingFeed`, `BookingJourneyRow`, `JourneyIconButton`; `grep` for their symbols in `dist/assets/*.js` after a production build | Current, executed | **All four are dead.** No non-test importer; `buildJourneyActions`/"Being groomed" absent from the built bundle | — |
-| E9 | [`useBookings.js`](../../src/supabase/hooks/useBookings.js) L96-144 @`9817fe8` | Current | `if (!supabase \|\| !weekStart) { setLoading(false) }` and `setError` only inside the fetch path — the loading and error branches of E1 are unreachable offline | Static read |
+| E9 | [`useBookings.ts`](../../src/supabase/hooks/useBookings.ts) L96-144 @`9817fe8` | Current | `if (!supabase \|\| !weekStart) { setLoading(false) }` and `setError` only inside the fetch path — the loading and error branches of E1 are unreachable offline | Static read |
 | E10 | [`AwaitingDepositsCard.jsx`](../../src/components/views/today/AwaitingDepositsCard.jsx), [`MissingSizeNotice.jsx`](../../src/components/views/today/MissingSizeNotice.jsx), [`TodayBriefNotes.jsx`](../../src/components/views/today/TodayBriefNotes.jsx) @`9817fe8` | Current | Each early-returns `null` with no data; explains their absence from every capture | Static read |
 | E11 | [`docs/today-command-centre.md`](../today-command-centre.md) vs code, 2026-08-24 | **Stale** | Documents `TodayNowStrip.jsx`, `selectNowNext`, `DUE_SOON_MINUTES` and six sections ("Immediate attention", "Dogs due in", "In salon now", "Payments & handover"). **None exist.** [`docs/archive/superpowers/plans/2026-07-15-daily-brief-live-arrivals.md`](../archive/superpowers/plans/2026-07-15-daily-brief-live-arrivals.md) L139/L319 is the deletion order that was carried out and never back-documented | Where doc and code disagree, code wins |
 | E12 | `grep` of `buildImmediateAttention`, `buildCollectionQueue`, `buildPaymentsList`, `buildArrivalsBySlot`, `buildInSalonList`, `dedupeConcernSections`, `splitArrivalGroups`, `countDogsPerOwner` in `src/components/**` | Current, executed | **Zero component consumers** for all eight — the engine behind E11's deleted sections is still built and tested | Engine-to-engine use is unaffected |

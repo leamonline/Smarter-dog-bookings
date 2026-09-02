@@ -5,10 +5,63 @@ import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
+import type { DbBookingRow } from "../transforms";
 import { createStaffBookingGroup } from "../rpc";
+import type { StaffBookingGroupRow } from "../rpc";
 import { BOOKING_STATUS } from "../../constants/salon";
 import { isCapacityRejection } from "../../engine/capacity";
 import { logger } from "../../lib/logger";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { Booking, BookingsByDate } from "../../types/index";
+
+// The dogs/humans maps are exactly what the transform consumes; naming
+// them here keeps the hook's contract identical to dbBookingsToArray's.
+type DogsById = Parameters<typeof dbBookingsToArray>[1];
+type HumansById = Parameters<typeof dbBookingsToArray>[2];
+
+/**
+ * A booking as the New Booking modal hands it over: the app Booking fields it
+ * fills, plus the snake_case write-only flags the insert path reads.
+ */
+export type StaffBookingInput = Partial<Booking> &
+  Pick<Booking, "slot" | "size" | "service" | "dogName"> & {
+    group_id?: string | null;
+    staff_capacity_override?: boolean;
+    notify_human_ids?: string[];
+    confirmation_channel?: string;
+  };
+
+/** An edited booking; the reschedule/edit flows may set the snake_case override flag. */
+export type StaffBookingUpdate = Booking & { staff_capacity_override?: boolean };
+
+export interface UseBookingsOptions {
+  onError?: (message: string) => void;
+  onReadyForPickup?: (booking: Booking) => void;
+}
+
+export type RemoveBookingResult =
+  | { success: true; removed?: Booking | null }
+  | { success: false; error: string };
+
+export type FetchBookingForVisitResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; error: string };
+
+/**
+ * The INSERT column shape both write paths build. StaffBookingGroupRow is
+ * the RPC's row contract; the single insert additionally needs the date,
+ * and both always carry a concrete size.
+ */
+type StaffInsertPayload = StaffBookingGroupRow & { booking_date: string; size: string };
+
+/** A raw Postgres error as supabase-js surfaces it. */
+interface PostgrestErrorLike {
+  code?: string;
+  message?: string;
+}
+
+/** Realtime `old` is only the primary key without REPLICA IDENTITY FULL, so both sides are partial. */
+type BookingPayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 
 // Translate a raw Postgres error from the STAFF booking insert into copy a
 // groomer can act on. Staff bypass the calendar + pregnancy gates (is_staff()),
@@ -17,7 +70,7 @@ import { logger } from "../../lib/logger";
 // confirm one, so a DB rejection here means another booking landed first.
 // Anything unmapped falls through to the raw message — never swallowed — so an
 // unmapped failure can't be mistaken for success upstream.
-function friendlyBookingError(err) {
+function friendlyBookingError(err: PostgrestErrorLike | null | undefined): string {
   const code = err?.code;
   const raw = err?.message || "";
   if (code === "23505") {
@@ -32,7 +85,12 @@ function friendlyBookingError(err) {
 // Map a modal-built booking to the bookings INSERT column shape. Shared by
 // the single insert (addBooking) and the atomic group path (addBookingGroup)
 // so the two can't drift.
-function toInsertPayload(dateStr, booking, dogId, pickupHumanId) {
+function toInsertPayload(
+  dateStr: string,
+  booking: StaffBookingInput,
+  dogId: string,
+  pickupHumanId: string | null | undefined,
+): StaffInsertPayload {
   return {
     booking_date: dateStr,
     slot: booking.slot,
@@ -65,9 +123,13 @@ function toInsertPayload(dateStr, booking, dogId, pickupHumanId) {
 // Exported for useInboxDiaryData, which groups its own (dogs/humans-map-free)
 // booking rows by date the same way — keeps the grouping in one place rather
 // than re-deriving it for a second range.
-export function groupBookingsByDate(rows, dogsById, humansById) {
+export function groupBookingsByDate(
+  rows: DbBookingRow[],
+  dogsById: DogsById,
+  humansById: HumansById,
+): BookingsByDate {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);
-  const grouped = {};
+  const grouped: BookingsByDate = {};
 
   for (let i = 0; i < transformed.length; i++) {
     const dateKey = rows[i].booking_date;
@@ -81,7 +143,12 @@ export function groupBookingsByDate(rows, dogsById, humansById) {
 // Online-only hook. Offline mode is served by useOfflineState upstream
 // (useBookingActions picks offline.* when !supabase), so the !supabase
 // branches here are defensive — the app never drives them.
-export function useBookings(weekStart, dogsById, humansById, { onError, onReadyForPickup } = {}) {
+export function useBookings(
+  weekStart: Date | null | undefined,
+  dogsById: DogsById,
+  humansById: HumansById,
+  { onError, onReadyForPickup }: UseBookingsOptions = {},
+) {
   // Raw DB rows for the current week are the single source of truth.
   // `bookingsByDate` is DERIVED from them + the dogs/humans maps, so:
   //   - the schedule paints as soon as the rows arrive (names fall back
@@ -92,9 +159,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   // ensureDogsByIds/ensureHumansByIds growing the maps re-ran it and
   // re-pulled the whole week 1-2 extra times — and it blocked the first
   // fetch until both maps were populated (a load waterfall).
-  const [rows, setRows] = useState(null);
+  const [rows, setRows] = useState<DbBookingRow[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const onErrorRef = useRef(onError);
@@ -110,13 +177,16 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       return;
     }
 
+    // Narrowed once here; the nested async function and cleanup below would
+    // otherwise lose the null checks.
+    const client = supabase;
     const controller = new AbortController();
 
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     const startStr = toDateStr(weekStart);
     const endStr = toDateStr(weekEnd);
-    const inRange = (d) => !!d && d >= startStr && d <= endStr;
+    const inRange = (d: unknown): d is string => typeof d === "string" && d >= startStr && d <= endStr;
 
     async function fetchBookings() {
       setLoading(true);
@@ -127,7 +197,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       // otherwise run the same query ourselves, as before.
       const { data, error: err } = await (takeBootPrefetch("bookingsWeek", {
         startStr,
-      }) ?? fetchBookingsWeek(supabase, startStr, endStr, controller.signal));
+      }) ?? fetchBookingsWeek(client, startStr, endStr, controller.signal));
 
       if (controller.signal.aborted) return;
 
@@ -140,7 +210,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return;
       }
 
-      setRows(data || []);
+      setRows((data || []) as DbBookingRow[]);
       setLoading(false);
     }
 
@@ -150,13 +220,13 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     // memo below re-derives the grouped/transformed view. Handlers only
     // need the row + the week range now — no transform or dogs/humans
     // lookup here (that moved into the memo).
-    const channel = supabase
+    const channel = client
       .channel(uniqueChannelName(CHANNELS.bookingsRealtime))
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bookings" },
-        (payload) => {
-          const newRow = payload.new;
+        (payload: BookingPayload) => {
+          const newRow = payload.new as DbBookingRow;
           if (!inRange(newRow?.booking_date)) return;
           setRows((prev) => {
             const base = prev || [];
@@ -175,9 +245,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "bookings" },
-        (payload) => {
-          const newRow = payload.new;
-          const oldRow = payload.old;
+        (payload: BookingPayload) => {
+          const newRow = payload.new as DbBookingRow;
+          const oldRow = payload.old as Partial<DbBookingRow>;
           const id = newRow?.id ?? oldRow?.id;
           if (!id) return;
           setRows((prev) => {
@@ -199,8 +269,8 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "bookings" },
-        (payload) => {
-          const id = payload.old?.id;
+        (payload: BookingPayload) => {
+          const id = (payload.old as Partial<DbBookingRow>)?.id;
           if (!id) return;
           setRows((prev) => (prev || []).filter((r) => r.id !== id));
         },
@@ -208,11 +278,13 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notification_log" },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           // Reminder sends write notification_log, not bookings. Re-pull the
           // week (which embeds notification_log) so reminderState re-derives.
           // Reminder events are rare, so a full refetch is acceptable.
-          const triggerType = payload.new?.trigger_type ?? payload.old?.trigger_type;
+          const newLog = payload.new as { trigger_type?: string };
+          const oldLog = payload.old as { trigger_type?: string };
+          const triggerType = newLog?.trigger_type ?? oldLog?.trigger_type;
           if (triggerType === "reminder") refetch();
         },
       )
@@ -220,7 +292,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
     return () => {
       controller.abort();
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is a stable useCallback([]) ref, so it needn't be a dep; the effect already re-subscribes on refreshKey, which refetch bumps
   }, [weekStart, refreshKey]);
@@ -234,7 +306,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   );
 
   const addBooking = useCallback(
-    async (dateStr, booking) => {
+    async (dateStr: string, booking: StaffBookingInput): Promise<Booking | StaffBookingInput | null> => {
       if (!supabase) return booking;
 
       setError(null);
@@ -275,13 +347,16 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       // prefilled from a persisted booking can't cause a PK collision.
       const newId = crypto.randomUUID();
       const rowPayload = { id: newId, ...insertPayload };
-      setRows((prev) => [...(prev || []), rowPayload]);
+      // The optimistic row needs the transform's full shape; the DB payload
+      // stays exactly what the insert contract sends.
+      setRows((prev) => [...(prev || []), { group_id: null, ...rowPayload } as DbBookingRow]);
 
-      const { data, error: err } = await supabase
+      const { data: inserted, error: err } = await supabase
         .from("bookings")
         .insert(rowPayload)
         .select("*")
         .single();
+      const data = inserted as DbBookingRow | null;
 
       if (err) {
         setRows((prev) => (prev || []).filter((r) => r.id !== newId));
@@ -294,6 +369,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return null;
       }
 
+      if (!data) return null;
       setRows((prev) => (prev || []).map((r) => (r.id === newId ? data : r)));
 
       return dbBookingsToArray([data], dogsById, humansById)[0];
@@ -309,12 +385,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   // caller gets one clear error. Same contract as addBooking: resolves to
   // the saved bookings, or null on a DB rejection.
   const addBookingGroup = useCallback(
-    async (dateStr, bookings) => {
+    async (dateStr: string, bookings: StaffBookingInput[]): Promise<Booking[] | StaffBookingInput[] | null> => {
       if (!supabase) return bookings;
 
       setError(null);
 
-      const payloads = [];
+      const payloads: Array<StaffInsertPayload & { id: string }> = [];
       for (const booking of bookings) {
         const dogId =
           booking._dogId ||
@@ -350,12 +426,16 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       }
 
       // Optimistic: the whole group appears at once.
-      setRows((prev) => [...(prev || []), ...payloads]);
+      setRows((prev) => [
+        ...(prev || []),
+        ...payloads.map((p) => ({ group_id: null, ...p }) as DbBookingRow),
+      ]);
 
-      const { data, error: err } = await createStaffBookingGroup(supabase, {
+      const { data: created, error: err } = await createStaffBookingGroup(supabase, {
         bookingDate: dateStr,
         bookings: payloads,
       });
+      const data = (created ?? []) as DbBookingRow[];
 
       if (err) {
         const ids = new Set(payloads.map((p) => p.id));
@@ -369,25 +449,27 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return null;
       }
 
-      const byId = new Map((data || []).map((r) => [r.id, r]));
+      const byId = new Map(data.map((r) => [r.id, r]));
       setRows((prev) => (prev || []).map((r) => byId.get(r.id) || r));
 
-      return dbBookingsToArray(data || [], dogsById, humansById);
+      return dbBookingsToArray(data, dogsById, humansById);
     },
     [dogsById, humansById],
   );
 
   const removeBooking = useCallback(
-    async (_dateStr, bookingId) => {
+    async (_dateStr: string, bookingId: string): Promise<RemoveBookingResult> => {
       if (!supabase) return { success: true };
 
       setError(null);
 
-      // Snapshot the raw row for rollback, then remove optimistically.
-      let removedRow = null;
+      // Snapshot the raw row for rollback, then remove optimistically. Held in
+      // an object because the updater runs synchronously in React's queue
+      // and TypeScript can't see the assignment through the closure.
+      const snapshot: { row: DbBookingRow | null } = { row: null };
       setRows((prev) => {
         const base = prev || [];
-        removedRow = base.find((r) => r.id === bookingId) || null;
+        snapshot.row = base.find((r) => r.id === bookingId) || null;
         return base.filter((r) => r.id !== bookingId);
       });
 
@@ -395,6 +477,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         .from("bookings")
         .delete()
         .eq("id", bookingId);
+
+      // Read only after the await: React runs the updater when it flushes,
+      // which is before the network round-trip resolves.
+      const removedRow = snapshot.row;
 
       if (err) {
         if (removedRow) setRows((prev) => [...(prev || []), removedRow]);
@@ -415,7 +501,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   );
 
   const updateBooking = useCallback(
-    async (updatedBooking, _fromDateStr, toDateStrValue) => {
+    async (updatedBooking: StaffBookingUpdate, _fromDateStr: string, toDateStrValue: string): Promise<Booking | null> => {
       if (!supabase) return updatedBooking;
 
       const pickupHumanId =
@@ -482,10 +568,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       // Optimistic: patch the raw row (incl. booking_date, so a move to
       // another day regroups automatically). Snapshot the previous row
       // for rollback + the ready-for-pickup transition check.
-      let prevRow = null;
+      const snapshot: { row: DbBookingRow | null } = { row: null };
       setRows((prev) => {
         const base = prev || [];
-        prevRow = base.find((r) => r.id === updatedBooking.id) || null;
+        snapshot.row = base.find((r) => r.id === updatedBooking.id) || null;
         return base.map((r) =>
           r.id === updatedBooking.id ? { ...r, ...updatePayload } : r,
         );
@@ -501,9 +587,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       if (updatedBooking._unconfirmArrival) {
         updateQuery = updateQuery.eq("reminder_confirmed_source", "staff");
       }
-      const { data, error: err } = await updateQuery.select("*").single();
+      const { data: updated, error: err } = await updateQuery.select("*").single();
+      const data = updated as DbBookingRow | null;
+      // Read only after the await, for the same reason as removeBooking.
+      const prevRow = snapshot.row;
 
-      if (err) {
+      if (err || !data) {
         if (prevRow) {
           setRows((prev) =>
             (prev || []).map((r) => (r.id === prevRow.id ? prevRow : r)),
@@ -512,7 +601,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         logger.error("Failed to update booking", err, {
           tags: { hook: "useBookings", op: "updateBooking" },
         });
-        onErrorRef.current?.(err.message);
+        onErrorRef.current?.(err?.message ?? "Couldn't save the booking — please try again.");
         return null;
       }
 
@@ -536,10 +625,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     [dogsById, humansById],
   );
 
-  const fetchBookingHistoryForDog = useCallback(async (dogId) => {
+  const fetchBookingHistoryForDog = useCallback(async (dogId: string): Promise<Array<Booking & { date: string }>> => {
     if (!supabase) return [];
 
-    const { data, error: err } = await supabase
+    const { data: history, error: err } = await supabase
       .from("bookings")
       .select("*")
       .eq("dog_id", dogId)
@@ -553,7 +642,8 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       return [];
     }
 
-    return dbBookingsToArray(data || [], dogsById, humansById).map((booking) => ({
+    const data = (history || []) as DbBookingRow[];
+    return dbBookingsToArray(data, dogsById, humansById).map((booking) => ({
       ...booking,
       // GroomingHistory keeps a display-friendly `date` field, while the
       // appointment card uses the canonical `_bookingDate`.
@@ -561,7 +651,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     }));
   }, [dogsById, humansById]);
 
-  const fetchBookingForVisit = useCallback(async (visitId) => {
+  const fetchBookingForVisit = useCallback(async (visitId: string | null | undefined): Promise<FetchBookingForVisitResult> => {
     if (!supabase || !visitId) {
       return {
         ok: false,
@@ -569,7 +659,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       };
     }
 
-    const { data, error: err } = await supabase
+    const { data: visitRows, error: err } = await supabase
       .from("bookings")
       .select("*, notification_log(trigger_type, status, sent_at, channel)")
       .eq("visit_id", visitId)
@@ -588,7 +678,8 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       };
     }
 
-    const activeRow = (data || []).find(
+    const data = (visitRows || []) as DbBookingRow[];
+    const activeRow = data.find(
       (row) =>
         row.status !== BOOKING_STATUS.CANCELLED &&
         row.status !== BOOKING_STATUS.COMPLETED,

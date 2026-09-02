@@ -55,7 +55,7 @@ vi.mock("../transforms.js", async () => {
   };
 });
 
-const { useBookings } = await import("./useBookings.js");
+const { useBookings } = await import("./useBookings");
 
 function makeChannel() {
   const handlers = [];

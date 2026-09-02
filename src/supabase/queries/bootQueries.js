@@ -9,7 +9,7 @@
 // because it fires before any component mounts.
 
 // The exact initial week select from useBookings (src/supabase/hooks/
-// useBookings.js).
+// useBookings.ts).
 export function fetchBookingsWeek(client, startStr, endStr, signal) {
   const query = client
     .from("bookings")
