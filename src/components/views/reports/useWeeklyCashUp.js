@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../../supabase/client";
-import { fetchBookingsWeek } from "../../../supabase/queries/bootQueries.js";
+import { useStaffWeekSnapshot } from "../../../supabase/hooks/useStaffWeekSnapshot";
 import {
   buildDogsById,
   buildHumansById,
@@ -44,6 +43,7 @@ const EMPTY = { bookingsByDate: {}, dogs: {}, humans: {} };
  * `weekStart` must be a stable Date reference (memoise it by week offset).
  */
 export function useWeeklyCashUp(weekStart) {
+  const weekSnapshot = useStaffWeekSnapshot();
   const [data, setData] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +55,7 @@ export function useWeeklyCashUp(weekStart) {
     }
 
     // Offline / sample mode.
-    if (!supabase) {
+    if (!weekSnapshot.connected) {
       setData({
         bookingsByDate: buildOfflineWeek(weekStart),
         dogs: SAMPLE_DOGS,
@@ -74,17 +74,11 @@ export function useWeeklyCashUp(weekStart) {
     async function load() {
       setLoading(true);
       try {
-        const [bk, dg, hm] = await Promise.all([
-          fetchBookingsWeek(supabase, startStr, endStr, controller.signal),
-          supabase
-            .from("dogs")
-            .select("id, name, breed, human_id, custom_price, size")
-            .abortSignal(controller.signal),
-          supabase
-            .from("humans")
-            .select("id, name, surname, phone")
-            .abortSignal(controller.signal),
-        ]);
+        const [bk, dg, hm] = await weekSnapshot.loadWeekSnapshot(
+          startStr,
+          endStr,
+          controller.signal,
+        );
 
         if (controller.signal.aborted) return;
         if (bk.error || dg.error || hm.error) {
@@ -125,7 +119,7 @@ export function useWeeklyCashUp(weekStart) {
 
     load();
     return () => controller.abort();
-  }, [weekStart]);
+  }, [weekStart, weekSnapshot]);
 
   return { ...data, loading };
 }

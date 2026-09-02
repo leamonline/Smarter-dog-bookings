@@ -159,3 +159,9 @@ export const REMINDER_CONTACT_COLS =
 export function getReminderContact(client: SupabaseClient, humanId: string) {
   return client.from("humans").select(REMINDER_CONTACT_COLS).eq("id", humanId).maybeSingle();
 }
+
+/** The human columns the weekly cash-up needs (names + phone); raw PostgREST result. */
+export function listCashUpHumans(client: SupabaseClient, signal?: AbortSignal) {
+  const q = client.from("humans").select("id, name, surname, phone");
+  return signal ? q.abortSignal(signal) : q;
+}
