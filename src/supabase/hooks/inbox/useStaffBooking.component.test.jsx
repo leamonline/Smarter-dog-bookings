@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useStaffBooking } = await import("./useStaffBooking.js");
+const { useStaffBooking } = await import("./useStaffBooking");
 
 function makeStub({ rpcResult = { data: "booking-1", error: null } } = {}) {
   const rpc = vi.fn(() => Promise.resolve(rpcResult));

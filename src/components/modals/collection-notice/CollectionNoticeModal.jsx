@@ -20,7 +20,7 @@ import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
+import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/whatsappTemplates.js";
 import { joinNames } from "../../../lib/reminders/templates.js";

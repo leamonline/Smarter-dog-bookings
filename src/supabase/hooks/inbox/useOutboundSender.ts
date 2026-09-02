@@ -6,9 +6,9 @@
 //
 // Returns:
 //   sendOutboundSMS({ humanId, phoneE164, text })
-//     → { ok: true } | { ok: false, reason: string }
+//     → { ok: true, conversations } | { ok: false, reason: string }
 //   sendOutboundTemplate({ humanId, phoneE164, template, paramValues })
-//     → { ok: true } | { ok: false, reason: string }
+//     → { ok: true, conversations } | { ok: false, reason: string }
 //
 // Both refetch the conversation list on success so the newly-upserted
 // conversation shows up immediately (the realtime channel also fires,
@@ -17,14 +17,48 @@
 import { useCallback } from "react";
 import { supabase } from "../../client";
 import { buildTemplateParams } from "../../../constants/whatsappTemplates.js";
-import { SEND_FUNCTION_PATH, parseSupabaseFunctionError } from "./helpers.js";
+import { SEND_FUNCTION_PATH, parseSupabaseFunctionError } from "./helpers";
+import type { InboxActionResult } from "./helpers";
 
-export function useOutboundSender({ refreshList }) {
+/** The subset of a WHATSAPP_TEMPLATES entry a send needs (the picker passes the whole entry). */
+export interface OutboundTemplate {
+  name: string;
+  language: string;
+  params: ReadonlyArray<{ key: string }>;
+}
+
+export interface OutboundSmsArgs {
+  humanId?: string | null;
+  phoneE164: string | null | undefined;
+  text: string | null | undefined;
+}
+
+export interface OutboundTemplateArgs {
+  humanId?: string | null;
+  phoneE164: string | null | undefined;
+  template: OutboundTemplate | null | undefined;
+  paramValues: Record<string, string | undefined>;
+}
+
+/** `conversations` is whatever the inbox's refreshList resolves to. */
+export type OutboundSendResult<C> = InboxActionResult<{ conversations: C }>;
+
+export interface UseOutboundSenderResult<C> {
+  sendOutboundSMS: (args: OutboundSmsArgs) => Promise<OutboundSendResult<C>>;
+  sendOutboundTemplate: (args: OutboundTemplateArgs) => Promise<OutboundSendResult<C>>;
+}
+
+export function useOutboundSender<C>({
+  refreshList,
+}: {
+  refreshList: () => C | Promise<C>;
+}): UseOutboundSenderResult<C> {
   const sendOutboundSMS = useCallback(
-    async ({ humanId, phoneE164, text }) => {
+    async ({ humanId, phoneE164, text }: OutboundSmsArgs): Promise<OutboundSendResult<C>> => {
       if (!phoneE164 || !text) {
         return { ok: false, reason: "missing recipient or text" };
       }
+      if (!supabase) return { ok: false, reason: "Not connected" };
       const { error } = await supabase.functions.invoke("sms-send", {
         body: {
           mode: "manual",
@@ -44,10 +78,11 @@ export function useOutboundSender({ refreshList }) {
   );
 
   const sendOutboundTemplate = useCallback(
-    async ({ humanId, phoneE164, template, paramValues }) => {
+    async ({ humanId, phoneE164, template, paramValues }: OutboundTemplateArgs): Promise<OutboundSendResult<C>> => {
       if (!phoneE164 || !template) {
         return { ok: false, reason: "missing recipient or template" };
       }
+      if (!supabase) return { ok: false, reason: "Not connected" };
       const params = buildTemplateParams(template, paramValues);
       const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
         body: {

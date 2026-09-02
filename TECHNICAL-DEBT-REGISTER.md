@@ -16,7 +16,7 @@ sustained workstream (week+).
 
 | Debt | June 2026 | September 2026 | Evidence (1 Sept) |
 |---|---|---|---|
-| 1 JS-first, TS bolted on | Partially closed | **Open, burning down** | 342 non-test `.js/.jsx` vs 140 `.ts/.tsx`; `checkJs: false`; 6 `.js` hooks in `src/hooks`, 21 non-test `.js` files in `src/supabase/hooks` (was 36 on 1 Sept, 21 in June). Converted so far: `useDepositSettings`, `useBookingEvents`, `useSignedMediaUrl`, `usePendingSignupsCount`, `useCustomerProfileGate`, `useCustomerSignupGate`, `useMonthDaySettings`, `useDaySettings`, `useSalonConfig`, `useGroupBookings`, `useStaffName`, `useOwnerBookingEvents`, `useWaitlist`, `useWaitlistUpcoming`, `useAgentFailures`. |
+| 1 JS-first, TS bolted on | Partially closed | **Open, burning down** | 332 non-test `.js/.jsx` vs 150 `.ts/.tsx`; `checkJs: false`; 6 `.js` hooks in `src/hooks`, 11 non-test `.js` files in `src/supabase/hooks` (was 36 on 1 Sept, 21 in June). Converted so far: `useDepositSettings`, `useBookingEvents`, `useSignedMediaUrl`, `usePendingSignupsCount`, `useCustomerProfileGate`, `useCustomerSignupGate`, `useMonthDaySettings`, `useDaySettings`, `useSalonConfig`, `useGroupBookings`, `useStaffName`, `useOwnerBookingEvents`, `useWaitlist`, `useWaitlistUpcoming`, `useAgentFailures`. |
 | 2 `any` escape hatches | Closed (≈116-warning baseline) | **Open, concentrated** | 127 `no-explicit-any` warnings: 65 in tests, 62 in non-test code, of which 20 in `useDogs.ts`, 41 across `hooks/humans/*`, 1 in `engine/capacity.ts`. |
 | 3 ESLint safety rules | Closed | Closed | Unchanged. |
 | 4 `.js` extensions on TS imports | Closed | Closed | `check-import-extensions` still in `npm run lint`. |

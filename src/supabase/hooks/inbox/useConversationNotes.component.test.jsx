@@ -11,7 +11,7 @@ vi.mock("../../client", () => ({
   },
 }));
 
-const { useConversationNotes } = await import("./useConversationNotes.js");
+const { useConversationNotes } = await import("./useConversationNotes");
 
 function makeStub({ updateResult = { error: null } } = {}) {
   const eq = vi.fn(() => Promise.resolve(updateResult));

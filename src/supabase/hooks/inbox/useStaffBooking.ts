@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/inbox/useStaffBooking.js
+// src/supabase/hooks/inbox/useStaffBooking.ts
 //
 // Staff "Book appointment" from an inbox conversation. Thin wrapper
 // around the create_staff_booking_from_conversation RPC, which stages a
@@ -15,6 +15,25 @@ import { useCallback } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { createStaffBookingFromConversation } from "../../rpc";
+import type { StaffBookingPayload } from "../../rpc";
+import type { InboxActionResult } from "./helpers";
+
+export interface UseStaffBookingArgs {
+  selectedId: string | null | undefined;
+  actionInFlight: boolean;
+  setActionInFlight: (inFlight: boolean) => void;
+  refreshDetail: (conversationId: string) => Promise<unknown>;
+  refreshList: () => unknown;
+}
+
+export type CreateStaffBookingResult = InboxActionResult<{ bookingId: unknown }>;
+
+export interface UseStaffBookingResult {
+  createStaffBooking: (
+    payload: StaffBookingPayload,
+    conversationId?: string | null,
+  ) => Promise<CreateStaffBookingResult>;
+}
 
 export function useStaffBooking({
   selectedId,
@@ -22,15 +41,16 @@ export function useStaffBooking({
   setActionInFlight,
   refreshDetail,
   refreshList,
-}) {
+}: UseStaffBookingArgs): UseStaffBookingResult {
   const createStaffBooking = useCallback(
-    async (payload, conversationId) => {
+    async (payload: StaffBookingPayload, conversationId?: string | null): Promise<CreateStaffBookingResult> => {
       const id = conversationId ?? selectedId;
       if (!id) return { ok: false, reason: "no conversation selected" };
       if (actionInFlight) return { ok: false, reason: "another action is in progress" };
 
       setActionInFlight(true);
       try {
+        if (!supabase) throw new Error("Not connected");
         const { data, error } = await createStaffBookingFromConversation(supabase, {
           conversationId: id,
           payload,
