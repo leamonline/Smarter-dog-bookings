@@ -7,6 +7,7 @@ import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import { AddressPicker } from "./AddressPicker.jsx";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { friendlySaveError } from "../../../utils/friendlyError";
+import { claimsExistingFromSignupResult, signupSavedToast } from "../../../utils/signupOutcome";
 import { isRealPersonName } from "../../../utils/text";
 import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index";
 import { BREED_LIST } from "../../../constants/breeds";
@@ -210,7 +211,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       };
     });
 
-    const { error: err } = await onboarding.submitSignup({ owner, dogs: dogPayload });
+    const { data, error: err } = await onboarding.submitSignup({ owner, dogs: dogPayload });
     setSaving(false);
     if (err) {
       // Never surface the raw signup RPC / DB error to the customer.
@@ -218,7 +219,10 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       return;
     }
     clearDraft();
-    toast.show("Thanks — your details are in!", "success");
+    // A name that matched an existing customer is saved as a claim on that
+    // record (staff link it) — the hold screen that follows explains this;
+    // the toast just sets the expectation.
+    toast.show(signupSavedToast(claimsExistingFromSignupResult(data)), "success");
     await onComplete?.();
   }
 

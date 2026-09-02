@@ -2,11 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { ModalShell } from "./shell/index.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import {
-  getHumanByIdOrName,
-} from "../../engine/bookingRules";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { titleCase } from "../../utils/text";
 import {
   HumanBookingHistory,
   HumanEventTimeline,
@@ -27,12 +23,11 @@ import {
   useHumanDraft,
   useHumanCardActions,
   useResolvedHuman,
+  usePendingSignupLink,
+  PendingSignupLinkDialogs,
+  useTrustedOwnerLinks,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
-import {
-  fetchTrustedContactsForHuman,
-  fetchTrustedOwnerIdsForHuman,
-} from "../../supabase/hooks/humans/useTrustedContacts";
 
 export function HumanCardModal({
   humanId,
@@ -72,10 +67,6 @@ export function HumanCardModal({
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
-  // { hit, phone, updates, resolve } while the "Link this signup?" prompt is
-  // up; `resolve` hands the outcome back to useHumanDraft.saveHuman.
-  const [pendingLink, setPendingLink] = useState(null);
-  const [linking, setLinking] = useState(false);
 
   // Resolve the human: the live map entry when present (so edits flow
   // straight through), otherwise an on-demand fetch held in LOCAL state so
@@ -98,160 +89,31 @@ export function HumanCardModal({
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
-  // Trust is one-way in the database: { human_id: owner, trusted_id: person }.
-  // Load the incoming owner ids separately from human.trustedContacts, which
-  // is the outgoing set ("people this human trusts"). Keeping both directions
-  // distinct lets the Dogs panel show dogs this person may drop off / collect
-  // without inventing a reciprocal trust row.
-  const [trustedOwnerIds, setTrustedOwnerIds] = useState([]);
-  const trustedHumanId = human.id || humanId;
-  useEffect(() => {
-    let cancelled = false;
-    setTrustedOwnerIds([]);
-    if (!trustedHumanId) return () => {
-      cancelled = true;
-    };
-
-    fetchTrustedOwnerIdsForHuman(trustedHumanId)
-      .then((ownerIds) => {
-        if (!cancelled) setTrustedOwnerIds(ownerIds);
-      })
-      .catch(() => {
-        if (!cancelled) setTrustedOwnerIds([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [trustedHumanId]);
-
-  // Owner ids are joined into a primitive dependency so this effect does not
-  // re-run on equivalent array identities. ensureDogsForHumans already
-  // deduplicates ids that are cached or in flight.
-  const trustedOwnerIdsKey = trustedOwnerIds.join(",");
-  useEffect(() => {
-    if (!ensureDogsForHumans || !trustedOwnerIdsKey) return;
-    ensureDogsForHumans(trustedOwnerIdsKey.split(","));
-  }, [ensureDogsForHumans, trustedOwnerIdsKey]);
+  // Incoming trust (owners who named this person) + "link me on that dog".
+  const { trustedOwnerIds, handleLinkTrustedOnDog } = useTrustedOwnerLinks({
+    human,
+    humanId,
+    humanFullName,
+    humans,
+    ensureDogsForHumans,
+    onUpdateHuman,
+  });
 
   const [showAddDog, setShowAddDog] = useState(false);
 
-  // Hydrate a person's current trusted links from the DB before a replace, so
-  // we never overwrite their set with a stale/empty in-memory copy (the
-  // replace_trusted_contacts RPC rewrites the whole set).
-  const loadTrusted = useCallback(async (h) => {
-    const inMemory = h?.trustedContacts || [];
-    if (!h?.id) return inMemory;
-    try {
-      const { trustedContacts } = await fetchTrustedContactsForHuman(h.id);
-      return trustedContacts.length ? trustedContacts : inMemory;
-    } catch {
-      return inMemory;
-    }
-  }, []);
-
-  // Link THIS human as a trusted contact on an existing dog by updating the
-  // dog's owner only. Trust is directional; adding a reverse row would mean
-  // the trusted person also chose the owner as their own trusted human.
-  const handleLinkTrustedOnDog = useCallback(
-    async (dog) => {
-      if (!onUpdateHuman || !human?.id) return;
-      const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
-      if (!owner?.id) {
-        toast.show("Hmm, we can't find who owns that dog — try again?", "error");
-        return;
-      }
-      if (owner.id === human.id) {
-        toast.show("They already own that dog.", "error");
-        return;
-      }
-      const ownerContacts = await loadTrusted(owner);
-      if (ownerContacts.some((c) => c.id === human.id || c.fullName === humanFullName)) {
-        setTrustedOwnerIds((current) =>
-          current.includes(owner.id) ? current : [...current, owner.id],
-        );
-        toast.show(`${humanFullName} is already linked to ${dog.name}.`, "success");
-        return;
-      }
-      const ownerKey = owner.fullName || owner.id;
-      const saved = await onUpdateHuman(ownerKey, {
-        trustedContacts: [...ownerContacts, { id: human.id, relationship: "" }],
-      });
-      if (!saved) {
-        toast.show("Couldn't link that person to the dog — let's try again.", "error");
-        return;
-      }
-      setTrustedOwnerIds((current) =>
-        current.includes(owner.id) ? current : [...current, owner.id],
-      );
-      toast.show(`Linked ${humanFullName} to ${dog.name}`, "success");
-    },
-    [onUpdateHuman, human, humans, humanFullName, toast, loadTrusted],
-  );
-
-  // A phone save lost to humans_phone_unique. Work out who holds the number:
-  // an unapproved portal signup shell can be linked onto this record in one
-  // tap (that is the whole "existing customer signed up with a new number"
-  // case); anyone else is named so staff know where to look.
-  const handlePhoneTaken = useCallback(
-    async (phone, updates) => {
-      const hit = findHumanByPhone ? await findHumanByPhone(phone) : null;
-      if (hit?.isPendingSignup && onLinkPendingSignup) {
-        return new Promise((resolve) => {
-          setPendingLink({ hit, phone, updates, resolve });
-        });
-      }
-      const who = hit ? titleCase(`${hit.name || ""} ${hit.surname || ""}`.trim()) : "";
-      toast.show(
-        who
-          ? `${phone} is already on ${who}'s record — open their profile to move it`
-          : "That number is already on another customer's record",
-        "error",
-      );
-      return false;
-    },
-    [findHumanByPhone, onLinkPendingSignup, toast],
-  );
-
-  const handleCancelLink = () => {
-    pendingLink?.resolve(false);
-    setPendingLink(null);
-  };
-
-  const handleConfirmLink = async () => {
-    if (!pendingLink || linking) return;
-    const { hit, phone, updates, resolve } = pendingLink;
-    const id = human.id || humanId;
-    setLinking(true);
-    try {
-      const res = await onLinkPendingSignup(id, hit.id, phone);
-      if (!res?.ok) {
-        toast.show(res?.error || "Couldn't link that signup — give it another go", "error");
-        resolve(false);
-        return;
-      }
-      // The number is on this record now; re-run the save so the rest of
-      // the draft (name, address, notes…) lands too.
-      let restSaved = true;
-      if (onUpdateHuman) {
-        try {
-          restSaved = (await onUpdateHuman(id, updates)) !== null;
-        } catch {
-          restSaved = false;
-        }
-      }
-      toast.show(
-        restSaved
-          ? `Linked ${phone} to ${humanFullName} — they can book from the portal now`
-          : `Linked ${phone} to ${humanFullName}, but the other edits didn't save — try again`,
-        restSaved ? "success" : "error",
-      );
-      resolve(true);
-    } finally {
-      setLinking(false);
-      setPendingLink(null);
-    }
-  };
+  // Joining a portal signup shell onto a customer — the phone-collision
+  // prompt from useHumanDraft and the "Link to <name>" claim on a shell.
+  const signupLink = usePendingSignupLink({
+    human,
+    humanId,
+    humanFullName,
+    humans,
+    fetchHumanById,
+    findHumanByPhone,
+    onLinkPendingSignup,
+    onUpdateHuman,
+    onOpenHuman,
+  });
 
   // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
   // input focus, "E" shortcut. Paused while a confirm dialog is open.
@@ -274,8 +136,8 @@ export function HumanCardModal({
     human,
     humanId,
     onUpdateHuman,
-    onPhoneTaken: handlePhoneTaken,
-    shortcutPaused: pendingDelete || pendingExit || !!pendingLink,
+    onPhoneTaken: signupLink.handlePhoneTaken,
+    shortcutPaused: pendingDelete || pendingExit || signupLink.dialogOpen,
   });
 
   // Card-level actions: copy phone, open booking, overflow menu, and
@@ -366,9 +228,11 @@ export function HumanCardModal({
             overflowItems={overflowItems}
             nameInputRef={nameInputRef}
             isPendingSignup={isPendingSignup}
-            signupBusy={signupBusy}
+            signupBusy={signupBusy || signupLink.linking}
             onApproveSignup={handleApproveSignup}
             onRejectSignup={() => setPendingReject(true)}
+            claimedHuman={signupLink.claimedHuman}
+            onLinkClaimedSignup={signupLink.openClaimLink}
           />
         }
         footer={
@@ -571,18 +435,11 @@ export function HumanCardModal({
         />
       )}
 
-      {pendingLink && (
-        <ConfirmDialog
-          title={`Link this signup to ${humanFullName}?`}
-          message={`${pendingLink.phone} was verified through a portal signup that isn't linked to anyone yet. Linking puts that number and login on ${humanFullName}'s record, approves them to book, and removes the placeholder.`}
-          confirmLabel={linking ? "Linking…" : "Link and update number"}
-          cancelLabel="Not now"
-          variant="primary"
-          pending={linking}
-          onConfirm={handleConfirmLink}
-          onCancel={handleCancelLink}
-        />
-      )}
+      <PendingSignupLinkDialogs
+        link={signupLink}
+        humanFullName={humanFullName}
+        phone={human.phone}
+      />
 
       {pendingReject && (
         <RejectSignupDialog

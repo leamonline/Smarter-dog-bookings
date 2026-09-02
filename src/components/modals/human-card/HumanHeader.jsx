@@ -1,4 +1,4 @@
-import { Check, Clock, Copy, PiggyBank, Pencil, Phone, X } from "lucide-react";
+import { Check, Clock, Copy, Link2, PiggyBank, Pencil, Phone, X } from "lucide-react";
 import { titleCase } from "../../../utils/text";
 import { telLink, waLink } from "../dog-card/helpers.js";
 import { HeaderIconButton, OverflowMenu } from "../shell/index.js";
@@ -42,7 +42,18 @@ export function HumanHeader({
   signupBusy,
   onApproveSignup,
   onRejectSignup,
+  // A pending signup whose typed name matched an existing customer
+  // (humans.claims_human_id). Approving would create a second record with
+  // a placeholder name, so the primary action becomes "Link to <name>".
+  claimedHuman,
+  onLinkClaimedSignup,
 }) {
+  const claimedName = claimedHuman
+    ? titleCase(
+        claimedHuman.fullName ||
+          `${claimedHuman.name || ""} ${claimedHuman.surname || ""}`.trim(),
+      )
+    : "";
   return (
     <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
       <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -166,17 +177,36 @@ export function HumanHeader({
                   <span className="text-[13px] text-slate-400 italic">No phone</span>
                 )}
               </div>
+              {isPendingSignup && claimedHuman && (
+                <p className="mt-3 text-[13px] text-slate-600 leading-snug">
+                  Says they&apos;re an existing customer:{" "}
+                  <span className="font-bold text-brand-purple">{claimedName}</span>.
+                  Linking moves this number and login onto that record.
+                </p>
+              )}
               {isPendingSignup && (
                 <div className="flex items-center gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={onApproveSignup}
-                    disabled={signupBusy}
-                    className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Check size={14} strokeWidth={2.6} aria-hidden="true" />
-                    {signupBusy ? "Approving…" : "Approve"}
-                  </button>
+                  {claimedHuman ? (
+                    <button
+                      type="button"
+                      onClick={onLinkClaimedSignup}
+                      disabled={signupBusy}
+                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Link2 size={14} strokeWidth={2.6} aria-hidden="true" />
+                      {signupBusy ? "Linking…" : `Link to ${claimedName}`}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onApproveSignup}
+                      disabled={signupBusy}
+                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Check size={14} strokeWidth={2.6} aria-hidden="true" />
+                      {signupBusy ? "Approving…" : "Approve"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={onRejectSignup}

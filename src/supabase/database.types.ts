@@ -2609,6 +2609,7 @@ export type Database = {
           approved_by: string | null
           archived_at: string | null
           blocked_slots: string[]
+          claims_human_id: string | null
           created_at: string | null
           customer_notes: string
           customer_user_id: string | null
@@ -2654,6 +2655,7 @@ export type Database = {
           approved_by?: string | null
           archived_at?: string | null
           blocked_slots?: string[]
+          claims_human_id?: string | null
           created_at?: string | null
           customer_notes?: string
           customer_user_id?: string | null
@@ -2699,6 +2701,7 @@ export type Database = {
           approved_by?: string | null
           archived_at?: string | null
           blocked_slots?: string[]
+          claims_human_id?: string | null
           created_at?: string | null
           customer_notes?: string
           customer_user_id?: string | null
@@ -4637,7 +4640,7 @@ export type Database = {
       slots_are_hhmm: { Args: { p_slots: string[] }; Returns: boolean }
       submit_customer_signup: {
         Args: { p_dogs: Json; p_owner: Json }
-        Returns: undefined
+        Returns: Json
       }
       suggest_conversation_closures: {
         Args: never

@@ -176,6 +176,7 @@ function CustomerAppContent() {
   if (signup.status === "pending") {
     return (
       <PendingApprovalGate
+        claimsExisting={signup.claimsExisting}
         onSignOut={signOut}
         onRefresh={async () => {
           await refreshHumanRecord();
