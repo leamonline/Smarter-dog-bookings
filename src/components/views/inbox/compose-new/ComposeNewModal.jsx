@@ -21,14 +21,12 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
-import { supabase } from "../../../../supabase/client";
+import { useStaffContacts } from "../../../../supabase/hooks/useStaffContacts";
 import { logger } from "../../../../lib/logger";
 import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
-import { searchHumansAndDogs, getHumanById } from "../../../../supabase/repositories/humansRepo";
-import { listForHuman } from "../../../../supabase/repositories/dogsRepo";
 
 function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
   const info = smsSegmentInfo(value);
@@ -146,15 +144,16 @@ export function ComposeNewModal({
   // Pre-target a customer by id (deep-link from "Message owner"). Runs once —
   // if staff hit "Back to customer picker" they can search freely from there.
   const appliedInitialRef = useRef(false);
+  const contacts = useStaffContacts();
   useEffect(() => {
     if (!initialHumanId || appliedInitialRef.current) return;
     appliedInitialRef.current = true;
     let cancelled = false;
-    getHumanById(supabase, initialHumanId).then((human) => {
+    contacts.getHumanById(initialHumanId).then((human) => {
       if (!cancelled && human) setSelectedHuman(human);
     });
     return () => { cancelled = true; };
-  }, [initialHumanId]);
+  }, [initialHumanId, contacts]);
   const [dogNames, setDogNames] = useState([]);
   const [channel, setChannel] = useState("whatsapp"); // 'whatsapp' | 'sms'
   const [smsText, setSmsText] = useState("");
@@ -178,7 +177,7 @@ export function ComposeNewModal({
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const rows = await searchHumansAndDogs(supabase, query);
+        const rows = await contacts.searchHumansAndDogs(query);
         if (!controller.signal.aborted) setResults(rows);
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -190,7 +189,7 @@ export function ComposeNewModal({
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [query, selectedHuman]);
+  }, [query, selectedHuman, contacts]);
 
   // When a human is picked, fetch their dogs so the TemplatePicker
   // can pre-fill the dog_name_select param (or show a dropdown).
@@ -200,7 +199,7 @@ export function ComposeNewModal({
       return;
     }
     let cancelled = false;
-    listForHuman(supabase, { humanId: selectedHuman.id }).then(({ dogs, error }) => {
+    contacts.listDogsForHuman({ humanId: selectedHuman.id }).then(({ dogs, error }) => {
       if (cancelled) return;
       // listForHuman never rejects — a failed lookup comes back as {dogs: [],
       // error}. Without this the picker silently shows no dogs.
@@ -208,7 +207,7 @@ export function ComposeNewModal({
       setDogNames(dogs.map((d) => d.name).filter(Boolean));
     });
     return () => { cancelled = true; };
-  }, [selectedHuman]);
+  }, [selectedHuman, contacts]);
 
   // Build the synthetic "conversation context" the TemplatePicker
   // wants: customerFirstName + a stable contextKey so the picker's

@@ -1,16 +1,19 @@
 // Data hook for the staff messaging modals' contact reads (Debt #12): binds
 // the staff Supabase client to the humans/bookings repository reads that
-// CollectionNoticeModal and SendReminderModal need, so neither imports the
+// CollectionNoticeModal, SendReminderModal and ComposeNewModal need, so none imports the
 // client. Raw repository results; the modals keep their own composition and
 // error handling.
 import { supabase } from "../client";
 import {
   getContactCard,
+  getHumanById,
   getReminderContact,
   listContactCards,
   listTrustedContactLinks,
+  searchHumansAndDogs,
 } from "../repositories/humansRepo";
 import { listOwnerBookingsOnDate, listServicesForBookings } from "../repositories/bookingsRepo";
+import { listForHuman } from "../repositories/dogsRepo";
 
 type Client = NonNullable<typeof supabase>;
 
@@ -32,6 +35,12 @@ const contacts = {
   getReminderContact: (humanId: string) => getReminderContact(requireClient(), humanId),
   listServicesForBookings: (bookingIds: string[]) =>
     listServicesForBookings(requireClient(), bookingIds),
+  // Compose-new picker (Tier 1.1f): search, deep-link target, and the
+  // picked customer's dogs for the template auto-fill.
+  getHumanById: (humanId: string) => getHumanById(requireClient(), humanId),
+  searchHumansAndDogs: (query: string) => searchHumansAndDogs(requireClient(), query),
+  listDogsForHuman: (input: Parameters<typeof listForHuman>[1]) =>
+    listForHuman(requireClient(), input),
 };
 
 export type StaffContacts = typeof contacts;
