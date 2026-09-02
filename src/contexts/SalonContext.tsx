@@ -13,7 +13,8 @@ export interface SalonContextValue {
   humans: Record<string, Human>;
   bookingsByDate: BookingsByDate;
   daySettings: Record<string, DaySettings>;
-  dayOpenState: boolean;
+  /** Per-date open/closed map for the loaded week (dateStr → isOpen). */
+  dayOpenState: Record<string, boolean>;
   currentDateStr: string;
   currentDateObj: Date;
   onAdd: (booking: Booking, targetDateStr?: string) => void | Promise<void>;
@@ -24,6 +25,15 @@ export interface SalonContextValue {
    *  detail's delivery-failure "Fix the number" inline save. */
   onUpdateHuman: (humanKey: string, patch: Partial<Human>) => unknown;
   onAddHuman?: (human: Partial<Human>) => unknown;
+  onAddDog?: (dog: Partial<Dog> & Record<string, unknown>) => unknown;
+  /** UUID-keyed owner → dogs index and its on-demand hydrator (useDogs). */
+  dogsByHumanId?: Record<string, Dog[]>;
+  ensureDogsForHumans?: (humanIds: string[]) => unknown;
+  /** False in demo/sample-data mode; views use it to pick client fallbacks. */
+  isOnline?: boolean;
+  /** Week bookings load state (useBookings) for the calendar and today views. */
+  bookingsLoading?: boolean;
+  bookingsError?: string | null;
   fetchHumanById?: (humanId: string) => unknown;
   findHumanByFullName?: (name: string, surname: string) => unknown;
   searchHumansByTerm?: (term: string) => unknown;
@@ -55,6 +65,12 @@ export function SalonProvider({
   onUpdateDog,
   onUpdateHuman,
   onAddHuman,
+  onAddDog,
+  dogsByHumanId,
+  ensureDogsForHumans,
+  isOnline = true,
+  bookingsLoading = false,
+  bookingsError = null,
   fetchHumanById,
   findHumanByFullName,
   searchHumansByTerm,
@@ -77,6 +93,12 @@ export function SalonProvider({
       onUpdateDog,
       onUpdateHuman,
       onAddHuman,
+      onAddDog,
+      dogsByHumanId,
+      ensureDogsForHumans,
+      isOnline,
+      bookingsLoading,
+      bookingsError,
       fetchHumanById,
       findHumanByFullName,
       searchHumansByTerm,
@@ -98,6 +120,12 @@ export function SalonProvider({
       onUpdateDog,
       onUpdateHuman,
       onAddHuman,
+      onAddDog,
+      dogsByHumanId,
+      ensureDogsForHumans,
+      isOnline,
+      bookingsLoading,
+      bookingsError,
       fetchHumanById,
       findHumanByFullName,
       searchHumansByTerm,

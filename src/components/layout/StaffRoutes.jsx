@@ -130,18 +130,13 @@ export function StaffRoutes({ data, nav, ui }) {
     bookingsByDate,
     salonConfig,
     daySettings,
-    handleRemove,
     handleUpdate,
     toggleDayOpen,
     handleOverride,
     toggleImmediateSlot,
     handleAddSlot,
     handleRemoveSlot,
-    updateDog,
-    updateHuman,
     updateConfig,
-    addHuman,
-    addDog,
     isLoading,
     bookingsLoading,
     loadErrors,
@@ -154,9 +149,6 @@ export function StaffRoutes({ data, nav, ui }) {
     dates,
     currentDateObj,
     currentDateStr,
-    currentDayConfig,
-    goToNextWeek,
-    goToPrevWeek,
     handleDatePick,
   } = nav;
   const {
@@ -181,14 +173,7 @@ export function StaffRoutes({ data, nav, ui }) {
   // /humans and /humans/:id render the same directory; the profile route
   // just has the modal opened for it by App's URL → modal-state effect.
   const humansViewProps = {
-    humans,
-    dogs,
-    dogsByHumanId: dogsApi.dogsByHumanId,
-    ensureDogsForHumans: dogsApi.ensureDogsForHumans,
-    onOpenHuman,
     onNewClient: openNewClient,
-    onUpdateDog: updateDog,
-    onUpdateHuman: updateHuman,
     fetchArchivedHumans: humansApi.fetchArchivedHumans,
     hasMore: humansApi.hasMore,
     totalCount: humansApi.totalCount,
@@ -205,7 +190,6 @@ export function StaffRoutes({ data, nav, ui }) {
     activeLetter: humansApi.dirLetter,
     onLetterChange: humansApi.setDirLetter,
     isInitialLoading: isLoading,
-    isOnline,
     loadError: loadErrors.humans,
   };
 
@@ -213,11 +197,6 @@ export function StaffRoutes({ data, nav, ui }) {
   // raw Supabase updater (dogsApi.updateDog), not the online/offline-resolved
   // one — unchanged from the pre-extraction wiring.
   const dogsViewProps = {
-    dogs,
-    humans,
-    onOpenDog,
-    onAddDog: addDog,
-    onAddHuman: addHuman,
     hasMore: dogsApi.hasMore,
     totalCount: dogsApi.totalCount,
     loadMore: dogsApi.loadMore,
@@ -235,7 +214,6 @@ export function StaffRoutes({ data, nav, ui }) {
     fetchArchivedDogs: dogsApi.fetchArchivedDogs,
     onUpdateDog: dogsApi.updateDog,
     isInitialLoading: isLoading,
-    isOnline,
     loadError: loadErrors.dogs,
   };
 
@@ -334,23 +312,7 @@ export function StaffRoutes({ data, nav, ui }) {
           selectedDay={selectedDay}
           setSelectedDay={setSelectedDay}
           dates={dates}
-          currentDateObj={currentDateObj}
-          currentDateStr={currentDateStr}
-          currentDayConfig={currentDayConfig}
-          goToNextWeek={goToNextWeek}
-          goToPrevWeek={goToPrevWeek}
-          bookingsByDate={bookingsByDate}
-          bookingsLoading={bookingsLoading}
-          bookingsError={loadErrors.bookings}
-          daySettings={daySettings}
-          dayOpenState={dayOpenState}
-          dogs={dogs}
-          dogsByHumanId={dogsApi.dogsByHumanId}
-          ensureDogsForHumans={dogsApi.ensureDogsForHumans}
-          humans={humans}
           currentSettings={currentSettings}
-          handleRemove={handleRemove}
-          handleUpdate={handleUpdate}
           handleOverride={handleOverride}
           toggleImmediateSlot={toggleImmediateSlot}
           handleAddSlot={handleAddSlot}
@@ -361,7 +323,6 @@ export function StaffRoutes({ data, nav, ui }) {
           handleDatePick={handleDatePick}
           setShowNewBooking={requestNewBooking}
           draftPick={showNewBooking ? draftTarget : null}
-          onOpenHuman={onOpenHuman}
           onOpenClosureVisit={onOpenClosureVisit}
           onRefresh={bookingsApi.refetch}
         />
