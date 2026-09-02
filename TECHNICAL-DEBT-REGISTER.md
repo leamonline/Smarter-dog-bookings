@@ -16,12 +16,12 @@ sustained workstream (week+).
 
 | Debt | June 2026 | September 2026 | Evidence (1 Sept) |
 |---|---|---|---|
-| 1 JS-first, TS bolted on | Partially closed | **Open, hooks layer closed** | 315 non-test `.js/.jsx` vs 167 `.ts/.tsx`; `checkJs: false`. Every data hook in `src/hooks` and `src/supabase/hooks` is now TypeScript (0 and 0 `.js` files left, from 6 and 36 on 1 Sept), landed as #740–#758 (2 Sept). Remaining JS is components (`.jsx`), `src/data/sample.js`, `src/supabase/{bootPrefetch,refreshOnResume}.js`, `src/supabase/queries/bootQueries.js` and `src/utils/*.js`. |
-| 2 `any` escape hatches | Closed (≈116-warning baseline) | **Open, concentrated** | 127 `no-explicit-any` warnings: 65 in tests, 62 in non-test code, of which 20 in `useDogs.ts`, 41 across `hooks/humans/*`, 1 in `engine/capacity.ts`. |
+| 1 JS-first, TS bolted on | Partially closed | **Open, hooks layer closed** | 318 non-test `.js/.jsx` vs 181 `.ts/.tsx` (2 Sept, after the September hook conversions and shell extraction); 0 `.js` hooks under `src/hooks` or `src/supabase/hooks`; `checkJs: false`. |
+| 2 `any` escape hatches | Closed (≈116-warning baseline) | **Closed for non-test source (2 Sept 2026)** | `-eslint/no-explicit-any` is an **error** for non-test `src/**` (0 occurrences) and a warning in tests (65, all in `*.test.*`); the September burn-down cleared `useDogs.ts` and `hooks/humans/` first. |
 | 3 ESLint safety rules | Closed | Closed | Unchanged. |
 | 4 `.js` extensions on TS imports | Closed | Closed | `check-import-extensions` still in `npm run lint`. |
 | 5 `useHumans.ts` god file | Closed | Closed | 103 lines. |
-| 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Regressed** | 730 lines. |
+| 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Regressed, worse** | 943 lines as `useWhatsAppInbox.ts` (2 Sept): the September TypeScript conversion added row types and typed realtime handlers without extracting anything; the five `inbox/` sub-hooks still hold the extracted logic. Next candidate for a seam review. |
 | 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Regressed** | 541 lines. |
 | 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
@@ -40,11 +40,13 @@ sustained workstream (week+).
 | 22 Bare `console` | Largely closed (17 carve-outs) | **Closed** | Carve-outs down to the two intentional ones (`lib/logger.ts`, `supabase/seed.ts`). |
 | 23 Errors not surfaced | Partially closed | Partially closed | Convention only; still no documented rule. |
 | 24 Catch-variable style / unhandled `.then()` | Open (10 sites) | **Closed** | 0 non-test `catch (e)` sites; the `fetchDogsForHuman` `.then()` is gone from `ComposeNewModal.jsx`. |
-| 25 Untested critical paths | Closed (residual: drag-and-drop) | Residual confirmed | `useSlotDragAndDrop.ts` has no test and sits at 22% statements / 0% branches; 13 Deno test files under `supabase/functions/`. |
+| 25 Untested critical paths | Closed (residual: drag-and-drop) | **Closed (2 Sept 2026)** | `useSlotDragAndDrop.component.test.tsx` covers the drag-and-drop hook (assessment item 1.7); engine and repositories carry coverage thresholds (item 1.8). |
 
-Three items regressed since June without anyone noticing (6, 7, 9) and one keeps
+Three items regressed since June without anyone noticing (6, 7, 9) and one kept
 growing (11). None is a bug; all are the natural drift of a busy codebase
-without a size guard. A line-count ratchet test on the five named files would
+without a size guard. Item 11 now has that guard (`src/appShell.test.ts`, added
+2 September 2026 with the shell extraction); 6, 7 and 9 do not, and 6 has grown
+again since the 1 September count. A line-count ratchet on those three would
 make the next regression visible in CI instead of in the next audit.
 
 ## Mixed paradigms & weak typing
