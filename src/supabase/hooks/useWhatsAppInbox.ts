@@ -46,14 +46,48 @@ import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions";
 import { useDraftActions } from "./inbox/useDraftActions";
 import { markWhatsappConversationRead } from "../rpc";
 import { registerResume } from "../refreshOnResume.js";
-import type { Database, Json } from "../database.types";
 import type { InboxActionResult } from "./inbox/helpers";
 import type { OutboundTemplate } from "./inbox/useOutboundSender";
 
-type ConversationRow = Database["public"]["Tables"]["whatsapp_conversations"]["Row"];
-type MessageRow = Database["public"]["Tables"]["whatsapp_messages"]["Row"];
-type DraftRow = Database["public"]["Tables"]["whatsapp_drafts"]["Row"];
-type BookingActionRow = Database["public"]["Tables"]["whatsapp_booking_actions"]["Row"];
+import type {
+  GenerateReplyResponse,
+  InboxBookingAction,
+  InboxConversation,
+  InboxDraft,
+  InboxMessage,
+  SelectConversationOptions,
+  UpdateNotesResponse,
+} from "./inbox/inboxTypes";
+import { fetchConversationDetail, fetchConversationsList, type Client } from "./inbox/inboxFetchers";
+
+// The shapes and pure helpers moved to ./inbox/ (Debt 6); they stay exported
+// from here so existing importers and tests are unchanged.
+export type {
+  ConversationListRow,
+  ConversationDerivedFlags,
+  FailedMessage,
+  InboxBookingAction,
+  InboxBookingActionSummary,
+  InboxConversation,
+  InboxDraft,
+  InboxDraftSummary,
+  InboxHuman,
+  InboxHumanDog,
+  InboxMessage,
+  SelectConversationOptions,
+} from "./inbox/inboxTypes";
+import {
+  filterAttachedActions,
+  getSelectedConversationForSend,
+  latestMessagesChronological,
+  mergeFailedMessageFlags,
+} from "./inbox/inboxListHelpers";
+export {
+  filterAttachedActions,
+  getSelectedConversationForSend,
+  latestMessagesChronological,
+  mergeFailedMessageFlags,
+};
 
 const DETAIL_TIMEOUT_MS = 10_000;
 
@@ -64,392 +98,10 @@ const SAMPLE_MESSAGES = SAMPLE_WHATSAPP_MESSAGES as unknown as Record<string, In
 const SAMPLE_DRAFTS = SAMPLE_WHATSAPP_DRAFTS as unknown as Record<string, InboxDraft>;
 const SAMPLE_DOG_NAMES = SAMPLE_WHATSAPP_DOG_NAMES as unknown as Record<string, Array<{ id: string; name: string }>>;
 
-// ── Types ────────────────────────────────────────────────────
-// The list query embeds three relations behind a template-string select
-// that the typed client cannot parse, so the row shape is declared here
-// and the query result is narrowed to it once, at the fetch boundary.
-
-/** A pending draft as the list embeds it (the workspace variant adds intent + created_at). */
-export type InboxDraftSummary = Pick<DraftRow, "id" | "state" | "risk_level" | "handoff_required"> &
-  Partial<Pick<DraftRow, "intent" | "created_at">>;
-
-/** A booking action as the list embeds it (the workspace variant adds action, payload, created_at). */
-export type InboxBookingActionSummary = Pick<BookingActionRow, "id" | "state"> &
-  Partial<Pick<BookingActionRow, "action" | "payload" | "created_at">>;
-
-export interface InboxHumanDog {
-  id: string;
-  name: string;
-  breed: string | null;
-  size: string | null;
-}
-
-/** The joined humans projection; `dogs` only arrives with includeBookingWorkspaceData. */
-export interface InboxHuman {
-  name: string | null;
-  surname: string | null;
-  dogs?: InboxHumanDog[];
-}
-
-/** One row of the conversations list as selected from whatsapp_conversations. */
-export type ConversationListRow = Pick<
-  ConversationRow,
-  | "id"
-  | "phone_e164"
-  | "channel"
-  | "state"
-  | "human_id"
-  | "last_inbound_at"
-  | "last_outbound_at"
-  | "last_customer_text"
-  | "last_message_text"
-  | "last_message_direction"
-  | "last_message_at"
-  | "unread_count"
-  | "auto_send_enabled"
-  | "autonomous_booking_enabled"
-  | "lead_status"
-  | "lead_payload"
-  | "closed_at"
-  | "closed_by"
-  | "closure_reason"
-  | "closure_suggested_at"
-  | "closure_suggested_reason"
-  | "notes"
-> & {
-  agent_state?: Json;
-  humans: InboxHuman | null;
-  whatsapp_drafts: InboxDraftSummary[] | null;
-  whatsapp_booking_actions: InboxBookingActionSummary[] | null;
-};
-
-/** A failed outbound message, as the list's badge lookup selects it. */
-export type FailedMessage = Pick<MessageRow, "id" | "conversation_id" | "error_message" | "sent_at">;
-
-/** The derived flags the list folds onto each row. */
-export interface ConversationDerivedFlags {
-  has_pending_draft: boolean;
-  pending_draft: InboxDraftSummary | null;
-  has_pending_booking_action: boolean;
-  pending_booking_action: InboxBookingActionSummary | null;
-  needs_human_review: boolean;
-  has_failed_message: boolean;
-  latest_failed_message: FailedMessage | null;
-}
-
-/** A conversation as the inbox list state holds it. */
-export type InboxConversation = ConversationListRow & ConversationDerivedFlags;
-
-/** One message of the selected thread. */
-export type InboxMessage = Pick<
-  MessageRow,
-  | "id"
-  | "direction"
-  | "content"
-  | "sent_at"
-  | "status"
-  | "error_message"
-  | "meta_message_id"
-  | "channel"
-  | "reaction_emoji"
-  | "in_reply_to_meta_id"
-  | "media_path"
-  | "media_mime"
->;
-
-/** The selected thread's pending AI draft. */
-export type InboxDraft = Pick<
-  DraftRow,
-  | "id"
-  | "proposed_text"
-  | "intent"
-  | "confidence"
-  | "state"
-  | "created_at"
-  | "tokens_input"
-  | "tokens_output"
-  | "model"
-  | "risk_level"
-  | "handoff_required"
-  | "auto_send_eligible"
->;
-
-/** A booking proposal on the selected thread (pending, applied or auto-applied). */
-export type InboxBookingAction = Pick<
-  BookingActionRow,
-  | "id"
-  | "draft_id"
-  | "action"
-  | "payload"
-  | "target_booking_id"
-  | "state"
-  | "rejection_reason"
-  | "applied_booking_id"
-  | "applied_at"
-  | "error_message"
-  | "created_at"
->;
-
-interface ConversationDetail {
-  messages: InboxMessage[];
-  draft: InboxDraft | null;
-  bookingActions: InboxBookingAction[];
-}
-
-/** whatsapp-generate-reply's JSON body. */
-interface GenerateReplyResponse {
-  ok?: boolean;
-  reason?: string;
-  reply_text?: string;
-}
-
-/** whatsapp-update-notes's JSON body. */
-interface UpdateNotesResponse {
-  ok?: boolean;
-  reason?: string;
-  summary?: string;
-  updated?: unknown;
-}
-
-export interface SelectConversationOptions {
-  /** Booking Desk passes false: a read-only preview must not clear the unread badge. */
-  markRead?: boolean;
-}
-
-type Client = NonNullable<typeof supabase>;
 
 function requireClient(): Client {
   if (!supabase) throw new Error("Not connected");
   return supabase;
-}
-
-
-// ── Pure helpers (exported for testing) ─────────────────────
-// Filters the bookingActions list down to the actions attached to the
-// current pending draft. An action is "attached" if its draft_id
-// matches the draft's id AND it's still pending. Used by the inbox
-// hook to withhold DraftPanel reply controls while a booking proposal
-// is hanging off the same draft.
-export function filterAttachedActions<A extends { draft_id: string | null; state: string }>(
-  draft: { id: string } | null | undefined,
-  bookingActions: ReadonlyArray<A> | null | undefined,
-): A[] {
-  if (!draft) return [];
-  if (!Array.isArray(bookingActions)) return [];
-  return bookingActions.filter(
-    (a) => a.draft_id === draft.id && a.state === "pending",
-  );
-}
-
-export function latestMessagesChronological<T>(rows: ReadonlyArray<T> | null | undefined): T[] {
-  return [...(rows ?? [])].reverse();
-}
-
-export function getSelectedConversationForSend<C extends { id: string }>(
-  conversations: ReadonlyArray<C>,
-  selectedId: string | null | undefined,
-): C {
-  const conversation = conversations.find((c) => c.id === selectedId);
-  if (!conversation) {
-    throw new Error("Selected conversation is no longer available");
-  }
-  return conversation;
-}
-
-export function mergeFailedMessageFlags<
-  C extends { id: string; last_outbound_at?: string | null },
-  M extends { conversation_id?: string | null; sent_at?: string | null },
->(
-  conversations: ReadonlyArray<C> | null | undefined,
-  failedMessages: ReadonlyArray<M> | null | undefined,
-): Array<C & { has_failed_message: boolean; latest_failed_message: M | null }> {
-  const latestByConversation = new Map<string, M>();
-  for (const message of failedMessages ?? []) {
-    if (!message?.conversation_id) continue;
-    const current = latestByConversation.get(message.conversation_id);
-    if (!current || String(message.sent_at || "") > String(current.sent_at || "")) {
-      latestByConversation.set(message.conversation_id, message);
-    }
-  }
-
-  return (conversations ?? []).map((conversation) => {
-    const latest = latestByConversation.get(conversation.id) ?? null;
-    // Only flag the conversation while the failure is still the most
-    // recent outbound. recordOutbound bumps last_outbound_at to each
-    // send's timestamp, so a successful resend moves last_outbound_at
-    // PAST the failed message — at which point the badge should clear.
-    // A failure that is still the latest outbound has sent_at >=
-    // last_outbound_at (they were stamped together at record time).
-    const unresolved =
-      !!latest &&
-      String(latest.sent_at || "") >= String(conversation.last_outbound_at || "");
-    return {
-      ...conversation,
-      has_failed_message: unresolved,
-      latest_failed_message: unresolved ? latest : null,
-    };
-  });
-}
-
-// ── Fetchers ─────────────────────────────────────────────────
-async function fetchConversationsList(
-  client: Client,
-  { includeBookingWorkspaceData = false }: { includeBookingWorkspaceData?: boolean } = {},
-): Promise<InboxConversation[]> {
-  // We denormalise unread_count, last_customer_text, last_inbound_at
-  // onto the conversation row specifically so this query is cheap.
-  const humanSelection = includeBookingWorkspaceData
-    ? "humans:human_id ( name, surname, dogs ( id, name, breed, size ) )"
-    : "humans:human_id ( name, surname )";
-  const draftSelection = includeBookingWorkspaceData
-    ? "whatsapp_drafts ( id, state, intent, risk_level, handoff_required, created_at )"
-    : "whatsapp_drafts ( id, state, risk_level, handoff_required )";
-  const bookingActionSelection = includeBookingWorkspaceData
-    ? "whatsapp_booking_actions ( id, state, action, payload, created_at )"
-    : "whatsapp_booking_actions ( id, state )";
-  // Widened to `string` on purpose: with the literal template the typed
-  // client tries to parse three ternary-dependent embeds and gives up
-  // ("union type too complex"); the result is narrowed once below.
-  const selectColumns: string = `
-      id,
-      phone_e164,
-      channel,
-      state,
-      human_id,
-      last_inbound_at,
-      last_outbound_at,
-      last_customer_text,
-      last_message_text,
-      last_message_direction,
-      last_message_at,
-      unread_count,
-      auto_send_enabled,
-      autonomous_booking_enabled,
-      ${includeBookingWorkspaceData ? "agent_state," : ""}
-      lead_status,
-      lead_payload,
-      closed_at,
-      closed_by,
-      closure_reason,
-      closure_suggested_at,
-      closure_suggested_reason,
-      notes,
-      ${humanSelection},
-      ${draftSelection},
-      ${bookingActionSelection}
-      `;
-  const { data, error } = await client
-    .from("whatsapp_conversations")
-    .select(selectColumns)
-    // Sort by the same "last activity" value the row now displays
-    // (last message in either direction), falling back to last_inbound_at
-    // for any row not yet backfilled.
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .order("last_inbound_at", { ascending: false, nullsFirst: false })
-    .limit(200);
-
-  if (error) throw error;
-
-  // Fold "has a pending draft" into a boolean so the list item can
-  // render a badge without keeping the draft array around.
-  // Also surface a "needs_human_review" flag when any pending draft on
-  // the conversation is high-risk or has handoff_required set, so the
-  // list view can pin those to the top with a red marker.
-  // The template-string select above is opaque to the typed client, so
-  // narrow once here to the row shape it actually returns.
-  const rows = (data ?? []) as unknown as ConversationListRow[];
-  const list = rows.map((c) => {
-    const pendingDrafts = Array.isArray(c.whatsapp_drafts)
-      ? c.whatsapp_drafts.filter((d) => d.state === "pending")
-      : [];
-    const pendingBookingActions = Array.isArray(c.whatsapp_booking_actions)
-      ? c.whatsapp_booking_actions.filter((a) => a.state === "pending")
-      : [];
-    const newestFirst = (a: { created_at?: string | null }, b: { created_at?: string | null }) =>
-      String(b?.created_at || "").localeCompare(String(a?.created_at || ""));
-    return {
-      ...c,
-      has_pending_draft: pendingDrafts.length > 0,
-      pending_draft: [...pendingDrafts].sort(newestFirst)[0] ?? null,
-      has_pending_booking_action: pendingBookingActions.length > 0,
-      pending_booking_action:
-        [...pendingBookingActions].sort(newestFirst)[0] ?? null,
-      needs_human_review: pendingDrafts.some(
-        (d) => d.handoff_required === true || d.risk_level === "high",
-      ),
-    };
-  });
-
-  if (list.length === 0) return mergeFailedMessageFlags(list, []);
-
-  const { data: failedMessages, error: failedError } = await client
-    .from("whatsapp_messages")
-    .select("id, conversation_id, error_message, sent_at")
-    .in("conversation_id", list.map((c) => c.id))
-    .eq("direction", "outbound")
-    .eq("status", "failed")
-    .order("sent_at", { ascending: false })
-    .limit(500);
-
-  if (failedError) {
-    logger.warn("useWhatsAppInbox failed-message lookup failed", {
-      tags: { hook: "useWhatsAppInbox", op: "fetchFailedMessages" },
-      extra: { message: failedError.message },
-    });
-    return mergeFailedMessageFlags(list, []);
-  }
-
-  return mergeFailedMessageFlags(list, failedMessages ?? []);
-}
-
-async function fetchConversationDetail(
-  client: Client,
-  conversationId: string,
-  signal: AbortSignal,
-): Promise<ConversationDetail> {
-  const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
-    client
-      .from("whatsapp_messages")
-      .select("id, direction, content, sent_at, status, error_message, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id, media_path, media_mime")
-      .eq("conversation_id", conversationId)
-      .order("sent_at", { ascending: false })
-      .limit(200)
-      .abortSignal(signal),
-    client
-      .from("whatsapp_drafts")
-      .select(
-        "id, proposed_text, intent, confidence, state, created_at, tokens_input, tokens_output, model, risk_level, handoff_required, auto_send_eligible",
-      )
-      .eq("conversation_id", conversationId)
-      .eq("state", "pending")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .abortSignal(signal)
-      .maybeSingle(),
-    client
-      .from("whatsapp_booking_actions")
-      .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, applied_at, error_message, created_at")
-      .eq("conversation_id", conversationId)
-      // Include applied + auto_applied so the thread can render inline
-      // "Booking created" cards (task 5 of the May 2026 review pass).
-      // BookingActionPanel pre-filters to state='pending' so it only
-      // renders the queue waiting on staff approval.
-      .in("state", ["pending", "applied", "auto_applied"])
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .abortSignal(signal),
-  ]);
-
-  if (messagesRes.error) throw messagesRes.error;
-  // draftRes can return PGRST116 if maybeSingle found nothing — swallow
-  if (draftRes.error && draftRes.error.code !== "PGRST116") throw draftRes.error;
-  if (bookingActionsRes.error) throw bookingActionsRes.error;
-
-  return {
-    messages: latestMessagesChronological(messagesRes.data),
-    draft: draftRes.data ?? null,
-    bookingActions: bookingActionsRes.data ?? [],
-  };
 }
 
 // ── The hook ─────────────────────────────────────────────────
