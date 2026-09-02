@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useWhatsAppInbox.js
+// src/supabase/hooks/useWhatsAppInbox.ts
 //
 // Data hook for the staff WhatsApp inbox at /whatsapp.
 // Mirrors the existing hook pattern from useBookings / useHumans:
@@ -46,8 +46,182 @@ import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions";
 import { useDraftActions } from "./inbox/useDraftActions";
 import { markWhatsappConversationRead } from "../rpc";
 import { registerResume } from "../refreshOnResume.js";
+import type { Database, Json } from "../database.types";
+import type { InboxActionResult } from "./inbox/helpers";
+import type { OutboundTemplate } from "./inbox/useOutboundSender";
+
+type ConversationRow = Database["public"]["Tables"]["whatsapp_conversations"]["Row"];
+type MessageRow = Database["public"]["Tables"]["whatsapp_messages"]["Row"];
+type DraftRow = Database["public"]["Tables"]["whatsapp_drafts"]["Row"];
+type BookingActionRow = Database["public"]["Tables"]["whatsapp_booking_actions"]["Row"];
 
 const DETAIL_TIMEOUT_MS = 10_000;
+
+// The sample fixtures are deliberately loose JS (allowJs infers their literal
+// keys), so widen them once here to the shapes the hook holds in state.
+const SAMPLE_CONVERSATIONS = SAMPLE_WHATSAPP_CONVERSATIONS as unknown as InboxConversation[];
+const SAMPLE_MESSAGES = SAMPLE_WHATSAPP_MESSAGES as unknown as Record<string, InboxMessage[]>;
+const SAMPLE_DRAFTS = SAMPLE_WHATSAPP_DRAFTS as unknown as Record<string, InboxDraft>;
+const SAMPLE_DOG_NAMES = SAMPLE_WHATSAPP_DOG_NAMES as unknown as Record<string, Array<{ id: string; name: string }>>;
+
+// ── Types ────────────────────────────────────────────────────
+// The list query embeds three relations behind a template-string select
+// that the typed client cannot parse, so the row shape is declared here
+// and the query result is narrowed to it once, at the fetch boundary.
+
+/** A pending draft as the list embeds it (the workspace variant adds intent + created_at). */
+export type InboxDraftSummary = Pick<DraftRow, "id" | "state" | "risk_level" | "handoff_required"> &
+  Partial<Pick<DraftRow, "intent" | "created_at">>;
+
+/** A booking action as the list embeds it (the workspace variant adds action, payload, created_at). */
+export type InboxBookingActionSummary = Pick<BookingActionRow, "id" | "state"> &
+  Partial<Pick<BookingActionRow, "action" | "payload" | "created_at">>;
+
+export interface InboxHumanDog {
+  id: string;
+  name: string;
+  breed: string | null;
+  size: string | null;
+}
+
+/** The joined humans projection; `dogs` only arrives with includeBookingWorkspaceData. */
+export interface InboxHuman {
+  name: string | null;
+  surname: string | null;
+  dogs?: InboxHumanDog[];
+}
+
+/** One row of the conversations list as selected from whatsapp_conversations. */
+export type ConversationListRow = Pick<
+  ConversationRow,
+  | "id"
+  | "phone_e164"
+  | "channel"
+  | "state"
+  | "human_id"
+  | "last_inbound_at"
+  | "last_outbound_at"
+  | "last_customer_text"
+  | "last_message_text"
+  | "last_message_direction"
+  | "last_message_at"
+  | "unread_count"
+  | "auto_send_enabled"
+  | "autonomous_booking_enabled"
+  | "lead_status"
+  | "lead_payload"
+  | "closed_at"
+  | "closed_by"
+  | "closure_reason"
+  | "closure_suggested_at"
+  | "closure_suggested_reason"
+  | "notes"
+> & {
+  agent_state?: Json;
+  humans: InboxHuman | null;
+  whatsapp_drafts: InboxDraftSummary[] | null;
+  whatsapp_booking_actions: InboxBookingActionSummary[] | null;
+};
+
+/** A failed outbound message, as the list's badge lookup selects it. */
+export type FailedMessage = Pick<MessageRow, "id" | "conversation_id" | "error_message" | "sent_at">;
+
+/** The derived flags the list folds onto each row. */
+export interface ConversationDerivedFlags {
+  has_pending_draft: boolean;
+  pending_draft: InboxDraftSummary | null;
+  has_pending_booking_action: boolean;
+  pending_booking_action: InboxBookingActionSummary | null;
+  needs_human_review: boolean;
+  has_failed_message: boolean;
+  latest_failed_message: FailedMessage | null;
+}
+
+/** A conversation as the inbox list state holds it. */
+export type InboxConversation = ConversationListRow & ConversationDerivedFlags;
+
+/** One message of the selected thread. */
+export type InboxMessage = Pick<
+  MessageRow,
+  | "id"
+  | "direction"
+  | "content"
+  | "sent_at"
+  | "status"
+  | "error_message"
+  | "meta_message_id"
+  | "channel"
+  | "reaction_emoji"
+  | "in_reply_to_meta_id"
+  | "media_path"
+  | "media_mime"
+>;
+
+/** The selected thread's pending AI draft. */
+export type InboxDraft = Pick<
+  DraftRow,
+  | "id"
+  | "proposed_text"
+  | "intent"
+  | "confidence"
+  | "state"
+  | "created_at"
+  | "tokens_input"
+  | "tokens_output"
+  | "model"
+  | "risk_level"
+  | "handoff_required"
+  | "auto_send_eligible"
+>;
+
+/** A booking proposal on the selected thread (pending, applied or auto-applied). */
+export type InboxBookingAction = Pick<
+  BookingActionRow,
+  | "id"
+  | "draft_id"
+  | "action"
+  | "payload"
+  | "target_booking_id"
+  | "state"
+  | "rejection_reason"
+  | "applied_booking_id"
+  | "applied_at"
+  | "error_message"
+  | "created_at"
+>;
+
+interface ConversationDetail {
+  messages: InboxMessage[];
+  draft: InboxDraft | null;
+  bookingActions: InboxBookingAction[];
+}
+
+/** whatsapp-generate-reply's JSON body. */
+interface GenerateReplyResponse {
+  ok?: boolean;
+  reason?: string;
+  reply_text?: string;
+}
+
+/** whatsapp-update-notes's JSON body. */
+interface UpdateNotesResponse {
+  ok?: boolean;
+  reason?: string;
+  summary?: string;
+  updated?: unknown;
+}
+
+export interface SelectConversationOptions {
+  /** Booking Desk passes false: a read-only preview must not clear the unread badge. */
+  markRead?: boolean;
+}
+
+type Client = NonNullable<typeof supabase>;
+
+function requireClient(): Client {
+  if (!supabase) throw new Error("Not connected");
+  return supabase;
+}
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -56,7 +230,10 @@ const DETAIL_TIMEOUT_MS = 10_000;
 // matches the draft's id AND it's still pending. Used by the inbox
 // hook to withhold DraftPanel reply controls while a booking proposal
 // is hanging off the same draft.
-export function filterAttachedActions(draft, bookingActions) {
+export function filterAttachedActions<A extends { draft_id: string | null; state: string }>(
+  draft: { id: string } | null | undefined,
+  bookingActions: ReadonlyArray<A> | null | undefined,
+): A[] {
   if (!draft) return [];
   if (!Array.isArray(bookingActions)) return [];
   return bookingActions.filter(
@@ -64,11 +241,14 @@ export function filterAttachedActions(draft, bookingActions) {
   );
 }
 
-export function latestMessagesChronological(rows) {
+export function latestMessagesChronological<T>(rows: ReadonlyArray<T> | null | undefined): T[] {
   return [...(rows ?? [])].reverse();
 }
 
-export function getSelectedConversationForSend(conversations, selectedId) {
+export function getSelectedConversationForSend<C extends { id: string }>(
+  conversations: ReadonlyArray<C>,
+  selectedId: string | null | undefined,
+): C {
   const conversation = conversations.find((c) => c.id === selectedId);
   if (!conversation) {
     throw new Error("Selected conversation is no longer available");
@@ -76,8 +256,14 @@ export function getSelectedConversationForSend(conversations, selectedId) {
   return conversation;
 }
 
-export function mergeFailedMessageFlags(conversations, failedMessages) {
-  const latestByConversation = new Map();
+export function mergeFailedMessageFlags<
+  C extends { id: string; last_outbound_at?: string | null },
+  M extends { conversation_id?: string | null; sent_at?: string | null },
+>(
+  conversations: ReadonlyArray<C> | null | undefined,
+  failedMessages: ReadonlyArray<M> | null | undefined,
+): Array<C & { has_failed_message: boolean; latest_failed_message: M | null }> {
+  const latestByConversation = new Map<string, M>();
   for (const message of failedMessages ?? []) {
     if (!message?.conversation_id) continue;
     const current = latestByConversation.get(message.conversation_id);
@@ -106,7 +292,10 @@ export function mergeFailedMessageFlags(conversations, failedMessages) {
 }
 
 // ── Fetchers ─────────────────────────────────────────────────
-async function fetchConversationsList({ includeBookingWorkspaceData = false } = {}) {
+async function fetchConversationsList(
+  client: Client,
+  { includeBookingWorkspaceData = false }: { includeBookingWorkspaceData?: boolean } = {},
+): Promise<InboxConversation[]> {
   // We denormalise unread_count, last_customer_text, last_inbound_at
   // onto the conversation row specifically so this query is cheap.
   const humanSelection = includeBookingWorkspaceData
@@ -118,10 +307,10 @@ async function fetchConversationsList({ includeBookingWorkspaceData = false } = 
   const bookingActionSelection = includeBookingWorkspaceData
     ? "whatsapp_booking_actions ( id, state, action, payload, created_at )"
     : "whatsapp_booking_actions ( id, state )";
-  const { data, error } = await supabase
-    .from("whatsapp_conversations")
-    .select(
-      `
+  // Widened to `string` on purpose: with the literal template the typed
+  // client tries to parse three ternary-dependent embeds and gives up
+  // ("union type too complex"); the result is narrowed once below.
+  const selectColumns: string = `
       id,
       phone_e164,
       channel,
@@ -148,8 +337,10 @@ async function fetchConversationsList({ includeBookingWorkspaceData = false } = 
       ${humanSelection},
       ${draftSelection},
       ${bookingActionSelection}
-      `,
-    )
+      `;
+  const { data, error } = await client
+    .from("whatsapp_conversations")
+    .select(selectColumns)
     // Sort by the same "last activity" value the row now displays
     // (last message in either direction), falling back to last_inbound_at
     // for any row not yet backfilled.
@@ -164,14 +355,17 @@ async function fetchConversationsList({ includeBookingWorkspaceData = false } = 
   // Also surface a "needs_human_review" flag when any pending draft on
   // the conversation is high-risk or has handoff_required set, so the
   // list view can pin those to the top with a red marker.
-  const list = (data ?? []).map((c) => {
+  // The template-string select above is opaque to the typed client, so
+  // narrow once here to the row shape it actually returns.
+  const rows = (data ?? []) as unknown as ConversationListRow[];
+  const list = rows.map((c) => {
     const pendingDrafts = Array.isArray(c.whatsapp_drafts)
       ? c.whatsapp_drafts.filter((d) => d.state === "pending")
       : [];
     const pendingBookingActions = Array.isArray(c.whatsapp_booking_actions)
       ? c.whatsapp_booking_actions.filter((a) => a.state === "pending")
       : [];
-    const newestFirst = (a, b) =>
+    const newestFirst = (a: { created_at?: string | null }, b: { created_at?: string | null }) =>
       String(b?.created_at || "").localeCompare(String(a?.created_at || ""));
     return {
       ...c,
@@ -186,9 +380,9 @@ async function fetchConversationsList({ includeBookingWorkspaceData = false } = 
     };
   });
 
-  if (list.length === 0) return list;
+  if (list.length === 0) return mergeFailedMessageFlags(list, []);
 
-  const { data: failedMessages, error: failedError } = await supabase
+  const { data: failedMessages, error: failedError } = await client
     .from("whatsapp_messages")
     .select("id, conversation_id, error_message, sent_at")
     .in("conversation_id", list.map((c) => c.id))
@@ -208,16 +402,20 @@ async function fetchConversationsList({ includeBookingWorkspaceData = false } = 
   return mergeFailedMessageFlags(list, failedMessages ?? []);
 }
 
-async function fetchConversationDetail(conversationId, signal) {
-  const withSignal = (query) => signal ? query.abortSignal(signal) : query;
+async function fetchConversationDetail(
+  client: Client,
+  conversationId: string,
+  signal: AbortSignal,
+): Promise<ConversationDetail> {
   const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
-    withSignal(supabase
+    client
       .from("whatsapp_messages")
       .select("id, direction, content, sent_at, status, error_message, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id, media_path, media_mime")
       .eq("conversation_id", conversationId)
       .order("sent_at", { ascending: false })
-      .limit(200)),
-    withSignal(supabase
+      .limit(200)
+      .abortSignal(signal),
+    client
       .from("whatsapp_drafts")
       .select(
         "id, proposed_text, intent, confidence, state, created_at, tokens_input, tokens_output, model, risk_level, handoff_required, auto_send_eligible",
@@ -225,9 +423,10 @@ async function fetchConversationDetail(conversationId, signal) {
       .eq("conversation_id", conversationId)
       .eq("state", "pending")
       .order("created_at", { ascending: false })
-      .limit(1))
+      .limit(1)
+      .abortSignal(signal)
       .maybeSingle(),
-    withSignal(supabase
+    client
       .from("whatsapp_booking_actions")
       .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, applied_at, error_message, created_at")
       .eq("conversation_id", conversationId)
@@ -237,7 +436,8 @@ async function fetchConversationDetail(conversationId, signal) {
       // renders the queue waiting on staff approval.
       .in("state", ["pending", "applied", "auto_applied"])
       .order("created_at", { ascending: false })
-      .limit(50)),
+      .limit(50)
+      .abortSignal(signal),
   ]);
 
   if (messagesRes.error) throw messagesRes.error;
@@ -253,24 +453,24 @@ async function fetchConversationDetail(conversationId, signal) {
 }
 
 // ── The hook ─────────────────────────────────────────────────
-export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
-  const [conversations, setConversations] = useState([]);
+export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { includeBookingWorkspaceData?: boolean } = {}) {
+  const [conversations, setConversations] = useState<InboxConversation[]>([]);
   // `dogNames` is the array used by the template picker (it auto-fills the
   // first dog when staff picks a templated reply). `dogNamesById` is the
   // map BookingCreatedCard uses to resolve the dog name from a booking
   // action's `payload.dog_id` — without it the chip falls back to the
   // generic "this dog" placeholder even when we know the name.
-  const [dogNames, setDogNames] = useState([]);
-  const [dogNamesById, setDogNamesById] = useState({});
+  const [dogNames, setDogNames] = useState<string[]>([]);
+  const [dogNamesById, setDogNamesById] = useState<Record<string, string>>({});
   const [loadingList, setLoadingList] = useState(true);
-  const [listError, setListError] = useState(null);
+  const [listError, setListError] = useState<unknown>(null);
 
-  const [selectedId, setSelectedId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState(null);
-  const [bookingActions, setBookingActions] = useState([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<InboxMessage[]>([]);
+  const [draft, setDraft] = useState<InboxDraft | null>(null);
+  const [bookingActions, setBookingActions] = useState<InboxBookingAction[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [detailError, setDetailError] = useState(null);
+  const [detailError, setDetailError] = useState<unknown>(null);
 
   const [actionInFlight, setActionInFlight] = useState(false);
 
@@ -282,17 +482,17 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
     [draft, bookingActions],
   );
 
-  const selectedIdRef = useRef(null);
+  const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
   // ── List: initial load + realtime ──────────────────────────
-  const refreshList = useCallback(async () => {
+  const refreshList = useCallback(async (): Promise<InboxConversation[] | null> => {
     if (!supabase) {
       setLoadingList(false);
       return null;
     }
     try {
-      const list = await fetchConversationsList({ includeBookingWorkspaceData });
+      const list = await fetchConversationsList(supabase, { includeBookingWorkspaceData });
       setConversations(list);
       setListError(null);
       return list;
@@ -314,7 +514,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
   // every event fired its own full refetch. Trailing-debounce so a burst
   // collapses into one refresh; explicit actions still call refreshList
   // directly for immediacy.
-  const listRefreshTimerRef = useRef(null);
+  const listRefreshTimerRef = useRef<number | null>(null);
   const scheduleListRefresh = useCallback(() => {
     if (listRefreshTimerRef.current) return;
     listRefreshTimerRef.current = window.setTimeout(() => {
@@ -407,13 +607,14 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
       // Offline/sample mode (VITE_FORCE_OFFLINE=1, or missing creds in dev):
       // serve the shared fixtures so the workspace renders populated for visual
       // review. No query runs and no realtime channel opens.
-      setConversations(SAMPLE_WHATSAPP_CONVERSATIONS);
+      setConversations(SAMPLE_CONVERSATIONS);
       setLoadingList(false);
       return;
     }
+    const client = supabase;
     refreshList();
 
-    const channel = supabase
+    const channel = client
       .channel(CHANNELS.whatsappInboxList)
       .on(
         "postgres_changes",
@@ -432,22 +633,23 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { client.removeChannel(channel); };
   }, [refreshList, scheduleListRefresh]);
 
   // ── Detail: load on selection + realtime ───────────────────
-  const refreshDetail = useCallback(async (conversationId) => {
+  const refreshDetail = useCallback(async (conversationId: string | null | undefined) => {
     if (!conversationId) return;
+    const client = requireClient();
     const controller = new AbortController();
-    let timeoutId;
+    let timeoutId: number | undefined;
     try {
       // 10-second timeout so a stalled Supabase request can't leave
       // the thread spinner spinning forever (task 11 of the May 2026
       // review pass). The timeout fires a sentinel error that's
       // mapped to a friendly "Couldn't load — retry?" state below.
       const detail = await Promise.race([
-        fetchConversationDetail(conversationId, controller.signal),
-        new Promise((_, reject) =>
+        fetchConversationDetail(client, conversationId, controller.signal),
+        new Promise<never>((_, reject) =>
           timeoutId = window.setTimeout(() => {
             controller.abort();
             reject(new Error("conversation-detail-timeout"));
@@ -473,7 +675,10 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
     }
   }, []);
 
-  const selectConversation = useCallback(async (conversationId, options = {}) => {
+  const selectConversation = useCallback(async (
+    conversationId: string | null,
+    options: SelectConversationOptions = {},
+  ) => {
     const markRead = options.markRead !== false;
     setSelectedId(conversationId);
     setMessages([]);
@@ -486,9 +691,9 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
     if (!conversationId || !supabase) {
       if (conversationId && !supabase) {
         // Offline/sample mode — hydrate the thread from the shared fixtures.
-        const dogs = SAMPLE_WHATSAPP_DOG_NAMES[conversationId] ?? [];
-        setMessages(SAMPLE_WHATSAPP_MESSAGES[conversationId] ?? []);
-        setDraft(SAMPLE_WHATSAPP_DRAFTS[conversationId] ?? null);
+        const dogs = SAMPLE_DOG_NAMES[conversationId] ?? [];
+        setMessages(SAMPLE_MESSAGES[conversationId] ?? []);
+        setDraft(SAMPLE_DRAFTS[conversationId] ?? null);
         setDogNames(dogs.map((dog) => dog.name));
         setDogNamesById(Object.fromEntries(dogs.map((dog) => [dog.id, dog.name])));
       }
@@ -496,6 +701,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
       return;
     }
 
+    const client = supabase;
     setLoadingDetail(true);
     if (markRead) {
       // Optimistic: zero out the unread badge for this conversation
@@ -513,7 +719,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
 
       // Mark as read via RPC (migration 029). Fire and forget; realtime
       // (migration 031) will reconcile any drift with the actual DB state.
-      markWhatsappConversationRead(supabase, { conversationId }).then(
+      markWhatsappConversationRead(client, { conversationId }).then(
         ({ error }) => {
           if (error) {
             logger.warn("mark_whatsapp_conversation_read RPC error", {
@@ -531,7 +737,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
     // Fetch dog names for template picker auto-fill + booking-action chip.
     const humanId = conversations.find((c) => c.id === conversationId)?.human_id;
     if (humanId) {
-      const { data: dogsData } = await supabase
+      const { data: dogsData } = await client
         .from("dogs")
         .select("id, name")
         .eq("human_id", humanId)
@@ -539,7 +745,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
       if (selectedIdRef.current !== conversationId) return;
       const rows = dogsData ?? [];
       setDogNames(rows.map((d) => d.name));
-      const byId = {};
+      const byId: Record<string, string> = {};
       for (const d of rows) {
         if (d?.id && d?.name) byId[d.id] = d.name;
       }
@@ -559,7 +765,8 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
   // Realtime for the currently-selected conversation
   useEffect(() => {
     if (!supabase || !selectedId) return;
-    const channel = supabase
+    const client = supabase;
+    const channel = client
       .channel(`${CHANNELS.whatsappInboxDetail}-${selectedId}`)
       .on(
         "postgres_changes",
@@ -587,7 +794,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { client.removeChannel(channel); };
   }, [selectedId, refreshDetail]);
 
 
@@ -597,10 +804,13 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
   // Used by the "Generate reply" button on the inbox thread — under the
   // new default (Human only) the agent doesn't auto-draft, so staff
   // explicitly trigger it when they want help drafting.
-  const generateReplyForConversation = useCallback(async (conversationId) => {
+  const generateReplyForConversation = useCallback(async (
+    conversationId?: string | null,
+  ): Promise<InboxActionResult<{ replyText: string }>> => {
     const id = conversationId ?? selectedId;
     if (!id) return { ok: false, reason: "no conversation selected" };
-    const { data, error } = await supabase.functions.invoke("whatsapp-generate-reply", {
+    if (!supabase) return { ok: false, reason: "Not connected" };
+    const { data, error } = await supabase.functions.invoke<GenerateReplyResponse>("whatsapp-generate-reply", {
       body: { conversation_id: id },
     });
     if (error) {
@@ -620,10 +830,13 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
   // durable customer notes + dog grooming requests to their records.
   // Nothing is sent to the customer. Returns a human-readable summary of
   // what (if anything) changed.
-  const updateNotesFromConversation = useCallback(async (conversationId) => {
+  const updateNotesFromConversation = useCallback(async (
+    conversationId?: string | null,
+  ): Promise<InboxActionResult<{ summary: string; updated: unknown }>> => {
     const id = conversationId ?? selectedId;
     if (!id) return { ok: false, reason: "no conversation selected" };
-    const { data, error } = await supabase.functions.invoke("whatsapp-update-notes", {
+    if (!supabase) return { ok: false, reason: "Not connected" };
+    const { data, error } = await supabase.functions.invoke<UpdateNotesResponse>("whatsapp-update-notes", {
       body: { conversation_id: id },
     });
     if (error) {
@@ -642,12 +855,12 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false } = {}) {
 
 
   const sendTemplate = useCallback(
-    async (template, paramValues) => {
+    async (template: OutboundTemplate, paramValues: Record<string, string | undefined>): Promise<void> => {
       const selectedConversation = getSelectedConversationForSend(conversations, selectedId);
 
       const params = buildTemplateParams(template, paramValues);
 
-      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+      const { error } = await requireClient().functions.invoke(SEND_FUNCTION_PATH, {
         body: {
           mode: "template",
           to: selectedConversation.phone_e164,

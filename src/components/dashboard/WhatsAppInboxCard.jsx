@@ -11,7 +11,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageCircle, RefreshCw } from "lucide-react";
-import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary.js";
+import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveInboxTone } from "./tone/inbox";
 

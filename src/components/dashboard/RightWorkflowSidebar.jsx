@@ -18,7 +18,7 @@ import { BookingHistoryCard } from "./BookingHistoryCard.jsx";
 import { DeliveryFailuresCard } from "./DeliveryFailuresCard.jsx";
 import { AgentFailuresCard } from "./AgentFailuresCard.jsx";
 import { RightRailCalmRow } from "./RightRailCalmRow.jsx";
-import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary.js";
+import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures";
 import { useAgentFailures } from "../../supabase/hooks/useAgentFailures";

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import * as inbox from "./useWhatsAppInbox.js";
+import * as inbox from "./useWhatsAppInbox";
 
 const {
   filterAttachedActions,

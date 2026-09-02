@@ -16,7 +16,7 @@ import { Clock3 } from "lucide-react";
 
 import { DAILY_DOG_CAP } from "../../../constants/salon";
 import { useSalon } from "../../../contexts/SalonContext";
-import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
+import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox";
 import { PageHeader, PageHeaderPill } from "../../ui/PageHeader.jsx";
 import { CustomerContextPanel } from "../inbox/customer-context/CustomerContextPanel.jsx";
 import { useCustomerContext } from "../inbox/hooks/useCustomerContext.js";
