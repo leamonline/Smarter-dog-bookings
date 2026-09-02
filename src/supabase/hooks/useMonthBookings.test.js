@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupByDate } from "./useMonthBookings.js";
+import { groupByDate } from "./useMonthBookings";
 import { BOOKING_STATUS } from "../../constants/salon";
 
 // The month grid (MiniCalendarCard) and the reschedule picker only need a

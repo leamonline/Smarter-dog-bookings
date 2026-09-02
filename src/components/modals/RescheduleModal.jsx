@@ -7,7 +7,7 @@ import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { getDefaultOpenForDate } from "../../engine/utils";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { toDateStr } from "../../supabase/transforms";
-import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
+import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
 
