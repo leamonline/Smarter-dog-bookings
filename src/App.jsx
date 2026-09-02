@@ -1,30 +1,17 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  lazy,
-  Suspense,
-} from "react";
-import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useCallback, useEffect, lazy, Suspense } from "react";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
 
 import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
-import { getDefaultOpenForDate } from "./engine/utils";
 import { FEATURE_FLAGS } from "./constants/features";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth";
-import { useHumans } from "./supabase/hooks/useHumans";
-import { useDogs } from "./supabase/hooks/useDogs";
-import { useBookings } from "./supabase/hooks/useBookings";
-import { useSalonConfig } from "./supabase/hooks/useSalonConfig";
-import { useDaySettings } from "./supabase/hooks/useDaySettings";
 import { useWeekNav } from "./hooks/useWeekNav";
 import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup";
-import { useOfflineState } from "./hooks/useOfflineState";
 import { useModalState } from "./hooks/useModalState";
-import { useBookingActions } from "./hooks/useBookingActions";
+import { useStaffAppData } from "./hooks/useStaffAppData";
+import { useBookingSession } from "./hooks/useBookingSession";
+import { useProfileRouting } from "./hooks/useProfileRouting";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { SalonProvider } from "./contexts/SalonContext";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
@@ -37,32 +24,9 @@ import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { AppContextRow } from "./components/layout/AppContextRow.jsx";
 import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
-// Dev-only preview catalogue for the right-rail tones. Tree-shaken
-// out of production bundles by Vite (the route below is gated on
-// `import.meta.env.DEV`, which folds to `false` in prod).
-const RightRailPreview = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/dev/RightRailPreview.jsx").then((module) => ({
-        default: module.RightRailPreview,
-      })),
-    )
-  : () => null;
-// Dev-only harness for the inbox compose bar. Same tree-shaking guarantee.
-const ComposePreview = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/dev/ComposePreview.jsx").then((module) => ({
-        default: module.ComposePreview,
-      })),
-    )
-  : () => null;
-// Dev-only harness for the New client wizard. Same tree-shaking guarantee.
-const NewClientPreview = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/dev/NewClientPreview.jsx").then((module) => ({
-        default: module.NewClientPreview,
-      })),
-    )
-  : () => null;
+import { StaffRoutes } from "./components/layout/StaffRoutes.jsx";
+import { StaffModals } from "./components/layout/StaffModals.jsx";
+
 // Vercel page-view analytics. Dynamically imported so the library stays out
 // of the App chunk's boot path — it renders nothing and can arrive whenever.
 // PROD-gated the same way it was rendered before; dev gets a no-op.
@@ -85,118 +49,7 @@ const UiKitchenSink = import.meta.env.DEV
 // Dev-only harness for the customer booking wizard's responsive shell
 // (the wizard doesn't fit here otherwise — its real steps fetch live data
 // from an authenticated customer session). Same tree-shaking guarantee.
-const BookingWizardShellPreview = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/dev/BookingWizardShellPreview.jsx").then((module) => ({
-        default: module.BookingWizardShellPreview,
-      })),
-    )
-  : () => null;
-// Dev-only harness for customer dashboard card components that take plain
-// props (CustomerDashboard itself fetches internally and has no offline
-// path). Same tree-shaking guarantee.
-const CustomerDashboardCardsPreview = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/dev/CustomerDashboardCardsPreview.jsx").then((module) => ({
-        default: module.CustomerDashboardCardsPreview,
-      })),
-    )
-  : () => null;
-const HumanCardModal = lazy(() =>
-  import("./components/modals/HumanCardModal.jsx").then((module) => ({
-    default: module.HumanCardModal,
-  })),
-);
-const DogCardModal = lazy(() =>
-  import("./components/modals/DogCardModal.jsx").then((module) => ({
-    default: module.DogCardModal,
-  })),
-);
-const SettingsView = lazy(() =>
-  import("./components/views/SettingsView.jsx").then((module) => ({
-    default: module.SettingsView,
-  })),
-);
-const HumansView = lazy(() =>
-  import("./components/views/HumansView.jsx").then((module) => ({
-    default: module.HumansView,
-  })),
-);
-const DogsView = lazy(() =>
-  import("./components/views/DogsView.jsx").then((module) => ({
-    default: module.DogsView,
-  })),
-);
-const TodayView = lazy(() =>
-  import("./components/views/TodayView.jsx").then((module) => ({
-    default: module.TodayView,
-  })),
-);
-const NeedsAttentionView = lazy(() =>
-  import("./components/views/NeedsAttentionView.jsx").then((module) => ({
-    default: module.NeedsAttentionView,
-  })),
-);
-const WeekCalendarView = lazy(() =>
-  import("./components/layout/WeekCalendarView.jsx").then((module) => ({
-    default: module.WeekCalendarView,
-  })),
-);
-const ReportsLayout = lazy(() =>
-  import("./components/views/reports/ReportsLayout.jsx").then((module) => ({
-    default: module.ReportsLayout,
-  })),
-);
-const CashUpView = lazy(() =>
-  import("./components/views/reports/CashUpView.jsx").then((module) => ({
-    default: module.CashUpView,
-  })),
-);
-const ReportsInsightsView = lazy(() =>
-  import("./components/views/reports/ReportsInsightsView.jsx").then((module) => ({
-    default: module.ReportsInsightsView,
-  })),
-);
-const InboxView = lazy(() =>
-  import("./components/views/inbox/InboxView.jsx").then((module) => ({
-    default: module.InboxView,
-  })),
-);
-const BookingWorkspaceView = lazy(() =>
-  import("./components/views/booking-workspace/BookingWorkspaceView.jsx").then((module) => ({
-    default: module.BookingWorkspaceView,
-  })),
-);
-const NewBookingModal = lazy(() =>
-  import("./components/modals/NewBookingModal.jsx").then((module) => ({
-    default: module.NewBookingModal,
-  })),
-);
-const DatePickerModal = lazy(() =>
-  import("./components/modals/DatePickerModal.jsx").then((module) => ({
-    default: module.DatePickerModal,
-  })),
-);
-const BookingDetailModal = lazy(() =>
-  import("./components/modals/BookingDetailModal.jsx").then((module) => ({
-    default: module.BookingDetailModal,
-  })),
-);
-const AddDogModal = lazy(() =>
-  import("./components/modals/AddDogModal.jsx").then((module) => ({
-    default: module.AddDogModal,
-  })),
-);
-const NewClientWizard = lazy(() =>
-  import("./components/modals/new-client/index.js").then((module) => ({
-    default: module.NewClientWizard,
-  })),
-);
-const CollectionNoticeModal = lazy(() =>
-  import("./components/modals/collection-notice/CollectionNoticeModal.jsx").then((module) => ({
-    default: module.CollectionNoticeModal,
-  })),
-);
+
 const LoginPage = lazy(() =>
   import("./components/auth/LoginPage.jsx").then((module) => ({
     default: module.LoginPage,
@@ -358,6 +211,14 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
   );
 }
 
+// The authenticated staff shell. Composes:
+//   useModalState      — which modal is open
+//   useProfileRouting  — /dogs/:id + /humans/:id ↔ profile modal
+//   useWeekNav         — the calendar week + selected day
+//   useStaffAppData    — every data hook, online/offline resolved
+//   useBookingSession  — the new-booking drawer's session + park/resume
+// and renders the toolbar, <StaffRoutes> and <StaffModals>. Views and
+// modals receive the same props they always did (see those components).
 function AuthedApp({
   user,
   staffProfile,
@@ -372,124 +233,31 @@ function AuthedApp({
   const canAccessBookingWorkspace =
     FEATURE_FLAGS.booking_workspace_enabled &&
     (isOwner || (import.meta.env.DEV && !isOnline));
+
+  const modals = useModalState();
   const {
-    selectedHumanId, setSelectedHumanId,
-    selectedDogId, setSelectedDogId,
-    showDatePicker, setShowDatePicker,
-    showNewBooking, setShowNewBooking,
-    showAddDogModal, setShowAddDogModal,
-    showNewClient, setShowNewClient,
-    pendingBooking, setPendingBooking,
-    collectionNotice, setCollectionNotice,
-    selectedBooking, setSelectedBooking,
-  } = useModalState();
-
-  // Live calendar link: while the booking drawer is open, plain calendar
-  // picks (a dateStr/slot with no identity prefills) update the open draft
-  // instead of re-opening the wizard. Anything carrying identity — book
-  // again, WhatsApp, parked-draft resume — starts a FRESH session: the
-  // sessionKey remounts the drawer so its one-shot prefill refs run again
-  // (they'd otherwise silently ignore the new prefill).
-  const [draftPick, setDraftPick] = useState(null);
-  const [draftTarget, setDraftTarget] = useState(null);
-  const draftNonceRef = useRef(0);
-  const bookingSessionRef = useRef(0);
-
-  const requestNewBooking = useCallback(
-    (req) => {
-      const isCalendarPick =
-        !!req?.dateStr &&
-        !req.initialHumanId &&
-        !req.initialDogId &&
-        !req.initialEntries &&
-        !req.sourceMessageText;
-      if (showNewBooking && isCalendarPick) {
-        draftNonceRef.current += 1;
-        setDraftPick({
-          dateStr: req.dateStr,
-          slot: req.slot || "",
-          nonce: draftNonceRef.current,
-        });
-        return;
-      }
-      bookingSessionRef.current += 1;
-      setDraftPick(null);
-      setDraftTarget(null);
-      setShowNewBooking({ ...req, sessionKey: bookingSessionRef.current });
-    },
-    [showNewBooking, setShowNewBooking],
-  );
-
-  // A booking-in-progress that staff parked to create a new dog/human mid-flow
-  // (see parkBooking/resumeParkedBooking below). Mirrored in a ref so resume can
-  // read the latest value synchronously even when called twice in one tick
-  // (success path: onAdd resumes, then the modal's onClose fires too).
-  const pendingBookingRef = useRef(null);
-  // Friendly message from the most recent staff booking insert failure, written
-  // by useBookings' onError below and read back (after the awaited insert) so the
-  // booking modal can show it instead of a premature "Booking created" toast.
-  const bookingInsertErrorRef = useRef(null);
-
-  // ── Profile-page routing (task 4 of the May 2026 review) ───────
-  // /dogs/:id and /humans/:id are shareable URLs that open the dog
-  // or human profile. The route is the source of truth; the modal
-  // state mirrors it for backward compat with non-URL callers (the
-  // inbox customer context, the booking detail modal, etc.).
-  useEffect(() => {
-    const dogMatch = location.pathname.match(/^\/dogs\/([^/]+)$/);
-    const humanMatch = location.pathname.match(/^\/humans\/([^/]+)$/);
-    if (dogMatch && selectedDogId !== dogMatch[1]) {
-      setSelectedDogId(dogMatch[1]);
-    } else if (!dogMatch && location.pathname.startsWith("/dogs") && selectedDogId) {
-      // /dogs (index) — close any modal that was opened from a profile URL
-      setSelectedDogId(null);
-    }
-    if (humanMatch && selectedHumanId !== humanMatch[1]) {
-      setSelectedHumanId(humanMatch[1]);
-    } else if (!humanMatch && location.pathname.startsWith("/humans") && selectedHumanId) {
-      setSelectedHumanId(null);
-    }
-  }, [
-    location.pathname,
-    selectedDogId,
     selectedHumanId,
-    setSelectedDogId,
     setSelectedHumanId,
-  ]);
+    selectedDogId,
+    setSelectedDogId,
+    showDatePicker,
+    setShowDatePicker,
+    showNewBooking,
+    setShowNewBooking,
+    setShowAddDogModal,
+    setShowNewClient,
+    pendingBooking,
+    setPendingBooking,
+    setCollectionNotice,
+    setSelectedBooking,
+  } = modals;
 
-  const handleOpenDog = useCallback(
-    (id) => {
-      if (!id) return;
-      if (location.pathname === "/today") {
-        setSelectedDogId(id);
-        return;
-      }
-      // Profile pages get a URL — call sites still pass through here so
-      // direct navigation (e.g. /dogs/abc123 from a Slack share) and
-      // in-app clicks land on the same modal.
-      navigate(`/dogs/${id}`);
-    },
-    [location.pathname, navigate, setSelectedDogId],
-  );
-  const handleOpenHuman = useCallback(
-    (id) => {
-      if (!id) return;
-      if (location.pathname === "/today") {
-        setSelectedHumanId(id);
-        return;
-      }
-      navigate(`/humans/${id}`);
-    },
-    [location.pathname, navigate, setSelectedHumanId],
-  );
-  const handleCloseDogProfile = useCallback(() => {
-    setSelectedDogId(null);
-    if (/^\/dogs\/[^/]+$/.test(location.pathname)) navigate("/dogs");
-  }, [navigate, location.pathname, setSelectedDogId]);
-  const handleCloseHumanProfile = useCallback(() => {
-    setSelectedHumanId(null);
-    if (/^\/humans\/[^/]+$/.test(location.pathname)) navigate("/humans");
-  }, [navigate, location.pathname, setSelectedHumanId]);
+  const profile = useProfileRouting({
+    selectedDogId,
+    setSelectedDogId,
+    selectedHumanId,
+    setSelectedHumanId,
+  });
 
   // A staff push-notification click focuses this window and asks it to route
   // here via React Router (no full reload — see public/push-sw.js). Only honour
@@ -511,18 +279,16 @@ function AuthedApp({
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, [navigate]);
 
+  const weekNav = useWeekNav();
   const {
     weekStart,
-    selectedDay,
-    setSelectedDay,
     dates,
     currentDateObj,
     currentDateStr,
-    currentDayConfig,
     goToNextWeek,
     goToPrevWeek,
     handleDatePick: rawDatePick,
-  } = useWeekNav();
+  } = weekNav;
 
   const handleDatePick = useCallback(
     (pickedDate) => {
@@ -531,18 +297,7 @@ function AuthedApp({
     },
     [rawDatePick, setShowDatePicker],
   );
-
-  useKeyboardShortcuts({
-    activeOnPath: "/",
-    currentPath: location.pathname,
-    goToPrevWeek,
-    goToNextWeek,
-    jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
-    openNewBooking: useCallback(
-      () => requestNewBooking({ dateStr: currentDateStr, slot: "" }),
-      [currentDateStr, requestNewBooking],
-    ),
-  });
+  const nav = { ...weekNav, handleDatePick };
 
   // Land on the Today command centre once per tab session (post-login / first
   // open). `/` stays the calendar and is reachable via the nav + "Open
@@ -559,234 +314,56 @@ function AuthedApp({
   // Boot-path deferral for the two 50-row directory page-0 fetches: hold
   // them back until a directory route / the new-booking modal needs them,
   // or the browser goes idle (~2.5s). Targeted hydration (ensureDogsByIds /
-  // ensureHumansByIds below) is independent of page-0 and still runs at
-  // boot, so booking-card names keep resolving.
+  // ensureHumansByIds inside useStaffAppData) is independent of page-0 and
+  // still runs at boot, so booking-card names keep resolving.
   const directoriesWarm = useDirectoryWarmup({
     newBookingOpen: !!showNewBooking,
   });
 
-  const {
-    humans: sbHumans,
-    humansById,
-    loading: hl,
-    error: he,
-    updateHuman: sbUpdateHuman,
-    addHuman: sbAddHuman,
-    deleteHuman: sbDeleteHuman,
-    mergeHumans: sbMergeHumans,
-    approveSignup: sbApproveSignup,
-    rejectSignup: sbRejectSignup,
-    fetchArchivedHumans: sbFetchArchivedHumans,
-    fetchHumanById: sbFetchHumanById,
-    findHumanByFullName: sbFindHumanByFullName,
-    searchHumansByTerm: sbSearchHumansByTerm,
-    ensureHumansByIds: sbEnsureHumansByIds,
-    hasMore: humansHasMore,
-    totalCount: humansTotalCount,
-    loadMore: humansLoadMore,
-    searchHumans: humansSearchHumans,
-    searchQuery: humansSearchQuery,
-    isSearching: humansIsSearching,
-    directoryHumans: sbDirectoryHumans,
-    availableLetters: sbAvailableLetters,
-    dirSort: sbDirSort,
-    setDirSort: sbSetDirSort,
-    dirFilters: sbDirFilters,
-    toggleDirFilter: sbToggleDirFilter,
-    dirLetter: sbDirLetter,
-    setDirLetter: sbSetDirLetter,
-  } = useHumans({ startDirectoryFetch: directoriesWarm });
-  const {
-    dogs: sbDogs,
-    dogsById,
-    dogsByHumanId,
-    ensureDogsForHumans,
-    ensureDogsByIds: sbEnsureDogsByIds,
-    loading: dl,
-    error: de,
-    updateDog: sbUpdateDog,
-    addDog: sbAddDog,
-    deleteDog: sbDeleteDog,
-    fetchDogById,
-    hasMore: dogsHasMore,
-    totalCount: dogsTotalCount,
-    loadMore: dogsLoadMore,
-    searchDogs: dogsSearchDogs,
-    clearSearch: dogsClearSearch,
-    searchQuery: dogsSearchQuery,
-    isSearching: dogsIsSearching,
-    // Server-driven directory list + controls
-    directoryDogs: sbDirectoryDogs,
-    dogAvailableLetters: sbDogAvailableLetters,
-    dirSort: sbDogDirSort,
-    setDirSort: sbSetDogDirSort,
-    dirFilters: sbDogDirFilters,
-    toggleDirFilter: sbToggleDogDirFilter,
-    dirLetter: sbDogDirLetter,
-    setDirLetter: sbSetDogDirLetter,
-    fetchArchivedDogs: sbFetchArchivedDogs,
-  } = useDogs(humansById, { startDirectoryFetch: directoriesWarm });
-  const {
-    bookingsByDate: sbBookings,
-    loading: bl,
-    error: be,
-    addBooking: sbAddBooking,
-    addBookingGroup: sbAddBookingGroup,
-    removeBooking: sbRemoveBooking,
-    updateBooking: sbUpdateBooking,
-    fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
-    fetchBookingForVisit: sbFetchBookingForVisit,
-    refetch: refetchBookings,
-  } = useBookings(weekStart, dogsById, humansById, {
-    onReadyForPickup: (booking) =>
-      setCollectionNotice({ booking }),
-    // Capture the (already-friendly) insert error so the booking modal can
-    // surface it after awaiting the save, rather than toasting a false success.
-    onError: (msg) => {
-      bookingInsertErrorRef.current = msg;
-    },
-  });
-  const {
-    config: sbConfig,
-    loading: cl,
-    updateConfig: sbUpdateConfig,
-    bookingRules,
-    bookingPolicyRuntime,
-    bookingRulesLoading,
-    bookingRulesConfirmed,
-    bookingRulesError,
-    updateBookingRules,
-  } = useSalonConfig({ canSeed: isOwner });
-  const {
-    daySettings: sbDaySettings,
-    loading: dsl,
-    toggleDayOpen: sbToggleDayOpen,
-    setOverride: sbSetOverride,
-    toggleImmediateSlot: sbToggleImmediateSlot,
-    addExtraSlot: sbAddExtraSlot,
-    removeExtraSlot: sbRemoveExtraSlot,
-  } = useDaySettings(weekStart);
-
-  // ── Owner pre-fetch ────────────────────────────────────────────
-  // useHumans paginates so the local map only holds the first page.
-  // Without pre-fetching, every dog or booking whose owner sits past
-  // the page boundary renders as "Unknown owner" because dog.humanId
-  // falls back to the raw UUID and formatOwnerLabel refuses to render
-  // that. ensureHumansByIds dedupes + caches so re-renders are cheap.
-  useEffect(() => {
-    if (!sbEnsureHumansByIds) return;
-    const ids = new Set();
-    for (const d of Object.values(sbDogs || {})) {
-      if (d?._humanId) ids.add(d._humanId);
-    }
-    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
-  }, [sbDogs, sbEnsureHumansByIds]);
-
-  useEffect(() => {
-    if (!sbEnsureHumansByIds) return;
-    const ids = new Set();
-    for (const list of Object.values(sbBookings || {})) {
-      for (const b of list || []) {
-        if (b?._ownerId) ids.add(b._ownerId);
-        if (b?._pickupById) ids.add(b._pickupById);
-      }
-    }
-    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
-  }, [sbBookings, sbEnsureHumansByIds]);
-
-  // Same pattern as the owner pre-fetch above, but for dogs. useDogs
-  // paginates by name so any booking whose dog row sits past the first
-  // page would render as "Unknown" on the day view (and lose its size,
-  // breed and alerts in the detail modal). Resolving the missing rows
-  // by id here closes that gap.
-  useEffect(() => {
-    if (!sbEnsureDogsByIds) return;
-    const ids = new Set();
-    for (const list of Object.values(sbBookings || {})) {
-      for (const b of list || []) {
-        if (b?._dogId) ids.add(b._dogId);
-      }
-    }
-    if (ids.size > 0) sbEnsureDogsByIds([...ids]);
-  }, [sbBookings, sbEnsureDogsByIds]);
-
-  const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
-
-  const {
-    dogs, humans, bookingsByDate, salonConfig, daySettings,
-    handleAdd, handleAddToDate, handleAddGroupToDate, handleRemove, handleUpdate,
-    toggleDayOpen, handleOverride, toggleImmediateSlot, handleAddSlot, handleRemoveSlot,
-    updateDog, updateHuman, updateConfig, addHuman, addDog,
-  } = useBookingActions({
-    isOnline,
-    currentDateStr,
-    supabase: {
-      sbAddBooking, sbAddBookingGroup, sbRemoveBooking, sbUpdateBooking,
-      sbToggleDayOpen, sbSetOverride, sbToggleImmediateSlot, sbAddExtraSlot, sbRemoveExtraSlot,
-      sbUpdateDog, sbUpdateHuman, sbUpdateConfig, sbAddHuman, sbAddDog,
-    },
-    offline,
-    onlineData: {
-      dogs: sbDogs, humans: sbHumans, bookingsByDate: sbBookings,
-      config: sbConfig, daySettings: sbDaySettings,
-    },
-  });
-
-  // Truthful save shared by the New Booking modal and the New Client wizard:
-  // await the real insert(s) and resolve { ok, error } so the modal only
-  // toasts success once the DB accepts. The list is grouped by target date;
-  // a date's dogs save ATOMICALLY via create_staff_booking_group (AUDIT-3 —
-  // a mid-group rejection no longer leaves a partial booking), while dates
-  // stay independent of each other so a recurring series keeps its existing
-  // skip-the-full-week semantics. Single-dog dates keep the plain insert.
-  const commitBookingList = useCallback(
-    async (bookingOrArray, dateStr) => {
-      bookingInsertErrorRef.current = null;
-      const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-      const byDate = new Map();
-      for (const b of list) {
-        const key = b._bookingDate || dateStr;
-        if (!byDate.has(key)) byDate.set(key, []);
-        byDate.get(key).push(b);
-      }
-      const results = await Promise.all(
-        [...byDate.entries()].map(([dateKey, group]) =>
-          group.length === 1
-            ? handleAddToDate(group[0], dateKey)
-            : handleAddGroupToDate(group, dateKey),
-        ),
-      );
-      const ok = results.every((r) => r !== null && r !== false);
-      return {
-        ok,
-        error: ok
-          ? null
-          : bookingInsertErrorRef.current ||
-            "Couldn't save the booking — please try again.",
-      };
-    },
-    [handleAddToDate, handleAddGroupToDate],
+  // A booking flipping to ready-for-pickup (realtime, or staff pressing
+  // "send collection notice") opens the collection-notice modal.
+  const openCollectionNotice = useCallback(
+    (booking) => setCollectionNotice({ booking }),
+    [setCollectionNotice],
   );
 
-  const isLoading = isOnline && (hl || dl || cl || dsl);
-  const bookingsLoading = bl;
-  const dataError = he || de || be;
-  const [errorDismissed, setErrorDismissed] = useState(false);
-  useEffect(() => { setErrorDismissed(false); }, [dataError]);
+  const data = useStaffAppData({
+    isOnline,
+    isOwner,
+    weekStart,
+    dates,
+    currentDateStr,
+    currentDateObj,
+    directoriesWarm,
+    onReadyForPickup: openCollectionNotice,
+  });
+  const { bookingsByDate, bookingsApi, dogsApi, salonConfig } = data;
+  const { fetchBookingForVisit } = bookingsApi;
 
-  const currentSettings = daySettings[currentDateStr] || {
-    isOpen: getDefaultOpenForDate(currentDateObj),
-    overrides: {},
-    extraSlots: [],
-  };
-  const dayOpenState = useMemo(() => {
-    const state = {};
-    for (const d of dates) {
-      state[d.dateStr] =
-        daySettings[d.dateStr]?.isOpen ?? getDefaultOpenForDate(d.dateObj);
-    }
-    return state;
-  }, [dates, daySettings]);
+  const session = useBookingSession({
+    showNewBooking,
+    setShowNewBooking,
+    pendingBooking,
+    setPendingBooking,
+    setShowAddDogModal,
+    clearDogSearch: dogsApi.clearSearch,
+    currentDateStr,
+  });
+  const { requestNewBooking } = session;
+
+  useKeyboardShortcuts({
+    activeOnPath: "/",
+    currentPath: location.pathname,
+    goToPrevWeek,
+    goToNextWeek,
+    jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
+    openNewBooking: useCallback(
+      () => requestNewBooking({ dateStr: currentDateStr, slot: "" }),
+      [currentDateStr, requestNewBooking],
+    ),
+  });
+
+  const openNewClient = useCallback(() => setShowNewClient(true), [setShowNewClient]);
 
   // Open a single booking's detail modal by id. Used by the human profile
   // (at-a-glance + booking history) which only has booking ids to hand.
@@ -814,7 +391,7 @@ function AuthedApp({
 
   const handleOpenClosureVisit = useCallback(
     async (visitId) => {
-      const result = await sbFetchBookingForVisit(visitId);
+      const result = await fetchBookingForVisit(visitId);
       if (result?.ok === false || !result?.booking) return result;
 
       const booking = result.booking;
@@ -824,108 +401,8 @@ function AuthedApp({
       handleOpenBooking(booking.id, booking);
       return { ok: true };
     },
-    [sbFetchBookingForVisit, handleDatePick, handleOpenBooking],
+    [fetchBookingForVisit, handleDatePick, handleOpenBooking],
   );
-
-  // ── New-customer cold start: park & resume the in-progress booking ──────
-  // The booking wizard is dog-first, so onboarding a walk-in means stepping
-  // out to create the dog/human. Rather than tearing the wizard down and
-  // losing the staff member's date/slot/dog choices, we PARK the in-progress
-  // booking, open the create modal, then RE-OPEN the wizard with their work
-  // restored and the newly-created dog pre-selected. Pure client-side UI
-  // state — the capacity trigger, the three BEFORE INSERT gates, RLS and the
-  // staff-direct-INSERT write path are all untouched.
-  const parkBooking = useCallback(
-    (draft) => {
-      pendingBookingRef.current = draft || null;
-      setPendingBooking(draft || null);
-      setShowNewBooking(null);
-      setDraftPick(null);
-      setDraftTarget(null);
-      dogsClearSearch();
-      setShowAddDogModal(true);
-    },
-    [
-      setPendingBooking,
-      setShowNewBooking,
-      dogsClearSearch,
-      setShowAddDogModal,
-    ],
-  );
-
-  // Re-open the parked booking, restoring its date/slot and dog entries and —
-  // when a record was just created — selecting it. Guarded by the ref so the
-  // double call on the success path (onAdd resume + the modal's onClose resume)
-  // only re-opens once. A no-op when nothing was parked (e.g. the modal was
-  // opened outside the booking flow), preserving the old standalone behaviour.
-  const resumeParkedBooking = useCallback(
-    ({ newDog = null } = {}) => {
-      const draft = pendingBookingRef.current;
-      pendingBookingRef.current = null;
-      setPendingBooking(null);
-      // Close the add-dog modal and re-open the wizard in the SAME update so the
-      // two never mount together (stacked focus-trapped dialogs would fight).
-      setShowAddDogModal(false);
-      if (!draft) return;
-      const entries = [...(draft.entries || [])];
-      if (newDog) {
-        entries.push({
-          dog: newDog,
-          humanKey: newDog.humanId || draft.owner?.label || "",
-          service: "full-groom",
-          addons: [],
-        });
-      }
-      const hasEntries = entries.length > 0;
-      requestNewBooking({
-        dateStr: draft.dateStr || currentDateStr,
-        slot: draft.slot || "",
-        initialEntries: hasEntries ? entries : undefined,
-        initialHumanId:
-          (newDog && (newDog._humanId || draft.owner?.id)) ||
-          draft.owner?.id ||
-          undefined,
-      });
-    },
-    [
-      setPendingBooking,
-      setShowAddDogModal,
-      requestNewBooking,
-      currentDateStr,
-    ],
-  );
-
-  // "Save & add another dog": append a just-created dog to the PARKED booking
-  // without re-opening the wizard, so staff can register several dogs for one
-  // customer in a single AddDogModal session. The final dog goes through the
-  // normal onAdd -> resumeParkedBooking path, which appends it on top of these.
-  // Pure client-side draft state — the capacity/booking gates are untouched.
-  const appendDogToParked = useCallback(
-    (newDog) => {
-      const draft = pendingBookingRef.current;
-      if (!draft || !newDog) return;
-      const humanKey = newDog.humanId || draft.owner?.label || "";
-      const owner =
-        draft.owner ||
-        (newDog._humanId ? { id: newDog._humanId, label: humanKey, phone: "" } : null);
-      const next = {
-        ...draft,
-        owner,
-        entries: [
-          ...(draft.entries || []),
-          { dog: newDog, humanKey, service: "full-groom", addons: [] },
-        ],
-      };
-      pendingBookingRef.current = next;
-      setPendingBooking(next);
-    },
-    [setPendingBooking],
-  );
-
-  // Owner to pre-lock in the add-dog modal when the parked booking already had
-  // an owner (e.g. "+ New dog for <owner>"); null on a true cold start so the
-  // modal shows its owner search + inline create instead.
-  const pendingPresetOwner = pendingBooking?.owner || null;
 
   // Task 11 of the May 2026 review pass: don't return a full-screen
   // overlay during the initial data fetch. Render the toolbar and
@@ -945,8 +422,8 @@ function AuthedApp({
         </a>
         <OfflineDemoBanner isOnline={isOnline} />
         <NetworkOfflineBanner />
-        {dataError && !errorDismissed && (
-          <ErrorBanner message={dataError} onClose={() => setErrorDismissed(true)} />
+        {data.dataError && !data.errorDismissed && (
+          <ErrorBanner message={data.dataError} onClose={data.dismissError} />
         )}
         {passwordCompromised && (
           <ErrorBanner
@@ -963,7 +440,7 @@ function AuthedApp({
           currentDateStr={currentDateStr}
           showBookingWorkspace={canAccessBookingWorkspace}
           onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
-          onNewClient={() => setShowNewClient(true)}
+          onNewClient={openNewClient}
           onOpenOverview={() => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("smarterdog:open-overview"));
@@ -977,24 +454,24 @@ function AuthedApp({
         />
 
         <SalonProvider
-          dogs={dogs}
-          humans={humans}
+          dogs={data.dogs}
+          humans={data.humans}
           bookingsByDate={bookingsByDate}
-          daySettings={daySettings}
-          dayOpenState={dayOpenState}
+          daySettings={data.daySettings}
+          dayOpenState={data.dayOpenState}
           currentDateStr={currentDateStr}
           currentDateObj={currentDateObj}
-          onAdd={handleAdd}
-          onUpdate={handleUpdate}
-          onRemove={handleRemove}
-          onUpdateDog={updateDog}
-          onUpdateHuman={updateHuman}
-          onAddHuman={addHuman}
-          fetchHumanById={sbFetchHumanById}
-          findHumanByFullName={sbFindHumanByFullName}
-          searchHumansByTerm={sbSearchHumansByTerm}
-          onOpenHuman={handleOpenHuman}
-          onOpenDog={handleOpenDog}
+          onAdd={data.handleAdd}
+          onUpdate={data.handleUpdate}
+          onRemove={data.handleRemove}
+          onUpdateDog={data.updateDog}
+          onUpdateHuman={data.updateHuman}
+          onAddHuman={data.addHuman}
+          fetchHumanById={data.humansApi.fetchHumanById}
+          findHumanByFullName={data.humansApi.findHumanByFullName}
+          searchHumansByTerm={data.humansApi.searchHumansByTerm}
+          onOpenHuman={profile.openHuman}
+          onOpenDog={profile.openDog}
           configPricing={salonConfig?.pricing}
         >
           <ErrorBoundary>
@@ -1016,522 +493,47 @@ function AuthedApp({
                     handleDatePick(new Date());
                   }}
                 />
-                <Routes>
-                  <Route path="/settings" element={
-                    <SettingsView
-                      config={salonConfig}
-                      onUpdateConfig={updateConfig}
-                      bookingRules={bookingRules}
-                      bookingPolicyRuntime={bookingPolicyRuntime}
-                      bookingRulesLoading={bookingRulesLoading}
-                      bookingRulesConfirmed={bookingRulesConfirmed}
-                      bookingRulesError={bookingRulesError}
-                      onUpdateBookingRules={updateBookingRules}
-                      isOwner={isOwner}
-                      canEdit={isOwner || !isOnline}
-                      user={user}
-                      staffProfile={staffProfile}
-                    />
-                  } />
-                  <Route path="/humans" element={
-                    <HumansView
-                      humans={humans}
-                      dogs={dogs}
-                      dogsByHumanId={dogsByHumanId}
-                      ensureDogsForHumans={ensureDogsForHumans}
-                      onOpenHuman={handleOpenHuman}
-                      onNewClient={() => setShowNewClient(true)}
-                      onUpdateDog={updateDog}
-                      onUpdateHuman={updateHuman}
-                      fetchArchivedHumans={sbFetchArchivedHumans}
-                      hasMore={humansHasMore}
-                      totalCount={humansTotalCount}
-                      loadMore={humansLoadMore}
-                      onSearch={humansSearchHumans}
-                      searchQuery={humansSearchQuery}
-                      isSearching={humansIsSearching}
-                      directoryHumans={isOnline ? sbDirectoryHumans : null}
-                      availableLetters={sbAvailableLetters}
-                      sortMode={sbDirSort}
-                      onSortModeChange={sbSetDirSort}
-                      filters={sbDirFilters}
-                      onToggleFilter={sbToggleDirFilter}
-                      activeLetter={sbDirLetter}
-                      onLetterChange={sbSetDirLetter}
-                      isInitialLoading={isLoading}
-                      isOnline={isOnline}
-                      loadError={he}
-                    />
-                  } />
-                  {/* Profile route: shows the same HumansView underneath with the
-                      profile modal opened by the URL → state effect. */}
-                  <Route path="/humans/:id" element={
-                    <HumansView
-                      humans={humans}
-                      dogs={dogs}
-                      dogsByHumanId={dogsByHumanId}
-                      ensureDogsForHumans={ensureDogsForHumans}
-                      onOpenHuman={handleOpenHuman}
-                      onNewClient={() => setShowNewClient(true)}
-                      onUpdateDog={updateDog}
-                      onUpdateHuman={updateHuman}
-                      fetchArchivedHumans={sbFetchArchivedHumans}
-                      hasMore={humansHasMore}
-                      totalCount={humansTotalCount}
-                      loadMore={humansLoadMore}
-                      onSearch={humansSearchHumans}
-                      searchQuery={humansSearchQuery}
-                      isSearching={humansIsSearching}
-                      directoryHumans={isOnline ? sbDirectoryHumans : null}
-                      availableLetters={sbAvailableLetters}
-                      sortMode={sbDirSort}
-                      onSortModeChange={sbSetDirSort}
-                      filters={sbDirFilters}
-                      onToggleFilter={sbToggleDirFilter}
-                      activeLetter={sbDirLetter}
-                      onLetterChange={sbSetDirLetter}
-                      loadError={he}
-                      isInitialLoading={isLoading}
-                      isOnline={isOnline}
-                    />
-                  } />
-                  <Route path="/dogs" element={
-                    <DogsView
-                      dogs={dogs}
-                      humans={humans}
-                      onOpenDog={handleOpenDog}
-                      onAddDog={addDog}
-                      onAddHuman={addHuman}
-                      hasMore={dogsHasMore}
-                      totalCount={dogsTotalCount}
-                      loadMore={dogsLoadMore}
-                      onSearch={dogsSearchDogs}
-                      searchQuery={dogsSearchQuery}
-                      isSearching={dogsIsSearching}
-                      directoryDogs={isOnline ? sbDirectoryDogs : null}
-                      availableLetters={sbDogAvailableLetters}
-                      sortMode={sbDogDirSort}
-                      onSortModeChange={sbSetDogDirSort}
-                      filters={sbDogDirFilters}
-                      onToggleFilter={sbToggleDogDirFilter}
-                      activeLetter={sbDogDirLetter}
-                      onLetterChange={sbSetDogDirLetter}
-                      fetchArchivedDogs={sbFetchArchivedDogs}
-                      onUpdateDog={sbUpdateDog}
-                      isInitialLoading={isLoading}
-                      isOnline={isOnline}
-                      loadError={de}
-                    />
-                  } />
-                  <Route path="/dogs/:id" element={
-                    <DogsView
-                      dogs={dogs}
-                      humans={humans}
-                      onOpenDog={handleOpenDog}
-                      onAddDog={addDog}
-                      onAddHuman={addHuman}
-                      hasMore={dogsHasMore}
-                      totalCount={dogsTotalCount}
-                      loadMore={dogsLoadMore}
-                      onSearch={dogsSearchDogs}
-                      searchQuery={dogsSearchQuery}
-                      isSearching={dogsIsSearching}
-                      directoryDogs={isOnline ? sbDirectoryDogs : null}
-                      availableLetters={sbDogAvailableLetters}
-                      sortMode={sbDogDirSort}
-                      onSortModeChange={sbSetDogDirSort}
-                      filters={sbDogDirFilters}
-                      onToggleFilter={sbToggleDogDirFilter}
-                      activeLetter={sbDogDirLetter}
-                      onLetterChange={sbSetDogDirLetter}
-                      fetchArchivedDogs={sbFetchArchivedDogs}
-                      onUpdateDog={sbUpdateDog}
-                      isInitialLoading={isLoading}
-                      isOnline={isOnline}
-                      loadError={de}
-                    />
-                  } />
-                  <Route path="/reports" element={<ReportsLayout />}>
-                    <Route index element={<Navigate to="cash-up" replace />} />
-                    <Route path="cash-up" element={<CashUpView />} />
-                    <Route path="insights" element={<ReportsInsightsView loadError={be || de || he} />} />
-                  </Route>
-                  <Route path="/inbox" element={
-                    <InboxView
-                      onOpenHuman={handleOpenHuman}
-                      onOpenDog={handleOpenDog}
-                    />
-                  } />
-                  <Route path="/booking-workspace" element={
-                    canAccessBookingWorkspace ? (
-                      <BookingWorkspaceView
-                        isOnline={isOnline}
-                        dates={dates}
-                        currentDateStr={currentDateStr}
-                        onPickDate={handleDatePick}
-                        dailyDogCap={salonConfig?.dailyDogCap}
-                      />
-                    ) : (
-                      <Navigate to="/today" replace />
-                    )
-                  } />
-                  <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
-                  {/* Read-only backlog of unfinished work from previous days.
-                      Clicking an item opens the shared BookingDetailModal via
-                      handleOpenBooking — the view itself mutates nothing. */}
-                  <Route path="/needs-attention" element={
-                    <NeedsAttentionView
-                      dogs={dogs}
-                      humans={humans}
-                      onOpenBooking={handleOpenBooking}
-                    />
-                  } />
-                  <Route path="/today" element={
-                    <TodayView
-                      selectedDateObj={currentDateObj}
-                      selectedDateStr={currentDateStr}
-                      onOpenDatePicker={() => setShowDatePicker(true)}
-                      onOpenDog={handleOpenDog}
-                      onOpenHuman={handleOpenHuman}
-                      bookingsByDate={bookingsByDate}
-                      bookingsLoading={bookingsLoading}
-                      bookingsError={be}
-                      dogs={dogs}
-                      humans={humans}
-                      daySettings={daySettings}
-                      dayOpenState={dayOpenState}
-                      isOnline={isOnline}
-                      onUpdateBooking={handleUpdate}
-                      onOpenBooking={handleOpenBooking}
-                      onNewBooking={requestNewBooking}
-                      onSendCollection={(booking) =>
-                        setCollectionNotice({ booking })
-                      }
-                      toggleImmediateSlot={toggleImmediateSlot}
-                      onRefresh={refetchBookings}
-                      configPricing={salonConfig?.pricing}
-                    />
-                  } />
-                  <Route path="/" element={
-                    <WeekCalendarView
-                      selectedDay={selectedDay}
-                      setSelectedDay={setSelectedDay}
-                      dates={dates}
-                      currentDateObj={currentDateObj}
-                      currentDateStr={currentDateStr}
-                      currentDayConfig={currentDayConfig}
-                      goToNextWeek={goToNextWeek}
-                      goToPrevWeek={goToPrevWeek}
-                      bookingsByDate={bookingsByDate}
-                      bookingsLoading={bookingsLoading}
-                      bookingsError={be}
-                      daySettings={daySettings}
-                      dayOpenState={dayOpenState}
-                      dogs={dogs}
-                      dogsByHumanId={dogsByHumanId}
-                      ensureDogsForHumans={ensureDogsForHumans}
-                      humans={humans}
-                      currentSettings={currentSettings}
-                      handleRemove={handleRemove}
-                      handleUpdate={handleUpdate}
-                      handleOverride={handleOverride}
-                      toggleImmediateSlot={toggleImmediateSlot}
-                      handleAddSlot={handleAddSlot}
-                      handleRemoveSlot={handleRemoveSlot}
-                      toggleDayOpen={toggleDayOpen}
-                      showDatePicker={showDatePicker}
-                      setShowDatePicker={setShowDatePicker}
-                      handleDatePick={handleDatePick}
-                      setShowNewBooking={requestNewBooking}
-                      draftPick={showNewBooking ? draftTarget : null}
-                      onOpenHuman={handleOpenHuman}
-                      onOpenClosureVisit={handleOpenClosureVisit}
-                      onRefresh={refetchBookings}
-                    />
-                  } />
-                  {import.meta.env.DEV && (
-                    <Route
-                      path="/dev/right-rail-preview"
-                      element={<RightRailPreview />}
-                    />
-                  )}
-                  {import.meta.env.DEV && (
-                    <Route
-                      path="/dev/compose-preview"
-                      element={<ComposePreview />}
-                    />
-                  )}
-                  {import.meta.env.DEV && (
-                    <Route
-                      path="/dev/new-client"
-                      element={<NewClientPreview />}
-                    />
-                  )}
-                  {import.meta.env.DEV && (
-                    <Route
-                      path="/dev/booking-wizard-shell-preview"
-                      element={<BookingWizardShellPreview />}
-                    />
-                  )}
-                  {import.meta.env.DEV && (
-                    <Route
-                      path="/dev/customer-dashboard-cards-preview"
-                      element={<CustomerDashboardCardsPreview />}
-                    />
-                  )}
-                  <Route path="*" element={<Navigate to="/today" replace />} />
-                </Routes>
+                <StaffRoutes
+                  data={data}
+                  nav={nav}
+                  ui={{
+                    user,
+                    staffProfile,
+                    isOwner,
+                    isOnline,
+                    canAccessBookingWorkspace,
+                    showDatePicker,
+                    setShowDatePicker,
+                    showNewBooking,
+                    draftTarget: session.draftTarget,
+                    requestNewBooking,
+                    openNewClient,
+                    onOpenDog: profile.openDog,
+                    onOpenHuman: profile.openHuman,
+                    onOpenBooking: handleOpenBooking,
+                    onOpenClosureVisit: handleOpenClosureVisit,
+                    onSendCollection: openCollectionNotice,
+                  }}
+                />
               </main>
             </Suspense>
           </ErrorBoundary>
 
-          {showDatePicker && location.pathname === "/today" && (
-            <Suspense fallback={<LoadingSpinner />}>
-              <DatePickerModal
-                currentDate={currentDateObj}
-                onSelectDate={handleDatePick}
-                onClose={() => setShowDatePicker(false)}
-                dayOpenState={dayOpenState}
-                allowClosedDates={location.pathname === "/today"}
-              />
-            </Suspense>
-          )}
-
-          {selectedHumanId && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <HumanCardModal
-                  humanId={selectedHumanId}
-                  onClose={handleCloseHumanProfile}
-                  onOpenHuman={handleOpenHuman}
-                  onOpenDog={handleOpenDog}
-                  humans={humans}
-                  dogs={dogs}
-                  dogsByHumanId={dogsByHumanId}
-                  ensureDogsForHumans={ensureDogsForHumans}
-                  onUpdateHuman={updateHuman}
-                  onAddHuman={addHuman}
-                  onAddDog={addDog}
-                  onDeleteHuman={sbDeleteHuman}
-                  bookingsByDate={bookingsByDate}
-                  fetchHumanById={sbFetchHumanById}
-                  findHumanByFullName={sbFindHumanByFullName}
-                  searchHumansByTerm={sbSearchHumansByTerm}
-                  onNewBookingForHuman={(hid) => {
-                    handleCloseHumanProfile();
-                    requestNewBooking({
-                      dateStr: currentDateStr,
-                      slot: "",
-                      initialHumanId: hid,
-                    });
-                  }}
-                  onSendMessage={(hid) => {
-                    handleCloseHumanProfile();
-                    navigate(`/inbox?human=${hid}`);
-                  }}
-                  onOpenBooking={handleOpenBooking}
-                  onBookAgain={(booking) => {
-                    handleCloseHumanProfile();
-                    requestNewBooking({
-                      dateStr: currentDateStr,
-                      slot: "",
-                      initialHumanId: booking._ownerId || selectedHumanId,
-                      initialDogId: booking._dogId,
-                      initialService: booking.service,
-                      initialAddons: booking.addons || [],
-                    });
-                  }}
-                  onMergeHumans={sbMergeHumans}
-                  onArchiveHuman={(hid) =>
-                    updateHuman(hid, { archivedAt: new Date().toISOString() })
-                  }
-                  onApproveSignup={sbApproveSignup}
-                  onRejectSignup={sbRejectSignup}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {selectedDogId && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <DogCardModal
-                  dogId={selectedDogId}
-                  onClose={handleCloseDogProfile}
-                  onOpenHuman={handleOpenHuman}
-                  onOpenBooking={handleOpenBooking}
-                  dogs={dogs}
-                  humans={humans}
-                  onUpdateDog={updateDog}
-                  onUpdateHuman={updateHuman}
-                  onAddHuman={addHuman}
-                  onDeleteDog={sbDeleteDog}
-                  bookingsByDate={bookingsByDate}
-                  fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
-                  fetchDogById={fetchDogById}
-                  fetchHumanById={sbFetchHumanById}
-                  handleAdd={handleAdd}
-                  findHumanByFullName={sbFindHumanByFullName}
-                  searchHumansByTerm={sbSearchHumansByTerm}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {showNewBooking && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <NewBookingModal
-                  key={showNewBooking.sessionKey}
-                  draftPick={draftPick}
-                  onDraftTargetChange={setDraftTarget}
-                  onClose={() => {
-                    setShowNewBooking(null);
-                    setDraftPick(null);
-                    setDraftTarget(null);
-                    dogsClearSearch();
-                  }}
-                  onAdd={commitBookingList}
-                  dogs={dogs}
-                  humans={humans}
-                  dogsByHumanId={dogsByHumanId}
-                  ensureDogsForHumans={ensureDogsForHumans}
-                  bookingsByDate={bookingsByDate}
-                  dayOpenState={dayOpenState}
-                  daySettings={daySettings}
-                  onBookAnother={(ownerId) =>
-                    requestNewBooking({
-                      dateStr: currentDateStr,
-                      slot: "",
-                      initialHumanId: ownerId,
-                    })
-                  }
-                  onOpenAddDog={(draft) => parkBooking(draft)}
-                  onOpenNewClient={() => {
-                    // Brand-new customer: hand off to the guided New Client
-                    // wizard. The search step only shows before a dog is picked,
-                    // so nothing in-progress is lost by closing the booking modal.
-                    setShowNewBooking(null);
-                    setDraftPick(null);
-                    setDraftTarget(null);
-                    dogsClearSearch();
-                    setShowNewClient(true);
-                  }}
-                  initialDateStr={showNewBooking.dateStr}
-                  initialSlot={showNewBooking.slot}
-                  initialHumanId={showNewBooking.initialHumanId}
-                  initialDogId={showNewBooking.initialDogId}
-                  initialEntries={showNewBooking.initialEntries}
-                  initialService={showNewBooking.initialService}
-                  initialAddons={showNewBooking.initialAddons}
-                  initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
-                  sourceConversationId={showNewBooking.sourceConversationId}
-                  sourceMessageText={showNewBooking.sourceMessageText}
-                  ownerName={showNewBooking.ownerName}
-                  onSearchDogs={dogsSearchDogs}
-                  isSearchingDogs={dogsIsSearching}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {selectedBooking && (
-            <ErrorBoundary>
-              <Suspense fallback={null}>
-                <BookingDetailModal
-                  booking={selectedBooking}
-                  onClose={() => setSelectedBooking(null)}
-                  onAdd={handleAdd}
-                  onRemove={handleRemove}
-                  onOpenHuman={handleOpenHuman}
-                  onMessageOwner={(hid) => { setSelectedBooking(null); navigate(`/inbox?human=${hid}`); }}
-                  onOpenDog={handleOpenDog}
-                  onUpdate={handleUpdate}
-                  currentDateStr={selectedBooking._bookingDate || currentDateStr}
-                  currentDateObj={
-                    selectedBooking._bookingDate
-                      ? new Date(`${selectedBooking._bookingDate}T00:00:00`)
-                      : currentDateObj
-                  }
-                  bookingsByDate={bookingsByDate}
-                  dayOpenState={dayOpenState}
-                  dogs={dogs}
-                  humans={humans}
-                  onUpdateDog={updateDog}
-                  onUpdateHuman={updateHuman}
-                  onAddHuman={addHuman}
-                  fetchHumanById={sbFetchHumanById}
-                  findHumanByFullName={sbFindHumanByFullName}
-                  searchHumansByTerm={sbSearchHumansByTerm}
-                  daySettings={daySettings}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {showAddDogModal && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <AddDogModal
-                  onClose={() => {
-                    setShowAddDogModal(false);
-                    // Cancel: re-open the parked booking with their work intact
-                    // (no new dog). No-op if nothing was parked, or already
-                    // resumed by a successful add below.
-                    resumeParkedBooking();
-                  }}
-                  onAdd={async (dogData) => {
-                    const result = await addDog(dogData);
-                    // Success: re-open the booking with the new dog selected so
-                    // staff don't have to re-search for the dog they just made.
-                    if (result) resumeParkedBooking({ newDog: result });
-                    return result;
-                  }}
-                  onAddAnother={async (dogData) => {
-                    const result = await addDog(dogData);
-                    // Accumulate into the parked booking and keep the add-dog
-                    // modal open so the next dog for this customer is one form away.
-                    if (result) appendDogToParked(result);
-                    return result;
-                  }}
-                  onAddHuman={addHuman}
-                  presetOwner={pendingPresetOwner}
-                  humans={humans}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {showNewClient && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <NewClientWizard
-                  onClose={() => setShowNewClient(false)}
-                  addHuman={addHuman}
-                  addDog={addDog}
-                  onAddBookings={commitBookingList}
-                  findHumanByFullName={sbFindHumanByFullName}
-                  onBookAnother={(ownerId) =>
-                    requestNewBooking({ dateStr: currentDateStr, slot: "", initialHumanId: ownerId })
-                  }
-                  bookingsByDate={bookingsByDate}
-                  dayOpenState={dayOpenState}
-                  daySettings={daySettings}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {collectionNotice && (
-            <ErrorBoundary>
-              <Suspense fallback={null}>
-                <CollectionNoticeModal
-                  booking={collectionNotice.booking}
-                  onClose={() => setCollectionNotice(null)}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
+          <StaffModals
+            data={data}
+            nav={nav}
+            modals={modals}
+            session={session}
+            ui={{
+              pathname: location.pathname,
+              navigate,
+              onOpenDog: profile.openDog,
+              onOpenHuman: profile.openHuman,
+              onOpenBooking: handleOpenBooking,
+              onCloseDogProfile: profile.closeDogProfile,
+              onCloseHumanProfile: profile.closeHumanProfile,
+            }}
+          />
         </SalonProvider>
         {import.meta.env.PROD ? (
           <Suspense fallback={null}>

@@ -4,7 +4,15 @@
  * online or offline versions based on connectivity.
  */
 import { useCallback } from "react";
-import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } from "../types/index";
+import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate, SlotOverrides } from "../types/index";
+import type { useDogs } from "../supabase/hooks/useDogs";
+import type { useHumans } from "../supabase/hooks/useHumans";
+import type { WeekDaySettingsMap } from "../supabase/hooks/useDaySettings";
+import type { useOfflineState } from "./useOfflineState";
+
+// A seat override action ("open" | "blocked") — the same literal union the
+// day-settings hook and the offline fallback accept.
+type SeatAction = SlotOverrides[number];
 
 // The update-family signatures below were corrected to the REAL contracts
 // (the originals declared 1-arg/void shapes that the implementations never
@@ -44,7 +52,7 @@ interface SupabaseFns {
     dateStr: string,
     slot: string,
     seatIndex: number,
-    action: string,
+    action: SeatAction,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   // Whole-slot "open for immediate booking" toggle (useDaySettings) — same
   // upsertSetting outcome union as the rest of the day-settings family.
@@ -58,14 +66,11 @@ interface SupabaseFns {
   sbRemoveExtraSlot: (
     dateStr: string,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
-  sbUpdateDog: (
-    dogIdOrName: string,
-    updates: Partial<Dog> & Record<string, unknown>,
-  ) => Promise<Dog | null | undefined>;
-  sbUpdateHuman: (
-    humanIdOrName: string,
-    updates: Partial<Human> & Record<string, unknown>,
-  ) => Promise<Human | null | undefined>;
+  // The dog/human updaters are the data hooks' own contracts (DogPatch /
+  // HumanPatch in, the merged record or null/undefined out) — derived rather
+  // than restated so this file can't drift from them again.
+  sbUpdateDog: ReturnType<typeof useDogs>["updateDog"];
+  sbUpdateHuman: ReturnType<typeof useHumans>["updateHuman"];
   // updateConfig accepts a value OR an updater function and resolves to an
   // outcome object (useSalonConfig.ts) — the settings panels all call it
   // with `(prev) => ...` and branch on `result?.ok === false`, neither of
@@ -80,68 +85,14 @@ interface SupabaseFns {
   sbAddHuman: (
     humanData: Partial<Human> & Record<string, unknown>,
   ) => Promise<unknown>;
-  sbAddDog: (
-    dogData: Partial<Dog> & Record<string, unknown>,
-  ) => Promise<unknown>;
+  // Likewise derived: useDogs' addDog requires a name (NewDogInput).
+  sbAddDog: ReturnType<typeof useDogs>["addDog"];
 }
 
-interface OfflineFns {
-  // Two args like the online wrapper (callers may pass a target date and
-  // await the returned booking); the original 1-arg/void shape was a liar
-  // in the same way as the pre-#259 handleUpdate.
-  handleAdd: (booking: Booking, targetDateStr?: string) => Promise<Booking>;
-  handleAddToDate: (booking: Booking, dateStr: string) => void;
-  // Resolves true after the optimistic removal (useOfflineState.ts); the
-  // original declared void.
-  handleRemove: (bookingId: string) => Promise<boolean>;
-  // Same shape as sbUpdateBooking: the offline handler also applies
-  // cross-date moves and resolves to the updated booking, so the
-  // booking-detail save path behaves identically off WiFi.
-  handleUpdate: (
-    booking: Booking & { staff_capacity_override?: boolean },
-    fromDateStr: string,
-    toDateStr: string,
-  ) => Promise<Booking>;
-  toggleDayOpen: (nextIsOpen?: boolean) => void;
-  // Synchronous and infallible: applies the override locally and returns
-  // { ok: true } — never a Promise and never ok: false (the Promise half
-  // of the old declared union belonged to the ONLINE setOverride, which is
-  // now typed truthfully above).
-  handleOverride: (slot: string, seatIndex: number, action: string) => { ok: true };
-  // Offline mirror of the immediate-slot toggle — synchronous + infallible
-  // like handleOverride.
-  toggleImmediateSlot: (slot: string) => { ok: true };
-  handleAddSlot: () => void;
-  handleRemoveSlot: () => void;
-  // (idOrName, updates) like the online hooks; updateDog resolves to the
-  // merged dog or null when the identifier matches nothing, so save flows
-  // can tell the two apart (useBookingSave checks `== null`).
-  updateDog: (
-    dogIdOrName: string,
-    updates: Partial<Dog> & Record<string, unknown>,
-  ) => Dog | null;
-  updateHuman: (
-    humanIdOrName: string,
-    updates: Partial<Human> & Record<string, unknown>,
-  ) => void;
-  // Also synchronous + infallible — it mirrors useSalonConfig's outcome
-  // SHAPE so callers can `await` either mode, but it never returns a
-  // Promise and never fails, so the declared Promise<ok-union> was a liar.
-  updateConfig: (
-    config: SalonConfig | ((prev: SalonConfig) => SalonConfig),
-  ) => { ok: true };
-  // Like the online pair these take Add-modal form payloads, and both
-  // return the stored record — the Add modals branch on the result and
-  // read `.id` from it, which the original (full model) => void shapes
-  // got wrong on both ends.
-  addHuman: (humanData: Partial<Human> & Record<string, unknown>) => Human;
-  addDog: (dogData: Partial<Dog> & Record<string, unknown>) => Dog;
-  dogs: Record<string, Dog>;
-  humans: Record<string, Human>;
-  bookingsByDate: BookingsByDate;
-  config: SalonConfig;
-  daySettings: Record<string, DaySettings>;
-}
+// The offline fallback IS the contract: derive it from useOfflineState so the
+// two can't drift (the hand-written copy this replaced had, over time,
+// declared several 1-arg/void shapes the implementation never had).
+type OfflineFns = ReturnType<typeof useOfflineState>;
 
 interface UseBookingActionsParams {
   isOnline: boolean;
@@ -152,8 +103,12 @@ interface UseBookingActionsParams {
     dogs: Record<string, Dog>;
     humans: Record<string, Human>;
     bookingsByDate: BookingsByDate;
-    config: SalonConfig;
-    daySettings: Record<string, DaySettings>;
+    // null until salon_config loads (useSalonConfig) — the shell
+    // optional-chains every read (salonConfig?.pricing).
+    config: SalonConfig | null;
+    // Per-date rows may carry isOpen: null ("use the weekday default");
+    // dayOpenState resolves that with getDefaultOpenForDate.
+    daySettings: WeekDaySettingsMap;
   };
 }
 
@@ -211,7 +166,7 @@ export function useBookingActions({
     [sbToggleDayOpen, currentDateStr],
   );
   const onlineHandleOverride = useCallback(
-    (slot: string, seatIndex: number, action: string) =>
+    (slot: string, seatIndex: number, action: SeatAction) =>
       sbSetOverride(currentDateStr, slot, seatIndex, action),
     [sbSetOverride, currentDateStr],
   );

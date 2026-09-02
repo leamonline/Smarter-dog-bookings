@@ -26,7 +26,7 @@ sustained workstream (week+).
 | 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
 | 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Open, moved** | `InboxView.jsx` is a one-line re-export; the cascade now lives in `views/inbox/workspace/InboxWorkspaceController.jsx` (760 lines). |
-| 11 `App.jsx` hub | Open, worse (1,025 LoC) | **Open, worse again** | 1,525 lines. |
+| 11 `App.jsx` hub | Open, worse (1,025 LoC) | **Reduced (2 Sept 2026)** | 546 lines (from 1,544). Data layer → `useStaffAppData`, drawer session → `useBookingSession`, profile URLs → `useProfileRouting`, routes → `StaffRoutes`, modals → `StaffModals`; `appShell.test.ts` ratchets the line count. Views still take their props (the "behind `SalonProvider`" half of 1.4 is open). |
 | 12 Direct Supabase client in components | Frozen + baselined (29 files) | **Closed (2 Sept 2026)** | 0 files on the allowlist; the `ignores` list now holds only the test globs. See the burn-down table under Debt 12. |
 | 13 snake_case leaks into customer components | Partially closed | Closed for the customer surface | Dashboard, BookingCard and dog forms consume repository-shaped objects. |
 | 14 Two dog maps | Closed | Closed | Unchanged. |
@@ -89,6 +89,8 @@ make the next regression visible in CI instead of in the next audit.
 > **Debt 10 — Status (June 2026):** OPEN — verified still present: `views/inbox/InboxView.jsx` is 706 LoC (was 708); the list-mode cascade remains.
 >
 > **Debt 11 — Status (June 2026):** OPEN — verified still present, and worse: `App.jsx` has grown to 1,025 LoC and remains the routing/modal/prop hub.
+>
+> **Debt 11 — Update (September 2026):** REDUCED — `App.jsx` is 546 lines (from 1,544). The data layer moved to `src/hooks/useStaffAppData.ts` (the five data hooks, the pagination pre-fetch effects, the offline fallback and `useBookingActions`), the drawer session + park/resume to `useBookingSession.ts`, the profile-URL sync to `useProfileRouting.ts`, the route map to `components/layout/StaffRoutes.jsx` and the modal stack to `components/layout/StaffModals.jsx`. `src/appShell.test.ts` ratchets the line count and bans the data hooks from returning. Still open: the views take the same props they always did; moving them onto `SalonContext` is the second half of assessment item 1.4. Typing the extraction also surfaced and fixed contract drift in `useBookingActions.ts` (its Supabase/offline function shapes are now derived from the real hooks).
 
 ## Leaky abstractions
 

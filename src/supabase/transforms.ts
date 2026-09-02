@@ -347,7 +347,7 @@ export function buildDogsById(rows: DbDogRow[]): Record<string, DbDogRow> {
 export function dbBookingsToArray(
   rows: DbBookingRow[],
   dogsById: Record<string, DbDogRow>,
-  humansById: Record<string, DbHumanRow & { fullName: string }>,
+  humansById: Record<string, { id: string; fullName: string }>,
   humans: Record<string, Human> | null = null,
 ): Booking[] {
   return rows.map((row) => {

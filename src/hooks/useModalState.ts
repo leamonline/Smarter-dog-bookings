@@ -7,16 +7,18 @@ import type { Booking } from "../types/index";
 
 // A parked dog entry — a selected dog plus its booking choices — carried out of
 // the wizard while staff create a new dog/human, then restored on resume.
-interface BookingEntryDraft {
+export interface BookingEntryDraft {
   dog: Record<string, unknown>;
   humanKey: string;
   service: string;
   addons: string[];
 }
 
-interface NewBookingData {
+export interface NewBookingData {
   dateStr: string;
-  slot: string;
+  // Optional: callers such as the keyboard shortcut and "book again" open the
+  // drawer without a slot; the wizard treats undefined and "" alike.
+  slot?: string;
   initialHumanId?: string;
   // "Book again" prefill — seed the wizard with a specific dog + service.
   initialDogId?: string;
@@ -25,18 +27,27 @@ interface NewBookingData {
   // Resume prefill — dog entries (existing + any newly created) restored when
   // the wizard re-opens after staff stepped out to add a dog/human mid-booking.
   initialEntries?: BookingEntryDraft[];
+  // Staff-only capacity override requested by the caller (e.g. the inbox).
+  capacityOverride?: boolean;
+  // WhatsApp hand-off: the conversation + message the booking came from.
+  sourceConversationId?: string;
+  sourceMessageText?: string;
+  ownerName?: string;
+  // Remount key so a fresh session re-runs the wizard's one-shot prefills
+  // (assigned by useBookingSession, never by callers).
+  sessionKey?: number;
 }
 
 // A booking-in-progress parked while staff create a new dog/human. Pure UI
 // state used only to re-open the wizard with the staff member's work intact.
-interface PendingBooking {
+export interface PendingBooking {
   dateStr: string;
   slot: string;
   entries: BookingEntryDraft[];
   owner: { id: string; label: string; phone: string } | null;
 }
 
-interface CollectionNoticeRequest {
+export interface CollectionNoticeRequest {
   booking: Booking;
 }
 
