@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { validateContactPhone } from "../dog-card/helpers.js";
+import { isHumanPhoneTakenError } from "../../../supabase/hooks/humans/phoneTaken";
 
 const DRAFT_KEYS = [
   "name",
@@ -46,7 +47,18 @@ function draftsEqual(a, b) {
 
 // `shortcutPaused` suspends the "E" edit toggle while a confirm dialog
 // owns the keyboard (delete / discard-changes).
-export function useHumanDraft({ human, humanId, onUpdateHuman, shortcutPaused }) {
+//
+// `onPhoneTaken(phone, updates)` is the card's hand-off when a number save
+// loses to humans_phone_unique: it resolves true once the card has dealt
+// with it (linked a pending portal signup and saved), false if the staff
+// member backed out — the draft stays open for them either way.
+export function useHumanDraft({
+  human,
+  humanId,
+  onUpdateHuman,
+  onPhoneTaken,
+  shortcutPaused,
+}) {
   const toast = useToast();
 
   const [mode, setMode] = useState("view");
@@ -132,30 +144,57 @@ export function useHumanDraft({ human, humanId, onUpdateHuman, shortcutPaused })
       }
       phoneToSave = value;
     }
-    setSaving(true);
-    try {
-      const updates = {
-        name: draft.name.trim(),
-        surname: draft.surname.trim(),
-        fullName: `${draft.name.trim()} ${draft.surname.trim()}`.trim(),
-        phone: phoneToSave,
-        email: draft.email.trim(),
-        address: draft.address.trim(),
-        fb: draft.fb.trim(),
-        insta: draft.insta.trim(),
-        tiktok: draft.tiktok.trim(),
-        notes: draft.notes.trim(),
-        sms: draft.sms,
-        whatsapp: draft.whatsapp,
-        historyFlag: draft.historyFlag.trim(),
-      };
-      await onUpdateHuman(human.id || humanId, updates);
+    const updates = {
+      name: draft.name.trim(),
+      surname: draft.surname.trim(),
+      fullName: `${draft.name.trim()} ${draft.surname.trim()}`.trim(),
+      phone: phoneToSave,
+      email: draft.email.trim(),
+      address: draft.address.trim(),
+      fb: draft.fb.trim(),
+      insta: draft.insta.trim(),
+      tiktok: draft.tiktok.trim(),
+      notes: draft.notes.trim(),
+      sms: draft.sms,
+      whatsapp: draft.whatsapp,
+      historyFlag: draft.historyFlag.trim(),
+    };
+    const finishEdit = () => {
       setMode("view");
       setEditFocusKey(null);
-      toast.show("Profile saved", "success");
-    } finally {
+    };
+
+    setSaving(true);
+    let saved;
+    try {
+      saved = await onUpdateHuman(human.id || humanId, updates);
+    } catch (err) {
       setSaving(false);
+      if (isHumanPhoneTakenError(err)) {
+        // The number belongs to another record. Hand over to the card,
+        // which can link a pending portal signup or name the other
+        // customer; the draft stays open so nothing typed is lost.
+        if (onPhoneTaken) {
+          const handled = await onPhoneTaken(err.phone, updates);
+          if (handled) finishEdit();
+          return;
+        }
+        toast.show(err.message, "error");
+        return;
+      }
+      toast.show("Couldn't save those changes — give it another go", "error");
+      return;
     }
+    setSaving(false);
+    // updateHuman reports a failed write as an explicit null (it has already
+    // rolled the optimistic maps back). Saying "saved" here was how a
+    // rejected phone change used to pass unnoticed.
+    if (saved === null) {
+      toast.show("Couldn't save those changes — give it another go", "error");
+      return;
+    }
+    finishEdit();
+    toast.show("Profile saved", "success");
   };
 
   // "E" toggles edit mode when no input is focused. Skipped while the

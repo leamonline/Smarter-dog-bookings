@@ -11,6 +11,7 @@ import { stripFormatChars } from "../../../utils/phone.js";
 import { isRealPersonName } from "../../../utils/text";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry, humanEntryToRow, isRawHumanCacheRow } from "./helpers";
+import { HumanPhoneTakenError, isPhoneUniqueViolation } from "./phoneTaken";
 import type { Database } from "../../database.types";
 import type {
   HumanCacheEntry,
@@ -159,6 +160,12 @@ export function useHumanMutations({
           setError(updateErr.message);
           setHumans(prevHumans);
           setHumansById(prevHumansById);
+          // A phone collision is the one failure the caller can act on
+          // (link a pending portal signup / name the other customer), so it
+          // is thrown typed rather than folded into the generic null.
+          if (isPhoneUniqueViolation(updateErr)) {
+            throw new HumanPhoneTakenError(dbUpdates.phone || "");
+          }
           return null;
         }
 

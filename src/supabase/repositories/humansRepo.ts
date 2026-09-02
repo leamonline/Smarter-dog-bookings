@@ -56,6 +56,54 @@ export async function getHumanById(
 }
 
 /**
+ * Who already holds a phone number — the answer the Human card needs when a
+ * number save collides with humans_phone_unique. `isPendingSignup` is the
+ * "Join the Pack" shell state: a self-signup that staff have not approved and
+ * that carries a portal login, i.e. exactly what link_pending_signup() accepts.
+ */
+export interface HumanByPhoneHit {
+  id: string;
+  name: string | null;
+  surname: string | null;
+  phone: string | null;
+  isPendingSignup: boolean;
+}
+
+const BY_PHONE_COLS = "id, name, surname, phone, source, approved_at, customer_user_id";
+
+export async function findHumanByPhone(
+  client: SupabaseClient,
+  phone: string,
+): Promise<HumanByPhoneHit | null> {
+  const trimmed = (phone || "").trim();
+  if (!trimmed) return null;
+  const { data, error } = await client
+    .from("humans")
+    .select(BY_PHONE_COLS)
+    .eq("phone", trimmed)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as {
+    id: string;
+    name: string | null;
+    surname: string | null;
+    phone: string | null;
+    source: string | null;
+    approved_at: string | null;
+    customer_user_id: string | null;
+  };
+  return {
+    id: row.id,
+    name: row.name,
+    surname: row.surname,
+    phone: row.phone,
+    isPendingSignup:
+      row.source === "self_signup" && !row.approved_at && !!row.customer_user_id,
+  };
+}
+
+/**
  * Staff customer picker search: match humans by name / surname / phone, plus
  * the owners of any dog whose name matches. Returns a deduped, first-seen,
  * capped-at-20 list. Moved out of ComposeNewModal so the query + merge live in
