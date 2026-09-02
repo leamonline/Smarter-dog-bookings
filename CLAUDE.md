@@ -37,6 +37,8 @@ npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sampl
                        #   (sandbox: PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium)
 npm run check:migrations  # validate migration filenames/order
 npm run check:sentry   # is browser error reporting actually live on prod? (ACTIVE/INACTIVE)
+npm run check:advisors # diff the hosted Supabase advisors against supabase/advisors/baseline.json
+                       #   (needs SUPABASE_ACCESS_TOKEN; --update rewrites the baseline)
 ```
 
 **CI bar (`.github/workflows/ci.yml`, Node 24):** `lint → check:docs → typecheck → check-migrations →

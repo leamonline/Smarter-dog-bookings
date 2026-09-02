@@ -1,0 +1,42 @@
+name: Advisor Drift Audit
+
+# Why this exists:
+# The hosted project's security and performance advisors report ~200
+# findings, every one of them read and either fixed or accepted with a
+# reason (docs/supabase-advisors.md). supabase/advisors/baseline.json is
+# that acceptance as a file. This workflow diffs the live advisors against
+# it on a schedule so a NEW finding (a table created without RLS, a new
+# SECURITY DEFINER function, a level escalation) shows up as a one-line
+# diff instead of disappearing among a hundred known ones.
+#
+# It does not block merges — it is an alarm, like check-migrations-drift.
+# A failed scheduled run emails the repo admins. To run it by hand:
+#   SUPABASE_ACCESS_TOKEN=… npm run check:advisors
+#
+# Secret required: SUPABASE_ACCESS_TOKEN (the same Management API token the
+# migration workflows use).
+
+on:
+  schedule:
+    # Mondays 06:20 UTC — after the weekend, before the week's first merges.
+    - cron: "20 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisors:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # No npm ci: the script uses only Node built-ins.
+      - name: Diff the hosted advisors against the committed baseline
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/check-advisors.mjs
