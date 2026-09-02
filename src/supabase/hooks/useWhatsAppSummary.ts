@@ -1,5 +1,5 @@
 // ============================================================
-// src/supabase/hooks/useWhatsAppSummary.js
+// src/supabase/hooks/useWhatsAppSummary.ts
 //
 // Dashboard-sidebar summary for the WhatsApp side of the app.
 //
@@ -41,15 +41,67 @@
 // ============================================================
 
 import { useSyncExternalStore, useCallback } from "react";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
+
+type MessageRow = Database["public"]["Tables"]["whatsapp_messages"]["Row"];
+
+/** One row of the dashboard's "recent conversations" list. */
+export interface RecentConversation {
+  conversationId: string;
+  humanId: string | null;
+  displayName: string;
+  lastText: string;
+  lastAt: string | null;
+  unreadCount: number;
+}
+
+export interface AiSummaryState {
+  text: string;
+  awaitingCount: number;
+  generatedAt: string | null;
+  fromCache: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface WhatsAppSummaryState {
+  awaitingReply: number;
+  /** ISO timestamp of the oldest inbound still ahead of our last reply; null when none. */
+  oldestUnansweredAt: string | null;
+  draftsPending: number;
+  conversationsToday: number;
+  recentConversations: RecentConversation[];
+  aiSummary: AiSummaryState;
+  loading: boolean;
+}
+
+export interface UseWhatsAppSummaryResult extends WhatsAppSummaryState {
+  refreshAiSummary: () => Promise<void>;
+}
+
+/** The dashboard-summary edge function's JSON body. */
+interface DashboardSummaryResponse {
+  summary?: string;
+  awaitingCount?: number;
+  generatedAt?: string | null;
+  fromCache?: boolean;
+}
+
+/** The joined humans projection on the recent-conversations query. */
+interface RecentHuman {
+  name: string | null;
+  surname: string | null;
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-let state = {
+let state: WhatsAppSummaryState = {
   awaitingReply: 0,
   // ISO timestamp of the oldest inbound message that's still ahead of
   // the conversation's last outbound — i.e. the oldest message we
@@ -70,22 +122,24 @@ let state = {
   loading: true,
 };
 
-let countsChannel = null;
-let summaryChannel = null;
-const listeners = new Set();
+let countsChannel: RealtimeChannel | null = null;
+let summaryChannel: RealtimeChannel | null = null;
+const listeners = new Set<() => void>();
 
-function setState(next) {
+function setState(next: Partial<WhatsAppSummaryState>) {
   state = { ...state, ...next };
   for (const listener of listeners) listener();
 }
 
-function setAiSummary(next) {
+type AiSummaryPatch = Partial<AiSummaryState> | ((current: AiSummaryState) => Partial<AiSummaryState>);
+
+function setAiSummary(next: AiSummaryPatch) {
   const nextAi = typeof next === "function" ? next(state.aiSummary) : next;
   state = { ...state, aiSummary: { ...state.aiSummary, ...nextAi } };
   for (const listener of listeners) listener();
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (!supabase) {
     if (state.loading) setState({ loading: false });
     return;
@@ -193,8 +247,10 @@ async function refresh() {
 
   const uniqueConvIds = new Set((recentMsgs.data ?? []).map((r) => r.conversation_id));
 
-  const recentConversations = (recentConvsRes.data ?? []).map((c) => {
-    const human = c.humans;
+  const recentConversations: RecentConversation[] = (recentConvsRes.data ?? []).map((c) => {
+    // A many-to-one embed; typed structurally so the select string can
+    // stay readable rather than mirroring the generated relation types.
+    const human = c.humans as RecentHuman | null;
     const name = [human?.name, human?.surname].filter(Boolean).join(" ").trim();
     return {
       conversationId: c.id,
@@ -216,11 +272,11 @@ async function refresh() {
   });
 }
 
-async function refreshAiSummary() {
+async function refreshAiSummary(): Promise<void> {
   if (!supabase) return;
   setAiSummary({ loading: true, error: null });
   try {
-    const { data, error } = await supabase.functions.invoke("dashboard-summary", {
+    const { data, error } = await supabase.functions.invoke<DashboardSummaryResponse>("dashboard-summary", {
       body: {},
     });
     if (error) {
@@ -251,6 +307,7 @@ async function refreshAiSummary() {
 
 function startChannels() {
   if (!supabase) return;
+  const client = supabase;
 
   // Two channels with deliberately different cadences:
   //
@@ -266,7 +323,7 @@ function startChannels() {
   //      we don't want the "Summarising…" placeholder to flicker
   //      every time staff opens a thread and marks it read.
   if (!countsChannel) {
-    countsChannel = supabase
+    countsChannel = client
       .channel(CHANNELS.whatsappDashboardCounts)
       .on(
         "postgres_changes",
@@ -292,13 +349,14 @@ function startChannels() {
   }
 
   if (!summaryChannel) {
-    summaryChannel = supabase
+    summaryChannel = client
       .channel(CHANNELS.whatsappDashboardSummary)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
-        (payload) => {
-          if (payload?.new?.direction === "inbound") refreshAiSummary();
+        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
+          const row = payload.new as Partial<MessageRow>;
+          if (row?.direction === "inbound") refreshAiSummary();
         },
       )
       .subscribe();
@@ -306,6 +364,7 @@ function startChannels() {
 }
 
 function stopChannels() {
+  if (!supabase) return;
   if (countsChannel) {
     supabase.removeChannel(countsChannel);
     countsChannel = null;
@@ -321,7 +380,10 @@ function stopChannels() {
 // defer it to browser idle time (or a short timeout — iPad Safari has no
 // requestIdleCallback). Counts stay immediate; realtime-triggered and
 // manual refreshes are unaffected.
-let idleSummaryHandle = null;
+type IdleHandle =
+  | { type: "idle"; id: number }
+  | { type: "timeout"; id: ReturnType<typeof setTimeout> };
+let idleSummaryHandle: IdleHandle | null = null;
 function scheduleIdleAiSummary() {
   const run = () => {
     idleSummaryHandle = null;
@@ -340,7 +402,7 @@ function cancelIdleAiSummary() {
   idleSummaryHandle = null;
 }
 
-function subscribe(listener) {
+function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannels();
@@ -358,7 +420,7 @@ function subscribe(listener) {
   };
 }
 
-function getSnapshot() {
+function getSnapshot(): WhatsAppSummaryState {
   return state;
 }
 
@@ -368,7 +430,7 @@ registerResume(() => {
   if (listeners.size > 0) refresh();
 });
 
-export function useWhatsAppSummary() {
+export function useWhatsAppSummary(): UseWhatsAppSummaryResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   // Stable callback so consumers can pass it to deps arrays without
   // re-triggering effects on every render. The underlying refreshAiSummary

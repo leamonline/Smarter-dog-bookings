@@ -27,7 +27,7 @@ function todayStr() {
   ].join("-");
 }
 
-vi.mock("../../../supabase/hooks/useWhatsAppInbox.js", () => ({
+vi.mock("../../../supabase/hooks/useWhatsAppInbox", () => ({
   useWhatsAppInbox: () => globalThis.__useWhatsAppInboxMock,
 }));
 

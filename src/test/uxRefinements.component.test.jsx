@@ -12,7 +12,7 @@ import { findNextAvailable } from "../engine/utilisation";
 import { ToastProvider } from "../contexts/ToastContext.jsx";
 
 // Mock providers or hooks
-vi.mock("../supabase/hooks/useWhatsAppSummary.js", () => ({
+vi.mock("../supabase/hooks/useWhatsAppSummary", () => ({
   useWhatsAppSummary: () => ({
     awaitingReply: 2,
     oldestUnansweredAt: "2026-05-18T10:00:00Z",

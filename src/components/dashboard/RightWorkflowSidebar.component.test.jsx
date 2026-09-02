@@ -23,7 +23,7 @@ let remindersState;
 let waitlistState;
 let todosState;
 
-vi.mock("../../supabase/hooks/useWhatsAppSummary.js", () => ({
+vi.mock("../../supabase/hooks/useWhatsAppSummary", () => ({
   useWhatsAppSummary: () => inboxState,
 }));
 vi.mock("../../supabase/hooks/useTomorrowReminders.js", () => ({
