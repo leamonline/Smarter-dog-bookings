@@ -19,11 +19,53 @@
 // isolation. Takes setters + refs from the monolith — same plumbing
 // pattern as useAIModeControls / useBookingActionDecisions.
 import { useCallback } from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { SEND_FUNCTION_PATH } from "./helpers";
 
-export function useDraftActions({
+/** The draft fields this hook reads; the thread holds the full whatsapp_drafts row. */
+export interface PendingDraft {
+  id: string;
+}
+
+/** The conversation fields this hook writes; the list holds richer objects. */
+export interface DraftConversation {
+  id: string;
+  has_pending_draft?: boolean | null;
+}
+
+/** whatsapp-send's JSON body: `error` on a handled failure, otherwise the send result. */
+interface SendFunctionResponse {
+  error?: string;
+  [key: string]: unknown;
+}
+
+export type DraftActionResult =
+  | { ok: true; result?: SendFunctionResponse | null }
+  | { ok: false; reason?: string; detail?: unknown };
+
+export interface UseDraftActionsArgs<D extends PendingDraft, C extends DraftConversation> {
+  draft: D | null | undefined;
+  actionInFlight: boolean;
+  selectedId: string | null | undefined;
+  setActionInFlight: (inFlight: boolean) => void;
+  setDraft: Dispatch<SetStateAction<D | null>>;
+  setConversations: Dispatch<SetStateAction<C[]>>;
+  selectedIdRef: MutableRefObject<string | null | undefined>;
+}
+
+export interface UseDraftActionsResult {
+  approveDraft: (args?: { editedText?: string | null }) => Promise<DraftActionResult>;
+  rejectDraft: (args?: { reason?: string | null }) => Promise<DraftActionResult>;
+  sendManualReply: (args?: { text?: string | null }) => Promise<DraftActionResult>;
+}
+
+function failure(err: unknown): DraftActionResult {
+  return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+}
+
+export function useDraftActions<D extends PendingDraft, C extends DraftConversation>({
   draft,
   actionInFlight,
   selectedId,
@@ -31,14 +73,15 @@ export function useDraftActions({
   setDraft,
   setConversations,
   selectedIdRef,
-}) {
-  const approveDraft = useCallback(async ({ editedText } = {}) => {
+}: UseDraftActionsArgs<D, C>): UseDraftActionsResult {
+  const approveDraft = useCallback(async ({ editedText }: { editedText?: string | null } = {}): Promise<DraftActionResult> => {
     if (!draft || actionInFlight) {
       return { ok: false, reason: "no draft or action in flight" };
     }
     setActionInFlight(true);
     try {
-      const { data, error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+      if (!supabase) throw new Error("Not connected");
+      const { data, error } = await supabase.functions.invoke<SendFunctionResponse>(SEND_FUNCTION_PATH, {
         body: {
           mode: "draft",
           draft_id: draft.id,
@@ -64,16 +107,17 @@ export function useDraftActions({
       logger.error("approveDraft failed", err, {
         tags: { hook: "useDraftActions", op: "approveDraft" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [draft, actionInFlight, setActionInFlight, setDraft, setConversations, selectedIdRef]);
 
-  const rejectDraft = useCallback(async ({ reason } = {}) => {
+  const rejectDraft = useCallback(async ({ reason }: { reason?: string | null } = {}): Promise<DraftActionResult> => {
     if (!draft || actionInFlight) return { ok: false };
     setActionInFlight(true);
     try {
+      if (!supabase) throw new Error("Not connected");
       const trimmed = typeof reason === "string" ? reason.trim() : "";
       const { error } = await supabase
         .from("whatsapp_drafts")
@@ -96,13 +140,13 @@ export function useDraftActions({
       logger.error("rejectDraft failed", err, {
         tags: { hook: "useDraftActions", op: "rejectDraft" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [draft, actionInFlight, setActionInFlight, setDraft, setConversations, selectedIdRef]);
 
-  const sendManualReply = useCallback(async ({ text } = {}) => {
+  const sendManualReply = useCallback(async ({ text }: { text?: string | null } = {}): Promise<DraftActionResult> => {
     if (!selectedId || actionInFlight) {
       return { ok: false, reason: "no conversation selected or action in flight" };
     }
@@ -111,7 +155,8 @@ export function useDraftActions({
 
     setActionInFlight(true);
     try {
-      const { data, error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+      if (!supabase) throw new Error("Not connected");
+      const { data, error } = await supabase.functions.invoke<SendFunctionResponse>(SEND_FUNCTION_PATH, {
         body: {
           mode: "manual",
           conversation_id: selectedId,
@@ -130,7 +175,7 @@ export function useDraftActions({
       logger.error("sendManualReply failed", err, {
         tags: { hook: "useDraftActions", op: "sendManualReply" },
       });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }

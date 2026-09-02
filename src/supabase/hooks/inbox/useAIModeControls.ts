@@ -26,17 +26,49 @@
 // the toggle UI feels instant. Pulled out of useWhatsAppInbox so
 // they can be tested against a stubbed supabase + setConversations.
 import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 
-export function useAIModeControls({
+/** The conversation fields these toggles read and write; the list holds richer objects. */
+export interface AIModeConversation {
+  id: string;
+  state?: string | null;
+  auto_send_enabled?: boolean | null;
+  autonomous_booking_enabled?: boolean | null;
+}
+
+export type AIMode = "ai_auto" | "human_only";
+
+/** `{ ok: false }` with no reason is the "nothing selected / busy" early return. */
+export type AIModeResult = { ok: true } | { ok: false; reason?: string };
+
+export interface UseAIModeControlsArgs<T extends AIModeConversation> {
+  selectedId: string | null | undefined;
+  actionInFlight: boolean;
+  setActionInFlight: (inFlight: boolean) => void;
+  conversations: ReadonlyArray<T>;
+  setConversations: Dispatch<SetStateAction<T[]>>;
+}
+
+export interface UseAIModeControlsResult {
+  setAutoSendEnabled: (enabled: boolean) => Promise<AIModeResult>;
+  setAutonomousBookingEnabled: (enabled: boolean) => Promise<AIModeResult>;
+  setAIMode: (mode: AIMode, opts?: { allowAutonomousBooking?: boolean }) => Promise<AIModeResult>;
+}
+
+function failure(err: unknown): AIModeResult {
+  return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+}
+
+export function useAIModeControls<T extends AIModeConversation>({
   selectedId,
   actionInFlight,
   setActionInFlight,
   conversations,
   setConversations,
-}) {
-  const setAutoSendEnabled = useCallback(async (enabled) => {
+}: UseAIModeControlsArgs<T>): UseAIModeControlsResult {
+  const setAutoSendEnabled = useCallback(async (enabled: boolean): Promise<AIModeResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
     const next = !!enabled;
@@ -44,6 +76,7 @@ export function useAIModeControls({
       prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: next } : c)),
     );
     try {
+      if (!supabase) throw new Error("Not connected");
       const { error } = await supabase
         .from("whatsapp_conversations")
         .update({ auto_send_enabled: next })
@@ -58,13 +91,13 @@ export function useAIModeControls({
       setConversations((prev) =>
         prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: !next } : c)),
       );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, setActionInFlight, setConversations]);
 
-  const setAutonomousBookingEnabled = useCallback(async (enabled) => {
+  const setAutonomousBookingEnabled = useCallback(async (enabled: boolean): Promise<AIModeResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
     const next = !!enabled;
@@ -74,6 +107,7 @@ export function useAIModeControls({
       ),
     );
     try {
+      if (!supabase) throw new Error("Not connected");
       const { error } = await supabase
         .from("whatsapp_conversations")
         .update({ autonomous_booking_enabled: next })
@@ -89,16 +123,19 @@ export function useAIModeControls({
           c.id === selectedId ? { ...c, autonomous_booking_enabled: !next } : c,
         ),
       );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, setActionInFlight, setConversations]);
 
-  const setAIMode = useCallback(async (mode, opts = {}) => {
+  const setAIMode = useCallback(async (
+    mode: AIMode,
+    opts: { allowAutonomousBooking?: boolean } = {},
+  ): Promise<AIModeResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
-    if (!["ai_auto", "human_only"].includes(mode)) {
-      return { ok: false, reason: `unknown mode: ${mode}` };
+    if (mode !== "ai_auto" && mode !== "human_only") {
+      return { ok: false, reason: `unknown mode: ${String(mode)}` };
     }
 
     const next = {
@@ -123,6 +160,7 @@ export function useAIModeControls({
     );
 
     try {
+      if (!supabase) throw new Error("Not connected");
       const { error } = await supabase
         .from("whatsapp_conversations")
         .update(next)
@@ -138,7 +176,7 @@ export function useAIModeControls({
           list.map((c) => (c.id === selectedId ? { ...c, ...previousSnapshot } : c)),
         );
       }
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      return failure(err);
     } finally {
       setActionInFlight(false);
     }
