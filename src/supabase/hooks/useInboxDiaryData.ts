@@ -5,7 +5,7 @@ import { fetchDaySettingsWeek, fetchBookingsWeek } from "../queries/bootQueries.
 import { toDateStr } from "../transforms";
 import { getDefaultOpenForDate } from "../../engine/utils";
 import { logger } from "../../lib/logger";
-import { groupBookingsByDate } from "./useBookings.js";
+import { groupBookingsByDate } from "./useBookings";
 import type { Database } from "../database.types";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { BookingsByDate, SlotOverrides } from "../../types/index";
