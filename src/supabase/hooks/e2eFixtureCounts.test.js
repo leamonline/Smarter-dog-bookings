@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { e2eFixtureCount } from "./e2eFixtureCounts.js";
+import { e2eFixtureCount } from "./e2eFixtureCounts";
 
 describe("e2eFixtureCount", () => {
   it("ignores fixture counts unless the app is explicitly forced offline", () => {
