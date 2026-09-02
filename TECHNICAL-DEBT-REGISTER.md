@@ -22,7 +22,7 @@ sustained workstream (week+).
 | 4 `.js` extensions on TS imports | Closed | Closed | `check-import-extensions` still in `npm run lint`. |
 | 5 `useHumans.ts` god file | Closed | Closed | 103 lines. |
 | 6 `useWhatsAppInbox.js` | Closed (530 LoC) | **Regressed, worse** | 943 lines as `useWhatsAppInbox.ts` (2 Sept): the September TypeScript conversion added row types and typed realtime handlers without extracting anything; the five `inbox/` sub-hooks still hold the extracted logic. Next candidate for a seam review. |
-| 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Regressed** | 541 lines. |
+| 7 `HumanCardModal.jsx` | Closed (399 LoC) | **Reduced (2 Sept 2026)** | 457 lines: the incoming trusted-owner links and the link-on-dog action moved to `human-card/useTrustedOwnerLinks.js` (five hook tests). Still above the June figure; the next seam is the delete/archive confirm handlers. |
 | 8 `DogCardModal.jsx` | Closed (400 LoC) | Closed | 355 lines. |
 | 9 `BookingDetailModal.jsx` | Closed (392 LoC) | **Regressed** | 532 lines. |
 | 10 `InboxView.jsx` mode cascade | Open (706 LoC) | **Reduced (2 Sept 2026)** | `InboxWorkspaceController.jsx` is 372 lines (from 760) and orchestrates only: the six list modes live in `inboxListModel.ts` (pure, tested) + `useInboxListState.ts` with the mode in the URL (`/inbox?filter=unread`); toast-wrapped actions in `useInboxActionHandlers.ts`; the outbound composer in `useOutboundCompose.ts`; `?conversation=` / `?human=` in `useInboxDeepLinks.ts`; the close-N pill in `BulkActionBar.jsx`. |
