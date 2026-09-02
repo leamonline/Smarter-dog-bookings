@@ -643,6 +643,29 @@ export interface DepositSettings {
  * { bank: null, releaseHours: 12 } — panels then show the reference and
  * amount without bank details rather than erroring.
  */
+/** The deposit columns the stamping trigger writes onto a new customer booking. */
+export interface DepositStampRow {
+  deposit_required: boolean | null;
+  deposit_reference: string | null;
+  deposit_due_by: string | null;
+  deposit_amount: number | null;
+}
+
+/**
+ * Read back the deposit stamps for freshly inserted bookings so the success
+ * screen can show what the trigger wrote (one shared reference per visit).
+ */
+export async function listDepositStamps(
+  client: SupabaseClient,
+  bookingIds: string[],
+): Promise<{ rows: DepositStampRow[]; error: Error | null }> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
+    .in("id", bookingIds);
+  return { rows: (data ?? []) as DepositStampRow[], error: error ?? null };
+}
+
 export async function getDepositSettings(client: SupabaseClient): Promise<DepositSettings> {
   const fallback: DepositSettings = { bank: null, releaseHours: 12 };
   if (!client) return fallback;
