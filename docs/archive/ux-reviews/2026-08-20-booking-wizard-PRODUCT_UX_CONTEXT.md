@@ -1,3 +1,5 @@
+> **Historical (archived 2 September 2026).** Product context gathered for the 20 August 2026 booking-wizard UX review (`2026-08-20-booking-wizard-UX_REVIEW.md`). Dated evidence at `main@c1da6852`; not current instruction.
+
 # Product UX Context
 
 ## 1. Analysis scope and version

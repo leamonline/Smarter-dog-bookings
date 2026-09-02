@@ -1,3 +1,5 @@
+> **Historical (archived 2 September 2026).** The 20 August 2026 review of the customer booking wizard at `main@c1da6852`, with its evidence manifest alongside (`2026-08-20-booking-wizard-UX_EVIDENCE_MANIFEST.json`, `2026-08-20-booking-wizard-UX_REVIEW_MANIFEST.json`). Findings that were actioned are tracked in GitHub issues; the file is dated evidence, not current instruction.
+
 # UX Review
 
 ## 1. Review scope and evidence

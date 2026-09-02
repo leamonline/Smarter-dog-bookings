@@ -3,7 +3,7 @@
 > **Historical; not an active implementation plan (9 August 2026).** This file
 > preserves the May/June Inbox reasoning and shipped-state annotation. Its
 > remaining Phase 4–5 ideas have not been revalidated, prioritised or authorised.
-> Use [PROJECT.md](PROJECT.md), [ROADMAP.md](ROADMAP.md) and GitHub issues for
+> Use [PROJECT.md](../../PROJECT.md), [ROADMAP.md](../../ROADMAP.md) and GitHub issues for
 > current work; move any approved successor plan under `docs/plans/active/`.
 
 **Author:** Claude (planning pass — no code touched)
