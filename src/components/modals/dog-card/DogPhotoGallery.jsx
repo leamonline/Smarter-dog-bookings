@@ -1,4 +1,4 @@
-import { useGroomPhotos } from "../../../hooks/useGroomPhotos.js";
+import { useGroomPhotos } from "../../../hooks/useGroomPhotos";
 import { PhotoGalleryModal } from "../PhotoGalleryModal.jsx";
 
 /**

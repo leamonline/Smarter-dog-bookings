@@ -3,20 +3,55 @@
  * Extracted from App.jsx to reduce its size and improve testability.
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ALL_DAYS } from "../constants/index";
 import { toDateStr } from "../supabase/transforms";
+import type { DayConfig } from "../types/index";
+
+/** One column of the weekly calendar: the display pieces plus the Date it stands for. */
+export interface WeekDate {
+  full: string;
+  dayNum: number;
+  monthShort: string;
+  year: number;
+  dateObj: Date;
+  dateStr: string;
+}
+
+export interface UseWeekNavResult {
+  weekOffset: number;
+  weekStart: Date;
+  /** 0..6, Monday-indexed. */
+  selectedDay: number;
+  setSelectedDay: Dispatch<SetStateAction<number>>;
+  dates: WeekDate[];
+  currentDateObj: Date;
+  currentDateStr: string;
+  currentDayConfig: DayConfig;
+  goToNextWeek: () => void;
+  goToPrevWeek: () => void;
+  handleDatePick: (pickedDate: Date) => void;
+}
 
 /**
  * Returns 0..6 where 0 = Monday, 6 = Sunday — i.e. the index into the
  * weekly `dates` array. Exported for testing only.
  */
-export function mondayIndexedDayOfWeek(date) {
+export function mondayIndexedDayOfWeek(date: Date): number {
   const dow = date.getDay(); // 0 = Sunday in JS
   return dow === 0 ? 6 : dow - 1;
 }
 
-export function useWeekNav() {
+/** The Monday (local midnight) of the week containing `date`. */
+function mondayOf(date: Date): Date {
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - mondayIndexedDayOfWeek(date));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+export function useWeekNav(): UseWeekNavResult {
   const [searchParams, setSearchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(() => mondayIndexedDayOfWeek(new Date()));
@@ -28,19 +63,15 @@ export function useWeekNav() {
   const initSynced = useRef(false);
 
   const weekStart = useMemo(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset + weekOffset * 7);
-    monday.setHours(0, 0, 0, 0);
+    const monday = mondayOf(new Date());
+    monday.setDate(monday.getDate() + weekOffset * 7);
     return monday;
   }, [weekOffset]);
 
   const goToNextWeek = useCallback(() => setWeekOffset((o) => o + 1), []);
   const goToPrevWeek = useCallback(() => setWeekOffset((o) => o - 1), []);
 
-  const dates = useMemo(
+  const dates = useMemo<WeekDate[]>(
     () =>
       ALL_DAYS.map((_, i) => {
         const d = new Date(weekStart);
@@ -67,26 +98,14 @@ export function useWeekNav() {
   const currentDateStr = dates[selectedDay]?.dateStr || toDateStr(new Date());
   const currentDayConfig = ALL_DAYS[selectedDay];
 
-  const handleDatePick = useCallback((pickedDate) => {
-    const dayOfWeek = pickedDate.getDay();
-    const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    setSelectedDay(dayIndex);
+  const handleDatePick = useCallback((pickedDate: Date) => {
+    setSelectedDay(mondayIndexedDayOfWeek(pickedDate));
 
-    const today = new Date();
-    const todayDow = today.getDay();
-    const mondayOff = todayDow === 0 ? -6 : 1 - todayDow;
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() + mondayOff);
-    thisMonday.setHours(0, 0, 0, 0);
-
-    const pickedMonday = new Date(pickedDate);
-    const pickedDow = pickedDate.getDay();
-    const pickedMondayOff = pickedDow === 0 ? -6 : 1 - pickedDow;
-    pickedMonday.setDate(pickedDate.getDate() + pickedMondayOff);
-    pickedMonday.setHours(0, 0, 0, 0);
+    const thisMonday = mondayOf(new Date());
+    const pickedMonday = mondayOf(pickedDate);
 
     const diffWeeks = Math.round(
-      (pickedMonday - thisMonday) / (7 * 24 * 60 * 60 * 1000),
+      (pickedMonday.getTime() - thisMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
     );
     setWeekOffset(diffWeeks);
   }, []);

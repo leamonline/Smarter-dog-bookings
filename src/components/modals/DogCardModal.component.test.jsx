@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
-vi.mock("../../hooks/useGroomPhotos.js", () => ({
+vi.mock("../../hooks/useGroomPhotos", () => ({
   useGroomPhotos: () => ({
     fetchPhotosForDog: vi.fn(() => Promise.resolve([])),
     uploadPhoto: vi.fn(),
