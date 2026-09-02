@@ -1,9 +1,41 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { AuthError, Session, User } from "@supabase/supabase-js";
 import { isPasswordPwned } from "../../utils/pwnedPassword";
 import { customerSupabase as supabase } from "../customerClient";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
+
+/** The customer-safe human projection link_customer_to_human returns. */
+export type LinkedHumanRecord =
+  Database["public"]["Functions"]["link_customer_to_human"]["Returns"][number];
+
+/** Every action's failure shape: the auth error, or a short in-hook reason. */
+export type CustomerAuthFailure = { error: AuthError | { message: string } | unknown };
+
+export type CheckPhoneResult =
+  | { on_file: boolean; has_password: boolean }
+  | CustomerAuthFailure;
+
+export type CustomerSignInResult =
+  | { data: { user: User | null; session: Session | null; weakPassword?: unknown }; passwordCompromised: boolean }
+  | CustomerAuthFailure;
+
+export type VerifyOtpResult =
+  | { data: { user: User | null; session: Session | null } }
+  | CustomerAuthFailure;
+
+/** customer-phone-on-file's JSON body. */
+interface PhoneOnFileResponse {
+  on_file?: boolean;
+  has_password?: boolean;
+}
+
+/** The JSON body a non-2xx Edge Function response carries. */
+interface PhoneOnFileErrorBody {
+  error?: string;
+}
 
 const OTP_SEND_ERROR =
   "Could not send your login code. Please check your number and try again.";
@@ -46,10 +78,10 @@ const PASSWORD_LOGIN_ERROR =
  * the required set-password gate in CustomerApp.
  */
 export function useCustomerAuth() {
-  const [user, setUser] = useState(null);
-  const [humanRecord, setHumanRecord] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [humanRecord, setHumanRecord] = useState<LinkedHumanRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [phone, setPhone] = useState("");
   // Authoritative copy of the normalised phone. checkPhone sets this
@@ -75,7 +107,7 @@ export function useCustomerAuth() {
    * derives the lookup phone from auth.users.phone for the calling
    * auth.uid(); it takes no arguments.
    */
-  const linkHumanRecord = useCallback(async () => {
+  const linkHumanRecord = useCallback(async (): Promise<LinkedHumanRecord | null> => {
     if (!supabase) return null;
 
     const { data, error: rpcErr } = await linkCustomerToHuman(supabase);
@@ -95,7 +127,7 @@ export function useCustomerAuth() {
       return null;
     }
 
-    return data[0];
+    return data[0] as LinkedHumanRecord;
   }, []);
 
   useEffect(() => {
@@ -103,6 +135,8 @@ export function useCustomerAuth() {
       setLoading(false);
       return;
     }
+    // Narrowed once here; the callbacks below would otherwise lose the check.
+    const client = supabase;
 
     let cancelled = false;
     let initialDone = false;
@@ -115,7 +149,7 @@ export function useCustomerAuth() {
       }
     };
 
-    const applySession = (session) => {
+    const applySession = (session: Session | null) => {
       if (cancelled) return;
 
       const run = ++sessionRun;
@@ -167,13 +201,13 @@ export function useCustomerAuth() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((_event, session) => {
       // Supabase holds the auth lock while firing subscribers, so any RPC
       // lookup is deferred inside applySession rather than awaited here.
       applySession(session);
     });
 
-    supabase.auth
+    client.auth
       .getSession()
       .then(({ data, error: sessionErr }) => {
         if (sessionErr) {
@@ -213,7 +247,7 @@ export function useCustomerAuth() {
    *
    * Returns { on_file, has_password } on success, or { error } on failure.
    */
-  const checkPhone = useCallback(async (phoneNumber) => {
+  const checkPhone = useCallback(async (phoneNumber: string): Promise<CheckPhoneResult> => {
     if (!supabase) {
       setError("Not connected.");
       return { error: { message: "Offline" } };
@@ -228,7 +262,7 @@ export function useCustomerAuth() {
     setPhone(normalisedPhone);
 
     const { data: lookupData, error: lookupErr } = await supabase.functions
-      .invoke("customer-phone-on-file", {
+      .invoke<PhoneOnFileResponse>("customer-phone-on-file", {
         body: { phone: normalisedPhone },
       });
 
@@ -236,7 +270,7 @@ export function useCustomerAuth() {
       // Supabase wraps non-2xx responses in FunctionsHttpError. Pull the
       // JSON body off so we can show a tailored message for the rate-limit
       // case instead of a generic failure.
-      let errPayload = null;
+      let errPayload: PhoneOnFileErrorBody | null = null;
       try {
         errPayload = await lookupErr.context?.json?.();
       } catch {
@@ -298,7 +332,7 @@ export function useCustomerAuth() {
    * Twilio sends only happen here, after checkPhone has confirmed the
    * number is on file. captchaToken comes from the Turnstile widget.
    */
-  const sendOtp = useCallback(async (captchaToken) => {
+  const sendOtp = useCallback(async (captchaToken?: string | null): Promise<{ success: true } | CustomerAuthFailure> => {
     if (!supabase) {
       setError("Not connected.");
       return { error: { message: "Offline" } };
@@ -335,7 +369,7 @@ export function useCustomerAuth() {
    * it. On success the SIGNED_IN event links the human record via
    * applySession; on failure we show a deliberately generic error.
    */
-  const signInWithPassword = useCallback(async (password, captchaToken) => {
+  const signInWithPassword = useCallback(async (password: string, captchaToken?: string | null): Promise<CustomerSignInResult> => {
     if (!supabase) {
       setError("Not connected.");
       return { error: { message: "Offline" } };
@@ -382,7 +416,7 @@ export function useCustomerAuth() {
   // Verify the OTP code. Pass { isReset: true } from the forgot-password
   // path so the set-password gate forces a NEW password afterwards.
   const verifyOtp = useCallback(
-    async (code, { isReset = false } = {}) => {
+    async (code: string, { isReset = false }: { isReset?: boolean } = {}): Promise<VerifyOtpResult> => {
       if (!supabase) {
         setError("Not connected.");
         return { error: { message: "Offline" } };
@@ -425,7 +459,7 @@ export function useCustomerAuth() {
   // set-password gate saves) so the rest of the app sees the fresh values —
   // including has_password — without a full reload. Re-runs the same
   // SECURITY DEFINER link RPC.
-  const refreshHumanRecord = useCallback(async () => {
+  const refreshHumanRecord = useCallback(async (): Promise<LinkedHumanRecord | null> => {
     const human = await linkHumanRecord();
     setHumanRecord(human);
     return human;
@@ -434,7 +468,7 @@ export function useCustomerAuth() {
   // First step of self-signup: create the pending "shell" humans row for a
   // freshly-verified phone that has no record yet, then refresh so the rest
   // of the app sees the linked (pending) record. Idempotent server-side.
-  const createPendingHuman = useCallback(async () => {
+  const createPendingHuman = useCallback(async (): Promise<LinkedHumanRecord | null> => {
     if (!supabase) return null;
     const { error: rpcErr } = await createPendingCustomer(supabase);
     if (rpcErr) {

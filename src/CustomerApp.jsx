@@ -1,5 +1,5 @@
 import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
+import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth";
 import { useCustomerProfileGate } from "./supabase/hooks/useCustomerProfileGate";
 import { useCustomerSignupGate } from "./supabase/hooks/useCustomerSignupGate";
 import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
