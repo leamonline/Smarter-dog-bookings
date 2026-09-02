@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
-import { supabase } from "../../supabase/client";
+import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 
@@ -85,6 +85,7 @@ function PortalShell({ children }) {
  * removed to prevent unauthorised users from gaining dashboard access.
  */
 export function LoginPage({ onSignIn, error, isOffline }) {
+  const authActions = useStaffAuthActions();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
@@ -110,7 +111,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     setResetSending(true);
     setResetError("");
     const captchaToken = resetCaptchaRef.current;
-    const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+    const { error: err } = await authActions.requestPasswordReset(resetEmail.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
       ...(captchaToken ? { captchaToken } : {}),
     });
