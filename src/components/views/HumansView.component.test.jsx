@@ -5,10 +5,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 
+import { SalonProvider } from "../../contexts/SalonContext";
+
 const { HumansView } = await import("./HumansView.jsx");
 
 const sarah = { id: "h1", name: "Sarah", surname: "Jones", fullName: "Sarah Jones", phone: "07700900111", whatsapp: true, historyFlag: "" };
 const dave = { id: "h2", name: "Dave", surname: "Smith", fullName: "Dave Smith", phone: "07700900112", whatsapp: false, historyFlag: "" };
+
+// The view reads shared salon data from SalonContext (Debt 11), so the
+// harness provides it the way App.jsx does; unrelated provider props are stubs.
+function salonProps(overrides = {}) {
+  return {
+    dogs: {},
+    humans: {},
+    bookingsByDate: {},
+    daySettings: {},
+    dayOpenState: {},
+    currentDateStr: "2026-08-10",
+    currentDateObj: new Date("2026-08-10T12:00:00"),
+    onAdd: vi.fn(),
+    onUpdate: vi.fn(),
+    onRemove: vi.fn(),
+    onUpdateDog: vi.fn(),
+    onUpdateHuman: vi.fn(),
+    onAddHuman: vi.fn(),
+    onAddDog: vi.fn(),
+    onOpenHuman: vi.fn(),
+    onOpenDog: vi.fn(),
+    ...overrides,
+  };
+}
 
 function renderView(overrides = {}) {
   const props = {
@@ -39,7 +65,12 @@ function renderView(overrides = {}) {
     onToggleFilter: vi.fn(),
     ...overrides,
   };
-  render(<HumansView {...props} />);
+  const { humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onUpdateHuman, isOnline, ...viewProps } = props;
+  render(
+    <SalonProvider {...salonProps({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onUpdateHuman, isOnline })}>
+      <HumansView {...viewProps} />
+    </SalonProvider>,
+  );
   return props;
 }
 

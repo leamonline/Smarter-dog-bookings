@@ -11,6 +11,7 @@ import { useWaitlist } from "../../supabase/hooks/useWaitlist";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useSalon } from "../../contexts/SalonContext";
 import { FloatingDecor } from "../decor/index.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
 
@@ -54,19 +55,7 @@ export function WeekCalendarView({
   selectedDay,
   setSelectedDay,
   dates,
-  currentDateObj,
-  currentDateStr,
-  bookingsByDate,
-  bookingsLoading,
-  bookingsError,
-  daySettings,
-  dayOpenState,
-  dogs,
-  dogsByHumanId,
-  ensureDogsForHumans,
-  humans,
   currentSettings,
-  handleUpdate,
   handleOverride,
   toggleImmediateSlot,
   handleAddSlot,
@@ -77,10 +66,26 @@ export function WeekCalendarView({
   handleDatePick,
   setShowNewBooking,
   draftPick,
-  onOpenHuman,
   onOpenClosureVisit,
   onRefresh,
 }) {
+  // Shared salon data + core actions come from SalonContext (Debt 11): the
+  // shell provides them once instead of threading them through 30 props.
+  const {
+    dogs,
+    humans,
+    bookingsByDate,
+    bookingsLoading,
+    bookingsError,
+    daySettings,
+    dayOpenState,
+    dogsByHumanId,
+    ensureDogsForHumans,
+    currentDateStr,
+    currentDateObj,
+    onUpdate: handleUpdate,
+    onOpenHuman,
+  } = useSalon();
   const [searchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
   const [confirmDayToggle, setConfirmDayToggle] = useState(null);

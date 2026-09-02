@@ -467,6 +467,12 @@ function AuthedApp({
           onUpdateDog={data.updateDog}
           onUpdateHuman={data.updateHuman}
           onAddHuman={data.addHuman}
+          onAddDog={data.addDog}
+          dogsByHumanId={dogsApi.dogsByHumanId}
+          ensureDogsForHumans={dogsApi.ensureDogsForHumans}
+          isOnline={isOnline}
+          bookingsLoading={data.bookingsLoading}
+          bookingsError={data.loadErrors.bookings}
           fetchHumanById={data.humansApi.fetchHumanById}
           findHumanByFullName={data.humansApi.findHumanByFullName}
           searchHumansByTerm={data.humansApi.searchHumansByTerm}

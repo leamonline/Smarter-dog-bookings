@@ -20,6 +20,7 @@ import {
 import { normalisePhoneDigits, telLink, waLink } from "../modals/dog-card/helpers.js";
 import { HumanInitials, ProfileArrow } from "./directory/IdentityMarker.jsx";
 import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
+import { useSalon } from "../../contexts/SalonContext";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -391,13 +392,7 @@ const VIEW_OPTIONS = [
 ];
 
 export function HumansView({
-  humans,
-  dogs,
-  dogsByHumanId,
-  ensureDogsForHumans,
-  onOpenHuman,
   onNewClient,
-  onUpdateHuman,
   fetchArchivedHumans,
   hasMore,
   totalCount,
@@ -406,7 +401,6 @@ export function HumansView({
   searchQuery,
   isSearching,
   isInitialLoading = false,
-  isOnline = true,
   loadError = null,
   // Server-driven directory (null when offline → client fallback below)
   directoryHumans = null,
@@ -418,6 +412,16 @@ export function HumansView({
   filters = null,
   onToggleFilter,
 }) {
+  // Shared salon data + actions come from SalonContext (Debt 11).
+  const {
+    humans,
+    dogs,
+    dogsByHumanId,
+    ensureDogsForHumans,
+    onOpenHuman,
+    onUpdateHuman,
+    isOnline = true,
+  } = useSalon();
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
