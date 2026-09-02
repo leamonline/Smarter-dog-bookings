@@ -14,7 +14,7 @@ import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { FEATURE_FLAGS } from "./constants/features";
 import { safeGet, safeSet } from "./lib/storage";
-import { useAuth } from "./supabase/hooks/useAuth.js";
+import { useAuth } from "./supabase/hooks/useAuth";
 import { useHumans } from "./supabase/hooks/useHumans";
 import { useDogs } from "./supabase/hooks/useDogs";
 import { useBookings } from "./supabase/hooks/useBookings";

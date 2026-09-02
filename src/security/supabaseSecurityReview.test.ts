@@ -221,7 +221,7 @@ describe("Supabase security review regressions", () => {
     // The customer hook routes through the typed RPC wrapper in
     // src/supabase/rpc.ts; assert both the call site and the wrapper
     // so the no-phone guarantee survives the indirection.
-    const useCustomerAuth = readProjectFile("src/supabase/hooks/useCustomerAuth.js");
+    const useCustomerAuth = readProjectFile("src/supabase/hooks/useCustomerAuth.ts");
     const rpcWrapper = readProjectFile("src/supabase/rpc.ts");
 
     expect(useCustomerAuth).toMatch(/linkCustomerToHuman\(supabase\)/);

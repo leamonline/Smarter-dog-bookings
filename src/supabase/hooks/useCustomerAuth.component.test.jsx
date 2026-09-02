@@ -24,7 +24,7 @@ vi.mock("../../utils/pwnedPassword", () => ({
   isPasswordPwned: vi.fn(async () => globalThis.__pwnedVerdict === true),
 }));
 
-const { useCustomerAuth } = await import("./useCustomerAuth.js");
+const { useCustomerAuth } = await import("./useCustomerAuth");
 const { isPasswordPwned } = await import("../../utils/pwnedPassword");
 
 function makeStub({

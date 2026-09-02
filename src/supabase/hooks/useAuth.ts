@@ -1,23 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
+import type { AuthError, Session, User } from "@supabase/supabase-js";
 import { isPasswordPwned } from "../../utils/pwnedPassword";
 import { supabase } from "../client";
 import { primeBootPrefetch } from "../bootPrefetch.js";
 import { logger } from "../../lib/logger";
+import type { Database } from "../database.types";
 
-const ROLES = { owner: "owner", staff: "staff" };
+export type StaffProfile = Database["public"]["Tables"]["staff_profiles"]["Row"];
+
+/** signIn resolves to the auth error, or the session data plus the breach verdict. */
+export type StaffSignInResult =
+  | { error: AuthError | { message: string } | unknown }
+  | { data: { user: User | null; session: Session | null; weakPassword?: unknown }; passwordCompromised: boolean };
+
+const ROLES = { owner: "owner", staff: "staff" } as const;
 
 export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [staffProfile, setStaffProfile] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [staffProfile, setStaffProfile] = useState<StaffProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   // True when the password used for the current sign-in is known to be
   // compromised (HaveIBeenPwned, or the server's weakPassword warning).
   // Staff have no in-app change-password screen, so App shows a banner
   // pointing at the forgot-password flow rather than forcing a gate.
   const [passwordCompromised, setPasswordCompromised] = useState(false);
 
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId: string | null | undefined): Promise<StaffProfile | null> => {
     if (!supabase || !userId) return null;
 
     const { data, error: err } = await supabase
@@ -52,6 +61,8 @@ export function useAuth() {
       setLoading(false);
       return;
     }
+    // Narrowed once here; the callbacks below would otherwise lose the check.
+    const client = supabase;
 
     let cancelled = false;
     let initialDone = false;
@@ -67,7 +78,7 @@ export function useAuth() {
     // onAuthStateChange callback (Supabase holds the auth lock while it
     // fires subscribers, so awaiting another Supabase API here would
     // deadlock the client — notably during TOKEN_REFRESHED).
-    const applySessionState = (session) => {
+    const applySessionState = (session: Session | null) => {
       if (cancelled) return;
       if (session?.user) {
         setUser(session.user);
@@ -87,9 +98,9 @@ export function useAuth() {
     // fetches fresh. Effect-local on purpose: a StrictMode dev remount
     // gets a fresh map, and the torn-down effect's async callbacks are
     // all behind the `cancelled` flag before any of them can fetch.
-    const inflightProfileFetches = new Map();
+    const inflightProfileFetches = new Map<string, Promise<StaffProfile | null>>();
 
-    const fetchProfileDeduped = (userId) => {
+    const fetchProfileDeduped = (userId: string): Promise<StaffProfile | null> => {
       const inflight = inflightProfileFetches.get(userId);
       if (inflight) return inflight;
       // Start the tier-1 dashboard reads (bookings week, salon_config,
@@ -112,7 +123,7 @@ export function useAuth() {
     // released. Called from both the getSession() init path and the
     // onAuthStateChange callback. Marks the initial load done once the
     // profile has been fetched (or fetch failed).
-    const scheduleProfileFetch = (userId) => {
+    const scheduleProfileFetch = (userId: string | undefined) => {
       if (cancelled) return;
       if (!userId) {
         // Signed out (or no session at boot): drop any in-flight keys so
@@ -145,7 +156,7 @@ export function useAuth() {
       }
     }, 5000);
 
-    supabase.auth
+    client.auth
       .getSession()
       .then(({ data, error: sessionErr }) => {
         if (sessionErr) {
@@ -168,7 +179,7 @@ export function useAuth() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((_event, session) => {
       applySessionState(session);
       scheduleProfileFetch(session?.user?.id);
     });
@@ -179,7 +190,7 @@ export function useAuth() {
       subscription.unsubscribe();
     };
   }, [fetchProfile]);
-  const signIn = useCallback(async (email, password, captchaToken) => {
+  const signIn = useCallback(async (email: string, password: string, captchaToken?: string | null): Promise<StaffSignInResult> => {
     if (!supabase) {
       setError("Supabase not configured. Running on sample data.");
       return { error: { message: "Sample data mode" } };
