@@ -142,6 +142,8 @@ export function listCustomerContextDogs(client: SupabaseClient, humanId: string,
     .select("id, name, breed, age, size, alerts, groom_notes")
     .eq("human_id", humanId)
     .order("name");
+  return signal ? q.abortSignal(signal) : q;
+}
 
 /** The dog columns the weekly cash-up needs (custom price + names); raw PostgREST result. */
 export function listCashUpDogs(client: SupabaseClient, signal?: AbortSignal) {

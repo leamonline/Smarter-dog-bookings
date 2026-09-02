@@ -117,9 +117,7 @@ make the next regression visible in CI instead of in the next audit.
 > | Sept 2026 | `collection-notice/CollectionNoticeModal.jsx`, `send-reminder/SendReminderModal.jsx` | `useStaffContacts` over new column-explicit humans/bookings repository reads + `useStaffMessaging.sendWhatsAppTemplate` / `sendReminder` (Tier 1.1d) | 8 |
 > | Sept 2026 | `customer/booking/BookingWizard.tsx` | `useCustomerBookingWizard`, a stable singleton binding the customer client to the existing booking/dog/rules repositories and denial/funnel RPCs; the one raw deposit read-back moved into `bookingsRepo.listDepositStamps` (Tier 1.1e) | 7 |
 > | Sept 2026 | `reports/useWeeklyCashUp.js` | `useStaffWeekSnapshot`, a singleton over `fetchBookingsWeek` plus new `dogsRepo.listCashUpDogs` / `humansRepo.listCashUpHumans` reads (Tier 1.1g) | 2 |
->
 > | Sept 2026 | `compose-new/ComposeNewModal.jsx`, `inbox/hooks/useCustomerContext.js`, `useInboxMessageSearch.js`, `useSlotCapacityPreview.js` | `useStaffContacts` (+ `getHumanById` / `searchHumansAndDogs` / `listDogsForHuman`) and a new `useStaffInboxReads` singleton over new repository reads (`getCustomerContextProfile`, `listCustomerContextDogs`, `listRecentPastForOwner`, `listTrustedContactsWithNames`, `listSeatsOnDate`, and `whatsappRepo.searchMessageConversationIds`) (Tier 1.1f) | 3 |
->
 >
 > **Still on the allowlist (2 September 2026):** auth — `auth/LoginPage.jsx`, `auth/ResetPasswordPage.jsx`. Remove a file from the allowlist in the same PR that routes it through a hook or repository.
 
