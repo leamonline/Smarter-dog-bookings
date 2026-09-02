@@ -10,6 +10,7 @@ import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
 import { fetchTrustedContactsForHuman } from "./useTrustedContacts";
+import { findHumanByPhone as findHumanByPhoneRepo } from "../../repositories/humansRepo";
 import type { HumanEntry, HumanRowLike, HumansByIdMap, HumansMap, SetHumansByIdMap, SetHumansMap } from "./helpers";
 
 export function useHumanLookups({
@@ -267,5 +268,20 @@ export function useHumanLookups({
     [humans, humansById, setHumans, setHumansById],
   );
 
-  return { fetchHumanById, findHumanByFullName, searchHumansByTerm, ensureHumansByIds };
+  // Who already holds a phone number. Used by the Human card when a number
+  // save collides with humans_phone_unique, to tell a pending portal signup
+  // (offer to link it) from an established customer (name them). Not folded
+  // into the caches: a signup shell is a placeholder, not a directory entry.
+  const findHumanByPhone = useCallback(async (phone: string) => {
+    if (!supabase) return null;
+    return findHumanByPhoneRepo(supabase, phone);
+  }, []);
+
+  return {
+    fetchHumanById,
+    findHumanByFullName,
+    findHumanByPhone,
+    searchHumansByTerm,
+    ensureHumansByIds,
+  };
 }

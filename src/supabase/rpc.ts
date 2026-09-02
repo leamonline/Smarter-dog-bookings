@@ -702,6 +702,19 @@ export function mergeHumans(
   });
 }
 
+// Join an unapproved portal self-signup shell onto an existing customer:
+// the shell's verified phone + portal login move to the kept record, the
+// shell is merged away, and the customer is approved to book — atomically.
+export function linkPendingSignup(
+  client: SupabaseClient,
+  params: { existingId: string; pendingId: string },
+) {
+  return client.rpc("link_pending_signup", {
+    p_existing: params.existingId,
+    p_pending: params.pendingId,
+  });
+}
+
 // ── Visit-level policy commands (previous_day_1500_v1) ────────────────
 //
 // Every command returns one typed receipt; decode it with

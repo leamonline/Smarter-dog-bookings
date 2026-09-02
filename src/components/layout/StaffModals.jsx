@@ -149,7 +149,9 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               bookingsByDate={bookingsByDate}
               fetchHumanById={humansApi.fetchHumanById}
               findHumanByFullName={humansApi.findHumanByFullName}
+              findHumanByPhone={humansApi.findHumanByPhone}
               searchHumansByTerm={humansApi.searchHumansByTerm}
+              onLinkPendingSignup={humansApi.linkPendingSignup}
               onNewBookingForHuman={(hid) => {
                 onCloseHumanProfile();
                 requestNewBooking({
