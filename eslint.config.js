@@ -180,10 +180,6 @@ export default [
     ignores: [
       "**/*.test.{js,jsx,ts,tsx}",
       "**/*.spec.{js,jsx,ts,tsx}",
-      "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
-      "src/components/views/inbox/hooks/useCustomerContext.js",
-      "src/components/views/inbox/hooks/useInboxMessageSearch.js",
-      "src/components/views/inbox/hooks/useSlotCapacityPreview.js",
     ],
     rules: {
       "no-restricted-imports": [

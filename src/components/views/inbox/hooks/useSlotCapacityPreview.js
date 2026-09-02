@@ -11,11 +11,12 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../../supabase/client";
+import { useStaffInboxReads } from "../../../../supabase/hooks/useStaffInboxReads";
 import { SALON_SLOTS, BOOKING_STATUS } from "../../../../constants/index.ts";
 import { classifyProposedBooking } from "./slotCapacityPreview.js";
 
 export function useSlotCapacityPreview({ date, slot, size }) {
+  const inboxReads = useStaffInboxReads();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,7 +30,7 @@ export function useSlotCapacityPreview({ date, slot, size }) {
       return undefined;
     }
 
-    if (!supabase) {
+    if (!inboxReads.connected) {
       setBookings([]);
       setLoading(false);
       setError(null);
@@ -40,10 +41,7 @@ export function useSlotCapacityPreview({ date, slot, size }) {
     setError(null);
 
     (async () => {
-      const { data, error: err } = await supabase
-        .from("bookings")
-        .select("id, slot, size, dog_id")
-        .eq("booking_date", date);
+      const { rows: data, error: err } = await inboxReads.listSeatsOnDate(date);
 
       if (cancelled) return;
 
@@ -85,7 +83,7 @@ export function useSlotCapacityPreview({ date, slot, size }) {
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [date, inboxReads]);
 
   const classification = classifyProposedBooking({
     bookings,
