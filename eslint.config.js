@@ -180,8 +180,6 @@ export default [
     ignores: [
       "**/*.test.{js,jsx,ts,tsx}",
       "**/*.spec.{js,jsx,ts,tsx}",
-      "src/components/auth/LoginPage.jsx",
-      "src/components/auth/ResetPasswordPage.jsx",
       "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
       "src/components/views/inbox/hooks/useCustomerContext.js",
       "src/components/views/inbox/hooks/useInboxMessageSearch.js",
