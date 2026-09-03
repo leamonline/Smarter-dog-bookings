@@ -21,3 +21,4 @@ export { useHumanCardActions } from "./useHumanCardActions.js";
 export { useResolvedHuman } from "./useResolvedHuman.js";
 export { useTrustedOwnerLinks } from "./useTrustedOwnerLinks.js";
 export { usePendingSignupLink } from "./usePendingSignupLink.js";
+export { useHumanRemoval } from "./useHumanRemoval.js";
