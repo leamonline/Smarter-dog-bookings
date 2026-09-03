@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { ModalShell } from "./shell/index.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   HumanBookingHistory,
   HumanEventTimeline,
@@ -26,6 +25,7 @@ import {
   useResolvedHuman,
   useTrustedOwnerLinks,
   usePendingSignupLink,
+  useHumanRemoval,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 
@@ -64,8 +64,6 @@ export function HumanCardModal({
   // link_pending_signup moves the verified number + login here instead.
   onLinkPendingSignup,
 }) {
-  const toast = useToast();
-  const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
 
   // Resolve the human: the live map entry when present (so edits flow
@@ -117,31 +115,6 @@ export function HumanCardModal({
   });
   const { linking, handlePhoneTaken } = signupLink;
 
-  // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
-  // input focus, "E" shortcut. Paused while a confirm dialog is open.
-  const {
-    isEditing,
-    draft,
-    setDraftField,
-    dirty,
-    saving,
-    notesExpanded,
-    setNotesExpanded,
-    startEdit,
-    cancelEdit,
-    saveHuman,
-    nameInputRef,
-    addressInputRef,
-    emailInputRef,
-    notesInputRef,
-  } = useHumanDraft({
-    human,
-    humanId,
-    onUpdateHuman,
-    onPhoneTaken: handlePhoneTaken,
-    shortcutPaused: pendingDelete || pendingExit || signupLink.dialogOpen,
-  });
-
   // Card-level actions: copy phone, open booking, overflow menu, and
   // signup approve/reject — plus the merge/archive/reject dialog flags.
   const {
@@ -169,6 +142,49 @@ export function HumanCardModal({
     onArchiveHuman,
     onApproveSignup,
     onRejectSignup,
+  });
+
+  // Delete / archive confirm step: the parent call, the toast, and the
+  // close-on-success live in useHumanRemoval (Debt 7).
+  const {
+    pendingDelete,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    cancelArchive,
+    confirmArchive,
+  } = useHumanRemoval({
+    human,
+    humanId,
+    onClose,
+    onDeleteHuman,
+    onArchiveHuman,
+    setPendingArchive,
+  });
+
+  // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
+  // input focus, "E" shortcut. Paused while a confirm dialog is open.
+  const {
+    isEditing,
+    draft,
+    setDraftField,
+    dirty,
+    saving,
+    notesExpanded,
+    setNotesExpanded,
+    startEdit,
+    cancelEdit,
+    saveHuman,
+    nameInputRef,
+    addressInputRef,
+    emailInputRef,
+    notesInputRef,
+  } = useHumanDraft({
+    human,
+    humanId,
+    onUpdateHuman,
+    onPhoneTaken: handlePhoneTaken,
+    shortcutPaused: pendingDelete || pendingExit || signupLink.dialogOpen,
   });
 
   // Close request — if we're mid-edit with unsaved changes, ask first.
@@ -244,7 +260,7 @@ export function HumanCardModal({
               saving={saving}
               onCancel={cancelEdit}
               onSave={saveHuman}
-              onDelete={onDeleteHuman ? () => setPendingDelete(true) : undefined}
+              onDelete={requestDelete}
             />
           ) : (
             mobileActionBar
@@ -402,17 +418,8 @@ export function HumanCardModal({
           message="They'll be removed from the directory — dogs, bookings, photos all go too. WhatsApp chats stay, but you'll lose the link. This can't be undone."
           confirmLabel="Delete person"
           variant="danger"
-          onConfirm={async () => {
-            const result = await onDeleteHuman?.(humanId);
-            setPendingDelete(false);
-            if (result?.ok) {
-              toast.show("Deleted", "success");
-              onClose?.();
-            } else if (result?.error) {
-              toast.show(result.error, "error");
-            }
-          }}
-          onCancel={() => setPendingDelete(false)}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
         />
       )}
 
@@ -423,17 +430,8 @@ export function HumanCardModal({
           confirmLabel="Archive"
           cancelLabel="Cancel"
           variant="primary"
-          onConfirm={async () => {
-            const result = await onArchiveHuman?.(human.id || humanId);
-            setPendingArchive(false);
-            if (result) {
-              toast.show("Archived", "success");
-              onClose?.();
-            } else {
-              toast.show("Couldn't archive that one — give it another go", "error");
-            }
-          }}
-          onCancel={() => setPendingArchive(false)}
+          onConfirm={confirmArchive}
+          onCancel={cancelArchive}
         />
       )}
 
