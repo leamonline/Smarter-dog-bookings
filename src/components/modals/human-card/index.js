@@ -19,6 +19,6 @@ export { RejectSignupDialog } from "./RejectSignupDialog.jsx";
 export { useHumanDraft } from "./useHumanDraft.js";
 export { useHumanCardActions } from "./useHumanCardActions.js";
 export { useResolvedHuman } from "./useResolvedHuman.js";
-export { usePendingSignupLink } from "./usePendingSignupLink.js";
-export { PendingSignupLinkDialogs } from "./PendingSignupLinkDialogs.jsx";
 export { useTrustedOwnerLinks } from "./useTrustedOwnerLinks.js";
+export { usePendingSignupLink } from "./usePendingSignupLink.js";
+export { SignupLinkDialogs } from "./SignupLinkDialogs.jsx";

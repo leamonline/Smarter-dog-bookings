@@ -20,12 +20,12 @@ import {
   MergeHumanDialog,
   HumanEditFooter,
   RejectSignupDialog,
+  SignupLinkDialogs,
   useHumanDraft,
   useHumanCardActions,
   useResolvedHuman,
-  usePendingSignupLink,
-  PendingSignupLinkDialogs,
   useTrustedOwnerLinks,
+  usePendingSignupLink,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 
@@ -89,20 +89,21 @@ export function HumanCardModal({
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
-  // Incoming trust (owners who named this person) + "link me on that dog".
+  // Incoming trusted-owner links + "link this human on a dog" — the
+  // directional trust logic lives in useTrustedOwnerLinks (Debt 7).
   const { trustedOwnerIds, handleLinkTrustedOnDog } = useTrustedOwnerLinks({
     human,
     humanId,
-    humanFullName,
     humans,
-    ensureDogsForHumans,
+    humanFullName,
     onUpdateHuman,
+    ensureDogsForHumans,
   });
 
   const [showAddDog, setShowAddDog] = useState(false);
 
-  // Joining a portal signup shell onto a customer — the phone-collision
-  // prompt from useHumanDraft and the "Link to <name>" claim on a shell.
+  // A phone save lost to humans_phone_unique: link a pending portal signup
+  // shell onto this record, or name the customer who holds the number.
   const signupLink = usePendingSignupLink({
     human,
     humanId,
@@ -114,6 +115,7 @@ export function HumanCardModal({
     onUpdateHuman,
     onOpenHuman,
   });
+  const { linking, handlePhoneTaken } = signupLink;
 
   // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
   // input focus, "E" shortcut. Paused while a confirm dialog is open.
@@ -136,7 +138,7 @@ export function HumanCardModal({
     human,
     humanId,
     onUpdateHuman,
-    onPhoneTaken: signupLink.handlePhoneTaken,
+    onPhoneTaken: handlePhoneTaken,
     shortcutPaused: pendingDelete || pendingExit || signupLink.dialogOpen,
   });
 
@@ -228,7 +230,7 @@ export function HumanCardModal({
             overflowItems={overflowItems}
             nameInputRef={nameInputRef}
             isPendingSignup={isPendingSignup}
-            signupBusy={signupBusy || signupLink.linking}
+            signupBusy={signupBusy || linking}
             onApproveSignup={handleApproveSignup}
             onRejectSignup={() => setPendingReject(true)}
             claimedHuman={signupLink.claimedHuman}
@@ -435,7 +437,7 @@ export function HumanCardModal({
         />
       )}
 
-      <PendingSignupLinkDialogs
+      <SignupLinkDialogs
         link={signupLink}
         humanFullName={humanFullName}
         phone={human.phone}

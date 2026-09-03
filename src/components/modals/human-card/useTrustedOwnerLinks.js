@@ -1,17 +1,19 @@
-// Incoming trust for the Human card: which owners have named THIS person as a
-// trusted contact (so the Dogs panel can show dogs they may drop off /
-// collect), and the "link me as trusted on that dog" action that adds one.
+// Trusted-owner links for the Human card (Debt 7; extracted from
+// HumanCardModal.jsx).
 //
 // Trust is one-way in the database: { human_id: owner, trusted_id: person }.
-// The incoming owner ids are loaded separately from human.trustedContacts,
-// which is the OUTGOING set ("people this human trusts"). Keeping the two
-// directions distinct avoids inventing a reciprocal trust row.
+// This hook owns the INCOMING direction — the owners who trust this human —
+// which is what lets the Dogs panel show dogs this person may drop off or
+// collect. It is kept separate from human.trustedContacts (the outgoing set,
+// "people this human trusts") so neither direction invents a reciprocal row.
 //
-// Extracted from HumanCardModal so the orchestrator stays a layout shell
-// (Debt 7 size ratchet). Behaviour is unchanged.
+// It also owns "link this human as a trusted contact on an existing dog",
+// which updates the DOG'S OWNER only, through the same onUpdateHuman path
+// the rest of the card uses. Nothing here talks to the database directly
+// except the two read helpers from useTrustedContacts.
 import { useCallback, useEffect, useState } from "react";
-import { useToast } from "../../../contexts/ToastContext.jsx";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 import {
   fetchTrustedContactsForHuman,
   fetchTrustedOwnerIdsForHuman,
@@ -20,15 +22,17 @@ import {
 export function useTrustedOwnerLinks({
   human,
   humanId,
-  humanFullName,
   humans,
-  ensureDogsForHumans,
+  humanFullName,
   onUpdateHuman,
+  ensureDogsForHumans,
 }) {
   const toast = useToast();
-  const [trustedOwnerIds, setTrustedOwnerIds] = useState([]);
-  const trustedHumanId = human.id || humanId;
 
+  // Load the incoming owner ids for the resolved human (falls back to the
+  // route id while the record is still hydrating).
+  const [trustedOwnerIds, setTrustedOwnerIds] = useState([]);
+  const trustedHumanId = human?.id || humanId;
   useEffect(() => {
     let cancelled = false;
     setTrustedOwnerIds([]);

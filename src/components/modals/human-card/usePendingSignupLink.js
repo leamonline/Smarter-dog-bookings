@@ -1,20 +1,24 @@
-// The two ways a portal self-signup shell gets joined onto an existing
-// customer from the Human card — both end in link_pending_signup():
+// Pending-signup linking for the Human card (Debt 7; extracted from
+// HumanCardModal.jsx, where #774 introduced it).
 //
-//  1. Phone path: staff put a number on THIS record and it collides with an
-//     unapproved signup shell (humans_phone_unique). useHumanDraft hands the
-//     collision to `handlePhoneTaken`; if the holder is a pending shell we
-//     ask "Link this signup?", link, then re-run the save so the rest of the
-//     draft lands. Anyone else holding the number is named instead.
+// A phone save can be lost to humans_phone_unique. This hook works out who
+// holds the number: an unapproved portal signup shell can be linked onto
+// this record in one tap (the "existing customer signed up with a new
+// number" case); anyone else is named so staff know where to look.
 //
-//  2. Claim path: THIS record is the shell, and the customer typed a name
-//     that matched an existing record (humans.claims_human_id, set by
-//     submit_customer_signup). We resolve that record so the header can
-//     offer "Link to <name>"; confirming links and then opens the record
-//     that now carries the login (the shell is deleted server-side).
+// handlePhoneTaken is useHumanDraft's `onPhoneTaken` hand-off. When the
+// holder is a pending shell it returns a promise that stays open while the
+// "Link this signup?" dialog is up; confirm resolves true (the draft's save
+// finishes), cancel resolves false (the draft stays open, nothing typed is
+// lost). The DB function link_pending_signup is the authority; this only
+// asks, then re-runs the rest of the draft through onUpdateHuman.
 //
-// Extracted from HumanCardModal so the orchestrator stays a layout shell
-// (Debt 7 size ratchet).
+// The same hook owns the mirror-image case: when THIS record is the shell
+// and the customer's typed name matched an existing customer, the signup
+// stored that record as humans.claims_human_id. We resolve it so the header
+// can offer "Link to <name>" instead of Approve — approving would keep a
+// record still called "New member / Pending 07…". Confirming runs the same
+// link_pending_signup, then opens the record that now carries the login.
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
@@ -43,7 +47,6 @@ export function usePendingSignupLink({
   const [claimedHuman, setClaimedHuman] = useState(null);
   const [pendingClaimLink, setPendingClaimLink] = useState(false);
 
-  // ── Phone path ──────────────────────────────────────────────
   const handlePhoneTaken = useCallback(
     async (phone, updates) => {
       const hit = findHumanByPhone ? await findHumanByPhone(phone) : null;
@@ -102,9 +105,9 @@ export function usePendingSignupLink({
       setLinking(false);
       setPendingLink(null);
     }
-  }, [pendingLink, linking, human.id, humanId, onLinkPendingSignup, onUpdateHuman, humanFullName, toast]);
+  }, [pendingLink, linking, human, humanId, onLinkPendingSignup, onUpdateHuman, humanFullName, toast]);
 
-  // ── Claim path ──────────────────────────────────────────────
+  // ── The claim path: this record IS the shell ────────────────
   const claimsHumanId = human?.claimsHumanId || null;
   useEffect(() => {
     let cancelled = false;
@@ -151,12 +154,12 @@ export function usePendingSignupLink({
       setLinking(false);
       setPendingClaimLink(false);
     }
-  }, [claimedHuman, onLinkPendingSignup, linking, human.id, human.phone, humanId, claimedName, onOpenHuman, toast]);
+  }, [claimedHuman, onLinkPendingSignup, linking, human, humanId, claimedName, onOpenHuman, toast]);
 
   return {
-    handlePhoneTaken,
     pendingLink,
     linking,
+    handlePhoneTaken,
     handleCancelLink,
     handleConfirmLink,
     // Only offer the claim link when the parent wired the RPC.
@@ -166,6 +169,7 @@ export function usePendingSignupLink({
     openClaimLink: useCallback(() => setPendingClaimLink(true), []),
     closeClaimLink: useCallback(() => setPendingClaimLink(false), []),
     handleConfirmClaimLink,
+    // True while either prompt owns the keyboard (pauses the "E" shortcut).
     dialogOpen: !!pendingLink || pendingClaimLink,
   };
 }
