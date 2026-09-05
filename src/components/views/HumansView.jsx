@@ -20,6 +20,7 @@ import {
 import { normalisePhoneDigits, telLink, waLink } from "../modals/dog-card/helpers.js";
 import { HumanInitials, ProfileArrow } from "./directory/IdentityMarker.jsx";
 import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
+import { SignupApprovalQueue } from "./humans/SignupApprovalQueue";
 import { useSalon } from "../../contexts/SalonContext";
 
 const AZ_LETTERS = [
@@ -393,6 +394,7 @@ const VIEW_OPTIONS = [
 
 export function HumansView({
   onNewClient,
+  onApproveSignup,
   fetchArchivedHumans,
   hasMore,
   totalCount,
@@ -647,6 +649,8 @@ export function HumansView({
         </div>
         )}
       </section>
+
+      {onApproveSignup && <SignupApprovalQueue enabled={isOnline} onApprove={onApproveSignup} />}
 
       {/* Mobile A–Z strip */}
       {showRailAndSort && (

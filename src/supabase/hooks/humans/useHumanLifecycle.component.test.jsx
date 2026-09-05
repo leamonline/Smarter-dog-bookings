@@ -189,7 +189,7 @@ describe("useHumanLifecycle signup approval", () => {
       outcome = await result.current.approveSignup("h1");
     });
 
-    expect(outcome).toEqual({ ok: true });
+    expect(outcome).toEqual({ ok: true, welcomeStatus: "unconfirmed" });
     expect(stub.rpc).toHaveBeenCalledWith("approve_customer_signup", {
       p_human_id: "h1",
     });
@@ -234,7 +234,7 @@ describe("useHumanLifecycle signup approval", () => {
       outcome = await result.current.approveSignup("h1");
     });
 
-    expect(outcome).toEqual({ ok: true });
+    expect(outcome).toEqual({ ok: true, welcomeStatus: "unconfirmed" });
     expect(result.current.humansById.h1.approvedAt).toBeTruthy();
     expect(warn).toHaveBeenCalled();
   });
@@ -297,5 +297,22 @@ describe("useHumanLifecycle sample-data mode (!supabase)", () => {
       ok: false,
       error: expect.stringMatching(/sample data/),
     });
+  });
+});
+
+
+describe("approval welcome outcome", () => {
+  it.each([
+    [{ ok: true, channel: "sms" }, "accepted"],
+    [{ ok: false, reason: "no contact method available" }, "failed"],
+    [{ ok: true, skipped: "already welcomed" }, "previously-requested"],
+    [null, "unconfirmed"],
+    [{ ok: false, detail: "fetch failed" }, "unconfirmed"],
+  ])("reports %j independently of approval", async (data, welcomeStatus) => {
+    setSupabase(makeStub(undefined, { invokeImpl: () => ({ data, error: null }) }));
+    const { result } = renderHook(() => useHarness());
+    let outcome;
+    await act(async () => { outcome = await result.current.approveSignup("h1"); });
+    expect(outcome).toEqual({ ok: true, welcomeStatus });
   });
 });

@@ -790,7 +790,7 @@ describe("useHumans signup approval", () => {
       outcome = await result.current.approveSignup("h1");
     });
 
-    expect(outcome).toEqual({ ok: true });
+    expect(outcome).toEqual({ ok: true, welcomeStatus: "unconfirmed" });
     expect(stub.rpc).toHaveBeenCalledWith("approve_customer_signup", {
       p_human_id: "h1",
     });
@@ -834,7 +834,7 @@ describe("useHumans signup approval", () => {
       outcome = await result.current.approveSignup("h1");
     });
 
-    expect(outcome).toEqual({ ok: true });
+    expect(outcome).toEqual({ ok: true, welcomeStatus: "unconfirmed" });
     expect(result.current.humansById.h1.approvedAt).toBeTruthy();
     expect(warn).toHaveBeenCalled();
   });
@@ -853,7 +853,7 @@ describe("useHumans signup approval", () => {
       outcome = await result.current.approveSignup("h1");
     });
 
-    expect(outcome).toEqual({ ok: true });
+    expect(outcome).toEqual({ ok: true, welcomeStatus: "unconfirmed" });
     expect(warn).toHaveBeenCalled();
   });
 
