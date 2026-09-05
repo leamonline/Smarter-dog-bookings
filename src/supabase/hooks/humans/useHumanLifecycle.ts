@@ -4,6 +4,7 @@
 // { ok: true } | { ok: false, error } result contract, guard for offline,
 // and optimistically update the shared caches while realtime reconciles
 // the canonical rows.
+import type { ApprovalResult } from "./useSignupReview";
 import { useCallback } from "react";
 import { supabase } from "../../client";
 import {
@@ -139,7 +140,7 @@ export function useHumanLifecycle({
    * the same { ok } / { ok, error } shape as deleteHuman / mergeHumans.
    */
   const approveSignup = useCallback(
-    async (humanId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+    async (humanId: string): Promise<ApprovalResult> => {
       if (!humanId) return { ok: false, error: "Missing human id" };
       if (!supabase)
         return { ok: false, error: "Approving needs the live database — you're on sample data." };
@@ -152,11 +153,17 @@ export function useHumanLifecycle({
       // Send the "Welcome to the Pack" message. Best-effort: the approval has
       // already committed, so a messaging hiccup must not surface as a failure
       // (the welcome is also idempotent server-side and can be re-sent).
+      let welcomeStatus: "accepted" | "unconfirmed" | "failed" | "previously-requested" = "unconfirmed";
       try {
-        const { error: fnErr } = await supabase.functions.invoke(
+        const { data: welcomeData, error: fnErr } = await supabase.functions.invoke(
           "notify-customer-welcome",
           { body: { human_id: humanId } },
         );
+        if (!fnErr) {
+          if (welcomeData?.skipped === "already welcomed") welcomeStatus = "previously-requested";
+          else if (welcomeData?.ok === true) welcomeStatus = "accepted";
+          else if (welcomeData?.ok === false && welcomeData?.reason === "no contact method available") welcomeStatus = "failed";
+        }
         if (fnErr)
           logger.warn("notify-customer-welcome failed", {
             tags: { hook: "useHumans", op: "approveSignup.welcome" },
@@ -181,7 +188,7 @@ export function useHumanLifecycle({
         if (entry) next[entry[0]] = { ...entry[1], approvedAt };
         return next;
       });
-      return { ok: true };
+      return { ok: true, welcomeStatus };
     },
     [setHumans, setHumansById],
   );

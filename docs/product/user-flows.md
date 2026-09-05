@@ -176,3 +176,31 @@ There is no complete manifest that fails discovery when a function is omitted.
 4. Local config and CI deployment are checked against the same contract.
 
 **Requirements:** `REQ-SEC-001`, `REQ-REL-002`.
+
+
+## Staff reviews a new customer signup
+
+Implemented on the issue #782 branch, verified against synthetic data on
+5 September 2026; production release remains separate. See the
+[implementation plan](../plans/active/2026-09-05-customer-approval-queue.md).
+
+1. Open Humans. Awaiting approval shows an exact count and oldest-first queue,
+   independent of directory search, filters and loaded directory pages.
+2. Review a customer in the side panel (full screen on mobile). All active dogs
+   load before approval becomes available. Existing authoritative sizes are
+   selected; customer-reported sizes are informational.
+3. Choose Small, Medium or Large for each dog. Save for later persists the
+   choices made so far and leaves the signup pending. Closing with unsaved
+   choices offers explicit discard or continued review.
+4. Save sizes and approve persists changed sizes, then invokes the existing
+   staff approval RPC. Conditional writes reject changed breed/size/owner
+   records. A failure can leave earlier dog sizes saved; reload shows the
+   canonical state before another attempt. The database remains the final
+   authority and can still reject a newly unconfirmed dog.
+5. The receipt distinguishes customer approval from the welcome-message
+   outcome. Provider acceptance is not delivery confirmation. Unknown outcomes
+   require checking messaging before retrying; the panel does not resend.
+
+Existing profile approval, rejection and duplicate-linking paths remain
+available. No booking policy, database schema or notification delivery semantics
+change in this flow.

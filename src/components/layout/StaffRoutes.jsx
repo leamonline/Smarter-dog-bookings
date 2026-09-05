@@ -174,6 +174,7 @@ export function StaffRoutes({ data, nav, ui }) {
   // just has the modal opened for it by App's URL → modal-state effect.
   const humansViewProps = {
     onNewClient: openNewClient,
+    onApproveSignup: humansApi.approveSignup,
     fetchArchivedHumans: humansApi.fetchArchivedHumans,
     hasMore: humansApi.hasMore,
     totalCount: humansApi.totalCount,

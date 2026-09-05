@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Added
 
+- An awaiting-approval queue on Humans, with a responsive review panel for
+  all dog sizes, save-for-later and save-and-approve actions. The queue is
+  independent of directory search; stale or failed size saves stop approval,
+  and the welcome-message outcome is shown separately (#782).
+
 - An advisor baseline. `supabase/advisors/baseline.json` records every accepted
   Supabase security and performance advisor finding by the linter's stable
   `cache_key` (111 + 106 on 2 September 2026), `npm run check:advisors` diffs the
