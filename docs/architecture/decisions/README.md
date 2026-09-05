@@ -20,6 +20,8 @@ complete.
 | [007](007-customer-capacity-read-disclosure.md) | Customer capacity-read RPCs disclose occupancy shape only, range reads capped at 92 days | Accepted — gap found and fixed |
 | [008](008-customer-facing-refusal-wording.md) | A refused customer is told what to do next, never the rule, the clock or the capacity number | Accepted — wording rule decided and enforced |
 
+| [009](009-independent-applications-in-one-repository.md) | Website and bookings retain independent builds and deployments in one repository | Proposed |
+
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately
 in the [dated audit](../../research/2026-08-09-issue-603-plan-reality-audit.md).
