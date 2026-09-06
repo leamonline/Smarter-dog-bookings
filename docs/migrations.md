@@ -136,3 +136,7 @@ Two functions here are deliberately reachable by `anon` and must stay that way:
 `booking_policy_runtime()` and `booking_policy_runtime_status()` are revoked and
 then intentionally re-granted in `20260726144001`, returning only
 `{ state, scheduledEffectiveAt }` so the portal knows when to refetch.
+
+## Scheduled holiday notices — 5 September 2026
+
+`20260905141035_scheduled_holiday_notices.sql` adds staff-managed holiday ranges, atomic closure saves, diary guards and a minimal public notice projection. It seeds no holidays. See [ADR 010](architecture/decisions/010-holiday-notices-operational-closures.md) and the [implementation plan](plans/active/2026-09-05-scheduled-holiday-notices.md).

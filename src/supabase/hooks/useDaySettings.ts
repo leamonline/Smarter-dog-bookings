@@ -227,7 +227,7 @@ export function useDaySettings(weekStart: Date | null | undefined) {
       // Roll back the optimistic mutation so the UI matches the
       // server's authoritative state. Caller can toast the error.
       commitDaySettings((prev) => ({ ...prev, [dateStr]: prevSetting }));
-      return { ok: false, error: error.message || "Couldn't save change." };
+      return { ok: false, error: error.message.includes("holiday_diary_busy_retry") ? "The diary is being updated. Please try again." : error.message.includes("holiday_dates_managed_in_settings") ? "Update or remove this holiday in Settings → Holidays before changing its dates." : error.message || "Couldn't save change." };
     }
 
     return { ok: true, value: nextSetting };

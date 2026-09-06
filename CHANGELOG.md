@@ -324,3 +324,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   the broken one.
 
 - Establish a repository project-memory system with a North Star, dependency-aware roadmap, product requirements, current architecture, decision records, planning standard, agent guidance, reusable prompt library and GitHub contribution templates.
+
+## Scheduled holiday notices (pending release)
+
+Settings → Holidays can schedule advance and away notices while closing the actual diary dates atomically. Existing appointments are flagged for rearrangement. Customers see verified reopening dates in date selection; the website card is delivered through its existing repository. No holiday is activated by deployment.
