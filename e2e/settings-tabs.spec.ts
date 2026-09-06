@@ -17,6 +17,7 @@ import { createDefaultBookingRules } from "../src/constants/salonSettings";
 const TABS_WITH_CONTROLS = [
   "Your Business",
   "Hours & Closures",
+  "Holidays",
   "Your Account",
   "Services & Pricing",
   "Booking Rules",

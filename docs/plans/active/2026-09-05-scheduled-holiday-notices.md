@@ -1,13 +1,25 @@
 # Scheduled holiday notices backed by operational closures
 
-Status: Draft
+Status: Active
 Issue: [#786](https://github.com/leamonline/Smarter-dog-bookings/issues/786)
-Base: origin/main at 2c252c8f (resolve full SHA before implementation)
+Base: origin/main at fc470f63494413ad2aa2785541ad87361a2d0a86
 Last verified: 2026-09-05
 Owners: One serial implementer owns database contract, wrappers, staff UI and both customer surfaces
-Dependencies: [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784) for website integration in this repository
+Dependencies: Coordinated website PR; repository import #784 remains separate
 Related requirements: [PROJECT.md](../../../PROJECT.md), [booking capacity](../../capacity-engine.md)
 Related ADRs: [PostgreSQL authority](../../architecture/decisions/001-postgresql-capacity-authority.md)
+
+## Implementation discovery — 5 September 2026
+
+The user authorised implementation and live release after this plan merged in PR #787. The website import is still outstanding and its original checkout contains unrelated edits. Deliver the website card in a separate clean worktree/PR in the existing website repository, preserving the hosting boundary; #784 will later import those commits. This replaces the original consolidation prerequisite without expanding this feature into a hosting migration.
+
+Use first closed date and reopening date; the last closed date is derived as the day before reopening. This removes contradictory date inputs. Save/edit accepts a stable UUID and expected revision, rejects stale edits, and replays identical immediately preceding requests. Maximum closure length is 90 days. Both closed days and advertised reopening are guarded against direct changes, including NULL status and deletes. Retiring or editing a holiday never reopens old dates. The advertised reopening must already be explicitly open in the diary.
+
+See [ADR 010](../../architecture/decisions/010-holiday-notices-operational-closures.md) for the implementation contract. The migration creates no holiday records. The user supplies actual holiday dates after release. The user retains merge control.
+
+## Implementation evidence — 6 September 2026
+
+Branch `codex/holiday-notices-implementation`, migration `20260905141035_scheduled_holiday_notices.sql` (idempotent; re-applied cleanly). Local results on a Homebrew PostgreSQL 15 replay of every migration: `supabase/tests/220_holiday_notices.test.sql` 26/26 assertions pass; `scripts/verify-holiday-concurrency.py` passes both real multi-session races (direct diary edit fails fast without waiting on its row lock; competing booking and holiday commits keep exactly one linked rearrangement task, and a later direct reopening is rejected). `npm run lint`, `check:docs`, `typecheck`, `check:migrations`, `test` (3375 tests) and `build` all pass. Production: applied to project `nlzhllhkigmsvrzduefz` via the Supabase MCP on 6 September 2026 (recorded as `20260906054126 scheduled_holiday_notices`), before merge of [PR #788](https://github.com/leamonline/Smarter-dog-bookings/pull/788). Post-apply checks: table present with 0 rows, guard trigger present, grants as designed (public projection anon-readable, staff commands authenticated-only, trigger function none), public projection returns nothing, and the CI `migrations-applied` job passed on rerun. The website card PR remains outstanding; record its evidence here before moving this plan to completed.
 
 ## Goal
 
@@ -54,7 +66,7 @@ PostgreSQL retains booking authority. Holiday metadata identifies a reason and a
 
 ## Data/database changes
 
-Proposed, not yet authorised for implementation: a durable holiday record and staff-only atomic command, plus a narrow public read. Final schema and ADR must be reviewed before migrations are written. Validate ordered dates, bounded ranges and non-overlap. Require an explicitly open reopening day and closure coverage through the day before it; do not guess from reference hours. Use ordered locks compatible with existing booking/closure locks and an idempotent retry identity. Reuse the closure task semantics and preserve slot overrides. Prove rollback on any failed date.
+Authorised for implementation by the user request to implement and make live: a durable holiday record and staff-only atomic command, plus a narrow public read. The schema and ADR form the same reviewed implementation change. Validate ordered dates, bounded ranges and non-overlap. Require an explicitly open reopening day and closure coverage through the day before it; do not guess from reference hours. Use ordered locks compatible with existing booking/closure locks and an idempotent retry identity. Reuse the closure task semantics and preserve slot overrides. Prove rollback on any failed date.
 
 Staff attempts to reopen a covered holiday day should be rejected with a route to edit the holiday. Editing or retiring an announcement must not silently reopen dates or erase existing rearrangement work. Changing operational dates requires an explicit preview of affected days, preserving unrelated closures. If a reopening day later closes, invalidate the public reopening claim and require staff correction. These guard decisions require review of all current writers to avoid breaking existing workflows.
 
@@ -74,7 +86,7 @@ Enforce staff authorisation server-side. Public read returns explicit safe field
 
 ## Dependencies
 
-Website integration follows #784. Booking/database design can proceed independently once its scope is authorised. No actual dates are needed to build the feature. Activation later requires the user's real dates. Production schema deployment requires separately verified target and authority.
+Website integration is delivered in its current repository; #784 imports it later. Booking/database design can proceed independently once its scope is authorised. No actual dates are needed to build the feature. Activation later requires the user's real dates. Production schema deployment requires separately verified target and authority.
 
 ## Risks
 
@@ -113,4 +125,4 @@ One authorised staff action atomically saves operational closures and the schedu
 
 ## Open questions
 
-Database contract and migration authorisation are required before implementation. Reconcile exact lock ordering and all day_settings writers from code, rather than asking the user to design them. Actual holiday dates are needed only for later activation. Automatic reopening of diary dates is intentionally excluded: the notice disappearing is not an instruction to change operational availability.
+Implementation and release authorisation were provided by the user; the user controls merges. Reconcile exact lock ordering and all day_settings writers from code, rather than asking the user to design them. Actual holiday dates are needed only for later activation. Automatic reopening of diary dates is intentionally excluded: the notice disappearing is not an instruction to change operational availability.

@@ -74,7 +74,7 @@ describe("SettingsView unsaved-changes guard", () => {
     expect(screen.getByText(/upcoming policy/i)).toBeInTheDocument();
   });
 
-  it("keeps the desktop tab order and moves from Hours to Account with ArrowRight", async () => {
+  it("keeps the desktop tab order and moves from Hours to Holidays with ArrowRight", async () => {
     const user = userEvent.setup();
     render(<SettingsView {...baseProps()} />);
 
@@ -82,6 +82,7 @@ describe("SettingsView unsaved-changes guard", () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "Your Business",
       "Hours & Closures",
+      "Holidays",
       "Your Account",
       "Services & Pricing",
       "Booking Rules",
@@ -94,8 +95,8 @@ describe("SettingsView unsaved-changes guard", () => {
 
     await user.click(screen.getByRole("tab", { name: "Hours & Closures" }));
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Holidays" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Holidays" })).toHaveFocus();
   });
 
   it("keeps every section in the mobile header and uses the existing dirty-state guard", async () => {

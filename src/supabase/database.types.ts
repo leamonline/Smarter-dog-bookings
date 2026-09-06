@@ -2908,6 +2908,33 @@ export type Database = {
         }
         Relationships: []
       }
+      salon_holidays: {
+        Row: {
+          closed_from: string
+          enabled: boolean
+          id: string
+          notice_from: string
+          reopens_on: string
+          revision: number
+        }
+        Insert: {
+          closed_from: string
+          enabled?: boolean
+          id: string
+          notice_from: string
+          reopens_on: string
+          revision?: number
+        }
+        Update: {
+          closed_from?: string
+          enabled?: boolean
+          id?: string
+          notice_from?: string
+          reopens_on?: string
+          revision?: number
+        }
+        Relationships: []
+      }
       salon_todos: {
         Row: {
           booking_change_request_id: string | null
@@ -3817,6 +3844,47 @@ export type Database = {
       }
     }
     Functions: {
+      get_public_holiday_notices: {
+        Args: never
+        Returns: {
+          closed_from: string
+          id: string
+          notice_from: string
+          phase: string
+          reopens_on: string
+        }[]
+      }
+
+      save_salon_holiday: {
+        Args: {
+          p_closed_from: string
+          p_enabled: boolean
+          p_id: string
+          p_notice_from: string
+          p_reopens_on: string
+          p_revision: number
+        }
+        Returns: Json
+      }
+
+      get_staff_holidays: {
+        Args: never
+        Returns: {
+          closed_from: string
+          enabled: boolean
+          id: string
+          notice_from: string
+          reopens_on: string
+          revision: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "salon_holidays"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+
       active_slots: { Args: never; Returns: string[] }
       active_slots_for: { Args: { p_date: string }; Returns: string[] }
       apply_booking_visit_backfill_reconciliation: {

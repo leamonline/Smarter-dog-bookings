@@ -1,6 +1,7 @@
 // src/components/views/SettingsView.jsx — tabbed settings interface
 import { useState, useRef, useEffect } from "react";
 import { BusinessSettings } from "./settings/BusinessSettings.jsx";
+import { HolidaySettings } from "./settings/HolidaySettings";
 import { HoursSettings } from "./settings/HoursSettings.jsx";
 import { AccountSettings } from "./settings/AccountSettings.jsx";
 import { PricingSettings } from "./settings/PricingSettings.jsx";
@@ -16,6 +17,7 @@ import { PageHeader } from "../ui/index.js";
 const SECTIONS = [
   { id: "business", label: "Your Business" },
   { id: "hours", label: "Hours & Closures" },
+  { id: "holidays", label: "Holidays" },
   { id: "account", label: "Your Account" },
   { id: "pricing", label: "Services & Pricing" },
   { id: "rules", label: "Booking Rules" },
@@ -155,6 +157,7 @@ export function SettingsView({
         className="focus:outline-none"
       >
         {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
+        {activeTab === "holidays" && <HolidaySettings canEdit={canEdit} onDirtyChange={setDirty} />}
         {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
         {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} onDirtyChange={setDirty} />}
         {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}

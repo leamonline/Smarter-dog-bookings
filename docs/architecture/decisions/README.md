@@ -22,6 +22,8 @@ complete.
 
 | [009](009-independent-applications-in-one-repository.md) | Website and bookings retain independent builds and deployments in one repository | Proposed |
 
+| [010](010-holiday-notices-operational-closures.md) | Scheduled holiday notices assert operational diary closures | Accepted |
+
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately
 in the [dated audit](../../research/2026-08-09-issue-603-plan-reality-audit.md).

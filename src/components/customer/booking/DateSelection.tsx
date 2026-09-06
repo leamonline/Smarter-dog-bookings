@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useHolidayNotices } from "../../../supabase/hooks/useHolidayNotices";
+import { holidayCopy, isHolidayDate, londonDate } from "../../../engine/holidayNotice";
+import { londonWallClockToUtcMs } from "../../../engine/londonTime";
 import { useCustomerAvailability } from "../../../supabase/hooks/useCustomerAvailability";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { findGroupedSlots } from "../../../engine/capacity";
@@ -94,6 +97,8 @@ export function DateSelection({
   pageCache: controlledPageCache,
   onAvailabilitySummary,
 }: DateSelectionProps) {
+  const holidays = useHolidayNotices();
+  const [refresh, setRefresh] = useState(0);
   const [today] = useState(startOfToday);
   const pageCount = Math.max(1, Math.ceil(bookingHorizonDays / PAGE_SIZE));
   const [internalPage, setInternalPage] = useState(0);
@@ -105,6 +110,20 @@ export function DateSelection({
   const internalPageCache = useRef(new Map<string, DatePageAvailability>());
   const pageCache = controlledPageCache ?? internalPageCache.current;
   const availability = useCustomerAvailability();
+
+  // Cached availability goes stale when the tab regains focus or the London
+  // date rolls over (a holiday notice can appear or disappear at midnight).
+  useEffect(() => {
+    const invalidate = () => { pageCache.clear(); setRefresh(value => value + 1); };
+    const msUntilNextLondonMidnight = () => {
+      const tomorrow = new Date(`${londonDate()}T00:00:00Z`);
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      return Math.max(1_000, londonWallClockToUtcMs(tomorrow.toISOString().slice(0, 10), "00:00") - Date.now() + 1_000);
+    };
+    let timer = window.setTimeout(function tick() { invalidate(); timer = window.setTimeout(tick, msUntilNextLondonMidnight()); }, msUntilNextLondonMidnight());
+    window.addEventListener('focus', invalidate);
+    return () => { clearTimeout(timer); window.removeEventListener('focus', invalidate); };
+  }, [pageCache]);
 
   useEffect(() => {
     if (requestedPage <= pageCount - 1) return;
@@ -137,7 +156,7 @@ export function DateSelection({
       if (!cancelled) setImmediate(result);
     });
     return () => { cancelled = true; };
-  }, [availability]);
+  }, [availability, refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -220,7 +239,7 @@ export function DateSelection({
     })();
 
     return () => { cancelled = true; };
-  }, [availability, pageCache, rangeEnd, rangeKey, rangeStart]);
+  }, [availability, pageCache, rangeEnd, rangeKey, rangeStart, refresh]);
 
   const visibleAvailability =
     pageAvailability?.rangeKey === rangeKey ? pageAvailability : null;
@@ -228,6 +247,7 @@ export function DateSelection({
 
   const isOpen = (date: Date): boolean => {
     const dateStr = toDateStr(date);
+    if (isHolidayDate(holidays, dateStr)) return false;
     if (visibleAvailability?.daySettings[dateStr] !== undefined) {
       return visibleAvailability.daySettings[dateStr].is_open;
     }
@@ -262,6 +282,7 @@ export function DateSelection({
   }, [currentPage, openDayCount, summaryComplete]);
 
   const todayAvailable = (() => {
+    if (isHolidayDate(holidays, toDateStr(today))) return false;
     if (displayLoading || currentPage !== 0 || !immediate.date || immediate.slots.length === 0) return false;
     if (visibleAvailability?.occupancyByDate && dogsForEngine.length > 0) {
       const dayBookings = visibleAvailability.occupancyByDate[immediate.date] ?? [];
@@ -288,6 +309,16 @@ export function DateSelection({
       <p className="wizard-helper">
         Pick a date for your visit.
       </p>
+
+      {holidays.map(holiday => {
+        const copy = holidayCopy(holiday);
+        const reopen = new Date(`${holiday.reopens_on}T12:00:00`);
+        const distance = Math.round((Date.UTC(reopen.getFullYear(), reopen.getMonth(), reopen.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+        return <section key={holiday.id} className="rounded-xl bg-sky-50 border border-sky-200 p-4 mb-4" aria-label="Holiday notice">
+          <h2 className="font-bold">{copy.title}</h2><p>{copy.text}</p>
+          {distance > 0 && distance <= bookingHorizonDays ? <button type="button" className="wizard-btn mt-3" onClick={() => { pageCache.clear(); setRefresh(v => v + 1); changePage(Math.floor((distance - 1) / PAGE_SIZE)); }}>Find dates after our holiday</button> : <p>Dates after our holiday will appear when they enter the booking window.</p>}
+        </section>;
+      })}
 
       {!loading && todayAvailable && immediate.date && (
         <button
@@ -376,7 +407,7 @@ export function DateSelection({
               const selectable = state === "open";
               const selected = selectedDate === dateStr;
               const longLabel = date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-              const ariaLabel = state === "closed" ? `${longLabel}, closed` : state === "full" ? `${longLabel}, fully booked` : longLabel;
+              const ariaLabel = state === "closed" ? `${longLabel}, ${isHolidayDate(holidays, dateStr) ? "closed for holiday" : "closed"}` : state === "full" ? `${longLabel}, fully booked` : longLabel;
               return (
                 <button
                   key={dateStr}
@@ -398,7 +429,7 @@ export function DateSelection({
 
       <div className="wizard-actions">
         <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>Back</button>
-        <button type="button" className="wizard-btn wizard-btn--primary" onClick={onNext} disabled={!selectedDate}>
+        <button type="button" className="wizard-btn wizard-btn--primary" onClick={onNext} disabled={!selectedDate || displayLoading || (dayStates.has(selectedDate) && dayStates.get(selectedDate) !== "open") || isHolidayDate(holidays, selectedDate)}>
           Continue <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
