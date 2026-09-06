@@ -234,10 +234,14 @@ serve(async (req) => {
     }
     const singleBookingId = typeof body.booking_id === "string" ? body.booking_id : null;
 
-    // 3pm-UK gate (cron only). pg_cron is UTC-only, so the schedule fires
-    // this function at both 14:00 and 15:00 UTC with at_hour_uk=15; only
-    // the invocation that lands on 15:00 Europe/London actually sends, the
-    // other returns here. Staff/manual calls never pass at_hour_uk, so
+    // UK-hour gate (cron only). pg_cron is UTC-only, so each pass is
+    // scheduled at two UTC hours with the intended Europe/London hour in
+    // at_hour_uk; only the invocation that lands on that London hour sends,
+    // the other returns here. Two passes run: 15:00 (at_hour_uk=15, fired
+    // 14:00 + 15:00 UTC) and a late 19:00 pass (at_hour_uk=19, fired
+    // 18:00 + 19:00 UTC) that catches bookings created or rescheduled onto
+    // tomorrow after the first run — the dedupe in step 6 skips anyone
+    // already reminded. Staff/manual calls never pass at_hour_uk, so
     // they're unaffected (and a single-booking send is never gated).
     if (typeof body.at_hour_uk === "number" && !singleBookingId) {
       const hour = londonHourNow();
