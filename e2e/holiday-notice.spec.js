@@ -24,7 +24,17 @@ async function acceptCookiesIfVisible(page) {
 
 const CARD = 'section[aria-labelledby^="holiday-notice-"]';
 
-async function stubHolidayNotices(page, notices) {
+function closedDays(from, count) {
+  const rows = [];
+  for (let i = 0; i < count; i += 1) {
+    const d = new Date(`${from}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i);
+    rows.push({ setting_date: d.toISOString().slice(0, 10), is_open: false, is_fully_booked: false });
+  }
+  return rows;
+}
+
+async function stubHolidayNotices(page, notices, openDays = []) {
   await page.route('**/rest/v1/rpc/get_public_holiday_notices', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(notices) }),
   );
@@ -32,7 +42,7 @@ async function stubHolidayNotices(page, notices) {
     route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
   );
   await page.route('**/rest/v1/rpc/get_public_open_days', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(openDays) }),
   );
 }
 
@@ -77,5 +87,20 @@ test.describe('Holiday notice card', () => {
     await expect(page.getByRole('heading', { name: 'We’re taking a little break' })).toBeVisible();
     await expect(page.getByText(/closed from/)).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('holiday-away.png') });
+  });
+
+  test('open-days strip jumps to the reopening week when the whole fortnight is closed', async ({ page }) => {
+    const closedFrom = isoDaysFromNow(-2);
+    const reopensOn = isoDaysFromNow(15);
+    await stubHolidayNotices(page, [{
+      id: 'e2e-holiday', notice_from: isoDaysFromNow(-20), closed_from: closedFrom, reopens_on: reopensOn, phase: 'away',
+    }], closedDays(closedFrom, 17));
+    await page.goto('/');
+    await acceptCookiesIfVisible(page);
+    const strip = page.getByRole('list', { name: /two weeks after we reopen/ });
+    await strip.scrollIntoViewIfNeeded();
+    await expect(strip).toBeVisible();
+    await expect(page.getByText(/closed for a holiday until/)).toBeVisible();
+    await expect(strip.getByRole('listitem').first()).toHaveAttribute('aria-label', /Open|Extra opening|Closed$/);
   });
 });

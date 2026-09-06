@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultIsOpen, toDateKey, dayState, buildOverridesMap } from './openDays';
+import { defaultIsOpen, toDateKey, dayState, buildOverridesMap, planOpenDaysStrip } from './openDays';
 
 describe('defaultIsOpen', () => {
   it('is true for Monday, Tuesday and Wednesday', () => {
@@ -63,5 +63,39 @@ describe('buildOverridesMap', () => {
   it('returns an empty map for empty or missing input', () => {
     expect(buildOverridesMap([])).toEqual({});
     expect(buildOverridesMap(undefined)).toEqual({});
+  });
+});
+
+describe('planOpenDaysStrip', () => {
+  const monday = new Date(2026, 8, 7); // Mon 7 Sep 2026
+  const holiday = { id: 'h', notice_from: '2026-09-06', closed_from: '2026-09-07', reopens_on: '2026-09-21', phase: 'away' };
+  const closedFortnight = {};
+  for (let i = 0; i < 14; i += 1) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    closedFortnight[toDateKey(d)] = false;
+  }
+
+  it('starts today when the window has an open day', () => {
+    const plan = planOpenDaysStrip({ today: monday, count: 14, overrides: {}, holidays: [holiday] });
+    expect(plan.start).toEqual(monday);
+    expect(plan.holiday).toBeNull();
+  });
+
+  it('jumps to the reopening date when a verified holiday closes the whole window', () => {
+    const plan = planOpenDaysStrip({ today: monday, count: 14, overrides: closedFortnight, holidays: [holiday] });
+    expect(toDateKey(plan.start)).toBe('2026-09-21');
+    expect(plan.holiday).toBe(holiday);
+  });
+
+  it('stays put when the window is closed but no verified holiday explains it', () => {
+    const plan = planOpenDaysStrip({ today: monday, count: 14, overrides: closedFortnight, holidays: [] });
+    expect(plan.start).toEqual(monday);
+    expect(plan.holiday).toBeNull();
+  });
+
+  it('ignores holidays that have already reopened', () => {
+    const plan = planOpenDaysStrip({ today: monday, count: 14, overrides: closedFortnight, holidays: [{ ...holiday, reopens_on: '2026-09-07' }] });
+    expect(plan.holiday).toBeNull();
   });
 });

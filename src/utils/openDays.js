@@ -32,3 +32,45 @@ export function buildOverridesMap(rows) {
     }
     return map;
 }
+
+export function nextDaysFrom(start, count) {
+    const days = [];
+    const base = new Date(start);
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < count; i += 1) {
+        const d = new Date(base);
+        d.setDate(base.getDate() + i);
+        days.push(d);
+    }
+    return days;
+}
+
+// Parse a "YYYY-MM-DD" key as a LOCAL date (new Date(key) would be UTC and
+// can land on the previous evening in the UK).
+export function fromDateKey(key) {
+    const [y, m, d] = String(key).split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+/**
+ * Decide where the "next two weeks" strip should start. Normally today. But
+ * when a verified holiday leaves the whole window closed, a wall of closed
+ * days tells customers nothing useful, so the strip starts on the reopening
+ * date instead and the caller says why. Only a holiday the booking database
+ * has confirmed can move the window; ordinary closures never do.
+ */
+export function planOpenDaysStrip({ today, count, overrides, holidays }) {
+    const normalWindow = nextDaysFrom(today, count);
+    const hasOpenDay = normalWindow.some((date) => {
+        const state = dayState(date, overrides);
+        return state === 'open' || state === 'extra-open';
+    });
+    if (hasOpenDay) return { start: today, holiday: null };
+
+    const todayKey = toDateKey(today);
+    const reopening = (holidays || [])
+        .filter((h) => h && typeof h.reopens_on === 'string' && h.reopens_on > todayKey)
+        .sort((a, b) => (a.reopens_on < b.reopens_on ? -1 : 1))[0];
+    if (!reopening) return { start: today, holiday: null };
+    return { start: fromDateKey(reopening.reopens_on), holiday: reopening };
+}
