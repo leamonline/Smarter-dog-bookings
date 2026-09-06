@@ -12,23 +12,40 @@
 // finishes), cancel resolves false (the draft stays open, nothing typed is
 // lost). The DB function link_pending_signup is the authority; this only
 // asks, then re-runs the rest of the draft through onUpdateHuman.
-import { useCallback, useState } from "react";
+//
+// The same hook owns the mirror-image case: when THIS record is the shell
+// and the customer's typed name matched an existing customer, the signup
+// stored that record as humans.claims_human_id. We resolve it so the header
+// can offer "Link to <name>" instead of Approve — approving would keep a
+// record still called "New member / Pending 07…". Confirming runs the same
+// link_pending_signup, then opens the record that now carries the login.
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "../../../contexts/ToastContext.jsx";
+import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { titleCase } from "../../../utils/text";
+
+function nameOf(h) {
+  return h ? titleCase(h.fullName || `${h.name || ""} ${h.surname || ""}`.trim()) : "";
+}
 
 export function usePendingSignupLink({
   human,
   humanId,
   humanFullName,
+  humans,
+  fetchHumanById,
   findHumanByPhone,
   onLinkPendingSignup,
   onUpdateHuman,
+  onOpenHuman,
 }) {
   const toast = useToast();
   // { hit, phone, updates, resolve } while the "Link this signup?" prompt is
   // up; `resolve` hands the outcome back to useHumanDraft.saveHuman.
   const [pendingLink, setPendingLink] = useState(null);
   const [linking, setLinking] = useState(false);
+  const [claimedHuman, setClaimedHuman] = useState(null);
+  const [pendingClaimLink, setPendingClaimLink] = useState(false);
 
   const handlePhoneTaken = useCallback(
     async (phone, updates) => {
@@ -38,7 +55,7 @@ export function usePendingSignupLink({
           setPendingLink({ hit, phone, updates, resolve });
         });
       }
-      const who = hit ? titleCase(`${hit.name || ""} ${hit.surname || ""}`.trim()) : "";
+      const who = nameOf(hit);
       toast.show(
         who
           ? `${phone} is already on ${who}'s record — open their profile to move it`
@@ -90,5 +107,69 @@ export function usePendingSignupLink({
     }
   }, [pendingLink, linking, human, humanId, onLinkPendingSignup, onUpdateHuman, humanFullName, toast]);
 
-  return { pendingLink, linking, handlePhoneTaken, handleCancelLink, handleConfirmLink };
+  // ── The claim path: this record IS the shell ────────────────
+  const claimsHumanId = human?.claimsHumanId || null;
+  useEffect(() => {
+    let cancelled = false;
+    setClaimedHuman(null);
+    if (!claimsHumanId) return () => {
+      cancelled = true;
+    };
+    const cached = getHumanByIdOrName(humans, claimsHumanId);
+    if (cached?.id) {
+      setClaimedHuman(cached);
+    } else if (fetchHumanById) {
+      fetchHumanById(claimsHumanId)
+        .then((entry) => {
+          if (!cancelled && entry?.id) setClaimedHuman(entry);
+        })
+        .catch(() => {
+          /* header falls back to the plain Approve / Reject pair */
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [claimsHumanId, humans, fetchHumanById]);
+
+  const claimedName = nameOf(claimedHuman);
+
+  const handleConfirmClaimLink = useCallback(async () => {
+    if (!claimedHuman?.id || !onLinkPendingSignup || linking) return;
+    const shellId = human.id || humanId;
+    setLinking(true);
+    try {
+      const res = await onLinkPendingSignup(claimedHuman.id, shellId, human.phone || "");
+      if (!res?.ok) {
+        toast.show(res?.error || "Couldn't link that signup — give it another go", "error");
+        return;
+      }
+      toast.show(
+        `Linked ${human.phone || "this signup"} to ${claimedName} — they can book from the portal now`,
+        "success",
+      );
+      // The shell is gone; show the record that now carries the login.
+      onOpenHuman?.(claimedHuman.id);
+    } finally {
+      setLinking(false);
+      setPendingClaimLink(false);
+    }
+  }, [claimedHuman, onLinkPendingSignup, linking, human, humanId, claimedName, onOpenHuman, toast]);
+
+  return {
+    pendingLink,
+    linking,
+    handlePhoneTaken,
+    handleCancelLink,
+    handleConfirmLink,
+    // Only offer the claim link when the parent wired the RPC.
+    claimedHuman: onLinkPendingSignup ? claimedHuman : null,
+    claimedName,
+    pendingClaimLink,
+    openClaimLink: useCallback(() => setPendingClaimLink(true), []),
+    closeClaimLink: useCallback(() => setPendingClaimLink(false), []),
+    handleConfirmClaimLink,
+    // True while either prompt owns the keyboard (pauses the "E" shortcut).
+    dialogOpen: !!pendingLink || pendingClaimLink,
+  };
 }

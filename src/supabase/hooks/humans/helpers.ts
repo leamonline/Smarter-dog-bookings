@@ -26,6 +26,7 @@ export type HumanRowLike = Omit<{ [K in keyof DbHumanRow]?: DbHumanRow[K] | null
   heard_about_us?: string | null;
   approved_at?: string | null;
   signup_submitted_at?: string | null;
+  claims_human_id?: string | null;
 };
 
 /** The app-shaped entry buildHumanMapEntry produces (a Human plus lifecycle fields). */
@@ -34,6 +35,8 @@ export interface HumanEntry extends Human {
   heardAboutUs?: string | null;
   approvedAt?: string | null;
   signupSubmittedAt?: string | null;
+  /** Self-signup shell only: the existing customer this signup says it is. */
+  claimsHumanId?: string | null;
 }
 
 /**
@@ -163,6 +166,9 @@ export function buildHumanMapEntry(row: HumanRowLike): HumanEntry {
     // profile modal uses (fetchHumanById) — exactly where the UI needs them.
     approvedAt: row.approved_at ?? null,
     signupSubmittedAt: row.signup_submitted_at ?? null,
+    // Set by submit_customer_signup when the typed name collided with an
+    // existing customer: the card offers "Link to <name>" instead of Approve.
+    claimsHumanId: row.claims_human_id ?? null,
     trustedIds: [],
     trustedContacts: [],
   };

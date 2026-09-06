@@ -19,6 +19,7 @@ import {
   MergeHumanDialog,
   HumanEditFooter,
   RejectSignupDialog,
+  SignupLinkDialogs,
   useHumanDraft,
   useHumanCardActions,
   useResolvedHuman,
@@ -101,15 +102,18 @@ export function HumanCardModal({
 
   // A phone save lost to humans_phone_unique: link a pending portal signup
   // shell onto this record, or name the customer who holds the number.
-  const { pendingLink, linking, handlePhoneTaken, handleCancelLink, handleConfirmLink } =
-    usePendingSignupLink({
-      human,
-      humanId,
-      humanFullName,
-      findHumanByPhone,
-      onLinkPendingSignup,
-      onUpdateHuman,
-    });
+  const signupLink = usePendingSignupLink({
+    human,
+    humanId,
+    humanFullName,
+    humans,
+    fetchHumanById,
+    findHumanByPhone,
+    onLinkPendingSignup,
+    onUpdateHuman,
+    onOpenHuman,
+  });
+  const { linking, handlePhoneTaken } = signupLink;
 
   // Card-level actions: copy phone, open booking, overflow menu, and
   // signup approve/reject — plus the merge/archive/reject dialog flags.
@@ -180,7 +184,7 @@ export function HumanCardModal({
     humanId,
     onUpdateHuman,
     onPhoneTaken: handlePhoneTaken,
-    shortcutPaused: pendingDelete || pendingExit || !!pendingLink,
+    shortcutPaused: pendingDelete || pendingExit || signupLink.dialogOpen,
   });
 
   // Close request — if we're mid-edit with unsaved changes, ask first.
@@ -242,9 +246,11 @@ export function HumanCardModal({
             overflowItems={overflowItems}
             nameInputRef={nameInputRef}
             isPendingSignup={isPendingSignup}
-            signupBusy={signupBusy}
+            signupBusy={signupBusy || linking}
             onApproveSignup={handleApproveSignup}
             onRejectSignup={() => setPendingReject(true)}
+            claimedHuman={signupLink.claimedHuman}
+            onLinkClaimedSignup={signupLink.openClaimLink}
           />
         }
         footer={
@@ -429,18 +435,11 @@ export function HumanCardModal({
         />
       )}
 
-      {pendingLink && (
-        <ConfirmDialog
-          title={`Link this signup to ${humanFullName}?`}
-          message={`${pendingLink.phone} was verified through a portal signup that isn't linked to anyone yet. Linking puts that number and login on ${humanFullName}'s record, approves them to book, and removes the placeholder.`}
-          confirmLabel={linking ? "Linking…" : "Link and update number"}
-          cancelLabel="Not now"
-          variant="primary"
-          pending={linking}
-          onConfirm={handleConfirmLink}
-          onCancel={handleCancelLink}
-        />
-      )}
+      <SignupLinkDialogs
+        link={signupLink}
+        humanFullName={humanFullName}
+        phone={human.phone}
+      />
 
       {pendingReject && (
         <RejectSignupDialog

@@ -8,8 +8,13 @@ import { PawPrint, Clock } from "lucide-react";
  * server-side in create_customer_booking_group). "Check again" re-reads the
  * approval state so an approved customer drops straight into the dashboard
  * without a full reload.
+ *
+ * `claimsExisting` is the variant for a customer whose signup name matched a
+ * record already on the books (humans.claims_human_id): staff will LINK this
+ * login to that record rather than approve a new one, so the copy says so
+ * instead of "we'll check your details".
  */
-export function PendingApprovalGate({ onRefresh, onSignOut }) {
+export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignOut }) {
   const [checking, setChecking] = useState(false);
 
   async function handleCheck() {
@@ -32,14 +37,30 @@ export function PendingApprovalGate({ onRefresh, onSignOut }) {
             aria-hidden="true"
           />
         </div>
-        <h1 className="text-xl font-bold text-brand-purple font-display">
-          Thanks — you&apos;re on the list!
-        </h1>
-        <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-          We&apos;ve got your details and one of the team will check everything
-          over. As soon as you&apos;re approved we&apos;ll send you a message —
-          then you can book your first appointment.
-        </p>
+        {claimsExisting ? (
+          <>
+            <h1 className="text-xl font-bold text-brand-purple font-display">
+              Thanks — looks like we already know you!
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+              This number is new to us, but your name matches someone already on
+              our books. One of the team will link this login to your existing
+              record — you don&apos;t need to do anything. As soon as that&apos;s
+              done we&apos;ll send you a message and you can book as usual.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold text-brand-purple font-display">
+              Thanks — you&apos;re on the list!
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+              We&apos;ve got your details and one of the team will check everything
+              over. As soon as you&apos;re approved we&apos;ll send you a message —
+              then you can book your first appointment.
+            </p>
+          </>
+        )}
 
         <button
           type="button"
