@@ -327,4 +327,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ## Scheduled holiday notices (pending release)
 
-Settings → Holidays can schedule advance and away notices while closing the actual diary dates atomically. Existing appointments are flagged for rearrangement. Customers see verified reopening dates in date selection; the website card is delivered through its existing repository. No holiday is activated by deployment.
+Settings → Holidays can schedule advance and away notices while closing the actual diary dates atomically. Existing appointments are flagged for rearrangement. Customers see verified reopening dates in date selection; the website card is delivered through its existing repository. No holiday is activated by deployment. Follow-up: a reopening date that is a normal open weekday no longer needs a diary row first, and the Holidays screen uses the standard staff buttons, alerts and a fuller preview.

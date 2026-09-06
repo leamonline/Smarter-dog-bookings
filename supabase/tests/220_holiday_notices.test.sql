@@ -19,7 +19,18 @@ select throws_ok($$delete from public.day_settings where setting_date=current_da
 select throws_ok($$update public.day_settings set is_open=false where setting_date=current_date+12$$,'23514','holiday_dates_managed_in_settings','cannot contradict reopening date');
 select throws_ok($$select * from public.salon_holidays$$,'42501',null,'direct holiday table access denied');
 select throws_ok($$select public.save_salon_holiday('22000000-0000-4000-8000-000000000011',0,current_date,current_date+11,current_date+13,true)$$,'22023','holiday_overlaps_existing','overlap rejected');
-select throws_ok($$select public.save_salon_holiday('22000000-0000-4000-8000-000000000012',0,current_date,current_date+20,current_date+22,true)$$,'22023','holiday_reopening_must_be_open_in_diary','reopening must be confirmed');
+-- A reopening day closed by default (next Saturday, no row) is refused ...
+select throws_ok(format($f$select public.save_salon_holiday('22000000-0000-4000-8000-000000000012',0,current_date,current_date+20,%L::date,true)$f$,
+  current_date + 21 + ((6 - extract(isodow from current_date + 21)::int + 7) % 7)),'22023','holiday_reopening_must_be_open_in_diary','reopening closed by default is refused');
+-- ... and a reopening day open by default (next Monday, no row) is accepted, then protected.
+select lives_ok(format($f$select public.save_salon_holiday('22000000-0000-4000-8000-000000000016',0,current_date,current_date+40,%L::date,true)$f$,
+  current_date + 41 + ((1 - extract(isodow from current_date + 41)::int + 7) % 7)),'reopening open by weekly default needs no diary row');
+select throws_ok(format($f$insert into public.day_settings(setting_date,is_open) values(%L::date,false)$f$,
+  current_date + 41 + ((1 - extract(isodow from current_date + 41)::int + 7) % 7)),'23514','holiday_dates_managed_in_settings','default-open reopening day cannot be closed later');
+select lives_ok(format($f$insert into public.day_settings(setting_date,is_open) values(%L::date,null)$f$,
+  current_date + 41 + ((1 - extract(isodow from current_date + 41)::int + 7) % 7)),'a NULL is_open row keeps the weekly default and is allowed on the reopening day');
+select is((select count(*)::int from public.get_public_holiday_notices() where id='22000000-0000-4000-8000-000000000016'),1,'projection accepts a default-open reopening day');
+select public.save_salon_holiday('22000000-0000-4000-8000-000000000016',1,current_date,current_date+40,current_date + 41 + ((1 - extract(isodow from current_date + 41)::int + 7) % 7),false);
 reset role;
 select is((select count(*)::int from public.day_settings where setting_date in(current_date+10,current_date+11) and not is_open),2,'every holiday day is closed');
 select is((select count(*)::int from public.day_settings where setting_date=current_date+20),0,'failed save leaves no partial closure');
