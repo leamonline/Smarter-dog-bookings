@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Scheduled holiday notice card in the homepage hero (`HolidayNoticeCard`), driven only by the booking database's `get_public_holiday_notices` RPC. Shows "Upcoming holiday" before the closure and "We're taking a little break" during it, with the reopening date and a "Book for our return" action; disappears automatically on the reopening date (Europe/London). Nothing is shown unless the salon's actual diary confirms the dates.
 - Automated dependency updates via Dependabot (weekly on Mondays)
 - Page view analytics tracking on route changes (`usePageTracking` hook)
 - WebP image format support with JPG fallback for older browsers

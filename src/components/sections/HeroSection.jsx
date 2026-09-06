@@ -7,6 +7,7 @@ import MagneticButton from '../MagneticButton';
 import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 
 import ParallaxSection from '../ParallaxSection';
+import HolidayNoticeCard from '../HolidayNoticeCard';
 
 const HeroSection = ({ isLoaded, onBookClick }) => {
     const prefersReducedMotion = usePrefersReducedMotion();
@@ -67,6 +68,9 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                                 Over 40 years grooming dogs across Ashton-under-Lyne and Tameside.<br />
                                 No fuss. No rushing. Just experienced local care.
                             </p>
+
+                            {/* Scheduled holiday notice — only when the booking diary confirms it */}
+                            <HolidayNoticeCard onBookClick={onBookClick} />
 
                             {/* CTA cluster (hidden on mobile — sticky footer covers this) */}
                             <div className="relative mt-4 hidden md:flex flex-col items-start gap-0 pr-16 pb-8">
