@@ -1,7 +1,9 @@
 import React from 'react';
 import { colors } from '../constants/colors';
 import { useOpenDays } from '../hooks/useOpenDays';
-import { dayState } from '../utils/openDays';
+import { dayState, nextDaysFrom, planOpenDaysStrip } from '../utils/openDays';
+import { useHolidayNotices } from '../hooks/useHolidayNotices';
+import { formatHolidayDate } from '../utils/holidayNotice';
 
 const DAY_LABEL = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
 
@@ -16,30 +18,33 @@ const STATE_STYLE = {
     'holiday-closed': { bg: colors.yellow, color: colors.plum, label: 'Closed for a holiday' },
 };
 
-function nextDays(count) {
-    const days = [];
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    for (let i = 0; i < count; i += 1) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        days.push(d);
-    }
-    return days;
-}
-
 // Compact "next two weeks" open/closed strip -- not a full calendar grid, so
 // it fits inside a CTA banner rather than needing its own page section.
 const OpenDaysCalendar = ({ days = 14 }) => {
     const overrides = useOpenDays();
-    const dates = nextDays(days);
+    const holidays = useHolidayNotices();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const plan = planOpenDaysStrip({ today, count: days, overrides, holidays });
+    const dates = nextDaysFrom(plan.start, days);
+    const listLabel = plan.holiday
+        ? `Opening days for the two weeks after we reopen on ${formatHolidayDate(plan.holiday.reopens_on)}`
+        : 'Opening days for the next two weeks';
 
     return (
         <div className="mt-6">
+            {plan.holiday && (
+                <p
+                    className="body-font text-base font-semibold mb-3"
+                    style={{ color: colors.plum }}
+                >
+                    We’re closed for a holiday until {formatHolidayDate(plan.holiday.reopens_on)}. Here’s when we’re open once we’re back:
+                </p>
+            )}
             <div
                 className="flex flex-wrap justify-center gap-2"
                 role="list"
-                aria-label="Opening days for the next two weeks"
+                aria-label={listLabel}
             >
                 {dates.map((date) => {
                     const state = dayState(date, overrides);
