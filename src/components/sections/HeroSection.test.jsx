@@ -25,4 +25,10 @@ describe('HeroSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /Book your dog online/i }));
     expect(onBookClick).toHaveBeenCalledWith('Hero Section');
   });
+
+  it('shows no holiday card when nothing is scheduled', () => {
+    render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+
+    expect(screen.queryByRole('button', { name: /Book for our return/i })).not.toBeInTheDocument();
+  });
 });

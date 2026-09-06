@@ -75,6 +75,23 @@ VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 
 ---
 
+## Holiday Notices
+
+Holidays are **not** edited on the website. Staff schedule them in the booking
+app (Settings → Holidays), which closes the diary dates and publishes the
+notice together. The homepage hero reads `get_public_holiday_notices` from
+Supabase (anon read, dates only) and shows:
+
+- before the closure: "Upcoming holiday" with the first closed date and reopening date;
+- during the closure: "We're taking a little break" with the reopening date;
+- from the reopening date: nothing.
+
+The card refreshes on tab focus and once a minute. If the read fails or the
+diary no longer matches the holiday, the card is hidden rather than showing a
+stale reopening date. There is no fallback copy for holidays in this repo, on
+purpose. Source: `src/hooks/useHolidayNotices.js`, `src/utils/holidayNotice.js`,
+`src/components/HolidayNoticeCard.jsx`.
+
 ## Deployment Checklist
 
 Before deploying:
