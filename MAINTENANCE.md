@@ -77,6 +77,11 @@ VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 
 ## Holiday Notices
 
+The production build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+from GitHub Actions secrets of the same names (set 6 September 2026). If either is
+missing the site still builds, but with no Supabase client: the holiday card,
+live salon facts and open-days strip all silently fall back to static copy.
+
 Holidays are **not** edited on the website. Staff schedule them in the booking
 app (Settings → Holidays), which closes the diary dates and publishes the
 notice together. The homepage hero reads `get_public_holiday_notices` from
