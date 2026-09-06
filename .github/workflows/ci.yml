@@ -102,6 +102,13 @@ jobs:
       run: npm ci
 
     - name: Build project
+      # Vite bakes VITE_* values into the bundle at build time. Without these
+      # the deployed site has no Supabase client at all, so salon facts, open
+      # days and holiday notices silently fall back to static copy. Both
+      # values are public by design (they ship to every visitor's browser).
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       run: npm run build
 
     - name: Archive build artifacts
