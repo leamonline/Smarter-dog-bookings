@@ -24,7 +24,8 @@ export async function saveHoliday(holiday: Holiday) {
     p_closed_from: holiday.closed_from, p_reopens_on: holiday.reopens_on, p_enabled: holiday.enabled,
   });
   if (error) {
-    if (error.message.includes('reopening_must_be_open')) throw new Error('Open the reopening date in the diary first, then save your holiday.');
+    if (error.message.includes('reopening_must_be_open')) throw new Error('Your reopening date is closed in the diary. Pick a day you are open (a normal Mon–Wed), or open that date in Bookings first.');
+    if (error.message.includes('reopening_must_be_future')) throw new Error('The reopening date must be in the future.');
     if (error.message.includes('overlaps')) throw new Error('These dates overlap another holiday or its reopening day.');
     if (error.message.includes('changed_reload')) throw new Error('This holiday changed elsewhere. Reload holidays before editing.');
     throw new Error('Could not save the holiday. Check your dates and try again. No partial changes were saved.');

@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { loadHolidays, saveHoliday, type Holiday } from '../../../supabase/holidays';
-import { holidayCopy, londonDate } from '../../../engine/holidayNotice';
+import { formatHolidayDate, holidayCopy, londonDate } from '../../../engine/holidayNotice';
+import type { ButtonHTMLAttributes, ComponentType, ReactNode } from 'react';
+import { Button as UntypedButton } from '../../ui/index.js';
+
+// Button.jsx is untyped; give it the props this screen uses.
+const Button = UntypedButton as unknown as ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' | 'link'; size?: 'sm' | 'md'; children: ReactNode }>;
+import { Card, CardBody, CardHead, INPUT_CLS, ReadOnlyNotice, SECTION_LABEL_CLS } from './shared.jsx';
+
+const FIELDS: { key: 'notice_from' | 'closed_from' | 'reopens_on'; label: string; hint: string }[] = [
+  { key: 'notice_from', label: 'Show advance notice from', hint: 'The website and booking calendar start mentioning the holiday on this date.' },
+  { key: 'closed_from', label: 'First closed date', hint: 'Every day from here up to the day before you reopen is closed in the diary.' },
+  { key: 'reopens_on', label: 'Reopening date', hint: 'Must be a day you are open: a normal Mon–Wed, or a date you have opened in Bookings.' },
+];
 
 export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -16,37 +28,117 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
   };
   useEffect(() => { void reload(); }, []);
   useEffect(() => { onDirtyChange?.(draft !== null); return () => onDirtyChange?.(false); }, [draft, onDirtyChange]);
-  const valid = draft && draft.notice_from && draft.closed_from && draft.reopens_on && draft.notice_from <= draft.closed_from && draft.closed_from < draft.reopens_on;
+
+  const valid = Boolean(draft && draft.notice_from && draft.closed_from && draft.reopens_on
+    && draft.notice_from <= draft.closed_from && draft.closed_from < draft.reopens_on);
+  const orderProblem = draft && draft.notice_from && draft.closed_from && draft.reopens_on && !valid
+    ? 'Dates must run in order: notice start, then first closed date, then a later reopening date.'
+    : '';
+
   const submit = async () => {
     if (!draft || !canEdit || busy) return;
     setBusy(true); setError(''); setMessage('');
     try {
       await saveHoliday(draft);
-      setMessage(draft.enabled ? 'Holiday saved. Dates are closed and affected appointments are flagged in Tasks for rearrangement.' : 'Notice removed. Diary dates remain closed; reopen them in Bookings if needed.');
+      setMessage(draft.enabled
+        ? 'Holiday saved. Those dates are now closed and any affected appointments are flagged in Tasks for rearrangement.'
+        : 'Notice removed. The diary dates stay closed; reopen them in Bookings if you need to.');
       setDraft(null); await reload();
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
   };
-  return <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4" aria-labelledby="holiday-heading">
-    <h2 id="holiday-heading" className="text-xl font-bold">Holidays</h2>
-    <p>Schedule a notice on the website and booking calendar, backed by actual closed dates. Open your reopening date in the diary first.</p>
-    {error && <p role="alert">{error}</p>}
-    {message && <p role="status">{message}</p>}
-    <button type="button" disabled={busy || draft !== null} onClick={() => void reload()}>Reload holidays</button>
-    {holidays.filter(h => h.enabled).map(h => <div key={h.id} className="border rounded-xl p-3 flex flex-wrap items-center gap-3">
-      <span>Closed from {h.closed_from} · Reopens {h.reopens_on} · Notice from {h.notice_from}</span>
-      <button type="button" disabled={!canEdit || busy || !!draft} onClick={() => { setMessage(''); setDraft(h); }}>Edit holiday</button>
-    </div>)}
-    {!draft && <button type="button" className="wizard-btn wizard-btn--primary" disabled={!canEdit || !ready} onClick={() => { setMessage(''); setDraft({ id: crypto.randomUUID(), revision: 0, notice_from: londonDate(), closed_from: '', reopens_on: '', enabled: true }); }}>Add holiday</button>}
-    {draft && <form className="space-y-4" onSubmit={e => { e.preventDefault(); void submit(); }}>
-      {(['notice_from', 'closed_from', 'reopens_on'] as const).map((key, i) => <label key={key} className="block">
-        <span className="block font-semibold">{['Show advance notice from', 'First closed date', 'Reopening date'][i]}</span>
-        <input type="date" required value={draft[key]} disabled={busy || !canEdit} className="border rounded-lg p-2 w-full max-w-xs" onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
-      </label>)}
-      {draft.revision > 0 && <label className="flex gap-2"><input type="checkbox" checked={draft.enabled} disabled={busy || !canEdit} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />Show scheduled notice and protect holiday dates</label>}
-      {valid && draft.enabled && <div className="rounded-xl bg-sky-50 p-4"><h3 className="font-bold">Preview during your holiday</h3><p>{holidayCopy({ ...draft, phase: 'away' }).text}</p></div>}
-      <p>{draft.enabled ? 'Saving closes every day from the first closed date up to (but not including) reopening. Existing appointments stay in the diary and are flagged for rearrangement. Editing dates does not reopen days from the previous range.' : 'Removing this notice does not reopen any diary dates or remove rearrangement tasks.'}</p>
-      <div className="flex flex-wrap gap-3"><button type="submit" className="wizard-btn wizard-btn--primary" disabled={!valid || busy || !canEdit}>{busy ? 'Saving…' : draft.enabled ? 'Save holiday and close dates' : 'Remove notice; keep dates closed'}</button><button type="button" disabled={busy} onClick={() => setDraft(null)}>Cancel</button></div>
-    </form>}
-  </section>;
+
+  const startDraft = () => {
+    setMessage('');
+    setDraft({ id: crypto.randomUUID(), revision: 0, notice_from: londonDate(), closed_from: '', reopens_on: '', enabled: true });
+  };
+
+  const active = holidays.filter(h => h.enabled);
+
+  return (
+    <Card id="holiday-settings">
+      <CardHead
+        variant="yellow"
+        title="Holidays"
+        desc="Tell customers about a break, backed by real closed dates in the diary."
+        right={<Button variant="ghost" size="sm" disabled={busy || draft !== null} onClick={() => void reload()}>Reload holidays</Button>}
+      />
+      <CardBody>
+        {!canEdit && <ReadOnlyNotice>You can view holidays here, but only the owner can add or change them.</ReadOnlyNotice>}
+        <p className="text-body text-slate-700 mb-4">
+          Saving a holiday closes every day from the first closed date up to the day before you reopen, and schedules the
+          notice on the website and in the customer booking calendar. Nothing is sent to customers automatically.
+        </p>
+
+        {error && (
+          <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-4">
+            {error}
+          </div>
+        )}
+        {message && (
+          <div role="status" className="text-[13px] text-brand-teal-dark font-semibold bg-[#E6F5F2] px-3 py-2 rounded-lg mb-4">
+            {message}
+          </div>
+        )}
+
+        {ready && active.length === 0 && !draft && (
+          <p className="text-body text-slate-500 mb-4">No holiday scheduled. Customers see the normal calendar.</p>
+        )}
+        {active.map(h => (
+          <div key={h.id} className="border-[1.5px] border-slate-200 rounded-control p-3.5 mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-body text-slate-800">
+              <div className="font-bold">Closed {formatHolidayDate(h.closed_from)} to {formatHolidayDate(h.reopens_on)}</div>
+              <div className="text-slate-600">Reopens {formatHolidayDate(h.reopens_on)} · notice shows from {formatHolidayDate(h.notice_from)}</div>
+            </div>
+            <Button variant="ghost" size="sm" disabled={!canEdit || busy || !!draft} onClick={() => { setMessage(''); setDraft(h); }}>Edit holiday</Button>
+          </div>
+        ))}
+
+        {!draft && (
+          <Button variant="primary" disabled={!canEdit || !ready} onClick={startDraft}>Add holiday</Button>
+        )}
+
+        {draft && (
+          <form className="mt-2 space-y-4" onSubmit={e => { e.preventDefault(); void submit(); }}>
+            <div className="grid gap-4 md:grid-cols-3">
+              {FIELDS.map(({ key, label, hint }) => (
+                <div key={key}>
+                  <label htmlFor={`holiday-${key}`} className={`${SECTION_LABEL_CLS} block`}>{label}</label>
+                  <input id={`holiday-${key}`} type="date" required value={draft[key]} disabled={busy || !canEdit} className={INPUT_CLS}
+                    aria-describedby={`holiday-${key}-hint`} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
+                  <p id={`holiday-${key}-hint`} className="text-[12px] text-slate-500 mt-1">{hint}</p>
+                </div>
+              ))}
+            </div>
+            {orderProblem && <p className="text-[13px] text-brand-coral font-semibold">{orderProblem}</p>}
+            {draft.revision > 0 && (
+              <label className="flex items-center gap-2 text-body text-slate-800">
+                <input type="checkbox" checked={draft.enabled} disabled={busy || !canEdit} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />
+                Show the scheduled notice and protect these holiday dates
+              </label>
+            )}
+            {valid && draft.enabled && (
+              <div className="rounded-control bg-amber-50 border border-amber-200 p-4 text-body text-slate-800 space-y-2">
+                <div className="font-bold">What customers will see</div>
+                <div><span className="font-semibold">From {formatHolidayDate(draft.notice_from)}:</span> “{holidayCopy({ ...draft, phase: 'upcoming' }).title}” — {holidayCopy({ ...draft, phase: 'upcoming' }).text}</div>
+                <div><span className="font-semibold">From {formatHolidayDate(draft.closed_from)}:</span> “{holidayCopy({ ...draft, phase: 'away' }).title}” — {holidayCopy({ ...draft, phase: 'away' }).text}</div>
+                <div><span className="font-semibold">From {formatHolidayDate(draft.reopens_on)}:</span> the notice disappears on its own.</div>
+              </div>
+            )}
+            <p className="text-[12px] text-slate-600">
+              {draft.enabled
+                ? 'Existing appointments on closed days stay in the diary and are flagged for rearrangement. Changing the dates never reopens days from the previous range.'
+                : 'Removing the notice does not reopen any diary dates or remove rearrangement tasks.'}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" variant="primary" disabled={!valid || busy || !canEdit}>
+                {busy ? 'Saving…' : draft.enabled ? 'Save holiday and close dates' : 'Remove notice; keep dates closed'}
+              </Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => { setDraft(null); setError(''); }}>Cancel</Button>
+            </div>
+          </form>
+        )}
+      </CardBody>
+    </Card>
+  );
 }
