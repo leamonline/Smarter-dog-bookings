@@ -21,7 +21,10 @@ const TrustSection = () => {
                                 <div className="text-center">
                                     <div
                                         className="heading-font font-bold text-4xl mb-1"
-                                        style={{ color: colors.cyan }}
+                                        // Plum, not cyan: cyan on white is ~2.1:1 and fails WCAG AA
+                                        // even for large text (needs 3:1). Cyan stays as the section's
+                                        // calm accent in the divider and tape details.
+                                        style={{ color: colors.plum }}
                                     >
                                         {stat.number}
                                     </div>
