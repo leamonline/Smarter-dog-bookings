@@ -107,3 +107,51 @@ describe("BookingConfirmation — change-deadline note", () => {
     expect(screen.queryByText(/day before/i)).toBeNull();
   });
 });
+
+describe("BookingConfirmation — a booking made inside the change window", () => {
+  // 2 September 2026: a customer confirmed at 10:32 for 08:30 the next morning
+  // — 22h58m ahead, already past the 24-hour deadline as she pressed the
+  // button. She discovered it 2h47m later, when a change was refused. The
+  // screen had shown her "Changes close 24 hours before your appointment",
+  // which is true, and told her nothing about the booking in front of her.
+  const GENERIC = "Changes close 24 hours before your appointment.";
+
+  it("warns that this booking cannot be changed online", () => {
+    renderStep5({ changeDeadlineNote: GENERIC, changeAlreadyClosed: true });
+
+    expect(screen.getByText(/too close to the day to change or cancel online/i))
+      .toBeInTheDocument();
+  });
+
+  it("replaces the generic sentence rather than sitting beside it", () => {
+    // Both at once reads as a promise plus a contradiction. The specific fact
+    // about this booking is the one that helps.
+    renderStep5({ changeDeadlineNote: GENERIC, changeAlreadyClosed: true });
+
+    expect(screen.queryByText(GENERIC)).toBeNull();
+  });
+
+  it("still points the customer somewhere useful", () => {
+    // Honesty over appeasement, but never a dead end: the salon can always
+    // move it by hand, so say so instead of leaving them stuck.
+    renderStep5({ changeDeadlineNote: GENERIC, changeAlreadyClosed: true });
+
+    expect(screen.getByText(/message us if anything changes/i)).toBeInTheDocument();
+  });
+
+  it("leaves an ordinary booking with the ordinary sentence", () => {
+    renderStep5({ changeDeadlineNote: GENERIC, changeAlreadyClosed: false });
+
+    expect(screen.getByText(GENERIC)).toBeInTheDocument();
+    expect(screen.queryByText(/too close to the day/i)).toBeNull();
+  });
+
+  it("warns even when the generic sentence could not be read", () => {
+    // The two come from different reads. Losing the policy sentence must not
+    // suppress a warning the server has positively confirmed.
+    renderStep5({ changeDeadlineNote: null, changeAlreadyClosed: true });
+
+    expect(screen.getByText(/too close to the day to change or cancel online/i))
+      .toBeInTheDocument();
+  });
+});

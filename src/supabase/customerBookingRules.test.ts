@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  parseChangeDeadlinePreview,
   parseCustomerBookingHorizonDays,
   parseCustomerPortalPolicy,
+  resolveChangeDeadlinePreview,
   resolveCustomerBookingHorizonDays,
   resolveCustomerPortalPolicy,
   UNKNOWN_PORTAL_POLICY,
@@ -110,5 +112,78 @@ describe("resolveCustomerPortalPolicy", () => {
     await expect(resolveCustomerPortalPolicy(client as never)).resolves.toEqual(
       UNKNOWN_PORTAL_POLICY,
     );
+  });
+});
+
+describe("parseChangeDeadlinePreview", () => {
+  // Telling a customer their booking is changeable when it is not is the
+  // failure this whole path exists to prevent, so a half-formed payload has to
+  // read as "not established", never as "fine".
+  const complete = {
+    deadline: "2026-09-01T08:30:00",
+    passed: true,
+    allowCancellations: true,
+    minCancellationHours: 24,
+  };
+
+  it("accepts a complete payload verbatim", () => {
+    expect(parseChangeDeadlinePreview(complete)).toEqual(complete);
+  });
+
+  it("accepts a numeric that arrived as a string", () => {
+    // jsonb numerics normally come through as numbers, but a numeric column
+    // can surface as a string; discarding a good answer over that would turn
+    // a working warning off for no reason.
+    expect(
+      parseChangeDeadlinePreview({ ...complete, minCancellationHours: "48" }),
+    ).toEqual({ ...complete, minCancellationHours: 48 });
+  });
+
+  it.each([
+    ["deadline", { ...complete, deadline: undefined }],
+    ["an empty deadline", { ...complete, deadline: "   " }],
+    ["passed", { ...complete, passed: undefined }],
+    ["a stringy passed", { ...complete, passed: "true" }],
+    ["allowCancellations", { ...complete, allowCancellations: undefined }],
+    ["minCancellationHours", { ...complete, minCancellationHours: undefined }],
+    ["a nonsense number", { ...complete, minCancellationHours: "soon" }],
+    ["a negative number", { ...complete, minCancellationHours: -1 }],
+  ])("returns null when the payload is missing or malformed: %s", (_label, payload) => {
+    expect(parseChangeDeadlinePreview(payload)).toBeNull();
+  });
+
+  it.each([[null], [undefined], ["not an object"], [42]])(
+    "returns null for payload %o",
+    (payload) => {
+      expect(parseChangeDeadlinePreview(payload)).toBeNull();
+    },
+  );
+
+  it("keeps a negative-free zero, which is a legitimate setting", () => {
+    // minCancellationHours = 0 means "changeable right up to the appointment".
+    // It is a real configuration, not a malformed one.
+    expect(
+      parseChangeDeadlinePreview({ ...complete, minCancellationHours: 0 }),
+    ).toEqual({ ...complete, minCancellationHours: 0 });
+  });
+});
+
+describe("resolveChangeDeadlinePreview", () => {
+  it("returns null on an RPC error, so no warning is rendered", async () => {
+    const client = { rpc: async () => ({ data: null, error: new Error("unavailable") }) };
+    await expect(
+      resolveChangeDeadlinePreview(client as never, { bookingDate: "2026-09-01", slot: "08:30" }),
+    ).resolves.toBeNull();
+  });
+
+  it("reports the error so a silent warning outage is visible", async () => {
+    const client = { rpc: async () => ({ data: null, error: new Error("unavailable") }) };
+    const onRpcError = vi.fn();
+    await resolveChangeDeadlinePreview(
+      client as never,
+      { bookingDate: "2026-09-01", slot: "08:30" },
+      onRpcError,
+    );
+    expect(onRpcError).toHaveBeenCalledOnce();
   });
 });

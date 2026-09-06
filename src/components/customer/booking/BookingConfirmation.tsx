@@ -26,6 +26,16 @@ interface BookingConfirmationProps {
    * the policy could not be read — in both cases no promise is displayed.
    */
   changeDeadlineNote?: string | null;
+  /**
+   * True when the server has confirmed that THIS date and slot is already past
+   * the point where the customer could change or cancel it online — a booking
+   * made inside the change window. It replaces the generic sentence, which is
+   * true in general and misleading here.
+   *
+   * False also covers "not established": the wizard only sets it from a server
+   * answer, so silence is silence, never a promise that changes stay open.
+   */
+  changeAlreadyClosed?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -66,6 +76,7 @@ export function BookingConfirmation({
   approvalRequired = false,
   depositTotal = null,
   changeDeadlineNote = null,
+  changeAlreadyClosed = false,
 }: BookingConfirmationProps) {
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
   const total = selectedDogs.reduce((sum, dog) => {
@@ -157,11 +168,26 @@ export function BookingConfirmation({
         )}
       </div>
 
-      {changeDeadlineNote && (
-        <p className="text-[12px] text-[var(--sd-ink-light)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
-          <PawPrint size={12} aria-hidden="true" />
-          {changeDeadlineNote}
+      {changeAlreadyClosed ? (
+        <p
+          className="text-[13px] text-[var(--sd-dark)] rounded-xl px-4 py-3 text-center"
+          style={{
+            alignSelf: "center",
+            background: "var(--sd-buttercup-tint)",
+            border: "1px solid var(--sd-yellow-dark)",
+          }}
+        >
+          <PawPrint size={13} aria-hidden="true" className="inline-block mr-1.5 align-[-2px]" />
+          Heads up — this one&rsquo;s too close to the day to change or cancel online.
+          Book away, and just message us if anything changes. We&rsquo;ll always sort it.
         </p>
+      ) : (
+        changeDeadlineNote && (
+          <p className="text-[12px] text-[var(--sd-ink-light)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
+            <PawPrint size={12} aria-hidden="true" />
+            {changeDeadlineNote}
+          </p>
+        )
       )}
 
       <div className="wizard-actions">
