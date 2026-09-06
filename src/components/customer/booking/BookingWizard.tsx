@@ -24,8 +24,10 @@ import { categoriseConfirmFailure, type ConfirmFailure } from "../../../engine/c
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
+  type ChangeDeadlinePreview,
   type CustomerPortalPolicy,
 } from "../../../supabase/customerBookingRules";
+import { deadlineAnchorSlot } from "../../../engine/changeDeadline";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
@@ -218,6 +220,11 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   // The customer-visible policy behind step 5's change-deadline sentence. Starts
   // "unknown", which renders no promise at all — never a guessed one.
   const [portalPolicy, setPortalPolicy] = useState<CustomerPortalPolicy>(UNKNOWN_PORTAL_POLICY);
+  // Whether the slot on the confirm step is ALREADY past the point where this
+  // customer could change or cancel it online. Answered by the server for the
+  // exact date and slot in hand; null until it has answered, which renders no
+  // warning rather than a guessed one.
+  const [changeDeadline, setChangeDeadline] = useState<ChangeDeadlinePreview | null>(null);
   // Whether THIS owner must pay a deposit to hold the appointment. Fetched here
   // rather than read out of SlotSelection because a restored draft can land
   // straight on step 5 without step 4 ever mounting. null = not established, in
@@ -261,6 +268,46 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     });
     return () => { cancelled = true; };
   }, [wizard]);
+
+  // Is the slot in hand already past the online change deadline? Asked only on
+  // the confirm step, for the exact date and anchor slot the customer is about
+  // to commit to, and re-asked whenever either changes.
+  //
+  // September 2026: a customer booked at 10:32 for 08:30 the next morning —
+  // 22h58m ahead, so already inside the 24-hour window as she confirmed — and
+  // found out only when a change was refused 2h47m later. The confirm step said
+  // "Changes close 24 hours before your appointment", which was true and, for
+  // that booking, useless.
+  //
+  // Fail-quiet: a failed read leaves this null and the generic sentence stands.
+  // The gate is unaffected either way.
+  useEffect(() => {
+    if (!wizard.connected || step !== 5) return undefined;
+    const anchorSlot = deadlineAnchorSlot(slotAllocation);
+    if (!selectedDate || !anchorSlot) {
+      setChangeDeadline(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void wizard.resolveChangeDeadlinePreview(
+      { bookingDate: selectedDate, slot: anchorSlot },
+      (rpcError) => {
+        logger.error("Failed to fetch the change-deadline preview", rpcError, {
+          tags: { component: "BookingWizard", op: "customer_change_deadline_preview" },
+        });
+      },
+    ).then((preview) => {
+      if (cancelled) return;
+      setChangeDeadline(preview);
+    }).catch((rpcError) => {
+      if (cancelled) return;
+      setChangeDeadline(null);
+      logger.error("Failed to fetch the change-deadline preview", rpcError, {
+        tags: { component: "BookingWizard", op: "customer_change_deadline_preview" },
+      });
+    });
+    return () => { cancelled = true; };
+  }, [wizard, step, selectedDate, slotAllocation]);
 
   // Per-owner deposit rule. Best-effort and fail-open, exactly like SlotSelection's
   // own read: the DB stamping trigger remains the authority, so a failure here
@@ -1147,6 +1194,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
               portalPolicy.allowCancellations === false
                 ? null
                 : portalPolicy.changeDeadlineDescription
+            }
+            // Only when the server said so for THIS slot, and only while online
+            // changes are a thing at all — a warning that you cannot change
+            // something online is noise when nobody can.
+            changeAlreadyClosed={
+              changeDeadline?.allowCancellations === true && changeDeadline.passed === true
             }
           />
         )}

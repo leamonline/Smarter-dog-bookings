@@ -811,6 +811,21 @@ export function getCustomerBookingRules(client: SupabaseClient) {
   return client.rpc("current_customer_booking_rules");
 }
 
+// Whether a slot the customer has NOT booked yet is already past the point
+// where they could change or cancel it online. Answered by the server from the
+// settings cancel_customer_booking enforces, because a client that re-derives
+// a deadline eventually disagrees with the database that enforces it (the rule
+// recorded in src/engine/bookingPolicy.ts).
+export function getCustomerChangeDeadlinePreview(
+  client: SupabaseClient,
+  params: { bookingDate: string; slot: string },
+) {
+  return client.rpc("customer_change_deadline_preview", {
+    p_booking_date: params.bookingDate,
+    p_slot: params.slot,
+  });
+}
+
 // Staff-only full Booking Rules, and the audited owner-only save.
 export function getBookingRules(client: BookingPolicyRpcTransport) {
   return client.rpc("current_booking_rules");

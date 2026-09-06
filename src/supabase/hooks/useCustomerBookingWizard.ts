@@ -18,7 +18,10 @@ import {
 } from "../repositories/bookingsRepo";
 import { listForHuman } from "../repositories/dogsRepo";
 import { getBookingRules } from "../repositories/humansRepo";
-import { resolveCustomerPortalPolicy } from "../customerBookingRules";
+import {
+  resolveChangeDeadlinePreview,
+  resolveCustomerPortalPolicy,
+} from "../customerBookingRules";
 import { logBookingDenial, logFunnelEvent } from "../rpc";
 
 type Client = NonNullable<typeof customerSupabase>;
@@ -45,6 +48,17 @@ const wizardData = {
   },
   resolvePortalPolicy(onRpcError?: Parameters<typeof resolveCustomerPortalPolicy>[1]) {
     return resolveCustomerPortalPolicy(requireClient(), onRpcError);
+  },
+  /**
+   * Is the slot the customer is about to take already past the point where
+   * they could change or cancel it online? The server answers from the
+   * settings the cancellation gate enforces; the client never works it out.
+   */
+  resolveChangeDeadlinePreview(
+    params: Parameters<typeof resolveChangeDeadlinePreview>[1],
+    onRpcError?: Parameters<typeof resolveChangeDeadlinePreview>[2],
+  ) {
+    return resolveChangeDeadlinePreview(requireClient(), params, onRpcError);
   },
   getBookingRules(humanId: string) {
     return getBookingRules(requireClient(), humanId);
