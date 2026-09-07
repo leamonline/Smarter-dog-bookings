@@ -40,7 +40,9 @@ export default defineConfig({
           environment: "node",
           env: offlineEnv,
           include: ["src/**/*.test.{js,ts}"],
-          exclude: ["src/**/*.component.test.{jsx,tsx}"],
+          // website/** is an independent application with its own Vitest
+          // config (ADR 009); never let root discovery reach it.
+          exclude: ["src/**/*.component.test.{jsx,tsx}", "website/**"],
         },
       },
       {
@@ -51,6 +53,7 @@ export default defineConfig({
           environment: "jsdom",
           env: offlineEnv,
           include: ["src/**/*.component.test.{jsx,tsx}"],
+          exclude: ["**/node_modules/**", "website/**"],
           setupFiles: ["./src/test/componentSetup.ts"],
         },
       },
