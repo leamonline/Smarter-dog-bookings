@@ -269,11 +269,12 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   5. **Say so explicitly**, including when an apply fails or half-lands. Since the human merge-control
      attestation was removed (also 18 August 2026) nothing prompts for a migration disposition, so
      stating it plainly is the only remaining signal.
-  When applying via the MCP, pass `name` as the part of the filename **after the timestamp**
-  (`late_reminder_pass` for `20260906120000_late_reminder_pass.sql`). Both checks match on the
-  14-digit version, that suffix, or — since 7 September 2026 — the full basename; anything else
-  reads as PENDING and makes the daily drift audit alarm until the ledger is corrected, which is
-  what #790's apply did. See
+  When applying via the MCP, **derive `name` with `npm run migration:name -- <file>`** and pass
+  exactly what it prints — the part of the filename after the timestamp (`late_reminder_pass` for
+  `20260906120000_late_reminder_pass.sql`). Never type it. Both checks match on the 14-digit
+  version, that suffix, or — since 7 September 2026 — the full basename; anything else reads as
+  PENDING and makes the daily drift audit alarm until the ledger is corrected, which is what
+  #790's apply did. See
   [docs/migrations.md](docs/migrations.md#applying-via-the-supabase-mcp-what-to-pass-as-name).
   Permission covers the Supabase MCP only. It is **not** permission to hold or use the service-role
   key, which stays a transient, human-only credential per the bullet below. If the Supabase connector

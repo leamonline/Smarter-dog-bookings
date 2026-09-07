@@ -91,6 +91,22 @@ filename after the timestamp**:
 | `20260906120000_late_reminder_pass.sql` | `late_reminder_pass` |
 | `20260906100000_change_deadline_preview.sql` | `change_deadline_preview` |
 
+Don't type it — derive it:
+
+```bash
+npm run migration:name -- supabase/migrations/20260906120000_late_reminder_pass.sql
+# late_reminder_pass
+```
+
+`scripts/migration-name.mjs` applies the same rule the two checks use
+(`base=${base%%_*}` / `name=${base#*_}`), refuses anything that is not a
+valid migration filename rather than guessing, and is held to the workflows'
+own bash by `src/security/migrationName.test.ts`. When either check reports
+a migration PENDING it now prints the name to apply it under. `npm run
+check:migrations` also refuses two files that share a name, because the
+checks match on name and a shared one would let a single applied row vouch
+for both.
+
 Since 7 September 2026 both checks also accept the full basename
 (`20260906120000_late_reminder_pass`), because #790 was applied that way and
 reported PENDING for a migration whose cron jobs were already live — which
