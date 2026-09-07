@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test:run
+
+    - name: Generate coverage report
+      run: npm run test:coverage
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v6
+      if: matrix.node-version == '22.x'
+      with:
+        files: ./coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Archive coverage report
+      if: matrix.node-version == '22.x'
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: coverage/
+        retention-days: 30
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      # Vite bakes VITE_* values into the bundle at build time. Without these
+      # the deployed site has no Supabase client at all, so salon facts, open
+      # days and holiday notices silently fall back to static copy. Both
+      # values are public by design (they ship to every visitor's browser).
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      run: npm run build
+
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: build-artifacts
+        path: dist/
+        retention-days: 7
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, build, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    concurrency:
+      group: deploy-bluehost
+      cancel-in-progress: false
+
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: build-artifacts
+        path: dist/
+
+    - name: Deploy to Bluehost via FTPS
+      uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      with:
+        server: ${{ secrets.BLUEHOST_FTP_HOST }}
+        username: ${{ secrets.BLUEHOST_FTP_USER }}
+        password: ${{ secrets.BLUEHOST_FTP_PASSWORD }}
+        protocol: ftps
+        port: 21
+        local-dir: ./dist/
+        server-dir: ./
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/.well-known/**
+          **/cgi-bin/**
+          **/.htaccess
+

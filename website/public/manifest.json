@@ -1,0 +1,28 @@
+{
+    "name": "Smarter Dog Grooming Salon",
+    "short_name": "Smarter Dog",
+    "description": "Professional dog grooming with 40+ years of experience. Calm, patient grooming for nervous and elderly dogs.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#00C2FF",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/favicon.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/logo-icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "business",
+        "lifestyle"
+    ],
+    "lang": "en-GB"
+}
