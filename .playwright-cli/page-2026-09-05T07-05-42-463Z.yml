@@ -1,0 +1,33 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - paragraph [ref=e5]: Synthetic preview · no customer data or messages
+    - heading "Humans Directory" [level=1] [ref=e6]
+    - region "Awaiting approval" [ref=e7]:
+      - generic [ref=e8]:
+        - button "Awaiting approval2" [expanded] [ref=e9]:
+          - img [ref=e10]
+          - text: Awaiting approval2
+        - button "Refresh approvals" [ref=e13]:
+          - img [ref=e14]
+          - text: Refresh
+      - paragraph [ref=e19]: Oldest first · Check dog sizes before approving
+      - list [ref=e20]:
+        - listitem [ref=e21]:
+          - generic [ref=e22]:
+            - paragraph [ref=e23]: Alex Taylor
+            - paragraph [ref=e24]: Milo, Luna
+            - paragraph [ref=e25]:
+              - time [ref=e26]: Submitted today
+          - button "Review Alex Taylor" [ref=e27]:
+            - text: Review
+            - img [ref=e28]
+        - listitem [ref=e30]:
+          - generic [ref=e31]:
+            - paragraph [ref=e32]: Sam Morgan
+            - paragraph [ref=e33]: Pepper
+            - paragraph [ref=e34]:
+              - time [ref=e35]: Submitted today
+          - button "Review Sam Morgan" [ref=e36]:
+            - text: Review
+            - img [ref=e37]
+    - generic [ref=e39]: Human directory continues below

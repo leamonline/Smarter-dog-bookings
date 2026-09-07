@@ -1,0 +1,87 @@
+- generic [active] [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Synthetic preview · no customer data or messages
+      - heading [level=1] [ref=e43]: Humans Directory
+      - region [ref=e44]:
+        - generic [ref=e9]:
+          - button [expanded] [ref=e45]:
+            - img [ref=e11]
+            - text: Awaiting approval
+            - generic [ref=e14]: "2"
+          - button [ref=e46]:
+            - img [ref=e16]
+            - generic [ref=e21]: Refresh
+        - paragraph [ref=e22]: Oldest first · Check dog sizes before approving
+        - list [ref=e23]:
+          - listitem [ref=e24]:
+            - generic [ref=e25]:
+              - paragraph [ref=e26]: Alex Taylor
+              - paragraph [ref=e27]: Milo, Luna
+              - paragraph [ref=e28]:
+                - time [ref=e29]: Waiting less than a day
+            - button [ref=e47]:
+              - text: Review
+              - img [ref=e31]
+          - listitem [ref=e33]:
+            - generic [ref=e34]:
+              - paragraph [ref=e35]: Sam Morgan
+              - paragraph [ref=e36]: Pepper
+              - paragraph [ref=e37]:
+                - time [ref=e38]: Waiting less than a day
+            - button [ref=e48]:
+              - text: Review
+              - img [ref=e40]
+      - generic [ref=e42]: Human directory continues below
+  - dialog "Review signup" [ref=e50]:
+    - banner [ref=e51]:
+      - generic [ref=e52]:
+        - paragraph [ref=e53]: New customer
+        - heading "Review signup" [level=2] [ref=e54]
+      - button "Close review" [ref=e55]:
+        - img [ref=e56]
+    - generic [ref=e59]:
+      - region "Customer details" [ref=e106]:
+        - heading "Alex Taylor" [level=3] [ref=e107]
+        - paragraph [ref=e108]: 07700 900123
+        - paragraph [ref=e109]: alex@example.test
+      - heading "Confirm booking sizes" [level=3] [ref=e110]:
+        - img [ref=e111]
+        - text: Confirm booking sizes
+      - paragraph [ref=e116]: Check each dog's size for booking. Customer-reported sizes are a guide for your review.
+      - generic [ref=e117]:
+        - group "Milo" [ref=e118]:
+          - generic [ref=e119]: Milo
+          - paragraph [ref=e120]: Cockapoo
+          - paragraph [ref=e121]: "Current booking size: medium"
+          - generic [ref=e122]:
+            - generic [ref=e123] [cursor=pointer]:
+              - 'radio "Milo: small" [ref=e124]'
+              - generic [ref=e125]: small
+            - generic [ref=e126] [cursor=pointer]:
+              - 'radio "Milo: medium" [checked] [ref=e127]'
+              - generic [ref=e128]: medium
+            - generic [ref=e129] [cursor=pointer]:
+              - 'radio "Milo: large" [ref=e130]'
+              - generic [ref=e131]: large
+        - group "Luna" [ref=e132]:
+          - generic [ref=e133]: Luna
+          - paragraph [ref=e134]: Crossbreed
+          - paragraph [ref=e135]: "Current booking size: small"
+          - paragraph [ref=e136]: "Customer reported: small"
+          - generic [ref=e137]:
+            - generic [ref=e138] [cursor=pointer]:
+              - 'radio "Luna: small" [checked] [ref=e139]'
+              - generic [ref=e140]: small
+            - generic [ref=e141] [cursor=pointer]:
+              - 'radio "Luna: medium" [ref=e142]'
+              - generic [ref=e143]: medium
+            - generic [ref=e144] [cursor=pointer]:
+              - 'radio "Luna: large" [ref=e145]'
+              - generic [ref=e146]: large
+      - status [ref=e147]: Sizes saved. This customer is still awaiting approval.
+    - contentinfo [ref=e101]:
+      - paragraph [ref=e102]: Save the sizes and approve when you're ready.
+      - generic [ref=e103]:
+        - button "Save for later" [disabled] [ref=e104]
+        - button "Save sizes and approve" [ref=e105]

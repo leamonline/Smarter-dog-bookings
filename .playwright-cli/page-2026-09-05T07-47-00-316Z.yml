@@ -1,0 +1,49 @@
+- generic [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Synthetic preview · no customer data or messages
+      - heading [level=1] [ref=e43]: Humans Directory
+      - region [ref=e44]:
+        - generic [ref=e9]:
+          - button [expanded] [ref=e45]:
+            - img [ref=e11]
+            - text: Awaiting approval
+            - generic [ref=e14]: "2"
+          - button [ref=e46]:
+            - img [ref=e16]
+            - generic [ref=e21]: Refresh
+        - paragraph [ref=e22]: Oldest first · Check dog sizes before approving
+        - list [ref=e23]:
+          - listitem [ref=e24]:
+            - generic [ref=e25]:
+              - paragraph [ref=e26]: Alex Taylor
+              - paragraph [ref=e27]: Milo, Luna
+              - paragraph [ref=e28]:
+                - time [ref=e29]: Waiting less than a day
+            - button [ref=e47]:
+              - text: Review
+              - img [ref=e31]
+          - listitem [ref=e33]:
+            - generic [ref=e34]:
+              - paragraph [ref=e35]: Sam Morgan
+              - paragraph [ref=e36]: Pepper
+              - paragraph [ref=e37]:
+                - time [ref=e38]: Waiting less than a day
+            - button [ref=e48]:
+              - text: Review
+              - img [ref=e40]
+      - generic [ref=e42]: Human directory continues below
+  - dialog "Customer approved" [ref=e148]:
+    - banner [ref=e51]:
+      - generic [ref=e52]:
+        - paragraph [ref=e53]: New customer
+        - heading "Customer approved" [level=2] [ref=e149]
+      - button "Close review" [active] [ref=e55]:
+        - img [ref=e56]
+    - status [ref=e150]:
+      - img [ref=e151]
+      - heading "Alex Taylor is approved" [level=3] [ref=e153]
+      - paragraph [ref=e154]: The dog sizes have been saved.
+      - paragraph [ref=e155]: Welcome message accepted by the provider. Delivery is not yet confirmed.
+    - contentinfo [ref=e101]:
+      - button "Back to approvals" [ref=e156]
