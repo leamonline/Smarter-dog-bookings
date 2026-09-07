@@ -1,0 +1,168 @@
+name: Website
+
+# Why this exists:
+# The marketing website (smarterdog.co.uk) lives under website/ as an
+# independent application — its own package.json, lockfile, Vite/Vitest/
+# Playwright configs and build output (ADR 009,
+# docs/architecture/decisions/009-independent-applications-in-one-repository.md).
+# GitHub only runs workflows from the repository root, so the website's own
+# .github/workflows/ci.yml (still readable in history at c55617b) is
+# recreated here, scoped to website/**, with three deliberate differences:
+#
+#   1. Node 24 only (the repository's single declared runtime — see
+#      docs/node-runtime.md) instead of the source's 22.x/24.x matrix.
+#   2. No Codecov upload: that step needed a token this repository does not
+#      hold and was already non-blocking (fail_ci_if_error: false). The
+#      coverage report is still archived as an artifact.
+#   3. The Bluehost publisher is DARK by default. The deploy job only runs
+#      on a push to main AND when the repository variable
+#      WEBSITE_PUBLISHER_ENABLED is exactly "true". Flipping that variable is
+#      the authorised cutover step in
+#      docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md;
+#      until then the original repository remains the single publisher.
+#
+# Isolation guarantees (enforced by src/security/websiteWorkflowIsolation.test.ts):
+#   - only website/** (and this file) trigger it, so bookings changes never
+#     run website checks and vice versa (ci.yml ignores website/**);
+#   - it never receives SUPABASE_ACCESS_TOKEN and cannot deploy Edge
+#     Functions — deploy-edge-functions.yml is path-filtered to
+#     supabase/functions/**;
+#   - pull requests can never reach the deploy job.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: website
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:run
+      - run: npm run test:coverage
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-coverage-report
+          path: website/coverage/
+          retention-days: 30
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - name: Build website
+        # Vite bakes VITE_* values into the bundle at build time. Without them
+        # the site still builds, but with no Supabase client: the holiday
+        # card, live salon facts and open-days strip fall back to static copy
+        # (website/MAINTENANCE.md). Both values are public browser
+        # configuration by design; they are NOT secrets in the security sense
+        # (AGENTS.md: "VITE_ values are public browser configuration").
+        # They are read from repository secrets of the same names, which the
+        # cutover runbook provisions — until then a PR build simply has none.
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-build-artifacts
+          path: website/dist/
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run website E2E tests
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: website-playwright-report
+          path: website/playwright-report/
+          retention-days: 30
+
+  deploy:
+    # DARK until the authorised cutover. Three conditions, all required:
+    #   - a push event (a pull request can never publish);
+    #   - to main;
+    #   - the repository variable WEBSITE_PUBLISHER_ENABLED == 'true', which
+    #     does not exist until the cutover runbook creates it.
+    # The FTP secrets are likewise absent until the runbook provisions them.
+    runs-on: ubuntu-latest
+    needs: [test, build, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WEBSITE_PUBLISHER_ENABLED == 'true'
+    concurrency:
+      group: deploy-bluehost
+      cancel-in-progress: false
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: website-build-artifacts
+          path: website/dist/
+
+      - name: Deploy to Bluehost via FTPS
+        # Same action, protocol, server-dir and exclusions as the source
+        # repository's workflow. server-dir "./" is correct ONLY for an FTP
+        # account whose root is public_html/ (website/MAINTENANCE.md); the
+        # runbook re-verifies the account scope before enabling this job.
+        # dangerous-clean-slate stays false: never wipe the target.
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.BLUEHOST_FTP_HOST }}
+          username: ${{ secrets.BLUEHOST_FTP_USER }}
+          password: ${{ secrets.BLUEHOST_FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./website/dist/
+          server-dir: ./
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.well-known/**
+            **/cgi-bin/**
+            **/.htaccess
