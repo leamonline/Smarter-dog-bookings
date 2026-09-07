@@ -226,7 +226,7 @@ describe("the website workflow is scoped and cannot publish without the cutover"
 
   it("runs mocked holiday E2E scenarios without production configuration", () => {
     const e2e = executable(job(website, "e2e"));
-    expect(e2e).toContain("VITE_SUPABASE_URL: http://127.0.0.1:9");
+    expect(e2e).toContain("VITE_SUPABASE_URL: https://website-ci.invalid");
     expect(e2e).toContain("VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder");
     expect(e2e).not.toContain("secrets.");
   });

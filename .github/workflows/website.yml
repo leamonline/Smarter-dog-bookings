@@ -119,9 +119,9 @@ jobs:
         run: npx playwright install --with-deps
       - name: Run website E2E tests
         # Holiday specs mock every homepage RPC but skip without a configured
-        # client. Use an inert local endpoint, never production credentials.
+        # client. Use a reserved non-production hostname, never production credentials.
         env:
-          VITE_SUPABASE_URL: http://127.0.0.1:9
+          VITE_SUPABASE_URL: https://website-ci.invalid
           VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
         run: npm run test:e2e
       - name: Upload Playwright report

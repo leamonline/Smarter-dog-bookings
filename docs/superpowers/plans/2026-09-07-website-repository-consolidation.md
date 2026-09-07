@@ -79,7 +79,7 @@ record execution evidence.
   rather than the plan's placeholders. Missing values exercise static
   fallback behaviour, not live integration; release validation must verify
   the configured public data features before cutover acceptance. E2E uses
-  non-production local placeholders so the existing mocked holiday scenarios
+  reserved non-production placeholders so the existing mocked holiday scenarios
   execute instead of skipping all 20 cases across five browser projects.
 - The missing docs-scanner exclusion from Task 3 is now implemented and
   tested. Bookings documentation governance excludes `website/`; repository
