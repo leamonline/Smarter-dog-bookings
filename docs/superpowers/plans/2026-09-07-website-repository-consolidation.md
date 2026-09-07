@@ -36,7 +36,8 @@ ADR 009 and the active plan above, not this record.
    negation for `website/.env.example`, `website:*` npm scripts, no
    workspace).
 5. **Workflows.** Remove the inert nested `website/.github/`; add root
-   `website.yml` with the publisher dark; `ci.yml` ignores `website/**`;
+   `website.yml` with the publisher dark; `ci.yml` keeps no path filter so
+   the ruleset-required checks always report (owner review, 7 September);
    Dependabot covers `/website`. Guard test
    `src/security/websiteWorkflowIsolation.test.ts`.
 6. **Documentation**: this record, the cutover runbook, plan update, ADR

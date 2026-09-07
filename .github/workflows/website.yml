@@ -23,7 +23,11 @@ name: Website
 #
 # Isolation guarantees (enforced by src/security/websiteWorkflowIsolation.test.ts):
 #   - only website/** (and this file) trigger it, so bookings changes never
-#     run website checks and vice versa (ci.yml ignores website/**);
+#     run website checks. ci.yml deliberately has NO path filter: the
+#     `Protect main` ruleset requires its checks by name on every pull
+#     request, and a required check that never reports would leave a
+#     website-only pull request unmergeable. Root discovery excludes
+#     website/, so that run is cheap and always green for the website;
 #   - it never receives SUPABASE_ACCESS_TOKEN and cannot deploy Edge
 #     Functions — deploy-edge-functions.yml is path-filtered to
 #     supabase/functions/**;

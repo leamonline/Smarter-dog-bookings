@@ -35,11 +35,15 @@ Cutover procedure: [runbook](../../superpowers/runbooks/2026-09-07-website-publi
   dark behind the `WEBSITE_PUBLISHER_ENABLED` repository variable.
 - **Isolation.** Root ESLint ignores and Vitest excludes `website/**`; tsc
   and Playwright were already `src/` and `e2e/` scoped; the root build does
-  not read `website/`. `ci.yml` ignores `website/**`; `website.yml` runs
-  only for `website/**`. `src/security/websiteWorkflowIsolation.test.ts`
-  asserts these and simulates change selection for website-only,
-  bookings-only, shared-configuration, documentation-only and Supabase-only
-  diffs on push and pull request.
+  not read `website/`. `website.yml` runs only for `website/**`; `ci.yml`
+  keeps **no** path filter (review of 7 September 2026: the `Protect main`
+  ruleset requires `build`, `coverage`, `agent-tests`,
+  `pr-production-smoke` and `migrations-applied` by name, so an
+  always-reporting gate is required, not a conditional one).
+  `src/security/websiteWorkflowIsolation.test.ts` asserts these and
+  simulates change selection for website-only, bookings-only,
+  shared-configuration, documentation-only and Supabase-only diffs on push
+  and pull request.
 - **Checks run on the branch** (Node 24.20.0): root `lint`, `check:docs`,
   `typecheck`, `check:migrations`, `test` (339 files, 3487 tests) and
   `build` (146 files, no website asset); website `npm ci`, `lint`,

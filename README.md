@@ -376,7 +376,9 @@ npm run website:e2e       # Playwright (website/e2e)
 ```
 
 CI for it is `.github/workflows/website.yml`, which runs only for `website/**`
-changes; `ci.yml` ignores that tree. Its Bluehost publisher stays **disabled**
+changes. The bookings bar (`ci.yml`) still runs on every pull request because
+the `Protect main` ruleset requires its checks by name; root discovery excludes
+`website/`, so that run is cheap. Its Bluehost publisher stays **disabled**
 until the authorised cutover in
 [docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
 See [`website/MAINTENANCE.md`](website/MAINTENANCE.md) for the site's own

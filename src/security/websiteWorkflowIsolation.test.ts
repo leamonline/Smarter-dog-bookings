@@ -4,8 +4,14 @@
 //
 //   1. Isolation. Root tooling (ESLint, Vitest, tsc, Playwright, the build)
 //      never discovers website/, and the website's checks never run on a
-//      bookings change. A leak in either direction would make CI slower and,
-//      worse, let a website lint rule or test fixture gate a booking release.
+//      bookings change. A leak would let a website lint rule or test fixture
+//      gate a booking release. The bookings bar (ci.yml) still runs on a
+//      website-only change ON PURPOSE: the `Protect main` ruleset requires
+//      its `build`, `coverage`, `agent-tests` and `pr-production-smoke`
+//      checks by name on every pull request, and a required check that
+//      never reports leaves the pull request unmergeable. Because root
+//      discovery excludes website/, that run is cheap and cannot fail on
+//      website content — an always-reporting gate, not a conditional one.
 //
 //   2. Publishing safety. The website workflow can never deploy Edge
 //      Functions, can never run its publisher from a pull request, and its
@@ -15,8 +21,9 @@
 //      Until then the original repository remains the single publisher.
 //
 // The change-selection table below simulates GitHub's `paths` /
-// `paths-ignore` filters against each workflow's triggers, so "a website-only
-// change does not run the bookings bar" is asserted, not assumed. It reads the
+// `paths-ignore` filters against each workflow's triggers, so "a bookings
+// change never runs website checks" and "every required check always
+// reports" are asserted, not assumed. It reads the
 // YAML with the same deliberately small regex approach the other workflow
 // guards use rather than adding a parser dependency.
 import { existsSync, readFileSync } from "node:fs";
@@ -266,7 +273,8 @@ describe("CI change selection keeps the applications apart", () => {
     {
       name: "website-only",
       changed: ["website/src/App.jsx", "website/package-lock.json", "website/public/llms.txt"],
-      expected: { website: true, ci: false, edgeDeploy: false, dbTests: false },
+      // ci: true is required — see the header comment on the ruleset.
+      expected: { website: true, ci: true, edgeDeploy: false, dbTests: false },
     },
     {
       name: "bookings-only",
@@ -286,7 +294,7 @@ describe("CI change selection keeps the applications apart", () => {
     {
       name: "website documentation-only",
       changed: ["website/MAINTENANCE.md"],
-      expected: { website: true, ci: false, edgeDeploy: false, dbTests: false },
+      expected: { website: true, ci: true, edgeDeploy: false, dbTests: false },
     },
     {
       name: "Supabase-only (Edge Function)",
@@ -327,9 +335,19 @@ describe("CI change selection keeps the applications apart", () => {
     );
   });
 
-  it("the bookings bar ignores website/** on push and pull_request", () => {
+  it("the bookings bar has no path filter, so every ruleset-required check always reports", () => {
+    // `Protect main` requires build, coverage, agent-tests, pr-production-smoke
+    // and migrations-applied on every pull request. A `paths` or
+    // `paths-ignore` on ci.yml would let a website-only pull request skip
+    // four of them and wait forever on checks that never run.
     for (const event of ["push", "pull_request"] as const) {
-      expect(trigger(ci, event)?.pathsIgnore, event).toEqual(["website/**"]);
+      const filter = trigger(ci, event);
+      expect(filter, event).not.toBeNull();
+      expect(filter!.paths, `${event} paths`).toBeNull();
+      expect(filter!.pathsIgnore, `${event} paths-ignore`).toBeNull();
+    }
+    for (const name of ["build", "coverage", "agent-tests", "pr-production-smoke"]) {
+      expect(job(ci, name), name).not.toBe("");
     }
   });
 
