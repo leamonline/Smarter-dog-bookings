@@ -21,11 +21,14 @@ name: Migration Drift Audit
 # the repo admins, which is the point: you find out within a day, not weeks.
 #
 # Matching note (same rule as check-migrations-applied.yml): a migration
-# counts as applied if EITHER its 14-digit version OR its name (the part
-# after the timestamp) appears in prod's supabase_migrations.schema_migrations.
-# The name fallback is deliberate — applying via the Supabase MCP
-# (apply_migration) records its own timestamp, so versions drift from the
-# files; the name still matches.
+# counts as applied if its 14-digit version, its name (the part after the
+# timestamp), OR its full basename appears in prod's
+# supabase_migrations.schema_migrations. The name fallback is deliberate —
+# applying via the Supabase MCP (apply_migration) records its own timestamp,
+# so versions drift from the files; the name still matches. The basename form
+# was added 7 September 2026 after an apply named with the whole filename
+# (see #790) made this audit alarm daily on a migration that was already
+# live. Timestamps are unique per file, so it cannot produce a false positive.
 #
 # Secret required:
 #   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
@@ -89,7 +92,7 @@ jobs:
             base=$(basename "$f" .sql)   # 20260525130000_messaging_channel_email
             ver=${base%%_*}              # 20260525130000
             name=${base#*_}              # messaging_channel_email
-            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names"; then
+            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then
               :   # applied
             else
               echo "✗ PENDING: $base"

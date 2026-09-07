@@ -78,6 +78,32 @@ already applied. Use the `supabase_migrations.schema_migrations`
 table to check what's already in place before running anything
 against an existing project.
 
+## Applying via the Supabase MCP: what to pass as `name`
+
+`apply_migration` records its **own** timestamp as the `version`, so the
+14-digit prefix in the filename never matches prod's ledger. What matches is
+the `name`, and both checks (`check-migrations-applied.yml` on every PR,
+`check-migrations-drift.yml` daily) expect it to be **the part of the
+filename after the timestamp**:
+
+| file | pass as `name` |
+|---|---|
+| `20260906120000_late_reminder_pass.sql` | `late_reminder_pass` |
+| `20260906100000_change_deadline_preview.sql` | `change_deadline_preview` |
+
+Since 7 September 2026 both checks also accept the full basename
+(`20260906120000_late_reminder_pass`), because #790 was applied that way and
+reported PENDING for a migration whose cron jobs were already live — which
+also made the daily drift audit alarm every day until the ledger was
+corrected. Timestamps are unique per file, so the basename form cannot
+produce a false positive. The suffix remains the convention; the basename is
+tolerance, not an invitation.
+
+Anything else — a description, a ticket number, the filename with `.sql` —
+reads as PENDING on every run until fixed. The fix is to re-apply the same
+(idempotent) migration under the right name, which adds a second ledger row
+rather than editing history.
+
 ## May 2026 review additions
 
 The review pass adds these migrations (all idempotent and

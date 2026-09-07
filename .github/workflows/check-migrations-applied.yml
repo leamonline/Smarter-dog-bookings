@@ -18,13 +18,18 @@ name: Migrations Applied Check
 # filter) and self-skips when a change touches no migrations, so it never
 # leaves a required check stuck "waiting".
 #
-# Matching note: a migration counts as applied if EITHER its 14-digit version
-# OR its name (the part after the timestamp) appears in prod's
+# Matching note: a migration counts as applied if its 14-digit version, its
+# name (the part after the timestamp), OR its full basename appears in prod's
 # supabase_migrations.schema_migrations. The name fallback is deliberate —
 # applying via the Supabase MCP (apply_migration) records its own timestamp, so
-# versions drift from the files; the name still matches. It also only checks
-# migrations this change *adds* (diff vs the base), so historical drift on old
-# files never trips it.
+# versions drift from the files; the name still matches. The basename form was
+# added 7 September 2026 after #790 was applied with the whole filename as its
+# name (20260906120000_late_reminder_pass): the cron jobs were live, but this
+# check and the daily drift audit both reported it PENDING. Timestamps are
+# unique per file (scripts/check-migrations.mjs enforces that), so a basename
+# can only have come from applying that file — no false positive is possible.
+# It also only checks migrations this change *adds* (diff vs the base), so
+# historical drift on old files never trips it.
 #
 # Secret required:
 #   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
@@ -124,7 +129,7 @@ jobs:
             base=$(basename "$f" .sql)   # 20260604120000_add_salon_config_settings
             ver=${base%%_*}              # 20260604120000
             name=${base#*_}              # add_salon_config_settings
-            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names"; then
+            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then
               echo "✓ applied: $base"
             else
               echo "✗ PENDING: $base"
