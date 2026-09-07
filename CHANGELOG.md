@@ -12,10 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   `website/` as an independent application, imported with its full history
   (129 commits, source `c55617b`, tree byte-identical, no squash) per
   [ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md)
-  (#784). Root tooling ignores it; `website:*` npm scripts wrap
+  (#784). Root lint, test and build discovery exclude it; `website:*` npm scripts wrap
   `npm --prefix website`; `.github/workflows/website.yml` runs its checks for
-  `website/**` changes only, while `ci.yml` keeps running unfiltered so every
-  ruleset-required check always reports. The Bluehost
+  `website/**` changes and workflow edits. Existing required repository checks
+  still run for website-only PRs. The Bluehost
   publisher is deliberately dark behind the `WEBSITE_PUBLISHER_ENABLED`
   repository variable until the
   [cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)

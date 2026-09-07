@@ -36,13 +36,13 @@ This document outlines the maintenance procedures for the Smarter Dog Grooming w
 ### Code Backups
 
 - **Primary**: Git repository (GitHub/GitLab)
-- **Recommended**: Enable automatic backups on hosting provider (Vercel/Netlify)
+- **Hosting backup**: Retain a known-good Bluehost website artefact and its source SHA.
 
 ### How to backup manually
 
 ```bash
-# Create a dated zip of the project
-zip -r "smarterdog-backup-$(date +%Y%m%d).zip" . -x "node_modules/*" -x ".git/*"
+# Archive tracked website source only; exclude local credentials and dependencies
+git archive --format=zip --output=../website-source-backup.zip HEAD:website
 ```
 
 ### Recovery
@@ -59,28 +59,26 @@ npm run dev
 
 ## Environment Variables
 
-Required environment variables for production:
+The production workflow supplies `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` as public browser configuration. Their values
+are embedded in the built assets. The source also supports
+`VITE_GA_MEASUREMENT_ID`; the tracked template lists `VITE_EMAILJS_*` names,
+but the current production workflow does not supply analytics or EmailJS
+configuration. Do not describe these as mandatory booking-form settings.
 
-```bash
-# EmailJS Configuration (for booking form)
-VITE_EMAILJS_SERVICE_ID=your_service_id
-VITE_EMAILJS_TEMPLATE_ID=your_template_id
-VITE_EMAILJS_PUBLIC_KEY=your_public_key
-
-# Google Analytics
-VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
-```
-
-**Security**: Never commit `.env` files to Git. Use hosting provider's environment variable settings.
+Never commit local environment files or put privileged credentials in `VITE_`
+variables. Destination build configuration is verified at the authorised cutover.
 
 ---
 
 ## Holiday Notices
 
 The production build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-from GitHub Actions secrets of the same names (set 6 September 2026). If either is
-missing the site still builds, but with no Supabase client: the holiday card,
-live salon facts and open-days strip all silently fall back to static copy.
+from GitHub Actions secrets of the same names in the original publisher
+(configured there on 6 September 2026). Destination provisioning remains a
+cutover step. If either is missing, the site still builds without a Supabase
+client: holiday notices are hidden, while salon facts and open days use their
+fallbacks. A successful unconfigured build does not verify live holiday data.
 
 Holidays are **not** edited on the website. Staff schedule them in the booking
 app (Settings → Holidays), which closes the diary dates and publishes the
@@ -122,13 +120,14 @@ Use `npm ci`, not `npm install`, unless you mean to change dependencies.
 The `deploy` job in the **root** workflow
 [`.github/workflows/website.yml`](../.github/workflows/website.yml) syncs
 `website/dist/` to Bluehost via FTPS using `SamKirkland/FTP-Deploy-Action`.
-It runs only on a push to `main` that touches `website/**` **and** only while
+It runs only on a push to `main` that touches `website/**` or the workflow file **and** only while
 the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true`. Until the
 [cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)
-has been executed that variable does not exist, the job never runs, and the
+has been executed, that variable must remain absent or false, the job cannot
+publish, and the
 original `smarter-dog-website` repository remains the single publisher.
 
-**FTP account scope matters.** The account behind the `BLUEHOST_FTP_USER` secret is a sub-FTP account scoped to `/home1/<cpanel-user>/public_html`. Because that account's FTP root *is* `public_html/`, the workflow uses `server-dir: ./`.
+**FTP account scope matters.** The original account was documented as scoped to `/home1/<cpanel-user>/public_html`. Reverify that scope at cutover. When the FTP root is `public_html/`, use `server-dir: ./`.
 
 Do **not** use `/public_html/` (absolute) or `public_html/` (relative) with this account — both resolve to `public_html/public_html/` and the deploy will fail when it tries to step into `public_html/assets/`.
 
@@ -138,7 +137,7 @@ Do **not** use `/public_html/` (absolute) or `public_html/` (relative) with this
 - Main cPanel user (lands in `/home1/<cpanel-user>/`, above the website folder) → change `server-dir` to `public_html/` (no leading slash)
 - Sub-account scoped to a subfolder of `public_html/` (e.g. `public_html/leam`) → won't work; recreate it scoped to `public_html` itself
 
-The action stores its incremental-sync state in `.ftp-deploy-sync-state.json` at the FTP root. If you switch FTP accounts, the first deploy under the new account will look like a "first publish" (uploads everything) until that file exists; subsequent deploys are diffs.
+The action stores its incremental-sync state in `.ftp-deploy-sync-state.json` at the FTP root. A repository or account change does not necessarily remove that remote file. Preserve and inspect its state and the proposed changes before cutover. Disabling the publisher variable prevents future jobs; cancel and wait for active deployments before rollback.
 
 ---
 

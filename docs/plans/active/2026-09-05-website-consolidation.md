@@ -7,7 +7,7 @@ Last verified: 2026-09-07
 Owners: One serial implementer owns import, CI/configuration and documentation
 Dependencies: No existing issue prerequisite identified; external cutover gates below
 Related requirements: [PROJECT.md](../../../PROJECT.md) preservation and release principles; [repository invariants](../../../AGENTS.md)
-Related ADRs: [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md), proposed
+Related ADRs: [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md), accepted 7 September 2026
 
 ## Preparation record (7 September 2026)
 
@@ -35,15 +35,11 @@ Cutover procedure: [runbook](../../superpowers/runbooks/2026-09-07-website-publi
   dark behind the `WEBSITE_PUBLISHER_ENABLED` repository variable.
 - **Isolation.** Root ESLint ignores and Vitest excludes `website/**`; tsc
   and Playwright were already `src/` and `e2e/` scoped; the root build does
-  not read `website/`. `website.yml` runs only for `website/**`; `ci.yml`
-  keeps **no** path filter (review of 7 September 2026: the `Protect main`
-  ruleset requires `build`, `coverage`, `agent-tests`,
-  `pr-production-smoke` and `migrations-applied` by name, so an
-  always-reporting gate is required, not a conditional one).
-  `src/security/websiteWorkflowIsolation.test.ts` asserts these and
-  simulates change selection for website-only, bookings-only,
-  shared-configuration, documentation-only and Supabase-only diffs on push
-  and pull request.
+  not read `website/`. `ci.yml` reports its existing required checks on every PR; `website.yml`
+  runs for `website/**` and its own workflow. `src/security/websiteWorkflowIsolation.test.ts`
+  asserts these and simulates change selection for website-only,
+  bookings-only, shared-configuration, documentation-only and Supabase-only
+  diffs on push and pull request.
 - **Checks run on the branch** (Node 24.20.0): root `lint`, `check:docs`,
   `typecheck`, `check:migrations`, `test` (339 files, 3487 tests) and
   `build` (146 files, no website asset); website `npm ci`, `lint`,
@@ -52,6 +48,35 @@ Cutover procedure: [runbook](../../superpowers/runbooks/2026-09-07-website-publi
   Playwright: see the pull request for what could run in the sandbox.
 - **Not done, by design:** no Bluehost or Vercel setting changed, no secret
   provisioned, no publisher enabled, original repository untouched.
+
+## PR #797 review reconciliation (7 September 2026)
+
+The earlier approved [design](../../superpowers/specs/2026-09-07-website-repository-consolidation-design.md)
+and original implementation plan were found on
+`codex/website-repository-consolidation-spec@5669b9f844bcb54d78dcd6ccd3bb6eea9ddd1b76`.
+The [plan record](../../superpowers/plans/2026-09-07-website-repository-consolidation.md#planning-provenance-and-reconciliation)
+preserves the original instructions and explicitly lists implementation deviations.
+The previous claim that these documents did not exist anywhere was incorrect.
+
+Concurrent commit `340521c104f73f3768220fe8dfb1c2aaa85b33f8` had already removed
+the CI path filters while this review was in progress. The continuation is
+based on that commit and preserves its correction, extending the checks to
+cover migration reporting and distinct website job names.
+
+Review fixes preserve `build`, `coverage`, `agent-tests`, `pr-production-smoke`
+and `migrations-applied` for every PR. Website checks use distinct display
+names, and the missing website documentation-governance exclusion is restored.
+The optional always-reporting website gate is deferred; the ruleset is unchanged.
+No import is repeated and neither application runtime is changed.
+
+Read-only repository-variable inspection found `WEBSITE_DEPLOY_ENABLED=false`,
+but the implemented workflow consumes `WEBSITE_PUBLISHER_ENABLED`, which was
+absent. The former is not an alias and does not control this publisher. No
+variable was changed. Cutover must explicitly verify the consumed name.
+
+Final command results and final-head Actions evidence are recorded on
+[PR #797](https://github.com/leamonline/Smarter-dog-bookings/pull/797).
+The earlier check counts above are historical preparation evidence.
 
 ## Goal
 
@@ -75,7 +100,7 @@ These are configuration observations, not evidence that production currently mat
 
 ## Desired behaviour
 
-Developers can work on either application from one checkout. Changes affecting only one application run that application's checks and deployment where appropriate. Shared release configuration changes run all affected checks. Users retain existing URLs, routes, booking links and functionality.
+Developers can work on either application from one checkout. All PRs run the existing required repository checks. Website-relevant changes additionally run the independent website workflow; deployment remains separately gated. Shared release configuration changes run all affected checks. Users retain existing URLs, routes, booking links and functionality.
 
 ## Scope
 
@@ -95,7 +120,7 @@ No combined frontend bundle, hosting move, domain change, shared dependency upgr
 
 ## Architecture
 
-Keep the bookings application at the repository root and add website/ as a self-contained application. Each has its own node_modules, lockfile, assets, environment and build output. Use npm --prefix website commands from the root for convenience. Nested .github workflows are reference material only; active website CI must live in root .github/workflows. Supabase remains the booking authority. Do not merge global CSS, routers, authentication or service workers. See proposed ADR 009.
+Keep the bookings application at the repository root and add website/ as a self-contained application. Each has its own node_modules, lockfile, assets, environment and build output. Use npm --prefix website commands from the root for convenience. Nested .github workflows are reference material only; active website CI must live in root .github/workflows. Supabase remains the booking authority. Do not merge global CSS, routers, authentication or service workers. See accepted ADR 009.
 
 ## Data/database changes
 

@@ -362,7 +362,7 @@ The public site smarterdog.co.uk lives under [`website/`](website/) as an
 **independent application** — its own `package.json`, lockfile, Vite/Vitest/
 Playwright configs and build — imported with full history from
 `leamonline/smarter-dog-website` ([ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md)).
-Root tooling never touches it; drive it from the root with the `website:*`
+Root lint, test and build discovery exclude it; drive it from the root with the `website:*`
 scripts, which wrap `npm --prefix website`:
 
 ```bash
@@ -376,9 +376,7 @@ npm run website:e2e       # Playwright (website/e2e)
 ```
 
 CI for it is `.github/workflows/website.yml`, which runs only for `website/**`
-changes. The bookings bar (`ci.yml`) still runs on every pull request because
-the `Protect main` ruleset requires its checks by name; root discovery excludes
-`website/`, so that run is cheap. Its Bluehost publisher stays **disabled**
+changes and workflow edits; `ci.yml` still reports every required repository check. Its Bluehost publisher stays **disabled**
 until the authorised cutover in
 [docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
 See [`website/MAINTENANCE.md`](website/MAINTENANCE.md) for the site's own

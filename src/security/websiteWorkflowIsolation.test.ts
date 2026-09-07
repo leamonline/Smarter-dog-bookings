@@ -4,14 +4,9 @@
 //
 //   1. Isolation. Root tooling (ESLint, Vitest, tsc, Playwright, the build)
 //      never discovers website/, and the website's checks never run on a
-//      bookings change. A leak would let a website lint rule or test fixture
-//      gate a booking release. The bookings bar (ci.yml) still runs on a
-//      website-only change ON PURPOSE: the `Protect main` ruleset requires
-//      its `build`, `coverage`, `agent-tests` and `pr-production-smoke`
-//      checks by name on every pull request, and a required check that
-//      never reports leaves the pull request unmergeable. Because root
-//      discovery excludes website/, that run is cheap and cannot fail on
-//      website content — an always-reporting gate, not a conditional one.
+//      bookings change. Required bookings checks still run on website-only
+//      PRs: workflow selection must not leave Protect main waiting forever.
+//      Their lint, test and build inputs remain scoped to bookings.
 //
 //   2. Publishing safety. The website workflow can never deploy Edge
 //      Functions, can never run its publisher from a pull request, and its
@@ -21,9 +16,8 @@
 //      Until then the original repository remains the single publisher.
 //
 // The change-selection table below simulates GitHub's `paths` /
-// `paths-ignore` filters against each workflow's triggers, so "a bookings
-// change never runs website checks" and "every required check always
-// reports" are asserted, not assumed. It reads the
+// `paths-ignore` filters against each workflow's triggers, so "a website-only
+// change still reports required repository checks" is asserted, not assumed. It reads the
 // YAML with the same deliberately small regex approach the other workflow
 // guards use rather than adding a parser dependency.
 import { existsSync, readFileSync } from "node:fs";
@@ -42,6 +36,7 @@ const website = read(WEBSITE_WORKFLOW);
 const ci = read(CI_WORKFLOW);
 const edgeDeploy = read(EDGE_DEPLOY_WORKFLOW);
 const dbTests = read(DB_TESTS_WORKFLOW);
+const migrations = read(".github/workflows/check-migrations-applied.yml");
 
 /** Lines of a top-level YAML block (`key:` at column 0) until the next top-level key. */
 function topLevelBlock(source: string, key: string): string[] {
@@ -229,6 +224,13 @@ describe("the website workflow is scoped and cannot publish without the cutover"
     for (const match of setupNodes) expect(match[1]).toBe("website/package-lock.json");
   });
 
+  it("runs mocked holiday E2E scenarios without production configuration", () => {
+    const e2e = executable(job(website, "e2e"));
+    expect(e2e).toContain("VITE_SUPABASE_URL: http://127.0.0.1:9");
+    expect(e2e).toContain("VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder");
+    expect(e2e).not.toContain("secrets.");
+  });
+
   it("never holds the Supabase token, never deploys Edge Functions and never links a project", () => {
     const source = executable(website);
     expect(source).not.toMatch(/SUPABASE_ACCESS_TOKEN/);
@@ -264,7 +266,7 @@ describe("the website workflow is scoped and cannot publish without the cutover"
   });
 });
 
-describe("CI change selection keeps the applications apart", () => {
+describe("CI change selection preserves required checks and release isolation", () => {
   const scenarios: {
     name: string;
     changed: string[];
@@ -273,7 +275,6 @@ describe("CI change selection keeps the applications apart", () => {
     {
       name: "website-only",
       changed: ["website/src/App.jsx", "website/package-lock.json", "website/public/llms.txt"],
-      // ci: true is required — see the header comment on the ruleset.
       expected: { website: true, ci: true, edgeDeploy: false, dbTests: false },
     },
     {
@@ -335,19 +336,30 @@ describe("CI change selection keeps the applications apart", () => {
     );
   });
 
-  it("the bookings bar has no path filter, so every ruleset-required check always reports", () => {
-    // `Protect main` requires build, coverage, agent-tests, pr-production-smoke
-    // and migrations-applied on every pull request. A `paths` or
-    // `paths-ignore` on ci.yml would let a website-only pull request skip
-    // four of them and wait forever on checks that never run.
-    for (const event of ["push", "pull_request"] as const) {
-      const filter = trigger(ci, event);
-      expect(filter, event).not.toBeNull();
-      expect(filter!.paths, `${event} paths`).toBeNull();
-      expect(filter!.pathsIgnore, `${event} paths-ignore`).toBeNull();
+  it("all required workflows report for every PR without path filters", () => {
+    for (const source of [ci, migrations]) {
+      for (const event of ["push", "pull_request"] as const) {
+        expect(trigger(source, event)).toEqual({ paths: null, pathsIgnore: null });
+      }
+      expect(workflowRuns(source, "pull_request", ["website/src/App.jsx"])).toBe(true);
     }
-    for (const name of ["build", "coverage", "agent-tests", "pr-production-smoke"]) {
-      expect(job(ci, name), name).not.toBe("");
+  });
+
+  it("preserves required job names and does not condition them on changed paths", () => {
+    for (const name of ["build", "coverage", "agent-tests", "pr-production-smoke", "migrations-applied"]) {
+      const source = name === "migrations-applied" ? migrations : ci;
+      const body = executable(job(source, name));
+      expect(body, name).not.toBe("");
+      // No display-name override: the ruleset requires these exact contexts.
+      expect(body, name).not.toMatch(/^ {4}name:/m);
+      const condition = body.match(/^ {4}if:\s*(.+)$/m)?.[1];
+      expect(condition, name).toBe(name === "pr-production-smoke" ? "github.event_name == 'pull_request'" : undefined);
+    }
+  });
+
+  it("website checks cannot impersonate required bookings contexts", () => {
+    for (const name of ["test", "build", "e2e"]) {
+      expect(job(website, name)).toMatch(new RegExp(`^ {4}name: website-${name}$`, "m"));
     }
   });
 

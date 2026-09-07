@@ -20,7 +20,7 @@ complete.
 | [007](007-customer-capacity-read-disclosure.md) | Customer capacity-read RPCs disclose occupancy shape only, range reads capped at 92 days | Accepted — gap found and fixed |
 | [008](008-customer-facing-refusal-wording.md) | A refused customer is told what to do next, never the rule, the clock or the capacity number | Accepted — wording rule decided and enforced |
 
-| [009](009-independent-applications-in-one-repository.md) | Website and bookings retain independent builds and deployments in one repository | Proposed |
+| [009](009-independent-applications-in-one-repository.md) | Website and bookings retain independent builds and deployments in one repository | Accepted |
 
 | [010](010-holiday-notices-operational-closures.md) | Scheduled holiday notices assert operational diary closures | Accepted |
 

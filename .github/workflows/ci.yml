@@ -1,5 +1,7 @@
 name: CI
 
+# Required Protect main checks must report on every PR, including website-only
+# changes. Application isolation belongs in tooling, not workflow path skips.
 on:
   push:
     branches: [main]

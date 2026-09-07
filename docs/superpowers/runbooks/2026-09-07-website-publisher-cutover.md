@@ -12,13 +12,16 @@ This runbook moves the single publisher of smarterdog.co.uk from the
 [`website.yml`](../../../.github/workflows/website.yml) workflow. Nothing in it
 has been run. It changes external accounts (GitHub secrets and variables in
 this repository, the original repository's workflow) and therefore requires
-the owner's explicit decision at every step marked **AUTHORISE**.
+explicit owner authority covering the steps marked **AUTHORISE**. An agreed
+cutover scope can cover these steps together; this preparation is not that authority.
 
 Preparation deliberately left the destination publisher dark: the `deploy`
 job needs a push to `main` **and** the repository variable
 `WEBSITE_PUBLISHER_ENABLED` set to exactly `true`. The variable does not exist
-until step 5 creates it, so merging the preparation pull request publishes
-nothing.
+until step 8 creates it, so merging the preparation pull request publishes
+nothing. Read-only inspection on 7 September found that gate absent and a
+different variable, `WEBSITE_DEPLOY_ENABLED=false`, present. The latter is not
+consumed by this workflow. Recheck the actual gate before any release.
 
 ## Invariants
 
@@ -56,7 +59,6 @@ separate product decision, not part of this cutover.
 
    ```bash
    git fetch https://github.com/leamonline/smarter-dog-website main
-   git log --oneline "$(git rev-parse HEAD:website)" >/dev/null 2>&1 || true
    git merge-base --is-ancestor FETCH_HEAD HEAD && echo "up to date" || echo "NEW SOURCE COMMITS"
    ```
 
@@ -68,7 +70,9 @@ separate product decision, not part of this cutover.
    ```
 
 2. **Freeze the source.** Ask that no further changes merge to the original
-   repository. From this point the imported tree is the source of truth.
+   repository. After the freeze, fetch again and repeat the ancestry check
+   from step 1 so a commit landing during reconciliation cannot be missed.
+   Record the exact source and destination SHAs before switching publishers.
 
 3. **Verify the FTP account scope** from the Bluehost/cPanel side, without
    deploying: the account behind `BLUEHOST_FTP_USER` must have `public_html/`
@@ -81,16 +85,21 @@ separate product decision, not part of this cutover.
    `build-artifacts` from the original repository's `CI` workflow (7-day
    retention) or rebuild it from the last published source SHA. Record the
    SHA and the artifact run ID in the issue. Also note the current
-   `.ftp-deploy-sync-state.json` state: the first deploy from the new
-   repository will re-upload everything because the sync-state file records
-   the previous repository's run.
+   `.ftp-deploy-sync-state.json` state at the verified target. Do not assume
+   a repository change resets remote sync state; preserve it and inspect the
+   proposed upload/deletion list. Keep the actual known-good artefact outside
+   the short Actions retention window, including its checksum and file manifest.
 
 5. **Verify Vercel scope** (read-only): the bookings Vercel project builds
    from the repository root with `npm run build` and publishes root `dist/`.
    `website/` is not referenced by root `vite.config.js`, and the root build
-   inspected on 7 September 2026 contained no website asset. Vercel will
-   still *build* on website-only merges (it has no ignore rule); that is a
-   cost, not a correctness problem, and changing it is outside this runbook.
+   inspected on 7 September 2026 contained no website asset. Vercel
+   may still build on website-only merges. Recheck the current project root,
+   build/output settings and ignore command; changing them is outside this
+   runbook. Verify successful checks on the exact release SHA, including all
+   five required repository contexts and the website suite. A required
+   `website-gate` is deferred, so a green ruleset alone is insufficient proof
+   of website validation.
 
 ## Cutover (single writer throughout)
 
@@ -111,35 +120,39 @@ separate product decision, not part of this cutover.
    sufficient — the workflow is path-filtered to `website/**`). Do not push
    an empty commit.
 
-10. **Watch the run.** All four jobs (`test`, `build`, `e2e`, `deploy`) must
+10. **Watch the run.** All four jobs (`website-test`, `website-build`,
+    `website-e2e`, `deploy`) must
     succeed. Record the workflow run URL, the commit SHA, and the
     `deploy` job's FTP summary (files uploaded/deleted). Transport success is
     not acceptance.
 
 ## Acceptance (public smoke test, no real submissions)
 
-11. From a browser with cache disabled, on desktop and mobile widths:
+11. From a browser with cache disabled, on desktop, tablet and mobile widths:
     - home page renders with the expected copy and images;
     - navigation to every route (services, community, FAQ, our approach,
       policies, terms, privacy, 404) works, including a hard refresh on a
       deep route (`.htaccess` SPA fallback still present);
     - booking links point at the bookings portal and open it;
     - the holiday notice card / open-days strip show live data if
-      `VITE_SUPABASE_*` were set (otherwise they fall back to static copy —
-      decide which you expected).
+      `VITE_SUPABASE_*` were set. Missing configuration hides holiday notices
+      and uses fallback data for other features; this is not sufficient
+      production acceptance for the existing live-data behaviour.
     - `llms.txt`, `favicon`, `manifest.json` and one hashed asset return 200.
 12. Record the date, the checked URLs and the outcome on #784. Do not read
     or submit customer data; do not make a live booking.
 
 ## Rollback
 
-- Set `WEBSITE_PUBLISHER_ENABLED` to `false` (or delete it). This stops the
-  new publisher immediately; nothing else changes.
-- Restore the rollback artefact from step 4 by re-running the original
-  repository's `deploy` job (re-enable its workflow), or by uploading the
-  artefact through the same verified FTP target. Because incremental sync
-  never deletes files it did not upload, inspect the target for stale hashed
-  assets rather than running a blanket delete.
+- Set `WEBSITE_PUBLISHER_ENABLED` to `false` (or delete it) to prevent future
+  jobs from starting. This does not stop an already-running FTPS job. Cancel
+  and wait for every queued/running destination deploy to stop, inspect any
+  partial upload, and verify no destination writer remains before restoring.
+- Restore the retained rollback artefact from step 4 through the verified
+  FTP target. Only re-run the original deployment if its exact known-good
+  SHA and matching build artefact remain available; do not rebuild latest
+  `main` and call it rollback. Inspect sync state and stale hashed assets
+  against the retained manifest rather than running a blanket delete.
 - Re-enable the original publisher only if the new repository is being
   abandoned as the source; otherwise fix forward in a reviewed pull request
   with the variable still `false`.

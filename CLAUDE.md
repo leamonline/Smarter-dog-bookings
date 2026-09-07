@@ -17,7 +17,7 @@ RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.verce
 **Also in this repository:** the public marketing site under `website/` — an *independent*
 application (own `package.json`, lockfile, configs, build; React 19 + Vite 8) imported with full
 history per [ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md).
-Root tooling never discovers it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
+Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
 `.github/workflows/website.yml` and its Bluehost publisher is dark until the
 [cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md) is executed.
 Do not merge the two apps' CSS, routing, auth or service workers.
