@@ -28,6 +28,7 @@ test-results/
 .claude-scratch/
 .codex/
 .firecrawl/
+.playwright-cli/
 .playwright-mcp/
 .superpowers/
 .zed/
