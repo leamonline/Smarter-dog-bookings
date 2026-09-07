@@ -49,9 +49,9 @@ zip -r "smarterdog-backup-$(date +%Y%m%d).zip" . -x "node_modules/*" -x ".git/*"
 
 ```bash
 # Clone from Git
-git clone <repository-url>
-cd bestwebsitesofar-1
-npm install
+git clone https://github.com/leamonline/Smarter-dog-bookings
+cd Smarter-dog-bookings/website
+npm ci
 npm run dev
 ```
 
@@ -107,9 +107,26 @@ Before deploying:
 - [ ] Build succeeds: `npm run build`
 - [ ] Check bundle size: `npm run build:analyze`
 
-- [ ] ### Bluehost FTP Deployment (CI)
+### Where this site lives now (7 September 2026)
 
-The `deploy` job in `.github/workflows/ci.yml` syncs `dist/` to Bluehost via FTPS using `SamKirkland/FTP-Deploy-Action`.
+This site is the `website/` directory of the
+[Smarter-dog-bookings](https://github.com/leamonline/Smarter-dog-bookings)
+repository, imported with full history from `smarter-dog-website`
+([ADR 009](../docs/architecture/decisions/009-independent-applications-in-one-repository.md)).
+Run every command in this guide from `website/`, or from the repository root
+with the `website:*` scripts (`npm run website:test`, `npm run website:build`, …).
+Use `npm ci`, not `npm install`, unless you mean to change dependencies.
+
+### Bluehost FTP Deployment (CI)
+
+The `deploy` job in the **root** workflow
+[`.github/workflows/website.yml`](../.github/workflows/website.yml) syncs
+`website/dist/` to Bluehost via FTPS using `SamKirkland/FTP-Deploy-Action`.
+It runs only on a push to `main` that touches `website/**` **and** only while
+the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true`. Until the
+[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)
+has been executed that variable does not exist, the job never runs, and the
+original `smarter-dog-website` repository remains the single publisher.
 
 **FTP account scope matters.** The account behind the `BLUEHOST_FTP_USER` secret is a sub-FTP account scoped to `/home1/<cpanel-user>/public_html`. Because that account's FTP root *is* `public_html/`, the workflow uses `server-dir: ./`.
 
@@ -150,4 +167,4 @@ For technical issues with the website:
 
 ---
 
-*Last updated: April 2026*
+*Last updated: 7 September 2026 (repository consolidation)*

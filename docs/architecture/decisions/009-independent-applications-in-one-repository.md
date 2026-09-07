@@ -25,3 +25,5 @@ Moving both applications into apps/ would provide symmetry but disturb more book
 ## Execution
 
 See the [migration plan](../../plans/active/2026-09-05-website-consolidation.md). This proposal records the intended boundary; it is not evidence that the import or deployment has happened.
+
+Implementation note (7 September 2026): the import, tooling isolation and root website workflow were prepared on the boundary described here, with the website publisher left dark pending the [cutover runbook](../../superpowers/runbooks/2026-09-07-website-publisher-cutover.md). Acceptance of this record remains the owner's decision.
