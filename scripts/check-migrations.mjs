@@ -11,15 +11,25 @@
 //   - a migration filename comes alphabetically *before* a file that
 //     was committed earlier (timestamps must be monotonic over time —
 //     someone backdating a migration breaks the apply order)
+//   - two migrations with the same name after the timestamp. The
+//     applied/drift checks match on that name, so a shared one would let a
+//     single applied ledger row vouch for a migration that never ran.
+//
+// The filename pattern and the name derivation live in migration-name.mjs
+// (`npm run migration:name`), so this gate and the name you pass to
+// apply_migration are one definition.
 //
 // Doesn't check semantics. For that, run them against a real Supabase
 // instance.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import {
+  MIGRATION_FILENAME_RE,
+  duplicateMigrationNames,
+} from "./migration-name.mjs";
 
 const DIR = "supabase/migrations";
-const NAME_RE = /^(\d{14})_([a-z0-9_]+)\.sql$/;
 
 const errors = [];
 
@@ -42,7 +52,7 @@ for (const name of entries) {
     continue;
   }
 
-  const match = NAME_RE.exec(name);
+  const match = MIGRATION_FILENAME_RE.exec(name);
   if (!match) {
     errors.push(
       `${name}: filename must match <14-digit-timestamp>_<snake_case>.sql`,
@@ -80,6 +90,15 @@ for (const name of entries) {
   if (!stripped) {
     errors.push(`${name}: contains only comments / whitespace`);
   }
+}
+
+for (const { name: shared, files } of duplicateMigrationNames(
+  entries.filter((e) => !e.startsWith(".") && e.endsWith(".sql")),
+)) {
+  errors.push(
+    `${files.join(", ")}: share the name "${shared}" — the applied/drift checks ` +
+      "match on name, so one applied row would vouch for both",
+  );
 }
 
 if (errors.length > 0) {

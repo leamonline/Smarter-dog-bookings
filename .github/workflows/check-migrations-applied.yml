@@ -133,6 +133,7 @@ jobs:
               echo "✓ applied: $base"
             else
               echo "✗ PENDING: $base"
+              echo "    apply it with name: $name   (derived by scripts/migration-name.mjs)"
               pending+=("$base")
             fi
           done <<< "$ADDED_FILES"
