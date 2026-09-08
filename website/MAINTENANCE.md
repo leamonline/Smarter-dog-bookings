@@ -6,6 +6,11 @@ This document outlines the maintenance procedures for the Smarter Dog Grooming w
 
 ### Dependencies (Automated via Dependabot)
 
+The website deliberately overrides the repository root's
+`legacy-peer-deps=true` setting in [`website/.npmrc`](.npmrc). Keep that
+override: the website has peer-dependent test tooling, and Dependabot must
+include those peers when it regenerates `website/package-lock.json`.
+
 - [ ] Review and merge Dependabot PRs
 - [ ] Run `npm audit` to check for vulnerabilities
 - [ ] Run full test suite after updates: `npm run test:all`
