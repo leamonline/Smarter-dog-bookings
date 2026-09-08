@@ -1,0 +1,30 @@
+# Smarter Dog Grooming Salon - Robots.txt
+# https://smarterdog.co.uk
+
+User-agent: *
+Allow: /
+
+# AI/LLM Crawlers - Explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Sitemaps
+Sitemap: https://smarterdog.co.uk/sitemap.xml
+
+# LLM-friendly content file (for AI assistants)
+# See: https://smarterdog.co.uk/llms.txt

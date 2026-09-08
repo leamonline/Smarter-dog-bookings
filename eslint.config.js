@@ -24,6 +24,10 @@ export default [
       ".claude/**",
       "playwright-report/**",
       "test-results/**",
+      // The marketing website is an independent application with its own
+      // ESLint config, lockfile and CI (ADR 009). Root lint must never
+      // discover it: `npm run website:lint` runs its own rules.
+      "website/**",
     ],
   },
   js.configs.recommended,

@@ -13,10 +13,12 @@ const defaultRepositoryRoot = path.resolve(
 // - archive: historical links may preserve a former repository layout;
 // - private: not general repository knowledge and may contain sensitive notes;
 // - docs-stubs: generated design-component output, not authored documentation.
+// - website: independently maintained application documentation (ADR 009).
 export const excludedMarkdownPrefixes = [
   "docs/archive/",
   "docs/private/",
   ".design-sync/docs-stubs/",
+  "website/",
 ];
 
 function repositoryPath(value) {

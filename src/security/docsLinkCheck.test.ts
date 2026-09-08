@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("documentation link governance", () => {
-  it("discovers current Markdown repository-wide and excludes only declared historical, private and generated trees", () => {
+  it("discovers current Markdown repository-wide and excludes declared historical, private, generated and independent application trees", () => {
     expect(
       filterGovernedMarkdownFiles([
         "README.md",
@@ -35,6 +35,8 @@ describe("documentation link governance", () => {
         "docs/private/notes.md",
         ".design-sync/docs-stubs/Button.md",
         "src/not-markdown.ts",
+        "website/README.md",
+        "website/docs/guide.md",
       ]),
     ).toEqual([
       ".design-sync/conventions.md",
@@ -50,6 +52,7 @@ describe("documentation link governance", () => {
     const discovered = discoverGovernedMarkdownFiles(repositoryRoot).map((file) =>
       path.relative(repositoryRoot, file).split(path.sep).join("/"),
     );
+    expect(discovered.some((file) => file.startsWith("website/"))).toBe(false);
     expect(discovered).toEqual(
       expect.arrayContaining([
         ".design-sync/conventions.md",

@@ -42,6 +42,32 @@ updates:
         update-types:
           - "version-update:semver-major"
 
+  # The marketing website under website/ keeps its own package.json and
+  # lockfile (ADR 009). Same weekly cadence and grouping as the root, and the
+  # same major-version hold: the website's own dependabot.yml (in history at
+  # c55617b) had no such hold, so this is deliberately more conservative.
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      website-production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      website-development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

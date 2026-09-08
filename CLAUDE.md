@@ -14,6 +14,14 @@ inbox, reminders, reports) and a **customer portal** (`/customer` — self-servi
 wizard, dog/contact management). Stack: **React 19 + Vite 7 SPA**, **Supabase** (Postgres + Auth +
 RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.vercel.app).
 
+**Also in this repository:** the public marketing site under `website/` — an *independent*
+application (own `package.json`, lockfile, configs, build; React 19 + Vite 8) imported with full
+history per [ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md).
+Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
+`.github/workflows/website.yml` and its Bluehost publisher is dark until the
+[cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md) is executed.
+Do not merge the two apps' CSS, routing, auth or service workers.
+
 ## Run it
 
 Package manager **npm**; **Node 24** (matches CI — pinned via `.nvmrc`, so `nvm`/`fnm` auto-switch

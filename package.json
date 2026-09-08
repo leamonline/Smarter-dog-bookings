@@ -34,7 +34,15 @@
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
     "vapid:generate": "node scripts/generate-vapid-keys.mjs",
     "flow:publish": "node scripts/publish-flow.mjs",
-    "flow:send": "node scripts/send-flow.mjs"
+    "flow:send": "node scripts/send-flow.mjs",
+    "website:install": "npm ci --prefix website",
+    "website:dev": "npm --prefix website run dev",
+    "website:lint": "npm --prefix website run lint",
+    "website:test": "npm --prefix website run test:run",
+    "website:coverage": "npm --prefix website run test:coverage",
+    "website:build": "npm --prefix website run build",
+    "website:preview": "npm --prefix website run preview",
+    "website:e2e": "npm --prefix website run test:e2e"
   },
   "repository": {
     "type": "git",

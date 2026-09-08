@@ -356,6 +356,32 @@ at the installed binary; unset, Playwright uses its managed browser exactly as C
 PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium npm run e2e -- --project=desktop
 ```
 
+## Marketing website (`website/`)
+
+The public site smarterdog.co.uk lives under [`website/`](website/) as an
+**independent application** — its own `package.json`, lockfile, Vite/Vitest/
+Playwright configs and build — imported with full history from
+`leamonline/smarter-dog-website` ([ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md)).
+Root lint, test and build discovery exclude it; drive it from the root with the `website:*`
+scripts, which wrap `npm --prefix website`:
+
+```bash
+npm run website:install   # npm ci in website/ (separate node_modules)
+npm run website:dev       # Vite dev server for the website
+npm run website:lint
+npm run website:test      # vitest run
+npm run website:coverage
+npm run website:build     # → website/dist/
+npm run website:e2e       # Playwright (website/e2e)
+```
+
+CI for it is `.github/workflows/website.yml`, which runs only for `website/**`
+changes and workflow edits; `ci.yml` still reports every required repository check. Its Bluehost publisher stays **disabled**
+until the authorised cutover in
+[docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
+See [`website/MAINTENANCE.md`](website/MAINTENANCE.md) for the site's own
+maintenance guide.
+
 ## Deploy
 
 ### Frontend (Vercel)

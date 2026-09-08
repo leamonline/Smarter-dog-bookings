@@ -1,6 +1,6 @@
 # ADR 009: Independent applications in one repository
 
-Status: Proposed
+Status: Accepted
 Date: 2026-09-05
 Issue: [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
 
@@ -24,4 +24,6 @@ Moving both applications into apps/ would provide symmetry but disturb more book
 
 ## Execution
 
-See the [migration plan](../../plans/active/2026-09-05-website-consolidation.md). This proposal records the intended boundary; it is not evidence that the import or deployment has happened.
+See the [migration plan](../../plans/active/2026-09-05-website-consolidation.md). The boundary was approved on 7 September 2026 in the [design specification](../../superpowers/specs/2026-09-07-website-repository-consolidation-design.md), recovered from `codex/website-repository-consolidation-spec`. Acceptance records the architectural decision, not publisher cutover.
+
+Implementation note (7 September 2026): the import, tooling isolation and root website workflow were prepared on the boundary described here, with the website publisher left dark pending the [cutover runbook](../../superpowers/runbooks/2026-09-07-website-publisher-cutover.md). Existing required repository CI contexts must report on every PR, including website-only changes. Application build/test isolation does not imply skipping those workflows.
