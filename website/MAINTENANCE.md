@@ -110,6 +110,15 @@ Before deploying:
 - [ ] Build succeeds: `npm run build`
 - [ ] Check bundle size: `npm run build:analyze`
 
+### Publisher cutover (8 September 2026)
+
+On 8 September 2026 the Bluehost publisher moved from the original
+`smarter-dog-website` repository to this repository's root
+[`website.yml`](../.github/workflows/website.yml) workflow, per the
+[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
+Source and live site were both at `c55617b` at the moment of cutover; the
+original repository's `main` is locked and its `CI` workflow disabled.
+
 ### Where this site lives now (7 September 2026)
 
 This site is the `website/` directory of the
