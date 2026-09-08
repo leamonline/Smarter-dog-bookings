@@ -1,8 +1,7 @@
 # Measurement catalogue
 
-**Catalogue version:** 1.0.0
-**Status:** A0 documentation contract; instrumentation and baselines not
-authorised
+**Catalogue version:** 1.1.0
+**Status:** A0 definitions plus initial report-quality implementation; no live baseline
 **Authority:** Metric definitions and decision use for issue #612
 **Work package:** [#615](https://github.com/leamonline/Smarter-dog-bookings/issues/615)
 **Baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
@@ -15,8 +14,10 @@ operational measures before changing instrumentation. It supports
 prioritisation, incident detection and STOP/GO review without pretending that
 an existing table is automatically a trustworthy metric.
 
-A0 is documentation only. It does not query production, add events, create a
-dashboard, set a live baseline or approve a threshold.
+A0 was documentation only. The first implementation slice under #612 improves
+the existing funnel and denial reports without new events, schema or retention.
+It does not establish a live baseline or approve a rollout threshold. See the
+[implementation plan](../plans/active/2026-09-08-issue-612-measurement-quality.md).
 
 ## Confidence scale
 
@@ -302,3 +303,58 @@ thresholds. These conditions are immediately decision-worthy:
 Before a live numerical threshold is used, a named owner must validate source
 completeness, approve a baseline period and record the threshold and response in
 the relevant release decision. This catalogue deliberately supplies none.
+
+
+## Initial reporting implementation — 8 September 2026
+
+The implementation base is `main@a7bf56d41af39e447f5e74bc00b96ae96b925334`.
+The historical source assessments above remain historical; this slice verifies
+only the portal funnel and denial reporting paths.
+
+### Funnel session and window contract
+
+One attempt is the ID retained by `src/lib/funnelSession.ts` in tab sessionStorage
+across wizard remounts and refreshes. Success or explicit reset clears it. Closing
+the tab normally ends the stored session; browser restoration can retain session
+storage. Storage failure falls back to memory and can split an attempt across
+page loads. There is no inactivity timeout, so an unfinished session is not a
+confirmed abandonment or a unique customer.
+
+For a selected N-day period, the window begins at 00:00 UTC N-1 dates before
+today and ends at the report request time. It includes closed days and today so
+far. Only sessions with an observed `started` event in that window enter the
+completion denominator. `booked` must also be observed in the window. Sessions
+without a start are excluded and counted visibly; these may be earlier attempts
+crossing the boundary or lost events. This is not a cross-channel conversion rate.
+
+Per-step reach remains inferred from the furthest recorded step for the qualifying
+cohort. Repeated session/step events count once, and the report exposes their
+number without calling every revisit a duplicate write. Missing intermediate
+steps, absent starts and malformed events are aggregate quality indicators.
+`confirm_failed` is a valid diagnostic event, not a funnel step. Blocker events
+retain their wizard step and therefore participate in repeated-step counts.
+Neither zero warnings nor a monotonic chart proves loss-free telemetry. No raw
+session identifier is rendered in the report.
+
+### Read completeness and denial interpretation
+
+Both reports select only required structured fields, page deterministically by
+creation time and row ID, and require exact source counts. They reject missing
+pages, duplicate IDs, changing counts, request errors and more than 100,000 rows.
+The user sees unavailable instead of partial numbers. This protects against
+silent server row caps; it is not a transactional database snapshot.
+
+Denials are recorded events, including policy and calendar refusals, not proven
+unique failed appointments. Zero recorded events does not establish universal
+success. Successful-attempt linkage is still absent, so a true denial rate is
+unavailable. Existing alternative flags do not establish later recovery.
+
+### Remaining #612 work
+
+This slice does not complete the umbrella issue. Operation/channel contracts,
+versioned event envelopes, notification-operation linkage, exact change/replay
+rates, Inbox resolution, AI disposition, deposit and operational-action reporting
+still need governed sources and separate implementation. Existing retention is
+unchanged; a measurement owner and explicit retention decision are needed before
+new analytical storage. Production reconciliation, complete ten-question
+reporting and numerical rollout thresholds remain unverified.

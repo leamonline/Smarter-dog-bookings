@@ -1,3 +1,5 @@
+import { measurementWindow } from "./measurementWindow";
+
 // ============================================================
 // Booking-denial helpers — pure TS, zero React.
 //
@@ -144,10 +146,6 @@ export interface DenialRow {
   created_at: string;
 }
 
-function ymd(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
 function slotLabel(slot: string): string {
   const [h, m] = slot.split(":").map(Number);
   if (Number.isNaN(h)) return slot;
@@ -168,15 +166,10 @@ export interface DenialStats {
 }
 
 export function computeDenialStats(rows: DenialRow[], days: number, today: Date = new Date()): DenialStats {
-  const todayStr = ymd(today);
-  const cutoff = new Date(today);
-  cutoff.setUTCDate(cutoff.getUTCDate() - days);
-  const cutoffStr = ymd(cutoff);
-
+  const window = measurementWindow(days, today);
   const inWindow = rows.filter((r) => {
-    if (!r.created_at) return false;
-    const d = ymd(new Date(r.created_at));
-    return d > cutoffStr && d <= todayStr;
+    const time = Date.parse(r.created_at);
+    return time >= Date.parse(window.start) && time <= Date.parse(window.end);
   });
 
   const total = inWindow.length;

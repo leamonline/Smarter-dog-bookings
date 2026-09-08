@@ -9,7 +9,7 @@ import { fmtLabel } from "../../../hooks/useReportsData.ts";
 export function CapacityPreventedReport({ days }) {
   const { loading, available, stats } = useDenialsData(days);
 
-  if (!available) {
+  if (loading || !available) {
     return (
       <Section title="Turned-away demand" accent="var(--color-brand-coral)">
         <div className="text-caption text-ink-muted font-medium">
@@ -23,7 +23,7 @@ export function CapacityPreventedReport({ days }) {
     return (
       <Section title="Turned-away demand" accent="var(--color-brand-coral)">
         <div className="text-caption text-ink-muted font-medium">
-          Nothing turned away in this period — every booking that was tried went through. This starts collecting from when the feature went live, so it'll fill out over time.
+          No booking denials were recorded in this period. Logging is best-effort, so this does not prove every attempt succeeded.
         </div>
       </Section>
     );
@@ -33,12 +33,12 @@ export function CapacityPreventedReport({ days }) {
   const maxSlot = Math.max(...stats.bySlot.map((s) => s.n), 1);
   const takenPct = stats.alternativeShownN > 0 ? (stats.alternativeTakenN / stats.alternativeShownN) * 100 : 0;
 
-  const insight = `${stats.total} booking${stats.total !== 1 ? "s were" : " was"} turned away — most often "${stats.byReason[0].label}".`;
+  const insight = `${stats.total} denial event${stats.total !== 1 ? "s" : ""} recorded — most often "${stats.byReason[0].label}".`;
 
   return (
     <Section title="Turned-away demand" accent="var(--color-brand-coral)" insight={insight}>
       <p className="text-caption text-ink-muted font-medium m-0 mb-3">
-        Bookings the salon couldn't take{stats.firstSeen ? `, since ${fmtLabel(stats.firstSeen.slice(0, 10), true)}` : ""}. Some are your limits doing their job — a rising share of avoidable ones is the thing to watch.
+        Recorded refusals{stats.firstSeen ? `, since ${fmtLabel(stats.firstSeen.slice(0, 10), true)}` : ""}. These include policy and calendar refusals as well as capacity limits. Events may repeat and are not unique failed appointments. A denial rate cannot be calculated without linked successful attempts. Dates use UTC and include today so far.
       </p>
 
       {/* Reasons ranked */}
