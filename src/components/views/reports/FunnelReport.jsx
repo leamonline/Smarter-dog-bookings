@@ -8,7 +8,7 @@ import { useFunnelData } from "../../../hooks/useFunnelData.ts";
 export function FunnelReport({ days }) {
   const { loading, available, stats } = useFunnelData(days);
 
-  if (!available) {
+  if (loading || !available) {
     return (
       <Section title="Booking funnel" accent="#10C2FC">
         <div className="text-caption text-ink-muted font-medium">
@@ -18,27 +18,39 @@ export function FunnelReport({ days }) {
     );
   }
 
+  const quality = stats.quality;
+  const qualityNote = (
+    <p className="text-caption text-ink-muted font-medium mt-3 mb-0">
+      Directional data: {quality.missingStarts} sessions without a recorded start excluded;
+      {" "}{quality.missingIntermediate} sessions with missing intermediate steps;
+      {" "}{quality.repeatedSteps} repeated step events counted once;
+      {" "}{quality.invalidRows} invalid events excluded. Repeated steps can be revisits.
+      Missing events cannot all be detected.
+    </p>
+  );
   if (stats.totalSessions === 0) {
     return (
       <Section title="Booking funnel" accent="#10C2FC">
-        <div className="text-caption text-ink-muted font-medium">
-          No self-service booking sessions in this period yet. This starts collecting from when the feature went live.
-        </div>
+        <p className="text-caption text-ink-muted font-medium">
+          No booking attempts with a recorded start in this period.
+        </p>
+        {qualityNote}
       </Section>
     );
   }
 
-  const insight = `${stats.completionPct.toFixed(0)}% of the ${stats.totalSessions} customers who opened the wizard finished booking.`;
+  const insight = `${stats.completionPct.toFixed(0)}% of the ${stats.totalSessions} recorded booking attempts reached booking success.`;
   // Biggest single drop between consecutive steps (skip the first step).
   const biggestDrop = stats.steps.slice(1).reduce((worst, s) => (s.dropFromPrev > worst.dropFromPrev ? s : worst), stats.steps[1] ?? null);
 
   return (
     <Section title="Booking funnel" accent="#10C2FC" insight={insight}>
       <p className="text-caption text-ink-muted font-medium m-0 mb-3">
-        Self-service wizard runs, by furthest step reached.
+        Portal attempts with a recorded start in this period, by furthest step reached. Intermediate reach is inferred. An unfinished attempt is not proof of abandonment. Dates use UTC and include today so far.
         {biggestDrop && biggestDrop.dropFromPrev > 0 ? ` Biggest fall-off is at "${biggestDrop.label}".` : ""}
       </p>
-      <div className="flex flex-col gap-1.5">
+      {qualityNote}
+      <div className="flex flex-col gap-1.5 mt-3">
         {stats.steps.map((s) => (
           <div key={s.step} className="flex items-center gap-2">
             <span className="text-caption font-bold text-slate-600 w-[120px] shrink-0 truncate" title={s.label}>{s.label}</span>

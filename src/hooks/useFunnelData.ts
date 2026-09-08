@@ -1,3 +1,5 @@
+import { measurementWindow } from "../engine/measurementWindow";
+import { readMeasurementPages } from "../lib/readMeasurementPages";
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase/client";
 import { computeFunnelStats, type FunnelEventRow, type FunnelStats } from "../engine/funnel";
@@ -30,26 +32,30 @@ export function useFunnelData(days: number): FunnelResult {
 
     const controller = new AbortController();
     (async () => {
-      setResult((r) => ({ ...r, loading: true }));
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      const { data, error } = await supabase
-        .from("booking_funnel_events")
-        .select("session_id, step, created_at")
-        .gte("created_at", since.toISOString())
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-      if (error) {
-        logger.error("useFunnelData: failed to load funnel events", error);
+      setResult({ loading: true, available: false, stats: computeFunnelStats([], days) });
+      try {
+        const now = new Date();
+        const window = measurementWindow(days, now);
+        const client = supabase!;
+        const rows = await readMeasurementPages<FunnelEventRow & { id: string }>(
+          (from, to) => client
+            .from("booking_funnel_events")
+            .select("id, session_id, step, created_at", { count: "exact" })
+            .gte("created_at", window.start)
+            .lte("created_at", window.end)
+            .order("created_at")
+            .order("id")
+            .range(from, to)
+            .abortSignal(controller.signal),
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setResult({ loading: false, available: true, stats: computeFunnelStats(rows, days, now) });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        logger.error("useFunnelData: measurement source unavailable", error);
         setResult({ loading: false, available: false, stats: computeFunnelStats([], days) });
-        return;
       }
-      setResult({
-        loading: false,
-        available: true,
-        stats: computeFunnelStats((data || []) as FunnelEventRow[], days),
-      });
     })();
 
     return () => controller.abort();

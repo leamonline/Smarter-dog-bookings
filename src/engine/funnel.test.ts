@@ -58,3 +58,39 @@ describe("computeFunnelStats", () => {
     expect(s.steps).toHaveLength(FUNNEL_STEPS.length);
   });
 });
+
+it("excludes orphan sessions rather than inventing starts", () => {
+  const stats = computeFunnelStats([ev("orphan", "booked"), ev("valid", "started")], 30, TODAY);
+  expect(stats.totalSessions).toBe(1);
+  expect(stats.completed).toBe(0);
+  expect(stats.quality.missingStarts).toBe(1);
+});
+
+it("deduplicates revisits and exposes inferred intermediate reach", () => {
+  const stats = computeFunnelStats([ev("s", "started"), ev("s", "booked"), ev("s", "booked")], 30, TODAY);
+  expect(stats.completed).toBe(1);
+  expect(stats.quality).toEqual({ missingStarts: 0, missingIntermediate: 1, repeatedSteps: 1, invalidRows: 0 });
+});
+
+it("rejects malformed rows and ignores known diagnostic events", () => {
+  const stats = computeFunnelStats([
+    ev("", "started"), ev("s", "constructor"), ev("s", "started", "bad-date"),
+    ev("s", "confirm_failed"),
+    ev("__proto__", "started"), ev("__proto__", "booked"),
+  ], 30, TODAY);
+  expect(stats.quality.invalidRows).toBe(3);
+  expect(stats.completed).toBe(1);
+});
+
+it("includes the UTC start boundary and excludes future events and earlier starts", () => {
+  const stats = computeFunnelStats([
+    ev("before", "started", "2026-06-04T23:59:59Z"),
+    ev("before", "booked", "2026-06-05T00:01:00Z"),
+    ev("boundary", "started", "2026-06-05T00:00:00Z"),
+    ev("boundary", "booked", TODAY.toISOString()),
+    ev("future", "started", "2026-07-04T09:00:01Z"),
+  ], 30, TODAY);
+  expect(stats.totalSessions).toBe(1);
+  expect(stats.completed).toBe(1);
+  expect(stats.quality.missingStarts).toBe(1);
+});

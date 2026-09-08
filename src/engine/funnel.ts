@@ -1,3 +1,5 @@
+import { measurementWindow } from "./measurementWindow";
+
 // ============================================================
 // Booking-wizard funnel — pure TS, zero React.
 //
@@ -42,32 +44,38 @@ export interface FunnelStats {
   completed: number;
   completionPct: number;
   steps: FunnelStep[];
-}
-
-function ymd(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  quality: { missingStarts: number; missingIntermediate: number; repeatedSteps: number; invalidRows: number };
 }
 
 export function computeFunnelStats(rows: FunnelEventRow[], days: number, today: Date = new Date()): FunnelStats {
-  const todayStr = ymd(today);
-  const cutoff = new Date(today);
-  cutoff.setUTCDate(cutoff.getUTCDate() - days);
-  const cutoffStr = ymd(cutoff);
-
-  // Furthest step ordinal reached per session, within the window.
-  const maxBySession: Record<string, number> = {};
-  for (const r of rows) {
-    if (!r.created_at) continue;
-    const d = ymd(new Date(r.created_at));
-    if (!(d > cutoffStr && d <= todayStr)) continue;
-    const ord = STEP_ORDINAL[r.step];
-    if (ord === undefined) continue;
-    if (maxBySession[r.session_id] === undefined || ord > maxBySession[r.session_id]) {
-      maxBySession[r.session_id] = ord;
+  const window = measurementWindow(days, today);
+  const start = Date.parse(window.start);
+  const end = Date.parse(window.end);
+  const quality = { missingStarts: 0, missingIntermediate: 0, repeatedSteps: 0, invalidRows: 0 };
+  const bySession = new Map<string, Set<number>>();
+  for (const row of rows) {
+    const time = Date.parse(row.created_at);
+    if (!Number.isFinite(time)) { quality.invalidRows++; continue; }
+    if (time < start || time > end) continue;
+    // These diagnostic events are valid, but do not represent step reach.
+    if (row.step === "confirm_failed") continue;
+    if (!row.session_id?.trim() || !Object.hasOwn(STEP_ORDINAL, row.step)) {
+      quality.invalidRows++;
+      continue;
     }
+    const ordinal = STEP_ORDINAL[row.step];
+    const seen = bySession.get(row.session_id) ?? new Set<number>();
+    if (seen.has(ordinal)) quality.repeatedSteps++;
+    seen.add(ordinal);
+    bySession.set(row.session_id, seen);
   }
-
-  const maxes = Object.values(maxBySession);
+  const maxes: number[] = [];
+  for (const seen of bySession.values()) {
+    if (!seen.has(0)) { quality.missingStarts++; continue; }
+    const furthest = Math.max(...seen);
+    if (seen.size < furthest + 1) quality.missingIntermediate++;
+    maxes.push(furthest);
+  }
   const totalSessions = maxes.length;
   const completed = maxes.filter((m) => m >= BOOKED_ORDINAL).length;
 
@@ -87,5 +95,6 @@ export function computeFunnelStats(rows: FunnelEventRow[], days: number, today: 
     completed,
     completionPct: totalSessions > 0 ? (completed / totalSessions) * 100 : 0,
     steps,
+    quality,
   };
 }
