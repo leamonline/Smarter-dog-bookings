@@ -1,15 +1,15 @@
 # Website publisher cutover runbook
 
-**Status:** Active — attempted 8 September 2026; the destination `deploy` job was skipped (gate false) and no publish from this repository has happened yet. See the [attempt record](../../plans/active/2026-09-05-website-consolidation.md#cutover-attempt-record-89-september-2026).
+**Status:** Executed — cutover completed 9 September 2026 (first successful publish from this repository). See the [completion record](../../plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026).
 **Issue:** [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
-**Plan:** [website consolidation](../../plans/active/2026-09-05-website-consolidation.md)
+**Plan:** [website consolidation](../../plans/completed/2026-09-05-website-consolidation.md)
 **Decision:** [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md)
 **Prepared:** 7 September 2026 against website source
 `c55617b792ca7c458264f456aef73d89fb257e0a`
 
 This runbook moves the single publisher of smarterdog.co.uk from the
 `leamonline/smarter-dog-website` repository to this repository's
-[`website.yml`](../../../.github/workflows/website.yml) workflow. Steps 1–5 and 9–10 were run on 8 September 2026 (see the status line); step 10 found the `deploy` job skipped, so the cutover is incomplete. It changes external accounts (GitHub secrets and variables in
+[`website.yml`](../../../.github/workflows/website.yml) workflow. Steps 1–5 ran on 8 September 2026; the first trigger that day found the `deploy` job skipped (gate variable not yet set); the cutover completed on 9 September 2026 once the variable was set (see the status line). The runbook is retained as the procedure for any future re-cutover. It changes external accounts (GitHub secrets and variables in
 this repository, the original repository's workflow) and therefore requires
 explicit owner authority covering the steps marked **AUTHORISE**. An agreed
 cutover scope can cover these steps together; this preparation is not that authority.
@@ -160,7 +160,7 @@ separate product decision, not part of this cutover.
 
 ## After acceptance
 
-- Update [the plan](../../plans/active/2026-09-05-website-consolidation.md)
+- Update [the plan](../../plans/completed/2026-09-05-website-consolidation.md)
   with the run URL, SHA and smoke-test record, then move it to
   `docs/plans/completed/`.
 - Update `website/MAINTENANCE.md` with the cutover date.

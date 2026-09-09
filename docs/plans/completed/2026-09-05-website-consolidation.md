@@ -1,6 +1,6 @@
 # Website and bookings repository consolidation
 
-Status: Active — preparation implemented; cutover attempted 8 September 2026, destination publish not yet achieved
+Status: Completed (9 September 2026) — publisher cutover executed; first publish from this repository verified
 Issue: [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
 Base: origin/main at 452cc3d1e0c7815eef41f19c247d16b397809565 (discovery); preparation implemented on top of d80ab2d (7 September 2026)
 Last verified: 2026-09-09
@@ -8,6 +8,41 @@ Owners: One serial implementer owns import, CI/configuration and documentation
 Dependencies: No existing issue prerequisite identified; external cutover gates below
 Related requirements: [PROJECT.md](../../../PROJECT.md) preservation and release principles; [repository invariants](../../../AGENTS.md)
 Related ADRs: [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md), accepted 7 September 2026
+
+## Cutover completion record (9 September 2026)
+
+- **Gate satisfied.** After the 8 September attempt, the owner set the
+  repository variable `WEBSITE_PUBLISHER_ENABLED` (runbook step 8). The
+  original repository's publisher had already been disabled and its `main`
+  locked (steps 6–7, owner-attested on 8 September).
+- **Trigger (step 9).** PR #811 (documentation touching
+  `website/MAINTENANCE.md`) merged as `main@61d668dc26675aa3bbcde6f7024c0bd6d182ab5d` at 13:51 UTC.
+- **Run (step 10).** [Run 34359840293](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34359840293): `website-test`,
+  `website-build` and `website-e2e` succeeded; the [`deploy` job](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34359840293/job/102497737014)
+  **ran and succeeded** at 14:02–14:03 UTC. The FTPS sync changed 64
+  files/folders (2.53 MB uploaded, 2.49 MB deleted, 274 kB replaced): the new
+  hashed bundles were uploaded, `index.html` replaced, and the previous
+  bundles (`index-fMY7wPkx.js` and its page chunks) removed. No clean-slate
+  deploy.
+- **Live site (14:17 UTC, read-only HTTP checks).** `https://smarterdog.co.uk/`
+  now references `index-DqSb2wRt.js` and `index-DviFLipG.css` — the bundle this
+  repository's workflow built — and the old `index-fMY7wPkx.js` path falls
+  through to the SPA fallback. Routes `/`, `/services`, `/community`, `/faq`,
+  `/approach`, `/matted-coat-policy`, `/terms`, `/privacy` and an unknown path
+  all return 200 `text/html` (`.htaccess` fallback intact); `/llms.txt`,
+  `/favicon.png`, `/manifest.json`, `/robots.txt`, `/sitemap.xml` and the
+  hashed JS/CSS return 200. The live bundle contains the holiday-card copy,
+  the `get_public_holiday_notices` call and the bookings-portal URL.
+- **Not done from the repository session:** the rendered three-width browser
+  pass of step 11 (the session's egress proxy resets Chromium's connection to
+  the host while `curl` succeeds). The HTTP-level checks above stand in for
+  it; a person opening the site on desktop, tablet and mobile closes that gap.
+- **Outcome.** Exactly one publisher now writes to Bluehost: this
+  repository's `website.yml`. Definition of done met on the technical items;
+  archiving `leamonline/smarter-dog-website` remains the owner's optional
+  decision. Rollback: the original repository's build artefact (run
+  34020909027, artifact 9985485150, expires 13 September 2026) plus this
+  run's `website-build-artifacts`.
 
 ## Cutover attempt record (8–9 September 2026)
 

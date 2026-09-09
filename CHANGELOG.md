@@ -16,11 +16,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   `npm --prefix website`; `.github/workflows/website.yml` runs its checks for
   `website/**` changes and workflow edits. Existing required repository checks
   still run for website-only PRs. The Bluehost
-  publisher is deliberately dark behind the `WEBSITE_PUBLISHER_ENABLED`
-  repository variable until the
+  publisher was imported dark behind the `WEBSITE_PUBLISHER_ENABLED`
+  repository variable; the
   [cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)
-  is executed; the original repository remains the single publisher until
-  then. No hosting, Vercel, secret or database change.
+  was executed and the `deploy` job became the single publisher on
+  9 September 2026 (first publish: run 34359840293 on the #811 merge; the
+  8 September attempt on #810 had skipped `deploy` because the variable was
+  not yet set). No hosting, Vercel or database change; the deployment
+  secrets and gate variable moved to this repository.
 
 - An awaiting-approval queue on Humans, with a responsive review panel for
   all dog sizes, save-for-later and save-and-approve actions. The queue is

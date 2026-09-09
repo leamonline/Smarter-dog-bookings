@@ -110,28 +110,22 @@ Before deploying:
 - [ ] Build succeeds: `npm run build`
 - [ ] Check bundle size: `npm run build:analyze`
 
-### Publisher cutover — attempted 8 September 2026, publish not yet achieved
+### Publisher cutover (completed 9 September 2026)
 
-The cutover was attempted on 8 September 2026 following the
+The Bluehost publisher moved from the original `smarter-dog-website`
+repository to this repository's root [`website.yml`](../.github/workflows/website.yml)
+workflow, following the
 [cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
-The trigger merge (PR #810, `main@25817ef`) ran the root
-[`website.yml`](../.github/workflows/website.yml) workflow
-([run 34232296635](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34232296635), two attempts): `website-test`, `website-build`
-and `website-e2e` passed, but the `deploy` job was **skipped** on both
-attempts because its gate (`vars.WEBSITE_PUBLISHER_ENABLED == 'true'`)
-evaluated false. **Nothing has been published from this repository yet.**
-
-Checked on 9 September 2026: smarterdog.co.uk still serves the original
-repository's build of `c55617b` (`index-fMY7wPkx.js`, `index-DviFLipG.css`,
-its run 177 of 6 September); the build this run produced was
-`index-DqSb2wRt.js`. An earlier version of this note, written before the run,
-said the publisher had moved — it had not. If the original repository's
-workflow has been disabled as the runbook's step 6 requires, the site
-currently has **no active publisher**, so website changes merged to `main`
-here do not reach Bluehost until the repository variable is set to exactly
-`true` and a website-touching push to `main` publishes successfully. Live
-status and the remaining owner steps are on
-[#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784).
+The first attempt on 8 September 2026 (PR #810) did not publish: the
+`deploy` job was skipped because the `WEBSITE_PUBLISHER_ENABLED` repository
+variable was not yet set. Once the owner set it, the next website-touching
+merge (PR #811, `main@61d668d`) ran [run 34359840293](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34359840293) and its
+`deploy` job published at 14:03 UTC on 9 September 2026 (64 files synced, no
+clean slate). smarterdog.co.uk then served `index-DqSb2wRt.js`, the bundle
+built here. The original repository's `main` is locked and its workflow
+disabled; **this workflow is now the single publisher.** Evidence is in the
+[completion record](../docs/plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026)
+and on [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784).
 
 ### Where this site lives now (7 September 2026)
 
@@ -149,11 +143,11 @@ The `deploy` job in the **root** workflow
 [`.github/workflows/website.yml`](../.github/workflows/website.yml) syncs
 `website/dist/` to Bluehost via FTPS using `SamKirkland/FTP-Deploy-Action`.
 It runs only on a push to `main` that touches `website/**` or the workflow file **and** only while
-the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true`. Until the
-[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)
-has been executed, that variable must remain absent or false, the job cannot
-publish, and the
-original `smarter-dog-website` repository remains the single publisher.
+the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true`. That variable
+has been set since the cutover on 9 September 2026, so every website-touching
+merge to `main` publishes. Setting it to `false` (or deleting it) is the
+kill switch; see the rollback section of the
+[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
 
 **FTP account scope matters.** The original account was documented as scoped to `/home1/<cpanel-user>/public_html`. Reverify that scope at cutover. When the FTP root is `public_html/`, use `server-dir: ./`.
 

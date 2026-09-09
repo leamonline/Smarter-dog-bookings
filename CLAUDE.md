@@ -18,8 +18,10 @@ RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.verce
 application (own `package.json`, lockfile, configs, build; React 19 + Vite 8) imported with full
 history per [ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md).
 Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
-`.github/workflows/website.yml` and its Bluehost publisher is dark until the
-[cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md) is executed.
+`.github/workflows/website.yml`, and since 9 September 2026 its `deploy` job is the **single live
+publisher** of smarterdog.co.uk: a merge to `main` touching `website/**` publishes to Bluehost (gate:
+repository variable `WEBSITE_PUBLISHER_ENABLED`; procedure and rollback in the
+[cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)).
 Do not merge the two apps' CSS, routing, auth or service workers.
 
 ## Run it
