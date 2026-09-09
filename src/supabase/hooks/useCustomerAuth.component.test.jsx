@@ -632,7 +632,7 @@ describe("useCustomerAuth", () => {
   });
 
   it("signInWithPassword logs a wrong password as a warning, not an error", async () => {
-    const { logger } = await import("../../lib/logger.js");
+    const { logger } = await import("../../lib/logger");
     const stub = makeStub({
       session: null,
       hasPassword: true,
