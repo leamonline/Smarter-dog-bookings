@@ -79,6 +79,8 @@ First slice is complete when the stated behaviours are tested, checks pass and a
 
 Later slices require an assigned measurement owner and retention decision before new storage, and governed operation/notification identity before exact cross-channel rates. These do not block this read-only reporting improvement.
 
+**Resolved 9 September 2026:** owner @leamonline; retention 90 days for row-level telemetry, enforced by `20260909150000_telemetry_retention_90_days.sql` (daily `prune_measurement_telemetry()` on `booking_funnel_events` and `booking_denials`). Recorded in the [measurement catalogue](../../specifications/measurement-catalogue.md#privacy-and-retention). Governed operation/notification identity remains open.
+
 ## Validation evidence — 8 September 2026
 
 Node 24.20.0: focused tests passed (49 tests); full suite passed (343 files,

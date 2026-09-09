@@ -68,7 +68,7 @@ mapping errors are detectable.
 - **Current source/confidence:** `bookings.source`, channel-specific RPC effects
   and inactive visit audit/receipt foundations. No common live operation ID;
   **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted operational identifiers in source; aggregate only in
   reports. No names, contact details, dog names, notes or message content.
 - **Refresh:** Calculate on demand at a named gate; routine cadence unassigned.
@@ -86,7 +86,7 @@ mapping errors are detectable.
 - **Dimensions:** furthest step, dog-count band and entry source where known.
 - **Current source/confidence:** `booking_funnel_events`, emitted best-effort by
   the customer portal; no cross-channel funnel. **Medium, directional**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Session UUID and optional restricted `human_id` stay in the
   operational source; reports are aggregate.
 - **Refresh:** On demand for product review; routine cadence unassigned.
@@ -109,7 +109,7 @@ mapping errors are detectable.
 - **Current source/confidence:** `booking_denials` is best-effort and records
   portal/Flow denials, including non-capacity reasons. Successful-attempt linkage
   is absent. Denial mix **Medium, directional**; true rate **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted optional `human_id`; report only aggregates. Exclude
   `reason_detail` from analytics output because it is free text.
 - **Refresh:** At A1/B3 evidence review and on demand; routine cadence unassigned.
@@ -128,7 +128,7 @@ mapping errors are detectable.
   block reason and capability generation.
 - **Current source/confidence:** booking status/events and channel-specific RPC
   outcomes are fragmented; dark visit receipts show the target shape. **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted operation/visit IDs; aggregate reporting only.
 - **Refresh:** At B4 staging/rollout review; routine cadence unassigned.
 - **Decision use:** B4 GO/rollback evidence once a complete attempt source exists.
@@ -148,7 +148,7 @@ mapping errors are detectable.
 - **Current source/confidence:** `notification_log` and provider-specific message
   state are booking/trigger oriented and staff reschedule lacks an intent.
   **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted recipient and provider IDs; safe error category only.
   No message body, secret or raw provider payload in analytics.
 - **Refresh:** At each B2/B4 staging and release review; routine cadence
@@ -171,7 +171,7 @@ mapping errors are detectable.
 - **Current source/confidence:** visit command receipts/audit foundations and
   notification dedupe keys exist, but live cross-path linkage and manual repair
   taxonomy do not. **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted operation and idempotency identifiers; never publish
   raw keys.
 - **Refresh:** At every replay/concurrency test and incident review.
@@ -190,7 +190,7 @@ mapping errors are detectable.
 - **Current source/confidence:** WhatsApp messages/conversations contain useful
   timestamps but no governed single resolution event for this definition.
   **None** for an exact metric.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted conversation ID; aggregate durations only. Never ingest
   message content.
 - **Refresh:** Routine cadence unassigned; calculate only after the resolution
@@ -211,7 +211,7 @@ mapping errors are detectable.
 - **Current source/confidence:** `whatsapp_drafts`, outbound messages and
   `whatsapp_ai_action_audit` provide partial evidence; edit/unchanged and final
   operation linkage are incomplete. **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted conversation/draft IDs; no prompts, message text,
   customer detail or raw model payload in analytics.
 - **Refresh:** At a separately approved AI review; routine cadence unassigned.
@@ -231,7 +231,7 @@ mapping errors are detectable.
 - **Current source/confidence:** visit deposit/hold tables and projections exist,
   but v1 policy is inactive and live legacy semantics differ. **Low / not a live
   v1 baseline**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted visit/human IDs and financial classification; aggregate
   only, with no bank evidence.
 - **Refresh:** At a separately approved policy-readiness review; routine cadence
@@ -252,7 +252,7 @@ mapping errors are detectable.
 - **Current source/confidence:** delivery failures and visit-policy attention
   projections cover parts of the problem, but no single governed action source
   spans live and inactive models. **Low**.
-- **Owner:** **Unassigned**.
+- **Owner:** @leamonline (repository owner; assigned 9 September 2026).
 - **Privacy:** Restricted action/visit IDs; aggregate reports only; safe summaries
   must not contain customer text.
 - **Refresh:** At B2/B4 operational review and incident hand-off; routine cadence
@@ -282,9 +282,18 @@ Any implementation claiming these metrics must test:
   analytical events and extracts.
 - Row-level operational sources remain access-controlled. Product reports use
   aggregates and suppress accidental free-text fields.
-- A0 creates no copy and changes no retention. Current source-table retention
-  remains unchanged. Any later instrumentation or analytical store must assign
-  an owner and approve an explicit retention period before it writes data.
+- A0 creates no copy and changes no retention. Any later instrumentation or
+  analytical store must assign an owner and approve an explicit retention
+  period before it writes data.
+- **Retention decision (9 September 2026, owner @leamonline):** row-level
+  measurement telemetry is kept for **90 days**. `booking_funnel_events` and
+  `booking_denials` rows older than 90 days are deleted daily by
+  `prune_measurement_telemetry()`
+  (`20260909150000_telemetry_retention_90_days.sql`). Ninety days is the
+  longest window the Reports view offers, so no readable row is ever purged.
+  Reports compute aggregates on demand; nothing aggregate is stored. Any new
+  analytical table inherits this 90-day default unless its own entry here
+  records a different, justified period.
 - Erasure and access-control obligations on operational sources are not bypassed
   by calling a use “analytics”.
 
@@ -354,7 +363,7 @@ unavailable. Existing alternative flags do not establish later recovery.
 This slice does not complete the umbrella issue. Operation/channel contracts,
 versioned event envelopes, notification-operation linkage, exact change/replay
 rates, Inbox resolution, AI disposition, deposit and operational-action reporting
-still need governed sources and separate implementation. Existing retention is
-unchanged; a measurement owner and explicit retention decision are needed before
-new analytical storage. Production reconciliation, complete ten-question
+still need governed sources and separate implementation. The measurement owner
+(@leamonline) and the 90-day retention decision are recorded above, so new
+analytical storage is no longer blocked on either. Production reconciliation, complete ten-question
 reporting and numerical rollout thresholds remain unverified.
