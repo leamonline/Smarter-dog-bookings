@@ -1,9 +1,9 @@
 # Scheduled holiday notices backed by operational closures
 
-Status: Active
+Status: Completed (9 September 2026)
 Issue: [#786](https://github.com/leamonline/Smarter-dog-bookings/issues/786)
 Base: origin/main at fc470f63494413ad2aa2785541ad87361a2d0a86
-Last verified: 2026-09-05
+Last verified: 2026-09-09
 Owners: One serial implementer owns database contract, wrappers, staff UI and both customer surfaces
 Dependencies: Coordinated website PR; repository import #784 remains separate
 Related requirements: [PROJECT.md](../../../PROJECT.md), [booking capacity](../../capacity-engine.md)
@@ -20,6 +20,27 @@ See [ADR 010](../../architecture/decisions/010-holiday-notices-operational-closu
 ## Implementation evidence — 6 September 2026
 
 Branch `codex/holiday-notices-implementation`, migration `20260905141035_scheduled_holiday_notices.sql` (idempotent; re-applied cleanly). Local results on a Homebrew PostgreSQL 15 replay of every migration: `supabase/tests/220_holiday_notices.test.sql` 26/26 assertions pass; `scripts/verify-holiday-concurrency.py` passes both real multi-session races (direct diary edit fails fast without waiting on its row lock; competing booking and holiday commits keep exactly one linked rearrangement task, and a later direct reopening is rejected). `npm run lint`, `check:docs`, `typecheck`, `check:migrations`, `test` (3375 tests) and `build` all pass. Production: applied to project `nlzhllhkigmsvrzduefz` via the Supabase MCP on 6 September 2026 (recorded as `20260906054126 scheduled_holiday_notices`), before merge of [PR #788](https://github.com/leamonline/Smarter-dog-bookings/pull/788). Post-apply checks: table present with 0 rows, guard trigger present, grants as designed (public projection anon-readable, staff commands authenticated-only, trigger function none), public projection returns nothing, and the CI `migrations-applied` job passed on rerun. The website card PR remains outstanding; record its evidence here before moving this plan to completed.
+
+## Website card evidence — 9 September 2026
+
+The homepage card was delivered in the original website repository as planned
+(the holiday-card and reopening-copy pull requests merged there on
+6 September 2026 into source `c55617b`, per the
+[#784 pre-check record](https://github.com/leamonline/Smarter-dog-bookings/issues/784#issuecomment-5582307939)),
+published by that repository's run 177 the same day, and imported into this
+repository with full history by #784: `website/src/components/HolidayNoticeCard.jsx`,
+`website/src/hooks/useHolidayNotices.js`, `website/src/utils/holidayNotice.js`,
+their unit tests, `website/e2e/holiday-notice.spec.js`, and the
+`website/CHANGELOG.md` entry. Read-only check on 9 September 2026: the bundle
+served by `https://smarterdog.co.uk/` contains the card copy and the
+`get_public_holiday_notices` call; the production projection currently returns
+no rows, so the card is hidden as designed. No holiday has been activated. The
+booking-portal date-selection behaviour, migration, pgTAP and concurrency
+evidence are in the 6 September section above. Rollback for the website
+surface is the original repository's retained build artefact (see #784); the
+database migration seeds no rows and its guards only act on holiday records,
+so with none created there is nothing to reverse. Definition of done met; plan
+moved to `completed/`.
 
 ## Goal
 

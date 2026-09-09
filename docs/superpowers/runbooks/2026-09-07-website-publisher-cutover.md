@@ -1,6 +1,6 @@
 # Website publisher cutover runbook
 
-**Status:** Active (not yet executed)
+**Status:** Active — attempted 8 September 2026; the destination `deploy` job was skipped (gate false) and no publish from this repository has happened yet. See the [attempt record](../../plans/active/2026-09-05-website-consolidation.md#cutover-attempt-record-89-september-2026).
 **Issue:** [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
 **Plan:** [website consolidation](../../plans/active/2026-09-05-website-consolidation.md)
 **Decision:** [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md)
@@ -9,8 +9,7 @@
 
 This runbook moves the single publisher of smarterdog.co.uk from the
 `leamonline/smarter-dog-website` repository to this repository's
-[`website.yml`](../../../.github/workflows/website.yml) workflow. Nothing in it
-has been run. It changes external accounts (GitHub secrets and variables in
+[`website.yml`](../../../.github/workflows/website.yml) workflow. Steps 1–5 and 9–10 were run on 8 September 2026 (see the status line); step 10 found the `deploy` job skipped, so the cutover is incomplete. It changes external accounts (GitHub secrets and variables in
 this repository, the original repository's workflow) and therefore requires
 explicit owner authority covering the steps marked **AUTHORISE**. An agreed
 cutover scope can cover these steps together; this preparation is not that authority.

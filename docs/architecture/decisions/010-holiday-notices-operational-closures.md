@@ -24,4 +24,4 @@ The website remains separately deployed for this feature. Repository consolidati
 
 ## Verification
 
-See the [implementation plan](../../plans/active/2026-09-05-scheduled-holiday-notices.md), migration, pgTAP tests and the local holiday concurrency gate. Release evidence belongs in the issue and plan before completion.
+See the [implementation plan](../../plans/completed/2026-09-05-scheduled-holiday-notices.md), migration, pgTAP tests and the local holiday concurrency gate. Release evidence belongs in the issue and plan before completion.

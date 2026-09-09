@@ -110,14 +110,28 @@ Before deploying:
 - [ ] Build succeeds: `npm run build`
 - [ ] Check bundle size: `npm run build:analyze`
 
-### Publisher cutover (8 September 2026)
+### Publisher cutover — attempted 8 September 2026, publish not yet achieved
 
-On 8 September 2026 the Bluehost publisher moved from the original
-`smarter-dog-website` repository to this repository's root
-[`website.yml`](../.github/workflows/website.yml) workflow, per the
+The cutover was attempted on 8 September 2026 following the
 [cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
-Source and live site were both at `c55617b` at the moment of cutover; the
-original repository's `main` is locked and its `CI` workflow disabled.
+The trigger merge (PR #810, `main@25817ef`) ran the root
+[`website.yml`](../.github/workflows/website.yml) workflow
+([run 34232296635](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34232296635), two attempts): `website-test`, `website-build`
+and `website-e2e` passed, but the `deploy` job was **skipped** on both
+attempts because its gate (`vars.WEBSITE_PUBLISHER_ENABLED == 'true'`)
+evaluated false. **Nothing has been published from this repository yet.**
+
+Checked on 9 September 2026: smarterdog.co.uk still serves the original
+repository's build of `c55617b` (`index-fMY7wPkx.js`, `index-DviFLipG.css`,
+its run 177 of 6 September); the build this run produced was
+`index-DqSb2wRt.js`. An earlier version of this note, written before the run,
+said the publisher had moved — it had not. If the original repository's
+workflow has been disabled as the runbook's step 6 requires, the site
+currently has **no active publisher**, so website changes merged to `main`
+here do not reach Bluehost until the repository variable is set to exactly
+`true` and a website-touching push to `main` publishes successfully. Live
+status and the remaining owner steps are on
+[#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784).
 
 ### Where this site lives now (7 September 2026)
 

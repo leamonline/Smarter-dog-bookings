@@ -1,13 +1,58 @@
 # Website and bookings repository consolidation
 
-Status: Active — preparation implemented, cutover pending
+Status: Active — preparation implemented; cutover attempted 8 September 2026, destination publish not yet achieved
 Issue: [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
 Base: origin/main at 452cc3d1e0c7815eef41f19c247d16b397809565 (discovery); preparation implemented on top of d80ab2d (7 September 2026)
-Last verified: 2026-09-07
+Last verified: 2026-09-09
 Owners: One serial implementer owns import, CI/configuration and documentation
 Dependencies: No existing issue prerequisite identified; external cutover gates below
 Related requirements: [PROJECT.md](../../../PROJECT.md) preservation and release principles; [repository invariants](../../../AGENTS.md)
 Related ADRs: [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md), accepted 7 September 2026
+
+## Cutover attempt record (8–9 September 2026)
+
+- **Pre-checks (steps 1–5)** were recorded on
+  [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784#issuecomment-5582307939)
+  on 8 September 2026 (source frozen at `c55617b`, live site = source, rollback
+  artefact identified, Vercel scope confirmed). Step 3 (FTP account scope) is an
+  owner check and was not verifiable from the repository.
+- **Trigger (step 9).** PR #810 merged as `main@25817efed2939cc4b0081a67a576286d78628ad1`
+  on 8 September 2026 (a `website/MAINTENANCE.md`-only change).
+- **Run (step 10).** [Run 34232296635](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34232296635) ran twice. On both attempts
+  `website-test`, `website-build` and `website-e2e` succeeded and the `deploy`
+  job was **skipped**: its gate `github.event_name == 'push' && github.ref ==
+  'refs/heads/main' && vars.WEBSITE_PUBLISHER_ENABLED == 'true'` evaluated
+  false, so the repository variable was absent or not exactly `true` at run
+  time. The build job did have `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_PUBLISHABLE_KEY` available. The build produced
+  `index-DqSb2wRt.js` / `index-DviFLipG.css` (artifact `website-build-artifacts`
+  id 10059355202, expires 15 September 2026).
+- **Live site (9 September 2026, read-only HTTP checks from the repository
+  session).** `https://smarterdog.co.uk/` serves `index-fMY7wPkx.js` and
+  `index-DviFLipG.css` — the original repository's run 177 build of `c55617b`,
+  not the build above. The bundle contains the holiday-card copy and the
+  `get_public_holiday_notices` call, and the CSS hash matches a local build of
+  the imported source. All routes (`/`, `/services`, `/community`, `/faq`,
+  `/approach`, `/matted-coat-policy`, `/terms`, `/privacy`, an unknown path)
+  return 200 `text/html` (SPA fallback intact); `/llms.txt`, `/favicon.png`,
+  `/manifest.json`, `/robots.txt`, `/sitemap.xml` return 200. A rendered
+  three-width browser check could not be run from the session (the egress
+  proxy resets Chromium's connection to the host while `curl` succeeds), so
+  step 11 remains to be done by a person or from a session with browser
+  egress after the first successful publish.
+- **Outcome.** The cutover is **not complete**: exactly one publisher must
+  write to Bluehost, and none has written from this repository. Whether the
+  original repository's publisher is already disabled (step 6) is recorded in
+  the 8 September `website/MAINTENANCE.md` note but is not verifiable from
+  this repository; if it is, the site has no active publisher until the gate
+  is satisfied. Remaining: confirm steps 6–8 (in particular that the
+  repository **variable**, not a secret or an environment-scoped variable, is
+  named `WEBSITE_PUBLISHER_ENABLED` with the value `true`), then re-trigger
+  step 9 with a website-touching push to `main`, watch the `deploy` job run,
+  and only then perform step 11 and the after-acceptance steps. The rollback
+  artefact from the original repository (run 34020909027, artifact
+  9985485150) expires 13 September 2026 08:08 UTC and should be kept outside
+  Actions retention before then.
 
 ## Preparation record (7 September 2026)
 
