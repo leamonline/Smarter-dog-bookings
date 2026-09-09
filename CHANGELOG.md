@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Added
 
+- A 90-day retention rule for measurement telemetry. `booking_funnel_events`
+  and `booking_denials` rows older than 90 days are deleted daily by
+  `prune_measurement_telemetry()`
+  (`20260909150000_telemetry_retention_90_days.sql`), the period the
+  measurement owner set on 9 September 2026 and recorded in the
+  [measurement catalogue](docs/specifications/measurement-catalogue.md#privacy-and-retention),
+  which now names an owner for all ten metrics (#612). The longest report
+  window is 90 days, so nothing a report can read is removed.
+
 - The marketing website (`leamonline/smarter-dog-website`) now lives under
   `website/` as an independent application, imported with its full history
   (129 commits, source `c55617b`, tree byte-identical, no squash) per

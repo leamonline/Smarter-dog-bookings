@@ -184,3 +184,7 @@ then intentionally re-granted in `20260726144001`, returning only
 `20260905141035_scheduled_holiday_notices.sql` adds staff-managed holiday ranges, atomic closure saves, diary guards and a minimal public notice projection. It seeds no holidays. See [ADR 010](architecture/decisions/010-holiday-notices-operational-closures.md) and the [implementation plan](plans/completed/2026-09-05-scheduled-holiday-notices.md).
 
 `20260906080000_holiday_reopening_default_open.sql` (follow-up, same day of release): a reopening day with no `day_settings` row now counts as open when the weekly default (Mon–Wed) says so, matching `validate_booking_calendar()`. The first cut required an explicit `is_open = true` row and refused every ordinary Monday reopening. One shared rule, `smarter_dog_private.holiday_day_is_open(date, boolean)`, is used by the save command, the diary guard and the public projection.
+
+## Measurement telemetry retention — 9 September 2026
+
+`20260909150000_telemetry_retention_90_days.sql` adds `prune_measurement_telemetry()` and a daily pg_cron job (03:25 UTC) that deletes `booking_funnel_events` and `booking_denials` rows older than 90 days — the retention period the measurement owner set for #612 (see the [catalogue](specifications/measurement-catalogue.md#privacy-and-retention)). Idempotent; touches neither logging RPC nor the booking write path. Guarded by `supabase/tests/222_telemetry_retention.test.sql`.
