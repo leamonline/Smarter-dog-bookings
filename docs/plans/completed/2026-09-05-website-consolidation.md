@@ -39,8 +39,8 @@ Related ADRs: [ADR 009](../../architecture/decisions/009-independent-application
   it; a person opening the site on desktop, tablet and mobile closes that gap.
 - **Outcome.** Exactly one publisher now writes to Bluehost: this
   repository's `website.yml`. Definition of done met on the technical items;
-  archiving `leamonline/smarter-dog-website` remains the owner's optional
-  decision. Rollback: the original repository's build artefact (run
+  the owner archived `leamonline/smarter-dog-website` on 9 September 2026,
+  so the original repository is read-only and the programme is closed. Rollback: the original repository's build artefact (run
   34020909027, artifact 9985485150, expires 13 September 2026) plus this
   run's `website-build-artifacts`.
 

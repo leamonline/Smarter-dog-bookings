@@ -165,4 +165,4 @@ separate product decision, not part of this cutover.
   `docs/plans/completed/`.
 - Update `website/MAINTENANCE.md` with the cutover date.
 - **AUTHORISE (optional) — archive** `leamonline/smarter-dog-website`. Not
-  required for technical completion; keep it until the owner decides.
+  required for technical completion. Done by the owner on 9 September 2026.
