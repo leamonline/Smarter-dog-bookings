@@ -631,6 +631,37 @@ describe("useCustomerAuth", () => {
     expect(result.current.user).toBeNull();
   });
 
+  it("signInWithPassword logs a wrong password as a warning, not an error", async () => {
+    const { logger } = await import("../../lib/logger.js");
+    const stub = makeStub({
+      session: null,
+      hasPassword: true,
+      passwordSignInResult: {
+        data: null,
+        error: { message: "Invalid login credentials", code: "invalid_credentials", status: 400 },
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useCustomerAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.checkPhone("07700 900111");
+    });
+    await act(async () => {
+      await result.current.signInWithPassword("wrong-pw", "captcha-token");
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Customer password sign-in rejected: invalid credentials",
+      expect.objectContaining({ tags: expect.objectContaining({ op: "signInWithPassword" }) }),
+    );
+    expect(logger.error).not.toHaveBeenCalledWith(
+      "Customer password sign-in failed",
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   // ── verifyOtp ────────────────────────────────────────────────────────
 
   it("signInWithPassword leaves the gate closed when the password is not known-breached", async () => {

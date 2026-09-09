@@ -1,7 +1,7 @@
 {
   "$comment": "Supabase advisor baseline for the hosted project. Regenerate with `npm run check:advisors -- --update` after deliberately accepting or fixing findings; see docs/supabase-advisors.md.",
   "project_ref": "nlzhllhkigmsvrzduefz",
-  "recorded_at": "2026-09-02",
+  "recorded_at": "2026-09-09",
   "security": [
     {
       "cache_key": "anon_security_definer_function_executable_public_booking_policy_runtime_",
@@ -14,6 +14,12 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.booking_policy_runtime_status()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/booking_policy_runtime_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "anon_security_definer_function_executable_public_get_public_holiday_notices_",
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_holiday_notices()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_holiday_notices`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
       "cache_key": "anon_security_definer_function_executable_public_get_public_open_days_",
@@ -148,6 +154,12 @@
       "detail": "Function `public.current_customer_booking_rules()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/current_customer_booking_rules`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
+      "cache_key": "authenticated_security_definer_function_executable_public_customer_change_deadline_preview_p_booking_date date, p_slot text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.customer_change_deadline_preview(p_booking_date date, p_slot text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/customer_change_deadline_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
       "cache_key": "authenticated_security_definer_function_executable_public_decide_booking_change_request_p_request_id uuid, p_expected_request_revision integer, p_decision text, p_reason text, p_idempotency_key uuid, p_record_incident boolean",
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -238,6 +250,12 @@
       "detail": "Function `public.get_or_create_calendar_feed_token(p_feed_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_or_create_calendar_feed_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_public_holiday_notices_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_public_holiday_notices()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_holiday_notices`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
       "cache_key": "authenticated_security_definer_function_executable_public_get_public_open_days_",
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -262,6 +280,12 @@
       "detail": "Function `public.get_staff_customer_credit_balance(p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_staff_customer_credit_balance`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
+      "cache_key": "authenticated_security_definer_function_executable_public_get_staff_holidays_",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.get_staff_holidays()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_staff_holidays`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
       "cache_key": "authenticated_security_definer_function_executable_public_is_owner_",
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -278,6 +302,12 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.link_customer_to_human()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/link_customer_to_human`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_link_pending_signup_p_existing uuid, p_pending uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.link_pending_signup(p_existing uuid, p_pending uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/link_pending_signup`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
       "cache_key": "authenticated_security_definer_function_executable_public_list_customer_booking_visits_p_include_history boolean",
@@ -422,6 +452,12 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.revoke_calendar_feed_token(p_feed_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revoke_calendar_feed_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_save_salon_holiday_p_id uuid, p_revision integer, p_notice_from date, p_closed_from date, p_reopens_on date, p_enabled boolean",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.save_salon_holiday(p_id uuid, p_revision integer, p_notice_from date, p_closed_from date, p_reopens_on date, p_enabled boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/save_salon_holiday`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
       "cache_key": "authenticated_security_definer_function_executable_public_set_ai_whatsapp_enabled_p_enabled boolean",
@@ -662,6 +698,12 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.customer_credit_reservations\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_salon_holidays",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.salon_holidays\\` has RLS enabled, but no policies exist"
     },
     {
       "cache_key": "rls_enabled_no_policy_public_whatsapp_reschedule_receipts",
@@ -1030,6 +1072,12 @@
       "name": "unindexed_foreign_keys",
       "level": "INFO",
       "detail": "Table \\`public.customer_credit_reservations\\` has a foreign key \\`customer_credit_reservations_visit_id_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
+    },
+    {
+      "cache_key": "unindexed_foreign_keys_public_humans_humans_claims_human_id_fkey",
+      "name": "unindexed_foreign_keys",
+      "level": "INFO",
+      "detail": "Table \\`public.humans\\` has a foreign key \\`humans_claims_human_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     {
       "cache_key": "unused_index_public_booking_change_destination_reservations_booking_change_destinations_request_revision_idx",

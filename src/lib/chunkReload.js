@@ -10,9 +10,12 @@ const CHUNK_ERROR_PATTERNS = [
   /Importing a module script failed/i,
   /Loading chunk [^ ]+ failed/i,
   /ChunkLoadError/i,
+  // Safari: a hashed chunk that no longer exists on the CDN comes back as the
+  // SPA's index.html, and Safari reports the MIME type rather than the fetch.
+  /not a valid JavaScript MIME type/i,
 ];
 
-function isStaleChunkError(value) {
+export function isStaleChunkError(value) {
   if (!value) return false;
   const message =
     typeof value === "string"
@@ -21,12 +24,31 @@ function isStaleChunkError(value) {
   return CHUNK_ERROR_PATTERNS.some((pattern) => pattern.test(message));
 }
 
-function reloadOnce(source, error) {
+/**
+ * True while a stale-chunk reload has been requested in this session and the
+ * loop-guard TTL has not yet cleared it. Between `location.reload()` being
+ * called and the page actually going away, React keeps rendering: Vite's
+ * preload helper resolves the failed import to `undefined` once the
+ * `vite:preloadError` was default-prevented, so the `lazy()` mapping throws
+ * "undefined is not an object (evaluating 'e.TodayView')" into the nearest
+ * error boundary. That is the shadow of a reload already in flight, not a
+ * second error, and callers use this to avoid reporting it.
+ */
+export function isChunkReloadPending() {
+  return Boolean(safeGet("session", RELOAD_FLAG));
+}
+
+/**
+ * Reload once per session window. Returns true when a reload was started and
+ * false when the loop guard refused (the previous reload did not fix it), so
+ * the caller can let the real error surface instead of swallowing it.
+ */
+export function handleStaleChunkError(source, error) {
   if (safeGet("session", RELOAD_FLAG)) {
     captureException(error ?? new Error(`stale chunk after reload (${source})`), {
       tags: { chunkReload: "loop_guard_hit", source },
     });
-    return;
+    return false;
   }
   safeSet("session", RELOAD_FLAG, String(Date.now()));
 
@@ -35,7 +57,10 @@ function reloadOnce(source, error) {
   });
 
   window.location.reload();
+  return true;
 }
+
+const reloadOnce = handleStaleChunkError;
 
 export function installChunkReloadHandler() {
   if (typeof window === "undefined") return;
@@ -48,8 +73,13 @@ export function installChunkReloadHandler() {
   }, FLAG_TTL_MS);
 
   window.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault?.();
-    reloadOnce("vite:preloadError", event.payload);
+    // Only swallow Vite's error when a reload is actually on its way. If the
+    // loop guard refuses (we already reloaded and it is still broken), let
+    // the import reject normally so the error boundary shows its recovery UI
+    // instead of a confusing "undefined is not an object" from the lazy map.
+    if (reloadOnce("vite:preloadError", event.payload)) {
+      event.preventDefault?.();
+    }
   });
 
   window.addEventListener("error", (event) => {

@@ -41,7 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 - An advisor baseline. `supabase/advisors/baseline.json` records every accepted
   Supabase security and performance advisor finding by the linter's stable
-  `cache_key` (111 + 106 on 2 September 2026), `npm run check:advisors` diffs the
+  `cache_key` (111 + 106 on 2 September 2026; refreshed to 118 + 107 on 9 September 2026 after the first scheduled audit flagged the holiday-notice, change-deadline and pending-signup RPCs, all accepted with reasons), `npm run check:advisors` diffs the
   live advisors against it through the Management API (new or escalated
   findings fail; resolved ones ask for a `--update`), and the weekly
   `check-advisors-drift` workflow runs the same diff as an alarm. The reasons
