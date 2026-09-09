@@ -22,9 +22,13 @@ const BUDGETS: Array<{ file: string; maxLines: number; debt: string }> = [
   { file: "./components/modals/HumanCardModal.jsx", maxLines: 500, debt: "Debt 7" },
   // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June); 487 after the edit-day/autosave extraction.
   { file: "./components/modals/BookingDetailModal.jsx", maxLines: 500, debt: "Debt 9" },
+  // Seam review (2 Sept 2026) — useDogs.ts was 931 lines; 85 once split into
+  // hooks/dogs/ (useDogsDirectory / useDogMutations / useDogLookups). The
+  // facade must stay a thin composer: new logic goes in a sub-hook.
+  { file: "./supabase/hooks/useDogs.ts", maxLines: 120, debt: "Seam review — useDogs" },
 ];
 
-describe("register size ratchet (Debt 6, 7, 9)", () => {
+describe("register size ratchet (Debt 6, 7, 9 + useDogs)", () => {
   for (const { file, maxLines, debt } of BUDGETS) {
     it(`${debt}: ${file} stays within ${maxLines} lines`, () => {
       const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
