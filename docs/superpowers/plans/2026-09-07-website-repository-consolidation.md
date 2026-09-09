@@ -2,7 +2,7 @@
 
 **Status:** Executed (preparation only; cutover not performed)
 **Issue:** [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
-**Governing plan:** [docs/plans/active/2026-09-05-website-consolidation.md](../../plans/active/2026-09-05-website-consolidation.md)
+**Governing plan:** [docs/plans/completed/2026-09-05-website-consolidation.md](../../plans/completed/2026-09-05-website-consolidation.md)
 **Decision:** [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md)
 **Cutover:** [runbook](../runbooks/2026-09-07-website-publisher-cutover.md)
 **Date:** 7 September 2026
@@ -662,7 +662,7 @@ Expected: no output. If Vercel requires an external Root Directory or Ignore Com
 
 **Files:**
 - Modify: `docs/architecture/decisions/009-independent-applications-in-one-repository.md`
-- Modify: `docs/plans/active/2026-09-05-website-consolidation.md`
+- Modify: `docs/plans/completed/2026-09-05-website-consolidation.md`
 - Create: `docs/runbooks/website-repository-cutover.md`
 - Modify: `docs/README.md`
 - Modify: `README.md`
@@ -695,7 +695,7 @@ The repository-boundary decision was approved on 7 September 2026. Repository im
 
 - [ ] **Step 2: Refresh the active migration plan with current exact SHAs**
 
-In `docs/plans/active/2026-09-05-website-consolidation.md`:
+In `docs/plans/completed/2026-09-05-website-consolidation.md`:
 
 - change `Status: Draft` to `Status: In progress`;
 - replace the old `Base` with the actual Task 1 destination base SHA;
@@ -789,7 +789,7 @@ Run:
 ```bash
 git add \
   docs/architecture/decisions/009-independent-applications-in-one-repository.md \
-  docs/plans/active/2026-09-05-website-consolidation.md \
+  docs/plans/completed/2026-09-05-website-consolidation.md \
   docs/runbooks/website-repository-cutover.md \
   docs/README.md README.md website/MAINTENANCE.md CHANGELOG.md 2>/dev/null || true
 

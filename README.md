@@ -376,9 +376,11 @@ npm run website:e2e       # Playwright (website/e2e)
 ```
 
 CI for it is `.github/workflows/website.yml`, which runs only for `website/**`
-changes and workflow edits; `ci.yml` still reports every required repository check. Its Bluehost publisher stays **disabled**
-until the authorised cutover in
-[docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
+changes and workflow edits; `ci.yml` still reports every required repository check. Its `deploy` job has been the **live Bluehost
+publisher** since 9 September 2026: a push to `main` touching `website/**` publishes
+while the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true` (procedure and
+rollback in
+[docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)).
 See [`website/MAINTENANCE.md`](website/MAINTENANCE.md) for the site's own
 maintenance guide.
 

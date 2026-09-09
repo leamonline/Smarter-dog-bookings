@@ -21,7 +21,7 @@ It does not duplicate those sources.
 | What does the product currently do? | [`product/`](product/) and [`architecture/overview.md`](architecture/overview.md) |
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
 | Which plan is active? | [`plans/active/`](plans/active/) |
-| Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; publishing follows the [cutover runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md) |
+| Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; its `website.yml` `deploy` job is the live publisher since 9 September 2026 (procedure and rollback: [cutover runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md); evidence: [completed plan](plans/completed/2026-09-05-website-consolidation.md)) |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
 | Which facts remain uncertain? | [`research/`](research/) |

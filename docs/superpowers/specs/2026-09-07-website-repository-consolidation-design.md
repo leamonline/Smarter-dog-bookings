@@ -6,7 +6,7 @@ Status: Approved
 Bookings base: `main@d80ab2dd51074debf3991bd21c9f085282cb9b3e`
 Website source: `leamonline/smarter-dog-website@c55617b792ca7c458264f456aef73d89fb257e0a`
 Related ADR: [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md)
-Related plan: [2026-09-05 website consolidation](../../plans/active/2026-09-05-website-consolidation.md)
+Related plan: [2026-09-05 website consolidation](../../plans/completed/2026-09-05-website-consolidation.md)
 
 ## Purpose
 
