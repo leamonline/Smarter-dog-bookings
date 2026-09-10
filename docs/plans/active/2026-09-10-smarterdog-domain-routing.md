@@ -172,11 +172,18 @@ only as static output.
 The origin becomes shared, so the trust boundary changes in one meaningful
 way: the marketing site and the booking app stop being separate origins.
 Anything relying on origin isolation between them no longer holds. Neither
-application currently depends on that isolation, but the shared
-Content-Security-Policy must be widened to cover the website's needs
-(analytics and EmailJS names appear in `website/.env.example`), and widening
-it necessarily widens it for the booking app too. That is the main
-architectural cost of a single domain and it should be accepted knowingly.
+application currently depends on that isolation.
+
+**Resolved differently from the original plan.** This said the shared
+Content-Security-Policy must be widened for the website (Google Fonts, GA and
+EmailJS would all be blocked by the booking app's policy), widening it for the
+booking app too, and called that the main architectural cost. It turned out not
+to be necessary: `vercel.json` scopes the strict policy to the booking prefixes
+by path, so the booking app keeps exactly the policy it has today and the
+website is served as it is on Bluehost, which sets no CSP at all. The cost is
+not paid. The follow-up worth doing separately is giving the marketing site a
+CSP of its own — it has never had one, and guessing its needs blind during a
+domain move is the wrong moment.
 
 Authority for routing moves to `vercel.json`. Static files resolve before
 rewrites, so namespaced assets are served directly and only genuine
@@ -334,10 +341,18 @@ Each step is a reviewable pull request.
    gained the `/staff` prefix (they are opened by `openWindow`, not the router).
    Tests: unit tests on the resolver, including that no redirect loops or takes
    two hops; entrances verified end-to-end in the offline preview.
-3. **Combined build and routing.** A build script that runs both builds and
-   merges the output, the `vercel.json` rewrite table, headers reproducing the
-   `.htaccess` caching behaviour, and the merged `robots.txt` with its
-   build-time assertion.
+3. **Combined build and routing.** ✅ Done. `scripts/build-combined.mjs` builds
+   both apps and merges them into `dist-combined/`, refusing the build if the
+   two would write the same file, if the published `robots.txt` disallows
+   everything, or if `/` is not the marketing page. `vercel.json` carries the
+   rewrite table (booking routes → `/app/index.html`, everything else → the
+   website), the `/customer/*` → `/book/*` redirects, and the `.htaccess`
+   caching behaviour. Two additions the original wording did not anticipate:
+   the booking build now emits its shell at `/app/index.html` and the service
+   worker's offline fallback points there — otherwise the installed staff PWA
+   would fall back to the marketing page; and `smarterdog.vercel.app` gets an
+   `X-Robots-Tag: noindex`, because after the merge that hostname would serve
+   the website's permissive `robots.txt` and compete with smarterdog.co.uk.
 4. **Documentation and stale references.** `CLAUDE.md`, `README.md`,
    `docs/whatsapp-flows.md`, `scripts/check-sentry-live.mjs`, the WhatsApp Flow
    and any message templates that link to `smarterdog.vercel.app`.
@@ -348,6 +363,14 @@ Steps 1 and 2 are serial. Step 4 can run in parallel with 3. Step 5 happens
 only after acceptance.
 
 ## Testing
+
+**Must be verified on a Vercel preview deployment before the DNS cutover.**
+`vercel.json`'s rewrite, redirect and header matching is Vercel's to interpret;
+the unit tests pin the table's contents and its agreement with the client-side
+resolver, but they cannot prove Vercel matches the patterns as intended. Check
+on a preview URL: `/book` and `/staff` serve the booking app, `/` serves the
+website, `/customer/book` lands on `/book/new`, and a booking path carries the
+`Content-Security-Policy` header while `/` does not.
 
 - `npm run lint`, `npm run typecheck`, `npm run check:migrations`,
   `npm run test`, `npm run build` — the stated CI bar.

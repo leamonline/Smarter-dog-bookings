@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import config from "../../vite.config.js";
+import { BOOKING_ROOT_EXCLUSIONS } from "../../scripts/lib/combined-output.mjs";
 
 // The booking app and the marketing website (website/) are separate builds that
 // are served from one origin, so anything either one emits at the root of the
@@ -62,10 +63,11 @@ describe("static output namespace", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("holds the collision surface with the website to the known two", () => {
-    // Both are resolved by the merged-deployment step: the website's robots.txt
-    // wins at the root, and the booking app's HTML entry is renamed. Until then
-    // this pins the surface so a NEW collision can't appear unnoticed.
+  it("holds the collision surface to what the merge deliberately resolves", () => {
+    // The merge drops exactly these two from the booking build: the website's
+    // robots.txt and index.html win at the root, and the booking shell is
+    // served from /app/index.html instead. Anything else appearing here would
+    // be one app silently overwriting the other.
     const websitePublic = path.join(repoRoot, "website", "public");
     const websiteRoot = new Set([
       ...fs.readdirSync(websitePublic).filter((n) => n !== ".DS_Store"),
@@ -81,6 +83,6 @@ describe("static output namespace", () => {
       "registerSW.js",
     ]);
     const collisions = [...bookingRoot].filter((n) => websiteRoot.has(n)).sort();
-    expect(collisions).toEqual(["index.html", "robots.txt"]);
+    expect(collisions).toEqual([...BOOKING_ROOT_EXCLUSIONS].sort());
   });
 });

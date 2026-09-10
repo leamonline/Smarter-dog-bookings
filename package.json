@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:combined": "node scripts/build-combined.mjs",
     "preview": "vite preview",
     "seed": "tsx src/supabase/seed.ts",
     "test": "vitest run",

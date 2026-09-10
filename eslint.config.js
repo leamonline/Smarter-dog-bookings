@@ -11,6 +11,8 @@ export default [
   {
     ignores: [
       "dist/**",
+      // Built output of scripts/build-combined.mjs — both apps merged.
+      "dist-combined/**",
       "node_modules/**",
       "public/**",
       "scripts/**",
