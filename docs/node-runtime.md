@@ -4,6 +4,11 @@
 
 The project targets **Node 24** ("Krypton", the active LTS line).
 
+Use **Node 24.15.0 or newer within Node 24** for dependency installation and
+tests. The jsdom 30 test environment requires this minimum; `engine-strict`
+also enforces dependency engine ranges. `.nvmrc` and CI select the Node 24
+line; refresh an older local installation before running these commands.
+
 ## Where the version is declared
 
 | Source | Governs | Enforced by |
