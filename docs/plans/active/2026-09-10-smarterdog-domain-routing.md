@@ -39,6 +39,16 @@ nameservers `ns1.bluehost.com` / `ns2.bluehost.com`. The apex `A` record is
 does not resolve. DNS is therefore administered at Bluehost, and the apex is
 served by Bluehost shared hosting.
 
+**`www` is currently broken (observed 2026-09-10).** The apex is healthy:
+`https://smarterdog.co.uk/` returns `200` with a certificate that verifies.
+`www.smarterdog.co.uk` points at a different server and is not serving the
+site — `https://` fails with a TLS handshake alert (number 40, no usable
+certificate for that name) and `http://` returns `409`. Anyone typing or
+following a `www.` link reaches a browser security warning or an error page.
+This predates the plan and is not caused by it, but the cutover is the natural
+moment to fix it: `www` should be added to the Vercel project alongside the
+apex, so both names serve the site with a valid certificate.
+
 **Marketing website.** Lives at [`website/`](../../../website) as an
 independent application (own `package.json`, lockfile, Vite 8 + React 19
 build) per ADR 009. Since 9 September 2026 the `deploy` job in
@@ -387,9 +397,11 @@ only after acceptance.
    is registering the same worker twice at `/book/` and `/staff/` scopes.
    The proposal is simpler; the cost is slightly slower repeat loads for
    customers. Decision owner: Bleep.
-3. **Whether `www` should serve the site or redirect to the apex.** It
-   currently resolves to a different address from the apex, which is worth
-   understanding before the cutover rather than after.
+3. ~~**Whether `www` should serve the site or redirect to the apex.**~~
+   *Resolved 2026-09-10:* `www` is currently broken (see Current behaviour) and
+   must be added to the Vercel project at the cutover. Whether it then serves
+   the site directly or redirects to the apex is a free choice; redirecting to
+   the apex is the simpler default and keeps one canonical URL for search.
 4. **Content-Security-Policy scope.** The website reads
    `VITE_GA_MEASUREMENT_ID` and lists three `VITE_EMAILJS_*` names, none of
    which the current CI build passes in. If analytics or EmailJS are to work
