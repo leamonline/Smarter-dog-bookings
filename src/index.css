@@ -3,8 +3,8 @@
 
 .dog-size-mark__silhouette {
   background: currentColor;
-  mask: url("/images/dog-silhouette.png") center / contain no-repeat;
-  -webkit-mask: url("/images/dog-silhouette.png") center / contain no-repeat;
+  mask: url("/app/images/dog-silhouette.png") center / contain no-repeat;
+  -webkit-mask: url("/app/images/dog-silhouette.png") center / contain no-repeat;
 }
 
 /* ── Self-hosted brand fonts ──────────────────────────────────── */
@@ -13,49 +13,49 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/montserrat-400.woff2") format("woff2");
+  src: url("/app/fonts/montserrat-400.woff2") format("woff2");
 }
 @font-face {
   font-family: "Montserrat";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/montserrat-500.woff2") format("woff2");
+  src: url("/app/fonts/montserrat-500.woff2") format("woff2");
 }
 @font-face {
   font-family: "Montserrat";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/montserrat-600.woff2") format("woff2");
+  src: url("/app/fonts/montserrat-600.woff2") format("woff2");
 }
 @font-face {
   font-family: "Montserrat";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/montserrat-700.woff2") format("woff2");
+  src: url("/app/fonts/montserrat-700.woff2") format("woff2");
 }
 @font-face {
   font-family: "Quicksand";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/quicksand-500.woff2") format("woff2");
+  src: url("/app/fonts/quicksand-500.woff2") format("woff2");
 }
 @font-face {
   font-family: "Quicksand";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/quicksand-600.woff2") format("woff2");
+  src: url("/app/fonts/quicksand-600.woff2") format("woff2");
 }
 @font-face {
   font-family: "Quicksand";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/quicksand-700.woff2") format("woff2");
+  src: url("/app/fonts/quicksand-700.woff2") format("woff2");
 }
 
 @theme {
@@ -935,8 +935,8 @@ textarea::placeholder {
   flex: 0 0 auto;
   background: currentColor;
   filter: drop-shadow(0 5px 6px rgba(45, 0, 75, 0.12));
-  mask: url("/images/dog-silhouette.png") center bottom / contain no-repeat;
-  -webkit-mask: url("/images/dog-silhouette.png") center bottom / contain no-repeat;
+  mask: url("/app/images/dog-silhouette.png") center bottom / contain no-repeat;
+  -webkit-mask: url("/app/images/dog-silhouette.png") center bottom / contain no-repeat;
   transform-origin: bottom center;
 }
 

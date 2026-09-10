@@ -16,7 +16,7 @@ function initialsFromUser(user) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// The wordmark as brand-purple ink on the light bar — /logo.png is a
+// The wordmark as brand-purple ink on the light bar — /app/logo.png is a
 // black-on-transparent lockup, so a CSS mask recolours it to match the
 // chrome exactly (same technique as DogSilhouette). Source is 4:1, so
 // keep width = 4 × height for a crisp `contain` fit.
@@ -26,8 +26,8 @@ function BrandWordmark({ className = "" }) {
       aria-hidden="true"
       className={`block bg-brand-purple ${className}`}
       style={{
-        WebkitMaskImage: "url(/logo.png)",
-        maskImage: "url(/logo.png)",
+        WebkitMaskImage: "url(/app/logo.png)",
+        maskImage: "url(/app/logo.png)",
         WebkitMaskRepeat: "no-repeat",
         maskRepeat: "no-repeat",
         WebkitMaskSize: "contain",

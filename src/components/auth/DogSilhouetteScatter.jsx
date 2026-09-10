@@ -26,7 +26,7 @@ const SILHOUETTE_SCATTER = [
   { top: "92%",  left: "82%",  size: 55,  rot: -14, color: "var(--sd-yellow)",      opacity: 0.13, dur: 9.5, delay: 0.9, dist: 13, dx: -7, wob: -2 },
 ];
 
-const SILHOUETTE_URL = "/images/dog-silhouette.png";
+const SILHOUETTE_URL = "/app/images/dog-silhouette.png";
 
 export function DogSilhouetteScatter({ animated = false, mobileSparse = false }) {
   return (

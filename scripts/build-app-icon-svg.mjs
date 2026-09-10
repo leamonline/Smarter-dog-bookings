@@ -1,4 +1,4 @@
-// Generates public/icons/app-icon.svg — calendar-with-paw icon, hand-tuned
+// Generates public/app/icons/app-icon.svg — calendar-with-paw icon, hand-tuned
 // from the user-supplied Figma export: dark-navy frame, brighter blue panel,
 // white calendar page with a yellow header, four spiral binding posts going
 // through light eyelets, and a soft-grey paw print.
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
-const outPath = path.join(repoRoot, 'public', 'icons', 'app-icon.svg');
+const outPath = path.join(repoRoot, 'public', 'app', 'icons', 'app-icon.svg');
 
 // Blue rounded square fills the full canvas (no navy frame). Inner artwork
 // is scaled up around the canvas centre so the paper takes most of the icon.

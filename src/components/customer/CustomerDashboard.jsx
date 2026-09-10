@@ -217,7 +217,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       <nav className="portal-topnav" aria-label="Primary">
         <div className="portal-topnav-inner">
           <a href="https://smarterdog.co.uk" target="_blank" rel="noopener noreferrer" className="portal-topnav-logo" aria-label="Smarter Dog home (opens in a new tab)">
-            <img src="/logo.png" alt="Smarter Dog Grooming" />
+            <img src="/app/logo.png" alt="Smarter Dog Grooming" />
           </a>
           <div className="portal-topnav-links">
             <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#services" target="_blank" rel="noopener noreferrer">Services</a>

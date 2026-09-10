@@ -1,7 +1,7 @@
 # Single-domain routing: /book and /stafflogin on smarterdog.co.uk
 
 Status: Draft
-Issue: not yet raised — see [Open questions](#open-questions)
+Issue: [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 Base: `codex/smarterdog-domain-routing` off `origin/main` at `0e1b8541`
 Last verified: 2026-09-10
 Owners: `vercel.json`, `vite.config.js`, `src/index.jsx`, `src/components/layout/StaffRoutes.jsx`, `public/**`, `website/**` (publisher only), `.github/workflows/website.yml`
@@ -86,7 +86,7 @@ additionally owns `/sitemap.xml`, `/llms.txt` and `/vite.svg`.
 
 **Service worker.** `vite-plugin-pwa` with `registerType: "autoUpdate"` and
 `navigateFallbackDenylist: [/^\/api/, /^\/functions\//]`
-([`vite.config.js:10`](../../../vite.config.js)). `public/manifest.json`
+([`vite.config.js:10`](../../../vite.config.js)). `public/app/manifest.json`
 declares `"start_url": "/"` and root-absolute icon paths. A separate
 `public/push-sw.js` backs staff Web Push.
 
@@ -152,7 +152,7 @@ must be confirmed in the Vercel dashboard before the cutover.
   routing at the edge.
 - [`.github/workflows/website.yml`](../../../.github/workflows/website.yml) —
   the Bluehost publisher to be disabled.
-- [`public/manifest.json`](../../../public/manifest.json),
+- [`public/app/manifest.json`](../../../public/app/manifest.json),
   [`public/robots.txt`](../../../public/robots.txt),
   [`public/push-sw.js`](../../../public/push-sw.js) — root-owning static files.
 - [`scripts/check-sentry-live.mjs:32`](../../../scripts/check-sentry-live.mjs) —

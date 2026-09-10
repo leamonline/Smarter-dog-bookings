@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      manifest: false, // use public/manifest.json directly
+      manifest: false, // use public/app/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         // Pull the staff Web Push handlers (push / notificationclick) into the
@@ -52,6 +52,11 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
+    // Every file this build emits lives under /app/ so the booking app can be
+    // served from the same origin as the public marketing pages without either
+    // one overwriting the other's output. Static files come from public/app/;
+    // this puts the hashed JS/CSS beside them.
+    assetsDir: "app/assets",
     // NB: this MUST be rollupOptions — the previous `rolldownOptions` key is
     // silently ignored by standard Vite/Rollup, which shipped a single 443 KB
     // entry chunk that every deploy invalidated in the PWA precache. A logic
