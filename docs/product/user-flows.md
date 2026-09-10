@@ -180,9 +180,9 @@ There is no complete manifest that fails discovery when a function is omitted.
 
 ## Staff reviews a new customer signup
 
-Implemented on the issue #782 branch, verified against synthetic data on
-5 September 2026; production release remains separate. See the
-[implementation plan](../plans/active/2026-09-05-customer-approval-queue.md).
+Implemented for issue #782, verified against synthetic data and merged on
+5 September 2026; no production customer data was used for verification. See the
+[completed implementation plan](../plans/completed/2026-09-05-customer-approval-queue.md).
 
 1. Open Humans. Awaiting approval shows an exact count and oldest-first queue,
    independent of directory search, filters and loaded directory pages.
