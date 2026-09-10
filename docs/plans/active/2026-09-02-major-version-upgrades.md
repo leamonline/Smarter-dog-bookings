@@ -36,7 +36,7 @@ the same bar every time.
 
 | # | Package | Now | Latest | Peer constraints read on 2 Sept 2026 | Verdict |
 |---|---|---|---|---|---|
-| 1 | `jsdom` | 29.1 | 30.0 | `vitest` accepts any jsdom; jsdom 30 peers `canvas ^3.2` (optional) | **Do first.** Test-environment only. Run the component project (`npm run test:component`) and look for DOM API removals in the release notes. |
+| 1 | `jsdom` | 30.0.1 | 30.0.1 | Verified 10 Sept: Node `^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`; optional `canvas ^3.2.3`; Vitest accepts jsdom 30 | **Upgrade prepared.** Test-environment only; see the validation record below and [issue #816](https://github.com/leamonline/Smarter-dog-bookings/issues/816). |
 | 2 | `@testing-library/jest-dom` | 6.9 | 7.0 | needs `vitest >= 0.32`, `@testing-library/dom >=10 <11` (we have 10.4) | **Second.** Matcher-only package; check the 7.0 notes for renamed/removed matchers and grep `expect(...).to` usages. |
 | 3 | `@types/node` | 25.9 | 26.4 | `vitest` accepts `>=24` | **Do not chase.** The runtime is Node 24 (`.nvmrc`, `engines.node`, every workflow — see node-runtime.md); type definitions ahead of the runtime can only describe APIs the runtime lacks. Pin `@types/node` to **24.x** in the same commit that next touches it, and move it with the runtime, not with the registry. |
 | 4 | `vite` + `@vitejs/plugin-react` + `vite-plugin-pwa` | 7.3 / 4.7 / 1.3 | 8.2 / 6.1 / 1.3 | `@vitejs/plugin-react@6` requires `vite ^8` (v5 is the last that accepts Vite 7); `vite-plugin-pwa@1.3`, `@tailwindcss/vite`, `vitest@4.1` and `@vitest/coverage-v8` all accept Vite 8 | **One PR, the risky one.** Vite 8 makes Rolldown the default bundler, which is the `rollupOptions` / `rolldownOptions` landmine the config comment and the guard test exist for. See the Vite 8 section below. `plugin-react` goes 4 → 6 in the same PR because 6 cannot run on Vite 7; its `oxc-transform-react` / Babel split changes how the React Compiler and Fast Refresh are configured — read its migration notes. |
@@ -45,6 +45,47 @@ the same bar every time.
 
 Everything else with a newer major (`vitest`, `typescript-eslint`, `@supabase/supabase-js`,
 `react`, `react-router-dom`, Tailwind) is already on its current major.
+
+## jsdom 30.0.1 validation — 10 September 2026
+
+Prepared from `main@5246a5ab56fa7325db898426d8c9784094f3c056` on
+`codex/jsdom-30`, tracked by [issue #816](https://github.com/leamonline/Smarter-dog-bookings/issues/816).
+Installed with `npm install --save-dev jsdom@30.0.1 --no-audit --no-fund` on
+Linux arm64 (Alpine), Node 24.21.0. This does not change the supported Node
+major; installations and tests now need at least Node 24.15.0.
+
+Reviewed the upstream [v30.0.0 release notes](https://github.com/jsdom/jsdom/releases/tag/v30.0.0)
+and [v30.0.1 release notes](https://github.com/jsdom/jsdom/releases/tag/v30.0.1).
+The only documented breaking change is the Node minimum. No DOM API removals
+are listed. The changes also cover CSS escaping/support checks, computed
+lengths and CSS function serialisation, and XPath error types; v30.0.1 fixes
+the v30.0.0 computed-style regression with `calc()` and other functions.
+Repository searches found `CSS.escape()` in `BreedCombobox` and
+`getComputedStyle()` in `ComposePanel` and its component test; no
+`document.evaluate()` or `CSS.supports()` usage was found in `src`.
+
+The lockfile changes 19 installed package entries, all development-only and
+within jsdom's dependency tree. All 12 Linux `libc` entries remain intact;
+unrelated direct dependencies and production package versions are unchanged.
+The optional canvas peer is not installed. Validation uses deterministic
+offline data (`CI=1`, `VITE_FORCE_OFFLINE=1`) without Supabase credentials.
+
+Local validation passed on that environment:
+
+- A separate clean `npm ci --no-audit --no-fund` installation resolved jsdom 30.0.1.
+- `npm run test:component`: 174 files, 1,293 tests passed.
+- `npm run lint`: no errors (65 existing warnings); platform metadata guard passed.
+- `npm run check:docs`, `npm run typecheck`, `npm run check:migrations`: passed.
+- `npm run test`: 343 files, 3,528 tests passed.
+- `npm run coverage`: 3,528 tests passed and both directory thresholds passed;
+  combined statements 92.05%, branches 84%, functions 92.55%, lines 93.36%.
+- `npm run build`: passed.
+- `npm run e2e -- --project=desktop --workers=2`: all 49 tests passed, using
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium-browser` (Chromium 152.0.7977.82).
+
+No application or test changes were needed. Hosted PR checks remain separate
+release evidence; these local results do not claim a merge or deployment.
+Rollback is reverting the upgrade PR. Tranche B remains stopped.
 
 ## Vite 8: what to check specifically
 
