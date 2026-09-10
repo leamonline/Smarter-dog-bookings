@@ -7,9 +7,9 @@ import { holidayCopy } from '../utils/holidayNotice';
 // booking database confirms a scheduled holiday, so a quiet failure can never
 // invent a closure or a reopening date. Opaque white on plum text keeps the
 // contrast well above 4.5:1 over the cyan hero.
-const HolidayNoticeCard = ({ onBookClick }) => {
+const HolidayNoticeCard = ({ onBookClick, children = null }) => {
     const notices = useHolidayNotices();
-    if (notices.length === 0) return null;
+    if (notices.length === 0) return children;
 
     return (
         <div className="flex flex-col gap-4 mb-10 max-w-md">

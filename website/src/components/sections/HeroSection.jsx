@@ -70,77 +70,78 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                             </p>
 
                             {/* Scheduled holiday notice — only when the booking diary confirms it */}
-                            <HolidayNoticeCard onBookClick={onBookClick} />
+                            <HolidayNoticeCard onBookClick={onBookClick}>
 
-                            {/* CTA cluster (hidden on mobile — sticky footer covers this) */}
-                            <div className="relative mt-4 hidden md:flex flex-col items-start gap-0 pr-16 pb-8">
-                                {/* Booking button — chunky, 3D bottom shadow */}
-                                <MagneticButton
-                                    onClick={() => onBookClick('Hero Section')}
-                                    className="relative z-10 px-14 py-7 rounded-full font-bold text-2xl transition-all duration-300 hover:shadow-xl flex items-center hover-lift active-squish"
-                                    style={{
-                                        backgroundColor: colors.yellow,
-                                        color: colors.plum,
-                                        boxShadow: '0 9px 0 #E0A800'
-                                    }}
-                                >
-                                    <span>Book your dog online</span>
-                                </MagneticButton>
+                                {/* CTA cluster (hidden on mobile — sticky footer covers this) */}
+                                <div className="relative mt-4 hidden md:flex flex-col items-start gap-0 pr-16 pb-8">
+                                    {/* Booking button — chunky, 3D bottom shadow */}
+                                    <MagneticButton
+                                        onClick={() => onBookClick('Hero Section')}
+                                        className="relative z-10 px-14 py-7 rounded-full font-bold text-2xl transition-all duration-300 hover:shadow-xl flex items-center hover-lift active-squish"
+                                        style={{
+                                            backgroundColor: colors.yellow,
+                                            color: colors.plum,
+                                            boxShadow: '0 9px 0 #E0A800'
+                                        }}
+                                    >
+                                        <span>Book your dog online</span>
+                                    </MagneticButton>
 
-                                {/* Handwritten "Easy peasy" tag — overlaps the button's lower edge */}
-                                <span
-                                    aria-hidden="true"
-                                    className="handwriting relative z-20 -mt-5 ml-8 -rotate-3 px-6 py-2 rounded-xl text-4xl font-semibold flex items-center gap-2"
-                                    style={{
-                                        backgroundColor: colors.yellow,
-                                        color: colors.plum,
-                                        boxShadow: '0 4px 12px rgba(45, 0, 75, 0.20)'
-                                    }}
-                                >
-                                    <span className="text-2xl">✂</span>
-                                    Easy peasy
-                                    <span className="text-2xl -scale-x-100">✂</span>
-                                </span>
+                                    {/* Handwritten "Easy peasy" tag — overlaps the button's lower edge */}
+                                    <span
+                                        aria-hidden="true"
+                                        className="handwriting relative z-20 -mt-5 ml-8 -rotate-3 px-6 py-2 rounded-xl text-4xl font-semibold flex items-center gap-2"
+                                        style={{
+                                            backgroundColor: colors.yellow,
+                                            color: colors.plum,
+                                            boxShadow: '0 4px 12px rgba(45, 0, 75, 0.20)'
+                                        }}
+                                    >
+                                        <span className="text-2xl">✂</span>
+                                        Easy peasy
+                                        <span className="text-2xl -scale-x-100">✂</span>
+                                    </span>
 
-                                {/* Wavy round stamp sticker — overlaps the button's upper-right corner */}
-                                <span
-                                    aria-hidden="true"
-                                    className="absolute z-30 -top-8 right-0 rotate-[9deg] pointer-events-none drop-shadow-lg"
-                                >
-                                    <svg width="132" height="132" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                                        {/* Scalloped / wavy outer edge: ring of little circles */}
-                                        <g fill="white">
-                                            <circle cx="60" cy="10" r="8.5" />
-                                            <circle cx="79.13" cy="13.81" r="8.5" />
-                                            <circle cx="95.36" cy="24.64" r="8.5" />
-                                            <circle cx="106.19" cy="40.87" r="8.5" />
-                                            <circle cx="110" cy="60" r="8.5" />
-                                            <circle cx="106.19" cy="79.13" r="8.5" />
-                                            <circle cx="95.36" cy="95.36" r="8.5" />
-                                            <circle cx="79.13" cy="106.19" r="8.5" />
-                                            <circle cx="60" cy="110" r="8.5" />
-                                            <circle cx="40.87" cy="106.19" r="8.5" />
-                                            <circle cx="24.64" cy="95.36" r="8.5" />
-                                            <circle cx="13.81" cy="79.13" r="8.5" />
-                                            <circle cx="10" cy="60" r="8.5" />
-                                            <circle cx="13.81" cy="40.87" r="8.5" />
-                                            <circle cx="24.64" cy="24.64" r="8.5" />
-                                            <circle cx="40.87" cy="13.81" r="8.5" />
-                                        </g>
-                                        {/* Solid disc + dashed cyan ring */}
-                                        <circle cx="60" cy="60" r="52" fill="white" />
-                                        <circle cx="60" cy="60" r="47" fill="none" stroke={colors.cyan} strokeWidth="2.5" strokeDasharray="2 4" strokeLinecap="round" />
-                                        {/* Top flourish */}
-                                        <text x="60" y="34" textAnchor="middle" fontSize="13" fill={colors.cyan}>✦</text>
-                                        {/* Phrase — centred handwriting, three lines */}
-                                        <text className="handwriting" textAnchor="middle" fill={colors.plum} fontWeight="700" fontSize="15">
-                                            <tspan x="60" y="56">quick and easy,</tspan>
-                                            <tspan x="60" y="72">whenever it</tspan>
-                                            <tspan x="60" y="88">suits you.</tspan>
-                                        </text>
-                                    </svg>
-                                </span>
-                            </div>
+                                    {/* Wavy round stamp sticker — overlaps the button's upper-right corner */}
+                                    <span
+                                        aria-hidden="true"
+                                        className="absolute z-30 -top-8 right-0 rotate-[9deg] pointer-events-none drop-shadow-lg"
+                                    >
+                                        <svg width="132" height="132" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                                            {/* Scalloped / wavy outer edge: ring of little circles */}
+                                            <g fill="white">
+                                                <circle cx="60" cy="10" r="8.5" />
+                                                <circle cx="79.13" cy="13.81" r="8.5" />
+                                                <circle cx="95.36" cy="24.64" r="8.5" />
+                                                <circle cx="106.19" cy="40.87" r="8.5" />
+                                                <circle cx="110" cy="60" r="8.5" />
+                                                <circle cx="106.19" cy="79.13" r="8.5" />
+                                                <circle cx="95.36" cy="95.36" r="8.5" />
+                                                <circle cx="79.13" cy="106.19" r="8.5" />
+                                                <circle cx="60" cy="110" r="8.5" />
+                                                <circle cx="40.87" cy="106.19" r="8.5" />
+                                                <circle cx="24.64" cy="95.36" r="8.5" />
+                                                <circle cx="13.81" cy="79.13" r="8.5" />
+                                                <circle cx="10" cy="60" r="8.5" />
+                                                <circle cx="13.81" cy="40.87" r="8.5" />
+                                                <circle cx="24.64" cy="24.64" r="8.5" />
+                                                <circle cx="40.87" cy="13.81" r="8.5" />
+                                            </g>
+                                            {/* Solid disc + dashed cyan ring */}
+                                            <circle cx="60" cy="60" r="52" fill="white" />
+                                            <circle cx="60" cy="60" r="47" fill="none" stroke={colors.cyan} strokeWidth="2.5" strokeDasharray="2 4" strokeLinecap="round" />
+                                            {/* Top flourish */}
+                                            <text x="60" y="34" textAnchor="middle" fontSize="13" fill={colors.cyan}>✦</text>
+                                            {/* Phrase — centred handwriting, three lines */}
+                                            <text className="handwriting" textAnchor="middle" fill={colors.plum} fontWeight="700" fontSize="15">
+                                                <tspan x="60" y="56">quick and easy,</tspan>
+                                                <tspan x="60" y="72">whenever it</tspan>
+                                                <tspan x="60" y="88">suits you.</tspan>
+                                            </text>
+                                        </svg>
+                                    </span>
+                                </div>
+                            </HolidayNoticeCard>
 
                         </div>
 

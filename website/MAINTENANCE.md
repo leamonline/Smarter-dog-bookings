@@ -94,6 +94,10 @@ Supabase (anon read, dates only) and shows:
 - during the closure: "We're taking a little break" with the reopening date;
 - from the reopening date: nothing.
 
+While a holiday card is visible, it replaces the desktop hero booking button
+and its “Easy peasy” and “quick and easy” stickers. The usual booking group
+returns automatically when no verified notice is shown.
+
 The card refreshes on tab focus and once a minute. If the read fails or the
 diary no longer matches the holiday, the card is hidden rather than showing a
 stale reopening date. There is no fallback copy for holidays in this repo, on
