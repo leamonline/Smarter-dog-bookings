@@ -388,9 +388,20 @@ export function useCustomerAuth() {
     });
 
     if (err) {
-      logger.error("Customer password sign-in failed", err, {
-        tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
-      });
+      // A wrong password is a customer typing, not an application fault:
+      // keep it out of the error tracker so real failures stand out.
+      const wrongPassword =
+        (err as { code?: string }).code === "invalid_credentials" ||
+        /invalid login credentials/i.test(err.message ?? "");
+      if (wrongPassword) {
+        logger.warn("Customer password sign-in rejected: invalid credentials", {
+          tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
+        });
+      } else {
+        logger.error("Customer password sign-in failed", err, {
+          tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
+        });
+      }
       setError(PASSWORD_LOGIN_ERROR);
       return { error: err };
     }

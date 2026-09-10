@@ -122,8 +122,8 @@ variable was not yet set. Once the owner set it, the next website-touching
 merge (PR #811, `main@61d668d`) ran [run 34359840293](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34359840293) and its
 `deploy` job published at 14:03 UTC on 9 September 2026 (64 files synced, no
 clean slate). smarterdog.co.uk then served `index-DqSb2wRt.js`, the bundle
-built here. The original repository's `main` is locked and its workflow
-disabled; **this workflow is now the single publisher.** Evidence is in the
+built here. The original repository was archived on 9 September 2026 (read-only,
+workflow disabled); **this workflow is now the single publisher.** Evidence is in the
 [completion record](../docs/plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026)
 and on [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784).
 

@@ -1,5 +1,10 @@
 import { Component } from "react";
 import { logger } from "../../lib/logger";
+import {
+  handleStaleChunkError,
+  isChunkReloadPending,
+  isStaleChunkError,
+} from "../../lib/chunkReload.js";
 
 function makeErrorId() {
   return `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -20,6 +25,16 @@ export class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    // A stale-chunk reload already in flight keeps rendering for a moment and
+    // throws the lazy() mapping's "undefined is not an object" into this
+    // boundary. That is not a second error, so do not report it.
+    if (isChunkReloadPending()) return;
+    // A lazy() import that rejected inside React never reaches the window
+    // error listeners, so the stale-chunk auto-reload has to be offered here.
+    // If the loop guard refuses, fall through and show the recovery UI.
+    if (isStaleChunkError(error) && handleStaleChunkError("error-boundary", error)) {
+      return;
+    }
     logger.error("[ErrorBoundary] Unhandled error:", error, {
       tags: { errorId: this.state.errorId },
       extra: { componentStack: info?.componentStack },
