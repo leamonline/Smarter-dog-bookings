@@ -17,7 +17,7 @@ an existing table is automatically a trustworthy metric.
 A0 was documentation only. The first implementation slice under #612 improves
 the existing funnel and denial reports without new events, schema or retention.
 It does not establish a live baseline or approve a rollout threshold. See the
-[implementation plan](../plans/active/2026-09-08-issue-612-measurement-quality.md).
+[completed first-slice plan](../plans/completed/2026-09-08-issue-612-measurement-quality.md).
 
 ## Confidence scale
 

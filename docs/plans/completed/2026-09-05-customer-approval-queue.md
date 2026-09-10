@@ -1,6 +1,6 @@
 # Customer approval queue
 
-Status: Active
+Status: Implemented
 Issue: [#782](https://github.com/leamonline/Smarter-dog-bookings/issues/782)
 Base: main at 546e57aa
 Last verified: 2026-09-05
@@ -100,6 +100,15 @@ Accepted flow implemented; focused and repository checks recorded; responsive an
 
 None blocking the approved frontend scope.
 
+## Completion record — 5 September 2026
+
+Pull request [#783](https://github.com/leamonline/Smarter-dog-bookings/pull/783) merged as
+`452cc3d1e0c7815eef41f19c247d16b397809565` on 5 September 2026. The merge delivered the accepted
+queue, review, guarded dog-size persistence, approval and welcome-outcome flow described above.
+Together with the synthetic browser review and repository checks below, that merge supplies the
+release evidence required by the definition of done. No production data was read and no hosted
+operation was performed as part of the verification.
+
 ## Verification evidence — 5 September 2026
 
 - Installed dependencies with `npm ci` under Node 24.20.0. The initial shell
@@ -120,5 +129,5 @@ None blocking the approved frontend scope.
   `output/playwright/approval/` and are not production assets or PR source.
 - No hosted database, customer-data or message-sending verification performed.
   Existing RLS/RPC behaviour is relied upon; no migration was introduced.
-- Plan stays active pending PR/release evidence. Deployment and merge remain
-  separate from these local checks.
+- Deployment and merge remained separate from these local checks; the later
+  merge record above closes that outstanding evidence requirement.

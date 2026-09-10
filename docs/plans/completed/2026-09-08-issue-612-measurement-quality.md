@@ -1,6 +1,6 @@
 # Governed measurement: existing-report quality
 
-Status: Active
+Status: Implemented — first slice only; issue #612 remains open
 Issue: #612
 Base: origin/main at a7bf56d41af39e447f5e74bc00b96ae96b925334
 Last verified: 2026-09-08
@@ -81,6 +81,19 @@ Later slices require an assigned measurement owner and retention decision before
 
 **Resolved 9 September 2026:** owner @leamonline; retention 90 days for row-level telemetry, enforced by `20260909150000_telemetry_retention_90_days.sql` (daily `prune_measurement_telemetry()` on `booking_funnel_events` and `booking_denials`). Recorded in the [measurement catalogue](../../specifications/measurement-catalogue.md#privacy-and-retention). Governed operation/notification identity remains open.
 
+## Completion record — 9 September 2026
+
+The report-quality slice merged in pull request
+[#809](https://github.com/leamonline/Smarter-dog-bookings/pull/809) as
+`4a0b8868711ac763ac61452762d98aa81ec8d3a1` on 8 September 2026. The owner and retention follow-up
+merged in pull request [#814](https://github.com/leamonline/Smarter-dog-bookings/pull/814) as
+`bea013cd965ea041c9617382ab8ef2c0fff1575f` on 9 September 2026. Those merges and the validation
+evidence below complete this bounded slice.
+
+They do **not** close issue #612 or complete its ten-metric programme. Exact cross-channel rates
+still depend on governed operation/notification identity, and any next slice requires its own
+scope and implementation plan.
+
 ## Validation evidence — 8 September 2026
 
 Node 24.20.0: focused tests passed (49 tests); full suite passed (343 files,
@@ -88,4 +101,5 @@ Node 24.20.0: focused tests passed (49 tests); full suite passed (343 files,
 links (106 files), migration validation (217 files), offline build and
 `git diff --check` passed. Manual diff review checked raw-field selection,
 start-based denominators, cancellation and incomplete-page handling. No hosted
-database or customer records were accessed. PR and release evidence pending.
+database or customer records were accessed. The merge records above provide the previously pending
+PR and release evidence.
