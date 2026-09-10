@@ -9,6 +9,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      // Staff-only. The installed staff PWA is what needs precaching; the
+      // customer portal goes without. sw.js stays at the deployment root
+      // because a worker can only claim a scope at or below its own directory,
+      // and it has to be able to claim /staff/.
+      scope: "/staff/",
       manifest: false, // use public/app/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],

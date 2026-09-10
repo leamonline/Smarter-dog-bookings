@@ -220,11 +220,11 @@ function CustomerAppContent() {
     <ErrorBoundary>
       <NetworkOfflineBanner />
       <Routes>
-        <Route path="book" element={
+        <Route path="new" element={
           <BookingWizard
             humanRecord={humanRecord}
-            onComplete={() => navigate("/customer")}
-            onCancel={() => navigate("/customer")}
+            onComplete={() => navigate("/")}
+            onCancel={() => navigate("/")}
           />
         } />
         <Route path="*" element={

@@ -206,7 +206,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     onSignOut();
   };
   const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
-  const handleBook = () => navigate("/customer/book");
+  const handleBook = () => navigate("/new");
 
 
   return (

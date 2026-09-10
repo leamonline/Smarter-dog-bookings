@@ -120,7 +120,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     setConfirmingReschedule(false);
     const approvalQuery = requiresStaffApproval ? "&approval=request" : "";
     navigate(
-      `/customer/book?reschedule=${encodeURIComponent(next.id)}${approvalQuery}`,
+      `/new?reschedule=${encodeURIComponent(next.id)}${approvalQuery}`,
       {
         state: {
           rescheduleFrom: {

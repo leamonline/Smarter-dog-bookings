@@ -110,8 +110,8 @@ must be confirmed in the Vercel dashboard before the cutover.
 |---|---|
 | `/` and existing marketing paths | marketing website, unchanged |
 | `/book` | customer portal entrance |
-| `/book/*` | customer portal routes |
-| `/stafflogin` | staff sign-in |
+| `/book/*` | customer portal routes (the wizard is `/book/new`) |
+| `/stafflogin` | staff entrance; redirects to `/staff/`, which signs staff in |
 | `/staff/*` | authenticated staff routes |
 | `/reset-password` | password reset, both audiences |
 | `/customer/*` | permanent redirect to the matching `/book/*` |
@@ -311,17 +311,29 @@ until the domain points at Vercel.
 
 Each step is a reviewable pull request.
 
-1. **Namespace the booking app's output.** `vite.config.js`: move hashed
+1. **Namespace the booking app's output.** ✅ Done (`3e3b4a3f`). Landed as a
+   single `/app/` prefix rather than a separate `booking-assets/`, so static
+   files and hashed assets share one namespace. `manifest.json` `start_url`
+   and the service-worker scope moved in step 2 instead, because scoping the
+   worker to `/staff/` before the routes existed would have dropped staff
+   precaching in between. Original wording: `vite.config.js`: move hashed
    assets to `booking-assets/`, move `public/` files under a dedicated prefix,
    update `manifest.json` icon paths and `start_url`. Update the PWA service
    worker scope to `/staff/` and serve `push-sw.js` from the same prefix.
    Tests: extend the existing `vite.config` logic test to pin the new output
    paths; assert no path in the booking `dist` tree also exists in
    `website/dist`.
-2. **Move the routes.** `src/index.jsx` and `StaffRoutes.jsx`: customer portal
-   to `/book/*`, staff to `/staff/*`, `/stafflogin` as the sign-in entry, and
-   permanent redirects from `/customer/*`. Update the ten `/customer` literals
-   in `src/`. Tests: component tests for the redirect and for each entrance.
+2. **Move the routes.** ✅ Done. Each entrance mounts its own `BrowserRouter`
+   with a `basename` (`/book`, `/staff`) rather than rewriting paths, so the
+   absolute paths already inside both apps — `/today`, `/dogs/:id`, the
+   pathname regexes in `useProfileRouting` — keep working untouched.
+   `src/routing/entrypoints.ts` is the pure resolver for which app to mount and
+   what to redirect; `StaffRoutes.jsx` needed no changes at all. The one route
+   rename is the booking wizard, `/customer/book` → `/book/new`, because under
+   the `/book` basename it would have read as `/book/book`. Staff push URLs
+   gained the `/staff` prefix (they are opened by `openWindow`, not the router).
+   Tests: unit tests on the resolver, including that no redirect loops or takes
+   two hops; entrances verified end-to-end in the offline preview.
 3. **Combined build and routing.** A build script that runs both builds and
    merges the output, the `vercel.json` rewrite table, headers reproducing the
    `.htaccess` caching behaviour, and the merged `robots.txt` with its

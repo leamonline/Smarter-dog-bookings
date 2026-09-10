@@ -1,5 +1,5 @@
 export const STAFF_LOGIN_PATH = "/login";
-export const CUSTOMER_LOGIN_PATH = "/customer/login";
+export const CUSTOMER_LOGIN_PATH = "/login";
 
 const BLOCKED_REDIRECT_PATHS = new Set([
   STAFF_LOGIN_PATH,
@@ -103,7 +103,7 @@ export function getCustomerAuthRouteState({
   if (isLoginRoute) {
     return {
       status: "redirect",
-      to: getSafeRedirectPath(from, "/customer"),
+      to: getSafeRedirectPath(from, "/"),
     };
   }
 

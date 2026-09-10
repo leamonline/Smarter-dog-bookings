@@ -115,7 +115,7 @@ describe("BookingCard cancellation", () => {
     await user.click(screen.getByRole("button", { name: "Pick a new time" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(
-      `/customer/book?reschedule=${booking.id}`,
+      `/new?reschedule=${booking.id}`,
     );
   });
 
@@ -137,7 +137,7 @@ describe("BookingCard cancellation", () => {
     );
 
     expect(screen.getByTestId("location")).toHaveTextContent(
-      `/customer/book?reschedule=${booking.id}&approval=request`,
+      `/new?reschedule=${booking.id}&approval=request`,
     );
   });
 

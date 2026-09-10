@@ -248,7 +248,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           {openMenu === "account" && (
             <div role="menu" className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               <a
-                href="/customer"
+                href="/book"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setOpenMenu(null)}
@@ -352,7 +352,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               </button>
               <div className="h-px bg-slate-200 mx-3" />
               <a
-                href="/customer"
+                href="/book"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setOpenMenu(null)}

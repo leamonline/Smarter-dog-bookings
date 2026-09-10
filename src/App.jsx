@@ -260,8 +260,9 @@ function AuthedApp({
   });
 
   // A staff push-notification click focuses this window and asks it to route
-  // here via React Router (no full reload — see public/push-sw.js). Only honour
-  // same-app absolute paths; ignore the customer portal and anything malformed.
+  // here via React Router (no full reload — see public/push-sw.js). The URL is
+  // browser-absolute because the service worker may also openWindow() it, so
+  // only honour staff paths and hand navigate() the basename-relative part.
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return undefined;
     const onMessage = (event) => {
@@ -269,10 +270,9 @@ function AuthedApp({
       if (
         data?.type === "sw-navigate" &&
         typeof data.url === "string" &&
-        data.url.startsWith("/") &&
-        !data.url.startsWith("/customer")
+        data.url.startsWith("/staff/")
       ) {
-        navigate(data.url);
+        navigate(data.url.slice("/staff".length) || "/");
       }
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
