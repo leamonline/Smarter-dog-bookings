@@ -29,6 +29,72 @@ caches, then switch. About half an hour of attention at each end, with the wait
 in between. After the switch, rollback propagates in five minutes rather than
 four hours — which is the entire point of the wait.
 
+## Completion record — 11 September 2026
+
+The cutover is done. `smarterdog.co.uk` serves the marketing site, `/book` the
+customer portal and `/stafflogin` the staff app, all verified live.
+
+**Three things went wrong. All were mine, and all are worth reading before the
+next domain move.**
+
+### 1. Legacy staff paths served the marketing site
+
+`/today` and `/dogs` returned the salon's homepage after the merge. The booking
+app's own resolver redirects those, but on a merged origin it never runs — `/`
+is the marketing site, so an unmatched path falls through to the website's
+catch-all and the website's JavaScript loads instead. The redirect has to be at
+the edge. Fixed in #826.
+
+The preview check missed it because it tried `/nonsense-page`, which is
+*supposed* to reach the website. Testing an invented path proves nothing about
+real retired paths.
+
+### 2. Three subdomains followed the apex to Vercel
+
+`webmail`, `cpanel` and `ftp` were CNAMEs pointing at `smarterdog.co.uk`. When
+the apex moved, they moved with it, and Bluehost's webmail became unreachable —
+during the owner's holiday.
+
+This runbook said "only the apex A and www change", which was wrong. It checked
+MX and the A records but never asked **what depends on the apex**. Before moving
+an apex, list every record whose target is the domain itself. They are now A
+records on `50.6.153.109`, matching `mail`, `whm`, `autoconfig` and
+`autodiscover` — the four that survived precisely because they were A records.
+
+### 3. HSTS `includeSubDomains` pinned subdomains we do not serve
+
+Inherited from the booking app's own config, where the deployment owned its
+whole `*.vercel.app` name. On the real domain it told browsers to force HTTPS on
+`webmail`, `cpanel` and `ftp` — which have no valid certificate — for a year.
+Fixed in #828; HSTS now covers only the apex and `www`.
+
+### Certificate issuance needed a manual nudge
+
+Bluehost's two nameservers answered the *same query* inconsistently for around
+half an hour (`ns1` returned the old address roughly half the time). Let's
+Encrypt validation kept failing, so no certificate issued and the site was down
+over HTTPS. `vercel certs issue` succeeded once the answers settled. If this
+recurs: check authoritative consistency with repeated `dig @ns1` / `@ns2` before
+assuming Vercel is at fault.
+
+### Done
+
+Every step of this runbook, including the Supabase **Site URL** change that was
+deliberately deferred until the domain resolved (it feeds `{{ .SiteURL }}` in
+email templates, so moving it earlier would have put dead links in anything
+sent during the gap).
+
+### Still open
+
+- Staff re-add the app to their home screens from `smarterdog.co.uk/stafflogin`
+  and re-enable device notifications — changing origin invalidates both.
+- `webmail.smarterdog.co.uk` has **no valid certificate on any port**;
+  Bluehost serves `*.bluehost.com` on 443 and a `mybluehost.me` name on 2096.
+  Plain HTTP works, so webmail logins travel unencrypted. Pre-existing, not
+  caused by this move. `https://mail.smarterdog.co.uk:2096` is the same mailbox
+  with a certificate that validates.
+- Delete the repository variable `WEBSITE_DEPLOY_ENABLED` — nothing reads it.
+
 ## Invariants
 
 - **Nameservers and MX never change.** They stay at Bluehost. Email is
