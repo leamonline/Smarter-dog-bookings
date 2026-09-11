@@ -10,8 +10,24 @@ at `/`, customers at `/book` and staff at `/stafflogin`. Every step below
 changes an external account and therefore needs explicit owner authority —
 preparing this runbook is not that authority.
 
-**Do it on a closed day.** The salon opens Mon–Wed, so Thursday morning gives
-the longest window before anyone needs to book or groom.
+**Do it at the START of a closure, not during one.** A closed salon does not
+mean an unused website: the marketing site and the booking portal run whether
+the salon is open or not, and people searching for a groomer — or booking for
+after the reopening — still land on smarterdog.co.uk. A broken site on a
+working day gets noticed in minutes; a broken site over an unattended week does
+not. What the closure actually buys is that no staff are blocked and no
+grooming day is disrupted, plus the device re-add (step 10) lands naturally on
+the first day back.
+
+So do it while someone is still paying attention, with the rollback to hand —
+and on a connection you trust, because rolling back needs working access to
+Bluehost.
+
+**Timing.** Both records carry a **14400s (4 hour) TTL**, so the sequence is
+roughly: lower both to 300s, wait four hours for the old value to age out of
+caches, then switch. About half an hour of attention at each end, with the wait
+in between. After the switch, rollback propagates in five minutes rather than
+four hours — which is the entire point of the wait.
 
 ## Invariants
 
