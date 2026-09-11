@@ -1,0 +1,202 @@
+# smarterdog.co.uk domain cutover runbook
+
+**Status:** Prepared, not executed.
+**Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
+**Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
+**Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
+
+Points smarterdog.co.uk at Vercel, so one deployment serves the marketing site
+at `/`, customers at `/book` and staff at `/stafflogin`. Every step below
+changes an external account and therefore needs explicit owner authority —
+preparing this runbook is not that authority.
+
+**Do it on a closed day.** The salon opens Mon–Wed, so Thursday morning gives
+the longest window before anyone needs to book or groom.
+
+## Invariants
+
+- **Nameservers and MX never change.** They stay at Bluehost. Email is
+  `box4089.bluehost.com`; touching NS or MX takes the salon's email down. Only
+  the apex `A` record and the `www` record change.
+- **Bluehost `public_html/` is left untouched**, so rollback is a DNS change
+  and nothing else.
+- Exactly one publisher writes to Bluehost. Disable it before the DNS change,
+  not after.
+
+## Current state (verified 11 September 2026)
+
+| What | Value |
+| --- | --- |
+| apex `A` | `50.6.153.109` (Bluehost) |
+| `www` | `103.169.142.0` — a different server, and already broken |
+| nameservers | `ns1.bluehost.com`, `ns2.bluehost.com` |
+| MX | `box4089.bluehost.com` |
+| Vercel team / project | `smarterdog` / `smarter-dogs-smart-humans` |
+| Vercel custom domains | none yet — only `*.vercel.app` |
+| Supabase prod project | `nlzhllhkigmsvrzduefz` (Smarter-dog-grooming, eu-west-2) |
+
+`www` failing is pre-existing, not caused by this work: it points at a
+different host from the apex, serves no certificate valid for that name, and
+returns `409` over plain HTTP. Adding it to Vercel fixes it as a side effect.
+
+## 1. Merge the code — AUTHORISE
+
+Merge #825. Nothing about the live domain changes: smarterdog.co.uk still
+resolves to Bluehost. What changes is that `smarterdog.vercel.app` starts
+serving the marketing site at `/` and the booking app at `/book` and `/staff`.
+
+Check on `smarterdog.vercel.app` before going further: `/` is the marketing
+site, `/stafflogin` reaches the staff sign-in, `/book` reaches the customer
+login, and an old bookmark like `/today` still lands on the app.
+
+## 2. Add the domains in Vercel — AUTHORISE
+
+Vercel → **smarterdog** → **smarter-dogs-smart-humans** → Settings → Domains.
+Add both:
+
+- `smarterdog.co.uk`
+- `www.smarterdog.co.uk`
+
+Vercel then shows the exact `A` and `CNAME` values to use. **Take them from
+that screen.** Do not use a value from memory, this runbook or an old blog
+post — Vercel has changed its anycast addresses, and a stale IP produces a site
+that resolves but never gets a certificate.
+
+Vercel will report both domains as misconfigured. That is expected until step 7.
+
+Set one as primary and let the other redirect — apex primary, `www` redirecting
+to it, matches how the site is linked today.
+
+## 3. Supabase Auth — AUTHORISE
+
+Dashboard → project `nlzhllhkigmsvrzduefz` → Authentication → URL Configuration.
+
+- **Site URL:** `https://smarterdog.co.uk`
+- **Redirect URLs:** add `https://smarterdog.co.uk/**` and keep the existing
+  `smarterdog.vercel.app` entries for the compatibility window.
+
+The password-reset link is built in the browser from `window.location.origin`,
+so no code change is needed — but if the allowlist does not name the new
+origin, resets silently fail to redirect. That is the single most likely thing
+to be missed here, because nothing else visibly breaks without it.
+
+## 4. Turnstile — AUTHORISE
+
+Cloudflare dashboard → Turnstile → the widget behind `VITE_TURNSTILE_SITE_KEY`
+→ Settings → Hostname management. Add `smarterdog.co.uk` and
+`www.smarterdog.co.uk`, keeping `smarterdog.vercel.app`.
+
+Miss this and the customer login captcha fails on the new domain while working
+everywhere else.
+
+## 5. Edge Function CORS secrets — AUTHORISE
+
+`DEFAULT_ALLOWED_ORIGINS` in
+[`_shared/cors.ts`](../../../supabase/functions/_shared/cors.ts) already names
+the new domain, but it is only a fallback — any function whose env var is set
+ignores it. Find which are actually set:
+
+```bash
+supabase secrets list --project-ref nlzhllhkigmsvrzduefz
+```
+
+For each one that appears, append `https://smarterdog.co.uk` to the
+comma-separated list, keeping what is already there:
+
+`BROADCAST_MESSAGE_ALLOWED_ORIGINS`, `CUSTOMER_PHONE_ALLOWED_ORIGINS`,
+`DASHBOARD_SUMMARY_ALLOWED_ORIGINS`, `NOTIFY_REMINDER_ALLOWED_ORIGINS`,
+`NOTIFY_WELCOME_ALLOWED_ORIGINS`, `POSTCODE_LOOKUP_ALLOWED_ORIGINS`,
+`REMINDER_SEND_ALLOWED_ORIGINS`, `SMS_SEND_ALLOWED_ORIGINS`,
+`WHATSAPP_SEND_ALLOWED_ORIGINS`, `WHATSAPP_UPDATE_NOTES_ALLOWED_ORIGINS`.
+
+Any that are **not** listed need nothing — they fall through to the code
+default, which is already correct.
+
+## 6. Lower the TTL, then disable the publisher — AUTHORISE
+
+At Bluehost, lower the TTL on the apex `A` and the `www` record to the minimum
+offered (typically 300s). **Wait for the old TTL to expire** before step 7 —
+otherwise rollback is as slow as the old TTL, which is the difference between a
+five-minute and a four-hour outage if something is wrong.
+
+Then set the repository variable `WEBSITE_PUBLISHER_ENABLED` to `false`
+(GitHub → Settings → Secrets and variables → Actions → Variables), and confirm
+no publish is in flight in the Actions tab.
+
+## 7. Switch DNS — AUTHORISE
+
+At Bluehost, change **only** these two records to the values Vercel gave in
+step 2:
+
+- apex `A`: `50.6.153.109` → Vercel's value
+- `www`: `103.169.142.0` → Vercel's value
+
+Leave nameservers, MX and everything else exactly as they are.
+
+Then wait for Vercel to issue certificates for both names — the Domains screen
+goes from misconfigured to valid on its own, usually within minutes.
+
+## 8. Verify
+
+```bash
+# routing
+for p in / /book /stafflogin /customer/book /nonsense; do \
+  curl -s -o /dev/null -w "$p -> %{http_code} %{redirect_url}\n" https://smarterdog.co.uk$p; done
+
+# the one that matters most: the marketing site must stay crawlable
+curl -s https://smarterdog.co.uk/robots.txt | head -12
+
+# certificate covers both names
+curl -sI https://www.smarterdog.co.uk | head -1
+```
+
+Expect `/` to be the marketing site, `/book` and `/stafflogin` to reach the
+app, `/customer/book` to redirect to `/book/new`, `/nonsense` to fall through
+to the marketing site, and `robots.txt` to begin `User-agent: *` / `Allow: /`.
+
+Then, by hand — these cannot be checked before the cutover because they depend
+on steps 3 and 4:
+
+- a real staff login
+- a real customer login, including the Turnstile captcha
+- a password reset, end to end, following the emailed link
+- the salon's email still arriving
+
+## 9. Only now, flip the three hardcoded origins — AUTHORISE
+
+Doing these before DNS resolves to Vercel points real customers at a URL
+Bluehost would answer.
+
+- `CUSTOMER_PORTAL_URL` in
+  [`_shared/salonConstants.ts`](../../../supabase/functions/_shared/salonConstants.ts)
+  → `https://smarterdog.co.uk/book/login`. This is the link WhatsApp messages
+  send customers. Setting the `CUSTOMER_PORTAL_URL` Edge Function secret
+  overrides it without a deploy, which is the faster path.
+- `BOOKING_URL` in
+  [`website/src/constants/links.js`](../../../website/src/constants/links.js)
+  → `https://smarterdog.co.uk/book` — the marketing site's "Book now". Under
+  `website/**`, so it triggers `website.yml`; confirm
+  `WEBSITE_PUBLISHER_ENABLED` is already `false` from step 6 first.
+- `DEFAULT_ORIGIN` in
+  [`scripts/check-sentry-live.mjs`](../../../scripts/check-sentry-live.mjs)
+  → `https://smarterdog.co.uk`. Not urgent; `vercel.app` serves the same
+  deployment and the script works from either origin.
+
+## 10. Staff devices
+
+Changing origin invalidates every installed PWA and every Web Push
+subscription — the browser treats the new domain as a different site. Staff
+need to re-add the app to their home screens from `smarterdog.co.uk/stafflogin`
+and re-enable device notifications in Settings → Your Account. Tell them before
+the cutover, not after.
+
+## Rollback
+
+Restore the two DNS records — apex `A` to `50.6.153.109`, `www` to
+`103.169.142.0` — and set `WEBSITE_PUBLISHER_ENABLED` back to `true`. Bluehost
+`public_html/` is untouched throughout, so the previous site returns as soon as
+the records propagate, which is why step 6 lowers the TTL first.
+
+The merged code can stay merged. It is inert while the domain points at
+Bluehost: `smarterdog.vercel.app` keeps serving both apps, and every old URL
+still redirects.

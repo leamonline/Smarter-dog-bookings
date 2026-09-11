@@ -286,6 +286,9 @@ the previous site exactly.
 
 ## Migration/rollout
 
+Step-by-step procedure, with the exact values and the rollback:
+[domain cutover runbook](../../superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md).
+
 Order matters; each step is separately reversible.
 
 1. Merge the code changes with no DNS change. Verify every new path on
