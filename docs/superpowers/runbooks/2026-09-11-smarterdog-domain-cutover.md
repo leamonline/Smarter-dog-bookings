@@ -80,20 +80,21 @@ vercel domains inspect smarterdog.co.uk --scope smarterdog
 If the apex should be the primary and `www` should redirect to it, set that in
 Settings → Domains; it matches how the site is linked today.
 
-## 3. Supabase Auth — AUTHORISE
+## 3. Supabase Auth — ✅ redirect URLs DONE 11 September 2026 (Site URL still pending, step 7)
 
 Dashboard → project `nlzhllhkigmsvrzduefz` → Authentication → URL Configuration.
 
-**Redirect URLs — do this now.** Adding entries is harmless while the domain
-still resolves to Bluehost. Add both:
+**Redirect URLs — done.** Both are present, and the 17 entries verified on
+screen:
 
 - `https://smarterdog.co.uk/**`
 - `https://www.smarterdog.co.uk/**`
 
-Keep every existing `vercel.app` entry for the compatibility window.
+Every existing `vercel.app` entry was kept, as the compatibility window needs
+them.
 
-**Remove `http://smarterdog.co.uk/book/reset-password`** if it is present. It
-was added in good faith on 11 September and matches nothing: the scheme is
+**`http://smarterdog.co.uk/book/reset-password` was removed.** It had been
+added in good faith and matched nothing: the scheme is
 `http` where the site serves `https`, and the path is `/book/reset-password`
 where the app actually uses `/reset-password`. Supabase matches scheme, host
 and path, so a near-miss entry is the same as no entry — which is the trap this
@@ -107,7 +108,7 @@ build it as `` `${window.location.origin}/reset-password` `` — see
 `/book` ([entrypoints.ts](../../../src/routing/entrypoints.ts#L74)). The `/**`
 wildcards above cover it without naming it.
 
-**Site URL — leave until the DNS switch (step 7).** It is currently
+**Site URL — still to do, at the DNS switch (step 7).** It is currently
 `https://smarter-dogs-smart-humans-smarterdog.vercel.app/`, which works today.
 Supabase uses it as the fallback redirect and as `{{ .SiteURL }}` in email
 templates, so pointing it at `smarterdog.co.uk` before DNS moves would put dead
@@ -184,6 +185,12 @@ Leave nameservers, MX and everything else exactly as they are.
 
 Then wait for Vercel to issue certificates for both names — the Domains screen
 goes from misconfigured to valid on its own, usually within minutes.
+
+**Then change the Supabase Site URL**, deferred from step 3: Authentication →
+URL Configuration → Site URL → `https://smarterdog.co.uk` → Save. It feeds
+`{{ .SiteURL }}` in email templates, so it is correct only once the records are
+live — which is why it waits until here rather than going in with the rest of
+the auth config.
 
 ## 8. Verify
 
