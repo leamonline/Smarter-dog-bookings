@@ -1,6 +1,6 @@
 # smarterdog.co.uk domain cutover runbook
 
-**Status:** Prepared, not executed.
+**Status:** In progress — step 2 (Vercel domains) done 11 September 2026; DNS not yet changed.
 **Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 **Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
 **Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
@@ -49,23 +49,36 @@ Check on `smarterdog.vercel.app` before going further: `/` is the marketing
 site, `/stafflogin` reaches the staff sign-in, `/book` reaches the customer
 login, and an old bookmark like `/today` still lands on the app.
 
-## 2. Add the domains in Vercel — AUTHORISE
+## 2. Add the domains in Vercel — ✅ DONE 11 September 2026
 
-Vercel → **smarterdog** → **smarter-dogs-smart-humans** → Settings → Domains.
-Add both:
+Both are attached to `smarter-dogs-smart-humans` under the `smarterdog` team:
 
 - `smarterdog.co.uk`
 - `www.smarterdog.co.uk`
 
-Vercel then shows the exact `A` and `CNAME` values to use. **Take them from
-that screen.** Do not use a value from memory, this runbook or an old blog
-post — Vercel has changed its anycast addresses, and a stale IP produces a site
-that resolves but never gets a certificate.
+Both report "not configured properly", which is expected and harmless — the
+domain still resolves to Bluehost and the live site is unaffected until step 7.
 
-Vercel will report both domains as misconfigured. That is expected until step 7.
+**The records Vercel asked for (read back from `vercel domains inspect`):**
 
-Set one as primary and let the other redirect — apex primary, `www` redirecting
-to it, matches how the site is linked today.
+| Record | Name | Value |
+| --- | --- | --- |
+| `A` | `smarterdog.co.uk` | `76.76.21.21` |
+| `A` | `www.smarterdog.co.uk` | `76.76.21.21` |
+
+Vercel offers a second option — pointing the nameservers at
+`ns1.vercel-dns.com` / `ns2.vercel-dns.com`. **Do not take it.** That moves the
+whole zone to Vercel, taking the MX records with it, and the salon's email
+stops. The `A`-record option keeps DNS at Bluehost where the mail config lives.
+
+Re-read the values before using them if much time has passed:
+
+```bash
+vercel domains inspect smarterdog.co.uk --scope smarterdog
+```
+
+If the apex should be the primary and `www` should redirect to it, set that in
+Settings → Domains; it matches how the site is linked today.
 
 ## 3. Supabase Auth — AUTHORISE
 
