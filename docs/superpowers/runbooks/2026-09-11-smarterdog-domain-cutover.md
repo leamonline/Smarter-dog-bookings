@@ -84,6 +84,27 @@ deliberately deferred until the domain resolved (it feeds `{{ .SiteURL }}` in
 email templates, so moving it earlier would have put dead links in anything
 sent during the gap).
 
+### Decided: the Bluehost publisher stays on
+
+`WEBSITE_PUBLISHER_ENABLED` is deliberately back to **`true`**, reversing what
+step 6 of this runbook says. That instruction was written before there was a
+working Vercel deployment to compare against.
+
+Nothing reaches Bluehost any more — the domain resolves to Vercel, which is what
+serves the site. So publishing there affects no visitor. What it does buy is a
+**warm rollback target**: if DNS ever has to go back to `50.6.153.109`, it lands
+on a current site rather than the snapshot frozen on 11 September.
+
+Turn it off once a rollback is no longer plausible — a few weeks is sensible.
+When you do, that is step 5 of the plan ("publisher retirement") and the deploy
+job in [`website.yml`](../../../.github/workflows/website.yml) can go with it.
+The FTP secrets (`BLUEHOST_FTP_HOST`, `BLUEHOST_FTP_USER`,
+`BLUEHOST_FTP_PASSWORD`) should be removed at the same time.
+
+Until then it is a decision, not drift. The previous occupant of this page,
+`WEBSITE_DEPLOY_ENABLED`, sat reading `true` while wired to nothing at all —
+which is exactly what a variable looks like when nobody wrote down why.
+
 ### Still open
 
 - Staff re-add the app to their home screens from `smarterdog.co.uk/stafflogin`
@@ -93,7 +114,10 @@ sent during the gap).
   Plain HTTP works, so webmail logins travel unencrypted. Pre-existing, not
   caused by this move. `https://mail.smarterdog.co.uk:2096` is the same mailbox
   with a certificate that validates.
-- Delete the repository variable `WEBSITE_DEPLOY_ENABLED` — nothing reads it.
+- ~~Delete the repository variable `WEBSITE_DEPLOY_ENABLED`~~ — done
+  11 September 2026.
+- Turn `WEBSITE_PUBLISHER_ENABLED` off once rollback is no longer plausible
+  (see above).
 
 ## Invariants
 
