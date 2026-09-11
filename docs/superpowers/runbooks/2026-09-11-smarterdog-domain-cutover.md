@@ -102,28 +102,39 @@ Cloudflare dashboard → Turnstile → the widget behind `VITE_TURNSTILE_SITE_KE
 Miss this and the customer login captcha fails on the new domain while working
 everywhere else.
 
-## 5. Edge Function CORS secrets — AUTHORISE
+## 5. Edge Function CORS — one secret, not ten
 
-`DEFAULT_ALLOWED_ORIGINS` in
-[`_shared/cors.ts`](../../../supabase/functions/_shared/cors.ts) already names
-the new domain, but it is only a fallback — any function whose env var is set
-ignores it. Find which are actually set:
+Checked on 11 September against `nlzhllhkigmsvrzduefz`: of the ten
+`*_ALLOWED_ORIGINS` variables the code can read, **only one is actually set** —
+`POSTCODE_LOOKUP_ALLOWED_ORIGINS`.
+
+The other nine fall through to `DEFAULT_ALLOWED_ORIGINS` in
+[`_shared/cors.ts`](../../../supabase/functions/_shared/cors.ts), which #825
+already updates to name `smarterdog.co.uk` and `www.smarterdog.co.uk`. They
+need nothing — and they genuinely will pick the change up, because
+[`deploy-edge-functions.yml`](../../../.github/workflows/deploy-edge-functions.yml)
+redeploys **every** function when anything under `_shared/` changes rather than
+only the directories that changed. So merging #825 is what fixes those nine.
+
+That leaves one to set by hand. Its current value cannot be read back (the API
+returns a digest, not the value), so set the whole list explicitly rather than
+trying to append to it:
 
 ```bash
-supabase secrets list --project-ref nlzhllhkigmsvrzduefz
+supabase secrets set --project-ref nlzhllhkigmsvrzduefz \
+  POSTCODE_LOOKUP_ALLOWED_ORIGINS="https://smarterdog.co.uk,https://www.smarterdog.co.uk,https://smarterdog.vercel.app,http://localhost:5173,http://localhost:5174"
 ```
 
-For each one that appears, append `https://smarterdog.co.uk` to the
-comma-separated list, keeping what is already there:
+Re-check the inventory if time has passed, since a new function may have
+brought its own variable:
 
-`BROADCAST_MESSAGE_ALLOWED_ORIGINS`, `CUSTOMER_PHONE_ALLOWED_ORIGINS`,
-`DASHBOARD_SUMMARY_ALLOWED_ORIGINS`, `NOTIFY_REMINDER_ALLOWED_ORIGINS`,
-`NOTIFY_WELCOME_ALLOWED_ORIGINS`, `POSTCODE_LOOKUP_ALLOWED_ORIGINS`,
-`REMINDER_SEND_ALLOWED_ORIGINS`, `SMS_SEND_ALLOWED_ORIGINS`,
-`WHATSAPP_SEND_ALLOWED_ORIGINS`, `WHATSAPP_UPDATE_NOTES_ALLOWED_ORIGINS`.
+```bash
+supabase secrets list --project-ref nlzhllhkigmsvrzduefz | tr ',' '\n' | grep ALLOWED_ORIGINS
+```
 
-Any that are **not** listed need nothing — they fall through to the code
-default, which is already correct.
+Postcode lookup is how the customer booking wizard turns a postcode into an
+address, so if this one is wrong the symptom is address lookup failing on the
+new domain while everything else works.
 
 ## 6. Lower the TTL, then disable the publisher — AUTHORISE
 
