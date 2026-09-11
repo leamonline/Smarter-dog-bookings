@@ -77,10 +77,15 @@ over HTTPS. `vercel certs issue` succeeded once the answers settled. If this
 recurs: check authoritative consistency with repeated `dig @ns1` / `@ns2` before
 assuming Vercel is at fault.
 
+### Done
+
+Every step of this runbook, including the Supabase **Site URL** change that was
+deliberately deferred until the domain resolved (it feeds `{{ .SiteURL }}` in
+email templates, so moving it earlier would have put dead links in anything
+sent during the gap).
+
 ### Still open
 
-- Supabase **Site URL** → `https://smarterdog.co.uk` (Authentication → URL
-  Configuration). Redirect URLs are already done.
 - Staff re-add the app to their home screens from `smarterdog.co.uk/stafflogin`
   and re-enable device notifications — changing origin invalidates both.
 - `webmail.smarterdog.co.uk` has **no valid certificate on any port**;
