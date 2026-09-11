@@ -117,12 +117,40 @@ once the records are live.
 
 ## 4. Turnstile — AUTHORISE
 
-Cloudflare dashboard → Turnstile → the widget behind `VITE_TURNSTILE_SITE_KEY`
-→ Settings → Hostname management. Add `smarterdog.co.uk` and
-`www.smarterdog.co.uk`, keeping `smarterdog.vercel.app`.
+**The widget is not in the Cloudflare account you land in by default.** The
+account reached from `dash.cloudflare.com` as `leam@leamonline.uk` shows *no*
+Turnstile widgets at all, which reads like Turnstile was never set up. It was —
+in a second account.
 
-Miss this and the customer login captcha fails on the new domain while working
-everywhere else.
+| | |
+| --- | --- |
+| Account | `0ecd5c4d05ee426d5c33874d6a64d6d1` |
+| Widget | **Customer Log-in Capture** |
+| Site key | `0x4AAAAAADMvAmN7LsBYiIqZ` (public — it ships in the browser bundle) |
+| Hostname on file | `smarterdog.vercel.app` |
+
+Turnstile → **Customer Log-in Capture** → Settings → Hostname management. Add
+`smarterdog.co.uk` and `www.smarterdog.co.uk`, keeping `smarterdog.vercel.app`.
+
+This one genuinely breaks things if missed: Turnstile refuses to issue a
+challenge on a hostname that is not on the widget's list, so customer login
+would fail on the new domain while working on the old one. It matches on
+hostname only — no scheme, no path.
+
+### Known separately: the token is never verified
+
+The widget's own analytics report **zero siteverify requests** against five
+solved challenges, and Cloudflare shows a warning on the widget saying as much.
+Nothing in `supabase/functions/` calls siteverify either. The token is issued,
+solved and then discarded, so the captcha is currently a visual speed bump
+rather than bot protection.
+
+That is pre-existing and **not** a cutover blocker — it is equally unverified on
+the current domain. Adding the hostnames keeps behaviour identical. Wiring up
+verification is its own piece of work: either enable CAPTCHA in Supabase
+Authentication → Attack Protection with this widget's secret key, or call
+siteverify in the auth path. Do it deliberately, with testing, not during a
+domain move.
 
 ## 5. Edge Function CORS — ✅ DONE 11 September 2026
 
