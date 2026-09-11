@@ -1,6 +1,30 @@
 # smarterdog.co.uk domain cutover runbook
 
-**Status:** In progress — step 2 (Vercel domains) done 11 September 2026; DNS not yet changed.
+**Status:** In progress — paused before the DNS switch, 11 September 2026.
+
+| Step | State |
+| --- | --- |
+| 1. Merge the code | ✅ #825 merged 16:02 UTC, plus #826 fixing legacy staff paths |
+| 2. Vercel domains | ✅ both attached; records are `A → 76.76.21.21` |
+| 3. Supabase redirect URLs | ✅ done — **Site URL still pending, in step 7** |
+| 4. Turnstile hostnames | ✅ three configured |
+| 5. CORS secret | ✅ `POSTCODE_LOOKUP_ALLOWED_ORIGINS` set |
+| 6. TTL + publisher | ✅ both A records at 900s; `WEBSITE_PUBLISHER_ENABLED=false` |
+| 7. **DNS switch** | ⏸ **next** — safe from 20:30 UTC 11 Sep, deliberately deferred to daylight |
+| 8–10 | not started |
+
+**Production was verified on `smarterdog.vercel.app` after the merge** — all 22
+routes, the headers, the cache rules and `robots.txt`. The combined build is
+live and correct; only the domain has yet to point at it.
+
+The 15-minute TTL is a floor Bluehost imposes (not 300s) and **does not
+expire** — it holds until changed back, so deferring the switch costs nothing
+and keeps rollback at about fifteen minutes.
+
+Noted in passing: the repository variable `WEBSITE_DEPLOY_ENABLED=true` is read
+by nothing in `.github/` or `scripts/`. It is inert leftover config from the
+earlier website cutover, but it reads as though deploys were enabled. Worth
+deleting once this is finished.
 **Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 **Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
 **Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
