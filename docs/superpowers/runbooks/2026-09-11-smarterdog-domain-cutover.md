@@ -102,7 +102,7 @@ Cloudflare dashboard → Turnstile → the widget behind `VITE_TURNSTILE_SITE_KE
 Miss this and the customer login captcha fails on the new domain while working
 everywhere else.
 
-## 5. Edge Function CORS — one secret, not ten
+## 5. Edge Function CORS — ✅ DONE 11 September 2026
 
 Checked on 11 September against `nlzhllhkigmsvrzduefz`: of the ten
 `*_ALLOWED_ORIGINS` variables the code can read, **only one is actually set** —
@@ -116,14 +116,18 @@ need nothing — and they genuinely will pick the change up, because
 redeploys **every** function when anything under `_shared/` changes rather than
 only the directories that changed. So merging #825 is what fixes those nine.
 
-That leaves one to set by hand. Its current value cannot be read back (the API
-returns a digest, not the value), so set the whole list explicitly rather than
-trying to append to it:
+That left one to set by hand, now done — the digest changed, confirming it
+took. It was set as a whole list rather than appended to, because the API
+returns a digest and not the value, so there was nothing to append to:
 
 ```bash
 supabase secrets set --project-ref nlzhllhkigmsvrzduefz \
   POSTCODE_LOOKUP_ALLOWED_ORIGINS="https://smarterdog.co.uk,https://www.smarterdog.co.uk,https://smarterdog.vercel.app,http://localhost:5173,http://localhost:5174"
 ```
+
+The running functions keep their old value until they next cold-start, so this
+takes effect when #825 merges and redeploys them — which it will, for the
+`_shared/` reason above. Nothing further to do.
 
 Re-check the inventory if time has passed, since a new function may have
 brought its own variable:
