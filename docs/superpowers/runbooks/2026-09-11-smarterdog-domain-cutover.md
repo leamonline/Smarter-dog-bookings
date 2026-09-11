@@ -84,14 +84,35 @@ Settings → Domains; it matches how the site is linked today.
 
 Dashboard → project `nlzhllhkigmsvrzduefz` → Authentication → URL Configuration.
 
-- **Site URL:** `https://smarterdog.co.uk`
-- **Redirect URLs:** add `https://smarterdog.co.uk/**` and keep the existing
-  `smarterdog.vercel.app` entries for the compatibility window.
+**Redirect URLs — do this now.** Adding entries is harmless while the domain
+still resolves to Bluehost. Add both:
 
-The password-reset link is built in the browser from `window.location.origin`,
-so no code change is needed — but if the allowlist does not name the new
-origin, resets silently fail to redirect. That is the single most likely thing
-to be missed here, because nothing else visibly breaks without it.
+- `https://smarterdog.co.uk/**`
+- `https://www.smarterdog.co.uk/**`
+
+Keep every existing `vercel.app` entry for the compatibility window.
+
+**Remove `http://smarterdog.co.uk/book/reset-password`** if it is present. It
+was added in good faith on 11 September and matches nothing: the scheme is
+`http` where the site serves `https`, and the path is `/book/reset-password`
+where the app actually uses `/reset-password`. Supabase matches scheme, host
+and path, so a near-miss entry is the same as no entry — which is the trap this
+step exists to avoid.
+
+The real URL is `https://smarterdog.co.uk/reset-password`, because both callers
+build it as `` `${window.location.origin}/reset-password` `` — see
+[LoginPage.jsx](../../../src/components/auth/LoginPage.jsx#L115) and
+[AccountSettings.jsx](../../../src/components/views/settings/AccountSettings.jsx#L67)
+— and `/reset-password` is a root route with its own mount, not one under
+`/book` ([entrypoints.ts](../../../src/routing/entrypoints.ts#L74)). The `/**`
+wildcards above cover it without naming it.
+
+**Site URL — leave until the DNS switch (step 7).** It is currently
+`https://smarter-dogs-smart-humans-smarterdog.vercel.app/`, which works today.
+Supabase uses it as the fallback redirect and as `{{ .SiteURL }}` in email
+templates, so pointing it at `smarterdog.co.uk` before DNS moves would put dead
+links in any email sent in between. Change it to `https://smarterdog.co.uk`
+once the records are live.
 
 ## 4. Turnstile — AUTHORISE
 
