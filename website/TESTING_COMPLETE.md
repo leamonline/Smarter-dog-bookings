@@ -298,7 +298,7 @@ npm run test:e2e:ui
 # Build with bundle analysis
 npm run build:analyze
 
-# Opens dist/stats.html showing:
+# Opens bundle-analysis/stats.html showing:
 # - Bundle composition
 # - Module sizes
 # - Gzip/Brotli sizes
