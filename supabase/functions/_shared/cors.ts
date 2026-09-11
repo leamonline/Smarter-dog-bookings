@@ -6,6 +6,11 @@
 // the cross-origin call shape.
 
 export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
+  // The salon's own domain, where customers and staff reach the app.
+  "https://smarterdog.co.uk",
+  "https://www.smarterdog.co.uk",
+  // The Vercel origin still serves the same deployment and keeps working for
+  // anyone on an old bookmark. Remove it only once that traffic has stopped.
   "https://smarterdog.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",

@@ -294,9 +294,23 @@ Order matters; each step is separately reversible.
 2. Add `smarterdog.co.uk` and `www.smarterdog.co.uk` as domains on the Vercel
    project. Vercel will show the exact `A` and `CNAME` values to use — take
    them from the dashboard rather than from memory or documentation.
-3. Add `https://smarterdog.co.uk` to the Supabase Auth redirect allowlist,
-   the Turnstile hostname allowlist and the Edge Function CORS allowlists,
-   keeping the existing `vercel.app` entries.
+3. Add `https://smarterdog.co.uk` to the Supabase Auth **Site URL** and
+   redirect allowlist (include `https://smarterdog.co.uk/reset-password` —
+   password resets build their redirect from `window.location.origin`, so the
+   code needs no change but the allowlist does), the Turnstile hostname
+   allowlist, and the Edge Function CORS allowlists. Keep the existing
+   `vercel.app` entries.
+
+   `DEFAULT_ALLOWED_ORIGINS` in [`_shared/cors.ts`](../../../supabase/functions/_shared/cors.ts)
+   already names the new domain, but it is only a fallback: any function whose
+   env var is set ignores it. Update whichever of these secrets are set —
+   `supabase secrets list` shows which:
+
+   `BROADCAST_MESSAGE_ALLOWED_ORIGINS`, `CUSTOMER_PHONE_ALLOWED_ORIGINS`,
+   `DASHBOARD_SUMMARY_ALLOWED_ORIGINS`, `NOTIFY_REMINDER_ALLOWED_ORIGINS`,
+   `NOTIFY_WELCOME_ALLOWED_ORIGINS`, `POSTCODE_LOOKUP_ALLOWED_ORIGINS`,
+   `REMINDER_SEND_ALLOWED_ORIGINS`, `SMS_SEND_ALLOWED_ORIGINS`,
+   `WHATSAPP_SEND_ALLOWED_ORIGINS`, `WHATSAPP_UPDATE_NOTES_ALLOWED_ORIGINS`.
 4. Lower the TTL on the apex `A` and `www` records at Bluehost, and wait for
    the old TTL to expire.
 5. Set `WEBSITE_PUBLISHER_ENABLED` to `false`. Confirm no publish is in flight.
@@ -307,6 +321,30 @@ Order matters; each step is separately reversible.
    `/robots.txt` served with `Allow: /`.
 8. Staff re-add the app to their home screens and re-enable device
    notifications.
+9. Only now, flip the three hardcoded origins listed below and merge.
+
+### Code that must not change until after the cutover
+
+These three name the origin in outbound links or checks. Changing any of them
+before `smarterdog.co.uk` resolves to Vercel points real customers, or a real
+check, at a URL that does not work yet — Bluehost would answer instead.
+
+- `CUSTOMER_PORTAL_URL` in
+  [`_shared/salonConstants.ts`](../../../supabase/functions/_shared/salonConstants.ts)
+  → `https://smarterdog.co.uk/book/login`. This is the link WhatsApp messages
+  send customers. (`CUSTOMER_PORTAL_URL` as an Edge Function secret overrides
+  it, so setting that secret is the faster path and needs no deploy.)
+- `BOOKING_URL` in
+  [`website/src/constants/links.js`](../../../website/src/constants/links.js)
+  → `https://smarterdog.co.uk/book`. This is the marketing site's "Book now".
+  Note it is under `website/**`, so the change triggers
+  `.github/workflows/website.yml` — check `WEBSITE_PUBLISHER_ENABLED` is
+  already `false` (rollout step 5) before merging it.
+- `DEFAULT_ORIGIN` in
+  [`scripts/check-sentry-live.mjs`](../../../scripts/check-sentry-live.mjs)
+  → `https://smarterdog.co.uk`. Not urgent: `vercel.app` serves the same
+  deployment, and the script reads `/sw.js` and resolves the namespaced asset
+  paths correctly from either origin (verified).
 
 **Rollback.** Restore the two DNS records to `50.6.153.109` and the previous
 `www` value; set `WEBSITE_PUBLISHER_ENABLED` back to `true`. Bluehost
@@ -353,9 +391,17 @@ Each step is a reviewable pull request.
    would fall back to the marketing page; and `smarterdog.vercel.app` gets an
    `X-Robots-Tag: noindex`, because after the merge that hostname would serve
    the website's permissive `robots.txt` and compete with smarterdog.co.uk.
-4. **Documentation and stale references.** `CLAUDE.md`, `README.md`,
-   `docs/whatsapp-flows.md`, `scripts/check-sentry-live.mjs`, the WhatsApp Flow
-   and any message templates that link to `smarterdog.vercel.app`.
+4. **Documentation and stale references.** ✅ Done. `CLAUDE.md` and `README.md`
+   now describe `/staff`, `/stafflogin` and `/book` (step 2 had left them
+   describing `/` and `/customer`), and `CLAUDE.md`'s deploy guardrail says that
+   a bad merge to `main` now takes the marketing site down too. `.env.example`
+   drops a `book.smarterdog.co.uk` subdomain that was never used, and
+   `_shared/cors.ts` names the new domain. The rest turned out to be
+   cutover-time changes rather than now-changes — listed under
+   [Migration/rollout](#code-that-must-not-change-until-after-the-cutover),
+   because changing them early points real customers at a URL Bluehost would
+   answer. Dated reviews and archived audits keep their `vercel.app`
+   references: they are records of what was true then.
 5. **Publisher retirement.** Disable the deploy job in `website.yml` (or remove
    it, keeping the runbook as history) once the cutover is accepted.
 
