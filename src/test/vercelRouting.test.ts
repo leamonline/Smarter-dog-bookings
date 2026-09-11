@@ -149,6 +149,21 @@ describe("vercel routing table", () => {
     }
   });
 
+  it("does not force HTTPS on subdomains this deployment does not serve", () => {
+    // includeSubDomains covers every *.smarterdog.co.uk, and the salon's
+    // webmail, cpanel and ftp are Bluehost services on plain HTTP. Pinning
+    // them to HTTPS locks staff out of their own email for a year, in any
+    // browser that has loaded the marketing site.
+    const hsts = config.headers
+      .flatMap((h: { headers: { key: string; value: string }[] }) => h.headers)
+      .filter((h: { key: string }) => h.key === "Strict-Transport-Security");
+    expect(hsts.length).toBeGreaterThan(0);
+    for (const h of hsts) {
+      expect(h.value).toMatch(/max-age=\d+/);
+      expect(h.value).not.toMatch(/includeSubDomains/i);
+    }
+  });
+
   it("keeps the vercel.app origin out of the index", () => {
     // Same deployment, two hostnames: without this the marketing pages would
     // be indexable twice and compete with smarterdog.co.uk.
