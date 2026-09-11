@@ -124,13 +124,16 @@ in a second account.
 
 | | |
 | --- | --- |
-| Account | `0ecd5c4d05ee426d5c33874d6a64d6d1` |
-| Widget | **Customer Log-in Capture** |
-| Site key | `0x4AAAAAADMvAmN7LsBYiIqZ` (public — it ships in the browser bundle) |
-| Hostname on file | `smarterdog.vercel.app` |
+| Cloudflare login | the **`leam.waddington@…`** account, *not* `leam@leamonline.uk` |
+| Widget | **Customer Log-in Capture** (Application security → Turnstile) |
+| Site key | the value of `VITE_TURNSTILE_SITE_KEY` in the Vercel project — read it there rather than from a screenshot |
 
-Turnstile → **Customer Log-in Capture** → Settings → Hostname management. Add
-`smarterdog.co.uk` and `www.smarterdog.co.uk`, keeping `smarterdog.vercel.app`.
+Turnstile → **Customer Log-in Capture** → Edit widget → Hostname Management.
+Add `smarterdog.co.uk` and `www.smarterdog.co.uk`, keeping
+`smarterdog.vercel.app`, then **Update** — the chips appear in the field before
+the change is saved, so it is easy to leave without saving.
+
+✅ Done 11 September 2026: three hostnames configured.
 
 This one genuinely breaks things if missed: Turnstile refuses to issue a
 challenge on a hostname that is not on the widget's list, so customer login
