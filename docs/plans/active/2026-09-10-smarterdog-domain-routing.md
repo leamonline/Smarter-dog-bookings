@@ -410,13 +410,41 @@ only after acceptance.
 
 ## Testing
 
-**Must be verified on a Vercel preview deployment before the DNS cutover.**
-`vercel.json`'s rewrite, redirect and header matching is Vercel's to interpret;
-the unit tests pin the table's contents and its agreement with the client-side
-resolver, but they cannot prove Vercel matches the patterns as intended. Check
-on a preview URL: `/book` and `/staff` serve the booking app, `/` serves the
-website, `/customer/book` lands on `/book/new`, and a booking path carries the
-`Content-Security-Policy` header while `/` does not.
+**✅ Verified on the PR #825 preview deployment, 11 September 2026.** Vercel's
+own matching was the one thing the unit tests could pin the intent of but not
+the behaviour of, and it did catch a real error first: the deployment failed
+with `invalid-route-source-pattern` because a header rule nested a capturing
+group inside another, which path-to-regexp forbids. Fixed, and a test now
+rejects that shape.
+
+Measured on the preview once it deployed:
+
+| URL | Result |
+| --- | --- |
+| `/` | marketing site |
+| `/book`, `/staff`, `/reset-password` | booking app |
+| `/stafflogin` | 307 → `/staff` |
+| `/customer` | 308 → `/book` |
+| `/customer/book` | 308 → `/book/new` |
+| `/customer/dogs` | 308 → `/book/dogs` |
+| `/nonsense-page` | marketing site |
+
+`Content-Security-Policy` is present on `/book`, `/staff`, `/reset-password`
+and `/app/*`, and absent on `/` and the website's catch-all — the path scoping
+works. `sw.js`, `push-sw.js` and `registerSW.js` all serve
+`max-age=0, must-revalidate`; hashed assets under both `/app/assets/` and the
+website's `/assets/` serve `max-age=31536000, immutable`. `/robots.txt` is the
+website's, with the booking prefixes disallowed inside the `User-agent: *`
+group.
+
+Un-hashed booking brand files (`/app/logo.png` and friends) revalidate rather
+than caching for a year. That is deliberate: their filenames are stable, so a
+long cache would pin a stale logo.
+
+What a preview **cannot** establish, and still needs checking after the DNS
+change: a real staff login, a real customer login including Turnstile, and a
+password reset end to end. Those depend on the Supabase Auth and Turnstile
+allowlists naming the new origin (rollout step 3).
 
 - `npm run lint`, `npm run typecheck`, `npm run check:migrations`,
   `npm run test`, `npm run build` — the stated CI bar.
