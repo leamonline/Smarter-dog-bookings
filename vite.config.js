@@ -2,16 +2,45 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { copyFileSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+
+// The booking app shares an origin with the marketing site, where "/" is the
+// marketing page. So the booking shell also gets a home of its own that no
+// merge can take from it, and the service worker precaches THAT — otherwise
+// the installed staff PWA would fall back to the marketing page offline.
+// It runs on writeBundle, before vite-plugin-pwa globs the output on
+// closeBundle, so the copy lands in the precache manifest.
+function emitNamespacedShell() {
+  return {
+    name: "smarterdog-namespaced-shell",
+    apply: "build",
+    writeBundle(options) {
+      const outDir = options.dir ?? resolve("dist");
+      mkdirSync(resolve(outDir, "app"), { recursive: true });
+      copyFileSync(resolve(outDir, "index.html"), resolve(outDir, "app/index.html"));
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    emitNamespacedShell(),
     VitePWA({
       registerType: "autoUpdate",
-      manifest: false, // use public/manifest.json directly
+      // Staff-only. The installed staff PWA is what needs precaching; the
+      // customer portal goes without. sw.js stays at the deployment root
+      // because a worker can only claim a scope at or below its own directory,
+      // and it has to be able to claim /staff/.
+      scope: "/staff/",
+      manifest: false, // use public/app/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // The shell at its namespaced home, never "/" — which belongs to the
+        // marketing site once the two are served together.
+        navigateFallback: "app/index.html",
         // Pull the staff Web Push handlers (push / notificationclick) into the
         // generated precache SW. importScripts keeps generateSW + precache +
         // the manualChunks shape untouched — it only ADDS listeners. The file
@@ -52,6 +81,11 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
+    // Every file this build emits lives under /app/ so the booking app can be
+    // served from the same origin as the public marketing pages without either
+    // one overwriting the other's output. Static files come from public/app/;
+    // this puts the hashed JS/CSS beside them.
+    assetsDir: "app/assets",
     // NB: this MUST be rollupOptions — the previous `rolldownOptions` key is
     // silently ignored by standard Vite/Rollup, which shipped a single 443 KB
     // entry chunk that every deploy invalidated in the PWA precache. A logic

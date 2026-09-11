@@ -45,10 +45,28 @@ test.describe("Smoke", () => {
   });
 
   test("customer portal shows the phone OTP entry screen", async ({ page }) => {
-    await page.goto("/customer");
-    await expect(page).toHaveURL(/\/customer\/login/);
+    await page.goto("/book");
+    await expect(page).toHaveURL(/\/book\/login/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.locator('input[inputmode="numeric"]').first()).toBeVisible();
+  });
+
+  test("an old /customer link still reaches the portal", async ({ page }) => {
+    // Customers have these in WhatsApp threads and bookmarks, so the redirect
+    // is the compatibility promise of the domain move, not a nicety.
+    await page.goto("/customer");
+    await expect(page).toHaveURL(/\/book\/login/);
+    await expect(page.locator('input[inputmode="numeric"]').first()).toBeVisible();
+  });
+
+  test("/stafflogin is the staff entrance", async ({ page }) => {
+    // What staff type or bookmark. Offline mode skips the auth gate, so this
+    // lands on the app shell rather than the sign-in form.
+    await page.goto("/stafflogin");
+    await expect(page).toHaveURL(/\/staff(?:\/|$)/);
+    await expect(
+      page.getByRole("button", { name: /new booking/i }).first(),
+    ).toBeVisible();
   });
 
   test("reset password route renders without 404", async ({ page }) => {

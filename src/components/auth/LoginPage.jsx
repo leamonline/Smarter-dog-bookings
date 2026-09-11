@@ -55,7 +55,7 @@ function PortalShell({ children }) {
         <div className="relative">
           <div className="flex justify-center mb-2 sm:mb-4">
             <img
-              src="/logo.png"
+              src="/app/logo.png"
               alt="Smarter Dog Grooming Salon"
               className="h-10 sm:h-[72px] w-auto select-none"
               draggable={false}

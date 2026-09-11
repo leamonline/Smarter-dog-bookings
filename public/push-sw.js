@@ -18,7 +18,7 @@
 
 const PUSH_ICON = "/icons/icon-192.png";
 const PUSH_BADGE = "/icons/icon-192.png";
-const DEFAULT_URL = "/";
+const DEFAULT_URL = "/staff/";
 
 self.addEventListener("push", (event) => {
   let payload = {};
@@ -85,7 +85,7 @@ self.addEventListener("notificationclick", (event) => {
       // window is open.
       const isStaffWindow = (c) => {
         try {
-          return !new URL(c.url).pathname.startsWith("/customer");
+          return new URL(c.url).pathname.startsWith("/staff");
         } catch (_err) {
           return true;
         }

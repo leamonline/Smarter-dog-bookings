@@ -363,7 +363,7 @@ export function CustomerLoginPage({
               for a customer landing here from a text link. */}
           <div className="flex justify-center mb-4">
             <img
-              src="/logo.png"
+              src="/app/logo.png"
               alt="Smarter Dog Grooming Salon"
               className="h-[72px] w-auto select-none"
               draggable={false}

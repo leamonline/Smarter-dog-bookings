@@ -1,12 +1,12 @@
-// Renders public/icons/app-icon.svg to PNGs at the sizes iOS / Android / PWA need.
+// Renders public/app/icons/app-icon.svg to PNGs at the sizes iOS / Android / PWA need.
 // Usage: node scripts/render-icons.mjs
 //
 // Output:
-//   public/apple-touch-icon.png            (180x180)
-//   public/icons/apple-touch-icon-180.png  (180x180, mirror for explicit reference)
-//   public/icons/icon-192.png              (192x192)
-//   public/icons/icon-512.png              (512x512)
-//   public/icons/icon-1024.png             (1024x1024, master)
+//   public/app/apple-touch-icon.png            (180x180)
+//   public/app/icons/apple-touch-icon-180.png  (180x180, mirror for explicit reference)
+//   public/app/icons/icon-192.png              (192x192)
+//   public/app/icons/icon-512.png              (512x512)
+//   public/app/icons/icon-1024.png             (1024x1024, master)
 
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,7 @@ import fs from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
-const publicDir = path.join(repoRoot, 'public');
+const publicDir = path.join(repoRoot, 'public', 'app');
 const iconsDir = path.join(publicDir, 'icons');
 const svgPath = path.join(iconsDir, 'app-icon.svg');
 

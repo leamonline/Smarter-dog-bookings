@@ -171,7 +171,11 @@ calendar triggers remain the hard guard.
 - `WHATSAPP_BOOKING_FLOW_ID` — the published Flow id the "Book on WhatsApp"
   CTA opens.
 - `CUSTOMER_PORTAL_URL` — overrides the portal link (default
-  `https://smarterdog.vercel.app/customer/login`).
+  `https://smarterdog.vercel.app/customer/login`). ⚠️ That default still points at
+  the Vercel origin, which redirects to `smarterdog.co.uk/book/login` but shows
+  customers the wrong domain in the link. Changing it is part of the domain
+  cutover, not before it — see
+  [the routing plan](plans/active/2026-09-10-smarterdog-domain-routing.md).
 
 ## Not done yet (follow-ups)
 

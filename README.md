@@ -3,9 +3,9 @@
 A booking and management platform for dog grooming salons. It ships **two
 interfaces from one codebase**:
 
-- **Staff dashboard** (`/`) — the front-desk app: weekly calendar, capacity engine,
+- **Staff dashboard** (`/staff`, entered at `/stafflogin`) — the front-desk app: weekly calendar, capacity engine,
   customer/dog directories, WhatsApp inbox, reminders, reports and settings.
-- **Customer portal** (`/customer`) — a self-service app where customers log in,
+- **Customer portal** (`/book`) — a self-service app where customers log in,
   book through a guided wizard, manage their dogs and trusted contacts, and view
   upcoming appointments.
 

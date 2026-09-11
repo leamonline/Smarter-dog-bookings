@@ -16,7 +16,7 @@ function initialsFromUser(user) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// The wordmark as brand-purple ink on the light bar — /logo.png is a
+// The wordmark as brand-purple ink on the light bar — /app/logo.png is a
 // black-on-transparent lockup, so a CSS mask recolours it to match the
 // chrome exactly (same technique as DogSilhouette). Source is 4:1, so
 // keep width = 4 × height for a crisp `contain` fit.
@@ -26,8 +26,8 @@ function BrandWordmark({ className = "" }) {
       aria-hidden="true"
       className={`block bg-brand-purple ${className}`}
       style={{
-        WebkitMaskImage: "url(/logo.png)",
-        maskImage: "url(/logo.png)",
+        WebkitMaskImage: "url(/app/logo.png)",
+        maskImage: "url(/app/logo.png)",
         WebkitMaskRepeat: "no-repeat",
         maskRepeat: "no-repeat",
         WebkitMaskSize: "contain",
@@ -248,7 +248,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           {openMenu === "account" && (
             <div role="menu" className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               <a
-                href="/customer"
+                href="/book"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setOpenMenu(null)}
@@ -352,7 +352,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               </button>
               <div className="h-px bg-slate-200 mx-3" />
               <a
-                href="/customer"
+                href="/book"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setOpenMenu(null)}

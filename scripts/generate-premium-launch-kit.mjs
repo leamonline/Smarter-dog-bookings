@@ -52,10 +52,10 @@ async function buildFontCss() {
     const bytes = await fs.readFile(path.join(root, relativePath));
     return `data:font/woff2;base64,${bytes.toString("base64")}`;
   };
-  const montserrat700 = await font("public/fonts/montserrat-700.woff2");
-  const montserrat600 = await font("public/fonts/montserrat-600.woff2");
-  const quicksand700 = await font("public/fonts/quicksand-700.woff2");
-  const quicksand600 = await font("public/fonts/quicksand-600.woff2");
+  const montserrat700 = await font("public/app/fonts/montserrat-700.woff2");
+  const montserrat600 = await font("public/app/fonts/montserrat-600.woff2");
+  const quicksand700 = await font("public/app/fonts/quicksand-700.woff2");
+  const quicksand600 = await font("public/app/fonts/quicksand-600.woff2");
   return `
     @font-face { font-family: "Montserrat"; src: url("${montserrat700}") format("woff2"); font-weight: 700; }
     @font-face { font-family: "Montserrat"; src: url("${montserrat600}") format("woff2"); font-weight: 600; }
@@ -563,8 +563,8 @@ async function writeShowcase() {
 
 async function main() {
   fontCss = await buildFontCss();
-  logoDataUrl = await readDataUrl("public/logo.png", "image/png");
-  dogDataUrl = await readDataUrl("public/images/dog-silhouette.png", "image/png");
+  logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
+  dogDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
   dashboardDataUrl = await readDataUrl(screenshotPath, "image/png");
 
   await fs.rm(outDir, { recursive: true, force: true });

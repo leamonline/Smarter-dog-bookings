@@ -11,8 +11,8 @@ data, it says so — do those on a quiet slot or skip and watch a genuine one.
 
 ## Before the doors open (5 min)
 
-- [ ] `smarterdog.vercel.app` loads, staff login works
-- [ ] `/today` shows the right dogs for today, in slot order
+- [ ] `smarterdog.co.uk/stafflogin` loads, staff login works
+- [ ] `/staff/today` shows the right dogs for today, in slot order
 - [ ] Week calendar matches the diary you expect
 - [ ] No red banner / offline indicator
 

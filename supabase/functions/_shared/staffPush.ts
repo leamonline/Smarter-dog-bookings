@@ -103,7 +103,7 @@ export function buildStaffPushMessage(
       return {
         title: "New message",
         body: `${who} messaged the salon`,
-        url: "/inbox",
+        url: "/staff/inbox",
         category: eventType,
         triggerType,
       };
@@ -113,7 +113,7 @@ export function buildStaffPushMessage(
       return {
         title: "New booking",
         body: `${customer} booked ${service} for ${dog}${when ? ` — ${when}` : ""}`,
-        url: "/",
+        url: "/staff/",
         category: eventType,
         triggerType,
       };
@@ -123,7 +123,7 @@ export function buildStaffPushMessage(
       return {
         title: "Booking cancelled",
         body: `${customer}'s ${service} for ${dog}${when ? ` (${when})` : ""} was cancelled`,
-        url: "/",
+        url: "/staff/",
         category: eventType,
         triggerType,
       };
@@ -133,7 +133,7 @@ export function buildStaffPushMessage(
       return {
         title: "Booking moved",
         body: `${customer} moved ${dog}'s ${service}${when ? ` to ${when}` : ""}`,
-        url: "/",
+        url: "/staff/",
         category: eventType,
         triggerType,
       };
@@ -142,7 +142,7 @@ export function buildStaffPushMessage(
       return {
         title: "New client to review",
         body: `${customer} signed up — tap to review`,
-        url: "/",
+        url: "/staff/",
         category: eventType,
         triggerType,
       };
@@ -152,7 +152,7 @@ export function buildStaffPushMessage(
       return {
         title: "Waitlist request",
         body: `${customer} joined the waitlist${when ? ` for ${when}` : ""}`,
-        url: "/",
+        url: "/staff/",
         category: eventType,
         triggerType,
       };

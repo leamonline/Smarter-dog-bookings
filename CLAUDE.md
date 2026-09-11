@@ -11,10 +11,14 @@
 ## What this is
 
 A booking + management platform for **Smarter Dog Grooming**, shipping **two interfaces from one
-codebase**: a **staff dashboard** (`/` — weekly calendar, capacity engine, directories, WhatsApp
-inbox, reminders, reports) and a **customer portal** (`/customer` — self-service login, booking
-wizard, dog/contact management). Stack: **React 19 + Vite 7 SPA**, **Supabase** (Postgres + Auth +
-RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.vercel.app).
+codebase**: a **staff dashboard** (`/staff` — weekly calendar, capacity engine, directories,
+WhatsApp inbox, reminders, reports; staff type `/stafflogin`, which lands on the sign-in screen) and
+a **customer portal** (`/book` — self-service login, booking wizard, dog/contact management). Stack:
+**React 19 + Vite 7 SPA**, **Supabase** (Postgres + Auth + RLS + Deno Edge Functions), Tailwind 4,
+deployed on **Vercel**. The app does not own `/` — that is the marketing site (below) — so each
+entrance runs its own React Router with a `basename`, which is why absolute paths written inside the
+apps (`/today`, `/dogs/:id`) still work unchanged. See [entrypoints.ts](src/routing/entrypoints.ts);
+old `/`, `/today` and `/customer/*` URLs redirect, so bookmarks keep working.
 
 **Also in this repository:** the public marketing site under `website/` — an *independent*
 application (own `package.json`, lockfile, configs, build; React 19 + Vite 8) imported with full
@@ -83,8 +87,9 @@ Names only — never commit values. Full documented list: [.env.example](.env.ex
 
 Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgres (RLS + triggers).**
 
-- `src/index.jsx` — entry. Routes `/customer/*` → `CustomerApp.jsx`, `/reset-password` standalone,
-  everything else → `App.jsx`. If Supabase creds are missing it renders error pages instead.
+- `src/index.jsx` — entry. Asks [entrypoints.ts](src/routing/entrypoints.ts) where a URL belongs:
+  `/book/*` → `CustomerApp.jsx`, `/staff/*` → `App.jsx`, `/reset-password` standalone, anything else
+  redirected. If Supabase creds are missing it renders error pages instead.
 - **`src/App.jsx` — read this first.** The staff shell: auth gate, then `AuthedApp` composes
   `useStaffAppData` (every data hook, online/offline resolved — [src/hooks/useStaffAppData.ts](src/hooks/useStaffAppData.ts)),
   `useBookingSession` (new-booking drawer session + park/resume), `useProfileRouting` (`/dogs/:id`,
@@ -96,7 +101,8 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   and take only their per-view controls as props — follow that shape for new views.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
-- **`/today` live salon board** — the **default staff landing** (`/` stays the calendar). Each dog is
+- **`/today` live salon board** — the **default staff landing** (`/staff/today`; `/staff` stays the
+  calendar). Each dog is
   a **token** in the zone that says where it physically is — Arriving → With us → Ready → Gone home —
   so position carries the status and a press opens that dog's actions. Zones are the existing lanes
   relabelled: no new statuses, no new transitions. Plus six decision reports (2A–2F) on `/reports`.
@@ -262,9 +268,11 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 ## Guardrails for Claude Code
 
-- **Work on a branch off `main`.** `main` **auto-deploys to Vercel production** (smarterdog.vercel.app)
-  and auto-deploys changed Edge Functions — never push untested work there. DB migrations do **not**
-  auto-apply; apply them to prod first.
+- **Work on a branch off `main`.** `main` **auto-deploys to Vercel production** and auto-deploys
+  changed Edge Functions — never push untested work there. Since the combined build
+  ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that deployment carries **the marketing
+  site as well as the booking app**, so a bad merge takes down smarterdog.co.uk too, not just the
+  salon's internal tooling. DB migrations do **not** auto-apply; apply them to prod first.
 - **No standing production authority.** A task that needs a production write, customer-data access,
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior

@@ -31,14 +31,14 @@ describe("buildStaffPushMessage", () => {
     expect(m.body).toContain("Full Groom");
     expect(m.body).toContain("Alfie");
     expect(m.body).toContain("9:00am");
-    expect(m.url).toBe("/");
+    expect(m.url).toBe("/staff/");
     expect(m.category).toBe("new_booking");
     expect(m.triggerType).toBe("staff_new_booking");
   });
 
-  it("routes messages to /inbox and uses the sender name", () => {
+  it("routes messages to /staff/inbox and uses the sender name", () => {
     const m = buildStaffPushMessage("message", { senderName: "Jo" });
-    expect(m.url).toBe("/inbox");
+    expect(m.url).toBe("/staff/inbox");
     expect(m.body).toContain("Jo");
     expect(m.triggerType).toBe("staff_message");
   });

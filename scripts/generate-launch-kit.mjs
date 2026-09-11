@@ -64,10 +64,10 @@ async function buildFontCss() {
     return `data:font/woff2;base64,${bytes.toString("base64")}`;
   };
 
-  const montserrat700 = await font("public/fonts/montserrat-700.woff2");
-  const montserrat600 = await font("public/fonts/montserrat-600.woff2");
-  const montserrat500 = await font("public/fonts/montserrat-500.woff2");
-  const quicksand700 = await font("public/fonts/quicksand-700.woff2");
+  const montserrat700 = await font("public/app/fonts/montserrat-700.woff2");
+  const montserrat600 = await font("public/app/fonts/montserrat-600.woff2");
+  const montserrat500 = await font("public/app/fonts/montserrat-500.woff2");
+  const quicksand700 = await font("public/app/fonts/quicksand-700.woff2");
 
   return `
   @font-face {
@@ -822,8 +822,8 @@ ${manifest.map((item) => `- ${item.title}: \`${item.output}\` (${item.width} x $
 
 async function main() {
   fontCss = await buildFontCss();
-  const logoDataUrl = await readDataUrl("public/logo.png", "image/png");
-  dogSilhouetteDataUrl = await readDataUrl("public/images/dog-silhouette.png", "image/png");
+  const logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
+  dogSilhouetteDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
   const iconDataUrl = launchIconDataUrl();
 
   await fs.mkdir(outDir, { recursive: true });
