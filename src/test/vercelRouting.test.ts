@@ -61,6 +61,39 @@ describe("vercel routing table", () => {
     expect(redirectFor("/stafflogin").permanent).toBe(false);
   });
 
+  it("redirects the staff paths that existed before the move", () => {
+    // These used to be top-level: /today, /dogs, /inbox. The booking app's own
+    // resolver handles them, but on the merged origin they never reach it —
+    // "/" is the marketing site, so an unmatched path falls through to the
+    // website's catch-all and a staff bookmark lands on the salon's homepage.
+    // Caught on production after merge; the preview check had only tried an
+    // invented path, which is genuinely meant to reach the website.
+    for (const path of [
+      "/today", "/dogs", "/humans", "/inbox", "/reports",
+      "/settings", "/whatsapp", "/needs-attention", "/booking-workspace",
+    ]) {
+      const rule = redirectFor(path);
+      expect(rule, path).toBeDefined();
+      // The server must agree with the client resolver about the target.
+      expect(rule.destination, path).toBe(resolveLegacyRedirect(path));
+    }
+  });
+
+  it("carries the rest of the path on a legacy staff redirect", () => {
+    // /dogs/:id is a real staff URL people share with each other.
+    expect(redirectFor("/dogs/:path*").destination).toBe("/staff/dogs/:path*");
+    expect(redirectFor("/humans/:path*").destination).toBe("/staff/humans/:path*");
+  });
+
+  it("never redirects a marketing page to the staff app", () => {
+    // The website owns these; a stray rule here would take the salon's own
+    // pages off the air.
+    const marketing = ["/approach", "/community", "/faq", "/houndsly",
+                       "/matted-coat-policy", "/privacy", "/services", "/terms"];
+    const sources = config.redirects.map((r: { source: string }) => r.source);
+    for (const path of marketing) expect(sources, path).not.toContain(path);
+  });
+
   it("mounts every rewritten path in the app the rewrite implies", () => {
     for (const path of ["/book", "/book/new", "/staff", "/staff/today", "/reset-password"]) {
       expect(resolveMount(path), path).not.toBeNull();

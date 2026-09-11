@@ -22,6 +22,106 @@
       "source": "/stafflogin",
       "destination": "/staff",
       "permanent": false
+    },
+    {
+      "source": "/today",
+      "destination": "/staff/today",
+      "permanent": true
+    },
+    {
+      "source": "/today/:path*",
+      "destination": "/staff/today/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/dogs",
+      "destination": "/staff/dogs",
+      "permanent": true
+    },
+    {
+      "source": "/dogs/:path*",
+      "destination": "/staff/dogs/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/humans",
+      "destination": "/staff/humans",
+      "permanent": true
+    },
+    {
+      "source": "/humans/:path*",
+      "destination": "/staff/humans/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/inbox",
+      "destination": "/staff/inbox",
+      "permanent": true
+    },
+    {
+      "source": "/inbox/:path*",
+      "destination": "/staff/inbox/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/reports",
+      "destination": "/staff/reports",
+      "permanent": true
+    },
+    {
+      "source": "/reports/:path*",
+      "destination": "/staff/reports/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/settings",
+      "destination": "/staff/settings",
+      "permanent": true
+    },
+    {
+      "source": "/settings/:path*",
+      "destination": "/staff/settings/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/whatsapp",
+      "destination": "/staff/whatsapp",
+      "permanent": true
+    },
+    {
+      "source": "/whatsapp/:path*",
+      "destination": "/staff/whatsapp/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/needs-attention",
+      "destination": "/staff/needs-attention",
+      "permanent": true
+    },
+    {
+      "source": "/needs-attention/:path*",
+      "destination": "/staff/needs-attention/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/booking-workspace",
+      "destination": "/staff/booking-workspace",
+      "permanent": true
+    },
+    {
+      "source": "/booking-workspace/:path*",
+      "destination": "/staff/booking-workspace/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/dev",
+      "destination": "/staff/dev",
+      "permanent": true
+    },
+    {
+      "source": "/dev/:path*",
+      "destination": "/staff/dev/:path*",
+      "permanent": true
     }
   ],
   "rewrites": [
