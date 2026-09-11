@@ -81,8 +81,39 @@ describe("vercel routing table", () => {
 
   it("never lets a service worker be cached", () => {
     // A long-lived sw.js pins staff on an old deploy until the cache expires.
-    const rule = config.headers.find((h: { source: string }) => h.source.includes("sw.js"));
-    expect(rule.headers[0].value).toMatch(/max-age=0|no-cache|no-store/);
+    // "push-sw", not "sw" — "reset-password" contains "sw" and matches first.
+    for (const marker of ["push-sw", "workbox"]) {
+      const rule = config.headers.find((h: { source: string }) => h.source.includes(marker));
+      expect(rule, marker).toBeDefined();
+      expect(rule.headers[0].value, marker).toMatch(/max-age=0|no-cache|no-store/);
+    }
+  });
+
+  it("uses source patterns Vercel will actually accept", () => {
+    // Vercel compiles `source` with path-to-regexp, which rejects a capturing
+    // group inside a capturing group. A combined
+    // `/(sw.js|...|workbox-(.*).js)` rule failed the deployment with
+    // `invalid-route-source-pattern` — and nothing in the CI bar caught it,
+    // because the file is valid JSON and the tests only read its contents.
+    const nested = (source: string) => {
+      let depth = 0;
+      for (let i = 0; i < source.length; i += 1) {
+        if (source[i] === "\\") { i += 1; continue; }
+        if (source[i] === "(") {
+          if (depth > 0 && !source.startsWith("(?:", i)) return true;
+          depth += 1;
+        } else if (source[i] === ")") depth -= 1;
+      }
+      return false;
+    };
+    const sources: string[] = [
+      ...config.redirects, ...config.rewrites, ...config.headers,
+    ].map((r: { source: string }) => r.source);
+    expect(sources.length).toBeGreaterThan(10);
+    for (const source of sources) {
+      expect(source, source).toMatch(/^\//);
+      expect(nested(source), `nested capturing group: ${source}`).toBe(false);
+    }
   });
 
   it("keeps the vercel.app origin out of the index", () => {
