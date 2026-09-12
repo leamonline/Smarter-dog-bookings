@@ -35,10 +35,11 @@ test.describe('Homepage E2E', () => {
 
   test('booking CTA navigates to the external booking portal', async ({ page, isMobile }) => {
     // Booking moved off-site (commit 438788a): the Book control now navigates
-    // to the external customer portal instead of opening an in-page modal.
-    // Stub the portal URL so CI never depends on the live site, then assert the
-    // browser actually navigated there.
-    await page.route('**/customer/login', (route) =>
+    // to the customer portal instead of opening an in-page modal. Since the
+    // domain cutover that portal is same-origin at /book/login rather than on
+    // smarterdog.vercel.app. Stub it so CI never depends on the live site,
+    // then assert the browser actually navigated there.
+    await page.route('**/book/login', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'text/html',
@@ -51,7 +52,7 @@ test.describe('Homepage E2E', () => {
     const ctaName = isMobile ? /^Book now$/i : /^Book online$/i;
     await page.getByRole('button', { name: ctaName }).first().click();
 
-    await page.waitForURL('**/customer/login');
+    await page.waitForURL('**/book/login');
     await expect(page.getByRole('heading', { name: 'Booking portal stub' })).toBeVisible();
   });
 
