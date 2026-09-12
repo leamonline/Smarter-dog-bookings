@@ -80,16 +80,30 @@ export function SlotGrid({
     canDropAt,
   });
 
+  // `seatIndex` may be a list — a whole-slot block sends both seats together so
+  // they land as ONE day_settings write (two calls raced the same row and could
+  // leave the slot half-blocked).
   const block = useCallback(async (slot, seatIndex) => {
     if (!onOverride) return;
-    // Surface the optimistic "Seat blocked" toast with an undo handle
-    // immediately, then await the mutation so we can flag a rollback
-    // if the upsert actually fails on the server.
-    const blockedToastId = toast.show("Seat blocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+    const wholeSlot = Array.isArray(seatIndex) && seatIndex.length > 1;
+    // Surface the optimistic "blocked" toast with an undo handle immediately,
+    // then await the mutation so we can flag a rollback if the upsert actually
+    // fails on the server.
+    const blockedToastId = toast.show(
+      wholeSlot ? `${slot} blocked off` : "Seat blocked",
+      "info",
+      () => onOverride(slot, seatIndex, "blocked"),
+    );
     const result = await onOverride(slot, seatIndex, "blocked");
     if (result?.ok === false) {
       toast.dismiss?.(blockedToastId);
-      toast.show(result.error || "Couldn't block that seat — give it another go?", "error");
+      toast.show(
+        result.error ||
+          (wholeSlot
+            ? "Couldn't block that timeslot — give it another go?"
+            : "Couldn't block that seat — give it another go?"),
+        "error",
+      );
     }
   }, [onOverride, toast]);
 

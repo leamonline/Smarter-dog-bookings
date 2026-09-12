@@ -280,14 +280,23 @@ export function useOfflineState(weekStart: Date, currentDateStr: string, current
     }));
   }, [currentDateStr, currentDateObj]);
 
+  // Mirrors useDaySettings.setOverride, seat list included: the whole-slot
+  // block arrives as one call there so it becomes one row write, and offline
+  // has to accept the same shape.
   const offlineHandleOverride = useCallback(
-    (slot: string, seatIndex: number, action: SeatAction): { ok: true } => {
+    (
+      slot: string,
+      seatIndex: number | number[],
+      action: SeatAction,
+    ): { ok: true } => {
       setOfflineDaySettings((prev) => {
         const current = prev[currentDateStr] || emptyDay(currentDateObj);
         const overrides: Record<string, SlotOverrides> = { ...current.overrides };
         const slotOv: SlotOverrides = { ...(overrides[slot] || {}) };
-        if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
-        else slotOv[seatIndex] = action;
+        for (const seat of Array.isArray(seatIndex) ? seatIndex : [seatIndex]) {
+          if (slotOv[seat] === action) delete slotOv[seat];
+          else slotOv[seat] = action;
+        }
         if (Object.keys(slotOv).length === 0) delete overrides[slot];
         else overrides[slot] = slotOv;
         return { ...prev, [currentDateStr]: { ...current, overrides } };

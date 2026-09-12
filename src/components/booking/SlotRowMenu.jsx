@@ -280,8 +280,10 @@ export function SlotRowMenu({
                   icon={Ban}
                   label="Block this timeslot"
                   onClick={() => {
-                    onBlockSeat(0);
-                    onBlockSeat(1);
+                    // Both seats in ONE call. Two calls meant two whole-row
+                    // day_settings upserts racing each other, and the stale
+                    // first payload could land last and reopen a seat.
+                    onBlockSeat([0, 1]);
                     closeMenu();
                   }}
                 />
