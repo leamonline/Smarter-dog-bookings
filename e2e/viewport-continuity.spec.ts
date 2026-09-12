@@ -91,19 +91,37 @@ test.describe("Viewport continuity", () => {
 
     await page.setViewportSize(SHORT);
 
-    // The shell re-measures on an animation frame, so poll rather than read
-    // once — WebKit settles a frame or two later than Chromium.
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight))
-      .toBeLessThanOrEqual(1);
-
     // A floor the window cannot honour used to win here, pushing the bottom of
     // the shell past the viewport. The panes clip their own overflow, so the
     // composer went with it and the page grew a second scrollbar to chase it.
+    //
+    // Poll the number being asserted rather than a proxy for it. This used to
+    // wait on the document scroll and then read the shell once, which is two
+    // mistakes that cancel out into a race: the panes clip their own overflow,
+    // so the document scroll is already 0 on the first frame — while the shell
+    // is still a whole stale viewport too tall — and that poll therefore passed
+    // instantly and synchronised nothing.
+    //
+    // Measured on WebKit, the shell settles in two stages after the resize:
+    // bottom 876 while --fill-visible-height still holds the 900-high window's
+    // 647px, then 589 once the variable updates to 227px but before the box
+    // reflows, then 456. A single read landed on that middle value often
+    // enough to fail the pull-request gate outright.
     const shell = page.locator('[style*="--fill-visible-height"]').first();
-    const box = await shell.boundingBox();
-    expect(box).not.toBeNull();
-    expect(Math.round(box!.y + box!.height)).toBeLessThanOrEqual(SHORT.height);
+    await expect(shell).toBeVisible();
+    await expect
+      .poll(async () => {
+        const box = await shell.boundingBox();
+        // Keep polling rather than comparing null against a number.
+        return box === null ? Number.POSITIVE_INFINITY : Math.round(box.y + box.height);
+      })
+      .toBeLessThanOrEqual(SHORT.height);
+
+    // Only meaningful once the shell has settled: before that it is 0 whatever
+    // the shell is doing, which is exactly why it could not serve as the wait.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+    ).toBeLessThanOrEqual(1);
     await expect(composer).toBeVisible();
   });
 
