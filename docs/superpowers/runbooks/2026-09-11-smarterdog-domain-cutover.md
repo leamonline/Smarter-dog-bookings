@@ -1,9 +1,15 @@
 # smarterdog.co.uk domain cutover runbook
 
-**Status:** In progress — step 2 (Vercel domains) done 11 September 2026; DNS not yet changed.
+**Status:** Complete — executed 11 September 2026, every step including the deferred Supabase Site URL. See the [completion record](#completion-record--11-september-2026).
 **Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 **Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
 **Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
+
+Read the completion record first: three things went wrong on the day and are written up
+there. Items that outlived the cutover are under [Still open](#still-open) — the one that
+still needs a decision is retiring the Bluehost publisher. The steps below are retained as
+the procedure for any future re-cutover, so they stay in the imperative; a ✅ records what
+was done on the day, not an instruction to skip that step next time.
 
 Points smarterdog.co.uk at Vercel, so one deployment serves the marketing site
 at `/`, customers at `/book` and staff at `/stafflogin`. Every step below
@@ -186,7 +192,7 @@ vercel domains inspect smarterdog.co.uk --scope smarterdog
 If the apex should be the primary and `www` should redirect to it, set that in
 Settings → Domains; it matches how the site is linked today.
 
-## 3. Supabase Auth — ✅ redirect URLs DONE 11 September 2026 (Site URL still pending, step 7)
+## 3. Supabase Auth — ✅ DONE 11 September 2026 (redirect URLs here, Site URL at step 7)
 
 Dashboard → project `nlzhllhkigmsvrzduefz` → Authentication → URL Configuration.
 
@@ -214,12 +220,12 @@ build it as `` `${window.location.origin}/reset-password` `` — see
 `/book` ([entrypoints.ts](../../../src/routing/entrypoints.ts#L74)). The `/**`
 wildcards above cover it without naming it.
 
-**Site URL — still to do, at the DNS switch (step 7).** It is currently
-`https://smarter-dogs-smart-humans-smarterdog.vercel.app/`, which works today.
-Supabase uses it as the fallback redirect and as `{{ .SiteURL }}` in email
-templates, so pointing it at `smarterdog.co.uk` before DNS moves would put dead
-links in any email sent in between. Change it to `https://smarterdog.co.uk`
-once the records are live.
+**Site URL — ✅ done 11 September 2026, at the DNS switch (step 7).** It was
+`https://smarter-dogs-smart-humans-smarterdog.vercel.app/` and is now
+`https://smarterdog.co.uk`. On a re-run, defer it to step 7 again: Supabase uses
+it as the fallback redirect and as `{{ .SiteURL }}` in email templates, so
+pointing it at a hostname before DNS reaches it would put dead links in any
+email sent in between.
 
 ## 4. Turnstile — AUTHORISE
 
