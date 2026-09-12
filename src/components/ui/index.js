@@ -6,6 +6,7 @@ export { Button } from "./Button.jsx";
 export { Card, CardStripe } from "./Card.jsx";
 export { Badge } from "./Badge.jsx";
 export { SectionLabel } from "./SectionLabel.jsx";
+export { MetricBar } from "./MetricBar.jsx";
 export { EmptyState } from "./EmptyState.jsx";
 export { Spinner } from "./Spinner.jsx";
 export { StatusPill } from "./StatusPill.jsx";

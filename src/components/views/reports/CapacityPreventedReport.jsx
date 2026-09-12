@@ -45,11 +45,11 @@ export function CapacityPreventedReport({ days }) {
       <div className="flex flex-col gap-1.5 mb-4">
         {stats.byReason.map((r) => (
           <div key={r.code} className="flex items-center gap-2">
-            <span className="text-caption font-bold text-slate-600 w-[130px] shrink-0 truncate" title={r.label}>{r.label}</span>
+            <span className="text-caption font-bold text-slate-600 w-[130px] shrink min-w-0 truncate" title={r.label}>{r.label}</span>
             <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${r.label}: ${r.n}`}>
               <div className="h-full rounded-full bg-brand-coral/60 transition-all" style={{ width: `${(r.n / maxReason) * 100}%` }} />
             </div>
-            <span className="text-micro font-extrabold text-slate-500 w-[28px] text-right">{r.n}</span>
+            <span className="text-micro font-extrabold text-slate-500 w-[28px] shrink-0 text-right tabular-nums">{r.n}</span>
           </div>
         ))}
       </div>
@@ -65,7 +65,7 @@ export function CapacityPreventedReport({ days }) {
                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${s.label}: ${s.n}`}>
                   <div className="h-full rounded-full bg-purple-400 transition-all" style={{ width: `${(s.n / maxSlot) * 100}%` }} />
                 </div>
-                <span className="text-micro font-extrabold text-slate-500 w-[28px] text-right">{s.n}</span>
+                <span className="text-micro font-extrabold text-slate-500 w-[28px] shrink-0 text-right tabular-nums">{s.n}</span>
               </div>
             ))}
           </div>

@@ -9,34 +9,21 @@ import {
 } from "../../engine/utilisation";
 import { excludeCancelled } from "../../engine/occupancy";
 import { getDefaultOpenForDate } from "../../engine/utils";
+import { MetricBar } from "../ui";
 
+// Capacity keeps its own semantics — open/closed state and the utilisation
+// colour scale — and hands MetricBar a rendered figure plus a fill class.
+// A closed day has no percentage to show and no track to fill.
 function CapacityBar({ pct, isOpen, label, sub, statusLabel }) {
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1.5 gap-2">
-        <div className="text-xs font-semibold text-brand-purple truncate">
-          {label}
-          {sub && (
-            <span className="text-ink-muted font-medium ml-1">{sub}</span>
-          )}
-        </div>
-        <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
-          {isOpen ? `${pct}%` : <span className="italic text-ink-muted">closed</span>}
-          {isOpen && (
-            <span className="text-label text-ink-muted">
-              {statusLabel}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div
-          className={`h-full ${utilisationColor(pct)} rounded-full transition-all`}
-          style={{ width: `${isOpen ? pct : 0}%` }}
-          aria-hidden="true"
-        />
-      </div>
-    </div>
+    <MetricBar
+      label={label}
+      subLabel={sub}
+      value={isOpen ? `${pct}%` : <span className="italic text-ink-muted">closed</span>}
+      caption={isOpen ? statusLabel : null}
+      progress={isOpen ? pct : null}
+      progressClassName={utilisationColor(pct)}
+    />
   );
 }
 

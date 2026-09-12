@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { computeRevenue } from "../../engine/pricing";
 import { toDateStr } from "../../supabase/transforms";
 import { SkeletonBlock } from "../ui/Skeleton.jsx";
+import { MetricBar } from "../ui";
 
 // Working revenue targets. Used purely as the bar's denominator so
 // "100%" means "a normal full day / normal full week" — the salon
@@ -18,39 +19,27 @@ function revenueColour(pct) {
 }
 
 
+// Revenue keeps its own semantics — the loading skeleton and its own colour
+// scale — and hands MetricBar a rendered figure plus a fill class. While
+// loading there is no figure and no total, so the caption and the track are
+// both withheld rather than showing a number that is not yet true.
 function RevenueBar({ amount, pct, label, sub, statusLabel, loading = false }) {
   return (
-    <div aria-busy={loading || undefined}>
-      <div className="flex items-baseline justify-between mb-1.5 gap-2">
-        <div className="text-xs font-semibold text-brand-purple truncate">
-          {label}
-          {sub && (
-            <span className="text-ink-muted font-medium ml-1">{sub}</span>
-          )}
-        </div>
-        <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
-          {loading ? (
-            <SkeletonBlock className="h-4 w-12 rounded-md" />
-          ) : (
-            <>
-              <span className="font-bold text-brand-teal-text">£{amount}</span>
-              <span className="text-label text-ink-muted">
-                {statusLabel}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-        {!loading && (
-          <div
-            className={`h-full ${revenueColour(pct)} rounded-full transition-all`}
-            style={{ width: `${Math.min(100, pct)}%` }}
-            aria-hidden="true"
-          />
-        )}
-      </div>
-    </div>
+    <MetricBar
+      label={label}
+      subLabel={sub}
+      value={
+        loading ? (
+          <SkeletonBlock className="h-4 w-12 rounded-md" />
+        ) : (
+          <span className="font-bold text-brand-teal-text">£{amount}</span>
+        )
+      }
+      caption={loading ? null : statusLabel}
+      progress={loading ? null : pct}
+      progressClassName={revenueColour(pct)}
+      loading={loading}
+    />
   );
 }
 
