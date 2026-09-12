@@ -279,18 +279,22 @@ test.describe("Adaptive layout", () => {
       // 44px is the house rule (docs/modal-standard.md, and the .tap-target
       // utility in src/index.css).
       //
-      // The schedule's interior is deliberately out of this sweep. This
-      // branch's touch-target work is the chrome — the day arrows, Today,
-      // Month view, Day settings, Message day and the shared Button — and
-      // that is what this asserts. Once the day was pinned open, the sweep
-      // also reached inside the seat cards and found sixteen more: the status
-      // dropdowns are 32px tall (“Checked in▼ 99x32”, “Booked▼ 79x32”) and
-      // the dog-name links are inline text at 16px (“Bella 29x16”). The
-      // dropdowns are real debt under the house rule; the inline links are
-      // arguably exempt. Either way, resizing booking cards is a design change
-      // this branch did not make and should not smuggle in, so it is recorded
-      // here rather than quietly asserted away — widen this scope in the
-      // change that actually fixes them.
+      // The schedule's interior stays out of THIS sweep, because the two
+      // things left inside it are ones this measurement cannot judge, not
+      // ones that are unfixed (#846):
+      //
+      //   Dog-name buttons read 16px tall, but the card around them is
+      //   min-h-[76px] and carries the same onClick, so they are a redundant
+      //   target for an action the whole card already performs — the WCAG
+      //   2.5.8 equivalent-control exception.
+      //
+      //   The notes badge reads 16x16, but it expands its own hit area with
+      //   after:-inset-[10px]. getBoundingClientRect does not see a
+      //   pseudo-element, so the number here understates a ~36x36 target.
+      //
+      // The controls that WERE debt — the status triggers — are asserted
+      // directly by the test below, which measures them rather than sweeping
+      // for them.
       const tooSmall = await page.evaluate(() => {
         const out: string[] = [];
         const schedule = document.querySelector('[aria-label="Booking schedule"]');
@@ -308,6 +312,71 @@ test.describe("Adaptive layout", () => {
       });
 
       expect(tooSmall).toEqual([]);
+    });
+
+    // The seat card's status trigger, measured across widths rather than at
+    // one. It was `min-h-[32px] md:min-h-0`: 12px under the house rule on a
+    // phone, and no floor at all from md up — so a tablet, which is a touch
+    // device, got a weaker guarantee than a phone did. Changing a dog's status
+    // is the most repeated action of a grooming day and this control is the
+    // only way to do it, so it is the one that had to meet the rule.
+    //
+    // 768 is the width that matters here: it is past md, where the floor used
+    // to disappear, and it is an iPad. Sweeping at one viewport would have
+    // missed exactly the case that was broken.
+    for (const width of [390, 700, 768, 1280]) {
+      test(`the status trigger stays tappable at ${width}px`, async ({ page }) => {
+        await openCalendar(page, OPEN_DAY);
+        await page.setViewportSize({ width, height: 900 });
+
+        const triggers = page.locator('[aria-label^="Change status"]');
+        await expect(triggers.first()).toBeVisible();
+
+        const tooSmall = await page.evaluate(() => {
+          const out: string[] = [];
+          for (const el of document.querySelectorAll('[aria-label^="Change status"]')) {
+            const b = el.getBoundingClientRect();
+            if (b.width === 0 || b.height === 0) continue;
+            if (b.height < 44 || b.width < 44) {
+              out.push(`${el.getAttribute("aria-label")} ${Math.round(b.width)}x${Math.round(b.height)}`);
+            }
+          }
+          return out;
+        });
+
+        expect(tooSmall).toEqual([]);
+      });
+    }
+  });
+
+  // The same rule must NOT cost mouse users their density: the 44px floor is
+  // bought with a pointer-coarse: variant, so a fine pointer keeps the compact
+  // chip the calendar was designed around. Asserted as a negative, because
+  // "make everything 44px" would pass the test above and quietly fatten the
+  // desktop board.
+  test.describe("on a mouse-driven desktop", () => {
+    // hasTouch: false is load-bearing, not tidiness. Four projects in the
+    // post-merge matrix (tablet, mobile, fold-cover, fold-open) set hasTouch
+    // on the context, and a test.use that names only the viewport inherits it
+    // — so this test read pointer: coarse and failed on all four. Declare the
+    // pointer as well as the size when the pointer is the subject.
+    test.use({ viewport: { width: 1280, height: 900 }, hasTouch: false });
+
+    test("the status trigger keeps its compact height for a fine pointer", async ({ page }) => {
+      await openCalendar(page, OPEN_DAY);
+
+      const heights = await page.evaluate(() => {
+        const out: number[] = [];
+        for (const el of document.querySelectorAll('[aria-label^="Change status"]')) {
+          const b = el.getBoundingClientRect();
+          if (b.height > 0) out.push(Math.round(b.height));
+        }
+        return { coarse: matchMedia("(pointer: coarse)").matches, out };
+      });
+
+      expect(heights.coarse).toBe(false);
+      expect(heights.out.length).toBeGreaterThan(0);
+      for (const h of heights.out) expect(h).toBeLessThan(44);
     });
   });
 });

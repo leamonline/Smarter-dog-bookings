@@ -396,7 +396,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 aria-haspopup="listbox"
                 aria-expanded={statusOpen}
                 aria-label={`Change status, currently ${statusObj.label}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] sm:text-[12px] font-extrabold rounded-lg border cursor-pointer transition-all hover:brightness-95 min-h-[32px] md:min-h-0 touch-manipulation"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] sm:text-[12px] font-extrabold rounded-lg border cursor-pointer transition-all hover:brightness-95 min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 touch-manipulation"
                 style={{ background: statusObj.bg, color: statusObj.color, borderColor: statusObj.border }}
               >
                 <span>{statusObj.label}</span>
@@ -470,7 +470,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                   key={m.id}
                   type="button"
                   onClick={() => markPaid(m.id)}
-                  className="text-[10px] font-bold py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:brightness-95 cursor-pointer touch-manipulation min-h-[32px] md:min-h-0"
+                  className="text-[10px] font-bold py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:brightness-95 cursor-pointer touch-manipulation min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 >
                   {m.label}
                 </button>
