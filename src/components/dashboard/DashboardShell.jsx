@@ -9,7 +9,22 @@ import { useEffect, useRef, useState } from "react";
  * end at the same Y — the bottom of the left column (where the
  * Revenue card sits). Middle + right both scroll internally if their
  * content overflows.
+ *
+ * That mirrored height is published as a custom property and applied by a
+ * `lg:` utility, NOT as an inline max-height, because an inline height
+ * applies at every width while the layout it was measured from exists only
+ * from `lg` up. Below `lg` the grid is a single column and the left column
+ * is `display:none` — which reports a height of 0, so the last desktop
+ * measurement stuck and went on capping the booking grid on phones. With
+ * `overflow-hidden` also being `lg:`-scoped down there, the schedule simply
+ * spilled out of its box and collided with the capacity card underneath it.
+ * Scoping the constraint to the breakpoint that produces it means it cannot
+ * outlive the sidebar again.
  */
+// Unset, `var()` leaves max-height at its initial `none`, so the first paint
+// (and every width below lg) is simply unconstrained.
+const MATCHED_HEIGHT_CLASS = "lg:max-h-[var(--dashboard-row-height,none)]";
+
 export function DashboardShell({ left, main, right }) {
   const leftRef = useRef(null);
   const [matchedMaxHeight, setMatchedMaxHeight] = useState(null);
@@ -29,7 +44,7 @@ export function DashboardShell({ left, main, right }) {
   }, []);
 
   const matchedHeightStyle = matchedMaxHeight
-    ? { maxHeight: `${matchedMaxHeight}px` }
+    ? { "--dashboard-row-height": `${matchedMaxHeight}px` }
     : undefined;
 
   return (
@@ -50,7 +65,7 @@ export function DashboardShell({ left, main, right }) {
           at the same point as the Revenue card. Internal scroll
           handles overflow. */}
       <div
-        className="order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 lg:overflow-hidden lg:flex lg:flex-col"
+        className={`order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 lg:overflow-hidden lg:flex lg:flex-col ${MATCHED_HEIGHT_CLASS}`}
         style={matchedHeightStyle}
       >
         {main}
@@ -63,7 +78,7 @@ export function DashboardShell({ left, main, right }) {
           shape of the booking grid card in the middle column. */}
       {right && (
         <div
-          className="order-2 lg:order-3 hidden xl:block lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl"
+          className={`order-2 lg:order-3 hidden xl:block lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl ${MATCHED_HEIGHT_CLASS}`}
           style={matchedHeightStyle}
         >
           {right}

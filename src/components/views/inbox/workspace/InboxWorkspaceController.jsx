@@ -53,21 +53,12 @@ import { ConversationPane } from "./ConversationPane.jsx";
 import { InboxWorkspaceShell } from "./InboxWorkspaceShell.jsx";
 import { ThreadPane } from "./ThreadPane.jsx";
 import { buildDiaryDates } from "./inboxWorkspaceModel.js";
+import { isRailDocked } from "./dockedRail";
 import { useInboxActionHandlers } from "./useInboxActionHandlers";
 import { useInboxDeepLinks } from "./useInboxDeepLinks";
 import { useInboxListState } from "./useInboxListState";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 import { useOutboundCompose } from "./useOutboundCompose";
-
-// At 1440px and above the context rail is permanently docked, so inserting
-// slots leaves it in place. Narrower, it is an overlay covering the thread and
-// must step aside once the times are in the reply.
-const DOCKED_RAIL_QUERY = "(min-width: 1440px)";
-
-function isRailDocked() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia?.(DOCKED_RAIL_QUERY)?.matches === true;
-}
 
 function toLocalDateStr(date) {
   return [
@@ -157,6 +148,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     const next = existing.trim() ? `${existing.trimEnd()}\n\n${text}` : text;
     workspaceActions.setDraft(selectedId, next);
     requestAnimationFrame(() => composerTextareaRef.current?.focus());
+    // Docked, the rail is a column of its own and can stay put. Narrower it is
+    // an overlay covering the thread, so it steps aside to show the reply the
+    // times just landed in. See ./dockedRail for the breakpoint.
     if (!isRailDocked()) workspaceActions.closeContext();
   }, [selectedId, selectedWork.draft, workspaceActions]);
 

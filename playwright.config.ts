@@ -54,6 +54,13 @@ export default defineConfig({
         // coverage, and the other specs have never been validated against it —
         // widening it here would trade a real gate for unrelated WebKit noise.
         //
+        // viewport-continuity is the second spec to earn a place, and on the
+        // same reasoning as the first: Safari is the browser on the iPhone and
+        // iPad the salon actually triages from, and what that spec covers —
+        // history entries, the visual viewport under an open keyboard, dvh
+        // under collapsing browser chrome — is exactly where WebKit differs
+        // from Chromium rather than merely duplicating it.
+        //
         // In CI this testMatch is belt-and-braces, not the mechanism: the PR
         // gate names each project's specs on its own command line, because it
         // checks out the pull-request head and so may be running a config
@@ -63,7 +70,7 @@ export default defineConfig({
         {
           name: "mobile-webkit",
           use: { ...devices["iPhone 13"], browserName: "webkit" },
-          testMatch: /smoke\.spec\.ts/,
+          testMatch: /(smoke|viewport-continuity)\.spec\.ts/,
         },
       ]
     : [

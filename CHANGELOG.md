@@ -224,6 +224,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Keep the staff Inbox and calendar usable across a changing viewport
+  ([#834](https://github.com/leamonline/Smarter-dog-bookings/issues/834)).
+  Four separate ways an open session came apart when the window changed size:
+
+  - The Inbox pushed a history entry so the hardware Back button could step
+    back through the stacked panes, then popped it from an effect cleanup.
+    That cleanup ran on every crossing of the 767px breakpoint **and on
+    unmount**, so `history.back()` fired for reasons the staff member had
+    nothing to do with. On a phone with a thread open it made every other nav
+    item unreachable — tapping Dogs bounced straight back into the Inbox,
+    losing the reply being typed. The entry is now consumed only by a
+    deliberate Back, and the listener that answers it no longer comes and goes
+    with the breakpoint.
+  - The booking/customer context kept its focus trap at `wide` (90rem), where
+    it is not an overlay at all but the workspace grid's permanently docked
+    third column — so a keyboard user was held inside a pane they could see
+    straight past. Containment and Escape-to-dismiss now follow the overlay,
+    releasing when it docks and returning when the window narrows.
+  - The Inbox reserved 72px at the bottom on phones for a fixed navigation bar
+    that no longer exists (the staff mobile nav is a strip under the top
+    chrome), and rounded short windows up to a 360px minimum they could not
+    honour — pushing the composer out of a pane that clips its own overflow.
+    It now measures what is genuinely available, and re-measures when the
+    chrome above it changes height without a window resize (a banner
+    appearing, the toolbar wrapping).
+  - The calendar mirrored its left sidebar's measured height onto the schedule
+    and workflow columns as an inline `max-height`. Inline styles apply at
+    every width, but the sidebar exists only from `lg` up and reports zero when
+    hidden, so the last desktop measurement went on capping the schedule in the
+    single-column phone layout. The cap is now published as a custom property
+    applied by an `lg:`-scoped utility, so it cannot outlive the layout that
+    produced it.
+
+  Covered by focused component regressions and a new `viewport-continuity`
+  Playwright spec, which the pull-request gate runs on desktop Chromium and on
+  mobile WebKit alongside the smoke journeys.
+
 - Repair mis-encoded characters in production's `validate_booking_capacity()`.
   Seven sequences were double-encoded — UTF-8 decoded as Latin-1 at some point
   in that function's hand-apply history — of which **three are `raise

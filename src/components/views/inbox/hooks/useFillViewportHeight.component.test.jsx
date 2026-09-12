@@ -35,6 +35,28 @@ function makeVisualViewport({ height, offsetTop }) {
   return viewport;
 }
 
+function installResizeObserver() {
+  const state = { observed: [], disconnected: false, callbacks: [] };
+  class StubResizeObserver {
+    constructor(callback) {
+      state.callbacks.push(callback);
+    }
+
+    observe(target) {
+      state.observed.push(target);
+    }
+
+    disconnect() {
+      state.disconnected = true;
+    }
+  }
+  vi.stubGlobal("ResizeObserver", StubResizeObserver);
+  state.trigger = () => {
+    for (const callback of state.callbacks) callback([], null);
+  };
+  return state;
+}
+
 function installAnimationFrameQueue() {
   let nextId = 1;
   const frames = new Map();
@@ -67,6 +89,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   for (const name of Object.keys(originalDescriptors)) restoreWindowValue(name);
 });
 
@@ -79,13 +102,16 @@ describe("useFillViewportHeight", () => {
 
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
-    expect(result.current).toBeLessThanOrEqual(322);
+    expect(result.current).toBe(298);
     expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("120px");
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("72px");
+    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("24px");
     expect(root.style.getPropertyValue("--inbox-visible-height")).toBe(`${result.current}px`);
   });
 
-  it("keeps the mobile navigation and safe-area inset clear", () => {
+  it("reserves the safe-area inset and nothing for a bottom navigation bar", () => {
+    // The staff nav is a strip under the top chrome, not a fixed bottom bar,
+    // so the only clearance a phone owes is the home indicator. The 72px the
+    // hook used to hold back for that bar cost a message and the composer.
     setWindowValue("innerWidth", 390);
     setWindowValue("innerHeight", 800);
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 34 });
@@ -93,19 +119,41 @@ describe("useFillViewportHeight", () => {
 
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
-    expect(result.current).toBe(594);
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("106px");
+    expect(result.current).toBe(642);
+    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("58px");
   });
 
-  it("uses the existing desktop bottom gap without visualViewport", () => {
+  it("uses the same bottom gap at desktop width", () => {
     const root = makeRoot(100);
 
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
-    expect(result.current).toBe(784);
+    expect(result.current).toBe(776);
     expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("100px");
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("16px");
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("784px");
+    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("24px");
+    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("776px");
+  });
+
+  it("reports what a short window actually leaves rather than a comfortable floor", () => {
+    // A laptop in split screen, a half-open foldable, a short browser window:
+    // rounding these up to a 360px minimum pushed the composer out of a pane
+    // that clips its own overflow, with no page scroll to bring it back.
+    setWindowValue("innerHeight", 420);
+    const root = makeRoot(180);
+
+    const { result } = renderHook(() => useFillViewportHeight({ current: root }));
+
+    expect(result.current).toBe(216);
+    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("216px");
+  });
+
+  it("never reports a negative height when the chrome outgrows the window", () => {
+    setWindowValue("innerHeight", 200);
+    const root = makeRoot(400);
+
+    const { result } = renderHook(() => useFillViewportHeight({ current: root }));
+
+    expect(result.current).toBe(0);
   });
 
   it("coalesces visualViewport resize and scroll events into one animation frame", () => {
@@ -124,8 +172,33 @@ describe("useFillViewportHeight", () => {
 
     expect(animationFrames.request).toHaveBeenCalledTimes(1);
     act(() => animationFrames.flush());
-    expect(result.current).toBe(544);
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("544px");
+    expect(result.current).toBe(536);
+    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("536px");
+  });
+
+  it("re-measures when chrome above the shell changes height without a resize", () => {
+    // A banner appearing, the toolbar wrapping, the nav strip gaining an
+    // approvals badge: the shell's top edge moves while innerHeight does not,
+    // so no resize event ever fires and the old height would simply stand.
+    const animationFrames = installAnimationFrameQueue();
+    const observer = installResizeObserver();
+    let top = 100;
+    const root = document.createElement("div");
+    root.getBoundingClientRect = vi.fn(() => ({ top }));
+
+    const { result, unmount } = renderHook(() => useFillViewportHeight({ current: root }));
+    expect(result.current).toBe(776);
+    expect(observer.observed).toContain(document.body);
+
+    top = 180;
+    act(() => observer.trigger());
+    act(() => animationFrames.flush());
+
+    expect(result.current).toBe(696);
+    expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("180px");
+
+    unmount();
+    expect(observer.disconnected).toBe(true);
   });
 
   it("removes window and visual viewport listeners and cancels pending work", () => {

@@ -10,33 +10,31 @@
 // real top offset exceeded the guess and the inbox overflowed (double
 // scrollbars / a clipped composer) — exactly on the phone/iPad the
 // salon triages from. Measuring the element's actual top removes the
-// guess; only the bottom gap (the fixed mobile nav) stays a constant,
-// and that height is stable.
+// guess.
 //
 // Returns a px number (or null before first measure, so the caller can
-// keep a CSS fallback for the first paint). Recomputes on resize and
-// orientation change.
+// keep a CSS fallback for the first paint). Recomputes whenever the
+// window, the visual viewport or the chrome above the shell changes.
 // ============================================================
 
 import { useEffect, useState } from "react";
 
-// Clearance below the shell. Mobile has the fixed bottom nav
-// (AppToolbar's md:hidden bar); desktop just wants a little breathing
-// room above the page edge.
-const MOBILE_BOTTOM_GAP = 72;
-const DESKTOP_BOTTOM_GAP = 16;
-const MOBILE_BREAKPOINT = 768; // Tailwind md
-// Retain a usable minimum for the normal layout. When visualViewport reports
-// a keyboard-constrained surface, the real visible height takes precedence so
-// the composer is not pushed below the keyboard.
-const MIN_HEIGHT = 360;
+// Clearance below the shell. It matches AppFrame's own
+// `pb-[calc(env(safe-area-inset-bottom)+1.5rem)]` (src/App.jsx): reserve less
+// than the frame's padding and that padding pushes the page past the viewport,
+// which is the second scrollbar this hook exists to remove.
+//
+// This used to reserve an extra 72px on phones for a fixed bottom navigation
+// bar. There is no bottom bar — the mobile primary nav is MobileNavStrip, a
+// strip in normal flow directly under the top chrome. The allowance outlived
+// the bar it was measured from and quietly cost every phone ~72px of thread,
+// roughly the composer plus the message above it.
+const SHELL_BOTTOM_GAP = 24;
 
-// The mobile nav also carries `pb-[env(safe-area-inset-bottom)]`, so on an
-// iPhone with a home indicator its true height is MOBILE_BOTTOM_GAP plus the
-// safe-area inset. With viewport-fit=cover, window.innerHeight includes that
-// inset, so we must subtract it too — otherwise the shell runs ~34px past the
-// nav and the composer sits jammed under it. Measure the inset live (0 off
-// iOS) via a throwaway probe, since env() doesn't resolve in JS otherwise.
+// The safe-area inset is real clearance, and still ours to subtract: with
+// viewport-fit=cover, window.innerHeight includes the home-indicator strip, so
+// a shell sized to the full innerHeight would run underneath it. env() doesn't
+// resolve in JS, so measure it live via a throwaway probe (0 off iOS).
 function safeAreaInsetBottom() {
   if (typeof document === "undefined") return 0;
   const probe = document.createElement("div");
@@ -60,20 +58,18 @@ export function useFillViewportHeight(ref) {
 
     const compute = () => {
       const top = el.getBoundingClientRect().top;
-      const bottomGap =
-        window.innerWidth < MOBILE_BREAKPOINT
-          ? MOBILE_BOTTOM_GAP + safeAreaInsetBottom()
-          : DESKTOP_BOTTOM_GAP;
+      const bottomGap = SHELL_BOTTOM_GAP + safeAreaInsetBottom();
       const viewportBottom = visualViewport
         ? visualViewport.offsetTop + visualViewport.height
         : window.innerHeight;
-      const measured = Math.round(viewportBottom - top - bottomGap);
-      const keyboardConstrained = Boolean(
-        visualViewport && visualViewport.height < window.innerHeight,
-      );
-      const available = keyboardConstrained
-        ? Math.max(0, measured)
-        : Math.max(MIN_HEIGHT, measured);
+      // Whatever is genuinely left is what the shell gets — no comfortable
+      // minimum. A short window, a split-screen tablet, a half-open foldable
+      // and an on-screen keyboard all leave less than one, and inventing the
+      // difference puts the composer below the fold of a pane that clips its
+      // own overflow. InboxWorkspaceShell reads this back and drops its CSS
+      // min-height when the measurement lands under it, so the panes shrink
+      // and scroll internally instead.
+      const available = Math.max(0, Math.round(viewportBottom - top - bottomGap));
 
       el.style.setProperty("--inbox-shell-top", `${Math.round(top)}px`);
       el.style.setProperty("--inbox-bottom-gap", `${Math.round(bottomGap)}px`);
@@ -94,11 +90,26 @@ export function useFillViewportHeight(ref) {
     window.addEventListener("orientationchange", scheduleCompute);
     visualViewport?.addEventListener("resize", scheduleCompute);
     visualViewport?.addEventListener("scroll", scheduleCompute);
+
+    // The chrome above the shell can change height without the window
+    // resizing at all: an error or offline banner appearing, the toolbar
+    // wrapping to two rows, the nav strip gaining an approvals badge. Each
+    // moves our top edge while innerHeight stays put, so the resize listeners
+    // never hear about it and the shell keeps its old, now-wrong height.
+    // Everything stacked above us sits in the body's normal flow, so watching
+    // the body catches the lot.
+    const bodyObserver =
+      typeof ResizeObserver === "undefined" || !document.body
+        ? null
+        : new ResizeObserver(scheduleCompute);
+    bodyObserver?.observe(document.body);
+
     return () => {
       window.removeEventListener("resize", scheduleCompute);
       window.removeEventListener("orientationchange", scheduleCompute);
       visualViewport?.removeEventListener("resize", scheduleCompute);
       visualViewport?.removeEventListener("scroll", scheduleCompute);
+      bodyObserver?.disconnect();
       if (animationFrameId !== null) {
         window.cancelAnimationFrame(animationFrameId);
       }
