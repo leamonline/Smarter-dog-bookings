@@ -100,7 +100,7 @@ test.describe("Viewport continuity", () => {
     // A floor the window cannot honour used to win here, pushing the bottom of
     // the shell past the viewport. The panes clip their own overflow, so the
     // composer went with it and the page grew a second scrollbar to chase it.
-    const shell = page.locator('[style*="--inbox-visible-height"]').first();
+    const shell = page.locator('[style*="--fill-visible-height"]').first();
     const box = await shell.boundingBox();
     expect(box).not.toBeNull();
     expect(Math.round(box!.y + box!.height)).toBeLessThanOrEqual(SHORT.height);

@@ -103,9 +103,9 @@ describe("useFillViewportHeight", () => {
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
     expect(result.current).toBe(298);
-    expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("120px");
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("24px");
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe(`${result.current}px`);
+    expect(root.style.getPropertyValue("--fill-top")).toBe("120px");
+    expect(root.style.getPropertyValue("--fill-bottom-gap")).toBe("24px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe(`${result.current}px`);
   });
 
   it("reserves the safe-area inset and nothing for a bottom navigation bar", () => {
@@ -120,7 +120,7 @@ describe("useFillViewportHeight", () => {
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
     expect(result.current).toBe(642);
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("58px");
+    expect(root.style.getPropertyValue("--fill-bottom-gap")).toBe("58px");
   });
 
   it("uses the same bottom gap at desktop width", () => {
@@ -129,9 +129,9 @@ describe("useFillViewportHeight", () => {
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
     expect(result.current).toBe(776);
-    expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("100px");
-    expect(root.style.getPropertyValue("--inbox-bottom-gap")).toBe("24px");
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("776px");
+    expect(root.style.getPropertyValue("--fill-top")).toBe("100px");
+    expect(root.style.getPropertyValue("--fill-bottom-gap")).toBe("24px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("776px");
   });
 
   it("reports what a short window actually leaves rather than a comfortable floor", () => {
@@ -144,7 +144,7 @@ describe("useFillViewportHeight", () => {
     const { result } = renderHook(() => useFillViewportHeight({ current: root }));
 
     expect(result.current).toBe(216);
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("216px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("216px");
   });
 
   it("never reports a negative height when the chrome outgrows the window", () => {
@@ -173,21 +173,36 @@ describe("useFillViewportHeight", () => {
     expect(animationFrames.request).toHaveBeenCalledTimes(1);
     act(() => animationFrames.flush());
     expect(result.current).toBe(536);
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("536px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("536px");
   });
 
   it("re-measures when chrome above the shell changes height without a resize", () => {
     // A banner appearing, the toolbar wrapping, the nav strip gaining an
     // approvals badge: the shell's top edge moves while innerHeight does not,
     // so no resize event ever fires and the old height would simply stand.
+    //
+    // Watching document.body alone used to be enough, because the chrome sat
+    // in the body's normal flow and the body grew with it. Under the
+    // fixed-height AppFrame it does not: a taller toolbar takes its height
+    // from the workspace rather than adding it to the page, so the body never
+    // changes size. Every ancestor is watched instead, so whichever one
+    // absorbs the change still reports it.
     const animationFrames = installAnimationFrameQueue();
     const observer = installResizeObserver();
     let top = 100;
+    const shell = document.createElement("div");
+    const main = document.createElement("main");
     const root = document.createElement("div");
     root.getBoundingClientRect = vi.fn(() => ({ top }));
+    main.appendChild(root);
+    shell.appendChild(main);
+    document.body.appendChild(shell);
 
     const { result, unmount } = renderHook(() => useFillViewportHeight({ current: root }));
     expect(result.current).toBe(776);
+    // The flex parent that actually absorbs a chrome change, not just the body.
+    expect(observer.observed).toContain(main);
+    expect(observer.observed).toContain(shell);
     expect(observer.observed).toContain(document.body);
 
     top = 180;
@@ -195,10 +210,11 @@ describe("useFillViewportHeight", () => {
     act(() => animationFrames.flush());
 
     expect(result.current).toBe(696);
-    expect(root.style.getPropertyValue("--inbox-shell-top")).toBe("180px");
+    expect(root.style.getPropertyValue("--fill-top")).toBe("180px");
 
     unmount();
     expect(observer.disconnected).toBe(true);
+    shell.remove();
   });
 
   it("removes window and visual viewport listeners and cancels pending work", () => {

@@ -20,7 +20,7 @@ import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox";
 import { PageHeader, PageHeaderPill } from "../../ui/PageHeader.jsx";
 import { CustomerContextPanel } from "../inbox/customer-context/CustomerContextPanel.jsx";
 import { useCustomerContext } from "../inbox/hooks/useCustomerContext.js";
-import { useFillViewportHeight } from "../inbox/hooks/useFillViewportHeight.js";
+import { useFillViewportHeight } from "../../../hooks/useFillViewportHeight.js";
 import { BookingCustomerPane } from "../inbox/workspace/BookingCustomerPane.jsx";
 import { ConversationPane } from "../inbox/workspace/ConversationPane.jsx";
 import { InboxWorkspaceShell } from "../inbox/workspace/InboxWorkspaceShell.jsx";

@@ -8,8 +8,11 @@ function classes(...values) {
 /**
  * Compact, shared identity row for staff pages.
  *
- * The negative horizontal margins deliberately match AppFrame's padding so
- * the surface spans the full content width beneath the global navigation.
+ * The negative horizontal margin cancels the shell gutter so the surface
+ * spans the full content width beneath the global navigation, then puts the
+ * same gutter back as padding. Both read --app-gutter (src/index.css), so
+ * they cannot drift from the shell or from each other — the hard-coded
+ * `-mx-4 sm:-mx-6` they replace was 8px short of the frame from `md` up.
  */
 export function PageHeader({
   title,
@@ -24,8 +27,8 @@ export function PageHeader({
     <header
       data-testid="page-header"
       className={classes(
-        "relative -mx-4 sm:-mx-6 mb-4 flex min-h-[76px] flex-wrap items-center gap-3",
-        "rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm sm:px-6",
+        "relative -mx-[var(--app-gutter)] mb-4 flex min-h-[76px] flex-wrap items-center gap-3",
+        "rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm",
         className,
       )}
     >

@@ -266,6 +266,38 @@
   --sd-coral-tint: var(--color-sd-coral-tint);
 }
 
+/* ── Page gutter ──────────────────────────────────────────────── */
+/* One source of truth for the staff shell's horizontal padding.
+ *
+ * The chrome bars (toolbar, mobile nav strip, PageHeader, AppContextRow) run
+ * full-bleed by cancelling that padding with a negative margin. They used to
+ * hard-code `-mx-4 sm:-mx-6` against a frame padded `px-4 sm:px-6 md:px-8`,
+ * so from `md` up every one of them was 8px narrower than the frame it was
+ * supposed to span — a mismatch nobody could see until you measured it, and
+ * one that came straight back the moment either side changed.
+ *
+ * Both sides now read the same variable, so they cannot drift apart. Use
+ * `px-[var(--app-gutter)]` to pad, and `-mx-[var(--app-gutter)]
+ * px-[var(--app-gutter)]` to bleed back out.
+ *
+ * Values match the Tailwind steps they replace: px-4 / sm:px-6 / md:px-8.
+ */
+:root {
+  --app-gutter: 1rem;
+}
+
+@media (width >= 40rem) {
+  :root {
+    --app-gutter: 1.5rem;
+  }
+}
+
+@media (width >= 48rem) {
+  :root {
+    --app-gutter: 2rem;
+  }
+}
+
 /* ── Semantic tokens ──────────────────────────────────────────── */
 /* Mapped to match smarterdog.co.uk: mustard CTA on deep-purple ink.  */
 /* The raw --color-brand-cyan* tokens are still available as accents. */

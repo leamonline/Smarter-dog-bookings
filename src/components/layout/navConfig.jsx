@@ -9,6 +9,7 @@ import { DogSilhouette } from "../decor/index.jsx";
 // Settings lives in the tools menu (SETTINGS_ITEM), not the primary nav.
 export const PRIMARY_NAV = [
   {
+    key: "today",
     to: "/today",
     label: "Daily Brief",
     icon: (
@@ -19,6 +20,7 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    key: "bookings",
     to: "/",
     label: "Bookings",
     icon: (
@@ -31,6 +33,7 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    key: "booking-desk",
     to: "/booking-workspace",
     label: "Booking Desk",
     ownerFeature: "booking_workspace_enabled",
@@ -43,6 +46,7 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    key: "dogs",
     to: "/dogs",
     label: "Dogs",
     // Uses the brand silhouette via the same CSS-mask technique as
@@ -51,6 +55,7 @@ export const PRIMARY_NAV = [
     icon: <DogSilhouette color="currentColor" size={22} ariaHidden />,
   },
   {
+    key: "humans",
     to: "/humans",
     label: "Humans",
     icon: (
@@ -61,6 +66,7 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    key: "inbox",
     to: "/inbox",
     label: "Inbox",
     icon: (
@@ -70,6 +76,7 @@ export const PRIMARY_NAV = [
     ),
   },
   {
+    key: "reports",
     to: "/reports",
     label: "Reports",
     icon: (
@@ -84,6 +91,7 @@ export const PRIMARY_NAV = [
 
 // Settings — reached via the header tools menu / mobile menu sheet.
 export const SETTINGS_ITEM = {
+  key: "settings",
   to: "/settings",
   label: "Settings",
   icon: (
@@ -107,17 +115,55 @@ export function navTargetFor(item, currentDateStr) {
   return item.to;
 }
 
+// Which section a path belongs to, as a stable key.
+//
+// Identity, not presentation. The display titles below can be renamed —
+// "Humans" to "People", say — without changing anything keyed on a section,
+// which is why behaviour such as the workspace scroll reset keys on this and
+// not on the title. Handles profile sub-routes (/dogs/:id, /humans/:id) too:
+// they belong to the same section as their list, so opening and closing a
+// profile is not a section change.
+//
+// Covers every section the app can be on, including the ones reached from the
+// tools menu rather than the primary nav.
+export function sectionKeyFor(pathname) {
+  if (pathname.startsWith("/today")) return "today";
+  if (pathname.startsWith("/booking-workspace")) return "booking-desk";
+  if (pathname === "/" || pathname === "") return "bookings";
+  if (pathname.startsWith("/dogs")) return "dogs";
+  if (pathname.startsWith("/humans")) return "humans";
+  if (pathname.startsWith("/inbox")) return "inbox";
+  if (pathname.startsWith("/reports")) return "reports";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/needs-attention")) return "needs-attention";
+  return "bookings";
+}
+
+const SECTION_TITLES = {
+  today: "Daily Brief",
+  bookings: "Bookings",
+  "booking-desk": "Booking Desk",
+  dogs: "Dogs",
+  humans: "Humans",
+  inbox: "Inbox",
+  reports: "Reports",
+  settings: "Settings",
+  "needs-attention": "Needs Attention",
+};
+
 // Resolve the section title for the context row from the current path.
-// Handles profile sub-routes (/dogs/:id, /humans/:id) too.
+// Derived from the key so a new section cannot gain a title without an
+// identity, or drift away from one.
 export function sectionTitleFor(pathname) {
-  if (pathname.startsWith("/today")) return "Daily Brief";
-  if (pathname.startsWith("/booking-workspace")) return "Booking Desk";
-  if (pathname === "/" || pathname === "") return "Bookings";
-  if (pathname.startsWith("/dogs")) return "Dogs";
-  if (pathname.startsWith("/humans")) return "Humans";
-  if (pathname.startsWith("/inbox")) return "Inbox";
-  if (pathname.startsWith("/reports")) return "Reports";
-  if (pathname.startsWith("/settings")) return "Settings";
-  if (pathname.startsWith("/needs-attention")) return "Needs Attention";
-  return "Bookings";
+  return SECTION_TITLES[sectionKeyFor(pathname)];
+}
+
+// Sections whose view manages its own internal scrolling, so the shell must
+// not also scroll underneath them. Everything else is a flowing page and
+// scrolls in <main>. The calendar joins this list once it has a height
+// contract of its own; until then it flows like the rest.
+const WORKSPACE_SECTIONS = new Set([]);
+
+export function sectionScrollsInShell(pathname) {
+  return !WORKSPACE_SECTIONS.has(sectionKeyFor(pathname));
 }

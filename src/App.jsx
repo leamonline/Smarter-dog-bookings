@@ -1,4 +1,4 @@
-import { useCallback, useEffect, lazy, Suspense } from "react";
+import { useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 
 import { supabase } from "./supabase/client";
@@ -13,6 +13,7 @@ import { useStaffAppData } from "./hooks/useStaffAppData";
 import { useBookingSession } from "./hooks/useBookingSession";
 import { useProfileRouting } from "./hooks/useProfileRouting";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useMainScrollReset } from "./hooks/useMainScrollReset";
 import { SalonProvider } from "./contexts/SalonContext";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
@@ -26,6 +27,7 @@ import { AppContextRow } from "./components/layout/AppContextRow.jsx";
 import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
 import { StaffRoutes } from "./components/layout/StaffRoutes.jsx";
 import { StaffModals } from "./components/layout/StaffModals.jsx";
+import { sectionScrollsInShell } from "./components/layout/navConfig.jsx";
 
 // Vercel page-view analytics. Dynamically imported so the library stays out
 // of the App chunk's boot path — it renders nothing and can arrive whenever.
@@ -230,6 +232,9 @@ function AuthedApp({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  // <main> is the app's scroll container now that the frame owns the viewport.
+  const mainRef = useRef(null);
+  useMainScrollReset(mainRef, location.pathname);
   const canAccessBookingWorkspace =
     FEATURE_FLAGS.booking_workspace_enabled &&
     (isOwner || (import.meta.env.DEV && !isOnline));
@@ -411,49 +416,7 @@ function AuthedApp({
   // big spinner.
   return (
     <ToastProvider>
-      {/* Bottom padding clears the iOS home indicator + Safari's collapsed
-          toolbar so the last card is never trapped behind browser chrome. */}
-      <AppFrame className="text-slate-800 max-lg:pt-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
-        >
-          Skip to content
-        </a>
-        <OfflineDemoBanner isOnline={isOnline} />
-        <NetworkOfflineBanner />
-        {data.dataError && !data.errorDismissed && (
-          <ErrorBanner message={data.dataError} onClose={data.dismissError} />
-        )}
-        {passwordCompromised && (
-          <ErrorBanner
-            title="Your password has appeared in a data breach"
-            message="It still works, but it isn't safe to keep. Sign out, choose “Forgot password?” on the login screen and set a new one."
-            onClose={onDismissPasswordWarning}
-          />
-        )}
-
-        <AppToolbar
-          onSignOut={signOut}
-          isOnline={isOnline}
-          user={user}
-          currentDateStr={currentDateStr}
-          showBookingWorkspace={canAccessBookingWorkspace}
-          onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
-          onNewClient={openNewClient}
-          onOpenOverview={() => {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("smarterdog:open-overview"));
-            }
-          }}
-        />
-
-        <MobileNavStrip
-          currentDateStr={currentDateStr}
-          showBookingWorkspace={canAccessBookingWorkspace}
-        />
-
-        <SalonProvider
+      <SalonProvider
           dogs={data.dogs}
           humans={data.humans}
           bookingsByDate={bookingsByDate}
@@ -480,50 +443,95 @@ function AuthedApp({
           onOpenDog={profile.openDog}
           configPricing={salonConfig?.pricing}
         >
+        <AppFrame
+          className="text-slate-800"
+          mainRef={mainRef}
+          mainProps={{ id: "main-content" }}
+          scroll={sectionScrollsInShell(location.pathname)}
+          chrome={
+            <>
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
+              >
+                Skip to content
+              </a>
+              <OfflineDemoBanner isOnline={isOnline} />
+              <NetworkOfflineBanner />
+              {data.dataError && !data.errorDismissed && (
+                <ErrorBanner message={data.dataError} onClose={data.dismissError} />
+              )}
+              {passwordCompromised && (
+                <ErrorBanner
+                  title="Your password has appeared in a data breach"
+                  message="It still works, but it isn't safe to keep. Sign out, choose “Forgot password?” on the login screen and set a new one."
+                  onClose={onDismissPasswordWarning}
+                />
+              )}
+            <AppToolbar
+              onSignOut={signOut}
+              isOnline={isOnline}
+              user={user}
+              currentDateStr={currentDateStr}
+              showBookingWorkspace={canAccessBookingWorkspace}
+              onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
+              onNewClient={openNewClient}
+              onOpenOverview={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("smarterdog:open-overview"));
+                }
+              }}
+            />
+            <MobileNavStrip
+              currentDateStr={currentDateStr}
+              showBookingWorkspace={canAccessBookingWorkspace}
+            />
+            </>
+          }
+        >
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
-              <main id="main-content">
-                <AppContextRow
-                  dateLabel={currentDateObj.toLocaleDateString("en-GB", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                  onNavigateDay={(delta) => {
-                    const target = new Date(currentDateObj);
-                    target.setDate(target.getDate() + delta);
-                    handleDatePick(target);
-                  }}
-                  onGoToday={() => {
-                    handleDatePick(new Date());
-                  }}
-                />
-                <StaffRoutes
-                  data={data}
-                  nav={nav}
-                  ui={{
-                    user,
-                    staffProfile,
-                    isOwner,
-                    isOnline,
-                    canAccessBookingWorkspace,
-                    showDatePicker,
-                    setShowDatePicker,
-                    showNewBooking,
-                    draftTarget: session.draftTarget,
-                    requestNewBooking,
-                    openNewClient,
-                    onOpenDog: profile.openDog,
-                    onOpenHuman: profile.openHuman,
-                    onOpenBooking: handleOpenBooking,
-                    onOpenClosureVisit: handleOpenClosureVisit,
-                    onSendCollection: openCollectionNotice,
-                  }}
-                />
-              </main>
+              <AppContextRow
+                dateLabel={currentDateObj.toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+                onNavigateDay={(delta) => {
+                  const target = new Date(currentDateObj);
+                  target.setDate(target.getDate() + delta);
+                  handleDatePick(target);
+                }}
+                onGoToday={() => {
+                  handleDatePick(new Date());
+                }}
+              />
+              <StaffRoutes
+                data={data}
+                nav={nav}
+                ui={{
+                  user,
+                  staffProfile,
+                  isOwner,
+                  isOnline,
+                  canAccessBookingWorkspace,
+                  showDatePicker,
+                  setShowDatePicker,
+                  showNewBooking,
+                  draftTarget: session.draftTarget,
+                  requestNewBooking,
+                  openNewClient,
+                  onOpenDog: profile.openDog,
+                  onOpenHuman: profile.openHuman,
+                  onOpenBooking: handleOpenBooking,
+                  onOpenClosureVisit: handleOpenClosureVisit,
+                  onSendCollection: openCollectionNotice,
+                }}
+              />
             </Suspense>
           </ErrorBoundary>
+        </AppFrame>
 
           <StaffModals
             data={data}
@@ -540,13 +548,12 @@ function AuthedApp({
               onCloseHumanProfile: profile.closeHumanProfile,
             }}
           />
-        </SalonProvider>
-        {import.meta.env.PROD ? (
-          <Suspense fallback={null}>
-            <Analytics />
-          </Suspense>
-        ) : null}
-      </AppFrame>
+      </SalonProvider>
+      {import.meta.env.PROD ? (
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
+      ) : null}
     </ToastProvider>
   );
 }

@@ -79,7 +79,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           Quiet chrome: white surface, hairline rule, ink typography. The
           nav frames the work rather than competing with it — the only
           saturated colour up here is signal (badges, the one CTA). */}
-      <div className="hidden lg:flex items-center gap-2 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-white text-slate-700 border-b border-slate-200">
+      <div className="hidden lg:flex items-center gap-2 -mx-[var(--app-gutter)] px-[var(--app-gutter)] py-2 bg-white text-slate-700 border-b border-slate-200">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-7 w-28" />
         </NavLink>
@@ -279,7 +279,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
       {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ──
           Light like the desktop bar; the nav strip directly below carries
           the hairline rule, so together they read as one quiet header. */}
-      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-white text-slate-700">
+      <div className="lg:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-white text-slate-700">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-6 w-24" />
         </NavLink>
