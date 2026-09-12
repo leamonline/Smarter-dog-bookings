@@ -214,3 +214,77 @@ describe("useDaySettings closure integrity", () => {
     expect(result.current.daySettings["2026-05-18"].isOpen).toBe(false);
   });
 });
+
+// Blocking a whole timeslot must be ONE write. Every day-settings mutation
+// upserts the entire row, so two calls for the same slot raced on the same
+// primary key: the first payload (seat 0 only) was already stale when it left,
+// and if it committed last the row came back with just one seat blocked.
+describe("useDaySettings — setOverride across several seats", () => {
+  it("sends one upsert carrying every seat when given a list", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({ data: [{ ...ROW, overrides: {} }], error: null }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.setOverride("2026-05-18", "09:00", [0, 1], "blocked");
+    });
+
+    expect(stub.builder.upsert).toHaveBeenCalledTimes(1);
+    expect(stub.builder.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        setting_date: "2026-05-18",
+        overrides: { "09:00": { 0: "blocked", 1: "blocked" } },
+      }),
+      { onConflict: "setting_date" },
+    );
+    expect(result.current.daySettings["2026-05-18"].overrides).toEqual({
+      "09:00": { 0: "blocked", 1: "blocked" },
+    });
+  });
+
+  it("keeps per-seat toggle semantics, so the same list unblocks again", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({
+        data: [{ ...ROW, overrides: { "09:00": { 0: "blocked", 1: "blocked" } } }],
+        error: null,
+      }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.setOverride("2026-05-18", "09:00", [0, 1], "blocked");
+    });
+
+    expect(stub.builder.upsert).toHaveBeenCalledTimes(1);
+    // Both seats cleared, so the slot key drops out of overrides entirely.
+    expect(result.current.daySettings["2026-05-18"].overrides).toEqual({});
+  });
+
+  it("still accepts a bare seat index for a single-seat block", async () => {
+    takeBootPrefetch.mockReturnValue(
+      Promise.resolve({ data: [{ ...ROW, overrides: {} }], error: null }),
+    );
+    const stub = makeStub();
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useDaySettings(weekStart));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.setOverride("2026-05-18", "09:00", 1, "blocked");
+    });
+
+    expect(result.current.daySettings["2026-05-18"].overrides).toEqual({
+      "09:00": { 1: "blocked" },
+    });
+  });
+});

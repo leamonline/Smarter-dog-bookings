@@ -48,10 +48,12 @@ interface SupabaseFns {
     dateStr: string,
     nextIsOpen?: boolean,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  // seatIndex takes a list as well as a single seat: a whole-slot block has to
+  // travel as ONE call, or the two full-row upserts race (see setOverride).
   sbSetOverride: (
     dateStr: string,
     slot: string,
-    seatIndex: number,
+    seatIndex: number | number[],
     action: SeatAction,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   // Whole-slot "open for immediate booking" toggle (useDaySettings) — same
@@ -166,7 +168,7 @@ export function useBookingActions({
     [sbToggleDayOpen, currentDateStr],
   );
   const onlineHandleOverride = useCallback(
-    (slot: string, seatIndex: number, action: SeatAction) =>
+    (slot: string, seatIndex: number | number[], action: SeatAction) =>
       sbSetOverride(currentDateStr, slot, seatIndex, action),
     [sbSetOverride, currentDateStr],
   );

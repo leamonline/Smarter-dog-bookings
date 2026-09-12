@@ -74,8 +74,8 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
 
       {/* Block button */}
       <button
-        aria-label="Block this seat"
-        title="Block this timeslot"
+        aria-label={span ? "Block seats" : "Block this seat"}
+        title={span ? "Block seats" : "Block this seat"}
         onClick={(e) => {
           e.stopPropagation();
           if (span) {
@@ -97,7 +97,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         <BlockMenu
           onBlock1={() => onBlock(0)}
           onBlock2={() => onBlock(1)}
-          onBlockBoth={() => { onBlock(0); onBlock(1); }}
+          onBlockBoth={() => onBlock([0, 1])}
           onClose={() => setShowMenu(false)}
         />
       )}

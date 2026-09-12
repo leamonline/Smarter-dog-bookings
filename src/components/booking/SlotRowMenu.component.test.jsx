@@ -77,6 +77,29 @@ describe("SlotRowMenu — Open for immediate booking", () => {
   });
 });
 
+// "Block this timeslot" used to fire onBlockSeat(0) then onBlockSeat(1) as two
+// separate mutations. Each one upserts the WHOLE day_settings row, so the two
+// raced on the same primary key and the stale first payload (seat 0 only) could
+// land last and reopen seat 1 — the slot came back half-blocked. Both seats must
+// travel as ONE call so they become one write.
+describe("SlotRowMenu — blocking a whole timeslot is one call", () => {
+  it("asks for both seats in a single onBlockSeat call", () => {
+    const onBlockSeat = vi.fn();
+    openMenu({ onBlockSeat });
+    fireEvent.click(screen.getByText("Block this timeslot"));
+    expect(onBlockSeat).toHaveBeenCalledTimes(1);
+    expect(onBlockSeat).toHaveBeenCalledWith([0, 1]);
+  });
+
+  it("still blocks a single seat with a bare index", () => {
+    const onBlockSeat = vi.fn();
+    openMenu({ onBlockSeat });
+    fireEvent.click(screen.getByText("Block seat 2 only"));
+    expect(onBlockSeat).toHaveBeenCalledTimes(1);
+    expect(onBlockSeat).toHaveBeenCalledWith(1);
+  });
+});
+
 // jsdom can't measure real layout (getBoundingClientRect/offsetHeight are 0),
 // so these assert the placement WIRING + on-screen invariant, not pixels.
 describe("SlotRowMenu — placement stays on-screen", () => {

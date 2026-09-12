@@ -248,14 +248,27 @@ export function useDaySettings(weekStart: Date | null | undefined) {
     [upsertSetting],
   );
 
+  // `seatIndex` takes a list as well as a single seat, and that matters: every
+  // day-settings mutation upserts the WHOLE row, so blocking both seats as two
+  // calls sent two full-row writes racing on the same primary key — the first
+  // payload was already stale (seat 0 only) and, landing last, reopened seat 2.
+  // One call means one payload. Each index still toggles independently, so the
+  // same list un-blocks what it blocked.
   const setOverride = useCallback(
-    (dateStr: string, slot: string, seatIndex: number, action: SlotOverrides[number]) =>
+    (
+      dateStr: string,
+      slot: string,
+      seatIndex: number | number[],
+      action: SlotOverrides[number],
+    ) =>
       upsertSetting(dateStr, (current) => {
         const overrides: Record<string, SlotOverrides> = { ...(current.overrides || {}) };
         const slotOv: SlotOverrides = { ...(overrides[slot] || {}) };
 
-        if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
-        else slotOv[seatIndex] = action;
+        for (const seat of Array.isArray(seatIndex) ? seatIndex : [seatIndex]) {
+          if (slotOv[seat] === action) delete slotOv[seat];
+          else slotOv[seat] = action;
+        }
 
         if (Object.keys(slotOv).length === 0) delete overrides[slot];
         else overrides[slot] = slotOv;
