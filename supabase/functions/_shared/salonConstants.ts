@@ -91,7 +91,14 @@ export const BOOKING_STATUS = {
 // Customer self-service portal sign-in/sign-up URL (prod default). This
 // module stays pure (no Deno/env access); callers in the Edge functions
 // override per-environment via `Deno.env.get("CUSTOMER_PORTAL_URL")`.
-export const CUSTOMER_PORTAL_URL = "https://smarterdog.vercel.app/customer/login";
+//
+// Same-origin since the 11 September 2026 domain cutover: one deployment
+// serves the marketing site at "/" and the customer portal at "/book". This
+// pointed at smarterdog.vercel.app until then, so WhatsApp replies were
+// sending customers to a Vercel hostname instead of the salon's own domain.
+// "/book/login" (not "/book") matches the marketing site's BOOKING_URL and is
+// where the old "/customer/login" already redirected.
+export const CUSTOMER_PORTAL_URL = "https://smarterdog.co.uk/book/login";
 
 // The salon's physical location, sent as the LOCATION header of any template
 // whose Meta definition carries one (see TEMPLATES_WITH_LOCATION_HEADER).
