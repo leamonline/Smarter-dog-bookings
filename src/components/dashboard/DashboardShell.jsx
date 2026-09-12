@@ -43,9 +43,14 @@ export function DashboardShell({ left, main, right }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:h-full lg:min-h-0">
       {/* Left sidebar — a scroller in its own right now, not the column the
-          other two are measured against. */}
+          other two are measured against.
+          It is rendered at every width rather than hidden below `lg`: down
+          there it drops to a single full-width row *beneath* the schedule
+          and shows only its capacity card. That is what keeps one
+          CapacityCard in the document instead of a rail copy and a footer
+          copy that both appeared between 1024 and 1279. */}
       {left && (
-        <div className={`hidden lg:block lg:order-1 ${COLUMN_FILL} lg:overflow-y-auto`}>
+        <div className={`order-3 lg:order-1 ${COLUMN_FILL} lg:overflow-y-auto`}>
           {left}
         </div>
       )}

@@ -94,7 +94,7 @@ export function CapacityCard({
           <button
             type="button"
             onClick={() => onSelectDate?.(nextAvailable.date)}
-            className="group text-left w-full flex items-center justify-between gap-2 text-sm font-semibold text-brand-teal-text cursor-pointer transition-all bg-transparent border-none p-0 font-[inherit] hover:text-brand-teal-text/80"
+            className="group text-left w-full flex items-center justify-between gap-2 text-sm font-semibold text-brand-teal-text cursor-pointer transition-all bg-transparent border-none p-0 pointer-coarse:min-h-11 font-[inherit] hover:text-brand-teal-text/80"
           >
             <span>
               {nextAvailable.dateLabel} at {nextAvailable.slotLabel}

@@ -86,6 +86,28 @@ export default defineConfig({
           name: "mobile",
           use: { ...devices["iPhone 13"], browserName: "chromium", ...chromiumLaunch },
         },
+        // A folding phone is two devices sharing a hinge, and neither matches
+        // the three above. The cover screen is narrower than any phone preset;
+        // the unfolded screen is near-square — wide enough to look like a
+        // tablet and too short to behave like one. The layout bugs live in
+        // that mismatch, so both get their own project.
+        {
+          name: "fold-cover",
+          use: { viewport: { width: 360, height: 880 }, hasTouch: true, browserName: "chromium", ...chromiumLaunch },
+          testMatch: /adaptive-layout\.spec\.ts/,
+        },
+        {
+          name: "fold-open",
+          use: { viewport: { width: 700, height: 850 }, hasTouch: true, browserName: "chromium", ...chromiumLaunch },
+          testMatch: /adaptive-layout\.spec\.ts/,
+        },
+        // The new width ceiling is 1800px; nothing else in the matrix is wide
+        // enough to reach it, so a 1440 run could never tell you it worked.
+        {
+          name: "wide-desktop",
+          use: { viewport: { width: 1920, height: 1080 }, browserName: "chromium", ...chromiumLaunch },
+          testMatch: /adaptive-layout\.spec\.ts/,
+        },
       ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,

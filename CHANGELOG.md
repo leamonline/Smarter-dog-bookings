@@ -250,6 +250,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   section's display title, so renaming a nav item cannot quietly change
   scrolling behaviour; `sectionTitleFor()` is now derived from that key.
 
+- The staff calendar adapts to tablets and folding phones, and the breakpoints
+  are measured rather than guessed.
+
+  **Two seats side by side from `md` instead of `lg`.** A seat card is 291px
+  wide at `lg` on a 1024 window — the width that has always shipped. At 768,
+  with no sidebar yet and the 80px time column removed, two-up gives each seat
+  300px, so the pair is no tighter than desktop. Between 768 and 1023 the
+  schedule used to run one seat per row across a 704px column, wasting half of
+  it. At 700 two-up would give 274px, narrower than anything that ships, so a
+  folding phone's unfolded screen stays single-column and wins its space back
+  from the chrome instead.
+
+  **A `short:` variant for windows with little height.** The chrome costs
+  125px below `lg` — a mobile toolbar and a nav strip, stacked — against 61px
+  above it, where one desktop bar does both jobs. On a 620px-tall window that
+  is a fifth of the screen gone before the first booking, and on a near-square
+  850 it is still 15%. `short:` (52rem and under) trims the toolbar, the nav
+  strip and the date row. Named rather than arbitrary, for the same reason
+  `--breakpoint-wide` is.
+
+  **One capacity card.** It was rendered twice — in the left rail and again as
+  an `xl:hidden` footer — so between 1024 and 1279, where the rail was already
+  visible and the footer had not yet hidden, the same card was on screen
+  twice. There is now a single instance whose grid order moves it beneath the
+  schedule below `lg`.
+
+  **Touch targets.** Seven controls sat under the 44px the project's own modal
+  standard requires: the "Next available" row was 294x20, and the day arrows,
+  Today, Month view, Day settings, Message day and the shared `Button` were all
+  36-40px. They now meet 44px under `pointer-coarse:`, so a thumb gets the
+  bigger target and mouse density is untouched.
+
+  Pinned by a new browser suite (`e2e/adaptive-layout.spec.ts`) running on six
+  viewport projects, including two folding-phone shapes and a 1920 desktop —
+  nothing else in the matrix was wide enough to exercise the 1800px ceiling.
+
 - The staff calendar fills the window instead of stopping where the sidebar
   ends. `DashboardShell` used to measure the left rail with a `ResizeObserver`
   and cap the other two columns to whatever it found, so all three ended level

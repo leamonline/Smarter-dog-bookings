@@ -22,7 +22,6 @@ import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
 import { MiniCalendarCard } from "../dashboard/MiniCalendarCard.jsx";
-import { CapacityCard } from "../dashboard/CapacityCard.jsx";
 import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
 
 const DatePickerModal = lazy(() =>
@@ -247,7 +246,7 @@ export function WeekCalendarView({
               type="button"
               onClick={() => navigateDay(-1)}
               aria-label="Previous day"
-              className="sm:hidden w-8 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
             >
               <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
@@ -266,7 +265,7 @@ export function WeekCalendarView({
               type="button"
               onClick={() => navigateDay(1)}
               aria-label="Next day"
-              className="sm:hidden w-8 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
             >
               <ChevronRight size={18} strokeWidth={2.5} />
             </button>
@@ -275,7 +274,7 @@ export function WeekCalendarView({
               onClick={() => setMonthExpanded(true)}
               aria-label="Month view"
               aria-pressed={false}
-              className="w-9 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="w-9 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
             >
               <CalendarDays size={18} strokeWidth={2.25} />
             </button>
@@ -372,18 +371,6 @@ export function WeekCalendarView({
         />
       </PullToRefresh>
 
-      {/* Capacity overview at the foot of the page on mobile/tablet —
-          desktop carries it in the left sidebar. */}
-      <div className="xl:hidden mt-3">
-        <CapacityCard
-          currentDateObj={currentDateObj}
-          dates={dates}
-          bookingsByDate={bookingsByDate}
-          dayOpenState={dayOpenState}
-          daySettings={daySettings}
-          onSelectDate={handleDatePick}
-        />
-      </div>
 
       <OverviewDrawer
         open={showOverview}

@@ -43,8 +43,8 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: "py-1.5 px-3 text-xs",
-  md: "py-2 px-4 text-sm",
+  sm: "py-1.5 px-3 text-xs pointer-coarse:min-h-11",
+  md: "py-2 px-4 text-sm pointer-coarse:min-h-11",
 };
 
 const LINK_SIZES = {

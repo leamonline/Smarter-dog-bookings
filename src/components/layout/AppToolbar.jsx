@@ -279,7 +279,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
       {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ──
           Light like the desktop bar; the nav strip directly below carries
           the hairline rule, so together they read as one quiet header. */}
-      <div className="lg:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-white text-slate-700">
+      <div className="lg:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-6 w-24" />
         </NavLink>

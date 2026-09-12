@@ -76,7 +76,12 @@ describe("UX Refinement: Today callback and URL synchronisation", () => {
 });
 
 describe("UX Refinement: Preserved seatIndex ordering", () => {
-  it("renders both seat cells in their canonical parallel layout structure starting from lg breakpoint", () => {
+  it("renders both seat cells in their canonical parallel layout structure starting from md breakpoint", () => {
+    // md, not lg, since the measurement moved it there: a seat card is 291px
+    // wide at lg on a 1024 window — the width that has always shipped — and
+    // 768 gives 300px two-up, so the pair is no tighter than desktop. Between
+    // 768 and 1023 the schedule used to run one seat per row across a 704px
+    // column, wasting half of it.
     const activeSlots = ["08:30"];
     const bookings = [];
     const { container } = render(
@@ -91,7 +96,7 @@ describe("UX Refinement: Preserved seatIndex ordering", () => {
       </ToastProvider>
     );
 
-    const gridContainer = container.querySelector(".lg\\:grid-cols-2");
+    const gridContainer = container.querySelector(".md\\:grid-cols-2");
     expect(gridContainer).toBeInTheDocument();
   });
 });
