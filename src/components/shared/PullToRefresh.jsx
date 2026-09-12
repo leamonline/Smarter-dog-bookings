@@ -2,7 +2,7 @@ import { useRef, useState, useCallback } from "react";
 
 const THRESHOLD = 60;
 
-export function PullToRefresh({ onRefresh, children }) {
+export function PullToRefresh({ onRefresh, children, className = "" }) {
   const [pulling, setPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -40,7 +40,7 @@ export function PullToRefresh({ onRefresh, children }) {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="relative"
+      className={`relative ${className}`.trim()}
     >
       {(pullDistance > 0 || refreshing) && (
         <div

@@ -52,7 +52,17 @@ export function AppFrame({
           .filter(Boolean)
           .join(" ")}
       >
-        <div className={`${TRACK} ${scroll ? "py-5" : "h-full py-5"}`}>{children}</div>
+        <div
+          className={`${TRACK} py-5 ${
+            // A workspace view fills the shell rather than flowing, so the
+            // track becomes a flex column: anything above the view (the
+            // context row) keeps its natural height and the view takes the
+            // rest via flex-1.
+            scroll ? "" : "h-full min-h-0 flex flex-col"
+          }`}
+        >
+          {children}
+        </div>
       </main>
     </div>
   );

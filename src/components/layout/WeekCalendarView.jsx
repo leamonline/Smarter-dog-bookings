@@ -204,7 +204,12 @@ export function WeekCalendarView({
   };
 
   return (
-    <div className="relative">
+    // Fills the workspace the shell hands it (the track is a flex column on
+    // this route) and carries its own scrolling. Below `lg` that scroll is
+    // the whole page — week strip, schedule and the capacity block beneath
+    // it. From `lg` up DashboardShell fills this box exactly and each of its
+    // columns scrolls instead, so there is nothing left here to move.
+    <div className="relative flex-1 min-h-0 flex flex-col overflow-y-auto">
       <FloatingDecor />
 
       {/* Compact week pills on tablet/mobile — desktop uses the
@@ -288,7 +293,7 @@ export function WeekCalendarView({
         </div>
       )}
 
-      <PullToRefresh onRefresh={onRefresh}>
+      <PullToRefresh onRefresh={onRefresh} className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
         <DashboardShell
           left={
             <LeftSidebar
