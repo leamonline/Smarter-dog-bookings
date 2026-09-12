@@ -1,34 +1,16 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { DashboardShell } from "./DashboardShell.jsx";
 
-const MATCHED_HEIGHT_CLASS = "lg:max-h-[var(--dashboard-row-height,none)]";
-
-// jsdom has no ResizeObserver, so stand one in and drive the left column's
-// measurement by hand.
-function installResizeObserver() {
-  const state = { callbacks: [], disconnected: 0 };
-  class StubResizeObserver {
-    constructor(callback) {
-      state.callbacks.push(callback);
-    }
-
-    observe() {}
-
-    disconnect() {
-      state.disconnected += 1;
-    }
-  }
-  vi.stubGlobal("ResizeObserver", StubResizeObserver);
-  state.measure = (height) => {
-    act(() => {
-      for (const callback of state.callbacks) {
-        callback([{ contentRect: { height } }], null);
-      }
-    });
-  };
-  return state;
-}
+// The shell used to measure the left column with a ResizeObserver and cap the
+// other two to whatever it found. These tests replace that contract: height
+// now comes from the app shell through CSS, so there is nothing to measure,
+// nothing to go stale, and no max-height at any width.
+//
+// jsdom performs no layout, so what is checkable here is the contract — which
+// utilities are applied and at which breakpoint, and that no JavaScript sizing
+// remains. That the columns actually reach the bottom of the window is a real
+// layout question and is asserted in e2e/viewport-continuity.spec.ts.
 
 function renderShell() {
   render(
@@ -39,62 +21,86 @@ function renderShell() {
     />,
   );
   return {
+    grid: screen.getByText("Booking grid").parentElement.parentElement,
+    leftColumn: screen.getByText("Week overview").parentElement,
     middle: screen.getByText("Booking grid").parentElement,
     rightColumn: screen.getByText("Workflow").parentElement,
   };
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("DashboardShell", () => {
-  it("publishes the measured sidebar height as a breakpoint-scoped custom property", () => {
-    const observer = installResizeObserver();
-    const { middle, rightColumn } = renderShell();
+  it("takes its height from the shell rather than measuring anything", () => {
+    // If a ResizeObserver is ever constructed again, the sidebar-derived cap
+    // has come back and the schedule will stop where the rail ends.
+    const construct = vi.fn();
+    class FailingResizeObserver {
+      constructor() {
+        construct();
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", FailingResizeObserver);
 
-    observer.measure(742);
+    const { grid } = renderShell();
 
-    for (const column of [middle, rightColumn]) {
-      expect(column.style.getPropertyValue("--dashboard-row-height")).toBe("742px");
-      expect(column.className).toContain(MATCHED_HEIGHT_CLASS);
-      // The cap belongs to the multi-column layout that produced it. An inline
-      // max-height would apply at every width, including the single-column
-      // layout where the sidebar it was measured from is display:none.
-      expect(column.style.maxHeight).toBe("");
+    expect(construct).not.toHaveBeenCalled();
+    expect(grid.className).toContain("lg:h-full");
+    expect(grid.className).toContain("lg:min-h-0");
+    vi.unstubAllGlobals();
+  });
+
+  it("gives every column the fill contract, the sidebar included", () => {
+    // The left rail used to define the row height; being a scroller like the
+    // others is what stops a short window forcing everyone else short too.
+    const { leftColumn, middle, rightColumn } = renderShell();
+
+    for (const column of [leftColumn, middle, rightColumn]) {
+      expect(column.className).toContain("lg:h-full");
+      expect(column.className).toContain("lg:min-h-0");
+    }
+    expect(leftColumn.className).toContain("lg:overflow-y-auto");
+    expect(rightColumn.className).toContain("lg:overflow-y-auto");
+    expect(middle.className).toContain("lg:overflow-hidden");
+  });
+
+  it("sets no inline height on any column", () => {
+    const { grid, leftColumn, middle, rightColumn } = renderShell();
+
+    for (const el of [grid, leftColumn, middle, rightColumn]) {
+      expect(el.style.height).toBe("");
+      expect(el.style.maxHeight).toBe("");
+      expect(el.style.getPropertyValue("--dashboard-row-height")).toBe("");
     }
   });
 
-  it("never caps a column before the sidebar has been measured", () => {
-    installResizeObserver();
-    const { middle, rightColumn } = renderShell();
+  it("scopes every height utility to the multi-column breakpoint (#834)", () => {
+    // Below lg the left column is display:none and measures 0. That is what
+    // made the old measured cap outlive its layout and clip the booking grid
+    // on phones. An unscoped height utility would be the same mistake in CSS.
+    const { grid, leftColumn, middle, rightColumn } = renderShell();
 
-    for (const column of [middle, rightColumn]) {
-      expect(column.style.getPropertyValue("--dashboard-row-height")).toBe("");
-      expect(column.style.maxHeight).toBe("");
+    for (const el of [grid, leftColumn, middle, rightColumn]) {
+      for (const token of el.className.split(/\s+/).filter(Boolean)) {
+        if (/^(h-|min-h-|max-h-|overflow-)/.test(token)) {
+          throw new Error(`"${token}" is unscoped — it would apply below lg too`);
+        }
+      }
     }
   });
 
-  it("holds the last real measurement when the hidden sidebar reports zero", () => {
-    // Below lg the sidebar is display:none and measures 0. Adopting that would
-    // collapse the columns; the CSS scoping is what keeps the stale figure from
-    // reaching a layout it does not describe.
-    const observer = installResizeObserver();
-    const { middle } = renderShell();
+  it("stops pinning columns that nothing scrolls underneath any more", () => {
+    const { leftColumn, middle, rightColumn } = renderShell();
 
-    observer.measure(742);
-    observer.measure(0);
-
-    expect(middle.style.getPropertyValue("--dashboard-row-height")).toBe("742px");
-    expect(middle.style.maxHeight).toBe("");
+    for (const column of [leftColumn, middle, rightColumn]) {
+      expect(column.className).not.toContain("sticky");
+    }
   });
 
-  it("disconnects its observer on unmount", () => {
-    const observer = installResizeObserver();
-    const { unmount } = render(<DashboardShell left={<div>L</div>} main={<div>M</div>} />);
+  it("renders without the optional columns", () => {
+    render(<DashboardShell main={<div>Booking grid</div>} />);
 
-    unmount();
-
-    expect(observer.disconnected).toBe(1);
+    expect(screen.getByText("Booking grid")).toBeInTheDocument();
+    expect(screen.queryByText("Week overview")).not.toBeInTheDocument();
   });
 });

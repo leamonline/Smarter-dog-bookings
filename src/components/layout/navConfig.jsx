@@ -160,9 +160,8 @@ export function sectionTitleFor(pathname) {
 
 // Sections whose view manages its own internal scrolling, so the shell must
 // not also scroll underneath them. Everything else is a flowing page and
-// scrolls in <main>. The calendar joins this list once it has a height
-// contract of its own; until then it flows like the rest.
-const WORKSPACE_SECTIONS = new Set([]);
+// scrolls in <main>.
+const WORKSPACE_SECTIONS = new Set(["bookings"]);
 
 export function sectionScrollsInShell(pathname) {
   return !WORKSPACE_SECTIONS.has(sectionKeyFor(pathname));

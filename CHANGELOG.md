@@ -250,6 +250,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   section's display title, so renaming a nav item cannot quietly change
   scrolling behaviour; `sectionTitleFor()` is now derived from that key.
 
+- The staff calendar fills the window instead of stopping where the sidebar
+  ends. `DashboardShell` used to measure the left rail with a `ResizeObserver`
+  and cap the other two columns to whatever it found, so all three ended level
+  with the *sidebar* — and since the rail's content (mini-calendar, capacity,
+  revenue) is shorter than a desktop window, the day's schedule was trimmed to
+  match it and everything below was dead space. On a 1920x1080 window the
+  schedule clipped part-way through the 11:00 row with roughly a third of the
+  screen empty.
+
+  Nothing is measured now. The shell is a fixed-height flex column, so the
+  browser already knows what is left after the chrome; `h-full` inherits it
+  and each of the three columns scrolls its own overflow. The left rail
+  becomes a scroller like the other two rather than the thing that dictates
+  everyone else's height, so a short window scrolls the rail instead of
+  shortening the schedule. The sticky positioning went too — nothing scrolls
+  underneath those columns any more.
+
+  #834's guarantee is kept and is why every height utility is `lg:`-scoped:
+  below that breakpoint the left column is `display:none` and measures 0, and
+  a constraint derived from it outlived its layout and clipped the grid on
+  phones. There is no longer any measurement to go stale and no max-height at
+  any width.
+
 - The chrome bars' full-bleed margins read a single `--app-gutter` token
   instead of hard-coding `-mx-4 sm:-mx-6` against a frame padded
   `px-4 sm:px-6 md:px-8`. Five components carried that duplicate, and from

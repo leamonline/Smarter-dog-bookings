@@ -1,86 +1,68 @@
-import { useEffect, useRef, useState } from "react";
-
 /**
  * Three-column dashboard shell.
  *
- * On xl+, all three columns are sticky-pinned to the viewport so they
- * don't scroll with the page. The middle AND right columns mirror the
- * left column's measured height (via ResizeObserver) so all three
- * end at the same Y — the bottom of the left column (where the
- * Revenue card sits). Middle + right both scroll internally if their
- * content overflows.
+ * From `lg` up the grid fills the height the app shell hands it and each
+ * column scrolls its own overflow, so all three end level at the bottom of
+ * the window. Below `lg` it is a single column with no height constraint at
+ * all, and the page scrolls normally.
  *
- * That mirrored height is published as a custom property and applied by a
- * `lg:` utility, NOT as an inline max-height, because an inline height
- * applies at every width while the layout it was measured from exists only
- * from `lg` up. Below `lg` the grid is a single column and the left column
- * is `display:none` — which reports a height of 0, so the last desktop
- * measurement stuck and went on capping the booking grid on phones. With
- * `overflow-hidden` also being `lg:`-scoped down there, the schedule simply
- * spilled out of its box and collided with the capacity card underneath it.
- * Scoping the constraint to the breakpoint that produces it means it cannot
- * outlive the sidebar again.
+ * Where the height comes from, and why it changed.
+ *
+ * This used to measure the LEFT column with a ResizeObserver and cap the
+ * other two to whatever it found, so the three ended level at the bottom of
+ * the *sidebar*. That is why the schedule stopped part-way down the window:
+ * the rail's natural content — mini-calendar, capacity, revenue — is simply
+ * shorter than a desktop window, and the day's bookings were being trimmed to
+ * match it. Everything below was dead space.
+ *
+ * Now nothing is measured. AppFrame is a fixed-height flex column, so the
+ * browser has already worked out what is left after the chrome; `h-full`
+ * inherits it and `min-h-0` lets the columns shrink inside it rather than
+ * pushing the grid taller than its parent. The left rail is a scroller like
+ * the other two instead of being the thing that defines the height — on a
+ * short window it now scrolls rather than dictating that everyone else be
+ * short too.
+ *
+ * The sticky positioning went with it. `lg:sticky lg:top-4` existed because
+ * the document scrolled underneath these columns; nothing scrolls underneath
+ * them any more, so they simply sit in a full-height grid.
+ *
+ * The guarantee from #834 is kept, and is the reason every height utility
+ * here is `lg:`-scoped: below that breakpoint the left column is
+ * `display:none` and reports a height of 0, so any constraint derived from it
+ * outlived the layout that produced it and clipped the booking grid on
+ * phones. There is no longer a measurement to go stale, and no max-height at
+ * any width — `maxHeight` computes to `none` below `lg`, which
+ * e2e/viewport-continuity.spec.ts pins.
  */
-// Unset, `var()` leaves max-height at its initial `none`, so the first paint
-// (and every width below lg) is simply unconstrained.
-const MATCHED_HEIGHT_CLASS = "lg:max-h-[var(--dashboard-row-height,none)]";
+
+// Each column: fill the row, allow shrinking, carry its own overflow.
+const COLUMN_FILL = "lg:h-full lg:min-h-0";
 
 export function DashboardShell({ left, main, right }) {
-  const leftRef = useRef(null);
-  const [matchedMaxHeight, setMatchedMaxHeight] = useState(null);
-
-  useEffect(() => {
-    if (!leftRef.current || typeof ResizeObserver === "undefined") return;
-    const el = leftRef.current;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // Use contentRect.height — excludes border on the column wrapper.
-        const h = Math.round(entry.contentRect.height);
-        if (h > 0) setMatchedMaxHeight(h);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const matchedHeightStyle = matchedMaxHeight
-    ? { "--dashboard-row-height": `${matchedMaxHeight}px` }
-    : undefined;
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:items-start">
-      {/* Left sidebar — visible on xl+, content drives the row height
-          for the middle + right columns via ResizeObserver. */}
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:h-full lg:min-h-0">
+      {/* Left sidebar — a scroller in its own right now, not the column the
+          other two are measured against. */}
       {left && (
-        <div
-          ref={leftRef}
-          className="hidden lg:block lg:order-1 lg:sticky lg:top-4"
-        >
+        <div className={`hidden lg:block lg:order-1 ${COLUMN_FILL} lg:overflow-y-auto`}>
           {left}
         </div>
       )}
 
-      {/* Middle column — pinned to viewport and constrained to the
-          measured left-column height so the booking grid card ends
-          at the same point as the Revenue card. Internal scroll
-          handles overflow. */}
-      <div
-        className={`order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 lg:overflow-hidden lg:flex lg:flex-col ${MATCHED_HEIGHT_CLASS}`}
-        style={matchedHeightStyle}
-      >
+      {/* Middle column — the day's schedule. It gets the full height of the
+          shell and scrolls internally, so the grid runs to the bottom of the
+          window instead of stopping where the sidebar happened to end. */}
+      <div className={`order-1 lg:order-2 min-w-0 ${COLUMN_FILL} lg:overflow-hidden lg:flex lg:flex-col`}>
         {main}
       </div>
 
-      {/* Right column — same height contract as middle. Long workflow
-          stacks (waitlist, to-do, booking history) scroll internally.
-          Bottom corners rounded so scrolled content fades into a
-          rounded edge instead of a hard clip — matches the visual
-          shape of the booking grid card in the middle column. */}
+      {/* Right column — same contract. Long workflow stacks (waitlist, to-do,
+          booking history) scroll internally. Bottom corners rounded so
+          scrolled content fades into a rounded edge instead of a hard clip —
+          matches the booking grid card in the middle column. */}
       {right && (
-        <div
-          className={`order-2 lg:order-3 hidden xl:block lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl ${MATCHED_HEIGHT_CLASS}`}
-          style={matchedHeightStyle}
-        >
+        <div className={`order-2 lg:order-3 hidden xl:block ${COLUMN_FILL} lg:overflow-y-auto lg:rounded-b-2xl`}>
           {right}
         </div>
       )}
