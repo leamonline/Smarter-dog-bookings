@@ -250,6 +250,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   section's display title, so renaming a nav item cannot quietly change
   scrolling behaviour; `sectionTitleFor()` is now derived from that key.
 
+- The calendar reads as a schedule with two quiet margins, rather than three
+  columns of equal weight. The left rail is reference furniture — a month grid
+  and two read-only measurements — but it wore the same white card, border and
+  lift as the day's bookings, so nothing on the page claimed to be the main
+  thing. It keeps the card and loses the shadow, leaving the schedule the only
+  raised surface.
+
+  The day's status was set in 11-12px beside two buttons of equal prominence,
+  so the controls row read as three controls rather than an answer followed by
+  two actions. The Open/Full/Closed pill and the `7/14` count are now the
+  weight of the row, and the pill sizes to its label instead of a fixed width.
+
+  `DayHeader.jsx` is deleted. It was never mounted anywhere and survived only
+  as a comment in `HumanHeader.jsx` pointing at it as a visual reference.
+
 - Three leftovers from moving the scrollbar into `<main>`. The A-Z rail in the
   Dogs and Humans directories stuck 96px down, an offset that used to clear
   chrome which scrolled with the page and now just leaves a gap. Needs

@@ -3,8 +3,10 @@ import { titleCase } from "../../../utils/text";
 import { telLink, waLink } from "../dog-card/helpers.js";
 import { HeaderIconButton, OverflowMenu } from "../shell/index.js";
 
-// Quiet dashboard-style header. Visual reference: DayHeader (warm-navy
-// heading) + dashboard right-column chip buttons. Sits in the
+// Quiet dashboard-style header: warm-navy heading plus dashboard
+// right-column chip buttons. (It used to cite DayHeader as the visual
+// reference; that component was never mounted anywhere and has gone.)
+// Sits in the
 // ModalShell header slot so it stays pinned while the body scrolls.
 // The copy/call actions are always visible — hover-reveal hid them on
 // touch screens — and grow on phones to meet the touch-target floor.

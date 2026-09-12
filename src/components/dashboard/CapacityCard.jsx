@@ -64,7 +64,7 @@ export function CapacityCard({
   return (
     <section
       aria-label="Capacity summary"
-      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting p-4"
+      className="bg-white rounded-2xl border border-slate-200/70 p-4"
     >
       <h2 className="text-label text-ink-muted mb-3">
         Capacity
