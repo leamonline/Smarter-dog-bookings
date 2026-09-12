@@ -56,7 +56,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
       className={
         bare
           ? "overflow-hidden"
-          : "bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
+          : "bg-white rounded-2xl border border-slate-200/70 overflow-hidden"
       }
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">

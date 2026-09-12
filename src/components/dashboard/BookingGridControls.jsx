@@ -43,12 +43,18 @@ export function BookingGridControls({
   ].filter((n) => n.count > 0 && n.onOpen);
 
   return (
-    // Single row at every size: an Open / Full / Closed status pill, the slim
+    // Single row at every size: an Open / Full / Closed status pill, the
     // capacity bar (7/14), then the right cluster of workflow badges
     // (mobile/tablet) and Day settings.
+    //
+    // The status and the count carry the most weight in this row on purpose.
+    // They answer the question staff open the day to ask — is it on, and how
+    // full is it — and they used to be set in 11-12px next to two buttons of
+    // equal prominence, so the row read as three controls rather than an
+    // answer followed by two actions.
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-2 sm:p-2.5">
       <span
-        className={`inline-flex items-center justify-center w-16 md:w-20 h-7 rounded-full text-[12px] font-bold ${STATUS[dayStatus].cls}`}
+        className={`inline-flex items-center justify-center min-w-16 md:min-w-20 h-8 px-3 rounded-full text-[13px] font-bold ${STATUS[dayStatus].cls}`}
       >
         {STATUS[dayStatus].label}
       </span>
@@ -60,13 +66,13 @@ export function BookingGridControls({
           title={cap.over ? `Over capacity (${cap.count}/${cap.cap})` : `${cap.count} of ${cap.cap} places booked`}
           className="inline-flex items-center gap-1.5"
         >
-          <span className="relative w-14 sm:w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <span className="relative w-16 sm:w-24 h-2 rounded-full bg-slate-100 overflow-hidden">
             <span
               className={`absolute inset-y-0 left-0 rounded-full ${barColor}`}
               style={{ width: `${barPct}%` }}
             />
           </span>
-          <span className={`text-[11px] font-bold tabular-nums ${cap.over ? "text-rose-600" : "text-slate-500"}`}>
+          <span className={`font-display text-[15px] font-bold tabular-nums ${cap.over ? "text-rose-600" : "text-slate-600"}`}>
             {cap.count}/{cap.cap}
           </span>
         </span>
