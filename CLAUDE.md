@@ -24,10 +24,20 @@ old `/`, `/today` and `/customer/*` URLs redirect, so bookmarks keep working.
 application (own `package.json`, lockfile, configs, build; React 19 + Vite 8) imported with full
 history per [ADR 009](docs/architecture/decisions/009-independent-applications-in-one-repository.md).
 Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
-`.github/workflows/website.yml`, and since 9 September 2026 its `deploy` job is the **single live
-publisher** of smarterdog.co.uk: a merge to `main` touching `website/**` publishes to Bluehost (gate:
-repository variable `WEBSITE_PUBLISHER_ENABLED`; procedure and rollback in the
-[cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)).
+`.github/workflows/website.yml`.
+
+**What actually publishes smarterdog.co.uk:** since the [domain cutover](docs/superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md)
+on 11 September 2026 the domain points at **Vercel**, so the live site is the combined build
+([scripts/build-combined.mjs](scripts/build-combined.mjs)) that a merge to `main` deploys — the same
+deployment that carries the booking app. A `website/**` change therefore reaches visitors through the
+**root** deployment, not through `website.yml`. Its `deploy` job still publishes to Bluehost (gate:
+repository variable `WEBSITE_PUBLISHER_ENABLED`; procedure in the
+[publisher cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)), but
+nothing routes there any more: it is kept deliberately warm **as a rollback target** so that reverting
+DNS lands on a current site, and is due to be switched off once rollback stops being plausible. Do not
+read a green Bluehost `deploy` as evidence that the live site updated, and do not read its absence as
+evidence that it did not.
+
 Do not merge the two apps' CSS, routing, auth or service workers.
 
 ## Run it
