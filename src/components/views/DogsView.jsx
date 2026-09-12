@@ -606,7 +606,11 @@ export function DogsView({
             availableLetters={availableLetters}
             activeLetter={activeLetter}
             onLetterChange={onLetterChange}
-            className="hidden md:flex md:flex-col gap-0.5 sticky top-24 self-start shrink-0 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 shadow-sm px-0.5 py-1.5"
+            // top-4, not top-24: the 96px offset was clearing the toolbar and
+            // page header back when the document scrolled and they scrolled
+            // with it. <main> is the scroll container now and the chrome sits
+            // outside it, so 96px would just be a gap.
+            className="hidden md:flex md:flex-col gap-0.5 sticky top-4 self-start shrink-0 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 shadow-sm px-0.5 py-1.5"
           />
         )}
       </div>

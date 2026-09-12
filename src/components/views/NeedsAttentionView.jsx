@@ -135,7 +135,10 @@ export function NeedsAttentionContent({
   onRefresh,
 }) {
   return (
-    <div className="max-w-3xl mx-auto py-4">
+    // A reading column, not a second page container: the shell already
+    // centres and pads the track, so this only narrows it. The py-4 it
+    // used to carry doubled up with the track's own py-5.
+    <div className="max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-4">
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-brand-purple m-0">Needs Attention</h1>

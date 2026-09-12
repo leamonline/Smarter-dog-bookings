@@ -250,6 +250,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   section's display title, so renaming a nav item cannot quietly change
   scrolling behaviour; `sectionTitleFor()` is now derived from that key.
 
+- Three leftovers from moving the scrollbar into `<main>`. The A-Z rail in the
+  Dogs and Humans directories stuck 96px down, an offset that used to clear
+  chrome which scrolled with the page and now just leaves a gap. Needs
+  Attention nested its own centred, padded container inside the shell's, so
+  its vertical padding doubled up. And pull-to-refresh guarded on a wrapper
+  that never scrolls, so its "only pull at the top" check had never refused
+  anything — a pull part-way down the schedule still triggered a refresh; it
+  now asks the touched element for its nearest real scroller.
+
+  A sweep of Daily Brief, Reports and Settings at 360x880, 700x850 and
+  768x1024 found nothing else: no horizontal page overflow and no unexpected
+  clipping at any of them.
+
 - The staff calendar adapts to tablets and folding phones, and the breakpoints
   are measured rather than guessed.
 
