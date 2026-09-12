@@ -224,6 +224,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Stop the capacity and revenue measurements running out of their cards on the
+  staff calendar. Both rail cards laid a metric out as one flex row — label
+  `truncate` on the left, value and caption `shrink-0` on the right — inside a
+  grid track of 240px at `xl` and 220px at `lg`. A caption like "36 of 56 seats
+  booked this week", set in 11px uppercase with letter-spacing, is wider than
+  the 208px/188px that leaves, and because the right-hand cluster refused to
+  shrink the label collapsed to "T…" while the cluster overflowed the card.
+
+  The two near-identical `CapacityBar` and `RevenueBar` copies are now one
+  presentational `MetricBar` primitive (`src/components/ui/MetricBar.jsx`) that
+  stacks the row: label and figure, then the track, then the caption on its own
+  line in sentence case. The caption wraps rather than truncating — it is the
+  measurement itself, not decoration. `MetricBar` owns layout only; capacity
+  keeps its open/closed state and `utilisationColor`, revenue keeps its loading
+  skeleton and its own colour scale, and capacity figures still come from
+  `src/engine/utilisation.js`.
+
+  The same inversion is corrected in three Reports charts
+  (`CapacityPreventedReport`, `FunnelReport`, `CollectedByMethodReport`), where
+  a fixed-width label was `shrink-0` and the figure beside it was not — so the
+  expendable text held its ground and squeezed the bar while the number itself
+  could clip. The label may now yield and truncate; the figure is protected and
+  set in `tabular-nums`.
+
 - Keep the staff Inbox and calendar usable across a changing viewport
   ([#834](https://github.com/leamonline/Smarter-dog-bookings/issues/834)).
   Four separate ways an open session came apart when the window changed size:

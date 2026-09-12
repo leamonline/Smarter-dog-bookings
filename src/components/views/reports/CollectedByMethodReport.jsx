@@ -29,14 +29,14 @@ export function CollectedByMethodReport({ collectedByMethod }) {
       <div className="flex flex-col gap-2">
         {byMethod.map((m) => (
           <div key={m.method} className="flex items-center gap-2">
-            <span className="text-caption font-bold text-slate-600 w-[100px] shrink-0 truncate" title={m.label}>{m.label}</span>
+            <span className="text-caption font-bold text-slate-600 w-[100px] shrink min-w-0 truncate" title={m.label}>{m.label}</span>
             <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${m.label}: ${money(m.amount)}`}>
               <div
                 className={`h-full rounded-full transition-all ${m.method === "unrecorded" ? "bg-slate-300" : "bg-brand-yellow"}`}
                 style={{ width: `${(m.amount / max) * 100}%` }}
               />
             </div>
-            <span className="text-micro font-extrabold text-slate-600 w-[72px] text-right">
+            <span className="text-micro font-extrabold text-slate-600 w-[72px] shrink-0 text-right tabular-nums">
               {money(m.amount)} · {m.count}
             </span>
           </div>
