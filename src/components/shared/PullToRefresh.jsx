@@ -2,6 +2,14 @@ import { useRef, useState, useCallback } from "react";
 
 const THRESHOLD = 60;
 
+/** How far down its own scroller the touched element sits. */
+function nearestScrollTop(node) {
+  for (let el = node; el instanceof Element; el = el.parentElement) {
+    if (el.scrollTop > 0) return el.scrollTop;
+  }
+  return 0;
+}
+
 export function PullToRefresh({ onRefresh, children, className = "" }) {
   const [pulling, setPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -10,7 +18,12 @@ export function PullToRefresh({ onRefresh, children, className = "" }) {
   const containerRef = useRef(null);
 
   const handleTouchStart = useCallback((e) => {
-    if (containerRef.current?.scrollTop > 0) return;
+    // Only pull when the content is actually at the top. The guard used to
+    // read containerRef, which is a plain relative wrapper and never scrolls,
+    // so its scrollTop was always 0 and the guard never refused anything —
+    // a pull part-way down the schedule still triggered a refresh. Ask the
+    // element the touch started in for its nearest real scroller instead.
+    if (nearestScrollTop(e.target) > 0) return;
     startY.current = e.touches[0].clientY;
     setPulling(true);
   }, []);
