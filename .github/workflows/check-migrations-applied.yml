@@ -40,6 +40,13 @@ on:
   push:
     branches: [main]
 
+# Same reasoning as ci.yml: one in-flight run per branch, superseded pull-request
+# runs cancelled, main runs always allowed to finish. This check runs on every
+# pull-request push too, so it was multiplying alongside CI.
+concurrency:
+  group: migrations-applied-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   migrations-applied:
     runs-on: ubuntu-latest

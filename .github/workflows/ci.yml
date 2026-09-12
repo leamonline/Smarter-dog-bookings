@@ -9,8 +9,37 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One in-flight run per branch: pushing again to a pull request supersedes the
+# previous run instead of racing it. Without this, every push started a full
+# 18-billed-minute run and nothing stopped the one it replaced. On 12 September
+# a single pull request took five CI runs in forty minutes, two of them still
+# occupying runners when their successor started — ninety billed minutes to
+# test four commits, only the last of which anyone was waiting on.
+#
+# Deliberately NOT cancelling on main. A push there is the commit that
+# auto-deploys production, and its run is the only evidence the deployed tree
+# was green; a fast second merge must not erase the first one's result.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    # Static analysis and the production build. The Vitest suite is NOT run
+    # here: `coverage` below runs the very same `vitest run` with V8
+    # instrumentation, so having both jobs run it executed all 3,568 tests
+    # twice per pull request for one extra signal — six of the eighteen billed
+    # minutes a pull request cost.
+    #
+    # Splitting coverage out was originally about keeping this job's critical
+    # path short. Dropping the duplicate serves that better, not worse: this
+    # job now reports lint, docs, types, migrations and the build in about
+    # ninety seconds instead of six minutes, and `coverage` remains the long
+    # pole it already was. Both are required checks, so the combined gate is
+    # unchanged — only the duplication is gone.
+    #
+    # The local bar in CLAUDE.md is unaffected: `npm run test` is still what a
+    # contributor runs before pushing.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -24,14 +53,23 @@ jobs:
       - run: npm run typecheck
       - name: Validate migrations
         run: node scripts/check-migrations.mjs
-      - run: npm run test
       - run: npm run build
 
   coverage:
-    # Coverage ratchet on src/engine and src/supabase/repositories (thresholds
-    # in vitest.config.ts). Its own job so the instrumented run — several
-    # minutes slower than plain `npm run test` — never lengthens the build
-    # job's critical path; it runs alongside agent-tests and the browser gate.
+    # The Vitest suite AND the coverage ratchet on src/engine and
+    # src/supabase/repositories (thresholds in vitest.config.ts).
+    # `npm run coverage` is `vitest run --coverage` — the same tests the plain
+    # `npm run test` runs, instrumented — so this single execution is both the
+    # test gate and the ratchet. A required check in its own right, so it keeps
+    # its own job: src/security/websiteWorkflowIsolation.test.ts pins the name,
+    # and the branch ruleset requires that exact context.
+    #
+    # Measured before narrowing it: restricting this to the logic project would
+    # finish in 16 seconds rather than two minutes, but it drops
+    # src/supabase/repositories below its ratchet (lines 75.37 vs 76, functions
+    # 76.15 vs 80) because jsdom component tests genuinely exercise those files.
+    # Both projects stay. Lowering a threshold to buy runner minutes is exactly
+    # what AGENTS.md forbids.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -154,9 +192,30 @@ jobs:
           cache: npm
       - run: npm ci
         if: github.event_name != 'pull_request'
-      - name: Install Playwright browsers
+      - name: Resolve the pinned Playwright version
+        id: playwright
         if: github.event_name != 'pull_request'
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      # Playwright's browser bundles are the slowest part of these jobs and they
+      # only change when the pinned version does, so cache them on that version.
+      #
+      # The key names the BROWSER SET as well: this job and the one below share
+      # ~/.cache/ms-playwright but install different browsers, and a shared key
+      # would let the chromium-only cache satisfy a job that also needs WebKit.
+      # `install-deps` still runs on a hit — the system libraries are apt
+      # packages on the runner, not files in the cached directory.
+      - uses: actions/cache@v6
+        id: playwright-cache
+        if: github.event_name != 'pull_request'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-chromium-${{ steps.playwright.outputs.version }}
+      - name: Install Playwright browsers
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Playwright system dependencies (cached browsers)
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - run: npm run e2e
         if: github.event_name != 'pull_request'
       - if: always() && github.event_name != 'pull_request'
@@ -199,10 +258,30 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Resolve the pinned Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      # Playwright's browser bundles are the slowest part of these jobs and they
+      # only change when the pinned version does, so cache them on that version.
+      #
+      # The key names the BROWSER SET as well: this job and the one below share
+      # ~/.cache/ms-playwright but install different browsers, and a shared key
+      # would let the chromium-only cache satisfy a job that also needs WebKit.
+      # `install-deps` still runs on a hit — the system libraries are apt
+      # packages on the runner, not files in the cached directory.
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-chromium-webkit-${{ steps.playwright.outputs.version }}
       - name: Install Playwright browsers for PR smoke gate
-        # WebKit is installed only here; the post-merge e2e job remains
-        # Chromium-only and retains its existing browser-download cost.
+        # WebKit is installed only here; the post-merge e2e job stays
+        # Chromium-only, which is why the two cache keys differ.
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium webkit
+      - name: Install Playwright system dependencies (cached browsers)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium webkit
       - name: Assert the PR suite is non-empty
         env:
           PLAYWRIGHT_PR_SMOKE: "1"

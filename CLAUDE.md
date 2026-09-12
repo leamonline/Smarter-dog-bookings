@@ -68,7 +68,10 @@ npm run check:advisors # diff the hosted Supabase advisors against supabase/advi
 ```
 
 **CI bar (`.github/workflows/ci.yml`, Node 24):** `lint → check:docs → typecheck → check-migrations →
-test → build`. Match that before pushing — "builds" alone is not the bar. (E2E: a pull request runs
+test → build`. Match that before pushing — "builds" alone is not the bar. CI splits it across two
+required jobs to avoid running the suite twice: `build` does lint/docs/types/migrations/build, and
+`coverage` runs the suite as `vitest run --coverage`, gating the tests and the ratchet together.
+Locally it is still one command each. (E2E: a pull request runs
 every spec once on desktop Chromium plus WebKit smoke, via `pr-production-smoke`; the full
 desktop/tablet/mobile matrix runs on push to `main` or manual dispatch.) **Without `VITE_` creds in
 dev**, `npm run dev` falls back to offline sample-data mode rather than erroring.
