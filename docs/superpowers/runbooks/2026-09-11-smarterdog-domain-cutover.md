@@ -373,9 +373,23 @@ Bluehost would answer.
   overrides it without a deploy, which is the faster path.
 - `BOOKING_URL` in
   [`website/src/constants/links.js`](../../../website/src/constants/links.js)
-  → `https://smarterdog.co.uk/book` — the marketing site's "Book now". Under
-  `website/**`, so it triggers `website.yml`; confirm
+  → `https://smarterdog.co.uk/book/login` — the marketing site's "Book now".
+  ✅ Done in [#835](https://github.com/leamonline/Smarter-dog-bookings/pull/835)
+  on 12 September 2026; it had been missed, so every booking control kept
+  sending customers to `smarterdog.vercel.app` for a day after the cutover.
+  Under `website/**`, so it triggers `website.yml`; confirm
   `WEBSITE_PUBLISHER_ENABLED` is already `false` from step 6 first.
+
+  **`/book/login`, not `/book`** — this instruction said `/book` until #835,
+  which would have been a redirect loop. The marketing site has its own
+  `/book` route that redirects to whatever `BOOKING_URL` holds, so aiming the
+  constant at `/book` makes that route redirect to itself. On the live origin
+  it never fires, because `vercel.json` rewrites `/book` to the booking app at
+  the edge before the marketing app sees it — which is exactly why the loop is
+  easy to miss in review. Bluehost carries only the marketing build and has no
+  such rewrite, so a DNS rollback (below) would make it real, turning a
+  degraded rollback into a broken one. `/book/login` does not match that route,
+  and matches the `CUSTOMER_PORTAL_URL` target above.
 - `DEFAULT_ORIGIN` in
   [`scripts/check-sentry-live.mjs`](../../../scripts/check-sentry-live.mjs)
   → `https://smarterdog.co.uk`. Not urgent; `vercel.app` serves the same
