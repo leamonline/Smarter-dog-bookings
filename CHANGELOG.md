@@ -222,6 +222,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
   including explicit migration disposition and post-merge check monitoring.
   (Superseded — removed 18 August 2026, see above.)
 
+### Changed
+
+- The staff app is now a fixed-height shell rather than a scrolling document.
+  `AppFrame` is a `100dvh` flex column: the banners, toolbar and nav strip are
+  pinned above it, and `<main>` takes the remainder and does the scrolling. The
+  document itself no longer scrolls at all.
+
+  This replaces guesswork with arithmetic the browser already does. Nothing
+  above `<main>` knew about the viewport before, so the chrome scrolled away
+  with the content and any view wanting to fill the window had to measure the
+  viewport in JavaScript to work out what was left. Now CSS owns height and
+  `useFillViewportHeight` is reserved for the one case CSS cannot see — the
+  on-screen keyboard, which shrinks the visual viewport without resizing the
+  layout viewport. It moves to `src/hooks/`, its CSS variables lose their
+  `--inbox-` prefix, and it watches its ancestors rather than `document.body`
+  (under a fixed-height shell a wrapping toolbar takes height *from* the
+  workspace instead of adding it to the page, so the body never changes size
+  and the old observer would never have fired).
+
+  The content track is raised from 1536px to 1800px, so a 1920 monitor no
+  longer keeps ~260px of dead gutter down each side.
+
+  Navigating to a different section sends the workspace back to the top;
+  opening and closing a profile, or changing a filter or Reports tab, keeps
+  your place. The rule keys on a new stable `sectionKeyFor()` rather than the
+  section's display title, so renaming a nav item cannot quietly change
+  scrolling behaviour; `sectionTitleFor()` is now derived from that key.
+
+- The chrome bars' full-bleed margins read a single `--app-gutter` token
+  instead of hard-coding `-mx-4 sm:-mx-6` against a frame padded
+  `px-4 sm:px-6 md:px-8`. Five components carried that duplicate, and from
+  `md` up every one of them was 8px narrower than the frame it was meant to
+  span.
+
 ### Fixed
 
 - Stop the capacity and revenue measurements running out of their cards on the

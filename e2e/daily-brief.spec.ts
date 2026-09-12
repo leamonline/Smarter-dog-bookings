@@ -208,8 +208,16 @@ test("the action panel is never clipped by the viewport", async ({ page }) => {
 
   // The dismiss listener arms a beat after opening, so the tap's own scroll
   // cannot close what it just opened. Wait past that, then scroll.
+  //
+  // Scroll <main>, not the window. The staff shell is a fixed-height flex
+  // column now, so the document does not scroll at all and window.scrollBy is
+  // a no-op — it would fire no scroll event and prove nothing. <main> is what
+  // a wheel or a thumb actually moves, and DogActionMenu hears it because its
+  // listener is registered with capture: true.
   await page.waitForTimeout(250);
-  await page.evaluate(() => window.scrollBy(0, 120));
+  await page.evaluate(() => {
+    document.querySelector("main#main-content")!.scrollBy(0, 120);
+  });
   await expect(panel).toHaveCount(0);
 });
 

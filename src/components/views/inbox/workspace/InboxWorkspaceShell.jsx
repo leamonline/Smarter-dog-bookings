@@ -57,8 +57,8 @@ export function InboxWorkspaceShell({
   return (
     <div
       ref={rootRef}
-      style={fillHeight != null ? { "--inbox-visible-height": `${fillHeight}px` } : undefined}
-      className={`h-[var(--inbox-visible-height,calc(100dvh-var(--inbox-shell-top)-var(--inbox-bottom-gap)))] ${minimumHeightClass} overflow-hidden bg-white`}
+      style={fillHeight != null ? { "--fill-visible-height": `${fillHeight}px` } : undefined}
+      className={`h-[var(--fill-visible-height,calc(100dvh-var(--fill-top)-var(--fill-bottom-gap)))] ${minimumHeightClass} overflow-hidden bg-white`}
     >
       <div className="relative grid h-full min-h-0 grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] wide:grid-cols-[300px_minmax(560px,1fr)_360px]">
         <section

@@ -1,9 +1,18 @@
 // ============================================================
-// src/components/views/inbox/hooks/useFillViewportHeight.js
+// src/hooks/useFillViewportHeight.js
 //
-// Sizes the inbox shell to fill from its own top edge down to the
-// bottom of the (dynamic) viewport, instead of guessing the top chrome
-// with a magic number like h-[calc(100dvh-180px)].
+// Sizes an element to fill from its own top edge down to the bottom of
+// the VISUAL viewport, instead of guessing the top chrome with a magic
+// number like h-[calc(100dvh-180px)].
+//
+// Scope note. Since AppFrame became a fixed-height flex column, ordinary
+// "fill the window" layout is CSS's job: the browser already knows what
+// height is left after the chrome, and `h-full`/`min-h-0` inherits it.
+// This hook is for the one case CSS cannot see — the on-screen keyboard,
+// which by default shrinks the visual viewport without resizing the
+// layout viewport, so `dvh` and flexbox both keep their pre-keyboard
+// answer. That is why the Inbox and Booking Desk composers still use it
+// and the dashboard does not.
 //
 // Why: the old constant assumed a fixed toolbar + header height. When
 // the app toolbar wrapped on a narrow screen, or a banner appeared, the
@@ -19,10 +28,9 @@
 
 import { useEffect, useState } from "react";
 
-// Clearance below the shell. It matches AppFrame's own
-// `pb-[calc(env(safe-area-inset-bottom)+1.5rem)]` (src/App.jsx): reserve less
-// than the frame's padding and that padding pushes the page past the viewport,
-// which is the second scrollbar this hook exists to remove.
+// Clearance below the shell, matching the workspace track's own bottom
+// padding: reserve less than that and the padding pushes the pane past the
+// viewport, which is the second scrollbar this hook exists to remove.
 //
 // This used to reserve an extra 72px on phones for a fixed bottom navigation
 // bar. There is no bottom bar — the mobile primary nav is MobileNavStrip, a
@@ -71,9 +79,9 @@ export function useFillViewportHeight(ref) {
       // and scroll internally instead.
       const available = Math.max(0, Math.round(viewportBottom - top - bottomGap));
 
-      el.style.setProperty("--inbox-shell-top", `${Math.round(top)}px`);
-      el.style.setProperty("--inbox-bottom-gap", `${Math.round(bottomGap)}px`);
-      el.style.setProperty("--inbox-visible-height", `${available}px`);
+      el.style.setProperty("--fill-top", `${Math.round(top)}px`);
+      el.style.setProperty("--fill-bottom-gap", `${Math.round(bottomGap)}px`);
+      el.style.setProperty("--fill-visible-height", `${available}px`);
       setHeight(available);
     };
 
@@ -96,20 +104,31 @@ export function useFillViewportHeight(ref) {
     // wrapping to two rows, the nav strip gaining an approvals badge. Each
     // moves our top edge while innerHeight stays put, so the resize listeners
     // never hear about it and the shell keeps its old, now-wrong height.
-    // Everything stacked above us sits in the body's normal flow, so watching
-    // the body catches the lot.
-    const bodyObserver =
-      typeof ResizeObserver === "undefined" || !document.body
+    //
+    // This used to watch document.body alone, on the assumption that
+    // everything above us sat in the body's normal flow so the body grew
+    // whenever the chrome did. That stopped being true when AppFrame became a
+    // fixed-height flex column: a toolbar wrapping to a second row now takes
+    // its extra height *from* the workspace instead of adding it to the page,
+    // so the body never changes size and the observer never fires — while our
+    // top edge has moved all the same. Watching each ancestor instead catches
+    // it either way, whichever of them absorbs the change.
+    const ancestorObserver =
+      typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(scheduleCompute);
-    bodyObserver?.observe(document.body);
+    if (ancestorObserver) {
+      for (let node = el.parentElement; node; node = node.parentElement) {
+        ancestorObserver.observe(node);
+      }
+    }
 
     return () => {
       window.removeEventListener("resize", scheduleCompute);
       window.removeEventListener("orientationchange", scheduleCompute);
       visualViewport?.removeEventListener("resize", scheduleCompute);
       visualViewport?.removeEventListener("scroll", scheduleCompute);
-      bodyObserver?.disconnect();
+      ancestorObserver?.disconnect();
       if (animationFrameId !== null) {
         window.cancelAnimationFrame(animationFrameId);
       }

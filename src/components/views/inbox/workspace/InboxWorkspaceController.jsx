@@ -41,7 +41,7 @@ import {
 import { ComposeNewModal } from "../compose-new/ComposeNewModal.jsx";
 import { CustomerContextPanel } from "../customer-context/CustomerContextPanel.jsx";
 import { useCustomerContext } from "../hooks/useCustomerContext.js";
-import { useFillViewportHeight } from "../hooks/useFillViewportHeight.js";
+import { useFillViewportHeight } from "../../../../hooks/useFillViewportHeight.js";
 import { BookingActionsPane } from "../../booking-workspace/BookingActionsPane.jsx";
 import {
   buildBookingRequest,

@@ -53,9 +53,9 @@ describe("InboxWorkspaceShell", () => {
     const grid = root.firstElementChild;
     const context = screen.getByRole("region", { name: "Booking and customer context" });
 
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("640px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("640px");
     expect(root.className).toContain(
-      "h-[var(--inbox-visible-height,calc(100dvh-var(--inbox-shell-top)-var(--inbox-bottom-gap)))]",
+      "h-[var(--fill-visible-height,calc(100dvh-var(--fill-top)-var(--fill-bottom-gap)))]",
     );
     expect(root.className).toContain("min-h-[360px]");
     expect(root.className).toContain("overflow-hidden");
@@ -75,7 +75,7 @@ describe("InboxWorkspaceShell", () => {
     const { props } = renderShell({ fillHeight: 250 });
     const root = props.rootRef.current;
 
-    expect(root.style.getPropertyValue("--inbox-visible-height")).toBe("250px");
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("250px");
     expect(root.className).toContain("min-h-0");
     expect(root.className).not.toContain("min-h-[360px]");
   });
