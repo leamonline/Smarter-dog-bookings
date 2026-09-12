@@ -365,9 +365,12 @@ export function useCustomerAuth() {
   /**
    * Sign in a returning customer with phone + password. The phone was
    * set by checkPhone. captchaToken is required when project-wide captcha
-   * protection is on (it is, for OTP) — Supabase rejects the call without
-   * it. On success the SIGNED_IN event links the human record via
-   * applySession; on failure we show a deliberately generic error.
+   * protection is on under Authentication -> Attack Protection — Supabase
+   * rejects the call without it, and ignores it entirely when the setting is
+   * off. Do not assert the current state here; run `npm run check:captcha`,
+   * which probes the live project. On success the SIGNED_IN event links the
+   * human record via applySession; on failure we show a deliberately generic
+   * error.
    */
   const signInWithPassword = useCallback(async (password: string, captchaToken?: string | null): Promise<CustomerSignInResult> => {
     if (!supabase) {
