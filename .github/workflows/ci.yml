@@ -168,8 +168,9 @@ jobs:
 
   pr-production-smoke:
     # This is intentionally separate from `e2e`: PRs run every spec once, on
-    # desktop Chromium, plus the smoke journeys on WebKit — while the full
-    # desktop/tablet/mobile matrix remains post-merge/manual to control cost.
+    # desktop Chromium, plus the smoke and viewport-continuity journeys on
+    # WebKit — while the full desktop/tablet/mobile matrix remains
+    # post-merge/manual to control cost.
     #
     # The job name is load-bearing (branch protection may require it by name),
     # so it keeps the historical `pr-production-smoke` name even though the
@@ -238,12 +239,17 @@ jobs:
             --reporter=line,github,html,json
           node scripts/assert-playwright-pr-smoke-results.mjs \
             pr-gate-results/pr-desktop-results.json desktop
-      - name: Run production-build PR suite — smoke journeys on WebKit
+      # The WebKit spec list is named here, not read from the checked-out
+      # config, for the reason given above. Keep it in step with the
+      # mobile-webkit project's testMatch in playwright.config.ts, which is
+      # what reproduces this run locally.
+      - name: Run production-build PR suite — smoke and viewport journeys on WebKit
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/pr-gate-results/pr-webkit-results.json
         run: |
-          npx playwright test e2e/smoke.spec.ts --project=mobile-webkit \
+          npx playwright test e2e/smoke.spec.ts e2e/viewport-continuity.spec.ts \
+            --project=mobile-webkit \
             --reporter=line,github,html,json
           node scripts/assert-playwright-pr-smoke-results.mjs \
             pr-gate-results/pr-webkit-results.json mobile-webkit

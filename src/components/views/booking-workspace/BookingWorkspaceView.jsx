@@ -26,6 +26,7 @@ import { ConversationPane } from "../inbox/workspace/ConversationPane.jsx";
 import { InboxWorkspaceShell } from "../inbox/workspace/InboxWorkspaceShell.jsx";
 import { ThreadPane } from "../inbox/workspace/ThreadPane.jsx";
 import { buildDiaryDates } from "../inbox/workspace/inboxWorkspaceModel.js";
+import { isRailDocked } from "../inbox/workspace/dockedRail";
 import { useInboxWorkspaceState } from "../inbox/workspace/useInboxWorkspaceState.js";
 import { BookingPane } from "./BookingPane.jsx";
 import {
@@ -40,7 +41,6 @@ import {
 } from "./bookingWorkspaceSamples.js";
 
 const MAX_SLOT_CHOICES = 3;
-const DOCKED_RAIL_QUERY = "(min-width: 1440px)";
 
 const EMPTY_CONTEXT = {
   human: null,
@@ -53,11 +53,6 @@ const EMPTY_CONTEXT = {
 
 const noop = () => {};
 const noopAsync = async () => ({ ok: false, reason: "Preview only — nothing is sent." });
-
-function isRailDocked() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia?.(DOCKED_RAIL_QUERY)?.matches === true;
-}
 
 function toLocalDateStr(date) {
   return [
@@ -148,6 +143,9 @@ export function BookingWorkspaceView({
     if (!selectedId) return;
     workspaceActions.insertSlots(selectedId);
     requestAnimationFrame(() => composerTextareaRef.current?.focus());
+    // Docked, the rail is a column of its own and can stay put; narrower it
+    // is an overlay over the thread and steps aside. ../inbox/workspace/dockedRail
+    // owns the breakpoint so this preview and /inbox cannot disagree.
     if (!isRailDocked()) workspaceActions.closeContext();
   }, [selectedId, workspaceActions]);
 
