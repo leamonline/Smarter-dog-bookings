@@ -36,12 +36,10 @@
 // captcha is not enforced, that endpoint sends a real SMS, at real cost,
 // possibly to a real person. The password grant shares the same captcha
 // middleware and answers the same question for free.
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-
-const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+import { loadEnvLocal } from "./lib/load-env-local.mjs";
 
 // Reserved TLD (RFC 2606) — resolves nowhere and can match no account.
 const PROBE_EMAIL = "captcha-probe@smarter-dog.invalid";
@@ -71,33 +69,6 @@ export function classifyCaptchaResponse(body) {
     return "not-enforced";
   }
   return "unknown";
-}
-
-// Tiny .env.local loader — no extra dep. Deliberately a local copy of the one
-// in scripts/seed-first-owner.mjs rather than a shared import: that script
-// handles the service-role key, and it is not worth perturbing to save fifteen
-// lines here. Extract if a third caller appears.
-function loadEnvLocal() {
-  try {
-    const raw = readFileSync(
-      path.join(scriptDirectory, "..", ".env.local"),
-      "utf8",
-    );
-    for (const line of raw.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq < 0) continue;
-      const key = trimmed.slice(0, eq).trim();
-      const value = trimmed
-        .slice(eq + 1)
-        .trim()
-        .replace(/^["']|["']$/g, "");
-      if (!process.env[key]) process.env[key] = value;
-    }
-  } catch {
-    // No .env.local — fine if the caller passed flags or exported vars.
-  }
 }
 
 function readFlag(name) {

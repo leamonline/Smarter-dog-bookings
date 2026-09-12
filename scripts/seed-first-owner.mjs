@@ -20,29 +20,7 @@
 //      e.g. node scripts/seed-first-owner.mjs leam@leamonline.uk
 
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Tiny .env.local loader — no extra dep.
-function loadEnvLocal() {
-  try {
-    const raw = readFileSync(join(__dirname, "..", ".env.local"), "utf8");
-    for (const line of raw.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq < 0) continue;
-      const key = trimmed.slice(0, eq).trim();
-      const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
-      if (!process.env[key]) process.env[key] = value;
-    }
-  } catch {
-    // No .env.local — that's fine if the user set vars directly.
-  }
-}
+import { loadEnvLocal } from "./lib/load-env-local.mjs";
 
 loadEnvLocal();
 
