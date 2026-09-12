@@ -8,10 +8,14 @@ import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
 import { closeDayWithRearrangementTasks } from "../rpc";
 import type { Database } from "../database.types";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type {
+  RealtimePostgresChangesPayload,
+  SupabaseClient,
+} from "@supabase/supabase-js";
 import type { DaySettings, SlotOverrides } from "../../types/index";
 
 type DaySettingsRow = Database["public"]["Tables"]["day_settings"]["Row"];
+type DaySettingsWrite = Database["public"]["Tables"]["day_settings"]["Update"];
 
 /**
  * A day as held in this hook's week map. `isOpen` is nullable because the
@@ -73,6 +77,67 @@ function mergeSetting(
     extraSlots: updates.extraSlots ?? current.extraSlots ?? [],
     immediateSlots: updates.immediateSlots ?? current.immediateSlots ?? [],
   };
+}
+
+/**
+ * The day_settings columns a mutation actually touched, carrying the merged
+ * values. A field the updater didn't name stays out of the write entirely.
+ */
+function changedColumns(
+  updates: Partial<DaySettings>,
+  next: DaySettings,
+): DaySettingsWrite {
+  const columns: DaySettingsWrite = {};
+  if (updates.isOpen !== undefined) columns.is_open = next.isOpen;
+  if (updates.overrides !== undefined) columns.overrides = next.overrides;
+  if (updates.extraSlots !== undefined) columns.extra_slots = next.extraSlots;
+  if (updates.immediateSlots !== undefined) {
+    columns.immediate_slots = next.immediateSlots;
+  }
+  return columns;
+}
+
+/**
+ * Persist ONLY the columns this mutation changed.
+ *
+ * Writing the whole row made every pair of overlapping edits to one date a
+ * last-write-wins race: each payload asserted a complete row built from a
+ * snapshot taken before the other edit existed, so whichever landed second
+ * silently undid the other. Two requests have no ordering guarantee, so the
+ * loser was arbitrary — and the optimistic local state stayed right until
+ * realtime or a refetch brought the server's truth back. Scoping the write to
+ * the changed columns lets unrelated edits to one day commute, whether they
+ * come from one staff member clicking twice or two devices on the same date.
+ *
+ * An UPDATE leaves the rest of the row alone, but matches nothing when the
+ * date has no row yet — so fall back to inserting the whole setting. That
+ * path has to carry is_open, because the column default (true) would open
+ * Thursday to Sunday, which the salon defaults closed.
+ */
+async function persistDaySetting(
+  client: SupabaseClient<Database>,
+  dateStr: string,
+  columns: DaySettingsWrite,
+  next: DaySettings,
+): Promise<{ error: { message: string } | null }> {
+  const { data, error } = await client
+    .from("day_settings")
+    .update(columns)
+    .eq("setting_date", dateStr)
+    .select("setting_date");
+
+  if (error || (data?.length ?? 0) > 0) return { error };
+
+  return await client.from("day_settings").upsert(
+    {
+      setting_date: dateStr,
+      is_open: next.isOpen,
+      overrides: next.overrides,
+      extra_slots: next.extraSlots,
+      immediate_slots: next.immediateSlots,
+    },
+    { onConflict: "setting_date" },
+  );
 }
 
 export function useDaySettings(weekStart: Date | null | undefined) {
@@ -203,19 +268,18 @@ export function useDaySettings(weekStart: Date | null | undefined) {
 
     const useAtomicClosure =
       persistence === "atomic-closure" && nextSetting.isOpen === false;
+    const columns = changedColumns(updates, nextSetting);
+
+    // An updater can decline: addExtraSlot past 23:30, removeExtraSlot on an
+    // empty list. Nothing changed, so don't spend a write re-asserting the row.
+    if (!useAtomicClosure && Object.keys(columns).length === 0) {
+      return { ok: true, value: nextSetting };
+    }
+
     const { error } =
       useAtomicClosure
         ? await closeDayWithRearrangementTasks(supabase, { date: dateStr })
-        : await supabase.from("day_settings").upsert(
-            {
-              setting_date: dateStr,
-              is_open: nextSetting.isOpen,
-              overrides: nextSetting.overrides,
-              extra_slots: nextSetting.extraSlots,
-              immediate_slots: nextSetting.immediateSlots,
-            },
-            { onConflict: "setting_date" },
-          );
+        : await persistDaySetting(supabase, dateStr, columns, nextSetting);
 
     if (error) {
       logger.error("Failed to upsert day setting", error, {
