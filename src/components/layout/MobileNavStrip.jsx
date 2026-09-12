@@ -18,7 +18,7 @@ export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false })
 
   return (
     <nav
-      className="lg:hidden -mx-[var(--app-gutter)] px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
+      className="lg:hidden -mx-[var(--app-gutter)] px-1.5 sm:px-3 py-1.5 short:py-0.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
       aria-label="Primary"
     >
       {MOBILE_NAV.filter(

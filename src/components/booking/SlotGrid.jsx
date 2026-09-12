@@ -304,17 +304,26 @@ export function SlotGrid({
         {loading ? (
           <div className={rowGrid}>
             {timeBox}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-3 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 items-stretch">
               <SkeletonCard />
-              <SkeletonCard className="hidden lg:block" />
+              <SkeletonCard className="hidden md:block" />
             </div>
           </div>
         ) : (
           // One time box spanning the whole slot, with both seats rendered
-          // in parallel (side-by-side) on lg+ and stacked below lg.
+          // side by side from md up and stacked below it.
+          //
+          // md rather than lg because that is where the measurement lands. A
+          // seat card is 291px wide at lg on a 1024 window — the width that
+          // has always shipped. At 768, with no sidebar yet and the 80px time
+          // column removed, two-up gives each seat 300px, so the pair is no
+          // tighter than desktop. At 700 it would be 274px, narrower than
+          // anything that ships, so the fold stays single-column and wins its
+          // space back from the chrome instead. Below md the schedule ran one
+          // seat per row across a 704px column, wasting half the width.
           <div className={rowGrid}>
             {timeBox}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-3 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 items-stretch">
               {seatStates.map((seat) => {
                 if (seat.type === "booking") {
                   const b = seat.booking;

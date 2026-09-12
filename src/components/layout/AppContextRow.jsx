@@ -16,7 +16,7 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
   return (
     <div
       data-testid="page-header"
-      className="relative -mx-[var(--app-gutter)] mb-4 flex min-h-[56px] items-center justify-center rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm"
+      className="relative -mx-[var(--app-gutter)] mb-4 short:mb-2 flex min-h-[56px] short:min-h-0 items-center justify-center rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 short:py-1.5 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 w-full max-w-xl">
         <div className="flex items-center gap-1 sm:gap-2">
@@ -24,7 +24,7 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
             type="button"
             onClick={() => onNavigateDay?.(-1)}
             aria-label="Previous day"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+            className="inline-flex size-10 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
           >
             <ChevronLeft aria-hidden="true" size={20} strokeWidth={2.5} />
           </button>
@@ -37,7 +37,7 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
             type="button"
             onClick={() => onNavigateDay?.(1)}
             aria-label="Next day"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+            className="inline-flex size-10 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
           >
             <ChevronRight aria-hidden="true" size={20} strokeWidth={2.5} />
           </button>
@@ -47,7 +47,7 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
           <button
             type="button"
             onClick={onGoToday}
-            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-extrabold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1 shadow-sm cursor-pointer min-h-[36px] touch-manipulation"
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-extrabold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1 shadow-sm cursor-pointer min-h-[36px] pointer-coarse:min-h-11 touch-manipulation"
           >
             <Calendar size={13} className="text-slate-500" aria-hidden="true" />
             Today

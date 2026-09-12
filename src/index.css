@@ -266,6 +266,27 @@
   --sd-coral-tint: var(--color-sd-coral-tint);
 }
 
+/* ── Short-viewport variant ───────────────────────────────────── */
+/* `short:` targets windows with little vertical room — a half-open
+ * foldable, a laptop with a docked panel, a phone in landscape.
+ *
+ * Measured, not guessed. On the staff calendar the chrome costs 125px below
+ * `lg` (a mobile toolbar and a nav strip, stacked) against 61px above it,
+ * where one desktop bar does both jobs. On a 620px-tall window that is a
+ * fifth of the screen gone before the first booking; on a near-square 850
+ * it is still 15%. The day's schedule is what staff came for, so on a short
+ * window the chrome gives some of that back.
+ *
+ * 52rem (832px) is the threshold because that is where a near-square
+ * foldable sits: taller than that and the full chrome costs little enough
+ * to leave alone.
+ *
+ * Named rather than an arbitrary `[@media(max-height:52rem)]:` variant, for
+ * the same reason --breakpoint-wide is named — and declared here, next to
+ * the gutter, so the two shell-level knobs live together.
+ */
+@custom-variant short (@media (height <= 52rem));
+
 /* ── Page gutter ──────────────────────────────────────────────── */
 /* One source of truth for the staff shell's horizontal padding.
  *
