@@ -34,6 +34,12 @@ if (supabaseConfigError) {
   );
 }
 
+// Auth flowType is left at the SDK default ('implicit'), and that is coupled to
+// captcha in a way nothing else records: implicit delivers recovery links in the
+// URL hash, whereas 'pkce' exchanges them at POST /token?grant_type=pkce — which
+// IS captcha-gated and accepts no token from an email link. Switching to pkce
+// while captcha protection is on would silently break every password-reset link.
+// If you change it, verify a real reset end to end first.
 // Use a simple in-memory lock instead of navigator.locks, which causes
 // deadlocks when multiple Supabase hooks mount simultaneously.
 type LockQueue = Record<string, Promise<unknown>>;

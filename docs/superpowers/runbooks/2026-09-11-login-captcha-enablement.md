@@ -54,7 +54,7 @@ someone has enabled it and this runbook does not apply.
 
 ## Verify
 
-Five checks, all five required.
+Seven checks, all seven required.
 
 1. Enforcement:
 
@@ -86,7 +86,20 @@ Five checks, all five required.
    reset use the sign-in page, which carries a working challenge. Giving that
    button its own captcha is a tracked follow-up.
 
-5. Cloudflare analytics. The widget's siteverify count moves off zero and the
+5. **Invite a throwaway staff account** from the Supabase dashboard, then
+   delete it. Staff invites go out via GoTrue's `/invite` endpoint, which is on
+   the captcha-gated list — and nothing in this repository calls it, so no
+   amount of code review can tell you whether it still works. The sign-in page
+   tells new staff "Ask the salon owner to send you an invite", so this is a
+   real route. Better to find out now than the morning a new groomer starts.
+
+6. **Re-run `npm run check:captcha` and read the `/verify` line.** It is
+   informational and does not affect the verdict. It should say `not-enforced`.
+   If it says `enforced`, stop and roll back: the customer login page's OTP code
+   stage renders no captcha widget, so customers holding a valid texted code
+   would be unable to finish signing in.
+
+7. Cloudflare analytics. The widget's siteverify count moves off zero and the
    dashboard warning about siteverify not being called clears. The count should
    track solved challenges from here on.
 

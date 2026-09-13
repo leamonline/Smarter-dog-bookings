@@ -5,6 +5,7 @@ import { customerSupabase as supabase } from "../customerClient";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
 import { logger } from "../../lib/logger";
+import { isCaptchaRejection, CAPTCHA_REJECTED_ERROR } from "../../lib/turnstile";
 import type { Database } from "../database.types";
 
 /** The customer-safe human projection link_customer_to_human returns. */
@@ -354,7 +355,10 @@ export function useCustomerAuth() {
       logger.error("Customer OTP send failed", err, {
         tags: { hook: "useCustomerAuth", op: "sendOtp" },
       });
-      setError(OTP_SEND_ERROR);
+      // OTP_SEND_ERROR asks the customer to check their number. If the captcha
+      // was what GoTrue refused, their number was never the problem and we
+      // would be sending them to edit a perfectly good phone number.
+      setError(isCaptchaRejection(err.message) ? CAPTCHA_REJECTED_ERROR : OTP_SEND_ERROR);
       return { error: err };
     }
 
@@ -405,7 +409,10 @@ export function useCustomerAuth() {
           tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
         });
       }
-      setError(PASSWORD_LOGIN_ERROR);
+      // Same trap as the staff page: a captcha rejection is not a wrong
+      // password, and this path also clears the password field, so the customer
+      // would retype a correct password indefinitely with nobody to ask.
+      setError(isCaptchaRejection(err.message) ? CAPTCHA_REJECTED_ERROR : PASSWORD_LOGIN_ERROR);
       return { error: err };
     }
 

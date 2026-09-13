@@ -27,6 +27,20 @@ export const CAPTCHA_PENDING_ERROR =
   "Just finishing the security check — please try again in a moment.";
 
 /**
+ * Shown when GoTrue refused a call that DID carry a token — so the token was
+ * rejected, not missing. In practice that means the secret key configured in
+ * Supabase does not match the site key this page renders, which is the first
+ * thing the enablement runbook tells you to check.
+ *
+ * Distinct from CAPTCHA_PENDING_ERROR: that one means "the widget has not
+ * finished yet, wait a moment", which is transient and self-healing. This one
+ * is a misconfiguration, and telling someone their password is wrong when the
+ * captcha is what failed sends them to fix the wrong thing entirely.
+ */
+export const CAPTCHA_REJECTED_ERROR =
+  "The security check didn't pass. Reload the page and try again — if it keeps happening, let the salon know.";
+
+/**
  * Does this auth error mean GoTrue refused the call for a captcha reason?
  *
  * When CAPTCHA protection is on, a captcha-gated endpoint called without a

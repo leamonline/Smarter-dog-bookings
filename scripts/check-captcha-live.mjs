@@ -96,6 +96,31 @@ async function probe({ url, key, captchaToken }) {
   return { verdict: classifyCaptchaResponse(body), body, status: response.status };
 }
 
+/**
+ * Probe /auth/v1/verify with a code that cannot be valid. This endpoint CHECKS
+ * an existing code and never sends one, and the number is from Ofcom's reserved
+ * drama range, so nothing is texted and no account can match.
+ */
+async function probeVerify({ url, key }) {
+  const response = await fetch(`${url}/auth/v1/verify`, {
+    method: "POST",
+    headers: { apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      phone: "+447700900000",
+      token: "000000",
+      type: "sms",
+    }),
+  });
+  const body = await response.json().catch(() => null);
+  const verdict = classifyCaptchaResponse(body);
+  // "not-enforced" here means it reached the code check, which is what we want.
+  return {
+    verdict: verdict === "unknown" ? "not-enforced" : verdict,
+    body,
+    status: response.status,
+  };
+}
+
 async function main() {
   loadEnvLocal();
 
@@ -132,6 +157,31 @@ async function main() {
     if (result.verdict === "unknown") {
       process.stdout.write(`    ${JSON.stringify(result.body)}\n`);
     }
+  }
+
+  // Informational, and deliberately NOT part of the pass/fail verdict.
+  //
+  // The customer login page leaves its OTP-verify button ungated on the
+  // understanding that GoTrue does not apply captcha middleware to /verify.
+  // That is inferred (the SDK's captchaToken on verifyOtp is @deprecated), not
+  // contracted — Supabase publishes no endpoint list. If it were wrong, a
+  // customer holding a valid texted code could never get in, and that stage has
+  // no widget and no resend to rescue them.
+  //
+  // Safe: a reserved-range UK number that can match no account, with a junk
+  // code. /verify CHECKS a code, it never sends one, so this costs nothing and
+  // texts nobody.
+  const verifyProbe = await probeVerify({ url, key });
+  process.stdout.write(
+    `  /verify (informational) — ${verifyProbe.verdict} (HTTP ${verifyProbe.status})\n`,
+  );
+  if (verifyProbe.verdict === "enforced") {
+    process.stdout.write(
+      "    ^ WARNING: /verify appears to be captcha-gated after all. The customer\n" +
+        "      login page's OTP code stage renders no captcha widget, so customers\n" +
+        "      holding a valid SMS code cannot complete sign-in. See the comment on\n" +
+        "      the code-stage submit in src/components/auth/CustomerLoginPage.jsx.\n",
+    );
   }
 
   if (results.some((result) => result.verdict === "unknown")) {

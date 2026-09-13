@@ -614,12 +614,24 @@ export function CustomerLoginPage({
               </div>
               {/*
                 Deliberately NOT gated on captchaUnavailable, unlike every other
-                submit on this page. verifyOtp hits GoTrue's /verify endpoint,
-                which is not captcha-protected — the SDK gives it no captchaToken
-                parameter at all, and captcha + phone OTP is a supported Supabase
-                configuration, so it cannot be. Adding the gate here would strand
-                a customer who already holds a valid texted code, for no security
-                gain. Please don't "fix" this.
+                submit on this page — but the reasoning is narrower than it first
+                looks, so read this before changing it either way.
+
+                What is actually established: VerifyMobileOtpParams DOES accept
+                options.captchaToken (@supabase/auth-js types.d.ts), and it is
+                marked @deprecated, which is good evidence GoTrue stopped
+                enforcing captcha on /verify. Supabase's published captcha guide
+                names only "sign-in, sign-up and password reset forms" and
+                enumerates no endpoints, so there is no contract to cite.
+
+                Why it stays ungated: this stage renders no Turnstile panel and
+                has no resend, so gating it would strand a customer holding a
+                valid texted code with no way forward. If /verify ever DID
+                enforce, gating the button would not help them — it would just
+                fail earlier.
+
+                `npm run check:captcha` probes this endpoint directly and will
+                say so if that ever changes. Trust that over this comment.
               */}
               <button
                 type="submit"
