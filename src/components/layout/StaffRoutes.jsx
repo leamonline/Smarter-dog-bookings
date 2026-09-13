@@ -150,6 +150,8 @@ export function StaffRoutes({ data, nav, ui }) {
     currentDateObj,
     currentDateStr,
     handleDatePick,
+    goToPrevWeek,
+    goToNextWeek,
   } = nav;
   const {
     user,
@@ -322,6 +324,8 @@ export function StaffRoutes({ data, nav, ui }) {
           showDatePicker={showDatePicker}
           setShowDatePicker={setShowDatePicker}
           handleDatePick={handleDatePick}
+          goToPrevWeek={goToPrevWeek}
+          goToNextWeek={goToNextWeek}
           setShowNewBooking={requestNewBooking}
           draftPick={showNewBooking ? draftTarget : null}
           onOpenClosureVisit={onOpenClosureVisit}
