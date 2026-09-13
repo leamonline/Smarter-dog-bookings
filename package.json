@@ -31,6 +31,7 @@
     "check:edge-types": "node scripts/check-edge-function-types.mjs",
     "check:edge-auth": "node scripts/check-edge-function-auth.mjs",
     "check:sentry": "node scripts/check-sentry-live.mjs",
+    "check:captcha": "node scripts/check-captcha-live.mjs",
     "check:advisors": "node scripts/check-advisors.mjs",
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
     "vapid:generate": "node scripts/generate-vapid-keys.mjs",

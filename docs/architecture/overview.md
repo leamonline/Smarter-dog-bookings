@@ -183,7 +183,10 @@ The current code integrates with:
 - SendGrid for email;
 - Anthropic for the staff-reviewed WhatsApp assistant and summaries;
 - APITier for postcode lookup;
-- Cloudflare Turnstile for login abuse protection;
+- Cloudflare Turnstile for login abuse protection — the widget alone proves
+  nothing, because Supabase only calls Cloudflare's siteverify endpoint when
+  CAPTCHA protection is enabled; `npm run check:captcha` probes the live
+  project and says which state it is in;
 - Sentry for error reporting — live since 28 August 2026, verifiable with
   `npm run check:sentry` ([error-reporting.md](../error-reporting.md)); and
 - browser Web Push providers through VAPID.

@@ -3,12 +3,7 @@ import { Turnstile } from "@marsidev/react-turnstile";
 import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
-
-// Cloudflare's published test key — always passes, no real challenge.
-// Supabase accepts it when the project's Turnstile secret key is also the
-// matching test secret (0x4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA).
-const TURNSTILE_SITE_KEY =
-  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
+import { turnstileConfig, CAPTCHA_PENDING_ERROR, isCaptchaRejection } from "../../lib/turnstile";
 
 // Page background + silhouette scatter are intentionally kept in sync with
 // CustomerLoginPage.jsx so the customer and staff entry points read as one
@@ -79,6 +74,27 @@ function PortalShell({ children }) {
 }
 
 /**
+ * Stands in for the security check when the deploy carries no Turnstile site
+ * key. Sign-in is blocked rather than quietly allowed through: a captcha that
+ * always passes is worse than none, because it invites the assumption of
+ * safety. The actionable detail — which variable is missing — goes to Sentry
+ * from src/lib/turnstile.ts, not onto a staff member's screen.
+ */
+function CaptchaUnavailable() {
+  return (
+    <div role="alert" className="text-center">
+      <p className="text-sm font-bold text-[var(--sd-navy)] mb-1">
+        Sign-in is unavailable right now
+      </p>
+      <p className="text-xs text-[var(--sd-ink-light)] leading-relaxed">
+        The security check can&apos;t load, so we can&apos;t sign anyone in
+        until it&apos;s sorted. Please try again shortly.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Staff login page — sign-in only.
  * New staff accounts must be created by an owner directly in Supabase
  * Auth (or via an invite flow). Public self-registration is intentionally
@@ -97,6 +113,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState("");
 
+  // Null only when the deploy is misconfigured; src/lib/turnstile.ts has
+  // already reported it to Sentry by the time we render.
+  const captchaUnavailable = turnstileConfig.configError !== null;
+
   const signInCaptchaRef = useRef(null);
   const signInTurnstileRef = useRef(null);
   const resetCaptchaRef = useRef(null);
@@ -108,18 +128,32 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       setResetError("We need your email to send the reset link.");
       return;
     }
+    // With Supabase CAPTCHA protection on, sending without a token gets a raw
+    // "captcha protection: request disallowed" back. Catch it here instead,
+    // and send the token unconditionally now that we know we have one.
+    if (!resetCaptchaRef.current) {
+      setResetError(CAPTCHA_PENDING_ERROR);
+      return;
+    }
     setResetSending(true);
     setResetError("");
-    const captchaToken = resetCaptchaRef.current;
     const { error: err } = await authActions.requestPasswordReset(resetEmail.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
-      ...(captchaToken ? { captchaToken } : {}),
+      captchaToken: resetCaptchaRef.current,
     });
     setResetSending(false);
     if (err) {
       resetTurnstileRef.current?.reset();
       resetCaptchaRef.current = null;
-      setResetError(err.message);
+      // A captcha rejection here means the secret key in Supabase does not match
+      // the site key this page renders — the first thing the enablement runbook
+      // tells you to check. Accurate as GoTrue phrases it, useless to read. The
+      // widget has just been reset, so "try again" is honest advice on this page.
+      setResetError(
+        isCaptchaRejection(err.message)
+          ? "The security check didn't pass. Give it a moment and try again."
+          : err.message,
+      );
       return;
     }
     setResetSent(true);
@@ -129,6 +163,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setLocalError("We need both your email and password.");
+      return;
+    }
+    if (!signInCaptchaRef.current) {
+      setLocalError(CAPTCHA_PENDING_ERROR);
       return;
     }
     setLocalError("");
@@ -223,27 +261,33 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </div>
 
           <div className="rounded-xl border border-transparent sm:border-[rgba(45,0,75,0.08)] bg-transparent sm:bg-[var(--sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
-            <p className={`${kickerClass} text-center mb-2 sm:mb-3 hidden sm:block`}>
-              Quick security check
-            </p>
-            <div className="flex justify-center">
-              <Turnstile
-                ref={signInTurnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                onSuccess={(token) => { signInCaptchaRef.current = token; }}
-                onExpire={() => { signInCaptchaRef.current = null; }}
-                onError={() => { signInCaptchaRef.current = null; }}
-                options={{ theme: "light", size: "normal" }}
-              />
-            </div>
-            <p className="text-xs text-[var(--sd-ink-light)] text-center mt-2 sm:mt-3 leading-relaxed hidden sm:block">
-              Just confirms you&apos;re human — no clicks needed.
-            </p>
+            {captchaUnavailable ? (
+              <CaptchaUnavailable />
+            ) : (
+              <>
+                <p className={`${kickerClass} text-center mb-2 sm:mb-3 hidden sm:block`}>
+                  Quick security check
+                </p>
+                <div className="flex justify-center">
+                  <Turnstile
+                    ref={signInTurnstileRef}
+                    siteKey={turnstileConfig.siteKey}
+                    onSuccess={(token) => { signInCaptchaRef.current = token; }}
+                    onExpire={() => { signInCaptchaRef.current = null; }}
+                    onError={() => { signInCaptchaRef.current = null; }}
+                    options={{ theme: "light", size: "normal" }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--sd-ink-light)] text-center mt-2 sm:mt-3 leading-relaxed hidden sm:block">
+                  Just confirms you&apos;re human — no clicks needed.
+                </p>
+              </>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || captchaUnavailable}
             aria-busy={submitting}
             className={submitButtonClass}
             style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
@@ -338,24 +382,30 @@ export function LoginPage({ onSignIn, error, isOffline }) {
         </div>
 
         <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-2 sm:py-4">
-          <p className={`${kickerClass} text-center mb-2 sm:mb-3 hidden sm:block`}>
-            Quick security check
-          </p>
-          <div className="flex justify-center">
-            <Turnstile
-              ref={resetTurnstileRef}
-              siteKey={TURNSTILE_SITE_KEY}
-              onSuccess={(token) => { resetCaptchaRef.current = token; }}
-              onExpire={() => { resetCaptchaRef.current = null; }}
-              onError={() => { resetCaptchaRef.current = null; }}
-              options={{ theme: "light", size: "normal" }}
-            />
-          </div>
+          {captchaUnavailable ? (
+            <CaptchaUnavailable />
+          ) : (
+            <>
+              <p className={`${kickerClass} text-center mb-2 sm:mb-3 hidden sm:block`}>
+                Quick security check
+              </p>
+              <div className="flex justify-center">
+                <Turnstile
+                  ref={resetTurnstileRef}
+                  siteKey={turnstileConfig.siteKey}
+                  onSuccess={(token) => { resetCaptchaRef.current = token; }}
+                  onExpire={() => { resetCaptchaRef.current = null; }}
+                  onError={() => { resetCaptchaRef.current = null; }}
+                  options={{ theme: "light", size: "normal" }}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={resetSending}
+          disabled={resetSending || captchaUnavailable}
           aria-busy={resetSending}
           className={submitButtonClass}
           style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}

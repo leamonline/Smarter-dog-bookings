@@ -4,19 +4,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
-
-// Cloudflare's published test key — always passes, no real challenge.
-// Supabase accepts it as long as the project's Turnstile secret key is also
-// the matching test secret (0x4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA).
-const TURNSTILE_SITE_KEY =
-  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
+import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
 
 const OTP_RESEND_SECONDS = 60;
 // Keep the format hint gentle — getting your phone number wrong is the most
 // common slip on this page, and harsh copy makes a small mistake feel like
 // a wall.
 const PHONE_FORMAT_ERROR = "That number doesn't look quite right. Try a UK mobile starting with 07.";
-const CAPTCHA_PENDING_ERROR = "Just finishing the security check — please try again in a moment.";
 
 // Focus ring driven by token, not a bespoke colour. Used on every interactive
 // control on the page so keyboard navigation reads as one consistent thing.
@@ -309,29 +303,51 @@ export function CustomerLoginPage({
           ? `We don't recognise ${phone} yet. Join the Pack and we'll get you set up.`
           : "Enter your mobile number and we'll take it from there.";
 
+  // Null only when the deploy is misconfigured; src/lib/turnstile.ts has
+  // already reported it to Sentry by the time we render.
+  const captchaUnavailable = turnstileConfig.configError !== null;
+
   // Shared Turnstile panel for the stages that make a Supabase auth call.
+  // With no site key we show nothing to solve and block the form: a captcha
+  // that always passes is worse than none, because it invites the assumption
+  // of safety.
   const turnstilePanel = (
     <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
-      <p className="portal-text-kicker text-center mb-3">Quick security check</p>
-      <div className="flex justify-center">
-        <Turnstile
-          ref={turnstileRef}
-          siteKey={TURNSTILE_SITE_KEY}
-          onSuccess={(token) => {
-            captchaTokenRef.current = token;
-          }}
-          onExpire={() => {
-            captchaTokenRef.current = null;
-          }}
-          onError={() => {
-            captchaTokenRef.current = null;
-          }}
-          options={{ theme: "light", size: "normal" }}
-        />
-      </div>
-      <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
-        Just confirms you&apos;re human — no clicks needed.
-      </p>
+      {captchaUnavailable ? (
+        <div role="alert" className="text-center">
+          <p className="text-sm font-bold text-[var(--sd-navy)] mb-1">
+            Signing in is unavailable right now
+          </p>
+          <p className="text-[12px] text-[var(--sd-ink-light)] leading-relaxed">
+            The security check can&apos;t load, so we can&apos;t sign you in
+            just yet. Please try again shortly — or give the salon a ring and
+            we&apos;ll sort you out.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="portal-text-kicker text-center mb-3">Quick security check</p>
+          <div className="flex justify-center">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={turnstileConfig.siteKey}
+              onSuccess={(token) => {
+                captchaTokenRef.current = token;
+              }}
+              onExpire={() => {
+                captchaTokenRef.current = null;
+              }}
+              onError={() => {
+                captchaTokenRef.current = null;
+              }}
+              options={{ theme: "light", size: "normal" }}
+            />
+          </div>
+          <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+            Just confirms you&apos;re human — no clicks needed.
+          </p>
+        </>
+      )}
     </div>
   );
 
@@ -447,7 +463,7 @@ export function CustomerLoginPage({
 
               <button
                 type="submit"
-                disabled={submitting || otpCooldown > 0}
+                disabled={submitting || otpCooldown > 0 || captchaUnavailable}
                 aria-busy={submitting}
                 className={submitButtonClass}
                 style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
@@ -473,7 +489,7 @@ export function CustomerLoginPage({
 
               <button
                 type="submit"
-                disabled={submitting || otpCooldown > 0}
+                disabled={submitting || otpCooldown > 0 || captchaUnavailable}
                 aria-busy={submitting}
                 className={submitButtonClass}
                 style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
@@ -546,7 +562,7 @@ export function CustomerLoginPage({
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || captchaUnavailable}
                 aria-busy={submitting}
                 className={submitButtonClass}
                 style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
@@ -596,6 +612,27 @@ export function CustomerLoginPage({
                   className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
                 />
               </div>
+              {/*
+                Deliberately NOT gated on captchaUnavailable, unlike every other
+                submit on this page — but the reasoning is narrower than it first
+                looks, so read this before changing it either way.
+
+                What is actually established: VerifyMobileOtpParams DOES accept
+                options.captchaToken (@supabase/auth-js types.d.ts), and it is
+                marked @deprecated, which is good evidence GoTrue stopped
+                enforcing captcha on /verify. Supabase's published captcha guide
+                names only "sign-in, sign-up and password reset forms" and
+                enumerates no endpoints, so there is no contract to cite.
+
+                Why it stays ungated: this stage renders no Turnstile panel and
+                has no resend, so gating it would strand a customer holding a
+                valid texted code with no way forward. If /verify ever DID
+                enforce, gating the button would not help them — it would just
+                fail earlier.
+
+                `npm run check:captcha` probes this endpoint directly and will
+                say so if that ever changes. Trust that over this comment.
+              */}
               <button
                 type="submit"
                 disabled={submitting}

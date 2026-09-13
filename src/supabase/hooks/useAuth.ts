@@ -4,6 +4,7 @@ import { isPasswordPwned } from "../../utils/pwnedPassword";
 import { supabase } from "../client";
 import { primeBootPrefetch } from "../bootPrefetch.js";
 import { logger } from "../../lib/logger";
+import { isCaptchaRejection, CAPTCHA_REJECTED_ERROR } from "../../lib/turnstile";
 import type { Database } from "../database.types";
 
 export type StaffProfile = Database["public"]["Tables"]["staff_profiles"]["Row"];
@@ -207,7 +208,15 @@ export function useAuth() {
       });
 
       if (err) {
-        setError("Invalid email or password");
+        // A captcha rejection is NOT a wrong password, and saying so sends the
+        // person to change a password that was never the problem. This fires
+        // whenever the Supabase secret key and the rendered site key disagree —
+        // the runbook's first listed post-toggle failure.
+        setError(
+          isCaptchaRejection(err.message)
+            ? CAPTCHA_REJECTED_ERROR
+            : "Invalid email or password",
+        );
         return { error: err };
       }
 
