@@ -7,34 +7,14 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { DepositHoldInstructions } from "./DepositHoldInstructions";
 import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
+import { groupUpcomingBookings } from "./groupUpcomingBookings";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 
 /**
- * Single source of truth for the dashboard's next-action block.
- *
- * Two states:
- *   1. **Empty** — no upcoming groom. "Ready to book {dogName} in?" + green CTA.
- *   2. **Booked** — has an upcoming groom. Date, time, service, dog;
- *      Reschedule (modal-confirmed: carries the original booking ID in the
- *      URL; ordinary visits move atomically, while staff-overridden visits
- *      become a request that leaves the diary unchanged until staff decide)
- *      and Cancel (inline reason form) as low-emphasis links.
- *
- * Replaces the old "Upcoming appointments empty state" + "Time for another
- * groom?" rebook block in AppointmentsSection — they duplicated each other
- * and used different visual languages.
+ * Upcoming appointments, grouped by the existing customer command boundary.
+ * Each card owns its action state and keeps the authoritative booking ID.
+ * An empty list retains the existing booking prompt.
  */
-
-function dayLabel(dateStr) {
-  const d = new Date(dateStr + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((d - today) / 86400000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  if (diffDays < 7) return d.toLocaleDateString("en-GB", { weekday: "long" });
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
 
 function friendlyCancellationError(error) {
   if (error?.code === "SDC01") {
@@ -46,22 +26,30 @@ function friendlyCancellationError(error) {
   return "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.";
 }
 
-export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
+export function BookingCard(props) {
+  const appointments = groupUpcomingBookings(props.upcomingBookings);
+  if (appointments.length === 0) {
+    return <AppointmentCard {...props} bookings={[]} isNext />;
+  }
+  return appointments.map((appointment, index) => (
+    <AppointmentCard
+      {...props}
+      key={appointment.key}
+      bookings={appointment.bookings}
+      isNext={index === 0}
+    />
+  ));
+}
+
+function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookingChanged, isNext }) {
   const navigate = useNavigate();
   const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
 
   // Bookings arrive app-shaped (CustomerBookingSummary) from the repository —
   // isAwaitingDeposit reads the camelCase fields directly.
-  const nextBooking = upcomingBookings[0];
-  const awaitingDeposit = nextBooking
-    ? isAwaitingDeposit({
-        depositRequired: nextBooking.depositRequired === true,
-        depositReceivedAt: nextBooking.depositReceivedAt ?? null,
-        payment: nextBooking.payment ?? null,
-        status: nextBooking.status ?? null,
-      })
-    : false;
+  const depositBookings = bookings.filter((booking) => isAwaitingDeposit(booking));
+  const awaitingDeposit = depositBookings.length > 0;
 
   const { bank: depositBank } = useCustomerDepositSettings(awaitingDeposit);
   const [cancelling, setCancelling] = useState(false);
@@ -71,8 +59,9 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const [cancelError, setCancelError] = useState(null);
   const [cancellationCommitted, setCancellationCommitted] = useState(false);
 
-  const next = upcomingBookings[0];
-  const dogName = next?.dog?.name || dogs[0]?.name || "your pup";
+  const next = bookings[0];
+  const dogName = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" })
+    .format(bookings.map((booking) => booking.dog?.name || "your dog"));
   const requiresStaffApproval = upcomingBookings.some((booking) => {
     const sameVisit =
       next?.visitId && booking.visitId && booking.visitId === next.visitId;
@@ -109,7 +98,6 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   }
 
   // ----- Booked state -----
-  const day = dayLabel(next.bookingDate);
   const dateStr = formatDate(next.bookingDate);
   const timeStr = formatSlot(next.slot);
 
@@ -180,43 +168,46 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
   return (
     <>
-      <div className="portal-booking-card portal-booking-card--booked portal-section--full">
+      <div role="region" aria-label={`Appointment for ${dogName} on ${dateStr} at ${timeStr}`} className="portal-booking-card portal-booking-card--booked portal-section--full">
         <div className="flex items-center gap-2">
           <span className="portal-card-iconbadge portal-card-iconbadge--mint">
             <Scissors size={18} aria-hidden="true" />
           </span>
           <h2 className="portal-booking-card-title">
-            Next groom: {day}, {timeStr}
+            {isNext ? "Next groom" : "Upcoming groom"}: {dateStr}, {timeStr}
           </h2>
         </div>
         <p className="portal-booking-card-body">
-          Drop off time is {timeStr}, please ring the doorbell on arrival. We&apos;ll text you when {dogName}&apos;s ready.
-          {next.service && (
-            <>
-              {" "}
-              <span className="text-[var(--sd-ink-light)]">
-                · {SERVICE_LABELS[next.service] || next.service} for {dogName}
-              </span>
-            </>
-          )}
+          Booked for {dogName}. Please ring the doorbell on arrival. We&apos;ll text you when your {bookings.length > 1 ? "dogs are" : "dog is"} ready.
         </p>
+        <ul className="mb-3 space-y-2 text-sm text-[var(--sd-ink-light)]">
+          {bookings.map((booking) => (
+            <li key={booking.id}>
+              <strong>{booking.dog?.name || "Your dog"}</strong>
+              {booking.service && <> · {SERVICE_LABELS[booking.service] || booking.service}</>}
+              {" · Drop off at "}{formatSlot(booking.slot)}
+            </li>
+          ))}
+        </ul>
 
-        {awaitingDeposit && (
+        {depositBookings.map((booking) => (
           <div
+            key={booking.id}
             role="status"
             aria-label="Deposit needed"
             className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--sd-navy)]"
           >
             <strong>Deposit needed to hold this booking.</strong>
+            <p>For {booking.dog?.name || "your dog"}.</p>
             <DepositHoldInstructions
-              amount={next.depositAmount ?? 10}
-              reference={next.depositReference ?? null}
-              dueBy={next.depositDueBy ?? null}
+              amount={booking.depositAmount ?? 10}
+              reference={booking.depositReference ?? null}
+              dueBy={booking.depositDueBy ?? null}
               bank={depositBank}
               compact
             />
           </div>
-        )}
+        ))}
 
         {!cancelling && (
           <div
@@ -255,7 +246,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
             aria-label="Cancel booking"
           >
             <div className="text-sm font-semibold text-[var(--sd-navy)] mb-2.5">
-              Why are you cancelling?
+              Cancel the appointment for {dogName}?
             </div>
             <select
               value={reason}
@@ -320,8 +311,8 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
           }
           message={
             requiresStaffApproval
-              ? "Choose the time you’d prefer. Your current appointment stays booked unless the team approves the change."
-              : "Pick your new time and we'll swap you over once you confirm."
+              ? `Choose the time you’d prefer for ${dogName}. Your current appointment stays booked unless the team approves the change.`
+              : `Pick a new time for ${dogName}. We’ll move the appointment for ${bookings.length > 1 ? "all these dogs" : "this dog"} once you confirm.`
           }
           confirmLabel={
             requiresStaffApproval

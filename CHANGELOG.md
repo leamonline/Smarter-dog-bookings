@@ -345,6 +345,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Customer dashboard shows all upcoming appointments and every dog in each booking group, with per-dog services, times and outstanding deposits. Change and cancellation confirmations name the affected dogs (#854).
+
 - Stop the capacity and revenue measurements running out of their cards on the
   staff calendar. Both rail cards laid a metric out as one flex row — label
   `truncate` on the left, value and caption `shrink-0` on the right — inside a
