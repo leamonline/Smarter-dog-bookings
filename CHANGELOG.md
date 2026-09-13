@@ -345,6 +345,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Staff home-screen app launches at `/staff/` now have an explicit booking-shell route, preventing the public website’s 404 page from opening instead.
+
 - Customer dashboard shows all upcoming appointments and every dog in each booking group, with per-dog services, times and outstanding deposits. Change and cancellation confirmations name the affected dogs (#854).
 
 - Stop the capacity and revenue measurements running out of their cards on the
