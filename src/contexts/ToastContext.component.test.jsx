@@ -3,7 +3,7 @@
 // label the action (e.g. "Book another for Emma") while keeping the legacy
 // function form working.
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ToastProvider, useToast } from "./ToastContext.jsx";
 
 function Trigger({ action }) {
@@ -34,5 +34,75 @@ describe("ToastContext — actions", () => {
     fireEvent.click(screen.getByText("fire"));
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(undo).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Auto-dismiss timers must not outlive the provider. A timer left running
+// after unmount fires setState into a dead root; under Vitest that lands
+// after jsdom is torn down and fails the run as an unhandled error.
+describe("ToastContext — auto-dismiss timers", () => {
+  function PlainTrigger() {
+    const toast = useToast();
+    return <button onClick={() => toast.show("Saved")}>fire</button>;
+  }
+
+  it("clears every pending auto-dismiss timer when the provider unmounts", () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = render(
+        <ToastProvider>
+          <PlainTrigger />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByText("fire"));
+      fireEvent.click(screen.getByText("fire"));
+      expect(screen.getAllByRole("status")).toHaveLength(2);
+      expect(vi.getTimerCount()).toBe(2);
+
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels the auto-dismiss timer when a toast is dismissed by hand", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ToastProvider>
+          <PlainTrigger />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByText("fire"));
+      expect(vi.getTimerCount()).toBe(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss notification" }));
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still auto-dismisses a toast that is left alone", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ToastProvider>
+          <PlainTrigger />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByText("fire"));
+      expect(screen.getByRole("status")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
