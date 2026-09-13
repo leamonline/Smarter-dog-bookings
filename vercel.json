@@ -138,6 +138,10 @@
       "destination": "/app/index.html"
     },
     {
+      "source": "/staff/",
+      "destination": "/app/index.html"
+    },
+    {
       "source": "/staff/:path*",
       "destination": "/app/index.html"
     },

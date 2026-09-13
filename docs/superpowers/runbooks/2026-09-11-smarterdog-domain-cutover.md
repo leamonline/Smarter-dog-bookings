@@ -413,3 +413,17 @@ the records propagate, which is why step 6 lowers the TTL first.
 The merged code can stay merged. It is inert while the domain points at
 Bluehost: `smarterdog.vercel.app` keeps serving both apps, and every old URL
 still redirects.
+
+## Staff home-screen launch route
+
+The staff manifest at `/app/manifest.json` launches `/staff/` and scopes the
+installed app to `/staff/`. Verify both `/staff` and `/staff/` serve the booking
+shell (`/app/assets/` scripts and `/app/manifest.json`), never the marketing
+shell (`/assets/` scripts and `/manifest.json`). The trailing-slash entrance
+needs an explicit Vercel rewrite; do not assume `/staff/:path*` covers it.
+
+After deployment, add the staff portal to an iPhone home screen, close it and
+launch the icon. Confirm the staff sign-in page or authenticated dashboard
+opens. Test with a fresh install so a service worker cache cannot hide a server
+routing failure. Also retry an existing icon: its `/staff/` launch URL should
+now work without changing the saved manifest.

@@ -29,6 +29,18 @@ describe("vercel routing table", () => {
     }
   });
 
+  it("serves the installed staff app launch URL explicitly before the marketing fallback", () => {
+    const manifest = JSON.parse(readFileSync("public/app/manifest.json", "utf8"));
+    // The live /staff/:path* rule did not match the bare /staff/ launch URL.
+    // Pin an exact rule using the manifest rather than assuming wildcard
+    // matching or slash normalisation will send a home-screen launch here.
+    expect(manifest.start_url).toBe("/staff/");
+    expect(manifest.scope).toBe("/staff/");
+    expect(rewriteFor(manifest.start_url)?.destination).toBe(BOOKING_SHELL);
+    expect(indexOfRewrite(manifest.start_url)).toBeLessThan(indexOfRewrite("/(.*)"));
+    expect(resolveMount(manifest.start_url)).not.toBeNull();
+  });
+
   it("keeps the marketing catch-all last", () => {
     // A catch-all placed above the booking rewrites would swallow them.
     const catchAll = indexOfRewrite("/(.*)");
