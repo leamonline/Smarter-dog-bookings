@@ -63,6 +63,8 @@ export function WeekCalendarView({
   showDatePicker,
   setShowDatePicker,
   handleDatePick,
+  goToPrevWeek,
+  goToNextWeek,
   setShowNewBooking,
   draftPick,
   onOpenClosureVisit,
@@ -144,12 +146,6 @@ export function WeekCalendarView({
     if (failure?.bookingDate) handleDatePick(new Date(`${failure.bookingDate}T12:00:00`));
   };
 
-  const navigateDay = (delta) => {
-    const target = new Date(currentDateObj);
-    target.setDate(target.getDate() + delta);
-    handleDatePick(target);
-  };
-
   const activeSlots = useMemo(() => {
     return buildSlotGrid(currentSettings.extraSlots || []);
   }, [currentSettings.extraSlots]);
@@ -213,7 +209,8 @@ export function WeekCalendarView({
 
       {/* Compact week pills on tablet/mobile — desktop uses the
           left-sidebar WeekOverviewCard. The week strip runs full width; the
-          day's prev/next arrows flank the month/week toggle on the row below. */}
+          arrows either side of it page the strip by a whole week (±7 days,
+          same weekday) — the ±1-day arrows live in the AppContextRow header. */}
       <div className="lg:hidden mb-3">
         {monthExpanded ? (
           /* Expanded month grid in its own card. Tapping a day collapses back
@@ -237,15 +234,16 @@ export function WeekCalendarView({
             </button>
           </div>
         ) : (
-          /* Week strip on a single row: prev/next-day arrows flank the pills on
-             phones, and a calendar icon opens the month. "Today" = tap today's
-             pill. This drops the separate Today/Week/Month switcher row, so the
-             schedule sits ~a control-row higher on a phone. */
+          /* Week strip on a single row: prev/next-week arrows flank the pills
+             on phones (Mon 21 → Mon 28: the selected weekday is kept), and a
+             calendar icon opens the month. "Today" = tap today's pill. This
+             drops the separate Today/Week/Month switcher row, so the schedule
+             sits ~a control-row higher on a phone. */
           <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting flex items-center gap-0.5 px-1">
             <button
               type="button"
-              onClick={() => navigateDay(-1)}
-              aria-label="Previous day"
+              onClick={goToPrevWeek}
+              aria-label="Previous week"
               className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
             >
               <ChevronLeft size={18} strokeWidth={2.5} />
@@ -263,8 +261,8 @@ export function WeekCalendarView({
             </div>
             <button
               type="button"
-              onClick={() => navigateDay(1)}
-              aria-label="Next day"
+              onClick={goToNextWeek}
+              aria-label="Next week"
               className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
             >
               <ChevronRight size={18} strokeWidth={2.5} />
