@@ -345,6 +345,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Fixed
 
+- Staff account settings now explain how to request a password reset through the protected sign-in flow, replacing the button that could not supply a CAPTCHA token (#851).
+
 - Customer dashboard shows all upcoming appointments and every dog in each booking group, with per-dog services, times and outstanding deposits. Change and cancellation confirmations name the affected dogs (#854).
 
 - Stop the capacity and revenue measurements running out of their cards on the

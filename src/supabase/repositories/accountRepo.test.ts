@@ -8,14 +8,13 @@ const mocks = vi.hoisted(() => {
   const update = vi.fn(() => ({ eq }));
   const from = vi.fn(() => ({ update }));
   const updateUser = vi.fn().mockResolvedValue({ data: {}, error: null });
-  const resetPasswordForEmail = vi.fn().mockResolvedValue({ data: {}, error: null });
-  return { eq, update, from, updateUser, resetPasswordForEmail };
+  return { eq, update, from, updateUser };
 });
 vi.mock("../client", () => ({
-  supabase: { from: mocks.from, auth: { updateUser: mocks.updateUser, resetPasswordForEmail: mocks.resetPasswordForEmail } },
+  supabase: { from: mocks.from, auth: { updateUser: mocks.updateUser } },
 }));
 
-import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail, sendPasswordReset } from "./accountRepo";
+import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail } from "./accountRepo";
 
 describe("accountRepo", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -34,10 +33,5 @@ describe("accountRepo", () => {
   it("changes the login email via auth", async () => {
     await updateAccountEmail("new@example.com");
     expect(mocks.updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
-  });
-
-  it("sends a password reset with the redirect", async () => {
-    await sendPasswordReset("me@example.com", "https://x/reset-password");
-    expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("me@example.com", { redirectTo: "https://x/reset-password" });
   });
 });

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail, sendPasswordReset } from "../../../supabase/repositories/accountRepo";
+import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail } from "../../../supabase/repositories/accountRepo";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
-import { isCaptchaRejection } from "../../../lib/turnstile";
 import { DeviceNotifications } from "./DeviceNotifications.jsx";
 
 export function AccountSettings({ user, staffProfile, onDirtyChange }) {
@@ -16,8 +15,6 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [emailPending, setEmailPending] = useState(false);
-  const [pwSending, setPwSending] = useState(false);
-  const [pwSent, setPwSent] = useState(false);
 
   const dirty =
     account.displayName !== baseline.displayName ||
@@ -61,35 +58,6 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
       setSaving(false);
     }
   }, [account, staffProfile, user]);
-
-  // This used to discard the result and show "Link sent" regardless, so a
-  // failure looked exactly like a success. That mattered little while every
-  // send succeeded; it matters a lot now, because resetPasswordForEmail hits
-  // GoTrue's /recover endpoint, which IS captcha-gated — and there is no
-  // Turnstile widget on this page to produce a token. Once captcha protection
-  // is enabled on the project this call is refused every time, and a staff
-  // member locked out of their account would sit waiting for an email that was
-  // never sent. Say what happened, and point at the route that still works.
-  const handlePasswordReset = async () => {
-    if (!isAccountBackendAvailable() || !user?.email) return;
-    setPwSending(true);
-    setError("");
-    const { error: pwErr } = await sendPasswordReset(
-      user.email,
-      `${window.location.origin}/reset-password`,
-    );
-    setPwSending(false);
-    if (pwErr) {
-      setError(
-        isCaptchaRejection(pwErr.message)
-          ? "We can't send the reset link from here. Use \u201cForgot password?\u201d on the sign-in page instead \u2014 it'll sort you out in a moment."
-          : pwErr.message || "Couldn't send the reset link \u2014 please try again",
-      );
-      return;
-    }
-    setPwSent(true);
-    setTimeout(() => setPwSent(false), 5000);
-  };
 
   return (
     <>
@@ -148,21 +116,9 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
         <div className="border-t border-slate-200 pt-3.5 mt-3.5">
           <div className="text-sm font-semibold text-slate-800 mb-1">Password</div>
           <div className="text-[13px] text-slate-500 mb-2.5">
-            We'll email you a link to reset your password
+            Save any changes, then sign out and choose “Forgot password?” on the staff sign-in page.
+            Complete the security check there to request a reset link by email.
           </div>
-          <button
-            onClick={handlePasswordReset}
-            disabled={pwSending || pwSent}
-            className={`px-[18px] py-[9px] rounded-control border text-[13px] font-bold font-inherit transition-all ${
-              pwSent
-                ? "bg-[#E6F5F2] text-brand-teal border-brand-teal cursor-default"
-                : pwSending
-                  ? "bg-white text-slate-500 border-slate-200 cursor-default"
-                  : "bg-white text-slate-800 border-slate-200 cursor-pointer hover:border-brand-teal hover:text-brand-teal"
-            }`}
-          >
-            {pwSending ? "Sending\u2026" : pwSent ? "\u2713 Link sent \u2014 check your email" : "Send password reset link"}
-          </button>
         </div>
       </CardBody>
     </Card>
