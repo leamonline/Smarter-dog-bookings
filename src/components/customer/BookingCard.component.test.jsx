@@ -141,7 +141,7 @@ describe("BookingCard cancellation", () => {
     );
   });
 
-  it("treats an overridden sibling in the same visit as one approval request", async () => {
+  it("preserves approval routing for ungrouped siblings in the same visit", async () => {
     const visitId = "41000000-0000-4000-8000-000000000001";
     renderCard(
       vi.fn().mockResolvedValue(undefined),
@@ -165,8 +165,8 @@ describe("BookingCard cancellation", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Request a change" }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: "Request a change" }),
+    ).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "Reschedule" }),
     ).not.toBeInTheDocument();
@@ -241,5 +241,59 @@ describe("BookingCard cancellation", () => {
     expect(
       screen.queryByRole("button", { name: "Reschedule" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+
+describe("upcoming appointment visibility", () => {
+  const sibling = { ...booking, id: "booking-2", dog: { name: "Mabel" }, service: "nail-trim", slot: "09:30" };
+
+  it("lists every dog, service and drop-off time in a grouped appointment", () => {
+    renderCard(undefined, [booking, sibling]);
+    const card = screen.getByRole("region", { name: /Appointment for Alfie and Mabel/ });
+    expect(within(card).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(card).getByText(/Nail Trim/)).toHaveTextContent("Mabel · Nail Trim · Drop off at 9:30am");
+    expect(within(card).getAllByRole("button", { name: "Cancel" })).toHaveLength(1);
+  });
+
+  it("keeps unrelated same-time bookings and recurring dates separate, in date order", () => {
+    renderCard(undefined, [
+      { ...booking, id: "later", bookingDate: "2099-07-15" },
+      { ...sibling, groupId: null, slot: booking.slot },
+      booking,
+    ]);
+    const cards = screen.getAllByRole("region", { name: /Appointment for/ });
+    expect(cards).toHaveLength(3);
+    expect(cards[0]).toHaveTextContent("Next groom:");
+    expect(cards[2]).toHaveTextContent("15 Jul 2099");
+  });
+
+  it("names every affected dog in reschedule and cancellation confirmation", async () => {
+    const user = userEvent.setup();
+    renderCard(undefined, [booking, sibling]);
+    await user.click(screen.getByRole("button", { name: "Reschedule" }));
+    expect(screen.getByText(/Pick a new time for Alfie and Mabel/)).toHaveTextContent("all these dogs");
+    await user.click(screen.getByRole("button", { name: "Keep this slot" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("region", { name: "Cancel booking" })).toHaveTextContent("Cancel the appointment for Alfie and Mabel?");
+  });
+
+  it("cancels a later appointment using its own booking ID", async () => {
+    mocks.cancelCustomerBooking.mockResolvedValue({ receipt, error: null });
+    const user = userEvent.setup();
+    renderCard(undefined, [booking, { ...sibling, bookingDate: "2099-07-15" }]);
+    const card = screen.getByRole("region", { name: /Appointment for Mabel/ });
+    await user.click(within(card).getByRole("button", { name: "Cancel" }));
+    await user.selectOptions(within(card).getByRole("combobox"), "Changed plans");
+    await user.click(within(card).getByRole("button", { name: "Confirm cancellation" }));
+    expect(mocks.cancelCustomerBooking).toHaveBeenLastCalledWith(expect.anything(), { bookingId: sibling.id, reason: "Changed plans" });
+  });
+
+  it("shows an outstanding sibling deposit even if the first dog needs none", async () => {
+    renderCard(undefined, [booking, { ...sibling, status: "Booked", depositRequired: true, depositAmount: 15, depositReference: "SDG-TEST", depositReceivedAt: null }]);
+    const deposit = await screen.findByRole("status", { name: "Deposit needed" });
+    expect(deposit).toHaveTextContent("For Mabel");
+    expect(deposit).toHaveTextContent("SDG-TEST");
+    expect(deposit).toHaveTextContent("15");
   });
 });

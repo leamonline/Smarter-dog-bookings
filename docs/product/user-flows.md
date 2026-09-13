@@ -46,6 +46,14 @@ one live boundary.
 
 ### Current
 
+The customer dashboard lists every upcoming appointment in date/time order,
+including every dog, service, drop-off time and outstanding per-dog deposit.
+Cards follow the existing customer command boundary: booking group plus date;
+ungrouped bookings remain separate even when their times or visit IDs match.
+Reschedule and cancellation confirmations name the dogs on the selected card.
+This display correction is tracked in [issue #854](https://github.com/leamonline/Smarter-dog-bookings/issues/854)
+and does not switch customer reads or writes to the dormant visit commands.
+
 The customer portal and WhatsApp Flow have existing change paths. The repository
 also contains visit projections and v1 customer commands, but the v1 mutation
 commands are dark while `previous_day_1500_v1` is inactive.
