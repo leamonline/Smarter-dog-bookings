@@ -3,7 +3,7 @@ import { Turnstile } from "@marsidev/react-turnstile";
 import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
-import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
+import { turnstileConfig, CAPTCHA_PENDING_ERROR, isCaptchaRejection } from "../../lib/turnstile";
 
 // Page background + silhouette scatter are intentionally kept in sync with
 // CustomerLoginPage.jsx so the customer and staff entry points read as one
@@ -145,7 +145,15 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     if (err) {
       resetTurnstileRef.current?.reset();
       resetCaptchaRef.current = null;
-      setResetError(err.message);
+      // A captcha rejection here means the secret key in Supabase does not match
+      // the site key this page renders — the first thing the enablement runbook
+      // tells you to check. Accurate as GoTrue phrases it, useless to read. The
+      // widget has just been reset, so "try again" is honest advice on this page.
+      setResetError(
+        isCaptchaRejection(err.message)
+          ? "The security check didn't pass. Give it a moment and try again."
+          : err.message,
+      );
       return;
     }
     setResetSent(true);

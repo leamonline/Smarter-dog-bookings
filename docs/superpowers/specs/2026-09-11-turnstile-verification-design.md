@@ -278,9 +278,24 @@ Verification working but login broken is a worse outcome than where we started.
 
 ## Rollout
 
-The code lands first and is harmless on its own: with `VITE_TURNSTILE_SITE_KEY`
-set in Vercel, behaviour is unchanged until the toggle is flipped. The toggle is
-the owner action, taken after the code is deployed, following the runbook.
+The code lands first. For almost everyone its behaviour is unchanged until the
+toggle is flipped — but not for everyone, and the exception matters. The
+missing-token guards in §3 are client-side and unconditional: they do not consult
+the Supabase setting. So a visitor whose browser cannot load
+`challenges.cloudflare.com` — an extension, a corporate filter, a blocked region
+— can sign in today, because the token is optional and Supabase ignores it, and
+cannot sign in once this merges, toggle untouched. That is the intended trade
+(a captcha nobody can solve should not be waved through), but it is a deploy-time
+behaviour change, not a toggle-time one, and must not be described as harmless.
+
+**Before merging, confirm `VITE_TURNSTILE_SITE_KEY` is present in the Vercel
+Production environment.** Merging to `main` auto-deploys, and fail-closed means a
+missing variable there locks both login pages for everyone until it is restored
+and redeployed. This repository has already shipped one `VITE_` name that was
+assumed present on Vercel and was not.
+
+The toggle is the owner action, taken after the code is deployed, following the
+runbook.
 
 Rollback is turning CAPTCHA protection back off in the Supabase dashboard. It
 takes effect immediately and needs no deploy. The code stays; it is correct
@@ -308,10 +323,16 @@ requiring a valid token at the moment it is flipped. This is why the guards in
 §3 land first, why the runbook has a rollback, and why the toggle is a
 deliberate separate step rather than something that rides along with a merge.
 
-**Turnstile itself can fail.** If Cloudflare's challenge script is blocked or
-unreachable, the widget never produces a token and, with the toggle on, nobody
-can sign in. This is inherent to any captcha and is accepted. The rollback in
-the runbook is the mitigation.
+**Turnstile itself can fail, and the toggle does not undo it.** If Cloudflare's
+challenge script is blocked or unreachable, the widget never produces a token and
+that visitor cannot sign in. This is inherent to any captcha and is accepted — but
+be precise about the remedy: because the client-side guards are unconditional,
+turning the Supabase setting back off does **not** help this visitor. The toggle
+reverses server-side enforcement only. Restoring access for someone whose browser
+blocks the challenge script requires a code revert and a deploy, not a dashboard
+click. Anywhere this document or the runbook offers rollback as the mitigation for
+a *blocked-script* failure, it is wrong; rollback is the mitigation for
+*enforcement* failures.
 
 ## Testing
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail, sendPasswordReset } from "../../../supabase/repositories/accountRepo";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
+import { isCaptchaRejection } from "../../../lib/turnstile";
 import { DeviceNotifications } from "./DeviceNotifications.jsx";
 
 export function AccountSettings({ user, staffProfile, onDirtyChange }) {
@@ -61,11 +62,31 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
     }
   }, [account, staffProfile, user]);
 
+  // This used to discard the result and show "Link sent" regardless, so a
+  // failure looked exactly like a success. That mattered little while every
+  // send succeeded; it matters a lot now, because resetPasswordForEmail hits
+  // GoTrue's /recover endpoint, which IS captcha-gated — and there is no
+  // Turnstile widget on this page to produce a token. Once captcha protection
+  // is enabled on the project this call is refused every time, and a staff
+  // member locked out of their account would sit waiting for an email that was
+  // never sent. Say what happened, and point at the route that still works.
   const handlePasswordReset = async () => {
     if (!isAccountBackendAvailable() || !user?.email) return;
     setPwSending(true);
-    await sendPasswordReset(user.email, `${window.location.origin}/reset-password`);
+    setError("");
+    const { error: pwErr } = await sendPasswordReset(
+      user.email,
+      `${window.location.origin}/reset-password`,
+    );
     setPwSending(false);
+    if (pwErr) {
+      setError(
+        isCaptchaRejection(pwErr.message)
+          ? "We can't send the reset link from here. Use \u201cForgot password?\u201d on the sign-in page instead \u2014 it'll sort you out in a moment."
+          : pwErr.message || "Couldn't send the reset link \u2014 please try again",
+      );
+      return;
+    }
     setPwSent(true);
     setTimeout(() => setPwSent(false), 5000);
   };

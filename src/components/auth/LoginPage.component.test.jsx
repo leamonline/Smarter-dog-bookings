@@ -98,6 +98,14 @@ describe("LoginPage captcha handling", () => {
     await user.click(screen.getByRole("button", { name: "Send reset link" }));
 
     expect(mocks.requestPasswordReset).not.toHaveBeenCalled();
+    // Blocking silently would leave the staff member pressing a dead button.
+    // Nothing else in this suite renders the reset form's error, so without
+    // this assertion that display path is entirely unexercised.
+    expect(
+      screen.getByText(
+        "Just finishing the security check — please try again in a moment.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("blocks sign-in and renders no widget when no site key is configured", async () => {

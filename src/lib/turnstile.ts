@@ -26,6 +26,23 @@ export const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
 export const CAPTCHA_PENDING_ERROR =
   "Just finishing the security check — please try again in a moment.";
 
+/**
+ * Does this auth error mean GoTrue refused the call for a captcha reason?
+ *
+ * When CAPTCHA protection is on, a captcha-gated endpoint called without a
+ * valid token answers with a message containing "captcha protection: request
+ * disallowed (...)". That string is accurate and completely useless to the
+ * person reading it.
+ *
+ * This only RECOGNISES the condition; it deliberately does not supply the
+ * replacement copy, because the honest advice differs by surface. A login page
+ * can fairly say "reload and try again" — it has a widget that might mint a
+ * fresh token. A settings page with no widget cannot say that without lying.
+ */
+export function isCaptchaRejection(message?: string | null): boolean {
+  return typeof message === "string" && /captcha protection/i.test(message);
+}
+
 export interface TurnstileEnvironment {
   siteKey?: string | null;
   forceOffline?: boolean;

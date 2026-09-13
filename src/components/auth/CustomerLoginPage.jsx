@@ -612,6 +612,15 @@ export function CustomerLoginPage({
                   className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
                 />
               </div>
+              {/*
+                Deliberately NOT gated on captchaUnavailable, unlike every other
+                submit on this page. verifyOtp hits GoTrue's /verify endpoint,
+                which is not captcha-protected — the SDK gives it no captchaToken
+                parameter at all, and captcha + phone OTP is a supported Supabase
+                configuration, so it cannot be. Adding the gate here would strand
+                a customer who already holds a valid texted code, for no security
+                gain. Please don't "fix" this.
+              */}
               <button
                 type="submit"
                 disabled={submitting}

@@ -5,7 +5,11 @@
 // replacement, because the failure mode is invisible: a widget that always
 // passes looks exactly like a widget that works.
 import { describe, expect, it } from "vitest";
-import { resolveTurnstileConfig, TURNSTILE_TEST_SITE_KEY } from "./turnstile";
+import {
+  resolveTurnstileConfig,
+  TURNSTILE_TEST_SITE_KEY,
+  isCaptchaRejection,
+} from "./turnstile";
 
 // The real "Customer Log-in Capture" widget. Public, so safe to write here.
 const REAL_KEY = "0x4AAAAAADMvAmN7LsBYiIqZ";
@@ -80,5 +84,38 @@ describe("resolveTurnstileConfig", () => {
       configError: null,
       usingTestKey: true,
     });
+  });
+});
+
+describe("isCaptchaRejection", () => {
+  // GoTrue answers a captcha-gated endpoint called without a valid token with a
+  // message containing this phrase. Several surfaces need to recognise it so
+  // they can say something a human can act on instead of showing the raw
+  // string — but each one chooses its OWN wording, because the honest advice
+  // differs. The login page can say "reload and try again"; the settings page
+  // cannot, because there is no widget there and retrying will never work.
+  it("recognises the GoTrue captcha rejection in both error shapes", () => {
+    expect(
+      isCaptchaRejection("captcha protection: request disallowed (invalid-input-response)"),
+    ).toBe(true);
+    expect(
+      isCaptchaRejection("captcha protection: request disallowed (missing-input-response)"),
+    ).toBe(true);
+    expect(isCaptchaRejection("CAPTCHA PROTECTION: request disallowed")).toBe(true);
+  });
+
+  it("leaves every other auth error alone", () => {
+    // Misclassifying a wrong password as a captcha problem would send a staff
+    // member to fix the wrong thing entirely.
+    expect(isCaptchaRejection("Invalid login credentials")).toBe(false);
+    expect(isCaptchaRejection("Email rate limit exceeded")).toBe(false);
+    expect(isCaptchaRejection("")).toBe(false);
+  });
+
+  it("does not throw on a non-string", () => {
+    // Supabase error objects are not always shaped the way the types promise.
+    expect(isCaptchaRejection(undefined)).toBe(false);
+    expect(isCaptchaRejection(null)).toBe(false);
+    expect(isCaptchaRejection(42 as unknown as string)).toBe(false);
   });
 });

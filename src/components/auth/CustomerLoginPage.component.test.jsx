@@ -74,7 +74,9 @@ describe("CustomerLoginPage captcha handling", () => {
       screen.getByText("Signing in is unavailable right now"),
     ).toBeInTheDocument();
     // "Continue" is the phone stage's submit; the signup and password stages
-    // render their own, which Step 5 disables the same way.
+    // render their own, disabled by the same captchaUnavailable flag. Those
+    // stages are unreachable in this state anyway: the phone-stage Continue is
+    // disabled, and it is the only way through to them.
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 });
