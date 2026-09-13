@@ -76,15 +76,12 @@ Seven checks, all seven required.
    money per message, so it earns its own check rather than being assumed to
    work because password sign-in did.
 
-4. Settings → Your Account → **Send password reset link**. Expect it to FAIL,
-   with a message pointing you at "Forgot password?" on the sign-in page. That
-   is correct and expected: this control reaches the same captcha-gated endpoint
-   as a password reset but has no Turnstile widget of its own to produce a
-   token, so once protection is on it cannot work. Before this change it showed
-   "✓ Link sent — check your email" whether or not anything was sent; the point
-   of checking it here is to confirm it now tells the truth. Staff needing a
-   reset use the sign-in page, which carries a working challenge. Giving that
-   button its own captcha is a tracked follow-up.
+4. Settings → Your Account → **Password** should explain how to reset through
+   the staff sign-in page, with no send button. Save any changes, sign out,
+   choose **Forgot password?**, complete the security check and request the
+   reset email. Confirm the email arrives and its link opens the reset page.
+   The former settings button was removed because it could not supply the
+   required CAPTCHA token (#851).
 
 5. **Invite a throwaway staff account** from the Supabase dashboard, then
    delete it. Staff invites go out via GoTrue's `/invite` endpoint, which is on

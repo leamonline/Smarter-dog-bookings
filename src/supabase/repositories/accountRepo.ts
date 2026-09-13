@@ -26,9 +26,3 @@ export async function updateAccountEmail(email: string) {
   if (!supabase) return { error: new Error("offline"), data: null };
   return supabase.auth.updateUser({ email });
 }
-
-/** Email the signed-in staff user a password-reset link. */
-export async function sendPasswordReset(email: string, redirectTo: string) {
-  if (!supabase) return { error: new Error("offline"), data: null };
-  return supabase.auth.resetPasswordForEmail(email, { redirectTo });
-}
