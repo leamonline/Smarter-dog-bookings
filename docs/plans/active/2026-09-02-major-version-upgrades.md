@@ -37,7 +37,7 @@ the same bar every time.
 | # | Package | Now | Latest | Peer constraints read on 2 Sept 2026 | Verdict |
 |---|---|---|---|---|---|
 | 1 | `jsdom` | 30.0.1 | 30.0.1 | Verified 10 Sept: Node `^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`; optional `canvas ^3.2.3`; Vitest accepts jsdom 30 | **Upgrade prepared.** Test-environment only; see the validation record below and [issue #816](https://github.com/leamonline/Smarter-dog-bookings/issues/816). |
-| 2 | `@testing-library/jest-dom` | 6.9 | 7.0 | needs `vitest >= 0.32`, `@testing-library/dom >=10 <11` (we have 10.4) | **Second.** Matcher-only package; check the 7.0 notes for renamed/removed matchers and grep `expect(...).to` usages. |
+| 2 | `@testing-library/jest-dom` | 7.0.1 | 7.0.1 | Verified 13 Sept: `@testing-library/dom >=10 <11` (we have 10.4.1, already a direct devDependency); `vitest >= 0.32`, optional since 7.0.1; Node `>=22` | **Upgraded.** Matcher-only package; 7.0 renamed and removed nothing. See the validation record below. |
 | 3 | `@types/node` | 25.9 | 26.4 | `vitest` accepts `>=24` | **Do not chase.** The runtime is Node 24 (`.nvmrc`, `engines.node`, every workflow — see node-runtime.md); type definitions ahead of the runtime can only describe APIs the runtime lacks. Pin `@types/node` to **24.x** in the same commit that next touches it, and move it with the runtime, not with the registry. |
 | 4 | `vite` + `@vitejs/plugin-react` + `vite-plugin-pwa` | 7.3 / 4.7 / 1.3 | 8.2 / 6.1 / 1.3 | `@vitejs/plugin-react@6` requires `vite ^8` (v5 is the last that accepts Vite 7); `vite-plugin-pwa@1.3`, `@tailwindcss/vite`, `vitest@4.1` and `@vitest/coverage-v8` all accept Vite 8 | **One PR, the risky one.** Vite 8 makes Rolldown the default bundler, which is the `rollupOptions` / `rolldownOptions` landmine the config comment and the guard test exist for. See the Vite 8 section below. `plugin-react` goes 4 → 6 in the same PR because 6 cannot run on Vite 7; its `oxc-transform-react` / Babel split changes how the React Compiler and Fast Refresh are configured — read its migration notes. |
 | 5 | `eslint` | 9.39 | 10.9 | `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` and `@eslint/js` (already 10) accept ESLint 10; **`eslint-plugin-react@7.37` peers `eslint ^9.7` at most** | **Blocked by `eslint-plugin-react`** until it publishes an ESLint 10 range. `.npmrc` sets `legacy-peer-deps=true`, so `npm install` would not stop you — that is exactly why this row waits for the plugin, not for npm. Re-check `npm view eslint-plugin-react peerDependencies` monthly. |
@@ -86,6 +86,52 @@ Local validation passed on that environment:
 No application or test changes were needed. Hosted PR checks remain separate
 release evidence; these local results do not claim a merge or deployment.
 Rollback is reverting the upgrade PR. Tranche B remains stopped.
+
+## @testing-library/jest-dom 7.0.1 validation — 13 September 2026
+
+Prepared from `main@470e7116463a72c18e442a7b6a653306a2788358`
+on `chore/jest-dom-7`. Installed with
+`npm install --save-dev @testing-library/jest-dom@7.0.1 --no-audit --no-fund`
+on darwin arm64, Node 24.20.0 / npm 11.19.0. The lockfile kept all 12 Linux
+`libc` entries, so this upgrade did not need the Linux install the bar asks
+for: the `package-lock.json` diff is the jest-dom entry and nothing else, and
+`scripts/check-lockfile-platform.mjs` passed unchanged.
+
+Reviewed the upstream v6.10.0, v7.0.0 and v7.0.1 release notes. v7.0.0 lists
+exactly two breaking changes: `@testing-library/dom` becomes a required peer
+dependency, and the minimum Node.js version becomes 22. Both were already
+satisfied — `@testing-library/dom@^10.4.1` is a direct devDependency, inside
+the `>=10 <11` range, and the runtime is Node 24. **No matcher was renamed or
+removed.** v6.10.0 and v7.0.0 only add the `toContainAnyBy*` and
+`toContainOneBy*` query matchers; v7.0.1 only relaxes `vitest` to an optional
+peer. The published dependency set is identical to 6.9.1's, and the
+`./vitest` subpath export this repository imports still exists.
+
+The repository consumes the package from exactly one place —
+`import "@testing-library/jest-dom/vitest"` in
+[`src/test/componentSetup.ts`](../../../src/test/componentSetup.ts) — so no
+application or test changes were needed. `deno.lock` mirrors the package.json
+range under `workspace.packageJson` and is resynced in its own commit.
+
+Local validation passed on Node 24.20.0 (darwin arm64), offline
+(`VITE_FORCE_OFFLINE=1` via committed config, no Supabase credentials):
+
+- A clean `npm ci --no-audit --no-fund` resolved jest-dom 7.0.1.
+- `npm run lint`: no errors (65 existing warnings); the platform guard
+  reported all 12 packages retaining `libc` entries.
+- `npm run check:docs`, `npm run typecheck`, `npm run check:migrations`: passed.
+- `npm run test`: 355 files, 3,628 tests passed.
+- `npm run coverage`: 3,628 tests passed and both directory thresholds passed;
+  combined statements 92.05%, branches 84%, functions 92.55%, lines 93.36% —
+  identical to the jsdom record above.
+- `npm run build`: passed; the vendor chunks still split as separate files.
+- `npm run e2e -- --project=desktop --workers=2`: all 71 tests passed.
+- `deno test --node-modules-dir=none --allow-env supabase/functions/`: 123 passed.
+
+Hosted PR checks remain separate release evidence; these local results do not
+claim a merge or deployment. Rollback is reverting the upgrade PR. Tranche B
+remains stopped.
+
 
 ## Vite 8: what to check specifically
 
