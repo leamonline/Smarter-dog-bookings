@@ -35,6 +35,19 @@ describe('FooterSection', () => {
     expect(screen.getByRole('link', { name: /WhatsApp Available/i })).toHaveAttribute('href', 'https://wa.me/447873329440');
   });
 
+  it('renders a staff sign-in circle after the social icons', () => {
+    renderFooter();
+
+    const staffLink = screen.getByRole('link', { name: 'Staff sign in' });
+    expect(staffLink).toHaveAttribute('href', 'https://smarterdog.co.uk/stafflogin');
+    // Same tab, unlike the social links — staff are signing in, not leaving.
+    expect(staffLink).not.toHaveAttribute('target');
+    expect(staffLink.querySelector('svg')).toBeInTheDocument();
+
+    const tiktok = screen.getByRole('link', { name: 'Watch us on TikTok' });
+    expect(tiktok.nextElementSibling).toBe(staffLink);
+  });
+
   it('renders legal links', () => {
     renderFooter();
 

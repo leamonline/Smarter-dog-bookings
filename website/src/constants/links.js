@@ -13,3 +13,8 @@
 // "/book/login" does not match that route, and is the screen
 // "/customer/login" already redirected to.
 export const BOOKING_URL = 'https://smarterdog.co.uk/book/login';
+
+// Where the small dog-silhouette circle next to the social icons in the
+// footer sends staff. Same-origin since the cutover, and "/stafflogin" is
+// not a route this site owns, so it cannot loop like "/book" would.
+export const STAFF_LOGIN_URL = 'https://smarterdog.co.uk/stafflogin';
