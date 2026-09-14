@@ -254,6 +254,14 @@ hostname only — no scheme, no path.
 
 ### Known separately: the token is never verified
 
+> **Resolved 14 September 2026.** CAPTCHA protection has since been enabled in
+> Supabase (Authentication → Attack Protection, Turnstile provider) and
+> `npm run check:captcha` reports `ENFORCED` against production: an invalid
+> token and a missing token are both refused with HTTP 400 before the password
+> check. The paragraphs below describe the state on 11 September and are kept
+> as written. Record of the change:
+> [login captcha enablement runbook](2026-09-11-login-captcha-enablement.md#outcome).
+
 The widget's own analytics report **zero siteverify requests** against five
 solved challenges, and Cloudflare shows a warning on the widget saying as much.
 Nothing in `supabase/functions/` calls siteverify either. The token is issued,

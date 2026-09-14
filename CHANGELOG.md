@@ -49,6 +49,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Security
 
+- Login CAPTCHA verification is now enforced on the production Supabase
+  project. On 14 September 2026 the owner enabled CAPTCHA protection
+  (Turnstile provider) in Authentication → Attack Protection, completing the
+  owner action that PR #850 prepared for; `npm run check:captcha` reports
+  `ENFORCED` (an invalid token and a missing token are both refused with HTTP
+  400 before the password check). Before this the widget issued and solved
+  challenges that nothing verified. The Turnstile implementation plan moves to
+  `docs/plans/completed/` with a completion record; the remaining owner-side
+  checks are tracked in the
+  [enablement runbook](docs/superpowers/runbooks/2026-09-11-login-captcha-enablement.md#outcome).
+  Verifying the token inside the phone-on-file Edge Function stays deferred
+  (#852).
 - Pin `search_path` on `public.slots_are_hhmm(text[])` and
   `public.deposit_reference_for(uuid, date)`, closing the last two Supabase
   security-advisor findings that were not deliberate. Both are SECURITY
