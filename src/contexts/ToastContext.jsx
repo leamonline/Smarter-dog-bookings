@@ -8,7 +8,7 @@
  *   toast.show("Could not save", "error");             // error variant
  *   toast.show("Seat blocked", "info", undoFn);        // with undo action
  */
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
 const ToastContext = createContext(null);
 
@@ -18,9 +18,29 @@ const TOAST_DURATION_WITH_UNDO = 10000;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const idRef = useRef(0);
+  // Pending auto-dismiss timers, keyed by toast id, so a manual dismiss
+  // cancels the timer and unmounting the provider cancels them all. Without
+  // this a timer outlives the tree and fires setState into a dead root —
+  // harmless in the browser, but in Vitest it lands after jsdom is torn
+  // down ("window is not defined") and fails the whole run as an unhandled
+  // error, at random, from whichever test file last left a toast showing.
+  const timersRef = useRef(new Map());
 
   const dismiss = useCallback((id) => {
+    const timer = timersRef.current.get(id);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
   }, []);
 
   const show = useCallback((message, variant = "info", action) => {
@@ -32,7 +52,7 @@ export function ToastProvider({ children }) {
     setToasts((prev) => [...prev, { id, message, variant, action: normalised }]);
 
     const ms = normalised ? TOAST_DURATION_WITH_UNDO : TOAST_DURATION;
-    setTimeout(() => dismiss(id), ms);
+    timersRef.current.set(id, setTimeout(() => dismiss(id), ms));
     return id;
   }, [dismiss]);
 
