@@ -5,6 +5,7 @@ import DogSilhouette from '../DogSilhouette';
 import BackgroundSticker from '../BackgroundSticker';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
 import { whatsAppUrl } from '../../constants/salonFacts';
+import { STAFF_LOGIN_URL } from '../../constants/links';
 
 // Accessible SVG Social Icons
 const FacebookIcon = () => (
@@ -110,6 +111,15 @@ const FooterSection = () => {
                                     {social.icon}
                                 </a>
                             ))}
+                            <a
+                                href={STAFF_LOGIN_URL}
+                                aria-label="Staff sign in"
+                                title="Staff sign in"
+                                className="w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                            >
+                                <DogSilhouette color="currentColor" className="w-5 h-5" />
+                            </a>
                         </div>
                     </div>
 
