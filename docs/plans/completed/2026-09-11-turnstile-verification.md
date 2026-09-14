@@ -1,5 +1,40 @@
 # Turnstile Verification Implementation Plan
 
+Status: Completed
+Issue: [#852](https://github.com/leamonline/Smarter-dog-bookings/issues/852) records the one deliberately deferred piece (Edge Function verification)
+Base: main at 470e7116 (the merge of the delivering pull request)
+Last verified: 2026-09-14
+Delivered by: [PR #850](https://github.com/leamonline/Smarter-dog-bookings/pull/850), merged 13 September 2026
+Related: [design spec](../../superpowers/specs/2026-09-11-turnstile-verification-design.md), [enablement runbook](../../superpowers/runbooks/2026-09-11-login-captcha-enablement.md)
+
+## Completion record — 14 September 2026
+
+The code-side tasks below shipped in PR #850 (site-key resolver `src/lib/turnstile.ts`,
+both login pages failing closed, `scripts/check-captcha-live.mjs` behind
+`npm run check:captcha`, the enablement runbook). The owner action the plan
+prepared for — enabling CAPTCHA protection in Supabase with the widget's secret
+key — has since been carried out. Evidence, from the owner's machine against the
+production project on 14 September 2026:
+
+```
+Checking login captcha enforcement at https://nlzhllhkigmsvrzduefz.supabase.co
+  invalid captcha token — enforced (HTTP 400)
+  no captcha token — enforced (HTTP 400)
+  /verify (informational) — not-enforced (HTTP 403)
+
+Login captcha is ENFORCED
+```
+
+That satisfies runbook checks 1 and 6. Checks 2–5 and 7 (real sign-ins, the
+first-time OTP round-trip, the password-reset email, a throwaway staff invite,
+Cloudflare's siteverify count) are owner-observed and are not evidenced here;
+the [runbook](../../superpowers/runbooks/2026-09-11-login-captcha-enablement.md#outcome)
+records which have been confirmed.
+
+The task steps below are ticked as delivered and are otherwise left as written.
+Edge Function verification of the token is deferred to #852 by design.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the login captcha real — stop the Turnstile site key silently falling back to Cloudflare's always-passes test key, make both login pages safe for the owner to switch Supabase CAPTCHA protection on, and provide a repeatable check that proves whether verification is actually enforced.
@@ -44,7 +79,7 @@ The one decision point: given the environment, which site key do we render, and 
   - `resolveTurnstileConfig(env: TurnstileEnvironment): TurnstileConfig` where `TurnstileEnvironment` is `{ siteKey?: string | null; forceOffline?: boolean; isProduction?: boolean }`.
   - `turnstileConfig: TurnstileConfig` — the resolved module-level singleton the components read.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/turnstile.test.ts`:
 
@@ -135,7 +170,7 @@ describe("resolveTurnstileConfig", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npx vitest run --project logic src/lib/turnstile.test.ts
@@ -143,7 +178,7 @@ npx vitest run --project logic src/lib/turnstile.test.ts
 
 Expected: FAIL — `Failed to resolve import "./turnstile"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `src/lib/turnstile.ts`:
 
@@ -263,7 +298,7 @@ if (turnstileConfig.configError) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npx vitest run --project logic src/lib/turnstile.test.ts
@@ -271,7 +306,7 @@ npx vitest run --project logic src/lib/turnstile.test.ts
 
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 ```bash
 npm run typecheck
@@ -279,7 +314,7 @@ npm run typecheck
 
 Expected: no errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/turnstile.ts src/lib/turnstile.test.ts
@@ -312,7 +347,7 @@ Two changes that together make the staff page safe for the Supabase toggle. The 
 - Consumes: `turnstileConfig`, `CAPTCHA_PENDING_ERROR` from `src/lib/turnstile.ts` (Task 1).
 - Produces: nothing other tasks import. `LoginPage({ onSignIn, error, isOffline })` keeps its existing props.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/components/auth/LoginPage.component.test.jsx`:
 
@@ -438,7 +473,7 @@ describe("LoginPage captcha handling", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npx vitest run --project component src/components/auth/LoginPage.component.test.jsx
@@ -446,7 +481,7 @@ npx vitest run --project component src/components/auth/LoginPage.component.test.
 
 Expected: FAIL — the sign-in test passes `null` as the third argument, the pending-error tests find no such text, and the config-error test finds an enabled button and no "Sign-in is unavailable right now".
 
-- [ ] **Step 3: Replace the test-key constant with the resolver**
+- [x] **Step 3: Replace the test-key constant with the resolver**
 
 In `src/components/auth/LoginPage.jsx`, replace lines 1-11:
 
@@ -475,7 +510,7 @@ import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
 ```
 
-- [ ] **Step 4: Add the blocked-state panel**
+- [x] **Step 4: Add the blocked-state panel**
 
 In `src/components/auth/LoginPage.jsx`, immediately above `export function LoginPage(` (just after the `PortalShell` component and its docblock), insert:
 
@@ -502,7 +537,7 @@ function CaptchaUnavailable() {
 }
 ```
 
-- [ ] **Step 5: Guard both handlers**
+- [x] **Step 5: Guard both handlers**
 
 In `LoginPage`, immediately after the `const [resetError, setResetError] = useState("");` line and before the refs, add:
 
@@ -576,7 +611,7 @@ with:
     setSubmitting(true);
 ```
 
-- [ ] **Step 6: Make both render sites conditional**
+- [x] **Step 6: Make both render sites conditional**
 
 In the sign-in form, replace the security-check block (the `<div className="rounded-xl border border-transparent sm:border-…">` and its contents):
 
@@ -633,7 +668,7 @@ In the reset form, replace its security-check block the same way:
         </div>
 ```
 
-- [ ] **Step 7: Disable both submit buttons when the captcha is unavailable**
+- [x] **Step 7: Disable both submit buttons when the captcha is unavailable**
 
 Sign-in button — change `disabled={submitting}` to:
 
@@ -648,7 +683,7 @@ Reset button — change `disabled={resetSending}` to:
           disabled={resetSending || captchaUnavailable}
 ```
 
-- [ ] **Step 8: Run the test to verify it passes**
+- [x] **Step 8: Run the test to verify it passes**
 
 ```bash
 npx vitest run --project component src/components/auth/LoginPage.component.test.jsx
@@ -656,7 +691,7 @@ npx vitest run --project component src/components/auth/LoginPage.component.test.
 
 Expected: PASS, 4 tests.
 
-- [ ] **Step 9: Lint and typecheck**
+- [x] **Step 9: Lint and typecheck**
 
 ```bash
 npm run lint && npm run typecheck
@@ -664,7 +699,7 @@ npm run lint && npm run typecheck
 
 Expected: both clean. If `check-import-extensions` complains, the `../../lib/turnstile` import must stay extensionless — its target is `.ts`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/components/auth/LoginPage.jsx src/components/auth/LoginPage.component.test.jsx
@@ -699,7 +734,7 @@ The customer page already guards the missing-token case (`CAPTCHA_PENDING_ERROR`
 - Consumes: `turnstileConfig`, `CAPTCHA_PENDING_ERROR` from `src/lib/turnstile.ts` (Task 1).
 - Produces: nothing other tasks import.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/components/auth/CustomerLoginPage.component.test.jsx`:
 
@@ -786,7 +821,7 @@ describe("CustomerLoginPage captcha handling", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npx vitest run --project component src/components/auth/CustomerLoginPage.component.test.jsx
@@ -794,7 +829,7 @@ npx vitest run --project component src/components/auth/CustomerLoginPage.compone
 
 Expected: FAIL on the second test — the widget still renders and the buttons are enabled.
 
-- [ ] **Step 3: Replace the constant and the local copy string**
+- [x] **Step 3: Replace the constant and the local copy string**
 
 In `src/components/auth/CustomerLoginPage.jsx`, replace lines 1-19's Turnstile constant and local error:
 
@@ -818,7 +853,7 @@ is deleted too. Add to the import block at the top:
 import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
 ```
 
-- [ ] **Step 4: Make the shared panel conditional**
+- [x] **Step 4: Make the shared panel conditional**
 
 Replace the `turnstilePanel` definition:
 
@@ -872,7 +907,7 @@ Replace the `turnstilePanel` definition:
   );
 ```
 
-- [ ] **Step 5: Disable all three submit buttons**
+- [x] **Step 5: Disable all three submit buttons**
 
 The page has three `type="submit"` buttons using `submitButtonClass`. Change each `disabled` prop to include `captchaUnavailable`:
 
@@ -887,7 +922,7 @@ grep -c "captchaUnavailable" src/components/auth/CustomerLoginPage.jsx
 
 Expected: `5` — one declaration, one in the panel, three in buttons.
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 ```bash
 npx vitest run --project component src/components/auth/CustomerLoginPage.component.test.jsx
@@ -895,7 +930,7 @@ npx vitest run --project component src/components/auth/CustomerLoginPage.compone
 
 Expected: PASS, 2 tests.
 
-- [ ] **Step 7: Lint and typecheck**
+- [x] **Step 7: Lint and typecheck**
 
 ```bash
 npm run lint && npm run typecheck
@@ -903,7 +938,7 @@ npm run lint && npm run typecheck
 
 Expected: both clean.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/components/auth/CustomerLoginPage.jsx src/components/auth/CustomerLoginPage.component.test.jsx
@@ -935,7 +970,7 @@ The evidence half. This repository already treats "is this control actually live
 - Consumes: nothing from earlier tasks. Standalone.
 - Produces: `classifyCaptchaResponse(body: unknown): "enforced" | "not-enforced" | "unknown"`, imported by the test.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/security/captchaLiveCheck.test.ts`:
 
@@ -1017,7 +1052,7 @@ describe("classifyCaptchaResponse", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npx vitest run --project logic src/security/captchaLiveCheck.test.ts
@@ -1025,7 +1060,7 @@ npx vitest run --project logic src/security/captchaLiveCheck.test.ts
 
 Expected: FAIL — cannot resolve `../../scripts/check-captcha-live.mjs`.
 
-- [ ] **Step 3: Write the script**
+- [x] **Step 3: Write the script**
 
 Create `scripts/check-captcha-live.mjs`:
 
@@ -1241,7 +1276,7 @@ if (
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 npx vitest run --project logic src/security/captchaLiveCheck.test.ts
@@ -1249,7 +1284,7 @@ npx vitest run --project logic src/security/captchaLiveCheck.test.ts
 
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Register the npm script**
+- [x] **Step 5: Register the npm script**
 
 In `package.json`, immediately after the `"check:sentry"` line, add:
 
@@ -1257,7 +1292,7 @@ In `package.json`, immediately after the `"check:sentry"` line, add:
     "check:captcha": "node scripts/check-captcha-live.mjs",
 ```
 
-- [ ] **Step 6: Capture the baseline**
+- [x] **Step 6: Capture the baseline**
 
 ```bash
 npm run check:captcha
@@ -1274,7 +1309,7 @@ Login captcha is NOT ENFORCED: ...
 
 Exit code 1. **This is the expected result at this point and is not a failure of the task** — it is the baseline the runbook compares against, and it proves the script can tell the two states apart. Record the output; it goes in the pull request description.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/check-captcha-live.mjs src/security/captchaLiveCheck.test.ts package.json
@@ -1314,7 +1349,7 @@ Every item here currently asserts protection that does not exist, and each one d
 - Consumes: the `npm run check:captcha` script name from Task 4.
 - Produces: nothing other tasks import.
 
-- [ ] **Step 1: Fix the wrong comment in useCustomerAuth.ts**
+- [x] **Step 1: Fix the wrong comment in useCustomerAuth.ts**
 
 Replace:
 
@@ -1339,7 +1374,7 @@ with:
    * error.
 ```
 
-- [ ] **Step 2: Fix `.env.example`**
+- [x] **Step 2: Fix `.env.example`**
 
 Replace the Turnstile block:
 
@@ -1366,7 +1401,7 @@ with:
 VITE_TURNSTILE_SITE_KEY=your-turnstile-site-key-here
 ```
 
-- [ ] **Step 3: Add the verification pointer to README.md**
+- [x] **Step 3: Add the verification pointer to README.md**
 
 Replace, in the external services list:
 
@@ -1382,7 +1417,7 @@ with:
   verifies it against the live project), Sentry (error reporting —
 ```
 
-- [ ] **Step 4: Add the same pointer to docs/architecture/overview.md**
+- [x] **Step 4: Add the same pointer to docs/architecture/overview.md**
 
 Replace:
 
@@ -1399,7 +1434,7 @@ with:
   project and says which state it is in;
 ```
 
-- [ ] **Step 5: Write the runbook**
+- [x] **Step 5: Write the runbook**
 
 Create `docs/superpowers/runbooks/2026-09-11-login-captcha-enablement.md`:
 
@@ -1487,7 +1522,7 @@ Most likely causes, in order:
   ever produced. Inherent to any captcha; roll back if it is widespread.
 ```
 
-- [ ] **Step 6: Verify the docs check passes**
+- [x] **Step 6: Verify the docs check passes**
 
 ```bash
 npm run check:docs
@@ -1495,7 +1530,7 @@ npm run check:docs
 
 Expected: `Documentation links and heading anchors OK (N governed Markdown files)` with N one higher than before.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/supabase/hooks/useCustomerAuth.ts .env.example README.md docs/architecture/overview.md docs/superpowers/runbooks/2026-09-11-login-captcha-enablement.md
@@ -1525,7 +1560,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Files:** none modified — this is the gate.
 
-- [ ] **Step 1: Run the complete CI bar**
+- [x] **Step 1: Run the complete CI bar**
 
 ```bash
 npm run lint && npm run check:docs && npm run typecheck && npm run check:migrations && npm run test && npm run build
@@ -1537,7 +1572,7 @@ Expected: all six pass. Notes on the likely stumbles:
 - Around six directory component tests fail locally only, from `localStorage` isolation. They are pre-existing and unrelated; confirm they fail on `main` too before chasing them.
 - No migrations are added by this work, so `check:migrations` is a no-op pass.
 
-- [ ] **Step 2: Run the E2E login specs**
+- [x] **Step 2: Run the E2E login specs**
 
 The `forceOffline` short-circuit in Task 1 exists specifically so these keep passing. Prove it:
 
@@ -1547,7 +1582,7 @@ npm run e2e -- --grep -i login
 
 Expected: PASS. A failure here means the offline carve-out is wrong — the E2E build is a production build with no site key, and without the carve-out every login page fails closed.
 
-- [ ] **Step 3: Push and open the pull request**
+- [x] **Step 3: Push and open the pull request**
 
 ```bash
 git push -u origin HEAD

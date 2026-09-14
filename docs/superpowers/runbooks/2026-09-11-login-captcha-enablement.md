@@ -129,3 +129,35 @@ Most likely causes, in order:
   sign-in.
 - **Cloudflare's challenge script is blocked** for that visitor, so no token is
   ever produced. Inherent to any captcha; roll back if it is widespread.
+
+## Outcome
+
+**Enabled.** Confirmed on 14 September 2026 from the owner's machine, against
+the production project:
+
+```
+$ npm run check:captcha
+Checking login captcha enforcement at https://nlzhllhkigmsvrzduefz.supabase.co
+  invalid captcha token — enforced (HTTP 400)
+  no captcha token — enforced (HTTP 400)
+  /verify (informational) — not-enforced (HTTP 403)
+
+Login captcha is ENFORCED: Supabase refused both an invalid token and
+a missing one before ever reaching the password check.
+```
+
+Status of the seven verification checks:
+
+| Check | Result | Evidence |
+|---|---|---|
+| 1. Enforcement probe | ✅ `ENFORCED`, exit 0 | output above |
+| 2. Real staff and customer sign-ins | ⬜ not yet recorded | owner to confirm |
+| 3. First-time customer OTP round-trip | ⬜ not yet recorded | owner to confirm |
+| 4. Password reset by email | ⬜ not yet recorded | owner to confirm |
+| 5. Throwaway staff invite | ⬜ not yet recorded | owner to confirm |
+| 6. `/verify` line reads `not-enforced` | ✅ | output above |
+| 7. Cloudflare siteverify count off zero | ⬜ not yet recorded | owner to confirm |
+
+Checks 2–5 and 7 can only be observed by the owner; tick them here when done.
+Until check 3 is confirmed, treat a first-time customer's "request a code"
+failing as the first place to look.
