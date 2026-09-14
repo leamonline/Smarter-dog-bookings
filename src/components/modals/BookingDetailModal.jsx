@@ -31,6 +31,8 @@ import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.js
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
 import { resolveEditDay } from "./booking-detail/resolveEditDay";
 import { useBookingDetailAutosave } from "./booking-detail/useBookingDetailAutosave";
+import { useBookingDetailClose } from "./booking-detail/useBookingDetailClose";
+import { useReminderSentOverride } from "./booking-detail/useReminderSentOverride";
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
@@ -120,19 +122,22 @@ export function BookingDetailModal({
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
-  const [showSendReminder, setShowSendReminder] = useState(false);
-  // Optimistic flip for the open modal: SendReminderModal.onSent doesn't
-  // report the channel, so we set state+time only; the realtime refetch
-  // (useBookings) backfills the real channel on reopen.
-  const [reminderSentOverride, setReminderSentOverride] = useState(null);
+
+  // Optimistic "reminder sent" flip + the send modal flag; both reset when a
+  // different booking is shown (see useReminderSentOverride).
+  const {
+    reminderBooking,
+    showSendReminder,
+    openSendReminder,
+    closeSendReminder,
+    handleReminderSent,
+  } = useReminderSentOverride(booking);
 
   // A different booking opened in the same modal instance must not inherit
-  // the previous booking's override, open send modal, or edit-mode state.
-  // resetEditState() rebuilds editData for the new booking and flips isEditing
-  // back off, so staff can't land in edit mode for the wrong booking.
+  // the previous booking's edit-mode state. resetEditState() rebuilds
+  // editData for the new booking and flips isEditing back off, so staff
+  // can't land in edit mode for the wrong booking.
   useEffect(() => {
-    setReminderSentOverride(null);
-    setShowSendReminder(false);
     resetEditState();
     // Keyed on booking.id only: resetEditState's identity also changes with
     // date/dog props, and depending on it would wipe an in-progress edit on
@@ -188,17 +193,12 @@ export function BookingDetailModal({
     configPricing,
   });
 
-  const handleCloseAttempt = useCallback(() => {
-    if (isEditing) setShowExitConfirm(true);
-    else onClose();
-  }, [isEditing, onClose, setShowExitConfirm]);
-
-  // Custom Escape handler — checks for unsaved changes before closing
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") { e.stopPropagation(); handleCloseAttempt(); } };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [handleCloseAttempt]);
+  // Close requests (X, backdrop, Escape) ask before discarding an edit.
+  const { handleCloseAttempt } = useBookingDetailClose({
+    isEditing,
+    onClose,
+    setShowExitConfirm,
+  });
 
   const toast = useToast();
 
@@ -413,19 +413,10 @@ export function BookingDetailModal({
               pick-up human (pickupHuman) and only shows in view mode, so it
               always reflects the persisted pick-up selection. */}
           <ReminderCard
-            // Apply the optimistic "sent" flip only when the booking isn't
-            // already confirmed — never let the override downgrade a
-            // confirmed booking back to "sent" (confirmed always wins).
-            booking={
-              reminderSentOverride &&
-              booking.reminderState !== "confirmed" &&
-              !booking.reminderConfirmedAt
-                ? { ...booking, ...reminderSentOverride }
-                : booking
-            }
+            booking={reminderBooking}
             pickupHuman={pickupHuman}
             isEditing={isEditing}
-            onSendReminder={() => setShowSendReminder(true)}
+            onSendReminder={openSendReminder}
           />
 
           {saveError && (
@@ -471,14 +462,8 @@ export function BookingDetailModal({
           <SendReminderModal
             row={bookingToReminderRow(booking)}
             targetDate={booking._bookingDate}
-            onClose={() => setShowSendReminder(false)}
-            onSent={() => {
-              setReminderSentOverride({
-                reminderState: "sent",
-                reminderSentAt: new Date().toISOString(),
-              });
-              setShowSendReminder(false);
-            }}
+            onClose={closeSendReminder}
+            onSent={handleReminderSent}
           />
         </Suspense>
       )}

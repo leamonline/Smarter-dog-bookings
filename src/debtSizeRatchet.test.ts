@@ -18,10 +18,13 @@ const BUDGETS: Array<{ file: string; maxLines: number; debt: string }> = [
   // Debt 7 — 541 lines on 2 Sept 2026 (399 when closed in June); 457 after the
   // trusted-owner extraction, 544 once #774 added the pending-signup link flow,
   // 488 after that flow moved to usePendingSignupLink, 486 once the delete /
-  // archive confirm handlers moved to useHumanRemoval (the last planned seam).
-  { file: "./components/modals/HumanCardModal.jsx", maxLines: 500, debt: "Debt 7" },
-  // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June); 487 after the edit-day/autosave extraction.
-  { file: "./components/modals/BookingDetailModal.jsx", maxLines: 500, debt: "Debt 9" },
+  // archive confirm handlers moved to useHumanRemoval, 451 once the three
+  // confirm dialogs and the mobile CTA bar became components (14 Sept 2026).
+  { file: "./components/modals/HumanCardModal.jsx", maxLines: 465, debt: "Debt 7" },
+  // Debt 9 — 532 lines on 2 Sept 2026 (392 when closed in June); 487 after the
+  // edit-day/autosave extraction, 472 once the close/Escape guard and the
+  // reminder-sent override became hooks (14 Sept 2026).
+  { file: "./components/modals/BookingDetailModal.jsx", maxLines: 485, debt: "Debt 9" },
   // Seam review (2 Sept 2026) — useDogs.ts was 931 lines; 85 once split into
   // hooks/dogs/ (useDogsDirectory / useDogMutations / useDogLookups). The
   // facade must stay a thin composer: new logic goes in a sub-hook.

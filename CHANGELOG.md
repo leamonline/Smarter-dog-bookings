@@ -136,6 +136,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) wher
 
 ### Changed
 
+- Two more register seams, so the only debt rows still moving the wrong way
+  (Debt 7 and Debt 9) move the right way. `HumanCardModal.jsx` drops to 451
+  lines: the discard / delete / archive confirms are
+  `human-card/HumanCardConfirmDialogs.jsx` and the phone-only New-booking
+  bar is `MobileNewBookingBar.jsx`. `BookingDetailModal.jsx` drops to 472:
+  the close-attempt/Escape guard is `booking-detail/useBookingDetailClose.ts`
+  and the optimistic reminder-sent flip (confirmed always wins) is
+  `useReminderSentOverride.ts`. All four are pure moves with their own tests;
+  the existing modal suites pass unchanged, and `debtSizeRatchet.test.ts`
+  budgets drop to 465 and 485.
+
 - Route the staff calendar-feed settings through a data hook (Debt #12
   burn-down, fourth slice): `views/settings/CalendarSettings.jsx` no longer
   imports the Supabase client. The calendar-feed implementation is now one

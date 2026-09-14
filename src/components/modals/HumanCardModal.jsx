@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
 import { ModalShell } from "./shell/index.js";
-import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   HumanBookingHistory,
   HumanEventTimeline,
@@ -26,6 +24,8 @@ import {
   useTrustedOwnerLinks,
   usePendingSignupLink,
   useHumanRemoval,
+  HumanCardConfirmDialogs,
+  MobileNewBookingBar,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 
@@ -203,21 +203,10 @@ export function HumanCardModal({
     historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  // Pinned phone-only action bar: the primary CTA stays in thumb reach
-  // while the profile scrolls. Desktop gets the same CTA in the booking
-  // history panel header instead.
+  // Phone-only pinned CTA in view mode; edit mode swaps in HumanEditFooter.
   const mobileActionBar =
     !isEditing && onNewBookingForHuman ? (
-      <div className="sm:hidden border-t border-slate-100 bg-white px-4 py-2.5">
-        <button
-          type="button"
-          onClick={() => onNewBookingForHuman(human.id)}
-          className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark"
-        >
-          <Plus size={15} strokeWidth={2.6} aria-hidden="true" />
-          New booking
-        </button>
-      </div>
+      <MobileNewBookingBar onNewBooking={() => onNewBookingForHuman(human.id)} />
     ) : null;
 
   return (
@@ -396,44 +385,21 @@ export function HumanCardModal({
         </div>
       </ModalShell>
 
-      {pendingExit && (
-        <ConfirmDialog
-          title="Throw away changes?"
-          message="Your edits haven't been saved yet."
-          confirmLabel="Discard"
-          cancelLabel="Keep editing"
-          variant="danger"
-          onConfirm={() => {
-            setPendingExit(false);
-            cancelEdit();
-            onClose?.();
-          }}
-          onCancel={() => setPendingExit(false)}
-        />
-      )}
-
-      {pendingDelete && (
-        <ConfirmDialog
-          title="Delete this person?"
-          message="They'll be removed from the directory — dogs, bookings, photos all go too. WhatsApp chats stay, but you'll lose the link. This can't be undone."
-          confirmLabel="Delete person"
-          variant="danger"
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-        />
-      )}
-
-      {pendingArchive && (
-        <ConfirmDialog
-          title="Archive this person?"
-          message="They'll vanish from the directory and search — but their dogs, bookings, and history stay. You can pull them back anytime via the archive view."
-          confirmLabel="Archive"
-          cancelLabel="Cancel"
-          variant="primary"
-          onConfirm={confirmArchive}
-          onCancel={cancelArchive}
-        />
-      )}
+      <HumanCardConfirmDialogs
+        pendingExit={pendingExit}
+        onDiscardEdits={() => {
+          setPendingExit(false);
+          cancelEdit();
+          onClose?.();
+        }}
+        onKeepEditing={() => setPendingExit(false)}
+        pendingDelete={pendingDelete}
+        onConfirmDelete={confirmDelete}
+        onCancelDelete={cancelDelete}
+        pendingArchive={pendingArchive}
+        onConfirmArchive={confirmArchive}
+        onCancelArchive={cancelArchive}
+      />
 
       <SignupLinkDialogs
         link={signupLink}
