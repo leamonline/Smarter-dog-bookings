@@ -171,6 +171,29 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 4b. Deno. CI type-checks every Edge Function entrypoint (`npm run
+#     check:edge-types`) and runs the Deno tests under supabase/functions/;
+#     without Deno an agent cannot reproduce either locally. Same npm route as
+#     the Supabase CLI, for the same reason: the release download needs
+#     api.github.com, which the agent proxy blocks. Note `deno test` rewrites
+#     deno.lock (see CLAUDE.md) — `git restore deno.lock` afterwards.
+# ---------------------------------------------------------------------------
+if command -v deno >/dev/null 2>&1; then
+  log "deno present ($(deno --version 2>/dev/null | head -1))"
+else
+  log "installing deno from npm"
+  DENO_PREFIX=/opt/deno-cli
+  mkdir -p "$DENO_PREFIX"
+  if npm install --no-save --no-audit --no-fund --prefix "$DENO_PREFIX" deno >/dev/null 2>&1 \
+     && [ -x "$DENO_PREFIX/node_modules/.bin/deno" ]; then
+    ln -sf "$DENO_PREFIX/node_modules/.bin/deno" /usr/local/bin/deno
+    log "deno installed ($(deno --version 2>/dev/null | head -1))"
+  else
+    log "WARNING: deno install failed; Edge Function checks unavailable"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 5. Pre-pull the two images the pgTAP path needs, so the first `supabase start`
 #    of a session is not a multi-gigabyte download. Best effort: a failure here
 #    costs time later, it does not break the session.
@@ -193,4 +216,4 @@ if docker info >/dev/null 2>&1 && [ -f "$CLAUDE_PROJECT_DIR/supabase/config.toml
   done
 fi
 
-log "ready — database tests: node scripts/prepare-db-test-project.mjs DIR && supabase --workdir DIR start && supabase --workdir DIR test db"
+log "ready — edge checks: npm run check:edge-types; database tests: node scripts/prepare-db-test-project.mjs DIR && supabase --workdir DIR start && supabase --workdir DIR test db"
