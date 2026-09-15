@@ -89,7 +89,8 @@ Current coverage: **98.6% passing** (353/358 tests)
 # Production build
 npm run build
 
-# Build with bundle analysis
+# Build with bundle analysis — writes bundle-analysis/stats.html, which sits
+# outside dist/ on purpose so the report is never published with the site
 npm run build:analyze
 
 # Preview production build

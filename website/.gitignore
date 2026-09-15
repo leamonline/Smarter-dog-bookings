@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 coverage
+
+# Bundle-size report from `npm run build:analyze`. Deliberately outside dist/
+# so it is never published with the site (see vite.config.js).
+bundle-analysis/
+
 playwright-report/
 test-results/
 .playwright-artifacts-*/

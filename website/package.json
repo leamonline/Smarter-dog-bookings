@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:analyze": "vite build && open dist/stats.html",
+    "build:analyze": "ANALYZE=true vite build && open bundle-analysis/stats.html",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
