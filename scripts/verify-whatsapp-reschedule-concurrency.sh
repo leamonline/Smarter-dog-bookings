@@ -405,6 +405,53 @@ if [ -n "$FIXTURE_COLLISIONS" ]; then
   exit 2
 fi
 
+# pg_net drains its queue in a BACKGROUND WORKER, committing each response row
+# in its own transaction. So a request queued by earlier activity can have its
+# response land at any moment — including between the two snapshots below,
+# attributing to this fixture a POST it never made.
+#
+# That is not hypothetical: CI runs `supabase test db` immediately before this
+# script, that suite emits six pg_net requests, and on 16 September 2026 one of
+# them landed inside the window and failed the gate with "response 6->7" on a
+# commit whose own fixture had posted nothing. Measured both ways, the suite
+# emits the same six whether the notification triggers are guarded or not, so
+# the arrival is pure timing.
+#
+# Wait for the queue to empty AND the response count to hold steady across two
+# consecutive polls before taking the baseline. This narrows the window to work
+# this fixture actually does; it does NOT weaken the assertion, because any POST
+# the fixture itself makes still happens after the baseline and is still caught.
+wait_for_pg_net_quiet() {
+  # An empty queue is NOT enough on its own: pg_net deletes the queue row when
+  # the worker PICKS UP a request, and writes the response only when it
+  # completes. Between those two moments the request is invisible in both
+  # tables, so "queue empty and the count did not move since the last poll"
+  # reports quiet while a request is still in flight. (That naive version was
+  # tried first and still failed the gate, which is how this comment exists.)
+  #
+  # So require the response count to hold steady for a sustained window after
+  # the queue empties. pg_net's default timeout is 5s, so 6s of stability
+  # covers a request that will time out rather than answer.
+  local max_polls="${1:-160}" required_stable=12
+  local queue response prev_response="" stable=0
+  for ((poll = 0; poll < max_polls; poll++)); do
+    queue="$(sql --command='select count(*) from net.http_request_queue;' | trim)"
+    response="$(sql --command='select count(*) from net._http_response;' | trim)"
+    if [ "$queue" = "0" ] && [ "$response" = "$prev_response" ]; then
+      stable=$((stable + 1))
+      [ "$stable" -ge "$required_stable" ] && return 0
+    else
+      stable=0
+    fi
+    prev_response="$response"
+    sleep 0.5
+  done
+  echo "WARN: pg_net did not go quiet (queue=$queue, response=$response) within $max_polls polls;" >&2
+  echo "      the delta assertion below may report a late arrival from earlier activity." >&2
+  return 0
+}
+wait_for_pg_net_quiet
+
 # Snapshot pg_net before changing trigger state. The exact four outbound
 # notification triggers are disabled for this local fixture; every business
 # trigger (capacity, calendar, lifecycle and booking-event emission) remains
