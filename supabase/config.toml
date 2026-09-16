@@ -113,6 +113,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.resend-booking-notification]
 verify_jwt = false
+[functions.slack-alerts]
+verify_jwt = false
 [edge_runtime]
 policy = "per_worker"
 [analytics]

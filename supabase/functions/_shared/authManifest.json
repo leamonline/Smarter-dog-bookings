@@ -532,6 +532,20 @@
       "unauthorizedResponse": "403 forbidden on a failed hub.verify_token handshake; 200 with the event stored as signature_valid=false and processing_status='failed' on a bad POST signature",
       "emptySecretBehaviour": "closed — an unset META_APP_SECRET produces a non-matching HMAC, so the request is logged and not processed",
       "notes": "The 200 on an invalid signature is deliberate: Meta retries non-2xx responses indefinitely. The request is NOT processed — it is recorded as a forensic trail and returns before any handling. Treat that 200 as a rejection, not an acceptance."
+    },
+    "slack-alerts": {
+      "authFamily": "webhook-bearer",
+      "authSource": "index.ts",
+      "caller": "pg_cron (the 5-minute sweep and the 08:15 summary pair) and an AFTER INSERT trigger on booking_events, via pg_net",
+      "role": "service",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "none at the transport; a replayed call re-derives the same alert_key and is refused by the unique claim on slack_alerts",
+      "unauthorizedResponse": "401 unauthorized",
+      "emptySecretBehaviour": "closed — !!WEBHOOK_SECRET guards the comparison, and isAuthorizedWebhook itself refuses an empty secret",
+      "notes": "#salon-today Slack alerts, dark-launched behind SLACK_ALERTS_ENABLED (default off) with a SLACK_ALERTS_DRY_RUN mode that logs instead of posting. Returns 200 on every failure path so a Slack outage cannot make pg_net retry or pg_cron log failures."
     }
   }
 }
