@@ -85,6 +85,7 @@ cleanup_fixtures() {
     alter table public.bookings enable trigger trg_notify_booking_insert;
     alter table public.bookings enable trigger notify_booking_cancelled_trigger;
     alter table public.booking_events enable trigger trg_staff_push_booking_event;
+    alter table public.booking_events enable trigger trg_slack_alerts_booking_event;
 
     delete from public.notification_log
      where booking_id between
@@ -163,7 +164,8 @@ cleanup_fixtures() {
         from unnest(array[
                'public.bookings.trg_notify_booking_insert',
                'public.bookings.notify_booking_cancelled_trigger',
-               'public.booking_events.trg_staff_push_booking_event'
+               'public.booking_events.trg_staff_push_booking_event',
+               'public.booking_events.trg_slack_alerts_booking_event'
              ]) with ordinality expected(qualified_name, ordinality)
         join pg_trigger t
           on t.tgname = split_part(expected.qualified_name, '.', 3)
@@ -237,11 +239,12 @@ select pg_temp.assert_true(
 
 select pg_temp.assert_true(
   (
-    select count(*) = 3 and bool_and(t.tgenabled = 'O')
+    select count(*) = 4 and bool_and(t.tgenabled = 'O')
       from unnest(array[
              'public.bookings.trg_notify_booking_insert',
              'public.bookings.notify_booking_cancelled_trigger',
-             'public.booking_events.trg_staff_push_booking_event'
+             'public.booking_events.trg_staff_push_booking_event',
+             'public.booking_events.trg_slack_alerts_booking_event'
            ]) expected(qualified_name)
       join pg_trigger t
         on t.tgname = split_part(expected.qualified_name, '.', 3)
@@ -251,7 +254,7 @@ select pg_temp.assert_true(
        and c.relname = split_part(expected.qualified_name, '.', 2)
        and not t.tgisinternal
   ),
-  'the three outbound triggers start in origin mode'
+  'the four outbound triggers start in origin mode'
 );
 
 select pg_temp.assert_true(
@@ -355,6 +358,7 @@ select extensions.dblink_exec(
     alter table public.bookings disable trigger trg_notify_booking_insert;
     alter table public.bookings disable trigger notify_booking_cancelled_trigger;
     alter table public.booking_events disable trigger trg_staff_push_booking_event;
+    alter table public.booking_events disable trigger trg_slack_alerts_booking_event;
 
     insert into auth.users (id)
     values ('61400000-0000-4000-8000-000000000001'::uuid);
@@ -1049,6 +1053,7 @@ select extensions.dblink_exec('capacity_setup', $cleanup$
   alter table public.bookings enable trigger trg_notify_booking_insert;
   alter table public.bookings enable trigger notify_booking_cancelled_trigger;
   alter table public.booking_events enable trigger trg_staff_push_booking_event;
+  alter table public.booking_events enable trigger trg_slack_alerts_booking_event;
 
   delete from public.notification_log
    where booking_id between
@@ -1129,11 +1134,12 @@ select pg_temp.assert_true(
 
 select pg_temp.assert_true(
   (
-    select count(*) = 3 and bool_and(t.tgenabled = 'O')
+    select count(*) = 4 and bool_and(t.tgenabled = 'O')
       from unnest(array[
              'public.bookings.trg_notify_booking_insert',
              'public.bookings.notify_booking_cancelled_trigger',
-             'public.booking_events.trg_staff_push_booking_event'
+             'public.booking_events.trg_staff_push_booking_event',
+             'public.booking_events.trg_slack_alerts_booking_event'
            ]) expected(qualified_name)
       join pg_trigger t
         on t.tgname = split_part(expected.qualified_name, '.', 3)

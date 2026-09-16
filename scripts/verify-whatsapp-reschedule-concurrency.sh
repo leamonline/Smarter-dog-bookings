@@ -247,6 +247,8 @@ cleanup() {
       "$BOOKING_CANCEL_TRIGGER_MODE" || cleanup_failed=1
     restore_trigger_mode booking_events trg_staff_push_booking_event \
       "$STAFF_PUSH_TRIGGER_MODE" || cleanup_failed=1
+    restore_trigger_mode booking_events trg_slack_alerts_booking_event \
+      "$SLACK_ALERTS_TRIGGER_MODE" || cleanup_failed=1
 
     RESTORED_TRIGGER_MODES="$(
       sql --command="
@@ -254,7 +256,8 @@ cleanup() {
           from unnest(array[
                  'public.bookings.trg_notify_booking_insert',
                  'public.bookings.notify_booking_cancelled_trigger',
-                 'public.booking_events.trg_staff_push_booking_event'
+                 'public.booking_events.trg_staff_push_booking_event',
+                 'public.booking_events.trg_slack_alerts_booking_event'
                ]) with ordinality expected(qualified_name, ordinality)
           join pg_trigger t
             on t.tgname = split_part(expected.qualified_name, '.', 3)
@@ -265,7 +268,7 @@ cleanup() {
            and not t.tgisinternal;" | trim
     )"
     if [ "$RESTORED_TRIGGER_MODES" != \
-         "$BOOKING_INSERT_TRIGGER_MODE$BOOKING_CANCEL_TRIGGER_MODE$STAFF_PUSH_TRIGGER_MODE" ]; then
+         "$BOOKING_INSERT_TRIGGER_MODE$BOOKING_CANCEL_TRIGGER_MODE$STAFF_PUSH_TRIGGER_MODE$SLACK_ALERTS_TRIGGER_MODE" ]; then
       echo "FAIL: outbound trigger enabled modes were not restored exactly." >&2
       cleanup_failed=1
     fi
@@ -402,7 +405,7 @@ if [ -n "$FIXTURE_COLLISIONS" ]; then
   exit 2
 fi
 
-# Snapshot pg_net before changing trigger state. The exact three outbound
+# Snapshot pg_net before changing trigger state. The exact four outbound
 # notification triggers are disabled for this local fixture; every business
 # trigger (capacity, calendar, lifecycle and booking-event emission) remains
 # active and is asserted below.
@@ -433,10 +436,19 @@ STAFF_PUSH_TRIGGER_MODE="$(
        and t.tgname = 'trg_staff_push_booking_event'
        and not t.tgisinternal;" | trim
 )"
+SLACK_ALERTS_TRIGGER_MODE="$(
+  sql --command="
+    select t.tgenabled
+      from pg_trigger t
+     where t.tgrelid = 'public.booking_events'::regclass
+       and t.tgname = 'trg_slack_alerts_booking_event'
+       and not t.tgisinternal;" | trim
+)"
 for trigger_mode in \
   "$BOOKING_INSERT_TRIGGER_MODE" \
   "$BOOKING_CANCEL_TRIGGER_MODE" \
-  "$STAFF_PUSH_TRIGGER_MODE"; do
+  "$STAFF_PUSH_TRIGGER_MODE" \
+  "$SLACK_ALERTS_TRIGGER_MODE"; do
   if [[ ! "$trigger_mode" =~ ^[ODRA]$ ]]; then
     echo "FAIL: one of the exact outbound notification triggers is missing or has an unknown enabled mode." >&2
     exit 2
@@ -447,7 +459,8 @@ DB_SETUP_STARTED=1
 sql --command="
   alter table public.bookings disable trigger trg_notify_booking_insert;
   alter table public.bookings disable trigger notify_booking_cancelled_trigger;
-  alter table public.booking_events disable trigger trg_staff_push_booking_event;" \
+  alter table public.booking_events disable trigger trg_staff_push_booking_event;
+  alter table public.booking_events disable trigger trg_slack_alerts_booking_event;" \
   >/dev/null
 
 sql <<SQL

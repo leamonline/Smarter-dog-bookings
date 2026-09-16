@@ -100,6 +100,13 @@ export const BOOKING_STATUS = {
 // where the old "/customer/login" already redirected.
 export const CUSTOMER_PORTAL_URL = "https://smarterdog.co.uk/book/login";
 
+// Base URL of the STAFF app. The booking app does not own "/" — the marketing
+// site does — so staff live under /staff, each entrance running its own router
+// with a matching basename (see src/routing/entrypoints.ts). Deep links built
+// for staff (e.g. the #salon-today Slack alerts) hang off this one constant
+// rather than being assembled ad hoc.
+export const STAFF_APP_URL = "https://smarterdog.co.uk/staff";
+
 // The salon's physical location, sent as the LOCATION header of any template
 // whose Meta definition carries one (see TEMPLATES_WITH_LOCATION_HEADER).
 // WhatsApp location headers have NO static option — the pin (lat/long/name/

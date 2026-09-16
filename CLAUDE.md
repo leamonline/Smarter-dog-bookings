@@ -275,6 +275,16 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `waitlist_entries` (each swallows POST errors so it can't roll back a write). iOS needs
   Add-to-Home-Screen (16.4+). Don't fold it into the customer `notify-*` fns or
   `salon_config.settings.notifications`. See [docs/staff-web-push.md](docs/staff-web-push.md).
+- **#salon-today Slack alerts (additive, internal):** operational alerts — cancellations, bookings
+  moved onto today, no-shows, dogs left in Ready, unanswered messages, an 08:15 summary — into ONE
+  Slack channel. Dark-launched behind `SLACK_ALERTS_ENABLED` (default off), with
+  `SLACK_ALERTS_DRY_RUN` to log instead of posting. New `slack-alerts` edge fn +
+  `_shared/slackMessage.ts` / `slackAlertWindow.ts` / `slackAlertThresholds.ts` + an AFTER-INSERT
+  trigger on `booking_events` (swallows POST errors, like the push triggers) + a `*/5` sweep and the
+  08:15 BST/GMT cron pair. **Hard rule: no customer name, phone, address or note may reach Slack** —
+  the builder takes a 5-field `BookingSubject` so a leak is a type error, and a test asserts the
+  rendered output. Every threshold lives in `slackAlertThresholds.ts`; don't scatter them, and don't
+  add a fourth copy of `DAILY_DOG_CAP` there. See [docs/slack-alerts.md](docs/slack-alerts.md).
 - **Known debt (don't be surprised):** ~12 components import `supabase` directly (bypassing
   hooks/repositories); realtime channel names aren't centralised (double-mount in HMR can collide);
   `as any` clusters in reports/booking-wizard/slot-availability. See `TECHNICAL-DEBT-REGISTER.md`.
