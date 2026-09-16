@@ -79,6 +79,8 @@ These files remain authoritative for their bounded topics:
   declared, and how a bump is kept consistent.
 - [`supabase-advisors.md`](supabase-advisors.md) — the accepted Supabase advisor
   findings, why each is accepted, and the `check:advisors` diff against the baseline.
+- [`slack-alerts.md`](slack-alerts.md) — the #salon-today operational alert
+  channel: what posts, the thresholds, the privacy rule and how to switch it off.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
