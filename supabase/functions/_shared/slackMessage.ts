@@ -131,8 +131,19 @@ function slackLink(url: string, label: string): string {
   return `<${url}|${label}>`;
 }
 
-export function bookingLink(bookingId: string): string {
-  return slackLink(`${STAFF_APP_URL}/today?booking=${bookingId}`, "Open booking");
+/**
+ * "Open booking" — opens that booking's detail modal in the staff app.
+ *
+ * The date travels alongside the id because the modal can only open a booking
+ * that is in the loaded calendar data. Most alerts are about today, which is
+ * already loaded, but a cancellation freeing tomorrow's first slot is not — so
+ * the link tells the app where to look. See src/hooks/useBookingDeepLink.ts.
+ */
+export function bookingLink(bookingId: string, bookingDate?: string | null): string {
+  const query = bookingDate
+    ? `booking=${bookingId}&date=${bookingDate}`
+    : `booking=${bookingId}`;
+  return slackLink(`${STAFF_APP_URL}/today?${query}`, "Open booking");
 }
 
 export function conversationLink(conversationId: string): string {
@@ -186,37 +197,37 @@ export function buildAlertBody(input: AlertInput): string {
   switch (input.type) {
     case "cancellation":
       return `Cancellation — ${input.booking.slot} slot now free · ${
-        bookingLink(input.booking.id)
+        bookingLink(input.booking.id, input.bookingDate)
       }`;
 
     case "moved_off":
       return `Moved off today — was ${input.previousSlot}, slot now free · ${
-        bookingLink(input.booking.id)
+        bookingLink(input.booking.id, input.previousDate)
       }`;
 
     case "new_booking":
       return `New booking — ${input.booking.slot} · ${
         describeDog(input.booking)
-      } · ${bookingLink(input.booking.id)}`;
+      } · ${bookingLink(input.booking.id, input.bookingDate)}`;
 
     case "moved_in": {
       const lead = input.sameDayMove
         ? `Time changed — now ${input.booking.slot}`
         : `Moved into today — ${input.booking.slot}`;
       return `${lead} · ${describeDog(input.booking)} · ${
-        bookingLink(input.booking.id)
+        bookingLink(input.booking.id, input.bookingDate)
       }`;
     }
 
     case "no_show":
       return `No-show? — ${input.booking.slot} booking not checked in · ${
-        bookingLink(input.booking.id)
+        bookingLink(input.booking.id, input.bookingDate)
       }`;
 
     case "ready_overdue": {
       const name = input.booking.dogName?.trim() || "Dog";
       return `Dog in Ready for ${input.minutesWaiting} min — ${name} · ${
-        bookingLink(input.booking.id)
+        bookingLink(input.booking.id, input.bookingDate)
       }`;
     }
 

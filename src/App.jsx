@@ -12,6 +12,7 @@ import { useModalState } from "./hooks/useModalState";
 import { useStaffAppData } from "./hooks/useStaffAppData";
 import { useBookingSession } from "./hooks/useBookingSession";
 import { useProfileRouting } from "./hooks/useProfileRouting";
+import { useBookingDeepLink } from "./hooks/useBookingDeepLink";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMainScrollReset } from "./hooks/useMainScrollReset";
 import { SalonProvider } from "./contexts/SalonContext";
@@ -393,6 +394,16 @@ function AuthedApp({
     },
     [bookingsByDate, setSelectedBooking],
   );
+
+  // "Open booking" links from outside the app (the #salon-today Slack
+  // alerts) land here. See useBookingDeepLink for why the date travels too.
+  useBookingDeepLink({
+    bookingsByDate,
+    bookingsLoading: data.bookingsLoading,
+    currentDateStr,
+    onPickDate: handleDatePick,
+    onOpenBooking: handleOpenBooking,
+  });
 
   const handleOpenClosureVisit = useCallback(
     async (visitId) => {

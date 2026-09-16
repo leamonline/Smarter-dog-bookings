@@ -44,7 +44,7 @@ Deno.test("cancellation names the freed slot and nothing about the dog", () => {
   assertEquals(
     text,
     "\u{1F534} Cancellation — 09:30 slot now free · " +
-      "<https://smarterdog.co.uk/staff/today?booking=b-1|Open booking>",
+      "<https://smarterdog.co.uk/staff/today?booking=b-1&date=2026-06-15|Open booking>",
   );
   // A cancellation is about a freed slot; naming the dog adds nothing
   // operationally and makes the one alert allowed to post overnight the
@@ -67,7 +67,7 @@ Deno.test("a new booking carries time, dog, size and breed", () => {
   assertEquals(
     buildAlertText({ type: "new_booking", booking: alfie, bookingDate: "2026-06-15" }),
     "\u{1F7E1} New booking — 10:00 · Alfie (small, Yorkshire Terrier) · " +
-      "<https://smarterdog.co.uk/staff/today?booking=b-1|Open booking>",
+      "<https://smarterdog.co.uk/staff/today?booking=b-1&date=2026-06-15|Open booking>",
   );
 });
 
@@ -104,7 +104,7 @@ Deno.test("no-show quotes the slot that was missed", () => {
       bookingDate: "2026-06-15",
     }),
     "\u{1F534} No-show? — 09:00 booking not checked in · " +
-      "<https://smarterdog.co.uk/staff/today?booking=b-1|Open booking>",
+      "<https://smarterdog.co.uk/staff/today?booking=b-1&date=2026-06-15|Open booking>",
   );
 });
 
@@ -416,7 +416,7 @@ Deno.test("alerts carry only the booking id in their link, never a dog or owner 
     booking: alfie,
     bookingDate: "2026-06-15",
   });
-  assertStringIncludes(text, "?booking=b-1");
+  assertStringIncludes(text, "?booking=b-1&date=2026-06-15");
   assert(!text.includes("dog_id"));
   assert(!text.includes("human"));
 });
