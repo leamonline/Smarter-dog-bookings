@@ -69,6 +69,35 @@ moment any `public` trigger function is executable by `anon` or
 `authenticated`, so this cannot regress silently again. If that suite
 fails, the fix is always the missing revoke block — never a grant.
 
+## Checklist: every outbound trigger must guard its POST
+
+A trigger function that calls `net.http_post` needs the call wrapped:
+
+```sql
+begin
+  perform net.http_post(...);
+exception when others then
+  raise warning '<fn>: outbound notification failed (%) — the write is unaffected', sqlerrm;
+end;
+```
+
+An AFTER trigger still runs **inside the originating transaction**, so
+anything it raises aborts that transaction. Without the guard, a Vault
+hiccup or a pg_net problem stops being "the confirmation message failed"
+and becomes "the customer could not book".
+
+Five functions shipped without it — `notify_on_booking_insert`,
+`notify_on_booking_cancelled`, `notify_on_booking_ready`,
+`notify_waitlist_joined_trigger` and `fire_whatsapp_agent` — two of them
+directly on `bookings`. `20260916120000_guard_outbound_notification_triggers.sql`
+closes them. `supabase/tests/224_outbound_trigger_guards.test.sql` fails the
+moment a new one appears, and also proves the behaviour end to end by
+sabotaging `get_supabase_url()` and asserting the writes still commit.
+
+Prefer `raise warning` over a bare `null` on customer-facing notification
+paths: it changes no transaction semantics but leaves a trail, so a broken
+path is discoverable from the logs rather than from a customer complaint.
+
 ## ⚠️ Don't blindly re-run old migrations
 
 Some early migrations are not idempotent. If you are setting up a
