@@ -510,6 +510,35 @@ body {
   to   { opacity: 1;   transform: translateY(0); }
 }
 
+/* Hazard frame for a booking left sitting inside a closure. Deliberately
+   loud: staff must not scroll past it. The flash is a border/opacity pulse,
+   never a layout change, so the card underneath stays readable and
+   draggable. Reduced motion keeps the stripes and drops the pulse. */
+@keyframes needs-attention-flash {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.needs-attention-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #111827 0px,
+    #111827 10px,
+    var(--color-brand-yellow) 10px,
+    var(--color-brand-yellow) 20px
+  );
+}
+
+.needs-attention-pulse {
+  animation: needs-attention-flash 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needs-attention-pulse {
+    animation: none;
+  }
+}
+
 /* ── Motion safety ────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
