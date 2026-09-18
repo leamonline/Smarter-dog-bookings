@@ -186,32 +186,54 @@ const SIZES = {
   md: "text-[12px] px-2.5 py-1",
 } as const;
 
+const BARE_SIZES = {
+  sm: "text-[12px]",
+  md: "text-[13px]",
+} as const;
+
 export interface BookingStatusBadgeProps {
   status: string | null | undefined;
   /** Needed only to tell a no-show apart from an ordinary cancellation. */
   cancelReason?: string | null;
   size?: keyof typeof SIZES;
+  /**
+   * `solid` fills the badge with the status tint — for a neutral surface such
+   * as the collected summary.
+   *
+   * `onTint` drops the fill and keeps only the ink — for a card that is ALREADY
+   * carrying the status tint, where a filled pill of the same colour would be
+   * invisible. Both render the same word in the same ink, so the two surfaces
+   * cannot disagree about what a status is called or what colour it is.
+   */
+  variant?: "solid" | "onTint";
   className?: string;
 }
 
 /**
- * The status, as a word, on its tint. Decorative in the accessibility tree:
- * the badge repeats a fact the card's accessible name already states in full,
- * so announcing it twice would just slow a screen-reader user down.
+ * The status, as a word. Decorative in the accessibility tree: the badge
+ * repeats a fact the card's accessible name already states in full, so
+ * announcing it twice would just slow a screen-reader user down.
  */
 export function BookingStatusBadge({
   status,
   cancelReason = null,
   size = "sm",
+  variant = "solid",
   className = "",
 }: BookingStatusBadgeProps) {
   const tone = resolveDayStatus(status, cancelReason);
+  const bare = variant === "onTint";
   return (
     <span
       aria-hidden="true"
       data-status-key={tone.key}
-      className={`inline-flex items-center rounded-full font-bold leading-none whitespace-nowrap ${SIZES[size]} ${className}`}
-      style={{ backgroundColor: tone.tint, color: tone.ink }}
+      data-status-variant={variant}
+      className={`inline-flex items-center font-bold leading-none whitespace-nowrap ${
+        bare ? BARE_SIZES[size] : `rounded-full ${SIZES[size]}`
+      } ${className}`}
+      style={bare
+        ? { color: tone.ink }
+        : { backgroundColor: tone.tint, color: tone.ink }}
     >
       {tone.label}
     </span>

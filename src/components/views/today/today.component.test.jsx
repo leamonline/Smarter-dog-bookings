@@ -71,6 +71,10 @@ const selectedViewProps = {
   onSendCollection: noop,
   toggleImmediateSlot: noop,
   onRefresh: noop,
+  // This file covers the four-zone board, which now ships behind
+  // FEATURE_FLAGS.legacy_salon_board_enabled. Opt in explicitly so the board's
+  // behaviour stays under test while it is still a supported fallback.
+  useLegacyBoard: true,
 };
 
 function LocationProbe() {
