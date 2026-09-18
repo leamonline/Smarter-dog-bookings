@@ -345,25 +345,46 @@ export function useBookingActions({
    * balance. (The existing mini-invoice writes the gross; that is issue #874 and
    * is deliberately not changed here.)
    *
-   * Undo restores BOTH facts. Reverting `payment` away from "Paid in Full" also
-   * makes the database trigger clear paid_at, the method and the amount, so the
-   * booking lands back exactly where it started.
+   * WHEN NO MONEY CHANGES HANDS, NO PAYMENT FIELD IS WRITTEN. A dog that paid in
+   * advance reaches the two-step chain, which hands back no method and a zero
+   * amount — and `buildMarkPaidPatch` treats a zero override as a real figure,
+   * so applying it unconditionally overwrote a settled £42 card payment with
+   * `paidAmount: 0, paymentMethod: null` and quietly removed the money from the
+   * day's takings (#878). The guard lives HERE rather than in the card because
+   * every caller of this function needs it, including the ones not written yet.
+   *
+   * Undo reverts exactly what was written and nothing else. Where a payment was
+   * taken it is reversed — clearing `payment` also makes the database trigger
+   * drop paid_at, the method and the amount. Where none was taken the payment
+   * fields are left untouched, because undoing a handover must not un-take a
+   * payment made hours earlier through another route.
    */
   const collectWithPayment = useCallback(async (
     booking: Booking,
     pricingInput: BookingPricingInput,
-    method: string,
-    amountTaken: number,
+    method: string | null,
+    amountTaken: number | null,
   ) => {
     const dogName = booking.dogName || "This dog";
     const previousStatus = booking.status;
     const previousPayment = booking.payment;
 
+    // Money is only being taken if a method was chosen AND a positive amount
+    // came with it. Either one missing means this is a bare handover.
+    const takingPayment = !!method && Number(amountTaken) > 0;
+
+    const paymentPatch = takingPayment
+      ? buildMarkPaidPatch(pricingInput, method, amountTaken)
+      : null;
+    const undoPayment = takingPayment
+      ? { payment: previousPayment, paymentMethod: null, paidAmount: null }
+      : null;
+
     const saved: { row: Booking | null } = { row: null };
     const persisted = await patch(
       booking,
       {
-        ...buildMarkPaidPatch(pricingInput, method, amountTaken),
+        ...(paymentPatch ?? {}),
         status: BOOKING_STATUS.COMPLETED,
         _skipCollectionPrompt: true,
       } as Partial<Booking>,
@@ -377,12 +398,12 @@ export function useBookingActions({
               saved.row ?? booking,
               {
                 status: previousStatus,
-                payment: previousPayment,
-                paymentMethod: null,
-                paidAmount: null,
+                ...(undoPayment ?? {}),
                 _skipCollectionPrompt: true,
               } as Partial<Booking>,
-              `${dogName} is back on the list, payment undone`,
+              takingPayment
+                ? `${dogName} is back on the list, payment undone`
+                : `${dogName} is back on the list`,
               "That change could not be undone.",
             );
           },
