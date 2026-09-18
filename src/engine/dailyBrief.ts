@@ -96,11 +96,15 @@ export function buildMiniInvoicePatch(input: MiniInvoiceInput) {
   };
 }
 
+// The care progression, in order. "In bath" used to sit between Arrived and
+// Ready; it is no longer a booking status, because where a dog is in the
+// groom is an operational detail rather than a lifecycle stage. A dog now
+// goes Arrived -> Ready for collection directly.
 const CARE = [
   BOOKING_STATUS.BOOKED,
-  BOOKING_STATUS.CHECKED_IN,
-  BOOKING_STATUS.IN_BATH,
-  BOOKING_STATUS.READY_FOR_PICKUP,
+  BOOKING_STATUS.RECONFIRMED,
+  BOOKING_STATUS.ARRIVED,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
   BOOKING_STATUS.COMPLETED,
 ] as const;
 
@@ -164,11 +168,12 @@ export function requiresCareSkipConfirmation(
   const target = CARE.indexOf(targetStatus as (typeof CARE)[number]);
   if (target <= current + 1) return null;
 
-  return CARE[current + 1] === BOOKING_STATUS.CHECKED_IN
-    ? "been checked in"
-    : CARE[current + 1] === BOOKING_STATUS.IN_BATH
-      ? "started the groom"
-      : CARE[current + 1] === BOOKING_STATUS.READY_FOR_PICKUP
+  const skipped = CARE[current + 1];
+  return skipped === BOOKING_STATUS.RECONFIRMED
+    ? "been reconfirmed"
+    : skipped === BOOKING_STATUS.ARRIVED
+      ? "been marked as arrived"
+      : skipped === BOOKING_STATUS.READY_FOR_COLLECTION
         ? "been marked ready for collection"
         : "been collected";
 }
@@ -219,9 +224,9 @@ export interface DailyBriefBoard {
 
 const BOARD_LANE_BY_STATUS: Record<string, DailyBriefLane> = {
   [BOOKING_STATUS.BOOKED]: "due",
-  [BOOKING_STATUS.CHECKED_IN]: "withUs",
-  [BOOKING_STATUS.IN_BATH]: "withUs",
-  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
+  [BOOKING_STATUS.RECONFIRMED]: "due",
+  [BOOKING_STATUS.ARRIVED]: "withUs",
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: "ready",
   [BOOKING_STATUS.COMPLETED]: "home",
 };
 

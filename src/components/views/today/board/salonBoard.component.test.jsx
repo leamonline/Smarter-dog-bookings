@@ -122,7 +122,7 @@ describe("the board", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Oscar" }),
       booking({ id: "b", dogName: "Milo", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:30:00Z" }),
-      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
+      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]} />);
 
     const zone = (name) => screen.getByRole("region", { name });
@@ -133,7 +133,7 @@ describe("the board", () => {
 
   it("gives every token a spoken name carrying status, wait and money", () => {
     render(<BoardHarness bookings={[
-      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
+      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]} />);
     expect(
       screen.getByRole("button", { name: /^Teddy\. Ready, waiting 18 min\. £52 due\. owner Rik Patel/ }),
@@ -142,7 +142,7 @@ describe("the board", () => {
 
   it("shows one piece of context on a token and never repeats the zone's own word", () => {
     render(<BoardHarness bookings={[
-      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
+      booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]} />);
     const cell = document.querySelector('[data-booking-id="c"]');
     expect(cell.querySelector("[data-token-meta]").textContent).toBe("18 min");
@@ -211,7 +211,7 @@ describe("the board", () => {
 
   it("marks a settled Ready dog with a tick where the balance pill would sit", () => {
     render(<BoardHarness bookings={[
-      booking({ id: "a", dogName: "Settled", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:40:00Z", payment: "Paid in Full" }),
+      booking({ id: "a", dogName: "Settled", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:40:00Z", payment: "Paid in Full" }),
     ]} />);
     const cell = document.querySelector('[data-booking-id="a"]');
     expect(cell.querySelector("[data-token-paid]")).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe("the board", () => {
   it("shows a balance on the token only once it blocks the handover", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Arriving" }),
-      booking({ id: "b", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:00:00Z" }),
+      booking({ id: "b", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:00:00Z" }),
     ]} />);
     expect(document.querySelector('[data-booking-id="a"] [data-token-balance]')).toBeNull();
     expect(
@@ -238,8 +238,8 @@ describe("the board", () => {
       status: index % 3 === 0
         ? BOOKING_STATUS.BOOKED
         : index % 3 === 1
-          ? BOOKING_STATUS.CHECKED_IN
-          : BOOKING_STATUS.READY_FOR_PICKUP,
+          ? BOOKING_STATUS.ARRIVED
+          : BOOKING_STATUS.READY_FOR_COLLECTION,
       checkedInAt: "2026-07-14T08:00:00Z",
       readyAt: "2026-07-14T08:30:00Z",
     }));
@@ -276,7 +276,7 @@ describe("the action panel on a phone", () => {
 
   it("reaches a Ready dog through the lane switcher and offers the right primary", () => {
     render(<BoardHarness bookings={[
-      booking({ id: "a", dogName: "Daisy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:00:00Z" }),
+      booking({ id: "a", dogName: "Daisy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:00:00Z" }),
     ]} />);
     // The phone shows one lane; Ready is one tap on the switcher, never
     // several screens below Arriving.
@@ -288,7 +288,7 @@ describe("the action panel on a phone", () => {
   it("shows one lane at a time with counts and an urgency dot on the others", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Oscar", slot: "12:00" }),
-      booking({ id: "b", dogName: "Longwait", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T07:30:00Z" }),
+      booking({ id: "b", dogName: "Longwait", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T07:30:00Z" }),
     ]} />);
 
     // Only the active lane renders its dogs…
@@ -307,7 +307,7 @@ describe("the action panel on a phone", () => {
   it("changes lane on a deliberate horizontal swipe, and never on a vertical scroll", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Oscar", slot: "12:00" }),
-      booking({ id: "b", dogName: "Inside", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:40:00Z" }),
+      booking({ id: "b", dogName: "Inside", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:40:00Z" }),
     ]} />);
     const lanes = screen.getByRole("region", { name: "Arriving, 1 dog" }).parentElement;
 
@@ -450,7 +450,7 @@ describe("needs attention", () => {
     const at = (minutesAgo) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
     const summary = buildAttentionSummary(tokensFor([
       booking({ id: "a", dogName: "Late", slot: "08:30" }),
-      booking({ id: "w", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(30) }),
+      booking({ id: "w", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(30) }),
     ]), true);
     render(
       <NeedsAttentionSummary

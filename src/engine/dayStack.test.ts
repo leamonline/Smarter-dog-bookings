@@ -35,8 +35,8 @@ describe("buildDayStack ordering", () => {
     // any grouping or re-sort by status would be visible immediately.
     const rows = stack([
       bk({ id: "d", slot: "13:00", status: BOOKING_STATUS.BOOKED }),
-      bk({ id: "a", slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: agoIso(10) }),
-      bk({ id: "c", slot: "11:00", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: agoIso(20) }),
+      bk({ id: "a", slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(10) }),
+      bk({ id: "c", slot: "11:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(20) }),
       bk({ id: "b", slot: "09:30", status: BOOKING_STATUS.IN_BATH, checkedInAt: agoIso(40) }),
     ]);
     expect(rows.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
@@ -89,7 +89,7 @@ describe("buildDayStack membership", () => {
 describe("buildDayStack timing", () => {
   it("counts a checked-in dog's time on site from checked_in_at", () => {
     const [row] = stack([
-      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: agoIso(135) }),
+      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(135) }),
     ]);
     expect(row.timing).toBe("2 hrs 15 min");
     expect(row.urgent).toBe(false);
@@ -118,7 +118,7 @@ describe("buildDayStack timing", () => {
 
   it("counts a ready dog's wait from ready_at", () => {
     const [row] = stack([
-      bk({ id: "x", slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: agoIso(20) }),
+      bk({ id: "x", slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(20) }),
     ]);
     expect(row.timing).toBe("waiting 20 min");
     expect(row.readyOverdue).toBe(false);
@@ -129,7 +129,7 @@ describe("buildDayStack timing", () => {
       bk({
         id: "u",
         slot: "09:00",
-        status: BOOKING_STATUS.READY_FOR_PICKUP,
+        status: BOOKING_STATUS.READY_FOR_COLLECTION,
         readyAt: agoIso(READY_OVERDUE_MINUTES - 1),
       }),
     ])[0];
@@ -137,7 +137,7 @@ describe("buildDayStack timing", () => {
       bk({
         id: "o",
         slot: "09:00",
-        status: BOOKING_STATUS.READY_FOR_PICKUP,
+        status: BOOKING_STATUS.READY_FOR_COLLECTION,
         readyAt: agoIso(READY_OVERDUE_MINUTES),
       }),
     ])[0];
@@ -185,7 +185,7 @@ describe("buildDayStack degrades quietly", () => {
   // worse than one that simply does not mention the time.
   it("says nothing about a checked-in dog with no arrival stamp", () => {
     const [row] = stack([
-      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: null }),
+      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: null }),
     ]);
     expect(row.timing).toBeNull();
     expect(row.urgent).toBe(false);
@@ -193,7 +193,7 @@ describe("buildDayStack degrades quietly", () => {
 
   it("says nothing about a ready dog with no ready stamp", () => {
     const [row] = stack([
-      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: null }),
+      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: null }),
     ]);
     expect(row.timing).toBeNull();
     expect(row.readyOverdue).toBe(false);
@@ -206,7 +206,7 @@ describe("buildDayStack degrades quietly", () => {
           id: "x",
           _bookingDate: OTHER_DAY,
           slot: "09:00",
-          status: BOOKING_STATUS.CHECKED_IN,
+          status: BOOKING_STATUS.ARRIVED,
           checkedInAt: agoIso(60),
         }),
       ],
@@ -240,7 +240,7 @@ describe("selectCollected", () => {
       [
         bk({ id: "early", slot: "09:00", status: BOOKING_STATUS.COMPLETED, completedAt: agoIso(90) }),
         bk({ id: "late", slot: "10:00", status: BOOKING_STATUS.COMPLETED, completedAt: agoIso(5) }),
-        bk({ id: "waiting", slot: "11:00", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        bk({ id: "waiting", slot: "11:00", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       ],
       TODAY,
       NOW,

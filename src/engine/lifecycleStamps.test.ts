@@ -16,12 +16,12 @@ const stamp = (booking: Record<string, unknown>, previous: string | null) =>
 
 describe("applyLifecycleStamps", () => {
   it("does nothing when the status has not moved", () => {
-    const booking = { status: BOOKING_STATUS.CHECKED_IN, checkedInAt: null };
-    expect(stamp(booking, BOOKING_STATUS.CHECKED_IN)).toBe(booking);
+    const booking = { status: BOOKING_STATUS.ARRIVED, checkedInAt: null };
+    expect(stamp(booking, BOOKING_STATUS.ARRIVED)).toBe(booking);
   });
 
   it("stamps the arrival on reaching Checked in", () => {
-    const out = stamp({ status: BOOKING_STATUS.CHECKED_IN }, BOOKING_STATUS.BOOKED);
+    const out = stamp({ status: BOOKING_STATUS.ARRIVED }, BOOKING_STATUS.BOOKED);
     expect(out.checkedInAt).toBe(NOW);
     expect(out.readyAt).toBeNull();
   });
@@ -29,14 +29,14 @@ describe("applyLifecycleStamps", () => {
   it("keeps the original arrival through the later stages", () => {
     const out = stamp(
       { status: BOOKING_STATUS.IN_BATH, checkedInAt: EARLIER },
-      BOOKING_STATUS.CHECKED_IN,
+      BOOKING_STATUS.ARRIVED,
     );
     expect(out.checkedInAt).toBe(EARLIER);
   });
 
   it("stamps ready on reaching Ready, keeping the arrival", () => {
     const out = stamp(
-      { status: BOOKING_STATUS.READY_FOR_PICKUP, checkedInAt: EARLIER },
+      { status: BOOKING_STATUS.READY_FOR_COLLECTION, checkedInAt: EARLIER },
       BOOKING_STATUS.IN_BATH,
     );
     expect(out.checkedInAt).toBe(EARLIER);
@@ -46,7 +46,7 @@ describe("applyLifecycleStamps", () => {
   it("keeps both marks once a dog is collected", () => {
     const out = stamp(
       { status: BOOKING_STATUS.COMPLETED, checkedInAt: EARLIER, readyAt: EARLIER },
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     expect(out.checkedInAt).toBe(EARLIER);
     expect(out.readyAt).toBe(EARLIER);
@@ -56,7 +56,7 @@ describe("applyLifecycleStamps", () => {
   it("clears ready when a booking regresses below it — a staff correction", () => {
     const out = stamp(
       { status: BOOKING_STATUS.IN_BATH, checkedInAt: EARLIER, readyAt: EARLIER },
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     expect(out.readyAt).toBeNull();
     expect(out.checkedInAt).toBe(EARLIER);
@@ -65,7 +65,7 @@ describe("applyLifecycleStamps", () => {
   it("clears the arrival only on a regression all the way back to Booked", () => {
     const out = stamp(
       { status: BOOKING_STATUS.BOOKED, checkedInAt: EARLIER, readyAt: EARLIER },
-      BOOKING_STATUS.CHECKED_IN,
+      BOOKING_STATUS.ARRIVED,
     );
     expect(out.checkedInAt).toBeNull();
     expect(out.readyAt).toBeNull();
@@ -73,7 +73,7 @@ describe("applyLifecycleStamps", () => {
 
   it("clears the completion when a collected dog is put back", () => {
     const out = stamp(
-      { status: BOOKING_STATUS.READY_FOR_PICKUP, completedAt: EARLIER, readyAt: EARLIER },
+      { status: BOOKING_STATUS.READY_FOR_COLLECTION, completedAt: EARLIER, readyAt: EARLIER },
       BOOKING_STATUS.COMPLETED,
     );
     expect(out.completedAt).toBeNull();
@@ -84,7 +84,7 @@ describe("applyLifecycleStamps", () => {
     // assigns now() outright, so re-completing moves the time.
     const out = stamp(
       { status: BOOKING_STATUS.COMPLETED, completedAt: EARLIER },
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     expect(out.completedAt).toBe(NOW);
   });
@@ -100,7 +100,7 @@ describe("applyLifecycleStamps", () => {
         checkedInAt: EARLIER,
         readyAt: EARLIER,
       },
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     expect(out.checkedInAt).toBe(EARLIER);
     expect(out.readyAt).toBe(EARLIER);

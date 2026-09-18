@@ -369,8 +369,8 @@ describe("no-show truth: confirmed no-shows vs unclassified past bookings", () =
     // reached their slot. The two advance cancellations never did, so they are
     // not in the denominator.
     const stats = statsFor([
-      row("2026-06-01", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
-      row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-06-01", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
+      row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       row("2026-06-01", { slot: "09:30" }), // left as Booked — unclassified
       row("2026-06-02", {
         slot: "08:30",
@@ -407,7 +407,7 @@ describe("no-show truth: confirmed no-shows vs unclassified past bookings", () =
   it("reports the previous period's no-show rate on the same confirmed basis", () => {
     const stats = statsFor([
       // previous window (05-20, 05-27]: one attended, one confirmed no-show
-      row("2026-05-25", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-05-25", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       row("2026-05-26", {
         slot: "09:00",
         status: BOOKING_STATUS.CANCELLED,
@@ -435,7 +435,7 @@ describe("attendance insight does not outrun the evidence", () => {
       booking_date: bookingDate,
       service: "full-groom",
       size: "small",
-      status: BOOKING_STATUS.READY_FOR_PICKUP,
+      status: BOOKING_STATUS.READY_FOR_COLLECTION,
       payment: "Paid in Full",
       slot: "08:30",
       dog_id: "d1",

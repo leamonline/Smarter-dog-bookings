@@ -157,7 +157,7 @@ export function classifyNeedsAttention(
   if (b.status === BOOKING_STATUS.CANCELLED) return null;
   if (!b._bookingDate || !todayStr || b._bookingDate >= todayStr) return null;
 
-  if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) return "readyForCollection";
+  if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) return "readyForCollection";
 
   // Booked / Checked in / In bath — and unknown/missing statuses, which the
   // rest of the app renders as "Booked" (STAGE_BY_RANK fallback), so a

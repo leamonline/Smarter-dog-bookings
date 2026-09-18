@@ -46,7 +46,7 @@ const BOOKINGS = [
     id: "waiting",
     dogName: "Bramble",
     slot: "08:30",
-    status: BOOKING_STATUS.READY_FOR_PICKUP,
+    status: BOOKING_STATUS.READY_FOR_COLLECTION,
     service: "full-groom",
     size: "small",
     payment: "Due at Pick-up",

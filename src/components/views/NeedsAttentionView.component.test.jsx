@@ -15,7 +15,7 @@ function booking(overrides = {}) {
     size: "small",
     service: "full-groom",
     owner: "Sam Smith",
-    status: BOOKING_STATUS.READY_FOR_PICKUP,
+    status: BOOKING_STATUS.READY_FOR_COLLECTION,
     addons: [],
     pickupBy: "",
     payment: "Due at Pick-up",
@@ -48,7 +48,7 @@ describe("NeedsAttentionContent", () => {
   it("shows the total and the three section counts", () => {
     renderContent([
       booking({ id: "a" }),
-      booking({ id: "b", status: BOOKING_STATUS.CHECKED_IN }),
+      booking({ id: "b", status: BOOKING_STATUS.ARRIVED }),
       booking({
         id: "c",
         status: BOOKING_STATUS.COMPLETED,

@@ -18,7 +18,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
   it("announces the new status via a live region after a successful change", async () => {
     const onUpdate = vi
       .fn()
-      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -40,7 +40,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
   it("undoes a successful change using the captured previous status", async () => {
     const onUpdate = vi
       .fn()
-      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -96,7 +96,7 @@ describe("BookingStatusBar keyboard navigation", () => {
 
   it("arrow keys move focus only — they never commit a status change", async () => {
     const user = userEvent.setup();
-    const onUpdate = vi.fn().mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+    const onUpdate = vi.fn().mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -114,7 +114,7 @@ describe("BookingStatusBar keyboard navigation", () => {
 
     await user.keyboard("{Enter}");
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(onUpdate.mock.calls[0][0]).toMatchObject({ status: BOOKING_STATUS.CHECKED_IN });
+    expect(onUpdate.mock.calls[0][0]).toMatchObject({ status: BOOKING_STATUS.ARRIVED });
   });
 
   it("wraps from the last step back to the first with ArrowRight", async () => {
@@ -184,7 +184,7 @@ describe("BookingStatusBar update safety", () => {
     });
     expect(checkedIn).toHaveAttribute("aria-busy", "true");
 
-    resolveUpdate({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+    resolveUpdate({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     await waitFor(() => {
       screen.getAllByRole("radio").forEach((control) => {
         expect(control).toBeEnabled();

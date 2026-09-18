@@ -19,7 +19,7 @@ describe("excludeCancelled", () => {
   it("keeps everything when none are cancelled", () => {
     const input = [
       booking("a", BOOKING_STATUS.BOOKED),
-      booking("b", BOOKING_STATUS.CHECKED_IN),
+      booking("b", BOOKING_STATUS.ARRIVED),
     ];
     expect(excludeCancelled(input)).toHaveLength(2);
   });

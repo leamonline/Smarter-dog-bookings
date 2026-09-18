@@ -84,7 +84,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   // message, so suppress the success toast in that case.
                   if (result === null) return;
                   setAnnouncement(`All set — status updated to ${status.label}`);
-                  const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
+                  const variant = status.id === BOOKING_STATUS.ARRIVED || status.id === BOOKING_STATUS.READY_FOR_COLLECTION ? "success" : "info";
                   toast.show(
                     `${status.label} — saved`,
                     variant,

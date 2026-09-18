@@ -132,45 +132,154 @@ export function getAddonsTotal(addons: string[] | null | undefined): number {
   return addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
 }
 
-// Canonical status IDs. Importers compare and assign against these
-// constants rather than bare string literals, so the set is grep-
-// friendly and (in TS) compile-checked.
+// ── Booking lifecycle ────────────────────────────────────────────────
+//
+// The seven canonical statuses. Everything that compares, writes, ranks,
+// filters or colours a booking status derives from THIS block; nothing else
+// in the codebase should contain a status string literal.
+//
+// The normal progression:
+//   Booked → Reconfirmed → Arrived → Ready for collection → Completed
+// with two terminal exits, Cancelled and No-show, reachable from any active
+// status. Staff are not trapped by the progression — the detail modal still
+// allows arbitrary corrections — but the UI makes the normal path obvious.
 export const BOOKING_STATUS = {
   BOOKED: "Booked",
-  CHECKED_IN: "Checked in",
-  IN_BATH: "In bath",
-  READY_FOR_PICKUP: "Ready for pick-up",
+  RECONFIRMED: "Reconfirmed",
+  ARRIVED: "Arrived",
+  READY_FOR_COLLECTION: "Ready for collection",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
 } as const;
 
 export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
 
-// A no-show is recorded as a CANCELLED booking carrying this exact reason.
-// NO_SHOW_REASON is the value staff write; NO_SHOW_REASON_NORMALISED is what
-// readers compare against after trimming and lower-casing, so free-text reasons
-// ("Rescheduled via WhatsApp", "Deposit not received") never match by accident.
-// Reports must never infer a no-show from a past booking left on "Booked" —
-// that is unclosed paperwork, and counting it overstates the rate.
+/** Every canonical value, in lifecycle order. Mirrors the DB CHECK constraint. */
+export const ALL_BOOKING_STATUSES: readonly BookingStatus[] = Object.freeze([
+  BOOKING_STATUS.BOOKED,
+  BOOKING_STATUS.RECONFIRMED,
+  BOOKING_STATUS.ARRIVED,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
+  BOOKING_STATUS.COMPLETED,
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.NO_SHOW,
+]);
+
+/**
+ * Position along the linear progression. Terminal statuses have no position:
+ * they are exits, not steps, and ranking them would imply Cancelled is
+ * "further along" than Arrived.
+ *
+ * Mirrored exactly by `set_booking_lifecycle_timestamps()` in the database
+ * (migration 20260919090000). If the two ever disagree, the trigger wins —
+ * this is an offline mirror, not a second authority.
+ */
+export const STATUS_RANK: Readonly<Record<string, number>> = Object.freeze({
+  [BOOKING_STATUS.BOOKED]: 0,
+  [BOOKING_STATUS.RECONFIRMED]: 1,
+  [BOOKING_STATUS.ARRIVED]: 2,
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: 3,
+  [BOOKING_STATUS.COMPLETED]: 4,
+});
+
+/** The rank at or beyond which a dog has arrived. */
+export const RANK_ARRIVED = STATUS_RANK[BOOKING_STATUS.ARRIVED];
+/** The rank at or beyond which a dog is ready to go home. */
+export const RANK_READY = STATUS_RANK[BOOKING_STATUS.READY_FOR_COLLECTION];
+/** The terminal rank of a successful visit. */
+export const RANK_COMPLETED = STATUS_RANK[BOOKING_STATUS.COMPLETED];
+
+/**
+ * The two ways a booking ends without being completed.
+ *
+ * CRITICAL: both are NON-OCCUPYING. A no-show frees its seat exactly as a
+ * cancellation does, which is how the salon has always behaved — before
+ * No-show became a status of its own it WAS a Cancelled row, so every
+ * capacity, occupancy and uniqueness rule already treated it as free. Any
+ * predicate that used to read `status !== 'Cancelled'` must now use
+ * `isActiveBooking`, or no-shows will silently start consuming capacity and
+ * block real bookings.
+ */
+export const TERMINAL_STATUSES: readonly BookingStatus[] = Object.freeze([
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.NO_SHOW,
+]);
+
+/** True when a booking did not end early — i.e. it still occupies its seat. */
+export function isActiveBooking(status: string | null | undefined): boolean {
+  return !TERMINAL_STATUSES.includes(status as BookingStatus);
+}
+
+/** True for the two ended-early states. The inverse of `isActiveBooking`. */
+export function isTerminalStatus(status: string | null | undefined): boolean {
+  return TERMINAL_STATUSES.includes(status as BookingStatus);
+}
+
+/**
+ * The statuses the Today stack shows: work still in front of you.
+ *
+ * Completed dogs move to the collected summary; Cancelled and No-show leave
+ * the day entirely rather than cluttering the list with things nobody can act
+ * on.
+ */
+export const ACTIVE_STACK_STATUSES: readonly BookingStatus[] = Object.freeze([
+  BOOKING_STATUS.BOOKED,
+  BOOKING_STATUS.RECONFIRMED,
+  BOOKING_STATUS.ARRIVED,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
+]);
+
+/** True when this booking belongs in the active time-ordered stack. */
+export function isStackVisibleStatus(status: string | null | undefined): boolean {
+  return ACTIVE_STACK_STATUSES.includes(status as BookingStatus);
+}
+
+/**
+ * The next step along the normal progression, or null at the end of it.
+ * Terminal statuses have no next step.
+ */
+export function nextStatus(status: string | null | undefined): BookingStatus | null {
+  const rank = STATUS_RANK[status as BookingStatus];
+  if (rank == null) return null;
+  const next = ALL_BOOKING_STATUSES.find((s) => STATUS_RANK[s] === rank + 1);
+  return next ?? null;
+}
+
+// ── No-show ──────────────────────────────────────────────────────────
+//
+// A no-show is now a first-class status. It used to be a Cancelled row
+// carrying cancel_reason = 'No-show', and migration 20260919090000 converted
+// those rows. The reason text is PRESERVED on migrated rows as history, but
+// nothing reads it to decide whether a booking was a no-show any more — use
+// `status === BOOKING_STATUS.NO_SHOW`.
+//
+// NO_SHOW_REASON is kept because staff still write a free-text cancel_reason
+// and "No-show" remains a sensible default label for the action.
 export const NO_SHOW_REASON = "No-show";
 export const NO_SHOW_REASON_NORMALISED = "no-show";
 
-/** True if `cancelReason` records a genuine, staff-confirmed no-show. */
+/**
+ * True if `cancelReason` records a no-show in the PRE-MIGRATION shape.
+ *
+ * @deprecated Migration-compatibility only. Live business logic must test
+ * `status === BOOKING_STATUS.NO_SHOW`. Kept so that any row written before
+ * 20260919090000 that escaped conversion still reads sensibly, and so the
+ * migration's own test can assert the old shape.
+ */
 export function isNoShowReason(cancelReason: string | null | undefined): boolean {
   return (cancelReason || "").trim().toLowerCase() === NO_SHOW_REASON_NORMALISED;
 }
 
-// The five-step status progression for a booking. The card's
-// inline segmented control walks staff through these in order; the
-// detail modal still allows arbitrary jumps for edge cases.
-//   Booked → Checked in → In bath → Ready for pick-up → Completed
-// "Cancelled" is a terminal status reached via the detail modal —
-// it never appears in the inline progression.
+// The inline segmented control walks staff through the progression in order;
+// the detail modal still allows arbitrary jumps for corrections. The two
+// terminal statuses never appear in the inline progression — they are reached
+// deliberately, not stepped into.
 export const BOOKING_STATUSES = [
   { id: BOOKING_STATUS.BOOKED, label: "Booked", color: "#475569", bg: "#F1F5F9" },
-  { id: BOOKING_STATUS.CHECKED_IN, label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
-  { id: BOOKING_STATUS.IN_BATH, label: "In bath", color: "#0E7490", bg: "#CFFAFE" },
-  { id: BOOKING_STATUS.READY_FOR_PICKUP, label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: BOOKING_STATUS.RECONFIRMED, label: "Reconfirmed", color: "#1D4ED8", bg: "#DBEAFE" },
+  { id: BOOKING_STATUS.ARRIVED, label: "Arrived", color: "#16A34A", bg: "#DCFCE7" },
+  { id: BOOKING_STATUS.READY_FOR_COLLECTION, label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
   { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
 ];
 
@@ -191,17 +300,23 @@ export interface StatusDisplay {
  * Status palette — the single source of truth for the colour each booking
  * status shows in the UI. Used by the dashboard card pill (BookingCardNew)
  * AND the detail modal's header accent bar, active stepper step and primary
- * button, so the card and its pop-up can never drift apart. Mustard for
- * "still to come", teal/cyan for "in the salon now", emerald for "ready to
- * collect", slate for "all done" (fades out of the day), coral for cancelled.
+ * button, so the card and its pop-up can never drift apart.
+ *
+ * Semantics: mustard for "still to come", blue for "reconfirmed, they have
+ * told us they are coming", teal for "in the salon now", emerald for "ready
+ * to collect", slate for "all done", coral for the two ways a booking ends
+ * early. Cancelled and No-show share the coral family because they are the
+ * same kind of news; No-show is the stronger of the two, since it cost the
+ * salon a slot.
  */
 export const STATUS_DISPLAY: Record<string, StatusDisplay> = {
-  "Booked":            { bg: "#FFF6CC", color: "var(--color-brand-purple)",    border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-purple)", label: "Booked" },
-  "Checked in":        { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Checked in" },
-  "In bath":           { bg: "#CFFAFE", color: "#0E7490",                      border: "#22D3EE",                   onAccent: "var(--color-brand-purple)", label: "In bath" },
-  "Ready for pick-up": { bg: "#D1FAE5", color: "#047857",                      border: "#10B981",                   onAccent: "#FFFFFF",                   label: "Ready" },
-  "Completed":         { bg: "#F1F5F9", color: "#475569",                      border: "#94A3B8",                   onAccent: "#FFFFFF",                   label: "Completed" },
-  "Cancelled":         { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", onAccent: "#FFFFFF",                   label: "Cancelled" },
+  [BOOKING_STATUS.BOOKED]:               { bg: "#FFF6CC", color: "var(--color-brand-purple)",     border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-purple)", label: "Booked" },
+  [BOOKING_STATUS.RECONFIRMED]:          { bg: "#DBEAFE", color: "#1E40AF",                       border: "#3B82F6",                   onAccent: "#FFFFFF",                   label: "Reconfirmed" },
+  [BOOKING_STATUS.ARRIVED]:              { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)",  border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Arrived" },
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: { bg: "#D1FAE5", color: "#047857",                       border: "#10B981",                   onAccent: "#FFFFFF",                   label: "Ready" },
+  [BOOKING_STATUS.COMPLETED]:            { bg: "#F1F5F9", color: "#475569",                       border: "#94A3B8",                   onAccent: "#FFFFFF",                   label: "Completed" },
+  [BOOKING_STATUS.CANCELLED]:            { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)",  onAccent: "#FFFFFF",                   label: "Cancelled" },
+  [BOOKING_STATUS.NO_SHOW]:              { bg: "#FFD9E2", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)",  onAccent: "#FFFFFF",                   label: "No-show" },
 };
 
 export function getStatusDisplay(statusId: string): StatusDisplay {

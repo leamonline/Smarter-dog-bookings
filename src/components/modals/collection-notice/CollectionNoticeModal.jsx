@@ -114,7 +114,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
         const ready = dayRows.filter(
           (r) =>
             r.id === booking?.id ||
-            r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+            r.status === BOOKING_STATUS.READY_FOR_COLLECTION ||
             r.status === BOOKING_STATUS.COMPLETED,
         );
         if (ready.length > 0) {

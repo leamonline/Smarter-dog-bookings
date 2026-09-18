@@ -36,9 +36,9 @@ const STATUS_PROGRESSION = BOOKING_STATUSES.map((s) => s.id);
 
 const STATUS_ICONS = {
   [BOOKING_STATUS.BOOKED]: Calendar,
-  [BOOKING_STATUS.CHECKED_IN]: LogIn,
+  [BOOKING_STATUS.ARRIVED]: LogIn,
   [BOOKING_STATUS.IN_BATH]: Droplets,
-  [BOOKING_STATUS.READY_FOR_PICKUP]: Sparkles,
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: Sparkles,
   [BOOKING_STATUS.COMPLETED]: Check,
 };
 
@@ -211,7 +211,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   });
 
   const needsPayment =
-    (booking.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+    (booking.status === BOOKING_STATUS.READY_FOR_COLLECTION ||
       booking.status === BOOKING_STATUS.COMPLETED) &&
     !pricing.isPaidInFull &&
     pricing.amountDue > 0;

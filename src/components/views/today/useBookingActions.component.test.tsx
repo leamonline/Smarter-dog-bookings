@@ -24,7 +24,7 @@ const PAID_IN_ADVANCE = {
   id: "paid-already",
   dogName: "Luna",
   slot: "09:00",
-  status: BOOKING_STATUS.READY_FOR_PICKUP,
+  status: BOOKING_STATUS.READY_FOR_COLLECTION,
   service: "full-groom",
   size: "small",
   payment: "Paid in Full",
@@ -114,7 +114,7 @@ describe("collecting a dog that has already paid", () => {
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
 
     const row = writtenRow(onUpdateBooking, 1);
-    expect(row.status).toBe(BOOKING_STATUS.READY_FOR_PICKUP);
+    expect(row.status).toBe(BOOKING_STATUS.READY_FOR_COLLECTION);
     // Undoing a collection that took no money must not un-take a payment that
     // was made hours earlier through another route.
     expect(row.paidAmount).toBe(42);
@@ -171,7 +171,7 @@ describe("collecting a dog that pays on the way out", () => {
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
 
     const row = writtenRow(onUpdateBooking, 1);
-    expect(row.status).toBe(BOOKING_STATUS.READY_FOR_PICKUP);
+    expect(row.status).toBe(BOOKING_STATUS.READY_FOR_COLLECTION);
     expect(row.payment).toBe("Due at Pick-up");
     expect(row.paymentMethod).toBeNull();
     expect(row.paidAmount).toBeNull();

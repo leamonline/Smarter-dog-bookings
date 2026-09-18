@@ -13,7 +13,7 @@
 // looking identical. Strict time order plus one elapsed figure per row makes
 // that difference the most visible thing on the screen, which is what the
 // people running the salon actually need from it.
-import { DOG_SIZE, SERVICES } from "../constants/index";
+import { DOG_SIZE, SERVICES, isStackVisibleStatus } from "../constants/index";
 import { computeBookingPricing } from "./bookingRules";
 import { buildDailyBriefFeed } from "./dailyBrief";
 import {
@@ -165,12 +165,25 @@ export function buildDayStack({
   breedById = {},
 }: DayStackInput): DayStackRow[] {
   const isToday = dateStr === londonDateStr(now);
-  const feed = buildDailyBriefFeed(bookings, dateStr, now, { includeNoShows: true });
+  // No-shows are no longer pulled into the feed for the stack. The stack is
+  // work still in front of you, and a dog that did not turn up is not work —
+  // it is a thing to deal with elsewhere. Completed dogs drop out below into
+  // the collected summary.
+  const feed = buildDailyBriefFeed(bookings, dateStr, now);
 
   return feed
-    // Collected dogs leave the stack for the summary at the bottom. They are
-    // still in the feed, because the takings line is built from them.
-    .filter((entry) => entry.stage !== "collected")
+    // An ALLOW-LIST, not a list of exclusions.
+    //
+    // The stack shows exactly the four active statuses: Booked, Reconfirmed,
+    // Arrived and Ready for collection. Completed dogs leave for the summary
+    // at the bottom (they stay in the feed, because the takings line is built
+    // from them); Cancelled and No-show leave the day altogether rather than
+    // cluttering a list of things to do with things nobody can act on.
+    //
+    // Written as an allow-list on purpose: a status added later is invisible
+    // until somebody decides it belongs here, which is the safe direction to
+    // fail. Excluding by name would have silently admitted it.
+    .filter((entry) => isStackVisibleStatus(entry.booking.status))
     .map((entry) => {
       const timing = isToday ? timingFor(entry, now) : QUIET;
       const id = String(entry.booking.id ?? "");

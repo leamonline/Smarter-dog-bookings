@@ -614,8 +614,8 @@ export function useBookings(
       // and not on undo, which sets status back to the previous value).
       if (
         !updatedBooking._skipCollectionPrompt &&
-        prevRow?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
-        persisted.status === BOOKING_STATUS.READY_FOR_PICKUP
+        prevRow?.status !== BOOKING_STATUS.READY_FOR_COLLECTION &&
+        persisted.status === BOOKING_STATUS.READY_FOR_COLLECTION
       ) {
         onReadyForPickupRef.current?.(persisted);
       }

@@ -33,9 +33,9 @@ function contrastRatio(foreground: string, background: string): number {
 
 const EVERY_STATUS = [
   BOOKING_STATUS.BOOKED,
-  BOOKING_STATUS.CHECKED_IN,
+  BOOKING_STATUS.ARRIVED,
   BOOKING_STATUS.IN_BATH,
-  BOOKING_STATUS.READY_FOR_PICKUP,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
   BOOKING_STATUS.COMPLETED,
   BOOKING_STATUS.CANCELLED,
 ];
@@ -43,9 +43,9 @@ const EVERY_STATUS = [
 describe("resolveDayStatus", () => {
   it.each([
     [BOOKING_STATUS.BOOKED, "expected", "Expected", true],
-    [BOOKING_STATUS.CHECKED_IN, "checkedIn", "Checked in", true],
+    [BOOKING_STATUS.ARRIVED, "checkedIn", "Checked in", true],
     [BOOKING_STATUS.IN_BATH, "inBath", "In the bath", true],
-    [BOOKING_STATUS.READY_FOR_PICKUP, "ready", "Ready", true],
+    [BOOKING_STATUS.READY_FOR_COLLECTION, "ready", "Ready", true],
     [BOOKING_STATUS.COMPLETED, "collected", "Collected", false],
   ] as Array<[string, DayStatusKey, string, boolean]>)(
     "%s maps to %s",
@@ -85,9 +85,9 @@ describe("resolveDayStatus", () => {
     const inStack = EVERY_STATUS.filter((status) => resolveDayStatus(status).inStack);
     expect(inStack).toEqual([
       BOOKING_STATUS.BOOKED,
-      BOOKING_STATUS.CHECKED_IN,
+      BOOKING_STATUS.ARRIVED,
       BOOKING_STATUS.IN_BATH,
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     ]);
   });
 });
@@ -98,9 +98,9 @@ describe("resolveDayStatus", () => {
 describe("palette matches the prototype", () => {
   it.each([
     ["expected", BOOKING_STATUS.BOOKED, null, "#E8ECF0", "#97A6B5"],
-    ["checked in", BOOKING_STATUS.CHECKED_IN, null, "#D3EAE4", "#2E8B76"],
+    ["checked in", BOOKING_STATUS.ARRIVED, null, "#D3EAE4", "#2E8B76"],
     ["in the bath", BOOKING_STATUS.IN_BATH, null, "#D9EAC6", "#5C9A33"],
-    ["ready", BOOKING_STATUS.READY_FOR_PICKUP, null, "#F7E6BE", "#B8860B"],
+    ["ready", BOOKING_STATUS.READY_FOR_COLLECTION, null, "#F7E6BE", "#B8860B"],
     ["no-show", BOOKING_STATUS.CANCELLED, NO_SHOW_REASON, "#F2D9D9", "#B33A3A"],
   ] as Array<[string, string, string | null, string, string]>)(
     "%s",
@@ -143,7 +143,7 @@ describe("palette contrast", () => {
 
 describe("BookingStatusBadge", () => {
   it("always renders the status as a word, not colour alone", () => {
-    render(<BookingStatusBadge status={BOOKING_STATUS.READY_FOR_PICKUP} />);
+    render(<BookingStatusBadge status={BOOKING_STATUS.READY_FOR_COLLECTION} />);
     expect(screen.getByText("Ready")).toBeTruthy();
   });
 

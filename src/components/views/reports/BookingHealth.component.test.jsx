@@ -18,7 +18,7 @@ function renderHealth(props = {}) {
           path="/reports/insights"
           element={
             <BookingHealth
-              statusAcc={{ [BOOKING_STATUS.READY_FOR_PICKUP]: 8, [BOOKING_STATUS.BOOKED]: 2 }}
+              statusAcc={{ [BOOKING_STATUS.READY_FOR_COLLECTION]: 8, [BOOKING_STATUS.BOOKED]: 2 }}
               totalPast={10}
               noShowN={1}
               noShowRate={9.090909}
@@ -82,7 +82,7 @@ describe("BookingHealth", () => {
   });
 
   it("hides the review prompt when nothing needs classifying", () => {
-    renderHealth({ needsClassificationN: 0, statusAcc: { [BOOKING_STATUS.READY_FOR_PICKUP]: 10 } });
+    renderHealth({ needsClassificationN: 0, statusAcc: { [BOOKING_STATUS.READY_FOR_COLLECTION]: 10 } });
 
     expect(screen.queryByRole("button", { name: /unclassified/i })).not.toBeInTheDocument();
   });

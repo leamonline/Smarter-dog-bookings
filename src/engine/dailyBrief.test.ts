@@ -50,14 +50,14 @@ describe("Daily Brief journey", () => {
       "paid",
     ]);
     expect(
-      buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_PICKUP })).map(
+      buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION })).map(
         (action) => action.id,
       ),
     ).toEqual(["checkIn", "startGroom", "waiting", "collected", "paid"]);
   });
 
   it("marks only the next incomplete care action as next while keeping payment available", () => {
-    const actions = buildJourneyActions(booking({ status: BOOKING_STATUS.CHECKED_IN }));
+    const actions = buildJourneyActions(booking({ status: BOOKING_STATUS.ARRIVED }));
     expect(actions.find((action) => action.id === "startGroom")?.next).toBe(true);
     expect(actions.find((action) => action.id === "paid")?.next).toBe(false);
   });
@@ -102,7 +102,7 @@ describe("Daily Brief journey", () => {
       "been checked in",
     );
     expect(
-      requiresCareSkipConfirmation(BOOKING_STATUS.CHECKED_IN, BOOKING_STATUS.IN_BATH),
+      requiresCareSkipConfirmation(BOOKING_STATUS.ARRIVED, BOOKING_STATUS.IN_BATH),
     ).toBeNull();
   });
 
@@ -110,7 +110,7 @@ describe("Daily Brief journey", () => {
     const grooming = buildJourneyActions(booking({ status: BOOKING_STATUS.IN_BATH }));
     expect(grooming.find((action) => action.id === "ready")?.next).toBe(true);
 
-    const ready = buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_PICKUP }));
+    const ready = buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION }));
     expect(ready.find((action) => action.id === "collected")?.next).toBe(true);
 
     const completed = buildJourneyActions(booking({ status: BOOKING_STATUS.COMPLETED }));
@@ -133,10 +133,10 @@ describe("Daily Brief journey", () => {
       [
         booking({
           id: "ready",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           readyAt: "2026-07-13T08:00:00Z",
         }),
-        booking({ id: "owing", status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "owing", status: BOOKING_STATUS.ARRIVED }),
       ],
       "2026-07-13",
       now,
@@ -198,11 +198,11 @@ describe("Daily Brief journey", () => {
         }),
         booking({
           id: "collection",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           readyAt: "2026-07-14T08:00:00Z",
           payment: "Paid in Full",
         }),
-        booking({ id: "payment", status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "payment", status: BOOKING_STATUS.ARRIVED }),
         booking({ id: "calm", slot: "12:00", payment: "Paid in Full" }),
       ],
       "2026-07-14",
@@ -230,9 +230,9 @@ describe("Daily Brief status board", () => {
     const board = buildDailyBriefBoard(
       [
         booking({ id: "due", status: BOOKING_STATUS.BOOKED }),
-        booking({ id: "checked-in", status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "checked-in", status: BOOKING_STATUS.ARRIVED }),
         booking({ id: "in-bath", status: BOOKING_STATUS.IN_BATH }),
-        booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
         booking({ id: "home", status: BOOKING_STATUS.COMPLETED }),
         booking({ id: "cancelled", status: BOOKING_STATUS.CANCELLED }),
         booking({ id: "unknown", status: "Awaiting magic" as Booking["status"] }),
@@ -304,7 +304,7 @@ describe("Daily Brief status board", () => {
       [
         booking({
           id: "on-site-recent",
-          status: BOOKING_STATUS.CHECKED_IN,
+          status: BOOKING_STATUS.ARRIVED,
           checkedInAt: "2026-07-14T09:00:00Z",
           slot: "09:30",
         }),
@@ -316,18 +316,18 @@ describe("Daily Brief status board", () => {
         }),
         booking({
           id: "on-site-unstamped",
-          status: BOOKING_STATUS.CHECKED_IN,
+          status: BOOKING_STATUS.ARRIVED,
           checkedInAt: null,
           slot: "08:00",
         }),
         booking({
           id: "ready-recent",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           readyAt: "2026-07-14T09:00:00Z",
         }),
         booking({
           id: "ready-longest",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           readyAt: "2026-07-14T08:00:00Z",
         }),
       ],
@@ -381,7 +381,7 @@ describe("Daily Brief status board", () => {
         booking({ id: "due", slot: "09:00", _bookingDate: "2026-07-15" }),
         booking({
           id: "ready",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           readyAt: "2026-07-15T08:00:00Z",
           _bookingDate: "2026-07-15",
         }),

@@ -68,7 +68,7 @@ export function GroomingHistory({
   }, [dogId, fetchBookingHistoryForDog]);
 
   const completed = useMemo(
-    () => history.filter((b) => b.status === BOOKING_STATUS.READY_FOR_PICKUP),
+    () => history.filter((b) => b.status === BOOKING_STATUS.READY_FOR_COLLECTION),
     [history],
   );
 
@@ -183,10 +183,10 @@ export function GroomingHistory({
                   <span
                     className="font-semibold text-[11px] shrink-0"
                     style={{
-                      color: b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "#16A34A" : undefined,
+                      color: b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? "#16A34A" : undefined,
                     }}
                   >
-                    {b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "Finished" : b.status}
+                    {b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? "Finished" : b.status}
                   </span>
                   {canOpen && (
                     <ChevronRight
