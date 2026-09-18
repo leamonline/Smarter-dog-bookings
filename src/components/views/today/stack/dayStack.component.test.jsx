@@ -327,18 +327,17 @@ describe("the actions a card offers", () => {
     expect(labels.join(" ")).not.toMatch(/text|message the owner|notif/i);
   });
 
-  it("offers collection on a dog that is ready", () => {
-    renderWithActions();
-    expect(actionsIn("waiting")).toEqual(
-      expect.arrayContaining(["Take £42 payment", "Mark collected"]),
-    );
-  });
-
-  it("keeps the engine's order rather than sorting them here", () => {
+  it("hands payment and collection to the chain, not the action list", () => {
     renderWithActions();
     const labels = actionsIn("waiting");
-    // Money first on a dog that owes: taking it is what unblocks the door.
-    expect(labels.indexOf("Take £42 payment")).toBeLessThan(labels.indexOf("Mark collected"));
+    expect(labels).not.toContain("Take £42 payment");
+    expect(labels).not.toContain("Mark collected");
+    expect(card("waiting").querySelector("[data-checkout-chain]")).toBeTruthy();
+  });
+
+  it("keeps the engine's other actions underneath the chain", () => {
+    renderWithActions();
+    expect(actionsIn("waiting")).toContain("Booking details");
   });
 
   it("offers a no-show only on a dog that has not arrived", () => {
@@ -353,7 +352,6 @@ describe("pressing an action", () => {
   it.each([
     ["arriving", "Check in", "checkIn"],
     ["bathing", "Mark ready", "ready"],
-    ["waiting", "Mark collected", "collected"],
     ["arriving", "Didn't show", "didntShow"],
   ])("%s → %s runs the %s action", (id, label, actionId) => {
     const { onAction } = renderWithActions();
@@ -399,5 +397,168 @@ describe("a no-show card", () => {
     fireEvent.click(head("absent"));
     expect(head("absent").getAttribute("aria-expanded")).toBe("true");
     expect(within(card("absent")).getByText("07700 900377")).toBeTruthy();
+  });
+});
+
+// ---- Check out ----------------------------------------------------------------
+
+function chainLabels(id) {
+  const chain = card(id).querySelector("[data-checkout-chain]");
+  return chain ? [...chain.querySelectorAll("button")].map((b) => b.textContent.trim()) : [];
+}
+
+function pressChain(id, label) {
+  fireEvent.click(
+    within(card(id)).getByLabelText(`${label} — ${BOOKINGS.find((b) => b.id === id).dogName}`),
+  );
+}
+
+function renderCheckout(extra = {}) {
+  const onCollectWithPayment = vi.fn();
+  const utils = renderStack({
+    tokensById: tokenMap(),
+    onAction: vi.fn(),
+    onCollectWithPayment,
+    ...extra,
+  });
+  fireEvent.click(head("waiting"));
+  return { ...utils, onCollectWithPayment };
+}
+
+describe("the check-out chain", () => {
+  it("starts as one button", () => {
+    renderCheckout();
+    expect(chainLabels("waiting")).toEqual(["Check out"]);
+  });
+
+  it("offers the balance by method once started", () => {
+    renderCheckout();
+    pressChain("waiting", "Check out");
+    expect(chainLabels("waiting")).toEqual(["Cash £42", "Card £42", "Back"]);
+  });
+
+  it("confirms the method and the figure before writing anything", () => {
+    const { onCollectWithPayment } = renderCheckout();
+    pressChain("waiting", "Check out");
+    pressChain("waiting", "Cash £42");
+    expect(chainLabels("waiting")).toEqual(["Collected · £42 cash", "Back"]);
+    expect(onCollectWithPayment).not.toHaveBeenCalled();
+  });
+
+  it("writes once, on the last press, with the method and the amount taken", () => {
+    const { onCollectWithPayment } = renderCheckout();
+    pressChain("waiting", "Check out");
+    pressChain("waiting", "Card £42");
+    pressChain("waiting", "Collected · £42 card");
+    expect(onCollectWithPayment).toHaveBeenCalledTimes(1);
+    const [booking, payload] = onCollectWithPayment.mock.calls[0];
+    expect(booking.id).toBe("waiting");
+    expect(payload).toEqual({ method: "card", amountTaken: 42 });
+  });
+
+  it("skips the payment step entirely when nothing is owed", () => {
+    const { onCollectWithPayment } = renderCheckout({
+      paymentOf: () => ({ kind: "paid", amountDue: 0, subtotal: 42, basePrice: 42, addonsTotal: 0 }),
+    });
+    expect(chainLabels("waiting")).toEqual(["Check out"]);
+    pressChain("waiting", "Check out");
+    expect(chainLabels("waiting")).toEqual(["Collected", "Back"]);
+    pressChain("waiting", "Collected");
+    expect(onCollectWithPayment.mock.calls[0][1]).toEqual({ method: null, amountTaken: 0 });
+  });
+
+  it("steps back to the method choice rather than abandoning the chain", () => {
+    renderCheckout();
+    pressChain("waiting", "Check out");
+    pressChain("waiting", "Cash £42");
+    pressChain("waiting", "Back");
+    expect(chainLabels("waiting")).toEqual(["Cash £42", "Card £42", "Back"]);
+  });
+
+  it("backs all the way out from the method choice", () => {
+    renderCheckout();
+    pressChain("waiting", "Check out");
+    pressChain("waiting", "Back");
+    expect(chainLabels("waiting")).toEqual(["Check out"]);
+  });
+
+  it("is blocked while a write for that dog is in flight", () => {
+    const { onCollectWithPayment } = renderCheckout({ busyIds: new Set(["waiting"]) });
+    pressChain("waiting", "Check out");
+    expect(onCollectWithPayment).not.toHaveBeenCalled();
+  });
+
+  it("does not appear on a dog that is not ready to go home", () => {
+    renderStack({ tokensById: tokenMap(), onAction: vi.fn(), onCollectWithPayment: vi.fn() });
+    fireEvent.click(head("bathing"));
+    expect(card("bathing").querySelector("[data-checkout-chain]")).toBeNull();
+  });
+});
+
+describe("the price on a card", () => {
+  const withPrice = (props = {}) => {
+    const onSetPrice = vi.fn();
+    const utils = renderStack({
+      tokensById: tokenMap(),
+      onAction: vi.fn(),
+      onCollectWithPayment: vi.fn(),
+      onSetPrice,
+      ...props,
+    });
+    fireEvent.click(head("waiting"));
+    return { ...utils, onSetPrice };
+  };
+
+  it("writes the edited figure in pounds", () => {
+    const { onSetPrice } = withPrice();
+    fireEvent.click(within(card("waiting")).getByLabelText(/Change the price for Bramble/));
+    const input = within(card("waiting")).getByLabelText("Price for Bramble, in pounds");
+    fireEvent.change(input, { target: { value: "55" } });
+    fireEvent.blur(input);
+    expect(onSetPrice).toHaveBeenCalledWith(expect.objectContaining({ id: "waiting" }), 55);
+  });
+
+  it("edits the base price, not the total, so add-ons are not counted twice", () => {
+    const { onSetPrice } = withPrice({
+      paymentOf: () => ({ kind: "due", amountDue: 52, subtotal: 52, basePrice: 42, addonsTotal: 10 }),
+    });
+    fireEvent.click(within(card("waiting")).getByLabelText(/Change the price for Bramble/));
+    const input = within(card("waiting")).getByLabelText("Price for Bramble, in pounds");
+    // The field opens on the BASE price, not the £52 total shown on the row.
+    expect(input.value).toBe("42");
+    fireEvent.change(input, { target: { value: "48" } });
+    fireEvent.blur(input);
+    expect(onSetPrice).toHaveBeenCalledWith(expect.anything(), 48);
+  });
+
+  it("shows the arithmetic when there are add-ons", () => {
+    withPrice({
+      paymentOf: () => ({ kind: "due", amountDue: 52, subtotal: 52, basePrice: 42, addonsTotal: 10 }),
+    });
+    expect(within(card("waiting")).getByText(/\(£42 \+ £10\)/)).toBeTruthy();
+  });
+
+  it("writes nothing when the figure is unchanged", () => {
+    const { onSetPrice } = withPrice();
+    fireEvent.click(within(card("waiting")).getByLabelText(/Change the price for Bramble/));
+    fireEvent.blur(within(card("waiting")).getByLabelText("Price for Bramble, in pounds"));
+    expect(onSetPrice).not.toHaveBeenCalled();
+  });
+
+  it("stops being editable once the chain has started", () => {
+    withPrice();
+    expect(within(card("waiting")).queryByLabelText(/Change the price for Bramble/)).toBeTruthy();
+    pressChain("waiting", "Check out");
+    expect(within(card("waiting")).queryByLabelText(/Change the price for Bramble/)).toBeNull();
+  });
+});
+
+describe("the route to the full invoice", () => {
+  it("is offered quietly, for the add-on, split or discount the chain cannot do", () => {
+    const onOpenInvoice = vi.fn();
+    renderStack({ tokensById: tokenMap(), onAction: vi.fn(), onOpenInvoice });
+    fireEvent.click(head("waiting"));
+    fireEvent.click(within(card("waiting")).getByLabelText("Open full invoice — Bramble"));
+    expect(onOpenInvoice).toHaveBeenCalledWith(expect.objectContaining({ id: "waiting" }));
   });
 });

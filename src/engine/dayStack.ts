@@ -199,3 +199,95 @@ export function selectCollected(bookings: Booking[], dateStr: string, now: Date)
       return bTime - aTime;
     });
 }
+
+// ---- Check out ---------------------------------------------------------------
+//
+// Handing a dog back is three presses when there is money to take and two when
+// there is not:
+//
+//     Check out  →  Cash £32 | Card £32  →  Collected · £32 cash
+//     Check out  →  Collected
+//
+// Each step replaces the last in the same place on the card, so the button
+// under the thumb never moves and the sequence reads as one gesture rather than
+// three separate decisions. Only the final press writes anything.
+//
+// The shape is deliberate. Taking the money and handing the dog back are one
+// action to the person doing them, but two facts to record, and the old board
+// split them across a menu item and a modal. Collapsing them into one chain —
+// and one database write — means a dog cannot end up collected but unpaid
+// because somebody was interrupted between two taps.
+
+/** Where a card's check-out chain has got to. `null` means not started. */
+export type CheckoutStep = null | "method" | "confirm";
+
+export interface CheckoutButton {
+  id: "start" | "cash" | "card" | "collect" | "back";
+  label: string;
+  kind: "primary" | "default" | "quiet";
+  /** The payment method this press selects, when it selects one. */
+  method?: "cash" | "card";
+}
+
+export interface CheckoutChainInput {
+  step: CheckoutStep;
+  /** Balance still owed (£). Zero or null means there is nothing to take. */
+  amountDue: number | null;
+  /** The method chosen at the previous step, once one has been. */
+  method: "cash" | "card" | null;
+}
+
+function money(amount: number): string {
+  // Whole pounds read faster across a counter, and the salon's prices are whole
+  // pounds; a genuine 50p balance still prints in full rather than rounding
+  // away, because a figure a customer can dispute must match the card machine.
+  return Number.isInteger(amount) ? `£${amount}` : `£${amount.toFixed(2)}`;
+}
+
+/**
+ * The buttons for the current step of the chain.
+ *
+ * Pure, so the sequence can be tested without a card: given where we are and
+ * what is owed, what does the staff member see next.
+ */
+export function checkoutChain({ step, amountDue, method }: CheckoutChainInput): CheckoutButton[] {
+  const owed = amountDue != null && amountDue > 0;
+
+  if (step === null) {
+    return [{ id: "start", label: "Check out", kind: "primary" }];
+  }
+
+  if (step === "method" && owed) {
+    const due = money(amountDue as number);
+    return [
+      { id: "cash", label: `Cash ${due}`, kind: "primary", method: "cash" },
+      { id: "card", label: `Card ${due}`, kind: "primary", method: "card" },
+      { id: "back", label: "Back", kind: "quiet" },
+    ];
+  }
+
+  // The confirm step, reached either after choosing a method or straight from
+  // the start when there is nothing to take.
+  const label = owed && method
+    ? `Collected · ${money(amountDue as number)} ${method === "cash" ? "cash" : "card"}`
+    : "Collected";
+  return [
+    { id: "collect", label, kind: "primary" },
+    { id: "back", label: "Back", kind: "quiet" },
+  ];
+}
+
+/** The step a press moves to, or "done" when it is the one that writes. */
+export function nextCheckoutStep(
+  buttonId: CheckoutButton["id"],
+  { step, amountDue }: Pick<CheckoutChainInput, "step" | "amountDue">,
+): CheckoutStep | "done" {
+  const owed = amountDue != null && amountDue > 0;
+  if (buttonId === "start") return owed ? "method" : "confirm";
+  if (buttonId === "cash" || buttonId === "card") return "confirm";
+  if (buttonId === "collect") return "done";
+  // Back steps one place, never all the way out of a chain mid-way: from the
+  // confirm step of a paying visit it returns to the method choice.
+  if (step === "confirm" && owed) return "method";
+  return null;
+}

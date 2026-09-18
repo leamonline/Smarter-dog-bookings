@@ -28,6 +28,9 @@ export function DayStack({
   highlightIds = null,
   tokensById = null,
   onAction,
+  onCollectWithPayment,
+  onSetPrice,
+  onOpenInvoice,
   busyIds = null,
   emptyMessage = "No bookings on this date",
 }) {
@@ -60,6 +63,9 @@ export function DayStack({
           dimmed={!!highlightIds && !highlightIds.has(row.id)}
           token={tokensById?.get(row.id) ?? null}
           onAction={onAction}
+          onCollectWithPayment={onCollectWithPayment}
+          onSetPrice={onSetPrice}
+          onOpenInvoice={onOpenInvoice}
           busy={!!busyIds?.has(row.id)}
           expanded={openId === row.id}
           onToggle={() => toggle(row.id)}

@@ -14,6 +14,8 @@
 // "Didn't show" cancels a booking, and skipping a care step still asks.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../../../constants/index";
+import { buildMarkPaidPatch } from "../../../engine/bookingRules";
+import type { BookingPricingInput } from "../../../engine/bookingRules";
 import { requiresCareSkipConfirmation } from "../../../engine/dailyBrief";
 import {
   BOARD_ZONE_META,
@@ -329,6 +331,92 @@ export function useBookingActions({
     );
   }, [patch, unconfirmArrival]);
 
+  /**
+   * The stack's check-out chain, as ONE write.
+   *
+   * Taking the money and handing the dog back are a single action to the person
+   * doing them, and splitting them across two saves opens a window where a dog
+   * is collected but unpaid — which is exactly the state the day's takings then
+   * under-report. Both facts go in one patch, down the same path as every other
+   * write, so the gates, the rollback and the Undo all behave identically.
+   *
+   * `paidAmount` is the amount actually handed over, not the appointment's gross
+   * value. On a deposit-paid visit those differ, and the till only saw the
+   * balance. (The existing mini-invoice writes the gross; that is issue #874 and
+   * is deliberately not changed here.)
+   *
+   * Undo restores BOTH facts. Reverting `payment` away from "Paid in Full" also
+   * makes the database trigger clear paid_at, the method and the amount, so the
+   * booking lands back exactly where it started.
+   */
+  const collectWithPayment = useCallback(async (
+    booking: Booking,
+    pricingInput: BookingPricingInput,
+    method: string,
+    amountTaken: number,
+  ) => {
+    const dogName = booking.dogName || "This dog";
+    const previousStatus = booking.status;
+    const previousPayment = booking.payment;
+
+    const saved: { row: Booking | null } = { row: null };
+    const persisted = await patch(
+      booking,
+      {
+        ...buildMarkPaidPatch(pricingInput, method, amountTaken),
+        status: BOOKING_STATUS.COMPLETED,
+        _skipCollectionPrompt: true,
+      } as Partial<Booking>,
+      `${dogName} collected — home today`,
+      "Collection could not be saved.",
+      {
+        successAction: {
+          label: "Undo",
+          onClick: () => {
+            void patch(
+              saved.row ?? booking,
+              {
+                status: previousStatus,
+                payment: previousPayment,
+                paymentMethod: null,
+                paidAmount: null,
+                _skipCollectionPrompt: true,
+              } as Partial<Booking>,
+              `${dogName} is back on the list, payment undone`,
+              "That change could not be undone.",
+            );
+          },
+        },
+      },
+    );
+    saved.row = persisted;
+    return persisted;
+  }, [patch]);
+
+  /**
+   * A one-off agreed price for THIS visit.
+   *
+   * Written in POUNDS, because that is what `bookings.price_override` holds and
+   * what computeBookingPricing expects back. The column's only constraint is
+   * `> 0`, so a figure in pence would pass validation and overcharge by a
+   * hundred times; the guard below is the one that actually protects it.
+   *
+   * It is the BASE price, before add-ons. Writing a subtotal here would add the
+   * add-ons again on the next read.
+   */
+  const setPrice = useCallback((booking: Booking, pounds: number) => {
+    if (!Number.isFinite(pounds) || pounds <= 0) {
+      toast.show("Enter a price above £0", "info");
+      return Promise.resolve(null);
+    }
+    return patch(
+      booking,
+      { priceOverride: Math.round(pounds * 100) / 100 } as Partial<Booking>,
+      "Price updated",
+      "The price could not be saved.",
+    );
+  }, [patch, toast]);
+
   const saveInvoice = useCallback(
     (booking: Booking, invoicePatch: Partial<Booking>) => patch(
       booking,
@@ -434,6 +522,8 @@ export function useBookingActions({
     confirmCareSkip,
     runTokenAction,
     markCollected,
+    collectWithPayment,
+    setPrice,
     saveInvoice,
     consumeLocalMove,
     resetLocalMoves,

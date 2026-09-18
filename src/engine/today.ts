@@ -164,6 +164,14 @@ export interface PaymentInfo {
   amountDue: number | null;
   depositPaid: number;
   subtotal: number;
+  /**
+   * The base price before add-ons (£). This is what `price_override` holds, so
+   * it is also the only figure an editor may write back: writing a subtotal
+   * into the override would add the add-ons a second time on the next read.
+   */
+  basePrice: number;
+  /** Add-ons total (£), stated separately so the arithmetic is visible. */
+  addonsTotal: number;
 }
 
 export function paymentState(
@@ -182,16 +190,17 @@ export function paymentState(
     configPricing,
   });
   const raw = (b.payment || "Due at Pick-up").trim();
+  const money = { subtotal: pricing.subtotal, basePrice: pricing.basePrice, addonsTotal: pricing.addonsTotal };
   if (raw === "Paid in Full") {
-    return { kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, subtotal: pricing.subtotal };
+    return { kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, ...money };
   }
   if (raw === "Deposit Paid") {
-    return { kind: "deposit", label: "Deposit paid", amountDue: pricing.amountDue, depositPaid: pricing.depositPaid, subtotal: pricing.subtotal };
+    return { kind: "deposit", label: "Deposit paid", amountDue: pricing.amountDue, depositPaid: pricing.depositPaid, ...money };
   }
   if (raw === "Due at Pick-up") {
-    return { kind: "due", label: "Balance due", amountDue: pricing.amountDue, depositPaid: 0, subtotal: pricing.subtotal };
+    return { kind: "due", label: "Balance due", amountDue: pricing.amountDue, depositPaid: 0, ...money };
   }
-  return { kind: "other", label: raw, amountDue: null, depositPaid: 0, subtotal: pricing.subtotal };
+  return { kind: "other", label: raw, amountDue: null, depositPaid: 0, ...money };
 }
 
 /** Any non-paid, non-cancelled booking still owes money. */

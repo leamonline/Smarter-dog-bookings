@@ -327,6 +327,27 @@ export function TodayView({
     amountDueFor,
   });
 
+  // The chain hands back a method and the amount taken; the pricing inputs it
+  // needs to record the payment are resolved here, where the dog is in scope.
+  const collectWithPayment = useCallback((booking, { method, amountTaken }) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return actions.collectWithPayment(
+      booking,
+      {
+        service: booking.service,
+        size: booking.size,
+        addons: booking.addons,
+        payment: booking.payment,
+        depositAmount: booking.depositAmount,
+        priceOverride: booking.priceOverride,
+        customPrice: dog?.customPrice,
+        configPricing,
+      },
+      method,
+      amountTaken,
+    );
+  }, [actions, dogs, configPricing]);
+
   useEffect(() => {
     setAttentionReason(null);
     setSelectedTokenId(null);
@@ -539,6 +560,9 @@ export function TodayView({
                   highlightIds={highlightIds}
                   tokensById={tokensById}
                   onAction={actions.runTokenAction}
+                  onCollectWithPayment={collectWithPayment}
+                  onSetPrice={actions.setPrice}
+                  onOpenInvoice={actions.setInvoiceBooking}
                   busyIds={actions.busyIds}
                 />
               )}

@@ -21,7 +21,7 @@
 // The safety chip is a real button, so it cannot live inside the disclosure
 // button. It sits beside it instead, which also means the two are independently
 // tappable at full size.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Car, Clock } from "lucide-react";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { BookingStatusBadge, resolveDayStatus } from "../../../ui";
@@ -29,6 +29,11 @@ import { SafetyAlertChip } from "../../../ui/SafetyAlertChip.jsx";
 import { firstName, telephoneHref } from "../parts.jsx";
 import { titleCase } from "../../../../utils/text";
 import { StackActions } from "./StackActions.jsx";
+import { CheckoutChain } from "./CheckoutChain.jsx";
+import { PriceField } from "./PriceField.jsx";
+
+/** The two engine actions the check-out chain speaks for. */
+const CHAINED = new Set(["payment", "collected"]);
 
 /** Left-rule weight, in pixels. The only thing urgency changes about colour. */
 const RULE_CALM = 7;
@@ -65,6 +70,9 @@ export function StackCard({
   token = null,
   onAction,
   busy = false,
+  onCollectWithPayment,
+  onSetPrice,
+  onOpenInvoice,
 }) {
   const { booking, timing, urgent, readyOverdue } = row;
   const tone = resolveDayStatus(booking.status, booking.cancelReason);
@@ -88,7 +96,9 @@ export function StackCard({
 
   // Legality lives in the engine. This card asks what is allowed and renders
   // the answer; it never decides, and it never adds a transition of its own.
-  const actions = useMemo(() => {
+  const [chainOpen, setChainOpen] = useState(false);
+
+  const allActions = useMemo(() => {
     if (!token) return [];
     return tokenActions(token, {
       amountDue,
@@ -101,6 +111,16 @@ export function StackCard({
       hasDog: !!booking._dogId,
     });
   }, [token, amountDue, payment, display.ownerPhone, display.owner, dogName, ownerName, booking]);
+
+  // The chain PRESENTS two of the engine's actions rather than replacing them:
+  // it appears exactly when `collected` is legal, and the payment and collect
+  // entries drop out of the list because the chain is now how you reach them.
+  // Everything else the engine offers still renders underneath.
+  const showChain = allActions.some((action) => action.id === "collected");
+  const actions = useMemo(
+    () => allActions.filter((action) => !CHAINED.has(action.id)),
+    [allActions],
+  );
 
   // One sentence, in the order a person would say it. The badge and the chip
   // are both aria-hidden precisely so this is the single spoken version.
@@ -229,7 +249,18 @@ export function StackCard({
               {lastVisit ? <DetailRow label="Last visit">{lastVisit}</DetailRow> : null}
               {payment?.subtotal != null ? (
                 <DetailRow label="Price">
-                  <span className="font-medium tabular-nums">{moneyLabel(payment.subtotal)}</span>
+                  <PriceField
+                    basePrice={payment.basePrice}
+                    addonsTotal={payment.addonsTotal}
+                    subtotal={payment.subtotal}
+                    tone={tone}
+                    dogName={dogName}
+                    // "Editable before payment" — once the chain has started,
+                    // the figure on the buttons is the figure being handed over
+                    // and must not move underneath it.
+                    editable={!!onSetPrice && !chainOpen && payment.kind !== "paid"}
+                    onSave={(pounds) => onSetPrice?.(booking, pounds)}
+                  />
                 </DetailRow>
               ) : null}
             </div>
@@ -243,6 +274,20 @@ export function StackCard({
               </p>
             ) : null}
 
+            {showChain ? (
+              <CheckoutChain
+                amountDue={amountDue}
+                tone={tone}
+                dogName={dogName}
+                busy={busy}
+                onStepChange={(step) => setChainOpen(step !== null)}
+                onCollect={({ method, amountDue: taken }) => {
+                  setChainOpen(false);
+                  onCollectWithPayment?.(booking, { method, amountTaken: taken });
+                }}
+              />
+            ) : null}
+
             <StackActions
               actions={actions}
               onSelect={(action) => {
@@ -253,6 +298,28 @@ export function StackCard({
               dogName={dogName}
               busy={busy}
             />
+
+            {/*
+              The inline chain covers the common case. The moment there is an
+              add-on to add, a split to record or a discount to give, staff need
+              the real thing — and the old board, which was the other way to
+              reach it, is going behind a flag.
+            */}
+            {onOpenInvoice && payment?.kind !== "other" ? (
+              <button
+                type="button"
+                data-open-invoice
+                aria-label={`Open full invoice — ${dogName}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenInvoice(booking);
+                }}
+                className="mt-2.5 min-h-11 text-left text-[13.5px] underline underline-offset-2"
+                style={{ color: "var(--card-meta)" }}
+              >
+                Open full invoice
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

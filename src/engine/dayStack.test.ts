@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildDayStack, selectCollected, READY_OVERDUE_MINUTES } from "./dayStack";
+import {
+  buildDayStack,
+  checkoutChain,
+  nextCheckoutStep,
+  selectCollected,
+  READY_OVERDUE_MINUTES,
+} from "./dayStack";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../constants/index";
 import type { Booking } from "../types/index";
 
@@ -250,5 +256,69 @@ describe("selectCollected", () => {
       NOW,
     );
     expect(collected.map((b) => b.id)).toEqual(["stamped", "nostamp"]);
+  });
+});
+
+// ---- The check-out chain ------------------------------------------------------
+
+describe("checkoutChain", () => {
+  const owing = { amountDue: 42, method: null } as const;
+
+  it("starts as a single press", () => {
+    expect(checkoutChain({ step: null, ...owing }).map((b) => b.label)).toEqual(["Check out"]);
+  });
+
+  it("offers the balance by method, with a way back", () => {
+    expect(checkoutChain({ step: "method", ...owing }).map((b) => b.label))
+      .toEqual(["Cash £42", "Card £42", "Back"]);
+  });
+
+  it("names the method and the figure on the confirming press", () => {
+    expect(checkoutChain({ step: "confirm", amountDue: 42, method: "cash" })[0].label)
+      .toBe("Collected · £42 cash");
+  });
+
+  it("prints pence when a balance has them, so it matches the card machine", () => {
+    expect(checkoutChain({ step: "method", amountDue: 42.5, method: null })[0].label)
+      .toBe("Cash £42.50");
+  });
+
+  it("has no payment step at all when nothing is owed", () => {
+    expect(checkoutChain({ step: "confirm", amountDue: 0, method: null }).map((b) => b.label))
+      .toEqual(["Collected", "Back"]);
+  });
+
+  it("treats a null balance as nothing to take", () => {
+    expect(checkoutChain({ step: "confirm", amountDue: null, method: null })[0].label)
+      .toBe("Collected");
+  });
+});
+
+describe("nextCheckoutStep", () => {
+  it("goes through the method choice when there is money to take", () => {
+    expect(nextCheckoutStep("start", { step: null, amountDue: 42 })).toBe("method");
+  });
+
+  it("skips straight to confirming when there is not", () => {
+    expect(nextCheckoutStep("start", { step: null, amountDue: 0 })).toBe("confirm");
+  });
+
+  it("moves from either method to confirming", () => {
+    expect(nextCheckoutStep("cash", { step: "method", amountDue: 42 })).toBe("confirm");
+    expect(nextCheckoutStep("card", { step: "method", amountDue: 42 })).toBe("confirm");
+  });
+
+  it("only writes on the final press", () => {
+    expect(nextCheckoutStep("collect", { step: "confirm", amountDue: 42 })).toBe("done");
+  });
+
+  it("steps back one place rather than abandoning a chain mid-way", () => {
+    // The mistake this exists to fix is usually "wrong method", not "wrong dog".
+    expect(nextCheckoutStep("back", { step: "confirm", amountDue: 42 })).toBe("method");
+    expect(nextCheckoutStep("back", { step: "method", amountDue: 42 })).toBeNull();
+  });
+
+  it("backs all the way out of a two-step chain, which has nowhere in between", () => {
+    expect(nextCheckoutStep("back", { step: "confirm", amountDue: 0 })).toBeNull();
   });
 });
