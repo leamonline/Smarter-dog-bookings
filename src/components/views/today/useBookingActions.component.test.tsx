@@ -297,3 +297,23 @@ describe("marking a dog ready never messages anyone by itself", () => {
     expect(onSendCollection).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Staff "Confirm" advances the lifecycle under the same guards as the
+// customer path. The guards themselves are enforced in useBookings' write
+// payload; these assert the hook's own confirm action still behaves.
+describe("staff confirmation", () => {
+  it("stamps the confirmation pair as staff-sourced", async () => {
+    const { result, onUpdateBooking } = setup();
+    await act(async () => {
+      await result.current.runTokenAction(
+        { booking: { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.BOOKED } } as never,
+        { id: "confirm" } as never,
+      );
+    });
+    const row = writtenRow(onUpdateBooking);
+    expect(row._confirmArrival).toBe(true);
+    expect(row.reminderConfirmedBy).toBe("staff");
+    expect(row.reminderState).toBe("confirmed");
+  });
+});
