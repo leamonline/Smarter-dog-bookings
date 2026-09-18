@@ -9,7 +9,9 @@
 
 Every rendered state came from the offline sample dataset, never production. The app was
 built and served with `VITE_FORCE_OFFLINE=1`, then driven by Playwright with a fixed clock,
-copying the harness of [`e2e/daily-brief.spec.ts`](../../e2e/daily-brief.spec.ts).
+copying the harness of `e2e/daily-brief.spec.ts` — since replaced by
+[`e2e/day-stack.spec.ts`](../../e2e/day-stack.spec.ts) when the four-zone board became the
+time-ordered day stack.
 
 ```bash
 VITE_FORCE_OFFLINE=1 npm run build

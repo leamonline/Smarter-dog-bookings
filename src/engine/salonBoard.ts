@@ -560,7 +560,12 @@ export function tokenActions(token: BoardToken, context: TokenActionContext = {}
     actions.push(
       booking.status === BOOKING_STATUS.CHECKED_IN
         ? { id: "startGroom", label: "Start groom", kind: "primary" }
-        : { id: "ready", label: "Ready for collection", kind: "primary" },
+        // "Mark ready", not "Ready for collection" and emphatically not
+        // "texts owner": pressing this sends nothing. It opens a prompt where
+        // staff choose whether to message, and they often choose not to. A
+        // button that claims to have sent a message people did not send is how
+        // an owner ends up waiting in a car park.
+        : { id: "ready", label: "Mark ready", kind: "primary" },
     );
   } else if (token.zone === "ready") {
     // Money first when there is money: taking it is what actually blocks the

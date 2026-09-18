@@ -243,6 +243,10 @@ function DailyBriefUpdateHarness() {
           toggleImmediateSlot={vi.fn()}
           onRefresh={bookingState.refetch}
           configPricing={null}
+          // The subject here is useBookings' error handling, reached through a
+          // status write. The stack grows its own actions in a later step; until
+          // then the board is the surface that has one.
+          useLegacyBoard
         />
       </ToastProvider>
     </MemoryRouter>

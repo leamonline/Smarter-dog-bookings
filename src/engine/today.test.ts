@@ -34,6 +34,7 @@ import {
   countDogsPerOwner,
   selectDogsMissingSize,
 } from "./today";
+import { buildDailyBriefFeed } from "./dailyBrief";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking, Dog } from "../types/index";
 
@@ -1072,5 +1073,181 @@ describe("selectDogsMissingSize", () => {
     expect(selectDogsMissingSize({}, dogs, "2026-08-24")).toEqual([]);
     expect(selectDogsMissingSize(null, dogs, "2026-08-24")).toEqual([]);
     expect(selectDogsMissingSize(byDate(bk("d1", "2026-08-26", "09:00")), null, "2026-08-24")).toEqual([]);
+  });
+});
+
+// ---- No-show visibility opt-in -------------------------------------------------
+//
+// A no-show is a Cancelled booking carrying `cancel_reason = 'No-show'`. Every
+// existing day surface drops it, and must keep dropping it. The day stack needs
+// it on screen, so the feed builders take an opt-in that defaults to off.
+//
+// The guarantee these tests exist to protect: opting IN changes visibility and
+// nothing else. A no-show never becomes countable, never becomes "Next", never
+// owes money and never asks for action.
+
+describe("no-show visibility", () => {
+  const noShow = bk({
+    id: "ns1",
+    dogName: "Hugo",
+    slot: "09:00",
+    status: "Cancelled",
+    cancelReason: "No-show",
+    _bookingDate: TODAY,
+  });
+  const cancelled = bk({
+    id: "c1",
+    dogName: "Rolo",
+    slot: "09:30",
+    status: "Cancelled",
+    cancelReason: "Rescheduled via WhatsApp",
+    _bookingDate: TODAY,
+  });
+  const booked = bk({
+    id: "b1",
+    dogName: "Maisie",
+    slot: "12:00",
+    status: "Booked",
+    _bookingDate: TODAY,
+  });
+  const all = [noShow, cancelled, booked];
+
+  describe("buildTodayFeed", () => {
+    it("drops every cancelled booking by default", () => {
+      const ids = buildTodayFeed(all, NOW_SUMMER).map((e) => e.booking.id);
+      expect(ids).toEqual(["b1"]);
+    });
+
+    it("includes a no-show when opted in, in time order", () => {
+      const ids = buildTodayFeed(all, NOW_SUMMER, { includeNoShows: true })
+        .map((e) => e.booking.id);
+      expect(ids).toEqual(["ns1", "b1"]);
+    });
+
+    it("still drops an ordinary cancellation when opted in", () => {
+      const ids = buildTodayFeed(all, NOW_SUMMER, { includeNoShows: true })
+        .map((e) => e.booking.id);
+      expect(ids).not.toContain("c1");
+    });
+
+    it("gives a no-show its own stage, never 'booked'", () => {
+      const entry = buildTodayFeed([noShow], NOW_SUMMER, { includeNoShows: true })[0];
+      expect(entry.stage).toBe("noShow");
+    });
+
+    it("never flags a no-show as the next arrival", () => {
+      // 09:00 sorts before 12:00, so a no-show taking stage "booked" would win
+      // the "Next" scan outright and mislabel the real next dog.
+      const feed = buildTodayFeed(all, NOW_SUMMER, { includeNoShows: true });
+      expect(feed.find((e) => e.isNext)?.booking.id).toBe("b1");
+    });
+
+    it("leaves every attention flag off a no-show", () => {
+      const entry = buildTodayFeed([noShow], NOW_SUMMER, { includeNoShows: true })[0];
+      expect(entry.isLate).toBe(false);
+      expect(entry.isUnconfirmed).toBe(false);
+      expect(entry.owes).toBe(false);
+      expect(entry.needsAction).toBe(false);
+      expect(entry.actionReasons).toEqual([]);
+      expect(entry.waitMinutes).toBeNull();
+    });
+
+    it("matches the no-show reason regardless of case and padding", () => {
+      const padded = bk({ ...noShow, id: "ns2", cancelReason: "  NO-SHOW  " });
+      const ids = buildTodayFeed([padded], NOW_SUMMER, { includeNoShows: true })
+        .map((e) => e.booking.id);
+      expect(ids).toEqual(["ns2"]);
+    });
+  });
+
+  describe("buildFutureDayFeed", () => {
+    it("drops cancelled bookings by default", () => {
+      expect(buildFutureDayFeed(all).map((e) => e.booking.id)).toEqual(["b1"]);
+    });
+
+    it("includes a no-show when opted in, with its own stage", () => {
+      const feed = buildFutureDayFeed(all, { includeNoShows: true });
+      expect(feed.map((e) => e.booking.id)).toEqual(["ns1", "b1"]);
+      expect(feed[0].stage).toBe("noShow");
+    });
+  });
+
+  describe("buildDailyBriefFeed", () => {
+    it("passes the opt-in through on the today branch", () => {
+      expect(buildDailyBriefFeed(all, TODAY, NOW_SUMMER).map((e) => e.booking.id))
+        .toEqual(["b1"]);
+      expect(
+        buildDailyBriefFeed(all, TODAY, NOW_SUMMER, { includeNoShows: true })
+          .map((e) => e.booking.id),
+      ).toEqual(["ns1", "b1"]);
+    });
+
+    it("passes the opt-in through on the future-day branch", () => {
+      const future = "2026-07-09";
+      expect(buildDailyBriefFeed(all, future, NOW_SUMMER).map((e) => e.booking.id))
+        .toEqual(["b1"]);
+      expect(
+        buildDailyBriefFeed(all, future, NOW_SUMMER, { includeNoShows: true })
+          .map((e) => e.booking.id),
+      ).toEqual(["ns1", "b1"]);
+    });
+  });
+});
+
+// ---- Takings rows --------------------------------------------------------------
+//
+// The per-dog rows come back from the same pass that builds the total, so a
+// list rendered under a figure can never fail to add up to it.
+
+describe("buildTakingsByMethod rows", () => {
+  const paid = (over: Partial<Booking>) => bk({
+    service: "full-groom",
+    size: "small",
+    payment: "Paid in Full",
+    ...over,
+  });
+
+  it("returns one row per settled booking, and they sum to the total", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", dogName: "Bella", paymentMethod: "cash", paidAmount: 42 }),
+      paid({ id: "b", dogName: "Max", paymentMethod: "card", paidAmount: 38 }),
+    ]);
+    expect(takings.bookings).toHaveLength(2);
+    expect(takings.bookings.reduce((sum, row) => sum + row.amount, 0)).toBe(takings.total);
+    expect(takings.total).toBe(80);
+  });
+
+  it("separates cash from card", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", paymentMethod: "cash", paidAmount: 42 }),
+      paid({ id: "b", paymentMethod: "cash", paidAmount: 10 }),
+      paid({ id: "c", paymentMethod: "card", paidAmount: 38 }),
+    ]);
+    const cash = takings.byMethod.find((m) => m.method === "cash");
+    const card = takings.byMethod.find((m) => m.method === "card");
+    expect(cash).toMatchObject({ label: "Cash", amount: 52, count: 2 });
+    expect(card).toMatchObject({ label: "Card", amount: 38, count: 1 });
+  });
+
+  it("labels a legacy row with no recorded method rather than hiding it", () => {
+    const takings = buildTakingsByMethod([paid({ id: "a", paidAmount: 42 })]);
+    expect(takings.bookings[0].label).toBe("Not recorded");
+    expect(takings.total).toBe(42);
+  });
+
+  it("puts the most recently collected dog first", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "early", paidAmount: 10, completedAt: "2026-07-14T08:00:00Z" }),
+      paid({ id: "late", paidAmount: 20, completedAt: "2026-07-14T11:00:00Z" }),
+    ]);
+    expect(takings.bookings.map((row) => row.booking.id)).toEqual(["late", "early"]);
+  });
+
+  it("leaves an unsettled booking out of the rows entirely", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", paidAmount: 42, paymentMethod: "cash" }),
+      bk({ id: "b", payment: "Due at Pick-up", service: "full-groom", size: "small" }),
+    ]);
+    expect(takings.bookings.map((row) => row.booking.id)).toEqual(["a"]);
   });
 });

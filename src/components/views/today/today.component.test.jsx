@@ -71,6 +71,10 @@ const selectedViewProps = {
   onSendCollection: noop,
   toggleImmediateSlot: noop,
   onRefresh: noop,
+  // This file covers the four-zone board, which now ships behind
+  // FEATURE_FLAGS.legacy_salon_board_enabled. Opt in explicitly so the board's
+  // behaviour stays under test while it is still a supported fallback.
+  useLegacyBoard: true,
 };
 
 function LocationProbe() {
@@ -141,7 +145,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -172,7 +176,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -207,7 +211,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
     expect(token("Jack")).toHaveAttribute("aria-busy", "true");
 
     await act(async () => resolveSave({ id: "b-selected", status: "Ready for pick-up" }));

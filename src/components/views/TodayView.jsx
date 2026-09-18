@@ -26,15 +26,18 @@ import {
   selectDogsMissingSize,
 } from "../../engine/today";
 import {
+  BOARD_ZONES,
   BOARD_ZONE_META,
   buildAttentionSummary,
   buildBoardTokens,
   buildZoneCounts,
 } from "../../engine/salonBoard";
+import { buildDayStack } from "../../engine/dayStack";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { buildDailyBriefBoard } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
 import { BOOKING_STATUS } from "../../constants/index";
+import { FEATURE_FLAGS } from "../../constants/features";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
@@ -49,6 +52,8 @@ import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
 import { useBookingActions } from "./today/useBookingActions.ts";
 import { SalonBoard } from "./today/board/SalonBoard.jsx";
 import { CompletedDogs, EndOfDayFacts } from "./today/board/CompletedDogs.jsx";
+import { DayStack } from "./today/stack/DayStack.jsx";
+import { CollectedSummary } from "./today/stack/CollectedSummary.jsx";
 import { UnknownStatusRecovery } from "./today/board/UnknownStatusRecovery.jsx";
 
 // Mirrors the real board: three zones of token ghosts.
@@ -105,6 +110,12 @@ export function TodayView({
   toggleImmediateSlot,
   onRefresh,
   configPricing,
+  /**
+   * Escape hatch back to the four-zone board. Off by default; see
+   * FEATURE_FLAGS.legacy_salon_board_enabled. Taken as a prop so the board's
+   * own tests can exercise it without reaching into module state.
+   */
+  useLegacyBoard = FEATURE_FLAGS.legacy_salon_board_enabled,
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -121,6 +132,8 @@ export function TodayView({
   // Which attention reason is highlighted, or null. Per-reason rather than a
   // single union toggle: "highlight the 2 late dogs" beats "highlight all 11".
   const [attentionReason, setAttentionReason] = useState(null);
+  // Board only: which token has its action panel open. The stack keeps its own
+  // open-row state inside DayStack, because only one row opens at a time there.
   const [selectedTokenId, setSelectedTokenId] = useState(null);
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
   const previousZonesRef = useRef(null);
@@ -203,6 +216,39 @@ export function TodayView({
     () => buildBoardTokens({ board, now, isToday, flaggedBookingIds }),
     [board, now, isToday, flaggedBookingIds],
   );
+
+  // ---- The stack ----
+  // Built from the feed directly rather than from the zoned board: the stack is
+  // strict time order, and the board's job is to rank within a zone. Breeds are
+  // resolved here so the pure layer needs no dog lookup.
+  const breedById = useMemo(() => {
+    const map = {};
+    for (const booking of selectedBookings) {
+      const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+      if (dog?.breed) map[String(booking.id)] = dog.breed;
+    }
+    return map;
+  }, [selectedBookings, dogs]);
+
+  const stackRows = useMemo(
+    () => buildDayStack({ bookings: selectedBookings, dateStr, now, breedById }),
+    [selectedBookings, dateStr, now, breedById],
+  );
+
+  // The stack renders in time order but still asks the board layer what each
+  // dog's legal actions are, so `tokenActions` stays the one place that knows.
+  const tokensById = useMemo(() => {
+    const map = new Map();
+    for (const zone of BOARD_ZONES) {
+      for (const token of tokens[zone] || []) map.set(String(token.booking.id), token);
+    }
+    return map;
+  }, [tokens]);
+
+  const lastVisitFor = useCallback((booking) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return dog?.lastGroomedDate || null;
+  }, [dogs]);
   const attention = useMemo(() => buildAttentionSummary(tokens, isToday), [tokens, isToday]);
   const zoneCounts = useMemo(() => buildZoneCounts(tokens), [tokens]);
 
@@ -223,7 +269,14 @@ export function TodayView({
   );
 
   // "Owner on the way" — read-only WhatsApp signal for dogs waiting to go home.
-  const readyBookings = useMemo(() => tokens.ready.map((token) => token.booking), [tokens]);
+  // Read off the stack rather than the board's Ready zone, so the one list the
+  // screen renders is also the one the signal is fetched for.
+  const readyBookings = useMemo(
+    () => stackRows
+      .filter((row) => row.booking.status === BOOKING_STATUS.READY_FOR_PICKUP)
+      .map((row) => row.booking),
+    [stackRows],
+  );
   const onTheWaySignals = useOnTheWaySignals(readyBookings);
 
   const unpaidTotal = useMemo(() => {
@@ -274,6 +327,27 @@ export function TodayView({
     onMessageOwner,
     amountDueFor,
   });
+
+  // The chain hands back a method and the amount taken; the pricing inputs it
+  // needs to record the payment are resolved here, where the dog is in scope.
+  const collectWithPayment = useCallback((booking, { method, amountTaken }) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return actions.collectWithPayment(
+      booking,
+      {
+        service: booking.service,
+        size: booking.size,
+        addons: booking.addons,
+        payment: booking.payment,
+        depositAmount: booking.depositAmount,
+        priceOverride: booking.priceOverride,
+        customPrice: dog?.customPrice,
+        configPricing,
+      },
+      method,
+      amountTaken,
+    );
+  }, [actions, dogs, configPricing]);
 
   useEffect(() => {
     setAttentionReason(null);
@@ -381,7 +455,7 @@ export function TodayView({
     if (!firstId) return;
     requestAnimationFrame(() => {
       const target = document.querySelector(
-        `[data-booking-id="${firstId}"] [data-dog-token]`,
+        `[data-booking-id="${firstId}"] [data-dog-token], [data-booking-id="${firstId}"] [data-stack-head]`,
       );
       if (!target) return;
       const box = target.getBoundingClientRect();
@@ -461,30 +535,52 @@ export function TodayView({
               onOpenBooking={onOpenBooking}
             />
             <div className={isRefreshing ? "opacity-70 motion-safe:transition-opacity" : "motion-safe:transition-opacity"}>
-              <SalonBoard
-                tokens={tokens}
-                resolve={resolve}
-                getWelfare={getWelfare}
-                paymentOf={paymentOf}
-                handlers={boardHandlers}
-                onTheWaySignals={onTheWaySignals}
-                busyIds={actions.busyIds}
-                highlightIds={highlightIds}
-                landedId={actions.landedId}
-                boardKey={dateStr}
-                selectedId={selectedTokenId}
-                onSelectToken={setSelectedTokenId}
-              />
+              {useLegacyBoard ? (
+                <SalonBoard
+                  tokens={tokens}
+                  resolve={resolve}
+                  getWelfare={getWelfare}
+                  paymentOf={paymentOf}
+                  handlers={boardHandlers}
+                  onTheWaySignals={onTheWaySignals}
+                  busyIds={actions.busyIds}
+                  highlightIds={highlightIds}
+                  landedId={actions.landedId}
+                  boardKey={dateStr}
+                  selectedId={selectedTokenId}
+                  onSelectToken={setSelectedTokenId}
+                />
+              ) : (
+                <DayStack
+                  rows={stackRows}
+                  resolve={resolve}
+                  getWelfare={getWelfare}
+                  paymentOf={paymentOf}
+                  lastVisitFor={lastVisitFor}
+                  onTheWaySignals={onTheWaySignals}
+                  highlightIds={highlightIds}
+                  tokensById={tokensById}
+                  onAction={actions.runTokenAction}
+                  onCollectWithPayment={collectWithPayment}
+                  onSetPrice={actions.setPrice}
+                  onOpenInvoice={actions.setInvoiceBooking}
+                  busyIds={actions.busyIds}
+                />
+              )}
             </div>
-            <CompletedDogs
-              tokens={tokens.home}
-              landedId={actions.landedId}
-              isToday={isToday}
-              resolve={resolve}
-              paymentOf={paymentOf}
-              onOpenBooking={onOpenBooking}
-              onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
-            />
+            {useLegacyBoard ? (
+              <CompletedDogs
+                tokens={tokens.home}
+                landedId={actions.landedId}
+                isToday={isToday}
+                resolve={resolve}
+                paymentOf={paymentOf}
+                onOpenBooking={onOpenBooking}
+                onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
+              />
+            ) : (
+              <CollectedSummary takings={takings} resolve={resolve} />
+            )}
             <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}

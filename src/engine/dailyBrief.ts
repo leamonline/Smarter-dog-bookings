@@ -14,7 +14,7 @@ import {
   timeInSalonMinutes,
 } from "./today";
 import type { TodayFeedEntry } from "./today";
-import type { NeedActionReason } from "./today";
+import type { FeedVisibilityOptions, NeedActionReason } from "./today";
 import { computeBookingPricing, validateDepositAmount } from "./bookingRules";
 import type { BookingPricingInput } from "./bookingRules";
 
@@ -177,10 +177,11 @@ export function buildDailyBriefFeed(
   bookings: Booking[],
   selectedDateStr: string,
   now: Date,
+  opts: FeedVisibilityOptions = {},
 ) {
-  if (selectedDateStr === londonDateStr(now)) return buildTodayFeed(bookings, now);
+  if (selectedDateStr === londonDateStr(now)) return buildTodayFeed(bookings, now, opts);
 
-  return buildFutureDayFeed(bookings).map((entry) => {
+  return buildFutureDayFeed(bookings, opts).map((entry) => {
     const rank = statusRank(entry.booking.status);
     const isUnconfirmed = rank === 0 && needsConfirmation(entry.booking);
     const owes = isPaymentOutstanding(entry.booking);

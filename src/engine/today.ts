@@ -25,6 +25,7 @@ import {
   BOOKING_STATUS,
   DOG_SIZE,
   IMMEDIATE_CUTOFF_MINUTES,
+  isNoShowReason,
   LATE_ARRIVAL_GRACE_MINUTES,
   paymentMethodLabel,
 } from "../constants/salon";
@@ -53,6 +54,9 @@ export interface TodayBooking {
   confirmationChannel?: string | null;
   readyAt?: string | null;
   checkedInAt?: string | null;
+  /** Needed by callers that key on a booking — the takings rows, for one. */
+  id?: string;
+  completedAt?: string | null;
   _bookingDate?: string;
   _dogId?: string | null;
   dogName?: string;
@@ -163,6 +167,14 @@ export interface PaymentInfo {
   amountDue: number | null;
   depositPaid: number;
   subtotal: number;
+  /**
+   * The base price before add-ons (£). This is what `price_override` holds, so
+   * it is also the only figure an editor may write back: writing a subtotal
+   * into the override would add the add-ons a second time on the next read.
+   */
+  basePrice: number;
+  /** Add-ons total (£), stated separately so the arithmetic is visible. */
+  addonsTotal: number;
 }
 
 export function paymentState(
@@ -181,16 +193,17 @@ export function paymentState(
     configPricing,
   });
   const raw = (b.payment || "Due at Pick-up").trim();
+  const money = { subtotal: pricing.subtotal, basePrice: pricing.basePrice, addonsTotal: pricing.addonsTotal };
   if (raw === "Paid in Full") {
-    return { kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, subtotal: pricing.subtotal };
+    return { kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, ...money };
   }
   if (raw === "Deposit Paid") {
-    return { kind: "deposit", label: "Deposit paid", amountDue: pricing.amountDue, depositPaid: pricing.depositPaid, subtotal: pricing.subtotal };
+    return { kind: "deposit", label: "Deposit paid", amountDue: pricing.amountDue, depositPaid: pricing.depositPaid, ...money };
   }
   if (raw === "Due at Pick-up") {
-    return { kind: "due", label: "Balance due", amountDue: pricing.amountDue, depositPaid: 0, subtotal: pricing.subtotal };
+    return { kind: "due", label: "Balance due", amountDue: pricing.amountDue, depositPaid: 0, ...money };
   }
-  return { kind: "other", label: raw, amountDue: null, depositPaid: 0, subtotal: pricing.subtotal };
+  return { kind: "other", label: raw, amountDue: null, depositPaid: 0, ...money };
 }
 
 /** Any non-paid, non-cancelled booking still owes money. */
@@ -568,8 +581,16 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
 
 // ---- Unified booking feed (one card per booking) -----------------------------
 
-/** A dog's lifecycle stage, collapsed from its status rank. */
-export type FeedStage = "booked" | "inSalon" | "ready" | "collected";
+/**
+ * A dog's lifecycle stage, collapsed from its status rank.
+ *
+ * `noShow` is off the progression and is the ONLY stage that is not derived
+ * from `STAGE_BY_RANK`. It exists so that a no-show, which is a Cancelled
+ * booking rather than a status of its own, can never be mistaken for a Booked
+ * one by a stage check. Every existing consumer tests for a specific stage, so
+ * a `noShow` entry naturally falls out of all of them.
+ */
+export type FeedStage = "booked" | "inSalon" | "ready" | "collected" | "noShow";
 export type NeedActionReason = "late" | "confirmation" | "collection" | "payment";
 
 const STAGE_BY_RANK: Record<number, FeedStage> = {
@@ -579,6 +600,40 @@ const STAGE_BY_RANK: Record<number, FeedStage> = {
   3: "ready",
   4: "collected",
 };
+
+/**
+ * A Cancelled booking carrying a staff-confirmed no-show reason.
+ *
+ * Deliberately NOT folded into `isCountableBooking`: that predicate governs
+ * revenue, capacity, deposits and every report, and a no-show must stay
+ * uncountable in all of them. This is only about whether the booking is
+ * VISIBLE on a day surface that has opted in.
+ */
+function isConfirmedNoShow(b: { status?: string | null; cancelReason?: string | null }): boolean {
+  return b.status === BOOKING_STATUS.CANCELLED && isNoShowReason(b.cancelReason);
+}
+
+/**
+ * Should this booking appear in a day feed?
+ *
+ * Off by default, which is the entire point: every existing caller keeps the
+ * behaviour it has today, where a cancelled booking simply is not there.
+ */
+function isVisibleInFeed(b: Booking, includeNoShows: boolean): boolean {
+  return isCountableBooking(b) || (includeNoShows && isConfirmedNoShow(b));
+}
+
+/** Options shared by the two day-feed builders. */
+export interface FeedVisibilityOptions {
+  /**
+   * Include staff-confirmed no-shows (Cancelled + `cancel_reason = 'No-show'`).
+   *
+   * Default false. The day stack opts in because a dog that did not turn up is
+   * part of the day's story and staff need it on screen; nothing else does,
+   * and an ordinary cancellation stays out either way.
+   */
+  includeNoShows?: boolean;
+}
 
 /**
  * One entry per today booking for the single time-ordered feed. Every reason a
@@ -609,22 +664,31 @@ export interface TodayFeedEntry {
 }
 
 /**
- * Build the single, time-ordered booking feed. Cancelled bookings are dropped;
- * everything else is sorted by appointment time (slot-less rows last) and the
- * soonest not-yet-arrived, not-late booking is flagged `isNext`.
+ * Build the single, time-ordered booking feed. Cancelled bookings are dropped
+ * (unless `includeNoShows` opts a no-show back in); everything else is sorted
+ * by appointment time (slot-less rows last) and the soonest not-yet-arrived,
+ * not-late booking is flagged `isNext`.
  */
 export function buildTodayFeed(
   bookings: Booking[],
   now: Date,
-  opts: { graceMinutes?: number; readyEscalationMinutes?: number } = {},
+  opts: {
+    graceMinutes?: number;
+    readyEscalationMinutes?: number;
+  } & FeedVisibilityOptions = {},
 ): TodayFeedEntry[] {
   const grace = opts.graceMinutes ?? LATE_ARRIVAL_GRACE_MINUTES;
   const readyEscalation = opts.readyEscalationMinutes ?? READY_ESCALATION_MINUTES;
+  const includeNoShows = opts.includeNoShows ?? false;
   const entries: TodayFeedEntry[] = [];
   for (const b of bookings) {
-    if (!isCountableBooking(b)) continue;
+    if (!isVisibleInFeed(b, includeNoShows)) continue;
     const rank = statusRank(b.status);
-    const stage = STAGE_BY_RANK[rank] ?? "booked";
+    // A no-show is off the progression, so it takes its stage directly rather
+    // than through the rank table (where Cancelled ranks -1 and would fall
+    // back to "booked" — the one stage it must never claim, since that is what
+    // the "Next" scan and the late-arrival lists key on).
+    const stage: FeedStage = isConfirmedNoShow(b) ? "noShow" : STAGE_BY_RANK[rank] ?? "booked";
     const isLate = isLateArrival(b, now, grace);
     const isUnconfirmed = rank === 0 && needsConfirmation(b);
     const owes = isPaymentOutstanding(b);
@@ -707,16 +771,22 @@ export function groupFeedBySlot(entries: TodayFeedEntry[]): FeedSlotGroup[] {
  * balance — none of that exists yet, so every time-relative flag is hard
  * zero. (See the spec's "no time-relative state on future days".)
  */
-export function buildFutureDayFeed(bookings: Booking[]): TodayFeedEntry[] {
+export function buildFutureDayFeed(
+  bookings: Booking[],
+  opts: FeedVisibilityOptions = {},
+): TodayFeedEntry[] {
+  const includeNoShows = opts.includeNoShows ?? false;
   const entries: TodayFeedEntry[] = [];
   for (const b of bookings) {
-    if (!isCountableBooking(b)) continue;
+    if (!isVisibleInFeed(b, includeNoShows)) continue;
     entries.push({
       booking: b,
       slotMinutes: b.slot && Number.isFinite(slotToMinutes(b.slot))
         ? slotToMinutes(b.slot)
         : Number.POSITIVE_INFINITY,
-      stage: STAGE_BY_RANK[Math.max(0, statusRank(b.status))] ?? "booked",
+      stage: isConfirmedNoShow(b)
+        ? "noShow"
+        : STAGE_BY_RANK[Math.max(0, statusRank(b.status))] ?? "booked",
       isNext: false,
       isLate: false,
       isUnconfirmed: false,
@@ -949,6 +1019,15 @@ export interface TakingsByMethod {
   /** Number of Paid-in-Full bookings counted. */
   count: number;
   byMethod: Array<{ method: string; label: string; amount: number; count: number }>;
+  /**
+   * The individual settled bookings behind `total`, most recent first.
+   *
+   * Returned from here rather than recomputed by the caller so a per-dog list
+   * and the total it sits under cannot disagree. Computing the rows separately
+   * would reach the pricing chain by a different route and produce a list that
+   * visibly fails to add up.
+   */
+  bookings: Array<{ booking: TodayBooking; amount: number; method: string; label: string }>;
 }
 
 /**
@@ -957,9 +1036,14 @@ export interface TakingsByMethod {
  * bookings have no recorded amount). Bookings with no recorded method fall into
  * an "unrecorded" bucket. Cancelled bookings are excluded.
  */
+function methodLabel(method: string): string {
+  return method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method);
+}
+
 export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod {
   const paid = bookings.filter((b) => (b.payment || "") === "Paid in Full" && isCountableBooking(b));
   const acc: Record<string, { amount: number; count: number }> = {};
+  const rows: TakingsByMethod["bookings"] = [];
   let total = 0;
   for (const b of paid) {
     const amount =
@@ -977,16 +1061,27 @@ export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod 
     acc[method].amount += amount;
     acc[method].count++;
     total += amount;
+    rows.push({ booking: b, amount, method, label: methodLabel(method) });
   }
+  // Most recently collected first: the till question is almost always about
+  // the last dog out of the door, not the first.
+  rows.sort((a, b) => {
+    const aTime = Date.parse(a.booking.completedAt ?? "");
+    const bTime = Date.parse(b.booking.completedAt ?? "");
+    if (!Number.isFinite(aTime) && !Number.isFinite(bTime)) return 0;
+    if (!Number.isFinite(aTime)) return 1;
+    if (!Number.isFinite(bTime)) return -1;
+    return bTime - aTime;
+  });
   const byMethod = Object.entries(acc)
     .map(([method, v]) => ({
       method,
-      label: method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method),
+      label: methodLabel(method),
       amount: v.amount,
       count: v.count,
     }))
     .sort((a, b) => b.amount - a.amount);
-  return { total, count: paid.length, byMethod };
+  return { total, count: paid.length, byMethod, bookings: rows };
 }
 
 // ============================================================
