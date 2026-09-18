@@ -70,8 +70,8 @@ test("every card states its status as a word, never colour alone", async ({ page
   await page.goto(MONDAY);
   await settle(page);
 
-  await expect(card(page, "Bella")).toContainText("Checked in");
-  await expect(card(page, "Charlie")).toContainText("In the bath");
+  await expect(card(page, "Bella")).toContainText("Arrived");
+  await expect(card(page, "Charlie")).toContainText("Arrived");
   await expect(card(page, "Luna")).toContainText("Ready");
   await expect(card(page, "Rex")).toContainText("Expected");
 });
@@ -114,18 +114,19 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
   await page.keyboard.press("Enter");
   await expect(coco.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "true");
 
-  // Booked → Checked in.
-  await coco.getByRole("button", { name: "Check in — Coco" }).focus();
+  // Booked → Reconfirmed. Offered, not forced: a dog that simply turns up can
+  // be marked Arrived straight from Booked.
+  await coco.getByRole("button", { name: "Reconfirmed — Coco" }).focus();
   await page.keyboard.press("Enter");
-  await expect(coco).toContainText("Checked in");
+  await expect(coco).toContainText("Reconfirmed");
 
-  // Checked in → In bath.
-  await coco.getByRole("button", { name: "Start groom — Coco" }).focus();
+  // Reconfirmed → Arrived.
+  await coco.getByRole("button", { name: "Arrived — Coco" }).focus();
   await page.keyboard.press("Enter");
-  await expect(coco).toContainText("In the bath");
+  await expect(coco).toContainText("Arrived");
 
-  // In bath → Ready. The prompt that follows is staff-driven and says so;
-  // nothing has been sent to anyone at this point.
+  // Arrived → Ready. One step now that "In bath" is gone. The prompt that
+  // follows is staff-driven and says so; nothing has been sent to anyone.
   await coco.getByRole("button", { name: "Mark ready — Coco" }).focus();
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Not now" }).click();
@@ -241,8 +242,8 @@ test("checking a dog in offers Undo, and Undo puts it back", async ({ page }) =>
   await settle(page);
 
   const poppy = await openDog(page, "Poppy");
-  await poppy.getByRole("button", { name: "Check in — Poppy" }).click();
-  await expect(poppy).toContainText("Checked in");
+  await poppy.getByRole("button", { name: "Arrived — Poppy" }).click();
+  await expect(poppy).toContainText("Arrived");
 
   const undo = page.getByRole("button", { name: "Undo" });
   await expect(undo).toBeVisible();
@@ -272,8 +273,7 @@ test("a long wait is marked by weight and a clock, not by a new colour", async (
   // Walk Teddy to Ready. Offline, the lifecycle mirror stamps ready_at exactly
   // as the database trigger would, so the wait is a real elapsed figure.
   const teddy = await openDog(page, "Teddy");
-  await teddy.getByRole("button", { name: "Check in — Teddy" }).click();
-  await teddy.getByRole("button", { name: "Start groom — Teddy" }).click();
+  await teddy.getByRole("button", { name: "Arrived — Teddy" }).click();
   await teddy.getByRole("button", { name: "Mark ready — Teddy" }).click();
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(teddy).toContainText("Ready");
@@ -305,8 +305,8 @@ test("elapsed time keeps counting without anybody touching the screen", async ({
   await settle(page);
 
   const coco = await openDog(page, "Coco");
-  await coco.getByRole("button", { name: "Check in — Coco" }).click();
-  await expect(card(page, "Coco")).toContainText("Checked in");
+  await coco.getByRole("button", { name: "Arrived — Coco" }).click();
+  await expect(card(page, "Coco")).toContainText("Arrived");
 
   await page.clock.fastForward("40:00");
   await expect(card(page, "Coco")).toContainText("40 min");
@@ -437,4 +437,77 @@ test("a collected dog leaves the stack for the takings summary", async ({ page }
 
   await expect(page.locator("[data-stack-card]").filter({ hasText: "Luna" })).toHaveCount(0);
   await expect(summary).toContainText("Luna");
+});
+
+test("the stack shows the four active statuses and nothing else", async ({ page }) => {
+  // The allow-list, proved in a real browser against the sample day. Monday
+  // carries one dog in every state the fixtures can produce.
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto(MONDAY);
+  await settle(page);
+
+  // Present: the four that are still work.
+  for (const name of ["Rex", "Nala", "Bella", "Luna"]) {
+    await expect(card(page, name), `${name} should be in the stack`).toHaveCount(1);
+  }
+
+  // Absent: the three that have left the day.
+  for (const [name, why] of [
+    ["Daisy", "Completed — it is in the collected summary"],
+    ["Pepper", "No-show — it did not happen"],
+  ] as Array<[string, string]>) {
+    await expect(
+      page.locator("[data-stack-card]").filter({ hasText: name }),
+      `${name} should not be in the stack: ${why}`,
+    ).toHaveCount(0);
+  }
+});
+
+test("a reconfirmed dog says so, and is still expected rather than here", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto(MONDAY);
+  await settle(page);
+
+  const nala = card(page, "Nala");
+  await expect(nala).toContainText("Reconfirmed");
+  // In words, not by colour alone.
+  await expect(nala.locator("[data-stack-head]")).toHaveAttribute(
+    "aria-label",
+    /Reconfirmed/,
+  );
+  // It has not arrived: no elapsed-in-salon figure, and Arrived is still offered.
+  await nala.locator("[data-stack-head]").click();
+  await expect(nala.getByRole("button", { name: "Arrived — Nala" })).toBeVisible();
+});
+
+test("a no-show leaves the day without being mistaken for a cancellation", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto(MONDAY);
+  await settle(page);
+
+  // Not in the stack.
+  await expect(page.locator("[data-stack-card]").filter({ hasText: "Pepper" })).toHaveCount(0);
+  // And not quietly counted as money in the collected summary either.
+  const summary = page.locator("[data-collected-summary]");
+  await summary.locator("summary").click();
+  await expect(page.locator("[data-collected-row]").filter({ hasText: "Pepper" })).toHaveCount(0);
+});
+
+test("marking ready opens the prompt and sends nothing on its own", async ({ page }) => {
+  // The messaging-safety property, end to end. Marking a dog ready writes a
+  // status and offers a choice; it never sends.
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto(MONDAY);
+  await settle(page);
+
+  const bella = await openDog(page, "Bella");
+  await bella.getByRole("button", { name: "Mark ready — Bella" }).click();
+
+  // A prompt appears, and it offers a way out that is not "send".
+  const notNow = page.getByRole("button", { name: "Not now" });
+  await expect(notNow).toBeVisible();
+  await notNow.click();
+
+  // The status moved anyway: the message and the status are independent.
+  await expect(card(page, "Bella")).toContainText("Ready");
 });

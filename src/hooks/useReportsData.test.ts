@@ -33,12 +33,13 @@ describe("offline report data", () => {
       new Date("2026-05-12T12:00:00"),
     );
 
-    // 11 sample bookings, not 10, since Ziggy was added to the Monday fixture
-    // as the collected-but-unpaid case (#878). Revenue counts what the
-    // appointment is worth, not what was collected, so Ziggy's bath & brush
-    // is in the figure even though the money never arrived.
-    expect(stats.curN).toBe(11);
-    expect(stats.curRev).toBe(471);
+    // 12 countable sample bookings. Two were added for the lifecycle rebuild
+    // — Nala (Reconfirmed) and Pepper (No-show) — and only Nala counts:
+    // isCountableBooking excludes BOTH terminal statuses, so a no-show stays
+    // out of every count, total and rate exactly as a cancellation does.
+    // That exclusion is the behaviour this figure is really asserting.
+    expect(stats.curN).toBe(12);
+    expect(stats.curRev).toBe(517);
   });
 
   it("computes service and size splits from sample data", () => {
@@ -53,13 +54,13 @@ describe("offline report data", () => {
 
     expect(stats.svcs[0]).toMatchObject({
       id: "full-groom",
-      n: 5,
-      rev: 214,
+      n: 6,
+      rev: 260,
     });
     expect(stats.sizes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ size: "small", n: 6 }),
-        expect.objectContaining({ size: "medium", n: 4 }),
+        expect.objectContaining({ size: "medium", n: 5 }),
         expect.objectContaining({ size: "large", n: 1 }),
       ]),
     );
@@ -78,7 +79,7 @@ describe("offline report data", () => {
 
     expect(coco?.dog_id).toMatch(/^dog:/);
     expect(Object.values(source.humanMap)).toContain("Amy Clarke");
-    expect(stats.uniqueCusts).toBe(11);
+    expect(stats.uniqueCusts).toBe(12);
   });
 });
 

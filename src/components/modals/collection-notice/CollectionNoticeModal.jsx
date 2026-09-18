@@ -1,7 +1,7 @@
 // ============================================================
 // src/components/modals/collection-notice/CollectionNoticeModal.jsx
 //
-// Pops up when a booking transitions to "Ready for pick-up" (fired
+// Pops up when a booking transitions to "Ready for collection" (fired
 // centrally from useBookings.updateBooking). Lets staff send a WhatsApp
 // "ready for collection" template to the owner and/or any trusted
 // contact, with a staff-entered ETA in minutes. Staff opt in before

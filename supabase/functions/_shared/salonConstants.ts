@@ -79,14 +79,37 @@ export const DOG_SIZE = {
 } as const satisfies Record<string, DogSize>;
 
 // Canonical booking-status IDs — mirrors src/constants/salon.ts BOOKING_STATUS.
+// Keep the two in step: the capacity parity harness compares this module's
+// behaviour against the browser engine's, and a status that exists on one side
+// only will pass parity while diverging in production.
 export const BOOKING_STATUS = {
   BOOKED: "Booked",
-  CHECKED_IN: "Checked in",
-  IN_BATH: "In bath",
-  READY_FOR_PICKUP: "Ready for pick-up",
+  RECONFIRMED: "Reconfirmed",
+  ARRIVED: "Arrived",
+  READY_FOR_COLLECTION: "Ready for collection",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
 } as const;
+
+/**
+ * The two terminal statuses. Both are NON-OCCUPYING: they free the seat.
+ *
+ * Mirrors TERMINAL_STATUSES in src/constants/salon.ts and
+ * booking_occupies_seat() in the database. A no-show used to be a Cancelled
+ * row, so every capacity rule already treated it as free; testing only for
+ * Cancelled here would make no-shows consume seats in the Deno engine while
+ * the database and browser correctly ignore them.
+ */
+export const TERMINAL_STATUSES = [
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.NO_SHOW,
+] as const;
+
+/** True when a booking still holds its seat. */
+export function isActiveBooking(status: string | null | undefined): boolean {
+  return !(TERMINAL_STATUSES as readonly string[]).includes(status ?? "");
+}
 
 // Customer self-service portal sign-in/sign-up URL (prod default). This
 // module stays pure (no Deno/env access); callers in the Edge functions

@@ -43,8 +43,8 @@ const booking = (overrides: Partial<Booking> = {}): Booking => ({
 describe("Daily Brief journey", () => {
   it("shows one ready action before readiness and one waiting action afterwards", () => {
     expect(buildJourneyActions(booking()).map((action) => action.id)).toEqual([
+      "reconfirm",
       "checkIn",
-      "startGroom",
       "ready",
       "collected",
       "paid",
@@ -53,13 +53,20 @@ describe("Daily Brief journey", () => {
       buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION })).map(
         (action) => action.id,
       ),
-    ).toEqual(["checkIn", "startGroom", "waiting", "collected", "paid"]);
+    ).toEqual(["reconfirm", "checkIn", "waiting", "collected", "paid"]);
   });
 
   it("marks only the next incomplete care action as next while keeping payment available", () => {
+    // An arrived dog's next step is Ready — there is no groom stage between
+    // them any more.
     const actions = buildJourneyActions(booking({ status: BOOKING_STATUS.ARRIVED }));
-    expect(actions.find((action) => action.id === "startGroom")?.next).toBe(true);
+    expect(actions.find((action) => action.id === "ready")?.next).toBe(true);
     expect(actions.find((action) => action.id === "paid")?.next).toBe(false);
+
+    // And a booking nobody has confirmed starts at Reconfirm.
+    const fresh = buildJourneyActions(booking({ status: BOOKING_STATUS.BOOKED }));
+    expect(fresh.find((action) => action.id === "reconfirm")?.next).toBe(true);
+    expect(fresh.find((action) => action.id === "checkIn")?.next).toBe(false);
   });
 
   it("maps every recorded paid method to its approved visual", () => {
@@ -98,16 +105,37 @@ describe("Daily Brief journey", () => {
   });
 
   it("confirms care-stage skips but never early payment", () => {
-    expect(requiresCareSkipConfirmation(BOOKING_STATUS.BOOKED, BOOKING_STATUS.IN_BATH)).toEqual(
-      "been checked in",
-    );
+    // Booked -> Arrived skips Reconfirmed and does NOT ask: plenty of dogs
+    // simply turn up, and a dialog on the commonest action in the salon is
+    // exactly the trap this lifecycle is meant to avoid.
     expect(
-      requiresCareSkipConfirmation(BOOKING_STATUS.ARRIVED, BOOKING_STATUS.IN_BATH),
+      requiresCareSkipConfirmation(BOOKING_STATUS.BOOKED, BOOKING_STATUS.ARRIVED),
+    ).toBeNull();
+    // Skipping real care still asks.
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.BOOKED, BOOKING_STATUS.READY_FOR_COLLECTION),
+    ).toEqual("been marked as arrived");
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.ARRIVED, BOOKING_STATUS.COMPLETED),
+    ).toEqual("been marked ready for collection");
+    // One step at a time never asks.
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.BOOKED, BOOKING_STATUS.RECONFIRMED),
+    ).toBeNull();
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.RECONFIRMED, BOOKING_STATUS.ARRIVED),
+    ).toBeNull();
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.ARRIVED, BOOKING_STATUS.READY_FOR_COLLECTION),
+    ).toBeNull();
+    // Nor does staying put.
+    expect(
+      requiresCareSkipConfirmation(BOOKING_STATUS.ARRIVED, BOOKING_STATUS.ARRIVED),
     ).toBeNull();
   });
 
   it("advances the next care action through the groom journey", () => {
-    const grooming = buildJourneyActions(booking({ status: BOOKING_STATUS.IN_BATH }));
+    const grooming = buildJourneyActions(booking({ status: BOOKING_STATUS.ARRIVED }));
     expect(grooming.find((action) => action.id === "ready")?.next).toBe(true);
 
     const ready = buildJourneyActions(booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION }));
@@ -231,7 +259,7 @@ describe("Daily Brief status board", () => {
       [
         booking({ id: "due", status: BOOKING_STATUS.BOOKED }),
         booking({ id: "checked-in", status: BOOKING_STATUS.ARRIVED }),
-        booking({ id: "in-bath", status: BOOKING_STATUS.IN_BATH }),
+        booking({ id: "in-bath", status: BOOKING_STATUS.ARRIVED }),
         booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
         booking({ id: "home", status: BOOKING_STATUS.COMPLETED }),
         booking({ id: "cancelled", status: BOOKING_STATUS.CANCELLED }),
@@ -310,7 +338,7 @@ describe("Daily Brief status board", () => {
         }),
         booking({
           id: "on-site-longest",
-          status: BOOKING_STATUS.IN_BATH,
+          status: BOOKING_STATUS.ARRIVED,
           checkedInAt: "2026-07-14T07:30:00Z",
           slot: "08:30",
         }),

@@ -24,8 +24,12 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
     { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: BOOKING_STATUS.ARRIVED, addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid", _dogId: "d1", _ownerId: "h1" },
     { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    // Reconfirmed: the customer has told us they are coming, but the dog is
+    // still at home. A fixture for the state exists so it can actually be seen
+    // in the demo and asserted in a browser.
+    { id: 10, slot: "08:30", dogName: "Nala", breed: "Whippet", size: "medium", service: "full-groom", owner: "Priya Raman", status: BOOKING_STATUS.RECONFIRMED, addons: [], payment: "Due at Pick-up", reminderState: "confirmed", reminderConfirmedAt: "2026-07-12T18:30:00Z", reminderConfirmedBy: "customer" },
     { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_COLLECTION, payment: "Paid in Full" },
-    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.IN_BATH, payment: "Deposit Paid" },
+    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.ARRIVED, payment: "Deposit Paid" },
     { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full" },
     // Deliberately bare (no status/payment) — exercises the board's recoverable
     // unknown-status warning without making the whole demo day unusable.
@@ -39,6 +43,10 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
     // noticed. The stack itself cannot create this state — the check-out
     // chain always settles — but the mini invoice, the booking detail modal
     // and the other till all can, so the screen has to show it.
+    // Did not turn up. A first-class status now, not a Cancelled row carrying
+    // a reason: it must leave the active stack without being mistaken for a
+    // cancellation, and it must not consume a seat.
+    { id: 11, slot: "12:30", dogName: "Pepper", breed: "Dachshund", size: "small", service: "bath-and-brush", owner: "Mark Johnson", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show", addons: [], payment: "Due at Pick-up" },
     { id: 9, slot: "11:00", dogName: "Ziggy", breed: "Border Terrier", size: "small", service: "bath-and-brush", owner: "Nina Patel", status: BOOKING_STATUS.COMPLETED, payment: "Due at Pick-up", completedAt: "2026-07-13T11:40:00Z" },
   ],
   tue: [

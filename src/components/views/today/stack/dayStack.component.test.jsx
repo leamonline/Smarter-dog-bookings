@@ -34,7 +34,7 @@ const BOOKINGS = [
     id: "bathing",
     dogName: "Nell",
     slot: "09:30",
-    status: BOOKING_STATUS.IN_BATH,
+    status: BOOKING_STATUS.ARRIVED,
     service: "full-groom",
     payment: "Due at Pick-up",
     checkedInAt: agoIso(95),
@@ -58,7 +58,7 @@ const BOOKINGS = [
     id: "absent",
     dogName: "Otto",
     slot: "10:00",
-    status: BOOKING_STATUS.CANCELLED,
+    status: BOOKING_STATUS.NO_SHOW,
     cancelReason: NO_SHOW_REASON,
     service: "full-groom",
     _dogId: "d4",
@@ -113,11 +113,13 @@ const card = (id) => document.querySelector(`[data-booking-id="${id}"]`);
 const head = (id) => card(id).querySelector("[data-stack-head]");
 
 describe("the stack renders the day in time order", () => {
-  it("lists every live booking, earliest first, including the no-show", () => {
+  it("lists every ACTIVE booking, earliest first, and nothing else", () => {
     renderStack();
     const ids = [...document.querySelectorAll("[data-stack-card]")]
       .map((el) => el.getAttribute("data-booking-id"));
-    expect(ids).toEqual(["waiting", "bathing", "absent", "arriving"]);
+    // "absent" is a No-show: it has left the day, so it is not here. The
+    // stack is an allow-list of the four active statuses.
+    expect(ids).toEqual(["waiting", "bathing", "arriving"]);
   });
 
   it("shows an empty day as words, not a blank screen", () => {
@@ -137,9 +139,8 @@ describe("the stack renders the day in time order", () => {
 describe("colour is never the only signal", () => {
   it.each([
     ["waiting", "Ready"],
-    ["bathing", "In the bath"],
+    ["bathing", "Arrived"],
     ["arriving", "Expected"],
-    ["absent", "No-show"],
   ])("%s states its status as a word", (id, word) => {
     renderStack();
     expect(within(card(id)).getByText(word)).toBeTruthy();
@@ -312,7 +313,7 @@ function press(id, label) {
 describe("the actions a card offers", () => {
   it("offers the next care step on an expected dog", () => {
     renderWithActions();
-    expect(actionsIn("arriving")).toContain("Check in");
+    expect(actionsIn("arriving")).toContain("Arrived");
   });
 
   it("offers the next care step on a dog mid-groom", () => {
@@ -350,7 +351,7 @@ describe("the actions a card offers", () => {
 
 describe("pressing an action", () => {
   it.each([
-    ["arriving", "Check in", "checkIn"],
+    ["arriving", "Arrived", "checkIn"],
     ["bathing", "Mark ready", "ready"],
     ["arriving", "Didn't show", "didntShow"],
   ])("%s → %s runs the %s action", (id, label, actionId) => {
@@ -364,14 +365,14 @@ describe("pressing an action", () => {
 
   it("does not close the card underneath it", () => {
     renderWithActions();
-    press("arriving", "Check in");
+    press("arriving", "Arrived");
     expect(head("arriving").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("is blocked while a write for that dog is in flight", () => {
     const { onAction } = renderWithActions({ busyIds: new Set(["arriving"]) });
     fireEvent.click(head("arriving"));
-    const button = within(card("arriving")).getByLabelText("Check in — Hugo");
+    const button = within(card("arriving")).getByLabelText("Arrived — Hugo");
     expect(button.getAttribute("aria-busy")).toBe("true");
     fireEvent.click(button);
     expect(onAction).not.toHaveBeenCalled();
@@ -386,17 +387,13 @@ describe("pressing an action", () => {
   });
 });
 
-describe("a no-show card", () => {
-  it("offers no transitions, because the board has no token for it", () => {
+describe("a no-show", () => {
+  it("has no card at all — it has left the day", () => {
+    // It used to render as a card with no actions. Now it is simply not in
+    // the stack: the screen shows work still in front of you, and a dog that
+    // did not turn up is not that. Chasing it happens elsewhere.
     renderWithActions();
-    expect(actionsIn("absent")).toEqual([]);
-  });
-
-  it("still opens, so the owner can be rung", () => {
-    renderWithActions();
-    fireEvent.click(head("absent"));
-    expect(head("absent").getAttribute("aria-expanded")).toBe("true");
-    expect(within(card("absent")).getByText("07700 900377")).toBeTruthy();
+    expect(card("absent")).toBeNull();
   });
 });
 

@@ -91,7 +91,7 @@ const TONES: Record<Exclude<DayStatusKey, "unknown">, Omit<DayStatusTone, "key">
     edge: "#3B82F6",
     inStack: true,
   },
-  // Arrived keeps the teal that "Checked in" had: the dog is here, and the
+  // Arrived keeps the teal that "Arrived" had: the dog is here, and the
   // one in-salon state now covers the whole of its visit. The olive that used
   // to separate it from "In the bath" is retired with that status.
   arrived: {

@@ -529,16 +529,21 @@ describe("Supabase security review regressions", () => {
     );
   });
 
-  it("exposes slot occupancy to customers via a PII-free, Cancelled-excluding, authenticated-only SECURITY DEFINER RPC", () => {
+  it("exposes slot occupancy to customers via a PII-free, terminal-excluding, authenticated-only SECURITY DEFINER RPC", () => {
     // Regression for "availability ignores other customers' bookings". The
     // customer client only sees its own bookings under RLS, so the capacity
     // engine computed availability from incomplete data and offered full
     // slots (failing only at checkout). get_slot_occupancy is SECURITY
     // DEFINER so it sees ALL rows — but it must stay locked down: only
-    // (slot, size) out (no PII/ids/status), Cancelled excluded so its seat
-    // math matches get_seats_used / has_large_dog, and authenticated-only
-    // (the booking wizard is login-gated).
-    const migration = getMigrationBySql((sql) =>
+    // (slot, size) out (no PII/ids/status), the terminal statuses excluded so
+    // its seat math matches get_seats_used / has_large_dog, and
+    // authenticated-only (the booking wizard is login-gated).
+    //
+    // LAST match, not sole match: the function is re-issued across migrations
+    // (20260919090100 routed it through booking_occupies_seat), and only the
+    // final definition is the effective one — so a later migration that
+    // re-opens the hole still fails this.
+    const migration = lastMigrationSqlMatching((sql) =>
       sql.includes("create or replace function public.get_slot_occupancy"),
     );
 
@@ -554,8 +559,14 @@ describe("Supabase security review regressions", () => {
       /returns\s+table\s*\(\s*slot\s+text\s*,\s*size\s+text\s*\)/i,
     );
 
-    // Excludes Cancelled so its seat math matches get_seats_used/has_large_dog.
-    expect(migration).toMatch(/status\s*<>\s*'Cancelled'/i);
+    // Excludes the terminal statuses so its seat math matches
+    // get_seats_used / has_large_dog. Since 20260919090100 that predicate is
+    // booking_occupies_seat(), which covers Cancelled AND No-show in one
+    // place; before it, the literal comparison. Either satisfies the
+    // invariant, which is about the seat math agreeing, not about the syntax.
+    expect(migration).toMatch(
+      /booking_occupies_seat\s*\(\s*b\.status\s*\)|status\s*<>\s*'Cancelled'/i,
+    );
 
     // Locked down: revoked from public, granted to authenticated, NOT anon.
     expect(migration).toMatch(

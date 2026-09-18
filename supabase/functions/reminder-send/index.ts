@@ -280,8 +280,10 @@ serve(async (req) => {
       .eq("id", booking_id)
       .maybeSingle();
     if (anchorErr || !anchor) return json(req, { error: "booking not found" }, 404);
-    if (anchor.status === "Cancelled") {
-      return json(req, { error: "booking is cancelled — won't remind" }, 422);
+    // Both terminal statuses, not just Cancelled. A dog that did not turn up
+    // must not be chased with a reminder for the appointment it missed.
+    if (anchor.status === "Cancelled" || anchor.status === "No-show") {
+      return json(req, { error: "booking is cancelled or a no-show — won't remind" }, 422);
     }
     const anchorDog = Array.isArray(anchor.dogs) ? anchor.dogs[0] : anchor.dogs;
     const humanId = anchorDog?.human_id ?? null;
@@ -293,7 +295,7 @@ serve(async (req) => {
       .select("id, group_id, dogs!inner(human_id)")
       .eq("booking_date", anchor.booking_date)
       .eq("dogs.human_id", humanId)
-      .neq("status", "Cancelled");
+      .not("status", "in", '("Cancelled","No-show")');
     if (gatherErr) {
       console.error("reminder-send: day gather failed:", gatherErr.message);
       return json(req, { error: "bookings query failed" }, 500);

@@ -15,7 +15,7 @@ function makeBookingsQuery() {
         data: [
           {
             id: "booking-1",
-            status: "In bath",
+            status: "Arrived",
             dog_name_snapshot: "Bella",
             dogs: { human_id: "human-1", name: "Bella" },
           },
@@ -72,7 +72,7 @@ const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 const bookingFixture = {
   id: "booking-1",
   dogName: "Bella",
-  status: "Ready for pick-up",
+  status: "Ready for collection",
   _ownerId: "human-1",
   _bookingDate: "2026-07-14",
 };

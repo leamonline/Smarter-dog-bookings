@@ -60,7 +60,7 @@ describe("classifyNeedsAttention", () => {
   it.each([
     BOOKING_STATUS.BOOKED,
     BOOKING_STATUS.ARRIVED,
-    BOOKING_STATUS.IN_BATH,
+    BOOKING_STATUS.ARRIVED,
   ])("flags a previous-day '%s' booking for review", (status) => {
     expect(classifyNeedsAttention(booking({ status }), TODAY)).toBe(
       "pastAppointmentReview",
@@ -159,8 +159,8 @@ describe("attentionDetail — payment language stays neutral", () => {
 
   it("names the leftover status for review items", () => {
     expect(
-      attentionDetail("pastAppointmentReview", booking({ status: BOOKING_STATUS.IN_BATH })),
-    ).toBe('Still marked "In bath"');
+      attentionDetail("pastAppointmentReview", booking({ status: BOOKING_STATUS.ARRIVED })),
+    ).toBe('Still marked "Arrived"');
   });
 });
 

@@ -90,7 +90,7 @@ export interface NeedsAttentionItem {
   bookings: Booking[];
   date: string;
   slot: string;
-  /** Neutral one-line reason, e.g. `Still marked "Checked in"`. */
+  /** Neutral one-line reason, e.g. `Still marked "Arrived"`. */
   detail: string;
   /** Whole days between the appointment date and today. */
   ageDays: number;
@@ -187,7 +187,7 @@ export function attentionDetail(
   b: AttentionBooking,
 ): string {
   if (kind === "readyForCollection") {
-    return 'Still marked "Ready for pick-up"';
+    return 'Still marked "Ready for collection"';
   }
   if (kind === "pastAppointmentReview") {
     const status = b.status || BOOKING_STATUS.BOOKED;

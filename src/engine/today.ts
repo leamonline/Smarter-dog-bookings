@@ -1003,7 +1003,7 @@ function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"])
 
 function checkedInCopy(checkedInAt: string | null | undefined, now: Date): string {
   const checkedInTime = validTimestamp(checkedInAt);
-  if (checkedInTime === null) return "Checked in";
+  if (checkedInTime === null) return "Arrived";
   const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
   return `Checked in ${formatDuration(elapsed)} ago`;
 }

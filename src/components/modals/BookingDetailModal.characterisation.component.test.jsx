@@ -338,7 +338,7 @@ describe("BookingDetailModal — card surfaces", () => {
       booking: {
         ...baseBooking,
         size: "medium",
-        status: "Ready for pick-up",
+        status: "Ready for collection",
       },
     });
 

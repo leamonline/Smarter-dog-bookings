@@ -164,7 +164,7 @@ describe("computeCollectedByMethod (improvement #3)", () => {
       b({ booking_date: "2026-06-01", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "card", paid_amount: 42 }),
       b({ booking_date: "2026-06-02", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "cash", paid_amount: 40 }),
       b({ booking_date: "2026-06-03", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "card", paid_amount: null }), // fallback £42
-      b({ booking_date: "2026-06-08", service: "full-groom", size: "small", status: "Checked in", payment: "Due at Pick-up" }), // not paid
+      b({ booking_date: "2026-06-08", service: "full-groom", size: "small", status: "Arrived", payment: "Due at Pick-up" }), // not paid
       b({ booking_date: "2026-05-01", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "cash", paid_amount: 99 }), // out of window
     ];
     const r = computeCollectedByMethod(rows, {}, 90, TODAY, isOpen);

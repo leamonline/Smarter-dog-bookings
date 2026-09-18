@@ -66,6 +66,21 @@ function setup() {
   return { ...rendered, onUpdateBooking, toast };
 }
 
+function setupWithCollection({ failSave = false } = {}) {
+  const onUpdateBooking = vi.fn(async (booking: never) => (failSave ? null : booking));
+  const onSendCollection = vi.fn();
+  const toast = { show: vi.fn() };
+  const rendered = renderHook(() => useBookingActions({
+    dateStr: DATE,
+    toast: toast as never,
+    onUpdateBooking: onUpdateBooking as never,
+    onSendCollection,
+    onMessageOwner: vi.fn(),
+    amountDueFor: () => 0,
+  }));
+  return { ...rendered, onUpdateBooking, onSendCollection, toast };
+}
+
 /** The row that actually went to the writer on call `n`. */
 function writtenRow(onUpdateBooking: ReturnType<typeof vi.fn>, n = 0) {
   return onUpdateBooking.mock.calls[n][0] as Record<string, unknown>;
@@ -175,5 +190,110 @@ describe("collecting a dog that pays on the way out", () => {
     expect(row.payment).toBe("Due at Pick-up");
     expect(row.paymentMethod).toBeNull();
     expect(row.paidAmount).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The lifecycle transitions, asserted on the ROW each one writes.
+//
+// Per CONTRIBUTING.md: a test on a write path asserts the row that reached the
+// writer, not the arguments handed to the hook. A status transition that looks
+// right in the call and writes the wrong value is precisely the failure these
+// tests exist to catch.
+describe("walking a booking through its lifecycle", () => {
+  const at = (status: string) => ({ ...PAID_IN_ADVANCE, status, payment: "Due at Pick-up" });
+
+  const runAction = async (
+    booking: Record<string, unknown>,
+    actionId: string,
+  ) => {
+    const { result, onUpdateBooking, toast } = setup();
+    await act(async () => {
+      await result.current.runTokenAction({ booking } as never, { id: actionId } as never);
+    });
+    return { onUpdateBooking, toast, result };
+  };
+
+  it("Booked → Reconfirmed", async () => {
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.BOOKED), "reconfirm");
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.RECONFIRMED);
+  });
+
+  it("Reconfirmed → Arrived", async () => {
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.RECONFIRMED), "checkIn");
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.ARRIVED);
+  });
+
+  it("Booked → Arrived directly, with no confirmation dialog in the way", async () => {
+    // Plenty of dogs simply turn up. Reconfirmed is offered, never required.
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.BOOKED), "checkIn");
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.ARRIVED);
+  });
+
+  it("Arrived → Ready for collection", async () => {
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.ARRIVED), "ready");
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.READY_FOR_COLLECTION);
+  });
+
+  it("Ready for collection → Completed", async () => {
+    const { result, onUpdateBooking } = setup();
+    await act(async () => {
+      await result.current.collectWithPayment(
+        { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.READY_FOR_COLLECTION } as never,
+        PRICING as never,
+        null as never,
+        0,
+      );
+    });
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.COMPLETED);
+  });
+
+  it("marks a no-show as a STATUS, not a cancellation carrying a reason", async () => {
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.BOOKED), "didntShow");
+    const row = writtenRow(onUpdateBooking);
+    expect(row.status).toBe(BOOKING_STATUS.NO_SHOW);
+    expect(row.status).not.toBe(BOOKING_STATUS.CANCELLED);
+    // The reason text still rides along as history for the booking log.
+    expect(row.cancelReason).toBe("No-show");
+  });
+});
+
+describe("marking a dog ready never messages anyone by itself", () => {
+  it("writes the status and hands the decision to staff", async () => {
+    // The single most important safety property on this screen. Marking a dog
+    // ready must write a status and open a prompt — never send. The automatic
+    // database trigger that used to do this was dropped in 20260526120000 and
+    // must not come back by another route.
+    const { result, onUpdateBooking, onSendCollection } = setupWithCollection();
+
+    await act(async () => {
+      await result.current.runTokenAction(
+        { booking: { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.ARRIVED } } as never,
+        { id: "ready" } as never,
+      );
+    });
+
+    // The row was written...
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.READY_FOR_COLLECTION);
+    // ...and the staff-facing prompt was offered, carrying the saved booking.
+    expect(onSendCollection).toHaveBeenCalledTimes(1);
+    // Nothing in this hook sends: the prompt is where a human decides.
+    expect(onSendCollection.mock.calls[0][0]).toMatchObject({
+      status: BOOKING_STATUS.READY_FOR_COLLECTION,
+    });
+  });
+
+  it("does not open the prompt when the write fails", async () => {
+    // A failed save must never open a "tell the owner it's ready" modal: an
+    // owner told to come for a dog the system does not think is ready is the
+    // worst outcome available here.
+    const { result, onSendCollection } = setupWithCollection({ failSave: true });
+    await act(async () => {
+      await result.current.runTokenAction(
+        { booking: { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.ARRIVED } } as never,
+        { id: "ready" } as never,
+      );
+    });
+    expect(onSendCollection).not.toHaveBeenCalled();
   });
 });

@@ -96,12 +96,6 @@ const QUIET: TimingResult = { timing: null, urgent: false, readyOverdue: false }
 function timingFor(entry: TodayFeedEntry, now: Date): TimingResult {
   const booking = entry.booking;
 
-  if (entry.stage === "noShow") {
-    // Settled, not urgent. Nobody is waiting on this and nothing can be done
-    // about it by hurrying.
-    return { timing: "Did not arrive", urgent: false, readyOverdue: false };
-  }
-
   if (entry.stage === "ready") {
     const wait = entry.waitMinutes ?? collectionWaitMinutes(booking, now);
     if (wait == null) return QUIET;
@@ -150,8 +144,7 @@ export interface DayStackInput {
 }
 
 /**
- * Build the stack: every booking on the date, in appointment order, including
- * staff-confirmed no-shows.
+ * Build the stack: the ACTIVE bookings on the date, in appointment order.
  *
  * Nothing is grouped and nothing is re-sorted by status. A dog that has been in
  * since 08:30 stays at the top of the list all morning, which is the entire

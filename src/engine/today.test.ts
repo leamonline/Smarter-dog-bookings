@@ -83,13 +83,16 @@ describe("londonNowParts", () => {
 });
 
 describe("statusRank", () => {
-  it("orders the progression and puts Cancelled/unknown off it", () => {
+  it("orders the progression and puts both terminal statuses off it", () => {
     expect(statusRank("Booked")).toBe(0);
-    expect(statusRank("Checked in")).toBe(1);
-    expect(statusRank("In bath")).toBe(2);
-    expect(statusRank("Ready for pick-up")).toBe(3);
+    expect(statusRank("Reconfirmed")).toBe(1);
+    expect(statusRank("Arrived")).toBe(2);
+    expect(statusRank("Ready for collection")).toBe(3);
     expect(statusRank("Completed")).toBe(4);
+    // Terminal statuses are exits, not steps. Ranking them would imply a
+    // no-show is "further along" than a dog sitting in the salon.
     expect(statusRank("Cancelled")).toBe(-1);
+    expect(statusRank("No-show")).toBe(-1);
     expect(statusRank(undefined)).toBe(-1);
     expect(statusRank("nonsense")).toBe(-1);
   });
@@ -124,7 +127,7 @@ describe("isLateArrival + minutesOverdue", () => {
   });
 
   it("ignores dogs already checked in, cancelled, or not booked today", () => {
-    expect(isLateArrival(bk({ _bookingDate: TODAY, slot: "10:00", status: "Checked in" }), NOW_SUMMER, 5)).toBe(false);
+    expect(isLateArrival(bk({ _bookingDate: TODAY, slot: "10:00", status: "Arrived" }), NOW_SUMMER, 5)).toBe(false);
     expect(isLateArrival(bk({ _bookingDate: TODAY, slot: "10:00", status: "Cancelled" }), NOW_SUMMER, 5)).toBe(false);
     expect(isLateArrival(bk({ _bookingDate: "2026-07-03", slot: "10:00", status: "Booked" }), NOW_SUMMER, 5)).toBe(false);
     expect(minutesOverdue(bk({ _bookingDate: TODAY, slot: "11:00", status: "Booked" }), NOW_SUMMER)).toBe(0);
@@ -203,8 +206,8 @@ describe("paymentState (G4 mapping)", () => {
 describe("isPaymentOutstanding", () => {
   it("is true for any non-paid, non-cancelled booking", () => {
     expect(isPaymentOutstanding(bk({ payment: "Paid in Full", status: "Completed" }))).toBe(false);
-    expect(isPaymentOutstanding(bk({ payment: "Due at Pick-up", status: "Checked in" }))).toBe(true);
-    expect(isPaymentOutstanding(bk({ payment: "Deposit Paid", status: "Ready for pick-up" }))).toBe(true);
+    expect(isPaymentOutstanding(bk({ payment: "Due at Pick-up", status: "Arrived" }))).toBe(true);
+    expect(isPaymentOutstanding(bk({ payment: "Deposit Paid", status: "Ready for collection" }))).toBe(true);
     expect(isPaymentOutstanding(bk({ payment: "Due at Pick-up", status: "Cancelled" }))).toBe(false);
   });
 });
@@ -286,8 +289,8 @@ describe("buildAvailabilityView", () => {
 describe("buildDaySummary", () => {
   const bookings = [
     bk({ status: "Booked", payment: "Due at Pick-up", service: "full-groom", size: "small" }),
-    bk({ status: "Checked in", payment: "Deposit Paid", service: "full-groom", size: "small" }),
-    bk({ status: "Ready for pick-up", payment: "Paid in Full", service: "full-groom", size: "small" }),
+    bk({ status: "Arrived", payment: "Deposit Paid", service: "full-groom", size: "small" }),
+    bk({ status: "Ready for collection", payment: "Paid in Full", service: "full-groom", size: "small" }),
     bk({ status: "Completed", payment: "Paid in Full", service: "full-groom", size: "small" }),
     bk({ status: "Cancelled", payment: "Refunded", service: "full-groom", size: "small" }),
   ];
@@ -332,9 +335,9 @@ describe("buildDaySummary", () => {
   it("counts only dogs physically on site", () => {
     const summary = buildDaySummary([
       bk({ status: "Booked" }),
-      bk({ status: "Checked in" }),
-      bk({ status: "In bath" }),
-      bk({ status: "Ready for pick-up" }),
+      bk({ status: "Arrived" }),
+      bk({ status: "Arrived" }),
+      bk({ status: "Ready for collection" }),
       bk({ status: "Completed" }),
       bk({ status: "Cancelled" }),
     ]);
@@ -350,9 +353,9 @@ describe("buildImmediateAttention", () => {
     [
       bk({ _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "A" }), // late, 75 over
       bk({ _bookingDate: TODAY, slot: "10:00", status: "Booked", dogName: "B" }), // late, 15 over
-      bk({ _bookingDate: TODAY, slot: "08:30", status: "Ready for pick-up", readyAt, payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "C" }), // ready + payment
+      bk({ _bookingDate: TODAY, slot: "08:30", status: "Ready for collection", readyAt, payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "C" }), // ready + payment
       bk({ _bookingDate: TODAY, slot: "11:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp", dogName: "D" }), // unconfirmed
-      bk({ _bookingDate: TODAY, slot: "09:30", status: "Checked in", payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "E" }), // payment
+      bk({ _bookingDate: TODAY, slot: "09:30", status: "Arrived", payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "E" }), // payment
       bk({ _bookingDate: TODAY, slot: "09:00", status: "Completed", payment: "Paid in Full", dogName: "F" }), // nothing
       bk({ _bookingDate: TODAY, slot: "10:00", status: "Cancelled", dogName: "G" }), // excluded
     ],
@@ -377,13 +380,13 @@ describe("buildImmediateAttention", () => {
     const justReady = bk({
       _bookingDate: TODAY,
       slot: "09:00",
-      status: "Ready for pick-up",
+      status: "Ready for collection",
       payment: "Paid in Full",
       readyAt: new Date(NOW_SUMMER.getTime() - 5 * 60000).toISOString(),
     });
     expect(buildImmediateAttention([justReady], NOW_SUMMER)).toEqual([]);
     // …but a missing ready_at stamp surfaces rather than hides.
-    const unstamped = bk({ _bookingDate: TODAY, slot: "09:00", status: "Ready for pick-up", payment: "Paid in Full", readyAt: null });
+    const unstamped = bk({ _bookingDate: TODAY, slot: "09:00", status: "Ready for collection", payment: "Paid in Full", readyAt: null });
     expect(buildImmediateAttention([unstamped], NOW_SUMMER).map((i) => i.primary)).toEqual(["ready"]);
   });
 });
@@ -392,7 +395,7 @@ describe("buildArrivalsBySlot", () => {
   const groups = buildArrivalsBySlot(
     [
       bk({ slot: "09:00", status: "Booked" }),
-      bk({ slot: "09:00", status: "Checked in" }),
+      bk({ slot: "09:00", status: "Arrived" }),
       bk({ slot: "10:00", status: "Booked" }),
       bk({ slot: "11:00", status: "Cancelled" }),
     ],
@@ -422,10 +425,10 @@ describe("minutesUntilSlot", () => {
 describe("splitArrivalGroups", () => {
   const groups = buildArrivalsBySlot(
     [
-      bk({ slot: "09:00", status: "Checked in" }), // past, settled
+      bk({ slot: "09:00", status: "Arrived" }), // past, settled
       bk({ slot: "09:30", status: "Booked" }), // past but unarrived → earlier (late list owns it)
       bk({ slot: "10:30", status: "Booked", dogName: "next" }),
-      bk({ slot: "11:00", status: "Checked in" }), // future, fully arrived → settled
+      bk({ slot: "11:00", status: "Arrived" }), // future, fully arrived → settled
       bk({ slot: "12:00", status: "Booked", dogName: "later" }),
     ],
     SALON_SLOTS,
@@ -441,7 +444,7 @@ describe("splitArrivalGroups", () => {
 
   it("isGroupSettled needs every dog at least arrived", () => {
     const mixed = buildArrivalsBySlot(
-      [bk({ slot: "12:30", status: "Checked in" }), bk({ slot: "12:30", status: "Booked" })],
+      [bk({ slot: "12:30", status: "Arrived" }), bk({ slot: "12:30", status: "Booked" })],
       SALON_SLOTS,
       NOW_SUMMER,
     );
@@ -458,10 +461,10 @@ describe("buildInSalonList", () => {
   it("lists Checked in / In bath dogs, longest in first, and skips the rest", () => {
     const list = buildInSalonList(
       [
-        bk({ status: "Checked in", checkedInAt: new Date(NOW_SUMMER.getTime() - 50 * 60000).toISOString(), dogName: "longest" }),
-        bk({ status: "In bath", checkedInAt: new Date(NOW_SUMMER.getTime() - 20 * 60000).toISOString(), dogName: "bathing" }),
-        bk({ status: "Checked in", checkedInAt: null, dogName: "unstamped" }),
-        bk({ status: "Ready for pick-up", dogName: "ready" }), // its own queue
+        bk({ status: "Arrived", checkedInAt: new Date(NOW_SUMMER.getTime() - 50 * 60000).toISOString(), dogName: "longest" }),
+        bk({ status: "Arrived", checkedInAt: new Date(NOW_SUMMER.getTime() - 20 * 60000).toISOString(), dogName: "bathing" }),
+        bk({ status: "Arrived", checkedInAt: null, dogName: "unstamped" }),
+        bk({ status: "Ready for collection", dogName: "ready" }), // its own queue
         bk({ status: "Booked" }),
         bk({ status: "Cancelled" }),
       ],
@@ -477,9 +480,9 @@ describe("buildCollectionQueue", () => {
   it("lists only Ready dogs, longest wait first", () => {
     const q = buildCollectionQueue(
       [
-        bk({ status: "Ready for pick-up", readyAt: new Date(NOW_SUMMER.getTime() - 40 * 60000).toISOString(), dogName: "long" }),
-        bk({ status: "Ready for pick-up", readyAt: new Date(NOW_SUMMER.getTime() - 10 * 60000).toISOString(), dogName: "short" }),
-        bk({ status: "Ready for pick-up", readyAt: null, dogName: "unknown" }),
+        bk({ status: "Ready for collection", readyAt: new Date(NOW_SUMMER.getTime() - 40 * 60000).toISOString(), dogName: "long" }),
+        bk({ status: "Ready for collection", readyAt: new Date(NOW_SUMMER.getTime() - 10 * 60000).toISOString(), dogName: "short" }),
+        bk({ status: "Ready for collection", readyAt: null, dogName: "unknown" }),
         bk({ status: "Completed" }),
         bk({ status: "Cancelled" }),
       ],
@@ -493,8 +496,8 @@ describe("buildCollectionQueue", () => {
 describe("buildPaymentsList", () => {
   it("lists outstanding, non-cancelled bookings by amount due", () => {
     const list = buildPaymentsList([
-      bk({ status: "Checked in", payment: "Due at Pick-up", service: "full-groom", size: "small" }), // 42
-      bk({ status: "Ready for pick-up", payment: "Deposit Paid", service: "full-groom", size: "small" }), // 32
+      bk({ status: "Arrived", payment: "Due at Pick-up", service: "full-groom", size: "small" }), // 42
+      bk({ status: "Ready for collection", payment: "Deposit Paid", service: "full-groom", size: "small" }), // 32
       bk({ status: "Completed", payment: "Paid in Full", service: "full-groom", size: "small" }), // excluded
       bk({ status: "Cancelled", payment: "Due at Pick-up" }), // excluded
     ]);
@@ -508,7 +511,7 @@ describe("buildTodayFeed", () => {
     [
       bk({ id: "z", _bookingDate: TODAY, slot: "13:00", status: "Booked", dogName: "Zed" }), // upcoming (future slot)
       bk({ id: "a", _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "Amber" }), // late (75 over)
-      bk({ id: "e", _bookingDate: TODAY, slot: "09:30", status: "Checked in", payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "Ember" }), // in salon + owes
+      bk({ id: "e", _bookingDate: TODAY, slot: "09:30", status: "Arrived", payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "Ember" }), // in salon + owes
       bk({ id: "g", _bookingDate: TODAY, slot: "08:30", status: "Cancelled", dogName: "Ghost" }), // excluded
       bk({ id: "n", _bookingDate: TODAY, slot: "11:00", status: "Booked", dogName: "Nova" }), // next (future, not late)
     ],
@@ -666,7 +669,7 @@ describe("selectLiveFocus", () => {
 
   it("advances to the nearest upcoming arrival after check-in", () => {
     const focus = selectLiveFocus(feedOf([
-      bk({ id: "done", _bookingDate: TODAY, slot: "08:30", status: "Checked in" }),
+      bk({ id: "done", _bookingDate: TODAY, slot: "08:30", status: "Arrived" }),
       bk({ id: "next", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
     ]));
     expect(focus?.booking.id).toBe("next");
@@ -684,8 +687,8 @@ describe("selectLiveFocus", () => {
 
   it("falls back from arrivals to longest-waiting ready, then longest in-salon", () => {
     const ready = selectLiveFocus(feedOf([
-      bk({ id: "bath", status: "In bath", checkedInAt: "2026-07-02T08:30:00Z" }),
-      bk({ id: "ready", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
+      bk({ id: "bath", status: "Arrived", checkedInAt: "2026-07-02T08:30:00Z" }),
+      bk({ id: "ready", status: "Ready for collection", readyAt: "2026-07-02T09:00:00Z" }),
     ]));
     expect(ready?.booking.id).toBe("ready");
   });
@@ -696,14 +699,14 @@ describe("selectLiveFocus", () => {
         id: "earlier-slot-later-check-in",
         _bookingDate: TODAY,
         slot: "08:30",
-        status: "Checked in",
+        status: "Arrived",
         checkedInAt: "2026-07-02T09:00:00Z",
       }),
       bk({
         id: "later-slot-earlier-check-in",
         _bookingDate: TODAY,
         slot: "10:00",
-        status: "In bath",
+        status: "Arrived",
         checkedInAt: "2026-07-02T08:00:00Z",
       }),
     ]));
@@ -717,14 +720,14 @@ describe("selectLiveFocus", () => {
         id: "missing-earlier-slot",
         _bookingDate: TODAY,
         slot: "08:30",
-        status: "Checked in",
+        status: "Arrived",
         checkedInAt: null,
       }),
       bk({
         id: "valid-later-slot",
         _bookingDate: TODAY,
         slot: "10:00",
-        status: "In bath",
+        status: "Arrived",
         checkedInAt: "2026-07-02T08:00:00Z",
       }),
     ]));
@@ -738,21 +741,21 @@ describe("selectLiveFocus", () => {
         id: "valid",
         _bookingDate: TODAY,
         slot: "10:00",
-        status: "Checked in",
+        status: "Arrived",
         checkedInAt: "2026-07-02T08:00:00Z",
       }),
       bk({
         id: "invalid",
         _bookingDate: TODAY,
         slot: "08:30",
-        status: "In bath",
+        status: "Arrived",
         checkedInAt: "not-a-date",
       }),
       bk({
         id: "missing",
         _bookingDate: TODAY,
         slot: "09:00",
-        status: "Checked in",
+        status: "Arrived",
         checkedInAt: null,
       }),
     ];
@@ -778,14 +781,14 @@ describe("selectLiveFocus", () => {
         id: "later-slot",
         _bookingDate: TODAY,
         slot: "10:00",
-        status: "Checked in",
+        status: "Arrived",
         checkedInAt: firstAt,
       }),
       bk({
         id: "earlier-slot",
         _bookingDate: TODAY,
         slot: "08:30",
-        status: "In bath",
+        status: "Arrived",
         checkedInAt: secondAt,
       }),
     ]));
@@ -797,13 +800,13 @@ describe("selectLiveFocus", () => {
     const alpha = bk({
       id: "alpha",
       _bookingDate: TODAY,
-      status: "Checked in",
+      status: "Arrived",
       checkedInAt: null,
     });
     const zulu = bk({
       id: "zulu",
       _bookingDate: TODAY,
-      status: "In bath",
+      status: "Arrived",
       checkedInAt: "not-a-date",
     });
 
@@ -857,7 +860,7 @@ describe("liveFocusContext", () => {
       bk({ dogName: "Minnie", slot: "10:00", status: "Booked" }),
     ], NOW_SUMMER)[0];
     const ready = buildTodayFeed([
-      bk({ dogName: "Rufus", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
+      bk({ dogName: "Rufus", status: "Ready for collection", readyAt: "2026-07-02T09:00:00Z" }),
     ], NOW_SUMMER)[0];
 
     expect.soft(liveFocusContext(overdue, later).text).toBe("45 min overdue");
@@ -866,12 +869,12 @@ describe("liveFocusContext", () => {
 
   it("uses plain checked-in copy for an invalid check-in timestamp", () => {
     const entry = buildTodayFeed([
-      bk({ dogName: "Rufus", status: "Checked in", checkedInAt: "not-a-date" }),
+      bk({ dogName: "Rufus", status: "Arrived", checkedInAt: "not-a-date" }),
     ], NOW_SUMMER)[0];
 
     expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({
-      text: "Checked in",
-      ariaLabel: "Rufus — checked in",
+      text: "Arrived",
+      ariaLabel: "Rufus — arrived",
     });
     expect(liveFocusContext(entry, NOW_SUMMER).text).not.toContain("NaN");
   });
@@ -884,7 +887,7 @@ describe("buildTakingsByMethod (improvement #3 — till view)", () => {
       bk({ payment: "Paid in Full", paymentMethod: "cash", paidAmount: 38, service: "bath-and-brush", size: "small", status: "Completed" }),
       bk({ payment: "Paid in Full", paymentMethod: "card", paidAmount: null, service: "full-groom", size: "small", status: "Completed" }), // fallback £42
       bk({ payment: "Paid in Full", paymentMethod: null, paidAmount: 60, service: "full-groom", size: "large", status: "Completed" }), // method not recorded
-      bk({ payment: "Due at Pick-up", service: "full-groom", size: "small", status: "Checked in" }), // not paid — excluded
+      bk({ payment: "Due at Pick-up", service: "full-groom", size: "small", status: "Arrived" }), // not paid — excluded
     ]);
     expect(t.count).toBe(4); // paid bookings
     expect(t.total).toBe(182); // 42 + 38 + 42 + 60

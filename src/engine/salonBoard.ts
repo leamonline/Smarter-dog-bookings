@@ -289,7 +289,7 @@ function statusTextFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, 
     return until <= 0 ? "Due now" : `Arriving in ${formatDuration(until)}`;
   }
   if (zone === "withUs") {
-    // "In bath" is no longer a status, so there is one stage here: the dog is
+    // "Arrived" is no longer a status, so there is one stage here: the dog is
     // with us. Where it has got to in the groom is an operational detail the
     // lifecycle deliberately no longer tracks.
     const stage = "Arrived";
@@ -567,7 +567,7 @@ export function tokenActions(token: BoardToken, context: TokenActionContext = {}
     }
     actions.push({ id: "checkIn", label: "Arrived", kind: "primary" });
   } else if (token.zone === "withUs") {
-    // One step out of "with us" now that "In bath" is gone: Arrived -> Ready.
+    // One step out of "with us" now that "Arrived" is gone: Arrived -> Ready.
     //
     // "Mark ready", not "Ready for collection" and emphatically not "texts
     // owner": pressing this sends nothing. It opens a prompt where staff

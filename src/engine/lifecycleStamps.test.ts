@@ -28,7 +28,7 @@ describe("applyLifecycleStamps", () => {
 
   it("keeps the original arrival through the later stages", () => {
     const out = stamp(
-      { status: BOOKING_STATUS.IN_BATH, checkedInAt: EARLIER },
+      { status: BOOKING_STATUS.ARRIVED, checkedInAt: EARLIER },
       BOOKING_STATUS.ARRIVED,
     );
     expect(out.checkedInAt).toBe(EARLIER);
@@ -37,7 +37,7 @@ describe("applyLifecycleStamps", () => {
   it("stamps ready on reaching Ready, keeping the arrival", () => {
     const out = stamp(
       { status: BOOKING_STATUS.READY_FOR_COLLECTION, checkedInAt: EARLIER },
-      BOOKING_STATUS.IN_BATH,
+      BOOKING_STATUS.ARRIVED,
     );
     expect(out.checkedInAt).toBe(EARLIER);
     expect(out.readyAt).toBe(NOW);
@@ -55,7 +55,7 @@ describe("applyLifecycleStamps", () => {
 
   it("clears ready when a booking regresses below it — a staff correction", () => {
     const out = stamp(
-      { status: BOOKING_STATUS.IN_BATH, checkedInAt: EARLIER, readyAt: EARLIER },
+      { status: BOOKING_STATUS.ARRIVED, checkedInAt: EARLIER, readyAt: EARLIER },
       BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     expect(out.readyAt).toBeNull();

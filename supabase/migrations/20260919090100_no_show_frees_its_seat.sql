@@ -47,16 +47,13 @@ $$;
 comment on function public.booking_occupies_seat(text) is
   'True when a booking still holds its seat. False for the two terminal statuses, Cancelled and No-show. The single source of truth for occupancy in SQL; mirrors isActiveBooking() in src/constants/salon.ts.';
 
-revoke execute on function public.booking_occupies_seat(text) from public, anon, authenticated;
-grant execute on function public.booking_occupies_seat(text) to authenticated;
-
 -- ── Seats used in a slot ─────────────────────────────────────────────
 create or replace function public.get_seats_used(p_date date, p_slot text, p_exclude_id uuid default null::uuid)
 returns integer
 language plpgsql
 stable security definer
-set search_path to 'public', 'pg_temp'
-as $function$
+set search_path = public, pg_temp
+as $$
 declare total integer;
 begin
   select coalesce(sum(get_seats_needed(b.size, b.slot)), 0) into total
@@ -67,15 +64,15 @@ begin
      and (p_exclude_id is null or b.id <> p_exclude_id);
   return total;
 end;
-$function$;
+$$;
 
 -- ── Occupancy for one day ────────────────────────────────────────────
 create or replace function public.get_slot_occupancy(p_date date)
 returns table(slot text, size text)
 language plpgsql
 stable security definer
-set search_path to 'public', 'pg_temp'
-as $function$
+set search_path = public, pg_temp
+as $$
 begin
   if p_date is null then
     raise exception 'get_slot_occupancy: date is required';
@@ -87,15 +84,15 @@ begin
   where  b.booking_date = p_date
     and  public.booking_occupies_seat(b.status);
 end;
-$function$;
+$$;
 
 -- ── Large-dog presence in a slot ─────────────────────────────────────
 create or replace function public.has_large_dog(p_date date, p_slot text, p_exclude_id uuid default null::uuid)
 returns boolean
 language plpgsql
 stable security definer
-set search_path to 'public', 'pg_temp'
-as $function$
+set search_path = public, pg_temp
+as $$
 begin
   return exists (
     select 1 from bookings b
@@ -106,7 +103,7 @@ begin
        and (p_exclude_id is null or b.id <> p_exclude_id)
   );
 end;
-$function$;
+$$;
 
 -- ── Occupancy across a range (customer availability) ─────────────────
 -- Body preserved verbatim apart from the status predicate, including the
@@ -115,8 +112,8 @@ create or replace function public.get_occupancy_range(p_from date, p_to date)
 returns table(booking_date date, slot text, size text)
 language plpgsql
 stable security definer
-set search_path to 'public', 'pg_temp'
-as $function$
+set search_path = public, pg_temp
+as $$
 begin
   if p_from is null or p_to is null then
     raise exception 'get_occupancy_range: p_from and p_to are required';
@@ -140,6 +137,37 @@ begin
   where  b.booking_date between p_from and p_to
     and  public.booking_occupies_seat(b.status);
 end;
-$function$;
+$$;
+
+-- ── Grants ───────────────────────────────────────────────────────────
+-- REPLACE preserves existing grants, but a bare re-apply must not depend on
+-- that being true already, and Supabase auto-grants EXECUTE on new public
+-- functions to anon — so "revoke from public" alone would leave anon able to
+-- read the salon's occupancy. Stated explicitly for every function re-issued
+-- above; enforced by src/security/customerCapacityReadDisclosure.test.ts.
+revoke all on function public.get_seats_used(date, text, uuid) from public;
+revoke all on function public.get_seats_used(date, text, uuid) from anon;
+revoke all on function public.get_seats_used(date, text, uuid) from authenticated;
+grant execute on function public.get_seats_used(date, text, uuid) to authenticated;
+
+revoke all on function public.get_slot_occupancy(date) from public;
+revoke all on function public.get_slot_occupancy(date) from anon;
+revoke all on function public.get_slot_occupancy(date) from authenticated;
+grant execute on function public.get_slot_occupancy(date) to authenticated;
+
+revoke all on function public.has_large_dog(date, text, uuid) from public;
+revoke all on function public.has_large_dog(date, text, uuid) from anon;
+revoke all on function public.has_large_dog(date, text, uuid) from authenticated;
+grant execute on function public.has_large_dog(date, text, uuid) to authenticated;
+
+revoke all on function public.get_occupancy_range(date, date) from public;
+revoke all on function public.get_occupancy_range(date, date) from anon;
+revoke all on function public.get_occupancy_range(date, date) from authenticated;
+grant execute on function public.get_occupancy_range(date, date) to authenticated;
+
+revoke all on function public.booking_occupies_seat(text) from public;
+revoke all on function public.booking_occupies_seat(text) from anon;
+revoke all on function public.booking_occupies_seat(text) from authenticated;
+grant execute on function public.booking_occupies_seat(text) to authenticated;
 
 commit;

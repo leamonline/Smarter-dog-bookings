@@ -121,7 +121,7 @@ describe("the board", () => {
   it("puts each dog in the zone matching its status", () => {
     render(<BoardHarness bookings={[
       booking({ id: "a", dogName: "Oscar" }),
-      booking({ id: "b", dogName: "Milo", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:30:00Z" }),
+      booking({ id: "b", dogName: "Milo", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:30:00Z" }),
       booking({ id: "c", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]} />);
 
@@ -257,9 +257,9 @@ describe("the action panel on a phone", () => {
 
     const sheet = screen.getByRole("dialog");
     expect(within(sheet).getByRole("heading", { name: "Oscar" })).toBeInTheDocument();
-    expect(within(sheet).getByRole("button", { name: "Check in — Oscar" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Arrived — Oscar" })).toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: /Mark collected/ })).not.toBeInTheDocument();
-    expect(within(sheet).queryByRole("button", { name: /Start groom/ })).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: /Mark ready/ })).not.toBeInTheDocument();
   });
 
   it("reveals in the panel everything the token deliberately does not print", () => {
@@ -327,7 +327,7 @@ describe("the action panel on a phone", () => {
     const onTokenAction = vi.fn();
     render(<BoardHarness bookings={[booking({ id: "a", dogName: "Oscar" })]} onTokenAction={onTokenAction} />);
     fireEvent.click(screen.getByRole("button", { name: /^Oscar\./ }));
-    fireEvent.click(screen.getByRole("button", { name: "Check in — Oscar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Arrived — Oscar" }));
 
     expect(onTokenAction).toHaveBeenCalledTimes(1);
     expect(onTokenAction.mock.calls[0][0].booking.id).toBe("a");
