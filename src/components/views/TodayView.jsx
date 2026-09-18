@@ -53,6 +53,7 @@ import { useBookingActions } from "./today/useBookingActions.ts";
 import { SalonBoard } from "./today/board/SalonBoard.jsx";
 import { CompletedDogs, EndOfDayFacts } from "./today/board/CompletedDogs.jsx";
 import { DayStack } from "./today/stack/DayStack.jsx";
+import { CollectedSummary } from "./today/stack/CollectedSummary.jsx";
 import { UnknownStatusRecovery } from "./today/board/UnknownStatusRecovery.jsx";
 
 // Mirrors the real board: three zones of token ghosts.
@@ -567,17 +568,19 @@ export function TodayView({
                 />
               )}
             </div>
-            <CompletedDogs
-              tokens={tokens.home}
-              landedId={actions.landedId}
-              isToday={isToday}
-              resolve={resolve}
-              paymentOf={paymentOf}
-              onOpenBooking={onOpenBooking}
-              onOpenToken={(token) => (useLegacyBoard
-                ? setSelectedTokenId(String(token.booking.id))
-                : onOpenBooking?.(String(token.booking.id)))}
-            />
+            {useLegacyBoard ? (
+              <CompletedDogs
+                tokens={tokens.home}
+                landedId={actions.landedId}
+                isToday={isToday}
+                resolve={resolve}
+                paymentOf={paymentOf}
+                onOpenBooking={onOpenBooking}
+                onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
+              />
+            ) : (
+              <CollectedSummary takings={takings} resolve={resolve} />
+            )}
             <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}

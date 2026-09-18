@@ -1193,3 +1193,61 @@ describe("no-show visibility", () => {
     });
   });
 });
+
+// ---- Takings rows --------------------------------------------------------------
+//
+// The per-dog rows come back from the same pass that builds the total, so a
+// list rendered under a figure can never fail to add up to it.
+
+describe("buildTakingsByMethod rows", () => {
+  const paid = (over: Partial<Booking>) => bk({
+    service: "full-groom",
+    size: "small",
+    payment: "Paid in Full",
+    ...over,
+  });
+
+  it("returns one row per settled booking, and they sum to the total", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", dogName: "Bella", paymentMethod: "cash", paidAmount: 42 }),
+      paid({ id: "b", dogName: "Max", paymentMethod: "card", paidAmount: 38 }),
+    ]);
+    expect(takings.bookings).toHaveLength(2);
+    expect(takings.bookings.reduce((sum, row) => sum + row.amount, 0)).toBe(takings.total);
+    expect(takings.total).toBe(80);
+  });
+
+  it("separates cash from card", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", paymentMethod: "cash", paidAmount: 42 }),
+      paid({ id: "b", paymentMethod: "cash", paidAmount: 10 }),
+      paid({ id: "c", paymentMethod: "card", paidAmount: 38 }),
+    ]);
+    const cash = takings.byMethod.find((m) => m.method === "cash");
+    const card = takings.byMethod.find((m) => m.method === "card");
+    expect(cash).toMatchObject({ label: "Cash", amount: 52, count: 2 });
+    expect(card).toMatchObject({ label: "Card", amount: 38, count: 1 });
+  });
+
+  it("labels a legacy row with no recorded method rather than hiding it", () => {
+    const takings = buildTakingsByMethod([paid({ id: "a", paidAmount: 42 })]);
+    expect(takings.bookings[0].label).toBe("Not recorded");
+    expect(takings.total).toBe(42);
+  });
+
+  it("puts the most recently collected dog first", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "early", paidAmount: 10, completedAt: "2026-07-14T08:00:00Z" }),
+      paid({ id: "late", paidAmount: 20, completedAt: "2026-07-14T11:00:00Z" }),
+    ]);
+    expect(takings.bookings.map((row) => row.booking.id)).toEqual(["late", "early"]);
+  });
+
+  it("leaves an unsettled booking out of the rows entirely", () => {
+    const takings = buildTakingsByMethod([
+      paid({ id: "a", paidAmount: 42, paymentMethod: "cash" }),
+      bk({ id: "b", payment: "Due at Pick-up", service: "full-groom", size: "small" }),
+    ]);
+    expect(takings.bookings.map((row) => row.booking.id)).toEqual(["a"]);
+  });
+});

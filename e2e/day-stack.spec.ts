@@ -347,3 +347,21 @@ test("a browsed date shows no live timing at all", async ({ page }) => {
   await expect(card(page, "Bella")).not.toContainText(/waiting|late|away|No arrival/);
   await expect(card(page, "Charlie")).not.toContainText(/waiting|late|away|No arrival/);
 });
+
+test("a collected dog leaves the stack for the takings summary", async ({ page }) => {
+  await page.clock.install({ time: SAMPLE_NOW });
+  await page.goto(MONDAY);
+  await settle(page);
+
+  const summary = page.locator("[data-collected-summary]");
+  // Daisy was already collected in the sample day, at £42 with no method
+  // recorded — a legacy row, which must still be counted rather than hidden.
+  await expect(summary).toContainText("Collected today");
+
+  const luna = await openDog(page, "Luna");
+  await luna.locator("[data-checkout-chain]").getByRole("button", { name: /^Check out/ }).click();
+  await luna.locator("[data-checkout-chain]").getByRole("button", { name: "Collected — Luna" }).click();
+
+  await expect(page.locator("[data-stack-card]").filter({ hasText: "Luna" })).toHaveCount(0);
+  await expect(summary).toContainText("Luna");
+});

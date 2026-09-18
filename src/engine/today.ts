@@ -54,6 +54,9 @@ export interface TodayBooking {
   confirmationChannel?: string | null;
   readyAt?: string | null;
   checkedInAt?: string | null;
+  /** Needed by callers that key on a booking — the takings rows, for one. */
+  id?: string;
+  completedAt?: string | null;
   _bookingDate?: string;
   _dogId?: string | null;
   dogName?: string;
@@ -1016,6 +1019,15 @@ export interface TakingsByMethod {
   /** Number of Paid-in-Full bookings counted. */
   count: number;
   byMethod: Array<{ method: string; label: string; amount: number; count: number }>;
+  /**
+   * The individual settled bookings behind `total`, most recent first.
+   *
+   * Returned from here rather than recomputed by the caller so a per-dog list
+   * and the total it sits under cannot disagree. Computing the rows separately
+   * would reach the pricing chain by a different route and produce a list that
+   * visibly fails to add up.
+   */
+  bookings: Array<{ booking: TodayBooking; amount: number; method: string; label: string }>;
 }
 
 /**
@@ -1024,9 +1036,14 @@ export interface TakingsByMethod {
  * bookings have no recorded amount). Bookings with no recorded method fall into
  * an "unrecorded" bucket. Cancelled bookings are excluded.
  */
+function methodLabel(method: string): string {
+  return method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method);
+}
+
 export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod {
   const paid = bookings.filter((b) => (b.payment || "") === "Paid in Full" && isCountableBooking(b));
   const acc: Record<string, { amount: number; count: number }> = {};
+  const rows: TakingsByMethod["bookings"] = [];
   let total = 0;
   for (const b of paid) {
     const amount =
@@ -1044,16 +1061,27 @@ export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod 
     acc[method].amount += amount;
     acc[method].count++;
     total += amount;
+    rows.push({ booking: b, amount, method, label: methodLabel(method) });
   }
+  // Most recently collected first: the till question is almost always about
+  // the last dog out of the door, not the first.
+  rows.sort((a, b) => {
+    const aTime = Date.parse(a.booking.completedAt ?? "");
+    const bTime = Date.parse(b.booking.completedAt ?? "");
+    if (!Number.isFinite(aTime) && !Number.isFinite(bTime)) return 0;
+    if (!Number.isFinite(aTime)) return 1;
+    if (!Number.isFinite(bTime)) return -1;
+    return bTime - aTime;
+  });
   const byMethod = Object.entries(acc)
     .map(([method, v]) => ({
       method,
-      label: method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method),
+      label: methodLabel(method),
       amount: v.amount,
       count: v.count,
     }))
     .sort((a, b) => b.amount - a.amount);
-  return { total, count: paid.length, byMethod };
+  return { total, count: paid.length, byMethod, bookings: rows };
 }
 
 // ============================================================
