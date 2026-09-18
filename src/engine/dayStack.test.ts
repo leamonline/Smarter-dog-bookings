@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildCollectedRows,
   buildDayStack,
   checkoutChain,
   nextCheckoutStep,
   selectCollected,
   READY_OVERDUE_MINUTES,
 } from "./dayStack";
+import { buildTakingsByMethod } from "./today";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../constants/index";
 import type { Booking } from "../types/index";
 
@@ -320,5 +322,81 @@ describe("nextCheckoutStep", () => {
 
   it("backs all the way out of a two-step chain, which has nowhere in between", () => {
     expect(nextCheckoutStep("back", { step: "confirm", amountDue: 0 })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The collected list (#878, finding 2)
+//
+// A dog handed back without paying was invisible on /today: it left the stack
+// when it reached `collected`, and the summary below the stack only listed
+// bookings that `buildTakingsByMethod` had counted — which is Paid-in-Full
+// rows only. So the one case that costs the salon money was the one case the
+// screen said nothing about. The board it replaced showed every collected dog.
+describe("buildCollectedRows", () => {
+  const NOW_C = new Date("2026-07-02T13:00:00Z");
+  const DAY = "2026-07-02";
+
+  const collectedBooking = (over: Record<string, unknown>) => ({
+    dogName: "Dog",
+    slot: "09:00",
+    status: BOOKING_STATUS.COMPLETED,
+    service: "full-groom",
+    size: "small",
+    _bookingDate: DAY,
+    ...over,
+  }) as never;
+
+  const BOOKINGS_C = [
+    collectedBooking({
+      id: "settled",
+      dogName: "Luna",
+      payment: "Paid in Full",
+      paymentMethod: "card",
+      paidAmount: 42,
+      completedAt: "2026-07-02T12:00:00Z",
+    }),
+    collectedBooking({
+      id: "walked",
+      dogName: "Bramble",
+      payment: "Due at Pick-up",
+      completedAt: "2026-07-02T12:30:00Z",
+    }),
+  ];
+
+  const rowsFor = (bookings = BOOKINGS_C) => buildCollectedRows(
+    selectCollected(bookings, DAY, NOW_C),
+    buildTakingsByMethod(bookings as never),
+  );
+
+  it("lists the dog that went home without paying", () => {
+    const rows = rowsFor();
+    expect(rows.map((r) => String(r.booking.id))).toContain("walked");
+  });
+
+  it("marks it as owing, with the amount still outstanding", () => {
+    const owing = rowsFor().find((r) => String(r.booking.id) === "walked");
+    expect(owing?.settled).toBe(false);
+    expect(owing?.amount).toBe(42);
+    expect(owing?.label).toBe("owed");
+  });
+
+  it("takes a settled row's figure from the takings, so the list adds up", () => {
+    const settled = rowsFor().find((r) => String(r.booking.id) === "settled");
+    expect(settled?.settled).toBe(true);
+    expect(settled?.amount).toBe(42);
+    expect(settled?.label).toBe("Card");
+  });
+
+  it("keeps the whole list in collection order, newest first", () => {
+    // Not settled-first, and not unpaid-first: the question staff ask of this
+    // list is "who has just gone?", and an unpaid dog is not less recent.
+    expect(rowsFor().map((r) => String(r.booking.id))).toEqual(["walked", "settled"]);
+  });
+
+  it("counts only what was actually taken toward the total", () => {
+    const takings = buildTakingsByMethod(BOOKINGS_C as never);
+    expect(takings.total).toBe(42);
+    expect(rowsFor()).toHaveLength(2);
   });
 });
