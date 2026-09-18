@@ -114,17 +114,22 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   and take only their per-view controls as props — follow that shape for new views.
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
-- **`/today` live salon board** — the **default staff landing** (`/staff/today`; `/staff` stays the
-  calendar). Each dog is
-  a **token** in the zone that says where it physically is — Arriving → With us → Ready → Gone home —
-  so position carries the status and a press opens that dog's actions. Zones are the existing lanes
-  relabelled: no new statuses, no new transitions. Plus six decision reports (2A–2F) on `/reports`.
-  Pure engines drive both; deep dive: [docs/today-command-centre.md](docs/today-command-centre.md).
+- **`/today` day stack** — the **default staff landing** (`/staff/today`; `/staff` stays the
+  calendar). One card per dog in **strict appointment order**; the card states its status as a word,
+  carries one elapsed-time line, and expands in place for details and that dog's actions. No new
+  statuses, no new transitions — `tokenActions` in `salonBoard.ts` is still the single source of
+  legal moves. Replaced the four-zone salon board in September 2026, because a zone says where a dog
+  is but cannot say how long it has been there; the board survives behind
+  `FEATURE_FLAGS.legacy_salon_board_enabled` (off by default). Plus six decision reports (2A–2F) on
+  `/reports`. Pure engines drive both; deep dive:
+  [docs/today-command-centre.md](docs/today-command-centre.md).
 - `src/engine/` — **pure TS business logic, zero React**: `capacity.ts` (the 2-2-1 engine),
   `bookingRules.ts` (pricing + the `resolveBookingDisplay` selector), `pricing.ts`, `utilisation.ts`,
   `today.ts` (Today-view selectors), `londonTime.ts` (shared Europe/London wall-clock helpers),
-  `salonBoard.ts` (the `/today` board: zone mapping, priority gravity, per-state actions, drag
-  legality, undo), `dailyBrief.ts`, `reportsAnalytics.ts` + `denials.ts` (decision-report maths;
+  `salonBoard.ts` (zone mapping, priority gravity, **`tokenActions` — the per-state action list the
+  day stack reads**, drag legality, undo), `dayStack.ts` (the `/today` stack: time ordering, the
+  timing line, the check-out chain), `lifecycleStamps.ts` (offline mirror of the arrival/ready/
+  completion triggers), `dailyBrief.ts`, `reportsAnalytics.ts` + `denials.ts` (decision-report maths;
   `denials.ts` maps gate rejections → stable reason codes), and the booking-funnel telemetry trio
   `funnel.ts` / `funnelBlockers.ts` / `confirmFailure.ts` (why wizard attempts stall or a confirm
   produced no booking — DB-visible via `booking_funnel_events`).
