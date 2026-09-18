@@ -23,6 +23,7 @@
 // tappable at full size.
 import { useMemo, useState } from "react";
 import { Car, Clock } from "lucide-react";
+import { money } from "../../../../engine/dayStack";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { BookingStatusBadge, resolveDayStatus } from "../../../ui";
 import { SafetyAlertChip } from "../../../ui/SafetyAlertChip.jsx";
@@ -40,9 +41,6 @@ const RULE_CALM = 7;
 const RULE_URGENT = 10;
 const RULE_OVERDUE = 14;
 
-function moneyLabel(amount) {
-  return `£${Math.round(amount)}`;
-}
 
 function DetailRow({ label, children }) {
   return (
@@ -89,7 +87,12 @@ export function StackCard({
   const showBalance = tone.key === "ready";
   const amountDue = payment?.amountDue ?? null;
   const hasBalance = showBalance && amountDue != null && amountDue > 0;
-  const settled = showBalance && !hasBalance;
+  // `paymentState` returns amountDue: null for its "other" kind — a payment
+  // string it does not recognise. That is the absence of an answer, not a
+  // zero balance, and reading it as one labelled the card "Paid" on a booking
+  // nobody had checked (#878). Say what is true: we do not know.
+  const unknownBalance = showBalance && amountDue == null;
+  const settled = showBalance && !hasBalance && !unknownBalance;
 
   const ruleWidth = readyOverdue ? RULE_OVERDUE : urgent ? RULE_URGENT : RULE_CALM;
   const drawerId = `stack-drawer-${row.id}`;
@@ -130,7 +133,13 @@ export function StackCard({
     row.subtitle,
     tone.label,
     timing,
-    hasBalance ? `${moneyLabel(amountDue)} due` : settled ? "Paid" : null,
+    hasBalance
+      ? `${money(amountDue)} due`
+      : settled
+        ? "Paid"
+        : unknownBalance
+          ? "Payment not known"
+          : null,
     onTheWay ? "Owner on the way" : null,
     ownerName ? `owner ${ownerName}` : null,
     safetyFacts.length ? `Safety note: ${safetyFacts.join(". ")}` : null,
@@ -190,9 +199,11 @@ export function StackCard({
             className="block font-medium"
           />
           {hasBalance ? (
-            <span className="block font-bold tabular-nums">{moneyLabel(amountDue)} due</span>
+            <span className="block font-bold tabular-nums">{money(amountDue)} due</span>
           ) : settled ? (
             <span className="block" style={{ color: "var(--card-meta)" }}>Paid</span>
+          ) : unknownBalance ? (
+            <span className="block" style={{ color: "var(--card-meta)" }}>Payment not known</span>
           ) : null}
           {onTheWay ? (
             <span className="flex items-center justify-end gap-1 font-medium">
@@ -231,7 +242,15 @@ export function StackCard({
         className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
       >
-        <div className="overflow-hidden">
+        {/*
+          `inert` as well as the zero row, because 0fr plus overflow-hidden only
+          makes the drawer invisible — it stays in the tab order and is still
+          announced. Every closed card was therefore offering its phone link,
+          its price editor and, worst of all, its "Collected" button to a
+          keyboard user who could not see which dog they belonged to (#878).
+          aria-expanded said "false" while the contents said otherwise.
+        */}
+        <div className="overflow-hidden" inert={expanded ? undefined : ""}>
           <div className="border-t border-black/[0.09] px-3.5 pb-3.5">
             <div className="my-3 text-[14px]">
               {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}

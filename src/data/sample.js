@@ -31,6 +31,15 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
     // unknown-status warning without making the whole demo day unusable.
     { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor" },
     { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson", status: BOOKING_STATUS.BOOKED },
+    // Went home without paying. The one state on this screen that actually
+    // costs the salon money, and the one the day stack was silent about
+    // until #878: it has left the stack, and it is not in the takings, so
+    // deriving the collected list from the takings made it disappear. There
+    // was no fixture for it anywhere, which is a large part of why nobody
+    // noticed. The stack itself cannot create this state — the check-out
+    // chain always settles — but the mini invoice, the booking detail modal
+    // and the other till all can, so the screen has to show it.
+    { id: 9, slot: "11:00", dogName: "Ziggy", breed: "Border Terrier", size: "small", service: "bath-and-brush", owner: "Nina Patel", status: BOOKING_STATUS.COMPLETED, payment: "Due at Pick-up", completedAt: "2026-07-13T11:40:00Z" },
   ],
   tue: [
     { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED },

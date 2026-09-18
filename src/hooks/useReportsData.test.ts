@@ -33,8 +33,12 @@ describe("offline report data", () => {
       new Date("2026-05-12T12:00:00"),
     );
 
-    expect(stats.curN).toBe(10);
-    expect(stats.curRev).toBe(433);
+    // 11 sample bookings, not 10, since Ziggy was added to the Monday fixture
+    // as the collected-but-unpaid case (#878). Revenue counts what the
+    // appointment is worth, not what was collected, so Ziggy's bath & brush
+    // is in the figure even though the money never arrived.
+    expect(stats.curN).toBe(11);
+    expect(stats.curRev).toBe(471);
   });
 
   it("computes service and size splits from sample data", () => {
@@ -54,7 +58,7 @@ describe("offline report data", () => {
     });
     expect(stats.sizes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ size: "small", n: 5 }),
+        expect.objectContaining({ size: "small", n: 6 }),
         expect.objectContaining({ size: "medium", n: 4 }),
         expect.objectContaining({ size: "large", n: 1 }),
       ]),
@@ -74,7 +78,7 @@ describe("offline report data", () => {
 
     expect(coco?.dog_id).toMatch(/^dog:/);
     expect(Object.values(source.humanMap)).toContain("Amy Clarke");
-    expect(stats.uniqueCusts).toBe(10);
+    expect(stats.uniqueCusts).toBe(11);
   });
 });
 

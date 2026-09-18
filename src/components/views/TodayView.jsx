@@ -32,7 +32,7 @@ import {
   buildBoardTokens,
   buildZoneCounts,
 } from "../../engine/salonBoard";
-import { buildDayStack } from "../../engine/dayStack";
+import { buildCollectedRows, buildDayStack, selectCollected } from "../../engine/dayStack";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { buildDailyBriefBoard } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
@@ -183,6 +183,23 @@ export function TodayView({
     [selectedBookings, dogs, configPricing],
   );
   const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
+  // Every dog that has gone home, settled or not.
+  //
+  // Built from the COLLECTED bookings rather than the day's, because `takings`
+  // above counts every non-cancelled Paid-in-Full booking — including dogs that
+  // paid in advance and are still in the salon. Feeding that to a panel headed
+  // "Collected today" listed dogs that had not been collected, and would now
+  // put a total above a list that does not add up to it. Two questions, two
+  // selections: what is in the drawer, and who has left.
+  const collected = useMemo(
+    () => selectCollected(selectedBookings, dateStr, now),
+    [selectedBookings, dateStr, now],
+  );
+  const collectedTakings = useMemo(() => buildTakingsByMethod(collected), [collected]);
+  const collectedRows = useMemo(
+    () => buildCollectedRows(collected, collectedTakings),
+    [collected, collectedTakings],
+  );
   // Owners who answered the reminder by typing rather than tapping Confirm
   // never stamp reminder_confirmed_at, so the engine still calls them
   // unconfirmed. Folding the signal in here clears the flag everywhere at
@@ -579,7 +596,7 @@ export function TodayView({
                 onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
               />
             ) : (
-              <CollectedSummary takings={takings} resolve={resolve} />
+              <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
             )}
             <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />

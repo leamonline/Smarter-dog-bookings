@@ -464,6 +464,16 @@ describe("the check-out chain", () => {
     pressChain("waiting", "Check out");
     expect(chainLabels("waiting")).toEqual(["Collected", "Back"]);
     pressChain("waiting", "Collected");
+
+    // The chain reports "no method chosen, nothing handed over", which is the
+    // truth about what happened at the till and is all this test claims.
+    //
+    // It is NOT a claim that the resulting write is correct. An earlier version
+    // of this assertion was the only coverage of that path, and it passed while
+    // the write destroyed the dog's existing payment (#878) — because the value
+    // it asserted IS the input that caused the corruption. What gets written
+    // for this input is asserted against the row itself, in
+    // `useBookingActions.component.test.tsx`.
     expect(onCollectWithPayment.mock.calls[0][1]).toEqual({ method: null, amountTaken: 0 });
   });
 

@@ -58,6 +58,8 @@ Implementation does not silently overrule signed product policy. Record a materi
 - Use constants for statuses and dog sizes, `resolveBookingDisplay()` for booking labels and `src/lib/logger.ts` instead of bare `console` calls in `src/`.
 - Schema changes require pgTAP coverage and, for concurrency-sensitive behaviour, a database-level concurrency test.
 - New behaviour requires proportionate automated tests. Test observable outcomes and failure paths, not only implementation details.
+- A test covering a write path asserts the **row that was written**, not the arguments handed to the writer. See [CONTRIBUTING.md](CONTRIBUTING.md#two-standing-rules); this rule exists because a payment-destroying write shipped green under an assertion pinned to the exact value that caused it.
+- Replacing a screen is not complete until every state the old screen displayed has been inventoried and checked off against the new one. Same reference; the worked example is a collected-but-unpaid booking, which the replacement made invisible.
 - Investigate failures; never weaken or delete a test merely to make CI green.
 - Before claiming completion run the relevant focused checks, then the repository bar where the change warrants it:
 

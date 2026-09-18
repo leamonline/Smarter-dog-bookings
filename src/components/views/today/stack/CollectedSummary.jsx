@@ -6,10 +6,18 @@
 // row so the one number anybody wants mid-shift needs no tap at all.
 //
 // Cash and card are separated because that is the question the till actually
-// asks at the end of the day. The figures come from `buildTakingsByMethod`,
+// asks at the end of the day. The settled figures come from `buildTakingsByMethod`,
 // including the per-dog rows, so the list and the total it sits under cannot
 // disagree — computing the rows here would reach the pricing chain by a
 // different route and produce a list that visibly fails to add up.
+//
+// The LIST, though, is every collected dog, not only the paying ones. Those are
+// two different questions and this summary answers both: the total is what is
+// in the drawer, and the list is who has left. Deriving the list from the
+// takings meant a dog handed back without paying appeared nowhere on the screen
+// at all — not in the stack, which it had left, and not here (#878). That is
+// the one case that actually costs the salon money, so it is also the one case
+// that is stated on the closed row, where nobody has to go looking for it.
 import { titleCase } from "../../../../utils/text";
 
 function moneyLabel(amount) {
@@ -20,19 +28,32 @@ function dogLabel(count) {
   return count === 1 ? "1 dog" : `${count} dogs`;
 }
 
-export function CollectedSummary({ takings, resolve }) {
+export function CollectedSummary({ takings, rows = [], resolve }) {
   const total = takings?.total ?? 0;
-  const rows = takings?.bookings ?? [];
   const byMethod = takings?.byMethod ?? [];
+
+  const owing = rows.filter((row) => !row.settled);
+  const owed = owing.reduce((sum, row) => sum + (row.amount || 0), 0);
 
   return (
     <details data-collected-summary className="mt-5 border-t border-slate-200 pt-3">
       <summary
-        className="flex min-h-11 cursor-pointer list-none items-center justify-between px-0.5 text-[14px] text-slate-600 [&::-webkit-details-marker]:hidden"
+        className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-0.5 text-[14px] text-slate-600 [&::-webkit-details-marker]:hidden"
       >
         <span>Collected today</span>
-        <span className="font-medium tabular-nums text-brand-purple">
-          {moneyLabel(total)} · {dogLabel(rows.length)}
+        <span className="flex flex-wrap items-center justify-end gap-x-2 text-right">
+          {/*
+            Stated before anyone opens anything. A total that silently excluded
+            a dog who walked out owing £42 is a total that reads as a good day.
+          */}
+          {owed > 0 ? (
+            <span data-collected-owed className="font-medium tabular-nums text-rose-700">
+              {moneyLabel(owed)} owed
+            </span>
+          ) : null}
+          <span className="font-medium tabular-nums text-brand-purple">
+            {moneyLabel(total)} · {dogLabel(rows.length)}
+          </span>
         </span>
       </summary>
 
@@ -65,12 +86,22 @@ export function CollectedSummary({ takings, resolve }) {
                 <li
                   key={String(row.booking.id)}
                   data-collected-row
+                  data-settled={row.settled ? "true" : "false"}
                   className="flex items-center justify-between gap-3 border-t border-slate-200 px-0.5 py-[7px] text-[14px] text-slate-600"
                 >
                   <span className="truncate text-brand-purple">{name}</span>
-                  <span className="whitespace-nowrap tabular-nums">
+                  <span
+                    className={`whitespace-nowrap tabular-nums ${row.settled ? "" : "font-medium text-rose-700"}`}
+                  >
                     {moneyLabel(row.amount)}{" "}
-                    <span className="text-slate-500">{row.label.toLowerCase()}</span>
+                    {/*
+                      "owed" rather than a colour or an icon. A row that reads
+                      "£42 card" and one that reads "£42 owed" are opposite
+                      facts, and the difference must survive being read aloud.
+                    */}
+                    <span className={row.settled ? "text-slate-500" : ""}>
+                      {row.settled ? row.label.toLowerCase() : row.label}
+                    </span>
                   </span>
                 </li>
               );

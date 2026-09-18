@@ -13,7 +13,8 @@
 // looking identical. Strict time order plus one elapsed figure per row makes
 // that difference the most visible thing on the screen, which is what the
 // people running the salon actually need from it.
-import { SERVICES } from "../constants/index";
+import { DOG_SIZE, SERVICES } from "../constants/index";
+import { computeBookingPricing } from "./bookingRules";
 import { buildDailyBriefFeed } from "./dailyBrief";
 import {
   collectionWaitMinutes,
@@ -237,10 +238,19 @@ export interface CheckoutChainInput {
   method: "cash" | "card" | null;
 }
 
-function money(amount: number): string {
-  // Whole pounds read faster across a counter, and the salon's prices are whole
-  // pounds; a genuine 50p balance still prints in full rather than rounding
-  // away, because a figure a customer can dispute must match the card machine.
+/**
+ * The one way a figure on `/today` is written.
+ *
+ * Whole pounds read faster across a counter, and the salon's prices are whole
+ * pounds; a genuine 50p balance still prints in full rather than rounding away,
+ * because a figure a customer can dispute must match the card machine.
+ *
+ * Exported because the card used to round separately, so a £32.50 balance read
+ * "£33 due" in the header and "Cash £32.50" on the button beneath it, for the
+ * same booking at the same moment (#878). Two renderings of one figure is a
+ * disagreement with a customer waiting for it to be resolved.
+ */
+export function money(amount: number): string {
   return Number.isInteger(amount) ? `£${amount}` : `£${amount.toFixed(2)}`;
 }
 
@@ -290,4 +300,70 @@ export function nextCheckoutStep(
   // confirm step of a paying visit it returns to the method choice.
   if (step === "confirm" && owed) return "method";
   return null;
+}
+
+/**
+ * One row per dog that has gone home, settled or not.
+ *
+ * `buildTakingsByMethod` answers "what is in the till", which by definition is
+ * only the bookings that paid. That is the right answer to that question and
+ * the wrong answer to "who has left", and using it for both is how a dog handed
+ * back without paying came to appear nowhere on `/today` at all (#878): it had
+ * left the stack and it was not in the takings. The board this replaced showed
+ * every collected dog, and `tokenActions` still carries a "collected but owing"
+ * branch precisely because the state matters.
+ *
+ * A settled row takes its figure and its label straight from the takings rather
+ * than recomputing them, so the list and the total underneath it cannot
+ * disagree. An unsettled row carries what is still OWED — the number staff need
+ * in order to chase it — and says so, so the two can never be read as the same
+ * kind of money.
+ */
+export interface CollectedRow {
+  booking: Booking;
+  /** Taken, on a settled row. Still owed, on an unsettled one. */
+  amount: number;
+  /** "Cash", "Card", "Not recorded" — or "owed" when nothing was taken. */
+  label: string;
+  settled: boolean;
+}
+
+export function buildCollectedRows(
+  collected: Booking[],
+  takings: { bookings: { booking: { id?: unknown }; amount: number; label: string }[] },
+): CollectedRow[] {
+  const settledById = new Map(
+    (takings?.bookings ?? []).map((row) => [String(row.booking?.id), row]),
+  );
+
+  return collected.map((booking) => {
+    const settled = settledById.get(String(booking.id));
+    if (settled) {
+      return { booking, amount: settled.amount, label: settled.label, settled: true };
+    }
+    return {
+      booking,
+      amount: outstandingOn(booking),
+      label: "owed",
+      settled: false,
+    };
+  });
+}
+
+/**
+ * What a collected-but-unpaid booking still owes.
+ *
+ * Reached by the same route `buildTakingsByMethod` uses for a row with no
+ * recorded amount, so the figure staff chase is the figure the invoice would
+ * have shown. A deposit already taken is netted off by `computeBookingPricing`
+ * via the booking's `payment`, so this is the balance rather than the gross.
+ */
+function outstandingOn(booking: Booking): number {
+  return computeBookingPricing({
+    service: booking.service ?? "",
+    size: booking.size ?? DOG_SIZE.SMALL,
+    addons: booking.addons ?? null,
+    payment: booking.payment ?? null,
+    priceOverride: booking.priceOverride ?? null,
+  }).amountDue;
 }
