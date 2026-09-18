@@ -28,9 +28,11 @@ Smarter Dog Bookings is a live operational system. Small changes should remain l
 
 Both of these came out of one incident (#878): a rebuilt `/today` shipped with a
 green suite and destroyed a payment on every checkout of an already-paid dog. It
-corrupted no rows only because the salon is shut on Fridays and the deploy
-happened on one. Neither rule is a style preference. Ignore either and the suite
-will go green over a bug that costs the salon money.
+corrupted no rows only because the salon happened to be closed for a fortnight's
+holiday when it shipped — the last booking completed before it was 11 September,
+and the next was not until the 21st. Nothing in the codebase knows or checks
+that. Neither rule is a style preference. Ignore either and the suite will go
+green over a bug that costs the salon money.
 
 ### 1. A test on a write path asserts the row that was written
 
