@@ -398,6 +398,11 @@ export function computeOutcomes(
   });
   const rescheduleCount = evInWindow.filter((e) => e.event_type === "rescheduled").length;
   const cancels = evInWindow.filter((e) => e.event_type === "cancelled");
+  // booking_events has no "no_show" event type: a no-show is still recorded as
+  // a cancellation event carrying the reason, because the event stream records
+  // what happened to the booking rather than mirroring the status column. The
+  // reason is therefore still the right test HERE, unlike on the booking row
+  // itself, where the No-show status is now the authority.
   const noShowConfirmedCount = cancels.filter((e) => isNoShowReason(e.cancel_reason)).length;
   const lateCancelCount = cancels.filter(isLateCancellation).length;
 

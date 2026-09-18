@@ -510,8 +510,8 @@ export interface InSalonEntry {
 }
 
 /**
- * Dogs physically in the salon and still being worked on (Checked in /
- * In bath) — the Ready queue is its own list. Longest in first.
+ * Dogs physically in the salon and still being worked on (Arrived) — the Ready
+ * queue is its own list. Longest in first.
  */
 export function buildInSalonList(bookings: Booking[], now: Date): InSalonEntry[] {
   return bookings
@@ -1005,7 +1005,7 @@ function checkedInCopy(checkedInAt: string | null | undefined, now: Date): strin
   const checkedInTime = validTimestamp(checkedInAt);
   if (checkedInTime === null) return "Arrived";
   const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
-  return `Checked in ${formatDuration(elapsed)} ago`;
+  return `Arrived ${formatDuration(elapsed)} ago`;
 }
 
 export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {

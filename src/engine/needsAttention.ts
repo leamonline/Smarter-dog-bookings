@@ -159,7 +159,7 @@ export function classifyNeedsAttention(
 
   if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) return "readyForCollection";
 
-  // Booked / Checked in / In bath — and unknown/missing statuses, which the
+  // Booked / Reconfirmed / Arrived — and unknown/missing statuses, which the
   // rest of the app renders as "Booked" (STAGE_BY_RANK fallback), so a
   // malformed row surfaces for review rather than silently disappearing.
   const rank = statusRank(b.status);

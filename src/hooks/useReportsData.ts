@@ -445,16 +445,21 @@ export function computeReportStats(
   // behind. They are reported separately as work to classify (/needs-attention).
   const needsClassificationN = statusAcc[BOOKING_STATUS.BOOKED] || 0;
 
-  // Cancelled rows never reach `cur`/`prev` (isCountableBooking drops them), so
-  // confirmed no-shows are counted straight off the raw rows, applying the same
-  // window, open-day and past-only rules the countable cohorts use.
+  // Terminal rows never reach `cur`/`prev` (isCountableBooking drops them), so
+  // no-shows are counted straight off the raw rows, applying the same window,
+  // open-day and past-only rules the countable cohorts use.
+  //
+  // Matches the No-show STATUS first. The second arm is pre-migration
+  // compatibility: before 20260919090000 a no-show was a Cancelled row
+  // carrying the reason, and a row that escaped conversion should still be
+  // counted rather than silently dropping the salon's no-show rate to zero.
   const confirmedNoShowsIn = (afterStr: string, beforeStr: string): number =>
     bookings.filter(
       (b) =>
         b.booking_date > afterStr &&
         b.booking_date < beforeStr &&
-        b.status === BOOKING_STATUS.CANCELLED &&
-        isNoShowReason(b.cancel_reason) &&
+        (b.status === BOOKING_STATUS.NO_SHOW ||
+          (b.status === BOOKING_STATUS.CANCELLED && isNoShowReason(b.cancel_reason))) &&
         isOpen(b.booking_date),
     ).length;
 

@@ -48,7 +48,7 @@ function booking(overrides: Partial<Booking> = {}): Booking {
 }
 
 describe("classifyNeedsAttention", () => {
-  it("flags a previous-day Ready for pick-up as ready for collection", () => {
+  it("flags a previous-day Ready for collection as still waiting", () => {
     expect(
       classifyNeedsAttention(
         booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION }),

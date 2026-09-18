@@ -56,7 +56,7 @@ export interface DayStatusTone {
  *
  *   Expected     near-neutral grey-blue with NEUTRAL ink, not blue ink. This is
  *                the resting state and it should recede.
- *   Checked in   brand teal.
+ *   Arrived      brand teal.
  *   In the bath  OLIVE green, not mint. Mint sits too close to the teal beside
  *                it; the olive separates the two states that are adjacent in
  *                the progression and therefore adjacent on the screen.

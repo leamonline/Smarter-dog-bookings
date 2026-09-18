@@ -20,7 +20,7 @@ describe("applyLifecycleStamps", () => {
     expect(stamp(booking, BOOKING_STATUS.ARRIVED)).toBe(booking);
   });
 
-  it("stamps the arrival on reaching Checked in", () => {
+  it("stamps the arrival on reaching Arrived", () => {
     const out = stamp({ status: BOOKING_STATUS.ARRIVED }, BOOKING_STATUS.BOOKED);
     expect(out.checkedInAt).toBe(NOW);
     expect(out.readyAt).toBeNull();

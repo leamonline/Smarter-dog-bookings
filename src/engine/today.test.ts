@@ -458,7 +458,7 @@ describe("splitArrivalGroups", () => {
 });
 
 describe("buildInSalonList", () => {
-  it("lists Checked in / In bath dogs, longest in first, and skips the rest", () => {
+  it("lists Arrived dogs, longest in first, and skips the rest", () => {
     const list = buildInSalonList(
       [
         bk({ status: "Arrived", checkedInAt: new Date(NOW_SUMMER.getTime() - 50 * 60000).toISOString(), dogName: "longest" }),
