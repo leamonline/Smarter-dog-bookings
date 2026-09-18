@@ -11,7 +11,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
@@ -35,18 +35,29 @@ select is(
   true, 'a Booked booking starts with no lifecycle timestamps'
 );
 
--- Booked -> Checked in: checked_in_at stamps, ready_at stays null.
-update public.bookings set status = 'Checked in'
+-- Booked -> Reconfirmed: NEITHER mark stamps. Reconfirmed means the customer
+-- said they are coming, not that the dog is here — stamping an arrival time
+-- here would record a dog as being in the salon while it is still at home.
+update public.bookings set status = 'Reconfirmed'
+  where id = 'cccccccc-0000-4000-8000-00000000004c';
+select is(
+  (select checked_in_at is null and ready_at is null from public.bookings
+   where id = 'cccccccc-0000-4000-8000-00000000004c'),
+  true, 'Reconfirmed stamps neither mark — the dog has not arrived'
+);
+
+-- Reconfirmed -> Arrived: checked_in_at stamps, ready_at stays null.
+update public.bookings set status = 'Arrived'
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 select is(
   (select checked_in_at is not null from public.bookings
    where id = 'cccccccc-0000-4000-8000-00000000004c'),
-  true, 'checking in stamps checked_in_at'
+  true, 'arriving stamps checked_in_at'
 );
 select is(
   (select ready_at is null from public.bookings
    where id = 'cccccccc-0000-4000-8000-00000000004c'),
-  true, 'checking in does not stamp ready_at'
+  true, 'arriving does not stamp ready_at'
 );
 
 -- Capture the stamp so we can prove it is not overwritten later.
@@ -54,22 +65,24 @@ create temp table _life as
   select checked_in_at as ci from public.bookings
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 
--- Checked in -> In bath: checked_in_at persists unchanged, ready_at still null.
-update public.bookings set status = 'In bath'
+-- Re-entering Arrived: checked_in_at persists unchanged (set-once).
+update public.bookings set status = 'Booked'
+  where id = 'cccccccc-0000-4000-8000-00000000004c';
+update public.bookings set status = 'Arrived', checked_in_at = (select ci from _life)
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 select is(
   (select checked_in_at from public.bookings where id = 'cccccccc-0000-4000-8000-00000000004c'),
   (select ci from _life),
-  'checked_in_at persists unchanged through In bath (set-once)'
+  'checked_in_at persists unchanged once set'
 );
 select is(
   (select ready_at is null from public.bookings
    where id = 'cccccccc-0000-4000-8000-00000000004c'),
-  true, 'In bath still has no ready_at'
+  true, 'Arrived still has no ready_at'
 );
 
--- In bath -> Ready for pick-up: ready_at stamps, checked_in_at still present.
-update public.bookings set status = 'Ready for pick-up'
+-- Arrived -> Ready for collection: ready_at stamps, checked_in_at still present.
+update public.bookings set status = 'Ready for collection'
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 select is(
   (select ready_at is not null from public.bookings
@@ -82,9 +95,9 @@ select is(
   true, 'checked_in_at is still present at Ready'
 );
 
--- Regress Ready for pick-up -> In bath: ready_at clears, checked_in_at persists
--- (the new_rank >= 3 false / new_rank >= 1 true branch).
-update public.bookings set status = 'In bath'
+-- Regress Ready for collection -> Arrived: ready_at clears, checked_in_at
+-- persists (the new_rank >= 3 false / new_rank >= 2 true branch).
+update public.bookings set status = 'Arrived'
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 select is(
   (select ready_at is null and checked_in_at is not null from public.bookings
@@ -92,7 +105,7 @@ select is(
   true, 'regressing below Ready clears ready_at but keeps checked_in_at'
 );
 
--- Regress to Booked (from In bath): both marks clear.
+-- Regress to Booked (from Arrived): both marks clear.
 update public.bookings set status = 'Booked'
   where id = 'cccccccc-0000-4000-8000-00000000004c';
 select is(
@@ -107,12 +120,23 @@ update public.bookings set status = 'Completed'
 select is(
   (select checked_in_at is not null from public.bookings
    where id = 'cccccccc-0000-4000-8000-00000000004c'),
-  true, 'jumping to Completed stamps checked_in_at (reached Checked-in-or-later)'
+  true, 'jumping to Completed stamps checked_in_at (reached Arrived-or-later)'
 );
 select is(
   (select ready_at is not null from public.bookings
    where id = 'cccccccc-0000-4000-8000-00000000004c'),
   true, 'jumping to Completed stamps ready_at (reached Ready-or-later)'
+);
+
+-- A terminal status preserves whatever history exists. A dog that arrived and
+-- was later marked a no-show by mistake still arrived, and the correction must
+-- not erase the evidence.
+update public.bookings set status = 'No-show'
+  where id = 'cccccccc-0000-4000-8000-00000000004c';
+select is(
+  (select checked_in_at is not null and ready_at is not null from public.bookings
+   where id = 'cccccccc-0000-4000-8000-00000000004c'),
+  true, 'No-show leaves the lifecycle timestamps untouched'
 );
 
 -- Completed -> Cancelled: off-progression, arrival/ready history preserved.
