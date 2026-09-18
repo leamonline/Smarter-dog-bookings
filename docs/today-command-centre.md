@@ -202,9 +202,35 @@ transition and belongs in `tokenActions`.
 ### The old board, behind a flag
 
 `FEATURE_FLAGS.legacy_salon_board_enabled` (`VITE_LEGACY_SALON_BOARD=1`), **off by
-default**, renders the four-zone board instead. It exists so a problem found in
-the salon can be backed out by setting one deployment variable, and is expected
-to be removed once the stack has run through a few trading days.
+default**, renders the four-zone board instead. It is expected to be removed once
+the stack has run through a few trading days.
+
+**It is a build-time flag, not a runtime one.** Vite inlines every
+`import.meta.env.VITE_*` constant into the bundle, so the value is fixed when the
+bundle is built. Setting the variable in Vercel does nothing on its own.
+
+Flipping it, end to end:
+
+1. Set `VITE_LEGACY_SALON_BOARD=1` on the Vercel project, Production scope.
+2. **Redeploy.** Vercel does not rebuild on an environment change, so this step
+   is required and is the one people forget. Redeploying the current production
+   deployment is enough; there is no commit to make.
+3. Wait for the build. Recent builds of this project have taken roughly half a
+   minute, but that figure is observed rather than guaranteed.
+4. Staff reload. The app is a PWA with a precached bundle, so an already-open
+   tab keeps the old one until the service worker updates.
+
+So the realistic cost is **a few minutes and someone with Vercel access**, not
+seconds. That matters if the reason for flipping is that the salon is mid-service
+and the screen is wrong.
+
+**If that is too slow**, the flag would have to move to something read at
+runtime — `salon_config.settings` is the obvious candidate, since it is already
+fetched on boot and already drives other behaviour. That would make a flip
+immediate on the next poll, at the cost of a database round trip on a screen that
+currently needs none. It was not done here because it is a bigger change than the
+rollback it protects, but it is the answer if a build-time flip proves too slow in
+practice.
 
 Its component tests still exercise it through that flag. Its browser coverage
 does not survive: `e2e/daily-brief.spec.ts` was replaced by
