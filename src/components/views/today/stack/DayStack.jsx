@@ -26,6 +26,9 @@ export function DayStack({
   lastVisitFor,
   onTheWaySignals,
   highlightIds = null,
+  tokensById = null,
+  onAction,
+  busyIds = null,
   emptyMessage = "No bookings on this date",
 }) {
   const [openId, setOpenId] = useState(null);
@@ -55,6 +58,9 @@ export function DayStack({
           // asking "which two are late?" still needs to see that the other nine
           // exist, or the list stops being the day.
           dimmed={!!highlightIds && !highlightIds.has(row.id)}
+          token={tokensById?.get(row.id) ?? null}
+          onAction={onAction}
+          busy={!!busyIds?.has(row.id)}
           expanded={openId === row.id}
           onToggle={() => toggle(row.id)}
         />

@@ -5,9 +5,11 @@
 // never carrying a meaning on its own, that the safety note is readable without
 // a tap, and that the disclosure behaves.
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { DayStack } from "./DayStack.jsx";
 import { buildDayStack } from "../../../../engine/dayStack";
+import { buildDailyBriefBoard } from "../../../../engine/dailyBrief";
+import { BOARD_ZONES, buildBoardTokens } from "../../../../engine/salonBoard";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../../../../constants/index";
 
 const NOW = new Date("2026-07-02T09:15:00Z"); // 10:15 London, BST
@@ -67,6 +69,17 @@ const BOOKINGS = [
 const WELFARE = {
   d2: { alerts: ["Bites / Nips"], pregnant: false, notes: "" },
 };
+
+/** The same token map TodayView builds, so actions come from the real engine. */
+function tokenMap(bookings = BOOKINGS) {
+  const board = buildDailyBriefBoard(bookings, TODAY, NOW);
+  const tokens = buildBoardTokens({ board, now: NOW, isToday: true });
+  const map = new Map();
+  for (const zone of BOARD_ZONES) {
+    for (const token of tokens[zone] || []) map.set(String(token.booking.id), token);
+  }
+  return map;
+}
 
 function renderStack(props = {}) {
   const rows = buildDayStack({
@@ -268,5 +281,123 @@ describe("the owner-on-the-way signal", () => {
     renderStack({ onTheWaySignals: { waiting: { onTheWay: true } } });
     expect(within(card("waiting")).getByText("On the way")).toBeTruthy();
     expect(head("waiting").getAttribute("aria-label")).toContain("Owner on the way");
+  });
+});
+
+// ---- Status transitions -------------------------------------------------------
+//
+// `tokenActions` is the single source of what is legal. The stack asks it and
+// renders the answer; it never invents a transition and never re-orders one.
+// These tests pin that relationship rather than the specific list, so a change
+// made in the engine shows up here as intended rather than as a surprise.
+
+function renderWithActions(extra = {}) {
+  const onAction = vi.fn();
+  const utils = renderStack({ tokensById: tokenMap(), onAction, ...extra });
+  return { ...utils, onAction };
+}
+
+/** The action labels inside a card's drawer, in the order they render. */
+function actionsIn(id) {
+  fireEvent.click(head(id));
+  const list = card(id).querySelector("[data-stack-actions]");
+  return list ? [...list.querySelectorAll("button, a")].map((el) => el.textContent.trim()) : [];
+}
+
+function press(id, label) {
+  fireEvent.click(head(id));
+  fireEvent.click(within(card(id)).getByLabelText(`${label} — ${BOOKINGS.find((b) => b.id === id).dogName}`));
+}
+
+describe("the actions a card offers", () => {
+  it("offers the next care step on an expected dog", () => {
+    renderWithActions();
+    expect(actionsIn("arriving")).toContain("Check in");
+  });
+
+  it("offers the next care step on a dog mid-groom", () => {
+    renderWithActions();
+    expect(actionsIn("bathing")).toContain("Mark ready");
+  });
+
+  it("does not claim that marking ready messages anyone", () => {
+    renderWithActions();
+    const labels = actionsIn("bathing");
+    expect(labels).toContain("Mark ready");
+    expect(labels.join(" ")).not.toMatch(/text|message the owner|notif/i);
+  });
+
+  it("offers collection on a dog that is ready", () => {
+    renderWithActions();
+    expect(actionsIn("waiting")).toEqual(
+      expect.arrayContaining(["Take £42 payment", "Mark collected"]),
+    );
+  });
+
+  it("keeps the engine's order rather than sorting them here", () => {
+    renderWithActions();
+    const labels = actionsIn("waiting");
+    // Money first on a dog that owes: taking it is what unblocks the door.
+    expect(labels.indexOf("Take £42 payment")).toBeLessThan(labels.indexOf("Mark collected"));
+  });
+
+  it("offers a no-show only on a dog that has not arrived", () => {
+    renderWithActions();
+    expect(actionsIn("arriving")).toContain("Didn't show");
+    expect(actionsIn("bathing")).not.toContain("Didn't show");
+    expect(actionsIn("waiting")).not.toContain("Didn't show");
+  });
+});
+
+describe("pressing an action", () => {
+  it.each([
+    ["arriving", "Check in", "checkIn"],
+    ["bathing", "Mark ready", "ready"],
+    ["waiting", "Mark collected", "collected"],
+    ["arriving", "Didn't show", "didntShow"],
+  ])("%s → %s runs the %s action", (id, label, actionId) => {
+    const { onAction } = renderWithActions();
+    press(id, label);
+    expect(onAction).toHaveBeenCalledTimes(1);
+    const [token, action] = onAction.mock.calls[0];
+    expect(String(token.booking.id)).toBe(id);
+    expect(action.id).toBe(actionId);
+  });
+
+  it("does not close the card underneath it", () => {
+    renderWithActions();
+    press("arriving", "Check in");
+    expect(head("arriving").getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("is blocked while a write for that dog is in flight", () => {
+    const { onAction } = renderWithActions({ busyIds: new Set(["arriving"]) });
+    fireEvent.click(head("arriving"));
+    const button = within(card("arriving")).getByLabelText("Check in — Hugo");
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(button);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("leaves a different dog's actions alone while one is busy", () => {
+    renderWithActions({ busyIds: new Set(["arriving"]) });
+    fireEvent.click(head("bathing"));
+    expect(
+      within(card("bathing")).getByLabelText("Mark ready — Nell").hasAttribute("disabled"),
+    ).toBe(false);
+  });
+});
+
+describe("a no-show card", () => {
+  it("offers no transitions, because the board has no token for it", () => {
+    renderWithActions();
+    expect(actionsIn("absent")).toEqual([]);
+  });
+
+  it("still opens, so the owner can be rung", () => {
+    renderWithActions();
+    fireEvent.click(head("absent"));
+    expect(head("absent").getAttribute("aria-expanded")).toBe("true");
+    expect(within(card("absent")).getByText("07700 900377")).toBeTruthy();
   });
 });

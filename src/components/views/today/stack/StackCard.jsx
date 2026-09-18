@@ -21,10 +21,14 @@
 // The safety chip is a real button, so it cannot live inside the disclosure
 // button. It sits beside it instead, which also means the two are independently
 // tappable at full size.
+import { useMemo } from "react";
 import { Car, Clock } from "lucide-react";
+import { tokenActions } from "../../../../engine/salonBoard";
 import { BookingStatusBadge, resolveDayStatus } from "../../../ui";
 import { SafetyAlertChip } from "../../../ui/SafetyAlertChip.jsx";
+import { firstName, telephoneHref } from "../parts.jsx";
 import { titleCase } from "../../../../utils/text";
+import { StackActions } from "./StackActions.jsx";
 
 /** Left-rule weight, in pixels. The only thing urgency changes about colour. */
 const RULE_CALM = 7;
@@ -54,6 +58,13 @@ export function StackCard({
   dimmed = false,
   expanded,
   onToggle,
+  /**
+   * The board token for this booking, or null for a row the board has no
+   * token for (a no-show). Actions are derived from it, never invented here.
+   */
+  token = null,
+  onAction,
+  busy = false,
 }) {
   const { booking, timing, urgent, readyOverdue } = row;
   const tone = resolveDayStatus(booking.status, booking.cancelReason);
@@ -74,6 +85,22 @@ export function StackCard({
 
   const ruleWidth = readyOverdue ? RULE_OVERDUE : urgent ? RULE_URGENT : RULE_CALM;
   const drawerId = `stack-drawer-${row.id}`;
+
+  // Legality lives in the engine. This card asks what is allowed and renders
+  // the answer; it never decides, and it never adds a transition of its own.
+  const actions = useMemo(() => {
+    if (!token) return [];
+    return tokenActions(token, {
+      amountDue,
+      paid: payment?.kind === "paid",
+      telHref: telephoneHref(display.ownerPhone),
+      contactName: firstName(display.owner),
+      dogName,
+      ownerName: ownerName || "the owner",
+      hasOwner: !!booking._ownerId,
+      hasDog: !!booking._dogId,
+    });
+  }, [token, amountDue, payment, display.ownerPhone, display.owner, dogName, ownerName, booking]);
 
   // One sentence, in the order a person would say it. The badge and the chip
   // are both aria-hidden precisely so this is the single spoken version.
@@ -215,6 +242,17 @@ export function StackCard({
                 {booking.notes}
               </p>
             ) : null}
+
+            <StackActions
+              actions={actions}
+              onSelect={(action) => {
+                if (action.href) return;
+                onAction?.(token, action);
+              }}
+              tone={tone}
+              dogName={dogName}
+              busy={busy}
+            />
           </div>
         </div>
       </div>

@@ -26,6 +26,7 @@ import {
   selectDogsMissingSize,
 } from "../../engine/today";
 import {
+  BOARD_ZONES,
   BOARD_ZONE_META,
   buildAttentionSummary,
   buildBoardTokens,
@@ -232,6 +233,16 @@ export function TodayView({
     () => buildDayStack({ bookings: selectedBookings, dateStr, now, breedById }),
     [selectedBookings, dateStr, now, breedById],
   );
+
+  // The stack renders in time order but still asks the board layer what each
+  // dog's legal actions are, so `tokenActions` stays the one place that knows.
+  const tokensById = useMemo(() => {
+    const map = new Map();
+    for (const zone of BOARD_ZONES) {
+      for (const token of tokens[zone] || []) map.set(String(token.booking.id), token);
+    }
+    return map;
+  }, [tokens]);
 
   const lastVisitFor = useCallback((booking) => {
     const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
@@ -526,6 +537,9 @@ export function TodayView({
                   lastVisitFor={lastVisitFor}
                   onTheWaySignals={onTheWaySignals}
                   highlightIds={highlightIds}
+                  tokensById={tokensById}
+                  onAction={actions.runTokenAction}
+                  busyIds={actions.busyIds}
                 />
               )}
             </div>

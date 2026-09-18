@@ -145,7 +145,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -211,7 +211,7 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Ready for collection — Jack"));
+    fireEvent.click(action("Mark ready — Jack"));
     expect(token("Jack")).toHaveAttribute("aria-busy", "true");
 
     await act(async () => resolveSave({ id: "b-selected", status: "Ready for pick-up" }));
