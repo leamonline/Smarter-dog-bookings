@@ -13,10 +13,22 @@ export const FEATURE_FLAGS = Object.freeze({
    * Render the previous four-zone salon board on `/today` instead of the
    * time-ordered stack that replaced it.
    *
-   * Off by default: the stack is the screen now. This exists so that a problem
-   * found in the salon can be backed out by setting one deployment variable,
-   * without a revert and a redeploy, and it is expected to be removed once the
-   * stack has run through a few trading days.
+   * Off by default: the stack is the screen now. It exists so a problem found
+   * in the salon can be backed out without reverting the code, and is expected
+   * to be removed once the stack has run through a few trading days.
+   *
+   * IT IS A BUILD-TIME FLAG AND NEEDS A REDEPLOY. Vite inlines every
+   * `import.meta.env.VITE_*` constant into the bundle, so setting the variable
+   * in Vercel changes nothing on its own — the project has to be rebuilt for
+   * the new value to reach a browser, and staff have to reload past a precached
+   * service worker after that. Budget a few minutes and someone with Vercel
+   * access, not seconds.
+   *
+   * An earlier version of this comment said it could be flipped "without a
+   * revert and a redeploy". Only the first half was true. The full procedure is
+   * in docs/today-command-centre.md; when the salon is mid-service and the
+   * screen is wrong, an instant Vercel rollback to the previous deployment is
+   * the faster path.
    */
   legacy_salon_board_enabled: import.meta.env.VITE_LEGACY_SALON_BOARD === "1",
 });
