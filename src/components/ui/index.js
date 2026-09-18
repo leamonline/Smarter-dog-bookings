@@ -10,6 +10,9 @@ export { MetricBar } from "./MetricBar.jsx";
 export { EmptyState } from "./EmptyState.jsx";
 export { Spinner } from "./Spinner.jsx";
 export { StatusPill } from "./StatusPill.jsx";
+// Booking status (Booked → Completed). Distinct from StatusPill, which renders
+// WhatsApp conversation state.
+export { BookingStatusBadge, resolveDayStatus } from "./BookingStatusBadge";
 export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
 export {
   PageHeader,
