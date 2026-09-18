@@ -40,6 +40,8 @@ export interface DayStatusTone {
   tint: string;
   /** Dark ink readable on `tint`. Every pairing clears WCAG AA. */
   ink: string;
+  /** Secondary ink for the card's supporting lines (breed, service, timing). */
+  meta: string;
   /** Saturated mid-tone for the card's left edge rule. */
   edge: string;
   /** False when a booking in this state has left the day stack. */
@@ -47,64 +49,88 @@ export interface DayStatusTone {
 }
 
 /**
- * Status → tone. Five live states plus the two that have left the stack.
+ * Status → tone, taken from the salon-day-view prototype.
  *
- * The hues are named in the brief rather than derived: cool grey-blue for a dog
- * that has not arrived, teal once it is with us, green mid-groom, gold when it
- * is waiting to go home, soft red for a no-show. They read as a progression
- * left to right, and the two "gone" states fall back to slate so a finished day
+ * The five live hues are deliberate and were corrected against that file rather
+ * than derived here:
+ *
+ *   Expected     near-neutral grey-blue with NEUTRAL ink, not blue ink. This is
+ *                the resting state and it should recede.
+ *   Checked in   brand teal.
+ *   In the bath  OLIVE green, not mint. Mint sits too close to the teal beside
+ *                it; the olive separates the two states that are adjacent in
+ *                the progression and therefore adjacent on the screen.
+ *   Ready        brand GOLD, not yellow. It is the brand colour and the only
+ *                warm thing on the page, so it has to be the right warm.
+ *   No-show      red, not pink.
+ *
+ * The two states that have left the stack fall back to slate so a finished day
  * settles down rather than staying loud.
+ *
+ * Light values only. The prototype also carries a dark theme; the app has no
+ * dark mode and adding one is a separate project, so those values are not
+ * ported here.
  */
 const TONES: Record<Exclude<DayStatusKey, "unknown">, Omit<DayStatusTone, "key">> = {
   expected: {
     label: "Expected",
-    tint: "#ECF1F7",
-    ink: "#33506E",
-    edge: "#94AECB",
+    tint: "#E8ECF0",
+    ink: "#2C353F",
+    meta: "#4C5863",
+    edge: "#97A6B5",
     inStack: true,
   },
   checkedIn: {
     label: "Checked in",
-    tint: "#E0F0EC",
-    ink: "#245F53",
-    edge: "#2D8B7A",
+    tint: "#D3EAE4",
+    ink: "#123C33",
+    meta: "#1D5F51",
+    edge: "#2E8B76",
     inStack: true,
   },
   inBath: {
     label: "In the bath",
-    tint: "#CFF8DE",
-    ink: "#0B5C26",
-    edge: "#0A7D30",
+    tint: "#D9EAC6",
+    ink: "#243D12",
+    meta: "#3A6420",
+    edge: "#5C9A33",
     inStack: true,
   },
   ready: {
     // Dark brown-gold ink on a pale gold tint. This is the pairing the brief
-    // singles out: the saturated brand yellow is a background and an edge
-    // colour only, never a text colour, and never a fill behind white.
+    // singles out: the gold is a background and an edge colour only, never a
+    // text colour, and never a fill behind white.
     label: "Ready",
-    tint: "#FFF3CC",
-    ink: "#6B4E00",
-    edge: "#D4A500",
+    tint: "#F7E6BE",
+    ink: "#4A3403",
+    meta: "#6B4C06",
+    edge: "#B8860B",
     inStack: true,
   },
   noShow: {
     label: "No-show",
-    tint: "#FFE5EC",
-    ink: "#A32F44",
-    edge: "#C93D63",
+    tint: "#F2D9D9",
+    ink: "#4A1414",
+    meta: "#7A2222",
+    edge: "#B33A3A",
     inStack: false,
   },
   cancelled: {
+    // An ordinary cancellation borrows the no-show family. It is the same
+    // fact to the eye — this dog is not coming — and a sixth hue for it would
+    // buy nothing the word does not already say.
     label: "Cancelled",
-    tint: "#FFE5EC",
-    ink: "#A32F44",
-    edge: "#C93D63",
+    tint: "#F2D9D9",
+    ink: "#4A1414",
+    meta: "#7A2222",
+    edge: "#B33A3A",
     inStack: false,
   },
   collected: {
     label: "Collected",
     tint: "#F1F5F9",
     ink: "#40506B",
+    meta: "#5A666F",
     edge: "#94A3B8",
     inStack: false,
   },
@@ -148,6 +174,7 @@ export function resolveDayStatus(
         label: (status || "Unknown").trim() || "Unknown",
         tint: "#F1F5F9",
         ink: "#40506B",
+        meta: "#5A666F",
         edge: "#94A3B8",
         inStack: false,
       };

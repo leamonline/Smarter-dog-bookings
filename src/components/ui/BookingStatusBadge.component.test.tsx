@@ -92,10 +92,43 @@ describe("resolveDayStatus", () => {
   });
 });
 
+// The prototype (salon-day-view.html) is the reference for these five. Pinning
+// them means a later "tidy-up" that nudges the olive back towards mint, or the
+// gold back towards yellow, fails here rather than on a till.
+describe("palette matches the prototype", () => {
+  it.each([
+    ["expected", BOOKING_STATUS.BOOKED, null, "#E8ECF0", "#97A6B5"],
+    ["checked in", BOOKING_STATUS.CHECKED_IN, null, "#D3EAE4", "#2E8B76"],
+    ["in the bath", BOOKING_STATUS.IN_BATH, null, "#D9EAC6", "#5C9A33"],
+    ["ready", BOOKING_STATUS.READY_FOR_PICKUP, null, "#F7E6BE", "#B8860B"],
+    ["no-show", BOOKING_STATUS.CANCELLED, NO_SHOW_REASON, "#F2D9D9", "#B33A3A"],
+  ] as Array<[string, string, string | null, string, string]>)(
+    "%s",
+    (_name, status, reason, tint, edge) => {
+      const tone = resolveDayStatus(status, reason);
+      expect(tone.tint).toBe(tint);
+      expect(tone.edge).toBe(edge);
+    },
+  );
+
+  it("gives Expected a neutral ink, not a blue one — it is the resting state", () => {
+    const { ink } = resolveDayStatus(BOOKING_STATUS.BOOKED);
+    const r = parseInt(ink.slice(1, 3), 16);
+    const b = parseInt(ink.slice(5, 7), 16);
+    // A blue ink would put blue well ahead of red. Near-neutral keeps them close.
+    expect(b - r).toBeLessThanOrEqual(24);
+  });
+});
+
 describe("palette contrast", () => {
   it.each(EVERY_STATUS)("%s ink clears WCAG AA on its own tint", (status) => {
     const tone = resolveDayStatus(status, NO_SHOW_REASON);
     expect(contrastRatio(tone.ink, tone.tint)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(EVERY_STATUS)("%s secondary ink clears WCAG AA on its own tint", (status) => {
+    const tone = resolveDayStatus(status, NO_SHOW_REASON);
+    expect(contrastRatio(tone.meta, tone.tint)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("renders no white ink anywhere, on the gold least of all", () => {
