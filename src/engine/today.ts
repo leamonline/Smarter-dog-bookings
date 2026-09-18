@@ -25,6 +25,7 @@ import {
   BOOKING_STATUS,
   DOG_SIZE,
   IMMEDIATE_CUTOFF_MINUTES,
+  isNoShowReason,
   LATE_ARRIVAL_GRACE_MINUTES,
   paymentMethodLabel,
 } from "../constants/salon";
@@ -568,8 +569,16 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
 
 // ---- Unified booking feed (one card per booking) -----------------------------
 
-/** A dog's lifecycle stage, collapsed from its status rank. */
-export type FeedStage = "booked" | "inSalon" | "ready" | "collected";
+/**
+ * A dog's lifecycle stage, collapsed from its status rank.
+ *
+ * `noShow` is off the progression and is the ONLY stage that is not derived
+ * from `STAGE_BY_RANK`. It exists so that a no-show, which is a Cancelled
+ * booking rather than a status of its own, can never be mistaken for a Booked
+ * one by a stage check. Every existing consumer tests for a specific stage, so
+ * a `noShow` entry naturally falls out of all of them.
+ */
+export type FeedStage = "booked" | "inSalon" | "ready" | "collected" | "noShow";
 export type NeedActionReason = "late" | "confirmation" | "collection" | "payment";
 
 const STAGE_BY_RANK: Record<number, FeedStage> = {
@@ -579,6 +588,40 @@ const STAGE_BY_RANK: Record<number, FeedStage> = {
   3: "ready",
   4: "collected",
 };
+
+/**
+ * A Cancelled booking carrying a staff-confirmed no-show reason.
+ *
+ * Deliberately NOT folded into `isCountableBooking`: that predicate governs
+ * revenue, capacity, deposits and every report, and a no-show must stay
+ * uncountable in all of them. This is only about whether the booking is
+ * VISIBLE on a day surface that has opted in.
+ */
+function isConfirmedNoShow(b: { status?: string | null; cancelReason?: string | null }): boolean {
+  return b.status === BOOKING_STATUS.CANCELLED && isNoShowReason(b.cancelReason);
+}
+
+/**
+ * Should this booking appear in a day feed?
+ *
+ * Off by default, which is the entire point: every existing caller keeps the
+ * behaviour it has today, where a cancelled booking simply is not there.
+ */
+function isVisibleInFeed(b: Booking, includeNoShows: boolean): boolean {
+  return isCountableBooking(b) || (includeNoShows && isConfirmedNoShow(b));
+}
+
+/** Options shared by the two day-feed builders. */
+export interface FeedVisibilityOptions {
+  /**
+   * Include staff-confirmed no-shows (Cancelled + `cancel_reason = 'No-show'`).
+   *
+   * Default false. The day stack opts in because a dog that did not turn up is
+   * part of the day's story and staff need it on screen; nothing else does,
+   * and an ordinary cancellation stays out either way.
+   */
+  includeNoShows?: boolean;
+}
 
 /**
  * One entry per today booking for the single time-ordered feed. Every reason a
@@ -609,22 +652,31 @@ export interface TodayFeedEntry {
 }
 
 /**
- * Build the single, time-ordered booking feed. Cancelled bookings are dropped;
- * everything else is sorted by appointment time (slot-less rows last) and the
- * soonest not-yet-arrived, not-late booking is flagged `isNext`.
+ * Build the single, time-ordered booking feed. Cancelled bookings are dropped
+ * (unless `includeNoShows` opts a no-show back in); everything else is sorted
+ * by appointment time (slot-less rows last) and the soonest not-yet-arrived,
+ * not-late booking is flagged `isNext`.
  */
 export function buildTodayFeed(
   bookings: Booking[],
   now: Date,
-  opts: { graceMinutes?: number; readyEscalationMinutes?: number } = {},
+  opts: {
+    graceMinutes?: number;
+    readyEscalationMinutes?: number;
+  } & FeedVisibilityOptions = {},
 ): TodayFeedEntry[] {
   const grace = opts.graceMinutes ?? LATE_ARRIVAL_GRACE_MINUTES;
   const readyEscalation = opts.readyEscalationMinutes ?? READY_ESCALATION_MINUTES;
+  const includeNoShows = opts.includeNoShows ?? false;
   const entries: TodayFeedEntry[] = [];
   for (const b of bookings) {
-    if (!isCountableBooking(b)) continue;
+    if (!isVisibleInFeed(b, includeNoShows)) continue;
     const rank = statusRank(b.status);
-    const stage = STAGE_BY_RANK[rank] ?? "booked";
+    // A no-show is off the progression, so it takes its stage directly rather
+    // than through the rank table (where Cancelled ranks -1 and would fall
+    // back to "booked" — the one stage it must never claim, since that is what
+    // the "Next" scan and the late-arrival lists key on).
+    const stage: FeedStage = isConfirmedNoShow(b) ? "noShow" : STAGE_BY_RANK[rank] ?? "booked";
     const isLate = isLateArrival(b, now, grace);
     const isUnconfirmed = rank === 0 && needsConfirmation(b);
     const owes = isPaymentOutstanding(b);
@@ -707,16 +759,22 @@ export function groupFeedBySlot(entries: TodayFeedEntry[]): FeedSlotGroup[] {
  * balance — none of that exists yet, so every time-relative flag is hard
  * zero. (See the spec's "no time-relative state on future days".)
  */
-export function buildFutureDayFeed(bookings: Booking[]): TodayFeedEntry[] {
+export function buildFutureDayFeed(
+  bookings: Booking[],
+  opts: FeedVisibilityOptions = {},
+): TodayFeedEntry[] {
+  const includeNoShows = opts.includeNoShows ?? false;
   const entries: TodayFeedEntry[] = [];
   for (const b of bookings) {
-    if (!isCountableBooking(b)) continue;
+    if (!isVisibleInFeed(b, includeNoShows)) continue;
     entries.push({
       booking: b,
       slotMinutes: b.slot && Number.isFinite(slotToMinutes(b.slot))
         ? slotToMinutes(b.slot)
         : Number.POSITIVE_INFINITY,
-      stage: STAGE_BY_RANK[Math.max(0, statusRank(b.status))] ?? "booked",
+      stage: isConfirmedNoShow(b)
+        ? "noShow"
+        : STAGE_BY_RANK[Math.max(0, statusRank(b.status))] ?? "booked",
       isNext: false,
       isLate: false,
       isUnconfirmed: false,
