@@ -2,7 +2,7 @@
  * useOfflineState — manages all offline/demo mode state and callbacks.
  * Extracted from App.jsx to reduce its size by ~200 lines.
  */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ALL_DAYS,
   SALON_SLOTS,
@@ -15,6 +15,7 @@ import {
 } from "../data/sample.js";
 import { toDateStr } from "../supabase/transforms";
 import { getDefaultOpenForDate } from "../engine/utils";
+import { applyLifecycleStamps } from "../engine/lifecycleStamps";
 import type {
   Booking,
   BookingsByDate,
@@ -102,6 +103,10 @@ export function useOfflineState(weekStart: Date, currentDateStr: string, current
   }, [weekStart]);
 
   const offlineBookingsByDate = useMemo(() => offlineBookings, [offlineBookings]);
+  // The status a booking had BEFORE the update being applied. Held in a ref so
+  // the lifecycle mirror can read it without being inside the state updater.
+  const offlineBookingsRef = useRef(offlineBookings);
+  useEffect(() => { offlineBookingsRef.current = offlineBookings; }, [offlineBookings]);
 
   // --- Dog/Human CRUD ---
 
@@ -240,24 +245,33 @@ export function useOfflineState(weekStart: Date, currentDateStr: string, current
 
   const offlineHandleUpdate = useCallback(
     async (updatedBooking: Booking, fromDateStr: string, toDateStrValue: string): Promise<Booking> => {
+      // Online, two database triggers stamp checked_in_at / ready_at /
+      // completed_at on a status change. Offline there is no database, so
+      // without this mirror the sample data can never show how long a dog has
+      // been here — the one thing the day stack exists to show, and therefore
+      // the one thing a preview or demo could not demonstrate.
+      const before = (offlineBookingsRef.current[fromDateStr] || [])
+        .find((b) => b.id === updatedBooking.id);
+      const stamped = applyLifecycleStamps(updatedBooking, before?.status);
+
       setOfflineBookings((prev) => {
         const newState = { ...prev };
         if (fromDateStr === toDateStrValue) {
           newState[fromDateStr] = (newState[fromDateStr] || []).map((b) =>
-            b.id === updatedBooking.id ? updatedBooking : b,
+            b.id === stamped.id ? stamped : b,
           );
         } else {
           newState[fromDateStr] = (newState[fromDateStr] || []).filter(
-            (b) => b.id !== updatedBooking.id,
+            (b) => b.id !== stamped.id,
           );
           newState[toDateStrValue] = [
             ...(newState[toDateStrValue] || []),
-            updatedBooking,
+            stamped,
           ];
         }
         return newState;
       });
-      return updatedBooking;
+      return stamped;
     },
     [],
   );
