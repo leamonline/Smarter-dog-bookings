@@ -276,7 +276,8 @@ serve(async (req) => {
           { status: 404, headers: { ...corsFor(req), "Content-Type": "application/json" } },
         );
       }
-      if (anchor.status === "Cancelled") {
+      // Both terminal statuses: a no-show must not be reminded either.
+      if (anchor.status === "Cancelled" || anchor.status === "No-show") {
         return new Response(
           JSON.stringify({ error: "booking is cancelled — won't remind" }),
           { status: 422, headers: { ...corsFor(req), "Content-Type": "application/json" } },
@@ -297,7 +298,7 @@ serve(async (req) => {
         .select("id, booking_date, slot, service, group_id, notify_human_ids, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", anchor.booking_date)
         .eq("dogs.human_id", anchorHumanId)
-        .neq("status", "Cancelled");
+        .not("status", "in", '("Cancelled","No-show")');
       if (gatherErr) {
         console.error("Customer-day gather failed:", gatherErr.message);
         return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });

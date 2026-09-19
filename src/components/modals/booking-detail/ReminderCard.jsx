@@ -106,7 +106,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     pickupHuman?.fullName || booking.pickupBy || booking.owner,
   );
   const showPickupMessage = !isEditing && !!pickupHuman?.phone;
-  const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
+  const isReady = booking.status === BOOKING_STATUS.READY_FOR_COLLECTION;
 
   const reminderAction = cfg.action === "send" && (
     <button

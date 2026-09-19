@@ -271,13 +271,13 @@ export function useBookingActions({
     // a failed write must never open a "tell the owner it's ready" modal.
     const saved = await changeStatus(
       booking,
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
       `${booking.dogName} is ready to go home`,
       "Ready for collection could not be saved.",
       { skipCollectionPrompt: true, skipConfirmation: true, undoFor: "ready" },
     );
     if (saved) {
-      onSendCollection({ ...booking, ...saved, status: BOOKING_STATUS.READY_FOR_PICKUP });
+      onSendCollection({ ...booking, ...saved, status: BOOKING_STATUS.READY_FOR_COLLECTION });
     }
     return saved;
   }, [changeStatus, onSendCollection]);
@@ -460,18 +460,18 @@ export function useBookingActions({
       case "checkIn":
         return changeStatus(
           booking,
-          BOOKING_STATUS.CHECKED_IN,
+          BOOKING_STATUS.ARRIVED,
           `${booking.dogName} checked in — with us now`,
           "Check-in could not be saved.",
           { undoFor: "checkIn" },
         );
-      case "startGroom":
+      case "reconfirm":
         return changeStatus(
           booking,
-          BOOKING_STATUS.IN_BATH,
-          `${booking.dogName} — groom started`,
-          "Starting the groom could not be saved.",
-          { undoFor: "startGroom" },
+          BOOKING_STATUS.RECONFIRMED,
+          `${booking.dogName}'s booking reconfirmed`,
+          "Reconfirming this booking could not be saved.",
+          { undoFor: "reconfirm" },
         );
       case "ready":
         return markReady(booking);
@@ -489,11 +489,17 @@ export function useBookingActions({
         onMessageOwner(booking);
         return null;
       case "didntShow":
-        // A no-show is a cancelled booking carrying a reason — there is no
-        // no-show status, and nothing auto-labels one.
+        // A no-show is now a status of its own rather than a Cancelled row
+        // carrying a reason. The reason text is still written, because staff
+        // read it in the booking history and because it keeps pre-migration
+        // and post-migration rows looking the same in that list. Nothing
+        // auto-labels a no-show, and nothing is sent to the customer.
         return patch(
           booking,
-          { status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON } as Partial<Booking>,
+          {
+            status: BOOKING_STATUS.NO_SHOW,
+            cancelReason: NO_SHOW_REASON,
+          } as Partial<Booking>,
           `${booking.dogName} marked as a no-show`,
           "Marking this booking as a no-show could not be saved.",
         );

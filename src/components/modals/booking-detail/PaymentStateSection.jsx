@@ -149,7 +149,7 @@ export function PaymentStateSection({
   }
 
   const isPaid = (booking.payment || "Due at Pick-up") === "Paid in Full";
-  const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
+  const isReady = booking.status === BOOKING_STATUS.READY_FOR_COLLECTION;
   const settledTotal = pricing.subtotal;
   const depositPaid = pricing.depositPaid ?? booking.depositAmount ?? 0;
   const isDeposit = pricing.isDepositPaid || booking.payment === "Deposit Paid";

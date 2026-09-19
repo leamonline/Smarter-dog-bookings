@@ -18,7 +18,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
   it("announces the new status via a live region after a successful change", async () => {
     const onUpdate = vi
       .fn()
-      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -30,17 +30,17 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
     expect(liveRegion).toHaveTextContent("");
 
     await userEvent.click(
-      screen.getByRole("radio", { name: /set status to checked in/i }),
+      screen.getByRole("radio", { name: /set status to arrived/i }),
     );
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(liveRegion).toHaveTextContent("All set — status updated to Checked in");
+    expect(liveRegion).toHaveTextContent("All set — status updated to Arrived");
   });
 
   it("undoes a successful change using the captured previous status", async () => {
     const onUpdate = vi
       .fn()
-      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+      .mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -50,7 +50,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("radio", { name: /set status to checked in/i }),
+      screen.getByRole("radio", { name: /set status to arrived/i }),
     );
     const undo = showToast.mock.calls[0][2];
     await undo();
@@ -74,7 +74,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("radio", { name: /set status to in bath/i }),
+      screen.getByRole("radio", { name: /set status to reconfirmed/i }),
     );
 
     expect(screen.getByRole("status")).toHaveTextContent("");
@@ -91,12 +91,12 @@ describe("BookingStatusBar keyboard navigation", () => {
       />,
     );
     expect(screen.getByRole("radio", { name: /set status to booked/i })).toHaveAttribute("tabindex", "0");
-    expect(screen.getByRole("radio", { name: /set status to checked in/i })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("radio", { name: /set status to arrived/i })).toHaveAttribute("tabindex", "-1");
   });
 
   it("arrow keys move focus only — they never commit a status change", async () => {
     const user = userEvent.setup();
-    const onUpdate = vi.fn().mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+    const onUpdate = vi.fn().mockResolvedValue({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -105,16 +105,17 @@ describe("BookingStatusBar keyboard navigation", () => {
       />,
     );
     const booked = screen.getByRole("radio", { name: /set status to booked/i });
-    const checkedIn = screen.getByRole("radio", { name: /set status to checked in/i });
+    const reconfirmed = screen.getByRole("radio", { name: /set status to reconfirmed/i });
 
     booked.focus();
     await user.keyboard("{ArrowRight}");
-    expect(checkedIn).toHaveFocus();
+    // Reconfirmed is the step after Booked now.
+    expect(reconfirmed).toHaveFocus();
     expect(onUpdate).not.toHaveBeenCalled(); // focus moved, nothing committed
 
     await user.keyboard("{Enter}");
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(onUpdate.mock.calls[0][0]).toMatchObject({ status: BOOKING_STATUS.CHECKED_IN });
+    expect(onUpdate.mock.calls[0][0]).toMatchObject({ status: BOOKING_STATUS.RECONFIRMED });
   });
 
   it("wraps from the last step back to the first with ArrowRight", async () => {
@@ -135,7 +136,7 @@ describe("BookingStatusBar keyboard navigation", () => {
 });
 
 describe("BookingStatusBar update safety", () => {
-  it("marks Checked in as the next step when Booked", () => {
+  it("marks Reconfirmed as the next step when Booked", () => {
     render(
       <BookingStatusBar
         booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
@@ -145,7 +146,7 @@ describe("BookingStatusBar update safety", () => {
     );
 
     expect(
-      screen.getByRole("radio", { name: /set status to checked in/i }),
+      screen.getByRole("radio", { name: /set status to reconfirmed/i }),
     ).toHaveAttribute("data-next", "true");
   });
 
@@ -176,15 +177,15 @@ describe("BookingStatusBar update safety", () => {
       />,
     );
 
-    const checkedIn = screen.getByRole("radio", { name: /set status to checked in/i });
-    await userEvent.click(checkedIn);
+    const arrived = screen.getByRole("radio", { name: /set status to arrived/i });
+    await userEvent.click(arrived);
 
     screen.getAllByRole("radio").forEach((control) => {
       expect(control).toBeDisabled();
     });
-    expect(checkedIn).toHaveAttribute("aria-busy", "true");
+    expect(arrived).toHaveAttribute("aria-busy", "true");
 
-    resolveUpdate({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+    resolveUpdate({ id: "b1", status: BOOKING_STATUS.ARRIVED });
     await waitFor(() => {
       screen.getAllByRole("radio").forEach((control) => {
         expect(control).toBeEnabled();
@@ -206,7 +207,7 @@ describe("BookingStatusBar update safety", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("radio", { name: /set status to checked in/i }),
+      screen.getByRole("radio", { name: /set status to arrived/i }),
     );
     screen.getAllByRole("radio").forEach((control) => {
       expect(control).toBeDisabled();
@@ -234,7 +235,7 @@ describe("BookingStatusBar update safety", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("radio", { name: /set status to checked in/i }),
+      screen.getByRole("radio", { name: /set status to arrived/i }),
     );
     await waitFor(() => {
       screen.getAllByRole("radio").forEach((control) => {

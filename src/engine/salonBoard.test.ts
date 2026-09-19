@@ -66,9 +66,9 @@ const names = (list: BoardToken[]) => list.map((token) => token.booking.dogName)
 describe("zone mapping", () => {
   it("puts each booking status in the zone that says where the dog physically is", () => {
     expect(zoneForStatus(BOOKING_STATUS.BOOKED)).toBe("due");
-    expect(zoneForStatus(BOOKING_STATUS.CHECKED_IN)).toBe("withUs");
-    expect(zoneForStatus(BOOKING_STATUS.IN_BATH)).toBe("withUs");
-    expect(zoneForStatus(BOOKING_STATUS.READY_FOR_PICKUP)).toBe("ready");
+    expect(zoneForStatus(BOOKING_STATUS.ARRIVED)).toBe("withUs");
+    expect(zoneForStatus(BOOKING_STATUS.ARRIVED)).toBe("withUs");
+    expect(zoneForStatus(BOOKING_STATUS.READY_FOR_COLLECTION)).toBe("ready");
     expect(zoneForStatus(BOOKING_STATUS.COMPLETED)).toBe("home");
   });
 
@@ -81,9 +81,9 @@ describe("zone mapping", () => {
   it("routes a day's bookings into the four zones", () => {
     const tokens = tokensFor([
       booking({ id: "a", dogName: "Oscar", status: BOOKING_STATUS.BOOKED }),
-      booking({ id: "b", dogName: "Milo", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:30:00Z" }),
-      booking({ id: "c", dogName: "Poppy", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:00:00Z" }),
-      booking({ id: "d", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:45:00Z" }),
+      booking({ id: "b", dogName: "Milo", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:30:00Z" }),
+      booking({ id: "c", dogName: "Poppy", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:00:00Z" }),
+      booking({ id: "d", dogName: "Teddy", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:45:00Z" }),
       booking({ id: "e", dogName: "Daisy", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T08:10:00Z" }),
       booking({ id: "f", dogName: "Gone", status: BOOKING_STATUS.CANCELLED }),
     ]);
@@ -108,18 +108,18 @@ describe("priority gravity", () => {
 
   it("Ready: the longest wait leads, and an unknown ready time surfaces first rather than hiding", () => {
     const tokens = tokensFor([
-      booking({ id: "a", dogName: "Fresh", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:58:00Z" }),
-      booking({ id: "b", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:00:00Z" }),
-      booking({ id: "c", dogName: "Unstamped", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: null }),
+      booking({ id: "a", dogName: "Fresh", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:58:00Z" }),
+      booking({ id: "b", dogName: "Waiting", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:00:00Z" }),
+      booking({ id: "c", dogName: "Unstamped", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: null }),
     ]);
     expect(names(tokens.ready)).toEqual(["Unstamped", "Waiting", "Fresh"]);
   });
 
   it("With us: longest on site first; a dog with no check-in stamp has no claim and sorts last", () => {
     const tokens = tokensFor([
-      booking({ id: "a", dogName: "Recent", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:50:00Z" }),
-      booking({ id: "b", dogName: "Longest", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T06:00:00Z" }),
-      booking({ id: "c", dogName: "Unstamped", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: null }),
+      booking({ id: "a", dogName: "Recent", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:50:00Z" }),
+      booking({ id: "b", dogName: "Longest", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T06:00:00Z" }),
+      booking({ id: "c", dogName: "Unstamped", status: BOOKING_STATUS.ARRIVED, checkedInAt: null }),
     ]);
     expect(names(tokens.withUs)).toEqual(["Longest", "Recent", "Unstamped"]);
   });
@@ -159,9 +159,9 @@ describe("visual tiers", () => {
   it("escalates a collection wait: calm, then watch at 15 minutes, then urgent at an hour", () => {
     const at = (minutesAgo: number) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
     const tokens = tokensFor([
-      booking({ id: "a", dogName: "Fresh", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(4), payment: "Paid in Full" }),
-      booking({ id: "b", dogName: "Chasing", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(20), payment: "Paid in Full" }),
-      booking({ id: "c", dogName: "Too long", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(75), payment: "Paid in Full" }),
+      booking({ id: "a", dogName: "Fresh", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(4), payment: "Paid in Full" }),
+      booking({ id: "b", dogName: "Chasing", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(20), payment: "Paid in Full" }),
+      booking({ id: "c", dogName: "Too long", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(75), payment: "Paid in Full" }),
     ]);
     const tier = (name: string) => tokens.ready.find((t) => t.booking.dogName === name)?.tier;
     expect(tier("Fresh")).toBe("calm");
@@ -172,7 +172,7 @@ describe("visual tiers", () => {
   it("warms a freshly-ready dog that still owes — the money is what blocks the handover", () => {
     const at = (minutesAgo: number) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
     const tokens = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(4), payment: "Due at Pick-up" }),
+      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(4), payment: "Due at Pick-up" }),
     ]);
     expect(tokens.ready[0].tier).toBe("watch");
   });
@@ -181,7 +181,7 @@ describe("visual tiers", () => {
     const tokens = tokensFor([
       booking({
         id: "a",
-        status: BOOKING_STATUS.IN_BATH,
+        status: BOOKING_STATUS.ARRIVED,
         checkedInAt: "2026-07-14T08:50:00Z",
         payment: "Due at Pick-up",
       }),
@@ -194,8 +194,8 @@ describe("visual tiers", () => {
     // third signal for the same fact would make "watch" mean two things.
     const tokens = tokensFor(
       [
-        booking({ id: "a", dogName: "Longest", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T06:00:00Z" }),
-        booking({ id: "b", dogName: "Flagged", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:50:00Z" }),
+        booking({ id: "a", dogName: "Longest", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T06:00:00Z" }),
+        booking({ id: "b", dogName: "Flagged", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:50:00Z" }),
       ],
       { flagged: ["b"] },
     );
@@ -207,7 +207,7 @@ describe("visual tiers", () => {
     const board = buildDailyBriefBoard(
       [
         booking({ id: "a", slot: "08:00", _bookingDate: "2026-07-21" }),
-        booking({ id: "b", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: null, _bookingDate: "2026-07-21" }),
+        booking({ id: "b", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: null, _bookingDate: "2026-07-21" }),
       ],
       "2026-07-21",
       NOW,
@@ -249,8 +249,8 @@ describe("token text", () => {
   it("shows the elapsed time on a dog that is here, and the countdown on its slot", () => {
     const tokens = tokensFor([
       booking({ id: "a", slot: "11:00" }),
-      booking({ id: "b", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:30:00Z" }),
-      booking({ id: "c", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
+      booking({ id: "b", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:30:00Z" }),
+      booking({ id: "c", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]);
     // The appointment time belongs to the slot, not to the dog standing in it.
     expect(tokens.due[0].meta).toBeNull();
@@ -292,7 +292,7 @@ describe("token text", () => {
 
   it("never repeats the zone's own word on the token, but does spell it out for a screen reader", () => {
     const tokens = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:42:00Z" }),
+      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:42:00Z" }),
     ]);
     expect(tokens.ready[0].meta).not.toMatch(/ready/i);
     expect(tokens.ready[0].statusText).toBe("Ready, waiting 18 min");
@@ -392,7 +392,7 @@ describe("needs attention", () => {
     const at = (minutesAgo: number) => new Date(NOW.getTime() - minutesAgo * 60_000).toISOString();
     const tokens = tokensFor([
       booking({ id: "late-dog", slot: "08:30" }),
-      booking({ id: "waiting-dog", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: at(30) }),
+      booking({ id: "waiting-dog", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: at(30) }),
       booking({
         id: "unpaid-dog",
         status: BOOKING_STATUS.COMPLETED,
@@ -430,7 +430,7 @@ describe("needs attention", () => {
   it("shapes the day for the header, naming only the zones that hold dogs", () => {
     const counts = buildZoneCounts(tokensFor([
       booking({ id: "a", slot: "12:00" }),
-      booking({ id: "b", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:50:00Z" }),
+      booking({ id: "b", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:50:00Z" }),
     ]));
     expect(counts).toEqual([
       { zone: "due", label: "arriving", count: 1 },
@@ -452,17 +452,33 @@ describe("actions available by state", () => {
     expect(ids).not.toContain("collected");
   });
 
-  it("offers Start groom to a checked-in dog and Ready to one in the bath", () => {
+  it("offers one step out of the salon, now that In bath is gone", () => {
+    // There used to be two: Arrived -> Start groom -> Ready. "In bath" is no
+    // longer a booking status, so an arrived dog's only progression is Ready.
     const tokens = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:50:00Z" }),
-      booking({ id: "b", status: BOOKING_STATUS.IN_BATH, checkedInAt: "2026-07-14T08:40:00Z" }),
+      booking({ id: "a", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:50:00Z" }),
+      booking({ id: "b", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:40:00Z" }),
     ]);
-    const checkedIn = tokens.withUs.find((t) => t.booking.id === "a")!;
-    const inBath = tokens.withUs.find((t) => t.booking.id === "b")!;
-    expect(actionIds(checkedIn)).toContain("startGroom");
-    expect(actionIds(checkedIn)).not.toContain("ready");
-    expect(actionIds(inBath)).toContain("ready");
-    expect(actionIds(inBath)).not.toContain("startGroom");
+    for (const id of ["a", "b"]) {
+      const token = tokens.withUs.find((t) => t.booking.id === id)!;
+      expect(actionIds(token)).toContain("ready");
+      expect(actionIds(token)).not.toContain("startGroom");
+    }
+  });
+
+  it("offers Reconfirmed before arrival, and only on a booking nobody has confirmed", () => {
+    const tokens = tokensFor([
+      booking({ id: "a", status: BOOKING_STATUS.BOOKED }),
+      booking({ id: "b", status: BOOKING_STATUS.RECONFIRMED }),
+    ]);
+    const unconfirmed = tokens.due.find((t) => t.booking.id === "a")!;
+    const reconfirmed = tokens.due.find((t) => t.booking.id === "b")!;
+    expect(actionIds(unconfirmed)).toContain("reconfirm");
+    // Already reconfirmed: the step is done, so it is not offered again.
+    expect(actionIds(reconfirmed)).not.toContain("reconfirm");
+    // Both can still be checked straight in — the step is offered, not forced.
+    expect(actionIds(unconfirmed)).toContain("checkIn");
+    expect(actionIds(reconfirmed)).toContain("checkIn");
   });
 
   it("never offers Mark collected to a dog that has already gone home", () => {
@@ -474,7 +490,7 @@ describe("actions available by state", () => {
 
   it("promotes taking the money on a Ready dog that owes, keeping Mark collected beside it", () => {
     const [token] = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:40:00Z" }),
+      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:40:00Z" }),
     ]).ready;
     const actions = tokenActions(token, { amountDue: 52 });
     expect(actions[0]).toMatchObject({ id: "payment", label: "Take £52 payment", kind: "primary" });
@@ -483,7 +499,7 @@ describe("actions available by state", () => {
 
   it("makes Mark collected the primary once a Ready dog has paid", () => {
     const [token] = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T08:40:00Z", payment: "Paid in Full" }),
+      booking({ id: "a", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: "2026-07-14T08:40:00Z", payment: "Paid in Full" }),
     ]).ready;
     const actions = tokenActions(token, { amountDue: 0, paid: true });
     expect(actions[0]).toMatchObject({ id: "collected", kind: "primary" });
@@ -512,7 +528,7 @@ describe("actions available by state", () => {
   it("offers Call only when there is a number to call, and Didn't show only before arrival", () => {
     const arriving = tokensFor([booking({ id: "a", slot: "12:00" })]).due[0];
     const inSalon = tokensFor([
-      booking({ id: "b", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: "2026-07-14T08:50:00Z" }),
+      booking({ id: "b", status: BOOKING_STATUS.ARRIVED, checkedInAt: "2026-07-14T08:50:00Z" }),
     ]).withUs[0];
     expect(actionIds(arriving)).not.toContain("call");
     expect(actionIds(arriving, { telHref: "tel:07700900000" })).toContain("call");
@@ -568,10 +584,12 @@ describe("drag legality", () => {
 describe("undo", () => {
   it("knows the status each ordinary workflow move came from", () => {
     expect(reverseStatusFor("checkIn", BOOKING_STATUS.BOOKED)).toBe(BOOKING_STATUS.BOOKED);
-    expect(reverseStatusFor("startGroom", BOOKING_STATUS.CHECKED_IN)).toBe(BOOKING_STATUS.CHECKED_IN);
-    expect(reverseStatusFor("ready", BOOKING_STATUS.IN_BATH)).toBe(BOOKING_STATUS.IN_BATH);
-    expect(reverseStatusFor("ready", BOOKING_STATUS.CHECKED_IN)).toBe(BOOKING_STATUS.CHECKED_IN);
-    expect(reverseStatusFor("collected", BOOKING_STATUS.READY_FOR_PICKUP)).toBe(BOOKING_STATUS.READY_FOR_PICKUP);
+    // A dog checked in from Reconfirmed goes back to Reconfirmed, not Booked:
+    // undoing an arrival must not also throw away the customer's confirmation.
+    expect(reverseStatusFor("checkIn", BOOKING_STATUS.RECONFIRMED)).toBe(BOOKING_STATUS.RECONFIRMED);
+    expect(reverseStatusFor("reconfirm", BOOKING_STATUS.BOOKED)).toBe(BOOKING_STATUS.BOOKED);
+    expect(reverseStatusFor("ready", BOOKING_STATUS.ARRIVED)).toBe(BOOKING_STATUS.ARRIVED);
+    expect(reverseStatusFor("collected", BOOKING_STATUS.READY_FOR_COLLECTION)).toBe(BOOKING_STATUS.READY_FOR_COLLECTION);
   });
 
   it("offers no undo for a cancellation — that is confirmed, not quietly reversed", () => {
@@ -597,9 +615,9 @@ describe("a busy day", () => {
         status: bucket === 0
           ? BOOKING_STATUS.BOOKED
           : bucket === 1
-            ? BOOKING_STATUS.CHECKED_IN
+            ? BOOKING_STATUS.ARRIVED
             : bucket === 2
-              ? BOOKING_STATUS.READY_FOR_PICKUP
+              ? BOOKING_STATUS.READY_FOR_COLLECTION
               : BOOKING_STATUS.COMPLETED,
         checkedInAt: "2026-07-14T08:00:00Z",
         readyAt: "2026-07-14T08:20:00Z",

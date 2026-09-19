@@ -28,6 +28,7 @@ import {
   isNoShowReason,
   LATE_ARRIVAL_GRACE_MINUTES,
   paymentMethodLabel,
+  STATUS_RANK,
 } from "../constants/salon";
 import type { Booking, Dog, SlotOverrides } from "../types/index";
 
@@ -81,14 +82,13 @@ export type { LondonParts } from "./londonTime";
 
 // ---- Status ranking ----------------------------------------------------------
 
-/** Position of a status along the linear progression; Cancelled/unknown = -1. */
-export const BOOKING_STATUS_RANK: Record<string, number> = {
-  [BOOKING_STATUS.BOOKED]: 0,
-  [BOOKING_STATUS.CHECKED_IN]: 1,
-  [BOOKING_STATUS.IN_BATH]: 2,
-  [BOOKING_STATUS.READY_FOR_PICKUP]: 3,
-  [BOOKING_STATUS.COMPLETED]: 4,
-};
+/**
+ * Position of a status along the linear progression; terminal/unknown = -1.
+ *
+ * Re-exported from the canonical STATUS_RANK rather than restated, so adding
+ * or reordering a lifecycle status is a one-file change.
+ */
+export const BOOKING_STATUS_RANK: Record<string, number> = STATUS_RANK;
 
 export function statusRank(status?: string | null): number {
   if (!status) return -1;
@@ -348,7 +348,7 @@ export function buildDaySummary(
     if (rank === 0) expected++;
     if (rank >= 1) arrived++;
     if (rank >= 1 && b.status !== BOOKING_STATUS.COMPLETED) onSite++;
-    if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) ready++;
+    if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) ready++;
     if (b.status === BOOKING_STATUS.COMPLETED) collected++;
     if ((b.payment || "Due at Pick-up") !== "Paid in Full") unpaidCount++;
   }
@@ -411,7 +411,7 @@ export function buildImmediateAttention(
     const rank = statusRank(b.status);
     const kinds: AttentionKind[] = [];
     if (isLateArrival(b, now, grace)) kinds.push("late");
-    if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) {
+    if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) {
       const wait = collectionWaitMinutes(b, now);
       if (wait == null || wait >= readyEscalation) kinds.push("ready");
     }
@@ -510,8 +510,8 @@ export interface InSalonEntry {
 }
 
 /**
- * Dogs physically in the salon and still being worked on (Checked in /
- * In bath) — the Ready queue is its own list. Longest in first.
+ * Dogs physically in the salon and still being worked on (Arrived) — the Ready
+ * queue is its own list. Longest in first.
  */
 export function buildInSalonList(bookings: Booking[], now: Date): InSalonEntry[] {
   return bookings
@@ -531,7 +531,7 @@ export interface CollectionEntry {
 /** Dogs marked Ready and not yet collected, longest wait first. */
 export function buildCollectionQueue(bookings: Booking[], now: Date): CollectionEntry[] {
   return bookings
-    .filter((b) => isCountableBooking(b) && b.status === BOOKING_STATUS.READY_FOR_PICKUP)
+    .filter((b) => isCountableBooking(b) && b.status === BOOKING_STATUS.READY_FOR_COLLECTION)
     .map((b) => ({ booking: b, waitMinutes: collectionWaitMinutes(b, now) }))
     .sort((a, b) => (b.waitMinutes ?? -1) - (a.waitMinutes ?? -1));
 }
@@ -602,7 +602,12 @@ const STAGE_BY_RANK: Record<number, FeedStage> = {
 };
 
 /**
- * A Cancelled booking carrying a staff-confirmed no-show reason.
+ * A booking the dog did not turn up for.
+ *
+ * Now simply `status === 'No-show'`. The second arm is PRE-MIGRATION
+ * compatibility only: before 20260919090000 a no-show was a Cancelled row
+ * carrying `cancel_reason = 'No-show'`, and a row that escaped conversion
+ * should still read as a no-show rather than a plain cancellation.
  *
  * Deliberately NOT folded into `isCountableBooking`: that predicate governs
  * revenue, capacity, deposits and every report, and a no-show must stay
@@ -610,6 +615,7 @@ const STAGE_BY_RANK: Record<number, FeedStage> = {
  * VISIBLE on a day surface that has opted in.
  */
 function isConfirmedNoShow(b: { status?: string | null; cancelReason?: string | null }): boolean {
+  if (b.status === BOOKING_STATUS.NO_SHOW) return true;
   return b.status === BOOKING_STATUS.CANCELLED && isNoShowReason(b.cancelReason);
 }
 
@@ -997,9 +1003,9 @@ function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"])
 
 function checkedInCopy(checkedInAt: string | null | undefined, now: Date): string {
   const checkedInTime = validTimestamp(checkedInAt);
-  if (checkedInTime === null) return "Checked in";
+  if (checkedInTime === null) return "Arrived";
   const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
-  return `Checked in ${formatDuration(elapsed)} ago`;
+  return `Arrived ${formatDuration(elapsed)} ago`;
 }
 
 export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {

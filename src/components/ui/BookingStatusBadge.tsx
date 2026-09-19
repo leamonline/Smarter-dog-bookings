@@ -23,8 +23,8 @@ import { BOOKING_STATUS, isNoShowReason } from "../../constants/index";
 /** The distinct visual states a booking can present in the day stack. */
 export type DayStatusKey =
   | "expected"
-  | "checkedIn"
-  | "inBath"
+  | "reconfirmed"
+  | "arrived"
   | "ready"
   | "noShow"
   | "cancelled"
@@ -56,7 +56,7 @@ export interface DayStatusTone {
  *
  *   Expected     near-neutral grey-blue with NEUTRAL ink, not blue ink. This is
  *                the resting state and it should recede.
- *   Checked in   brand teal.
+ *   Arrived      brand teal.
  *   In the bath  OLIVE green, not mint. Mint sits too close to the teal beside
  *                it; the olive separates the two states that are adjacent in
  *                the progression and therefore adjacent on the screen.
@@ -80,20 +80,26 @@ const TONES: Record<Exclude<DayStatusKey, "unknown">, Omit<DayStatusTone, "key">
     edge: "#97A6B5",
     inStack: true,
   },
-  checkedIn: {
-    label: "Checked in",
+  // Reconfirmed: informational blue. It is news, not activity — the dog is
+  // still at home. Distinct from the neutral of an unconfirmed booking and
+  // from the green of one that has actually walked through the door.
+  reconfirmed: {
+    label: "Reconfirmed",
+    tint: "#DBEAFE",
+    ink: "#12315E",
+    meta: "#1D4A8F",
+    edge: "#3B82F6",
+    inStack: true,
+  },
+  // Arrived keeps the teal that "Arrived" had: the dog is here, and the
+  // one in-salon state now covers the whole of its visit. The olive that used
+  // to separate it from "In the bath" is retired with that status.
+  arrived: {
+    label: "Arrived",
     tint: "#D3EAE4",
     ink: "#123C33",
     meta: "#1D5F51",
     edge: "#2E8B76",
-    inStack: true,
-  },
-  inBath: {
-    label: "In the bath",
-    tint: "#D9EAC6",
-    ink: "#243D12",
-    meta: "#3A6420",
-    edge: "#5C9A33",
     inStack: true,
   },
   ready: {
@@ -156,15 +162,22 @@ export function resolveDayStatus(
   switch (status) {
     case BOOKING_STATUS.BOOKED:
       return { key: "expected", ...TONES.expected };
-    case BOOKING_STATUS.CHECKED_IN:
-      return { key: "checkedIn", ...TONES.checkedIn };
-    case BOOKING_STATUS.IN_BATH:
-      return { key: "inBath", ...TONES.inBath };
-    case BOOKING_STATUS.READY_FOR_PICKUP:
+    case BOOKING_STATUS.RECONFIRMED:
+      return { key: "reconfirmed", ...TONES.reconfirmed };
+    case BOOKING_STATUS.ARRIVED:
+      return { key: "arrived", ...TONES.arrived };
+    case BOOKING_STATUS.READY_FOR_COLLECTION:
       return { key: "ready", ...TONES.ready };
     case BOOKING_STATUS.COMPLETED:
       return { key: "collected", ...TONES.collected };
+    case BOOKING_STATUS.NO_SHOW:
+      return { key: "noShow", ...TONES.noShow };
     case BOOKING_STATUS.CANCELLED:
+      // A Cancelled row carrying cancel_reason = 'No-show' is the
+      // PRE-MIGRATION shape. Migration 20260919090000 converted the rows that
+      // existed, and nothing writes this shape any more; the check survives so
+      // that a row which escaped conversion still reads as what it is rather
+      // than being mislabelled a plain cancellation.
       return isNoShowReason(cancelReason)
         ? { key: "noShow", ...TONES.noShow }
         : { key: "cancelled", ...TONES.cancelled };

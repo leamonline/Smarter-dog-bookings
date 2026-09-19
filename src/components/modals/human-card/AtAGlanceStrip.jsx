@@ -13,7 +13,7 @@ import { getDogsForHuman } from "../../../utils/directorySearch";
 // (most-recent / upcoming). Total stays inert.
 
 const COMPLETED_STATUSES = new Set([
-  BOOKING_STATUS.READY_FOR_PICKUP,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
   BOOKING_STATUS.COMPLETED,
 ]);
 

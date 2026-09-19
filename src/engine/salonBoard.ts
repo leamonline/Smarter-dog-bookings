@@ -75,9 +75,11 @@ export const BOARD_ZONE_META: Record<BoardZone, ZoneMeta> = {
 /** Status → zone. Cancelled and unknown statuses map to null, exactly as the lanes do. */
 const ZONE_BY_STATUS: Record<string, BoardZone> = {
   [BOOKING_STATUS.BOOKED]: "due",
-  [BOOKING_STATUS.CHECKED_IN]: "withUs",
-  [BOOKING_STATUS.IN_BATH]: "withUs",
-  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
+  // Reconfirmed is still "coming in": the customer has told us they are
+  // coming, but the dog is not here yet.
+  [BOOKING_STATUS.RECONFIRMED]: "due",
+  [BOOKING_STATUS.ARRIVED]: "withUs",
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: "ready",
   [BOOKING_STATUS.COMPLETED]: "home",
 };
 
@@ -287,8 +289,10 @@ function statusTextFor(entry: DailyBriefBoardEntry, zone: BoardZone, now: Date, 
     return until <= 0 ? "Due now" : `Arriving in ${formatDuration(until)}`;
   }
   if (zone === "withUs") {
-    const inBath = entry.booking.status === BOOKING_STATUS.IN_BATH;
-    const stage = inBath ? "Being groomed" : "Checked in";
+    // "Arrived" is no longer a status, so there is one stage here: the dog is
+    // with us. Where it has got to in the groom is an operational detail the
+    // lifecycle deliberately no longer tracks.
+    const stage = "Arrived";
     const onSite = isToday ? timeInSalonMinutes(entry.booking, now) : null;
     return onSite == null ? stage : `${stage}, here ${formatDuration(onSite)}`;
   }
@@ -484,7 +488,7 @@ export function groupTokensBySlot(tokens: BoardToken[]): BoardSlotGroup[] {
 
 export type TokenActionId =
   | "checkIn"
-  | "startGroom"
+  | "reconfirm"
   | "ready"
   | "collected"
   | "payment"
@@ -555,18 +559,22 @@ export function tokenActions(token: BoardToken, context: TokenActionContext = {}
   const actions: TokenAction[] = [];
 
   if (token.zone === "due") {
-    actions.push({ id: "checkIn", label: "Check in", kind: "primary" });
+    // Reconfirm sits ahead of arrival for a booking nobody has confirmed yet.
+    // It is offered, never forced: staff can check a dog straight in from
+    // Booked if it simply turns up, and skipping the step is legitimate.
+    if (booking.status === BOOKING_STATUS.BOOKED) {
+      actions.push({ id: "reconfirm", label: "Reconfirmed", kind: "default" });
+    }
+    actions.push({ id: "checkIn", label: "Arrived", kind: "primary" });
   } else if (token.zone === "withUs") {
-    actions.push(
-      booking.status === BOOKING_STATUS.CHECKED_IN
-        ? { id: "startGroom", label: "Start groom", kind: "primary" }
-        // "Mark ready", not "Ready for collection" and emphatically not
-        // "texts owner": pressing this sends nothing. It opens a prompt where
-        // staff choose whether to message, and they often choose not to. A
-        // button that claims to have sent a message people did not send is how
-        // an owner ends up waiting in a car park.
-        : { id: "ready", label: "Mark ready", kind: "primary" },
-    );
+    // One step out of "with us" now that "Arrived" is gone: Arrived -> Ready.
+    //
+    // "Mark ready", not "Ready for collection" and emphatically not "texts
+    // owner": pressing this sends nothing. It opens a prompt where staff
+    // choose whether to message, and they often choose not to. A button that
+    // claims to have sent a message people did not send is how an owner ends
+    // up waiting in a car park.
+    actions.push({ id: "ready", label: "Mark ready", kind: "primary" });
   } else if (token.zone === "ready") {
     // Money first when there is money: taking it is what actually blocks the
     // handover. Mark collected stays a visible sibling, never buried — the
@@ -636,7 +644,7 @@ export interface ZoneMove {
 
 const MOVE_COPY: Record<TokenActionId, (dogName: string) => string> = {
   checkIn: (dog) => `${dog} checked in — with us now`,
-  startGroom: (dog) => `${dog} — groom started`,
+  reconfirm: (dog) => `${dog} — reconfirmed`,
   ready: (dog) => `${dog} is ready to go home`,
   collected: (dog) => `${dog} collected — home today`,
   payment: (dog) => `${dog}'s payment recorded`,
@@ -683,15 +691,19 @@ export function dropZoneFor(token: BoardToken): BoardZone | null {
  */
 export function reverseStatusFor(action: TokenActionId, previousStatus: string | null | undefined): string | null {
   if (!previousStatus) return null;
-  if (action === "checkIn") return previousStatus === BOOKING_STATUS.BOOKED ? BOOKING_STATUS.BOOKED : null;
-  if (action === "startGroom") return previousStatus === BOOKING_STATUS.CHECKED_IN ? BOOKING_STATUS.CHECKED_IN : null;
-  if (action === "ready") {
-    return previousStatus === BOOKING_STATUS.CHECKED_IN || previousStatus === BOOKING_STATUS.IN_BATH
+  if (action === "checkIn") {
+    return previousStatus === BOOKING_STATUS.BOOKED || previousStatus === BOOKING_STATUS.RECONFIRMED
       ? previousStatus
       : null;
   }
+  if (action === "reconfirm") {
+    return previousStatus === BOOKING_STATUS.BOOKED ? BOOKING_STATUS.BOOKED : null;
+  }
+  if (action === "ready") {
+    return previousStatus === BOOKING_STATUS.ARRIVED ? BOOKING_STATUS.ARRIVED : null;
+  }
   if (action === "collected") {
-    return previousStatus === BOOKING_STATUS.READY_FOR_PICKUP ? BOOKING_STATUS.READY_FOR_PICKUP : null;
+    return previousStatus === BOOKING_STATUS.READY_FOR_COLLECTION ? BOOKING_STATUS.READY_FOR_COLLECTION : null;
   }
   return null;
 }

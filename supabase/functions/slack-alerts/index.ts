@@ -75,7 +75,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
 const BOOKING_STATUS_BOOKED = "Booked";
-const BOOKING_STATUS_READY = "Ready for pick-up";
+const BOOKING_STATUS_READY = "Ready for collection";
 const BOOKING_STATUS_CANCELLED = "Cancelled";
 
 function json(body: unknown, status = 200): Response {

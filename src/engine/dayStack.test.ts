@@ -35,9 +35,9 @@ describe("buildDayStack ordering", () => {
     // any grouping or re-sort by status would be visible immediately.
     const rows = stack([
       bk({ id: "d", slot: "13:00", status: BOOKING_STATUS.BOOKED }),
-      bk({ id: "a", slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: agoIso(10) }),
-      bk({ id: "c", slot: "11:00", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: agoIso(20) }),
-      bk({ id: "b", slot: "09:30", status: BOOKING_STATUS.IN_BATH, checkedInAt: agoIso(40) }),
+      bk({ id: "a", slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(10) }),
+      bk({ id: "c", slot: "11:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(20) }),
+      bk({ id: "b", slot: "09:30", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(40) }),
     ]);
     expect(rows.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
   });
@@ -53,17 +53,44 @@ describe("buildDayStack ordering", () => {
 });
 
 describe("buildDayStack membership", () => {
-  it("includes a staff-confirmed no-show, in its time position", () => {
+  // The stack is an ALLOW-LIST of the four active statuses. These tests state
+  // both halves: what is shown, and what is deliberately not.
+
+  it("shows the four active statuses, in appointment order", () => {
     const rows = stack([
-      bk({ id: "later", slot: "12:00", status: BOOKING_STATUS.BOOKED }),
-      bk({
-        id: "ns",
-        slot: "09:00",
-        status: BOOKING_STATUS.CANCELLED,
-        cancelReason: NO_SHOW_REASON,
-      }),
+      bk({ id: "ready", slot: "11:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(5) }),
+      bk({ id: "booked", slot: "08:30", status: BOOKING_STATUS.BOOKED }),
+      bk({ id: "arrived", slot: "10:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(20) }),
+      bk({ id: "reconfirmed", slot: "09:00", status: BOOKING_STATUS.RECONFIRMED }),
     ]);
-    expect(rows.map((r) => r.id)).toEqual(["ns", "later"]);
+    expect(rows.map((r) => r.id)).toEqual(["booked", "reconfirmed", "arrived", "ready"]);
+  });
+
+  it("keeps appointment order, not status order", () => {
+    // The whole point of the stack: a dog's position is when it is due, not
+    // how far through its day it is. Changing a status must not reorder it.
+    const rows = stack([
+      bk({ id: "late-but-ready", slot: "12:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(5) }),
+      bk({ id: "early-but-booked", slot: "08:30", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    expect(rows.map((r) => r.id)).toEqual(["early-but-booked", "late-but-ready"]);
+  });
+
+  it("leaves a no-show out — it is not work still in front of you", () => {
+    const rows = stack([
+      bk({ id: "ns", slot: "09:00", status: BOOKING_STATUS.NO_SHOW, cancelReason: NO_SHOW_REASON }),
+      bk({ id: "live", slot: "12:00", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    expect(rows.map((r) => r.id)).toEqual(["live"]);
+  });
+
+  it("leaves the pre-migration no-show shape out too", () => {
+    // Cancelled + cancel_reason = 'No-show'. Nothing writes this any more, but
+    // a row that escaped conversion must not reappear in the stack.
+    const rows = stack([
+      bk({ id: "old-ns", slot: "09:00", status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON }),
+    ]);
+    expect(rows).toEqual([]);
   });
 
   it("leaves an ordinary cancellation out", () => {
@@ -84,12 +111,19 @@ describe("buildDayStack membership", () => {
     ]);
     expect(rows).toEqual([]);
   });
+
+  it("admits nothing it has not been told about", () => {
+    // An allow-list fails closed: a status invented later is invisible until
+    // somebody decides it belongs here.
+    const rows = stack([bk({ id: "weird", slot: "09:00", status: "Awaiting deposit" as never })]);
+    expect(rows).toEqual([]);
+  });
 });
 
 describe("buildDayStack timing", () => {
   it("counts a checked-in dog's time on site from checked_in_at", () => {
     const [row] = stack([
-      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: agoIso(135) }),
+      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(135) }),
     ]);
     expect(row.timing).toBe("2 hrs 15 min");
     expect(row.urgent).toBe(false);
@@ -102,7 +136,7 @@ describe("buildDayStack timing", () => {
       bk({
         id: "bst",
         slot: "08:30",
-        status: BOOKING_STATUS.IN_BATH,
+        status: BOOKING_STATUS.ARRIVED,
         checkedInAt: "2026-07-02T07:30:00Z",
       }),
     ]);
@@ -111,14 +145,14 @@ describe("buildDayStack timing", () => {
 
   it("marks a long stay on site as urgent", () => {
     const [row] = stack([
-      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.IN_BATH, checkedInAt: agoIso(200) }),
+      bk({ id: "x", slot: "08:30", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(200) }),
     ]);
     expect(row.urgent).toBe(true);
   });
 
   it("counts a ready dog's wait from ready_at", () => {
     const [row] = stack([
-      bk({ id: "x", slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: agoIso(20) }),
+      bk({ id: "x", slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: agoIso(20) }),
     ]);
     expect(row.timing).toBe("waiting 20 min");
     expect(row.readyOverdue).toBe(false);
@@ -129,7 +163,7 @@ describe("buildDayStack timing", () => {
       bk({
         id: "u",
         slot: "09:00",
-        status: BOOKING_STATUS.READY_FOR_PICKUP,
+        status: BOOKING_STATUS.READY_FOR_COLLECTION,
         readyAt: agoIso(READY_OVERDUE_MINUTES - 1),
       }),
     ])[0];
@@ -137,7 +171,7 @@ describe("buildDayStack timing", () => {
       bk({
         id: "o",
         slot: "09:00",
-        status: BOOKING_STATUS.READY_FOR_PICKUP,
+        status: BOOKING_STATUS.READY_FOR_COLLECTION,
         readyAt: agoIso(READY_OVERDUE_MINUTES),
       }),
     ])[0];
@@ -165,18 +199,6 @@ describe("buildDayStack timing", () => {
     expect(row.urgent).toBe(true);
   });
 
-  it("says a no-show did not arrive, without calling it urgent", () => {
-    const [row] = stack([
-      bk({
-        id: "ns",
-        slot: "09:00",
-        status: BOOKING_STATUS.CANCELLED,
-        cancelReason: NO_SHOW_REASON,
-      }),
-    ]);
-    expect(row.timing).toBe("Did not arrive");
-    expect(row.urgent).toBe(false);
-  });
 });
 
 describe("buildDayStack degrades quietly", () => {
@@ -185,7 +207,7 @@ describe("buildDayStack degrades quietly", () => {
   // worse than one that simply does not mention the time.
   it("says nothing about a checked-in dog with no arrival stamp", () => {
     const [row] = stack([
-      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.CHECKED_IN, checkedInAt: null }),
+      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: null }),
     ]);
     expect(row.timing).toBeNull();
     expect(row.urgent).toBe(false);
@@ -193,7 +215,7 @@ describe("buildDayStack degrades quietly", () => {
 
   it("says nothing about a ready dog with no ready stamp", () => {
     const [row] = stack([
-      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: null }),
+      bk({ id: "legacy", slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION, readyAt: null }),
     ]);
     expect(row.timing).toBeNull();
     expect(row.readyOverdue).toBe(false);
@@ -206,7 +228,7 @@ describe("buildDayStack degrades quietly", () => {
           id: "x",
           _bookingDate: OTHER_DAY,
           slot: "09:00",
-          status: BOOKING_STATUS.CHECKED_IN,
+          status: BOOKING_STATUS.ARRIVED,
           checkedInAt: agoIso(60),
         }),
       ],
@@ -240,7 +262,7 @@ describe("selectCollected", () => {
       [
         bk({ id: "early", slot: "09:00", status: BOOKING_STATUS.COMPLETED, completedAt: agoIso(90) }),
         bk({ id: "late", slot: "10:00", status: BOOKING_STATUS.COMPLETED, completedAt: agoIso(5) }),
-        bk({ id: "waiting", slot: "11:00", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        bk({ id: "waiting", slot: "11:00", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       ],
       TODAY,
       NOW,

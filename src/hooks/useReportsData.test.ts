@@ -33,12 +33,13 @@ describe("offline report data", () => {
       new Date("2026-05-12T12:00:00"),
     );
 
-    // 11 sample bookings, not 10, since Ziggy was added to the Monday fixture
-    // as the collected-but-unpaid case (#878). Revenue counts what the
-    // appointment is worth, not what was collected, so Ziggy's bath & brush
-    // is in the figure even though the money never arrived.
-    expect(stats.curN).toBe(11);
-    expect(stats.curRev).toBe(471);
+    // 12 countable sample bookings. Two were added for the lifecycle rebuild
+    // — Nala (Reconfirmed) and Pepper (No-show) — and only Nala counts:
+    // isCountableBooking excludes BOTH terminal statuses, so a no-show stays
+    // out of every count, total and rate exactly as a cancellation does.
+    // That exclusion is the behaviour this figure is really asserting.
+    expect(stats.curN).toBe(12);
+    expect(stats.curRev).toBe(517);
   });
 
   it("computes service and size splits from sample data", () => {
@@ -53,13 +54,13 @@ describe("offline report data", () => {
 
     expect(stats.svcs[0]).toMatchObject({
       id: "full-groom",
-      n: 5,
-      rev: 214,
+      n: 6,
+      rev: 260,
     });
     expect(stats.sizes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ size: "small", n: 6 }),
-        expect.objectContaining({ size: "medium", n: 4 }),
+        expect.objectContaining({ size: "medium", n: 5 }),
         expect.objectContaining({ size: "large", n: 1 }),
       ]),
     );
@@ -78,7 +79,7 @@ describe("offline report data", () => {
 
     expect(coco?.dog_id).toMatch(/^dog:/);
     expect(Object.values(source.humanMap)).toContain("Amy Clarke");
-    expect(stats.uniqueCusts).toBe(11);
+    expect(stats.uniqueCusts).toBe(12);
   });
 });
 
@@ -369,8 +370,8 @@ describe("no-show truth: confirmed no-shows vs unclassified past bookings", () =
     // reached their slot. The two advance cancellations never did, so they are
     // not in the denominator.
     const stats = statsFor([
-      row("2026-06-01", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
-      row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-06-01", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
+      row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       row("2026-06-01", { slot: "09:30" }), // left as Booked — unclassified
       row("2026-06-02", {
         slot: "08:30",
@@ -407,7 +408,7 @@ describe("no-show truth: confirmed no-shows vs unclassified past bookings", () =
   it("reports the previous period's no-show rate on the same confirmed basis", () => {
     const stats = statsFor([
       // previous window (05-20, 05-27]: one attended, one confirmed no-show
-      row("2026-05-25", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+      row("2026-05-25", { slot: "08:30", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       row("2026-05-26", {
         slot: "09:00",
         status: BOOKING_STATUS.CANCELLED,
@@ -435,7 +436,7 @@ describe("attendance insight does not outrun the evidence", () => {
       booking_date: bookingDate,
       service: "full-groom",
       size: "small",
-      status: BOOKING_STATUS.READY_FOR_PICKUP,
+      status: BOOKING_STATUS.READY_FOR_COLLECTION,
       payment: "Paid in Full",
       slot: "08:30",
       dog_id: "d1",

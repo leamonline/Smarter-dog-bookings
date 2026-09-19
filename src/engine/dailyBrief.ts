@@ -19,8 +19,8 @@ import { computeBookingPricing, validateDepositAmount } from "./bookingRules";
 import type { BookingPricingInput } from "./bookingRules";
 
 export type JourneyActionId =
+  | "reconfirm"
   | "checkIn"
-  | "startGroom"
   | "ready"
   | "waiting"
   | "collected"
@@ -96,11 +96,15 @@ export function buildMiniInvoicePatch(input: MiniInvoiceInput) {
   };
 }
 
+// The care progression, in order. "Arrived" used to sit between Arrived and
+// Ready; it is no longer a booking status, because where a dog is in the
+// groom is an operational detail rather than a lifecycle stage. A dog now
+// goes Arrived -> Ready for collection directly.
 const CARE = [
   BOOKING_STATUS.BOOKED,
-  BOOKING_STATUS.CHECKED_IN,
-  BOOKING_STATUS.IN_BATH,
-  BOOKING_STATUS.READY_FOR_PICKUP,
+  BOOKING_STATUS.RECONFIRMED,
+  BOOKING_STATUS.ARRIVED,
+  BOOKING_STATUS.READY_FOR_COLLECTION,
   BOOKING_STATUS.COMPLETED,
 ] as const;
 
@@ -117,14 +121,12 @@ export function buildJourneyActions(booking: Booking): JourneyAction[] {
     next: boolean,
   ): JourneyAction => ({ id, label, completed, next });
 
+  // Indices follow CARE: Booked 0, Reconfirmed 1, Arrived 2, Ready 3,
+  // Completed 4. "Start groom" is gone with the In bath status; "Reconfirmed"
+  // takes the step before arrival.
   return [
-    action("checkIn", index >= 1 ? "Checked-in" : "Check-in", index >= 1, index === 0),
-    action(
-      "startGroom",
-      index >= 2 ? "Being groomed" : "Start groom",
-      index >= 2,
-      index === 1,
-    ),
+    action("reconfirm", index >= 1 ? "Reconfirmed" : "Reconfirm", index >= 1, index === 0),
+    action("checkIn", index >= 2 ? "Arrived" : "Mark arrived", index >= 2, index === 1),
     ...(index >= 3
       ? [action("waiting", "Waiting to be collected", true, false)]
       : [action("ready", "Ready for collection", false, index === 2)]),
@@ -156,6 +158,21 @@ export function paymentVisual(booking: Booking): { visual: PaymentVisual; label:
   return { visual, label: `Paid${amountLabel}${methodLabel}` };
 }
 
+/**
+ * The care step this move would skip, or null when nothing is skipped.
+ *
+ * RECONFIRMED IS NOT A CARE STEP and is never reported here. It records that
+ * the customer said they were coming; plenty of dogs simply turn up, so
+ * Booked -> Arrived is an ordinary, complete workflow and must not throw a
+ * confirmation dialog in front of the commonest action in the salon. Asking
+ * "are you sure, this has not been reconfirmed?" every time somebody checks a
+ * dog in is exactly the overly strict state machine this lifecycle is meant to
+ * avoid.
+ *
+ * The steps that DO warrant a prompt are the ones where skipping leaves real
+ * care unrecorded: a dog marked collected that was never marked ready, or
+ * ready without ever being marked arrived.
+ */
 export function requiresCareSkipConfirmation(
   currentStatus: string | null | undefined,
   targetStatus: string,
@@ -164,13 +181,18 @@ export function requiresCareSkipConfirmation(
   const target = CARE.indexOf(targetStatus as (typeof CARE)[number]);
   if (target <= current + 1) return null;
 
-  return CARE[current + 1] === BOOKING_STATUS.CHECKED_IN
-    ? "been checked in"
-    : CARE[current + 1] === BOOKING_STATUS.IN_BATH
-      ? "started the groom"
-      : CARE[current + 1] === BOOKING_STATUS.READY_FOR_PICKUP
-        ? "been marked ready for collection"
-        : "been collected";
+  // Walk the steps strictly between current and target, ignoring Reconfirmed,
+  // and report the first that records actual care.
+  for (let i = current + 1; i < target; i++) {
+    const skipped = CARE[i];
+    if (skipped === BOOKING_STATUS.RECONFIRMED) continue;
+    if (skipped === BOOKING_STATUS.ARRIVED) return "been marked as arrived";
+    if (skipped === BOOKING_STATUS.READY_FOR_COLLECTION) {
+      return "been marked ready for collection";
+    }
+    return "been collected";
+  }
+  return null;
 }
 
 export function buildDailyBriefFeed(
@@ -219,9 +241,9 @@ export interface DailyBriefBoard {
 
 const BOARD_LANE_BY_STATUS: Record<string, DailyBriefLane> = {
   [BOOKING_STATUS.BOOKED]: "due",
-  [BOOKING_STATUS.CHECKED_IN]: "withUs",
-  [BOOKING_STATUS.IN_BATH]: "withUs",
-  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
+  [BOOKING_STATUS.RECONFIRMED]: "due",
+  [BOOKING_STATUS.ARRIVED]: "withUs",
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: "ready",
   [BOOKING_STATUS.COMPLETED]: "home",
 };
 

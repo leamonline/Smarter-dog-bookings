@@ -17,15 +17,14 @@
 // for, how long a dog has been here, was invisible in every preview and demo.
 // It is a MIRROR, not a second authority: online, the trigger still writes
 // these and the client's values are ignored.
-import { BOOKING_STATUS } from "../constants/index";
+import { RANK_ARRIVED, RANK_COMPLETED, RANK_READY, STATUS_RANK } from "../constants/index";
 
-const RANK: Record<string, number> = {
-  [BOOKING_STATUS.BOOKED]: 0,
-  [BOOKING_STATUS.CHECKED_IN]: 1,
-  [BOOKING_STATUS.IN_BATH]: 2,
-  [BOOKING_STATUS.READY_FOR_PICKUP]: 3,
-  [BOOKING_STATUS.COMPLETED]: 4,
-};
+// The progression ranks come from constants/salon.ts so this mirror and the
+// database trigger cannot drift apart by editing one of them. Terminal
+// statuses (Cancelled, No-show) are absent from STATUS_RANK by design: they
+// are exits, not steps, and resolve to undefined below, which preserves the
+// stamps exactly as the trigger does.
+const RANK = STATUS_RANK;
 
 export interface LifecycleStamps {
   checkedInAt?: string | null;
@@ -49,23 +48,28 @@ export function applyLifecycleStamps<T extends LifecycleStamps & { status?: stri
   if (booking.status === previousStatus) return booking;
 
   const rank = RANK[booking.status ?? ""];
-  // Cancelled and any unknown status: preserve whatever history exists. A
-  // no-show that arrived and was then cancelled still arrived.
+  // Cancelled, No-show and any unknown status: preserve whatever history
+  // exists. A dog that arrived and was later marked a no-show by mistake
+  // still arrived, and the correction must not erase the evidence.
   if (rank === undefined) return booking;
 
   const wasOnProgression = RANK[previousStatus ?? ""] !== undefined;
 
   return {
     ...booking,
-    checkedInAt: rank >= 1 ? booking.checkedInAt ?? nowIso : null,
-    readyAt: rank >= 3 ? booking.readyAt ?? nowIso : null,
+    // Named ranks, not literals. Reconfirmed took rank 1 when it was added,
+    // so a bare `rank >= 1` here would stamp an arrival time on a booking the
+    // customer had merely confirmed by message — a dog recorded as being in
+    // the salon when it is still at home.
+    checkedInAt: rank >= RANK_ARRIVED ? booking.checkedInAt ?? nowIso : null,
+    readyAt: rank >= RANK_READY ? booking.readyAt ?? nowIso : null,
     // Overwrites on re-entry, and clears on leaving, exactly as the trigger
     // does. Only touched when one side of the change is Completed, which is
     // the trigger's own WHEN clause.
     completedAt:
-      rank === 4
+      rank === RANK_COMPLETED
         ? nowIso
-        : wasOnProgression && RANK[previousStatus ?? ""] === 4
+        : wasOnProgression && RANK[previousStatus ?? ""] === RANK_COMPLETED
           ? null
           : booking.completedAt ?? null,
   };

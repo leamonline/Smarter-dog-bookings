@@ -90,7 +90,7 @@ export interface NeedsAttentionItem {
   bookings: Booking[];
   date: string;
   slot: string;
-  /** Neutral one-line reason, e.g. `Still marked "Checked in"`. */
+  /** Neutral one-line reason, e.g. `Still marked "Arrived"`. */
   detail: string;
   /** Whole days between the appointment date and today. */
   ageDays: number;
@@ -157,9 +157,9 @@ export function classifyNeedsAttention(
   if (b.status === BOOKING_STATUS.CANCELLED) return null;
   if (!b._bookingDate || !todayStr || b._bookingDate >= todayStr) return null;
 
-  if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) return "readyForCollection";
+  if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) return "readyForCollection";
 
-  // Booked / Checked in / In bath — and unknown/missing statuses, which the
+  // Booked / Reconfirmed / Arrived — and unknown/missing statuses, which the
   // rest of the app renders as "Booked" (STAGE_BY_RANK fallback), so a
   // malformed row surfaces for review rather than silently disappearing.
   const rank = statusRank(b.status);
@@ -187,7 +187,7 @@ export function attentionDetail(
   b: AttentionBooking,
 ): string {
   if (kind === "readyForCollection") {
-    return 'Still marked "Ready for pick-up"';
+    return 'Still marked "Ready for collection"';
   }
   if (kind === "pastAppointmentReview") {
     const status = b.status || BOOKING_STATUS.BOOKED;

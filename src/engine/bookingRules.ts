@@ -1,4 +1,4 @@
-import { PRICING, SERVICES, BOOKING_STATUS } from "../constants/index";
+import { PRICING, SERVICES, isActiveBooking } from "../constants/index";
 import { getAddonsTotal, FROM_PRICED_SERVICES } from "../constants/salon";
 import { formatGBP, penceToPounds, pricePenceFromTableValue } from "../utils/money";
 import type { Service, Human, Dog, Booking } from "../types/index";
@@ -16,7 +16,15 @@ export type PricingConfig = Record<string, Record<string, number | string | null
  * and freshly-built sample rows default to "Booked", never "Cancelled".)
  */
 export function isCountableBooking(b: { status?: string | null }): boolean {
-  return b.status !== BOOKING_STATUS.CANCELLED;
+  // Both terminal statuses, not just Cancelled.
+  //
+  // This is THE predicate that decides whether a booking occupies a seat and
+  // earns money, and before No-show became a status of its own a no-show was
+  // a Cancelled row, so it already fell out here. Testing only for Cancelled
+  // after the split would quietly make every no-show countable again: it
+  // would consume capacity and block real bookings, and it would reappear in
+  // revenue. `isActiveBooking` covers both exits and is the only correct test.
+  return isActiveBooking(b.status);
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

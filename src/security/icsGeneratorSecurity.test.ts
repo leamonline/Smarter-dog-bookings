@@ -69,6 +69,6 @@ describe("ICS status mapping", () => {
   });
 
   it("keeps active in-salon statuses confirmed in calendar feeds", () => {
-    expect(statusLineForBookingStatus("Ready for pick-up")).toBe("STATUS:CONFIRMED");
+    expect(statusLineForBookingStatus("Ready for collection")).toBe("STATUS:CONFIRMED");
   });
 });

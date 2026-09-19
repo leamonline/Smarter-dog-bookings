@@ -141,7 +141,11 @@ serve(async (req) => {
         .select("id, status")
         .in("id", bookingIds);
       for (const b of (bks ?? []) as { id: string; status: string }[]) {
-        if (b.status !== "Cancelled" && b.status !== "Completed") activeBooking.add(b.id);
+        // No-show joins Cancelled and Completed: none of them should draw an
+        // SMS chase for an appointment that is already over.
+        if (b.status !== "Cancelled" && b.status !== "Completed" && b.status !== "No-show") {
+          activeBooking.add(b.id);
+        }
       }
     }
 

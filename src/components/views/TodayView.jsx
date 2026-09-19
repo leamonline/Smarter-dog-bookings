@@ -290,7 +290,7 @@ export function TodayView({
   // screen renders is also the one the signal is fetched for.
   const readyBookings = useMemo(
     () => stackRows
-      .filter((row) => row.booking.status === BOOKING_STATUS.READY_FOR_PICKUP)
+      .filter((row) => row.booking.status === BOOKING_STATUS.READY_FOR_COLLECTION)
       .map((row) => row.booking),
     [stackRows],
   );

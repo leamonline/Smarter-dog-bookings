@@ -549,7 +549,7 @@ describe("useBookings", () => {
       dog_id: "dog-1",
       payment: "Due at Pick-up",
     };
-    const updatedRow = { ...initialRow, slot: "10:00", status: "Checked in" };
+    const updatedRow = { ...initialRow, slot: "10:00", status: "Arrived" };
 
     setSupabase(
       makeSupabaseStub({
@@ -566,14 +566,14 @@ describe("useBookings", () => {
     let returned;
     await act(async () => {
       returned = await result.current.updateBooking(
-        { ...result.current.bookingsByDate["2026-05-18"][0], slot: "10:00", status: "Checked in" },
+        { ...result.current.bookingsByDate["2026-05-18"][0], slot: "10:00", status: "Arrived" },
         "2026-05-18",
         "2026-05-18",
       );
     });
 
     expect(returned?.slot).toBe("10:00");
-    expect(returned?.status).toBe("Checked in");
+    expect(returned?.status).toBe("Arrived");
     expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("10:00");
   });
@@ -600,7 +600,7 @@ describe("useBookings", () => {
     render(<DailyBriefUpdateHarness />);
     // Press the dog, then Check in from its action panel.
     fireEvent.click(await screen.findByRole("button", { name: /^Bella\./ }));
-    fireEvent.click(screen.getByRole("button", { name: "Check in — Bella" }));
+    fireEvent.click(screen.getByRole("button", { name: "Arrived — Bella" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check-in could not be saved.",
@@ -1151,7 +1151,7 @@ describe("useBookings", () => {
       dog_id: "dog-1",
       payment: "Due at Pick-up",
     };
-    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_PICKUP };
+    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_COLLECTION };
     const stub = makeSupabaseStub({
       selectResult: { data: [initialRow], error: null },
       updateResult: { data: readyRow, error: null },
@@ -1167,7 +1167,7 @@ describe("useBookings", () => {
       await result.current.updateBooking(
         {
           ...result.current.bookingsByDate["2026-05-18"][0],
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           pickupBy: "Sarah Jones",
           staffCapacityOverride: true,
         },
@@ -1178,7 +1178,7 @@ describe("useBookings", () => {
 
     expect(onReadyForPickup).toHaveBeenCalledTimes(1);
     expect(onReadyForPickup.mock.calls[0][0].status).toBe(
-      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.READY_FOR_COLLECTION,
     );
     // The camelCase override flag and the pickup-by name lookup both
     // funnel into the update payload.
@@ -1195,12 +1195,12 @@ describe("useBookings", () => {
       slot: "09:00",
       size: "small",
       service: "full-groom",
-      status: BOOKING_STATUS.IN_BATH,
+      status: BOOKING_STATUS.ARRIVED,
       addons: [],
       dog_id: "dog-1",
       payment: "Due at Pick-up",
     };
-    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_PICKUP };
+    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_COLLECTION };
     const stub = makeSupabaseStub({
       selectResult: { data: [initialRow], error: null },
       updateResult: { data: readyRow, error: null },
@@ -1216,7 +1216,7 @@ describe("useBookings", () => {
       await result.current.updateBooking(
         {
           ...result.current.bookingsByDate["2026-05-18"][0],
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
           _skipCollectionPrompt: true,
         },
         "2026-05-18",
@@ -1238,7 +1238,7 @@ describe("useBookings", () => {
       slot: "09:00",
       size: "small",
       service: "full-groom",
-      status: BOOKING_STATUS.READY_FOR_PICKUP,
+      status: BOOKING_STATUS.READY_FOR_COLLECTION,
       addons: [],
       dog_id: "dog-1",
       payment: "Due at Pick-up",
@@ -1262,7 +1262,7 @@ describe("useBookings", () => {
         {
           ...result.current.bookingsByDate["2026-05-18"][0],
           slot: "10:00",
-          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          status: BOOKING_STATUS.READY_FOR_COLLECTION,
         },
         "2026-05-18",
         "2026-05-18",

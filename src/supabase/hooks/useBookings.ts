@@ -5,6 +5,7 @@ import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
+import { londonDateStr } from "../../engine/londonTime";
 import type { DbBookingRow } from "../transforms";
 import { createStaffBookingGroup } from "../rpc";
 import type { StaffBookingGroupRow } from "../rpc";
@@ -552,6 +553,21 @@ export function useBookings(
           ? {
               reminder_confirmed_at: new Date().toISOString(),
               reminder_confirmed_source: "staff",
+              // A staff Confirm advances the lifecycle the same way a customer
+              // reply does, under the same two guards as
+              // mark_reminder_confirmed(): only out of Booked, and only for a
+              // booking that has not already happened.
+              //
+              // Only out of Booked, because staff also press Confirm on a dog
+              // already in the salon, and Reconfirmed ranks BELOW Arrived — the
+              // lifecycle trigger would clear checked_in_at and lose the
+              // arrival time. Only today or later, because confirming an
+              // appointment that is already over is closing paperwork, not a
+              // statement that the dog is coming.
+              ...(( updatedBooking.status || BOOKING_STATUS.BOOKED) === BOOKING_STATUS.BOOKED
+                && toDateStrValue >= londonDateStr()
+                ? { status: BOOKING_STATUS.RECONFIRMED }
+                : {}),
             }
           : {}),
         // Undo of a staff confirmation (mis-tap). Clears the pair — but only
@@ -614,8 +630,8 @@ export function useBookings(
       // and not on undo, which sets status back to the previous value).
       if (
         !updatedBooking._skipCollectionPrompt &&
-        prevRow?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
-        persisted.status === BOOKING_STATUS.READY_FOR_PICKUP
+        prevRow?.status !== BOOKING_STATUS.READY_FOR_COLLECTION &&
+        persisted.status === BOOKING_STATUS.READY_FOR_COLLECTION
       ) {
         onReadyForPickupRef.current?.(persisted);
       }

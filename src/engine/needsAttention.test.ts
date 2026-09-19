@@ -48,10 +48,10 @@ function booking(overrides: Partial<Booking> = {}): Booking {
 }
 
 describe("classifyNeedsAttention", () => {
-  it("flags a previous-day Ready for pick-up as ready for collection", () => {
+  it("flags a previous-day Ready for collection as still waiting", () => {
     expect(
       classifyNeedsAttention(
-        booking({ status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ status: BOOKING_STATUS.READY_FOR_COLLECTION }),
         TODAY,
       ),
     ).toBe("readyForCollection");
@@ -59,8 +59,8 @@ describe("classifyNeedsAttention", () => {
 
   it.each([
     BOOKING_STATUS.BOOKED,
-    BOOKING_STATUS.CHECKED_IN,
-    BOOKING_STATUS.IN_BATH,
+    BOOKING_STATUS.ARRIVED,
+    BOOKING_STATUS.ARRIVED,
   ])("flags a previous-day '%s' booking for review", (status) => {
     expect(classifyNeedsAttention(booking({ status }), TODAY)).toBe(
       "pastAppointmentReview",
@@ -159,8 +159,8 @@ describe("attentionDetail — payment language stays neutral", () => {
 
   it("names the leftover status for review items", () => {
     expect(
-      attentionDetail("pastAppointmentReview", booking({ status: BOOKING_STATUS.IN_BATH })),
-    ).toBe('Still marked "In bath"');
+      attentionDetail("pastAppointmentReview", booking({ status: BOOKING_STATUS.ARRIVED })),
+    ).toBe('Still marked "Arrived"');
   });
 });
 
@@ -168,8 +168,8 @@ describe("buildNeedsAttention", () => {
   it("groups multi-dog bookings into one task per reason", () => {
     const summary = buildNeedsAttention(
       [
-        booking({ id: "a", _groupId: "g1", slot: "09:30", dogName: "Rex", status: BOOKING_STATUS.READY_FOR_PICKUP }),
-        booking({ id: "b", _groupId: "g1", slot: "09:00", dogName: "Fido", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "a", _groupId: "g1", slot: "09:30", dogName: "Rex", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
+        booking({ id: "b", _groupId: "g1", slot: "09:00", dogName: "Fido", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       ],
       TODAY,
     );
@@ -183,7 +183,7 @@ describe("buildNeedsAttention", () => {
   it("keeps group members with different reasons as separate tasks", () => {
     const summary = buildNeedsAttention(
       [
-        booking({ id: "a", _groupId: "g1", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "a", _groupId: "g1", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
         booking({ id: "b", _groupId: "g1", status: BOOKING_STATUS.COMPLETED, payment: "Due at Pick-up" }),
       ],
       TODAY,
@@ -194,8 +194,8 @@ describe("buildNeedsAttention", () => {
   it("ungrouped bookings never fold together", () => {
     const summary = buildNeedsAttention(
       [
-        booking({ id: "a", status: BOOKING_STATUS.READY_FOR_PICKUP }),
-        booking({ id: "b", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "a", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
+        booking({ id: "b", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       ],
       TODAY,
     );
@@ -205,8 +205,8 @@ describe("buildNeedsAttention", () => {
   it("always returns the three sections, OLDEST day first within each", () => {
     const summary = buildNeedsAttention(
       [
-        booking({ id: "old", _bookingDate: "2026-08-10", status: BOOKING_STATUS.CHECKED_IN }),
-        booking({ id: "new", _bookingDate: YESTERDAY, status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "old", _bookingDate: "2026-08-10", status: BOOKING_STATUS.ARRIVED }),
+        booking({ id: "new", _bookingDate: YESTERDAY, status: BOOKING_STATUS.ARRIVED }),
       ],
       TODAY,
     );
@@ -223,8 +223,8 @@ describe("buildNeedsAttention", () => {
   it("stamps each item with its age and staleness, and counts the stale ones", () => {
     const summary = buildNeedsAttention(
       [
-        booking({ id: "stale", _bookingDate: "2026-07-20", status: BOOKING_STATUS.READY_FOR_PICKUP }),
-        booking({ id: "fresh", _bookingDate: YESTERDAY, status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "stale", _bookingDate: "2026-07-20", status: BOOKING_STATUS.READY_FOR_COLLECTION }),
+        booking({ id: "fresh", _bookingDate: YESTERDAY, status: BOOKING_STATUS.READY_FOR_COLLECTION }),
       ],
       TODAY,
     );
@@ -240,7 +240,7 @@ describe("buildNeedsAttention", () => {
 
   it("treats the stale boundary as inclusive", () => {
     const onBoundary = buildNeedsAttention(
-      [booking({ _bookingDate: "2026-08-06", status: BOOKING_STATUS.READY_FOR_PICKUP })],
+      [booking({ _bookingDate: "2026-08-06", status: BOOKING_STATUS.READY_FOR_COLLECTION })],
       TODAY,
     );
     expect(onBoundary.sections[0].items[0].ageDays).toBe(NEEDS_ATTENTION_STALE_DAYS);

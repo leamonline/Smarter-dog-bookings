@@ -110,7 +110,7 @@ function bookingRow(overrides = {}) {
     slot: "09:00",
     size: "small",
     service: "full-groom",
-    status: "Checked in",
+    status: "Arrived",
     addons: ["nail-clip"],
     payment: "Paid",
     confirmed: true,
@@ -448,7 +448,7 @@ describe("dbBookingsToArray", () => {
     expect(bk.size).toBe("small");
     expect(bk.service).toBe("full-groom");
     expect(bk.owner).toBe("Jane Smith");
-    expect(bk.status).toBe("Checked in");
+    expect(bk.status).toBe("Arrived");
     expect(bk.addons).toEqual(["nail-clip"]);
     expect(bk.payment).toBe("Paid");
     expect(bk.confirmed).toBe(true);

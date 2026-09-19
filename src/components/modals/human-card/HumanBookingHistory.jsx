@@ -111,7 +111,7 @@ export function HumanBookingHistory({
                     className="font-semibold text-[11px] shrink-0"
                     style={{
                       color:
-                        booking.status === BOOKING_STATUS.READY_FOR_PICKUP
+                        booking.status === BOOKING_STATUS.READY_FOR_COLLECTION
                           ? "#16A34A"
                           : "#6B7280",
                     }}

@@ -20,7 +20,7 @@
 /** How long after a slot's start a still-"Booked" dog counts as a no-show. */
 export const NO_SHOW_AFTER_MINUTES = 15;
 
-/** How long a dog may sit in "Ready for pick-up" before staff are nudged. */
+/** How long a dog may sit in "Ready for collection" before staff are nudged. */
 export const READY_OVERDUE_MINUTES = 45;
 
 /** How long an inbound customer message may go unanswered during opening

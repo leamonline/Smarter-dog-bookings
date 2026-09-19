@@ -50,7 +50,7 @@ describe("ReminderCard", () => {
   it("makes the collection message primary and first when the groom is Ready", () => {
     render(
       <ReminderCard
-        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Ready for pick-up", reminderState: "none" }}
+        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Ready for collection", reminderState: "none" }}
         pickupHuman={{ fullName: "Tom Clark", phone: "+447700900000" }}
         isEditing={false}
         onSendReminder={vi.fn()}
@@ -67,7 +67,7 @@ describe("ReminderCard", () => {
   it("keeps the collection message secondary and after the reminder before Ready", () => {
     render(
       <ReminderCard
-        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "In bath", reminderState: "none" }}
+        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Arrived", reminderState: "none" }}
         pickupHuman={{ fullName: "Tom Clark", phone: "+447700900000" }}
         isEditing={false}
         onSendReminder={vi.fn()}
@@ -95,7 +95,7 @@ describe("ReminderCard", () => {
     const onSendReminder = vi.fn();
     render(
       <ReminderCard
-        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Ready for pick-up", reminderState: "none" }}
+        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Ready for collection", reminderState: "none" }}
         pickupHuman={{ fullName: "Tom Clark", phone: "+447700900000" }}
         isEditing={false}
         onSendReminder={onSendReminder}

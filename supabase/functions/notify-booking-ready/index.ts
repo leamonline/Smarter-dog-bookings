@@ -16,7 +16,7 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // ── Main handler ───────────────────────────────────────────────────────────
 //
 // Fired by an AFTER UPDATE trigger on bookings when status transitions to
-// 'Ready for pick-up'. Sends a customer notification via WhatsApp / SMS /
+// 'Ready for collection'. Sends a customer notification via WhatsApp / SMS /
 // email (in that order of preference based on consent flags).
 //
 // Payload shape (from pg_net trigger):
@@ -39,8 +39,8 @@ serve(async (req) => {
       return new Response("No record in payload", { status: 400 });
     }
 
-    if (booking.status !== "Ready for pick-up") {
-      return new Response("Skipped: status is not 'Ready for pick-up'", { status: 200 });
+    if (booking.status !== "Ready for collection") {
+      return new Response("Skipped: status is not 'Ready for collection'", { status: 200 });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

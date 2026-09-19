@@ -121,11 +121,11 @@ describe("the board page — selected-date operations", () => {
   it("offers only the next care outcome, and keeps payment independent of it", () => {
     const confirm = vi.spyOn(window, "confirm");
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
     });
 
     openDog("Jack");
-    expect(screen.queryByRole("button", { name: /Start groom/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark ready/ })).not.toBeInTheDocument();
     expect(action("Mark collected — Jack")).toBeInTheDocument();
 
     fireEvent.click(action("Take £42 payment — Jack"));
@@ -139,7 +139,7 @@ describe("the board page — selected-date operations", () => {
     const onSendCollection = vi.fn();
     const confirm = vi.spyOn(window, "confirm");
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "In bath" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Arrived" }] },
       onUpdateBooking,
       onSendCollection,
     });
@@ -152,16 +152,16 @@ describe("the board page — selected-date operations", () => {
     expect(onUpdateBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "b-selected",
-        status: "Ready for pick-up",
+        status: "Ready for collection",
         _skipCollectionPrompt: true,
       }),
       "2026-07-16",
       "2026-07-16",
     );
 
-    await act(async () => resolveSave({ id: "b-selected", status: "Ready for pick-up" }));
+    await act(async () => resolveSave({ id: "b-selected", status: "Ready for collection" }));
     expect(onSendCollection).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "b-selected", status: "Ready for pick-up" }),
+      expect.objectContaining({ id: "b-selected", status: "Ready for collection" }),
     );
     expect(confirm).not.toHaveBeenCalled();
   });
@@ -170,7 +170,7 @@ describe("the board page — selected-date operations", () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(null);
     const onSendCollection = vi.fn();
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "In bath" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Arrived" }] },
       onUpdateBooking,
       onSendCollection,
     });
@@ -189,7 +189,7 @@ describe("the board page — selected-date operations", () => {
     renderToday({ onUpdateBooking });
 
     openDog("Jack");
-    fireEvent.click(action("Check in — Jack"));
+    fireEvent.click(action("Arrived — Jack"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Check-in could not be saved.");
     // Still in Arriving: a dog never appears to move when the save did not land.
@@ -206,7 +206,7 @@ describe("the board page — selected-date operations", () => {
     let resolveSave;
     const onUpdateBooking = vi.fn(() => new Promise((resolve) => { resolveSave = resolve; }));
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "In bath" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Arrived" }] },
       onUpdateBooking,
     });
 
@@ -214,18 +214,18 @@ describe("the board page — selected-date operations", () => {
     fireEvent.click(action("Mark ready — Jack"));
     expect(token("Jack")).toHaveAttribute("aria-busy", "true");
 
-    await act(async () => resolveSave({ id: "b-selected", status: "Ready for pick-up" }));
+    await act(async () => resolveSave({ id: "b-selected", status: "Ready for collection" }));
     expect(token("Jack")).not.toHaveAttribute("aria-busy");
   });
 
   it("offers Undo on an ordinary workflow move and sends the dog back", async () => {
     const onUpdateBooking = vi.fn()
-      .mockResolvedValueOnce({ ...selectedBooking, status: "Checked in" })
+      .mockResolvedValueOnce({ ...selectedBooking, status: "Arrived" })
       .mockResolvedValueOnce({ ...selectedBooking, status: "Booked" });
     renderToday({ onUpdateBooking });
 
     openDog("Jack");
-    fireEvent.click(action("Check in — Jack"));
+    fireEvent.click(action("Arrived — Jack"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
 
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
@@ -245,7 +245,7 @@ describe("the board page — selected-date operations", () => {
   it("warns about an unpaid balance without blocking collection", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       onUpdateBooking,
     });
 
@@ -369,7 +369,7 @@ describe("the board page — selected-date operations", () => {
 
   it("uses one configured guide price for the header money, the token and the invoice", () => {
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       configPricing: { "full-groom": { small: 5000 } },
     });
 
@@ -387,7 +387,7 @@ describe("the board page — selected-date operations", () => {
   it("saves the invoice through the selected-date booking mutation", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       onUpdateBooking,
     });
 
@@ -421,10 +421,10 @@ describe("the board page — selected-date operations", () => {
     });
 
     openDog("Jack");
-    fireEvent.click(action("Check in — Jack"));
+    fireEvent.click(action("Arrived — Jack"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "b-past", status: "Checked in" }),
+      expect.objectContaining({ id: "b-past", status: "Arrived" }),
       "2026-07-13",
       "2026-07-13",
     );
@@ -435,7 +435,7 @@ describe("the board page — selected-date operations", () => {
     const onOpenHuman = vi.fn();
     const onOpenBooking = vi.fn();
     renderToday({
-      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }] },
+      bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       onOpenDog,
       onOpenHuman,
       onOpenBooking,
@@ -486,7 +486,7 @@ describe("the board page — selected-date operations", () => {
       id: "b-action",
       dogName: "Ruby",
       _dogId: "d-action",
-      status: "Ready for pick-up",
+      status: "Ready for collection",
     };
     const calm = {
       ...selectedBooking,
@@ -579,8 +579,8 @@ describe("the board page — selected-date operations", () => {
     expect(endOfDay).toHaveTextContent("Taken £42");
 
     openDog("Lucy");
-    expect(action("Check in — Lucy")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Start groom/ })).not.toBeInTheDocument();
+    expect(action("Arrived — Lucy")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark ready/ })).not.toBeInTheDocument();
   });
 
   it("opens an awaiting-deposit booking by id", () => {

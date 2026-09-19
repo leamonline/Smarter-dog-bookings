@@ -123,9 +123,9 @@ const RUNTIME_GENERATIONS = new Set(["legacy_compat", "visit_v1"]);
 const DOG_SIZES = new Set(["small", "medium", "large"]);
 const BOOKING_STATUSES = new Set([
   "Booked",
-  "Checked in",
-  "In bath",
-  "Ready for pick-up",
+  "Arrived",
+  "Arrived",
+  "Ready for collection",
   "Completed",
   "Cancelled",
 ]);

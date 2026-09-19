@@ -74,7 +74,7 @@ function EditablePaymentHarness({ pricing }) {
 describe("PaymentStateSection", () => {
   it("shows a single due summary with accessible one-tap methods", () => {
     renderSection({
-      booking: { ...baseBooking, status: "Ready for pick-up", payment: "Due at Pick-up" },
+      booking: { ...baseBooking, status: "Ready for collection", payment: "Due at Pick-up" },
       pricing: { subtotal: 46, amountDue: 46 },
     });
 
