@@ -228,8 +228,13 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
   Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's
-  `migrations-applied` check supplies evidence for added migrations, but nothing now *enforces* that
-  evidence before merge — `main` is unprotected, so this is a discipline, not a gate. A daily
+  `migrations-applied` check supplies that evidence, and the `Protect main` ruleset makes it a
+  **required status check** — a pull request adding a migration that is not yet live on prod is
+  refused at merge with `405 Repository rule violations found`. It is a gate, not a discipline.
+  ⚠️ That means an **expand/contract rollout cannot live in one pull request**: the contract phase
+  must not run until the new frontend is deployed, but the check demands it already be applied.
+  Split it — ship the expand phase and the app change together, then the contract phase in a
+  follow-up pull request opened after the deploy. A daily
   `check-migrations-drift` job backstops it. Keep
   migrations **idempotent**; don't `db push` or blind-rerun (early migrations aren't idempotent;
   prod history has known gaps). See [docs/migrations.md](docs/migrations.md).
