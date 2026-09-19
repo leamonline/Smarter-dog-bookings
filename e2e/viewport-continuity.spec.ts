@@ -224,6 +224,56 @@ test.describe("Viewport continuity", () => {
     await expect(composer).toHaveValue("");
   });
 
+  test("the reply box stays above a keyboard that reports its height late", async ({ page }) => {
+    // iOS fires visualViewport resize as the keyboard STARTS to move, with
+    // the height at that instant, and fires nothing when it lands ~250ms
+    // later. Measured once, the shell was ~140px too tall and the reply box
+    // sat under the keyboard's accessory bar on a real iPhone — while this
+    // suite passed, because every case reported the final height in one
+    // event. Replay the real sequence: an intermediate height with an event,
+    // then the settled height with none. Phone numbers: 852 tall, 495 visible.
+    await page.setViewportSize({ width: 393, height: 852 });
+    const composer = await openSarahsThread(page);
+    await composer.click();
+    await expect(composer).toBeFocused();
+
+    const setHeight = (height: number, fire: boolean) =>
+      page.evaluate(({ height, fire }) => {
+        const viewport = window.visualViewport!;
+        Object.defineProperty(viewport, "height", { configurable: true, get: () => height });
+        Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => 0 });
+        if (fire) viewport.dispatchEvent(new Event("resize"));
+      }, { height, fire });
+
+    await setHeight(640, true);
+    await setHeight(495, false);
+
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    for (const control of [composer, send]) {
+      await expect.poll(() => control.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        let top = window.visualViewport?.offsetTop ?? 0;
+        let bottom = top + (window.visualViewport?.height ?? window.innerHeight);
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowY)) {
+            const bounds = parent.getBoundingClientRect();
+            top = Math.max(top, bounds.top);
+            bottom = Math.min(bottom, bounds.bottom);
+          }
+        }
+        return rect.top >= top - 1 && rect.bottom <= bottom + 1;
+      })).toBe(true);
+    }
+    // The newest message stays above the composer rather than the log
+    // keeping its old scroll offset and showing empty space.
+    await expect
+      .poll(() => page.getByRole("log").evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+      .toBeLessThanOrEqual(2);
+    // And the conversation is not pushed under the status bar: the chrome
+    // wrapper keeps the top inset while the toolbar is hidden.
+    await expect(composer).toBeFocused();
+  });
+
   test("the calendar drops its sidebar-derived height cap when it collapses", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     // The first staff entry of a tab session redirects to Daily Brief, so

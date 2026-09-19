@@ -6,6 +6,7 @@ import {
   isTextEntryElement,
   useKeyboardOpen,
 } from "./useKeyboardOpen.js";
+import { VIEWPORT_SETTLE_DELAYS_MS } from "./viewportSettle.js";
 
 const originalDescriptors = {
   innerHeight: Object.getOwnPropertyDescriptor(window, "innerHeight"),
@@ -197,5 +198,24 @@ describe("useKeyboardOpen", () => {
     expect(removeViewportListener).toHaveBeenCalledWith("scroll", expect.any(Function));
     expect(removeDocumentListener).toHaveBeenCalledWith("focusin", expect.any(Function));
     expect(removeDocumentListener).toHaveBeenCalledWith("focusout", expect.any(Function));
+  });
+  it("keeps re-checking after a resize so a keyboard that lands late is still seen", () => {
+    // The first resize iOS fires can arrive while the keyboard is still
+    // short of the detection inset; the landing itself fires nothing.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      renderHook(() => useKeyboardOpen());
+      act(() => textarea.focus());
+      keyboard(844 - (KEYBOARD_MIN_INSET - 20));
+      expect(isOpen()).toBe(false);
+
+      viewport.height = 430;
+      act(() => {
+        vi.advanceTimersByTime(VIEWPORT_SETTLE_DELAYS_MS[VIEWPORT_SETTLE_DELAYS_MS.length - 1]);
+      });
+      expect(isOpen()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

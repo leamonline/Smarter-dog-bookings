@@ -29,6 +29,7 @@
 // ============================================================
 
 import { useEffect } from "react";
+import { scheduleSettled } from "./viewportSettle";
 
 // iOS Safari's collapsing address bar takes 50–80px; a keyboard takes
 // 250px or more. 120 sits comfortably between the two.
@@ -97,7 +98,14 @@ export function useKeyboardOpen() {
       else root.removeAttribute(KEYBOARD_OPEN_ATTR);
     };
 
+    let cancelSettle = null;
+
     const scheduleCompute = () => {
+      // The settled re-reads restart on every trigger, so a burst of events
+      // (a keyboard animating, an orientation change) ends in one series
+      // that reads the geometry after it has stopped moving.
+      cancelSettle?.();
+      cancelSettle = scheduleSettled(compute);
       if (animationFrameId !== null) return;
       animationFrameId = window.requestAnimationFrame(() => {
         animationFrameId = null;
@@ -123,6 +131,7 @@ export function useKeyboardOpen() {
       visualViewport?.removeEventListener("scroll", scheduleCompute);
       document.removeEventListener("focusin", scheduleCompute);
       document.removeEventListener("focusout", scheduleCompute);
+      cancelSettle?.();
       if (animationFrameId !== null) {
         window.cancelAnimationFrame(animationFrameId);
       }

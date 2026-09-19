@@ -11,6 +11,11 @@
   text field has focus, so the conversation being replied to keeps most of its
   height instead of collapsing under chrome that cannot scroll away. Measure the
   Inbox shell before first paint so it no longer flashes at content height.
+- Re-read the viewport a few times after any keyboard event, because iOS
+  reports the visual viewport as the keyboard starts to move and not when it
+  lands: measured once, the reply box sat exactly under the keyboard on a real
+  iPhone. Re-pin the message log to the newest message as it shrinks, and keep
+  the status-bar inset while the toolbar is hidden.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 

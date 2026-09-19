@@ -139,4 +139,53 @@ describe("ThreadPane", () => {
     );
     await waitFor(() => expect(scrollTop).toBe(200));
   });
+  it("re-pins to the newest message when the log shrinks under a reader at the bottom", async () => {
+    // A phone keyboard takes half the log's height. Left alone the log kept
+    // its old scroll offset and showed empty space where the newest message
+    // had been, with the message itself scrolled out of reach above.
+    const callbacks = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback) {
+          callbacks.push(callback);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    try {
+      const props = defaultProps({
+        messages: [message("m-1", "First message", "2026-08-02T09:00:00Z")],
+      });
+      render(<ThreadPane {...props} />);
+      const log = screen.getByRole("log", { name: "Conversation messages" });
+      let scrollTop = 420;
+      Object.defineProperties(log, {
+        clientHeight: { configurable: true, get: () => 100 },
+        scrollHeight: { configurable: true, get: () => 500 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value) => {
+            scrollTop = value;
+          },
+        },
+      });
+      expect(callbacks.length).toBeGreaterThan(0);
+
+      // Within 80px of the bottom: the shrink re-pins.
+      fireEvent.scroll(log);
+      for (const callback of callbacks) callback([], null);
+      await waitFor(() => expect(scrollTop).toBe(500));
+
+      // Reading history: the shrink leaves the reader where they were.
+      scrollTop = 200;
+      fireEvent.scroll(log);
+      for (const callback of callbacks) callback([], null);
+      await waitFor(() => expect(scrollTop).toBe(200));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

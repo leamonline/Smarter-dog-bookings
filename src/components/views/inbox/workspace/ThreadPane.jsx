@@ -71,6 +71,21 @@ export function ThreadPane({
     lastConversationIdRef.current = selectedId;
   }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
 
+  // Re-pin to the newest message when the log itself changes height — a
+  // phone keyboard opening takes half of it — so the message being replied
+  // to stays above the composer instead of the log keeping its old scroll
+  // offset and showing empty space. Only while the reader was already at
+  // the bottom: someone scrolled back through history keeps their place.
+  useEffect(() => {
+    const element = threadScrollRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => {
+      if (isNearBottomRef.current) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [selectedId]);
+
   if (!selectedId) {
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
