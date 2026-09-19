@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { DoorClosed, MoreHorizontal, Pencil, Undo2 } from "lucide-react";
 import { closureLabel, closureRangeLabel } from "../../engine/closures";
 
@@ -14,9 +14,24 @@ import { closureLabel, closureRangeLabel } from "../../engine/closures";
  */
 export function ClosureCard({ closure, slots = [], onReopen, onEditReason, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // The menu is clipped to the card, so on a short closure (one or two slots)
+  // there isn't room below the trigger. Measure and flip it upwards rather
+  // than letting it hang off the bottom where staff can't see it.
+  const [menuBottomUp, setMenuBottomUp] = useState(false);
   const wrapRef = useRef(null);
+  const menuRef = useRef(null);
   const hasActions = !!onReopen || !!onEditReason;
   const count = slots.length;
+
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const card = wrapRef.current;
+    const menu = menuRef.current;
+    if (!card || !menu) return;
+    // 48px clears the card's header row; 12px keeps it off the bottom edge.
+    const roomBelow = card.getBoundingClientRect().height - 48 - 12;
+    setMenuBottomUp(menu.offsetHeight > roomBelow);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -69,9 +84,14 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
 
       {menuOpen && hasActions && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label="Closure actions"
-          className="absolute right-3 top-12 z-20 w-52 rounded-xl bg-white p-1.5 shadow-[0_12px_28px_rgba(45,0,75,0.35)] flex flex-col"
+          className={[
+            "absolute right-3 z-30 w-52 rounded-xl bg-white p-1.5",
+            "shadow-[0_12px_28px_rgba(45,0,75,0.35)] flex flex-col",
+            menuBottomUp ? "bottom-3" : "top-12",
+          ].join(" ")}
         >
           {onEditReason && (
             <button

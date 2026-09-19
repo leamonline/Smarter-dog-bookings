@@ -397,23 +397,45 @@ export function SlotGrid({
   // what happens to them, nothing is moved or cancelled automatically.
   const renderClosure = useCallback((closure, slots, isLast) => {
     const clashes = bookingsInClosure(activeBookings, closure, activeSlots);
+    // A closure swallows the slots it covers, so the "now" marker has to move
+    // onto this row when the current half hour is one of them — otherwise
+    // today's calendar loses its "you are here" anchor, and the mount effect's
+    // scroll-to-now has no element to aim at.
+    const isNow = nowIdx >= 0 && slots.includes(activeSlots[nowIdx]);
 
     return (
       <div
         key={`closure-${closure.id}`}
+        ref={isNow ? nowRowRef : undefined}
         className={[
           "relative flex flex-col gap-1.5 md:gap-2 p-2 md:p-[10px_14px] bg-brand-coral/[0.06]",
           isLast ? "" : "border-b border-[#F1F3F5]",
         ].filter(Boolean).join(" ")}
       >
+        {isNow && (
+          <>
+            <span
+              className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-brand-teal z-[1]"
+              aria-hidden="true"
+            />
+            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+              Now
+            </span>
+          </>
+        )}
         <div className="grid grid-cols-[64px_1fr] md:grid-cols-[80px_1fr] gap-2 md:gap-3 items-stretch">
           <div className="flex flex-col gap-1.5">
+            {/* Each covered slot keeps exactly the height it would have had
+                with seats in it, so a closure occupies the space its
+                appointments would have and the day doesn't visually shrink.
+                Mirrors the seat grid below: stacked (76 + 8 gap + 76) until
+                md, then one seat tall side by side. */}
             {slots.map((slot) => (
               <div
                 key={slot}
-                className="flex-1 min-h-[34px] flex items-center justify-center rounded-xl border border-brand-coral/30 bg-white/70 px-1 py-1.5"
+                className="flex-1 min-h-[160px] md:min-h-[76px] lg:min-h-[80px] flex items-center justify-center rounded-xl border border-brand-coral/30 bg-white/70 px-1 py-1.5"
               >
-                <span className="text-[12px] md:text-[13px] font-bold tabular-nums leading-none text-brand-coral-text">
+                <span className="text-[13px] md:text-sm font-bold tabular-nums leading-none text-brand-coral-text">
                   {formatSlotLabel(slot)}
                 </span>
               </div>
@@ -443,7 +465,7 @@ export function SlotGrid({
         </div>
       </div>
     );
-  }, [activeBookings, activeSlots, onReopenClosure, onEditClosureReason, onMoveBooking, dnd]);
+  }, [activeBookings, activeSlots, onReopenClosure, onEditClosureReason, onMoveBooking, dnd, nowIdx]);
 
   return (
     <div>

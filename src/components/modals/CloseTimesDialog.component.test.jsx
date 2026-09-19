@@ -149,3 +149,71 @@ describe("CloseTimesDialog", () => {
     expect(screen.getByRole("button", { name: "Save reason" })).toBeInTheDocument();
   });
 });
+
+describe("CloseTimesDialog — locked times (edit reason)", () => {
+  function editSetup(props = {}) {
+    const onSave = vi.fn(async () => ({ ok: true }));
+    const onClose = vi.fn();
+    render(
+      <CloseTimesDialog
+        activeSlots={SLOTS}
+        closures={[]}
+        bookings={[]}
+        initialFrom="09:00"
+        initialTo="10:30"
+        initialReason="late start"
+        timesLocked
+        submitLabel="Save reason"
+        dayLabel="Monday 21 September"
+        onSave={onSave}
+        onClose={onClose}
+        {...props}
+      />,
+    );
+    return { onSave, onClose };
+  }
+
+  it("shows the real saved range and hides the time pickers", () => {
+    editSetup();
+    // Shown twice on purpose: once in the explainer, once in the card preview.
+    expect(screen.getAllByText("9:00 – 10:30").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("From")).toBeNull();
+    expect(screen.queryByLabelText("To")).toBeNull();
+  });
+
+  it("starts from the existing reason", () => {
+    editSetup();
+    expect(screen.getByLabelText("Reason")).toHaveValue("late start");
+  });
+
+  it("saves a changed reason", async () => {
+    const { onSave } = editSetup();
+    await userEvent.clear(screen.getByLabelText("Reason"));
+    await userEvent.type(screen.getByLabelText("Reason"), "vet appointment");
+    await userEvent.click(screen.getByRole("button", { name: "Save reason" }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "vet appointment" }),
+    );
+  });
+
+  it("still saves when the saved range no longer fits the day's grid", async () => {
+    // Staff closed 13:00–14:00 using an extra 13:30 slot, then removed that
+    // slot. The range is no longer re-creatable, but it is also not theirs to
+    // change here — so the reason must stay editable rather than being stuck
+    // behind a "past the end of the day" error on a locked field.
+    const { onSave } = editSetup({ initialFrom: "13:00", initialTo: "14:00" });
+    expect(screen.queryByText(/past the end of the day/i)).toBeNull();
+    await userEvent.clear(screen.getByLabelText("Reason"));
+    await userEvent.type(screen.getByLabelText("Reason"), "early finish");
+    const save = screen.getByRole("button", { name: "Save reason" });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(onSave).toHaveBeenCalled();
+  });
+
+  it("still refuses an empty reason", async () => {
+    editSetup();
+    await userEvent.clear(screen.getByLabelText("Reason"));
+    expect(screen.getByRole("button", { name: "Save reason" })).toBeDisabled();
+  });
+});

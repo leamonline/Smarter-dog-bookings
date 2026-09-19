@@ -80,18 +80,40 @@ export function CloseTimesDialog({
   // whether the TIMES are wrong, because the engine validates the reason before
   // the overlap — so an untouched form would otherwise answer "add a reason" to
   // someone whose real problem is that they have picked times already closed.
-  const check = useMemo(
+  // Locked times are already saved and cannot be changed here, so re-judging
+  // them against today's grid only ever traps the user: remove an extra slot
+  // after closing a range that reached it and the range becomes "past the end
+  // of the day", disabling Save on a field they are not allowed to edit. When
+  // the times are locked, only the reason is the user's to get right.
+  const reasonOnlyCheck = useMemo(() => {
+    const trimmed = (reason ?? "").trim();
+    if (!trimmed) return { ok: false, error: "Add a reason so the card says what's on." };
+    if (trimmed.length > MAX_REASON_LENGTH) {
+      return {
+        ok: false,
+        error: `Keep the reason to ${MAX_REASON_LENGTH} characters or fewer.`,
+      };
+    }
+    return { ok: true };
+  }, [reason]);
+
+  const rangeCheck = useMemo(
     () => validateClosure({ from, to: effectiveTo, reason }, closures, activeSlots),
     [from, effectiveTo, reason, closures, activeSlots],
   );
+
+  const check = timesLocked ? reasonOnlyCheck : rangeCheck;
+
   const timesCheck = useMemo(
     () =>
-      validateClosure(
-        { from, to: effectiveTo, reason: "placeholder" },
-        closures,
-        activeSlots,
-      ),
-    [from, effectiveTo, closures, activeSlots],
+      timesLocked
+        ? { ok: true }
+        : validateClosure(
+            { from, to: effectiveTo, reason: "placeholder" },
+            closures,
+            activeSlots,
+          ),
+    [timesLocked, from, effectiveTo, closures, activeSlots],
   );
 
   const covered = useMemo(() => {

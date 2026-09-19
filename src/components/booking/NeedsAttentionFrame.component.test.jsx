@@ -20,6 +20,19 @@ describe("NeedsAttentionFrame", () => {
     ).toBeInTheDocument();
   });
 
+  it("pulses the stripes only, never the booking underneath", () => {
+    const { container } = render(
+      <NeedsAttentionFrame><p>Bella</p></NeedsAttentionFrame>,
+    );
+    // The animated layer must not be an ancestor of the content: CSS opacity
+    // applies to the whole subtree, so pulsing a wrapper fades the booking —
+    // making the one card staff most need to read the hardest to read.
+    const pulsing = container.querySelector(".needs-attention-pulse");
+    expect(pulsing).not.toBeNull();
+    expect(pulsing).toHaveClass("needs-attention-stripes");
+    expect(pulsing.contains(screen.getByText("Bella"))).toBe(false);
+  });
+
   it("takes a custom label", () => {
     render(<NeedsAttentionFrame label="Needs attention: clash"><p>x</p></NeedsAttentionFrame>);
     expect(screen.getByRole("group", { name: "Needs attention: clash" })).toBeInTheDocument();
