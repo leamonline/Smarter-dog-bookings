@@ -1,4 +1,4 @@
-import { X, Plus, Minus, DoorOpen, DoorClosed, Printer } from "lucide-react";
+import { X, Plus, Minus, DoorOpen, DoorClosed, Printer, Clock } from "lucide-react";
 import { DrawerShell } from "../shared/DrawerShell";
 
 const TITLE_ID = "day-settings-title";
@@ -21,6 +21,7 @@ export function DaySettingsDrawer({
   onRemoveSlot,
   onToggleDayOpen,
   onPrintDaySheet,
+  onCloseTimes,
 }) {
   if (!open) return null;
 
@@ -96,6 +97,28 @@ export function DaySettingsDrawer({
                 </div>
               </div>
             </button>
+
+            {/* Only meaningful on an open day — a closed day has no times to
+                close. Whole-day closing stays with the control above. */}
+            {isOpen && onCloseTimes && (
+              <button
+                type="button"
+                onClick={onCloseTimes}
+                className="w-full mt-2 flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-coral/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+              >
+                <span className="w-9 h-9 rounded-full bg-brand-coral-light text-brand-coral flex items-center justify-center shrink-0">
+                  <Clock size={16} strokeWidth={2.2} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-brand-purple">
+                    Close part of the day
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    A late start or early finish, in half-hour steps
+                  </div>
+                </div>
+              </button>
+            )}
           </section>
 
           {/* Timeslots */}

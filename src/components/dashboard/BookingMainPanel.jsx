@@ -31,6 +31,10 @@ export function BookingMainPanel({
   onOpenTodos,
   onMessageDay,
   searchQuery,
+  closures = [],
+  onReopenClosure,
+  onEditClosureReason,
+  onCloseFromSlot,
 }) {
   const hasBookings = (bookings || []).length > 0;
   // Only surface the inline error when this day's grid would otherwise
@@ -99,6 +103,10 @@ export function BookingMainPanel({
                 immediateSlots={immediateSlots}
                 onToggleImmediate={onToggleImmediate}
                 searchQuery={searchQuery}
+                closures={closures}
+                onReopenClosure={onReopenClosure}
+                onEditClosureReason={onEditClosureReason}
+                onCloseFromSlot={onCloseFromSlot}
               />
             </div>
           </div>

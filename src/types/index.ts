@@ -305,12 +305,30 @@ export interface SalonConfig extends SalonSettings {
   largeDogSlots: Record<string, LargeDogSlotRule>;
 }
 
+/**
+ * A staff-authored partial-day closure — a late start, an early finish, an
+ * appointment. `from` is the first covered slot; `to` is exclusive, so
+ * 09:00–10:30 covers 09:00, 09:30 and 10:00. Enforcement is not this record:
+ * saving one also blocks both seats on every covered slot in `overrides`.
+ */
+export interface DayClosure {
+  id: string;
+  /** Inclusive start, "HH:MM" on the half-hour grid. */
+  from: string;
+  /** Exclusive end, "HH:MM" on the half-hour grid. */
+  to: string;
+  /** Shown verbatim after "Closed for ". Trimmed, 1–60 characters. */
+  reason: string;
+}
+
 export interface DaySettings {
   isOpen: boolean;
   overrides: Record<string, SlotOverrides>;
   extraSlots: string[];
   /** Slots staff opened for same-day ("last minute") customer booking. */
   immediateSlots: string[];
+  /** Staff-authored partial-day closures for this date. */
+  closures: DayClosure[];
 }
 
 export interface LargeDogSlotRule {

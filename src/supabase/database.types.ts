@@ -2409,6 +2409,7 @@ export type Database = {
       }
       day_settings: {
         Row: {
+          closures: Json
           extra_slots: string[] | null
           id: string
           immediate_slots: string[]
@@ -2418,6 +2419,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          closures?: Json
           extra_slots?: string[] | null
           id?: string
           immediate_slots?: string[]
@@ -2427,6 +2429,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          closures?: Json
           extra_slots?: string[] | null
           id?: string
           immediate_slots?: string[]

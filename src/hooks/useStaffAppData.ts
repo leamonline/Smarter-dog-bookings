@@ -115,6 +115,9 @@ export function useStaffAppData({
     toggleImmediateSlot: sbToggleImmediateSlot,
     addExtraSlot: sbAddExtraSlot,
     removeExtraSlot: sbRemoveExtraSlot,
+    addClosure: sbAddClosure,
+    removeClosure: sbRemoveClosure,
+    updateClosureReason: sbUpdateClosureReason,
   } = daySettingsApi;
 
   // ── Owner pre-fetch ────────────────────────────────────────────
@@ -175,6 +178,9 @@ export function useStaffAppData({
       sbToggleImmediateSlot,
       sbAddExtraSlot,
       sbRemoveExtraSlot,
+      sbAddClosure,
+      sbRemoveClosure,
+      sbUpdateClosureReason,
       sbUpdateDog,
       sbUpdateHuman,
       sbUpdateConfig,
@@ -243,6 +249,7 @@ export function useStaffAppData({
     isOpen: getDefaultOpenForDate(currentDateObj),
     overrides: {},
     extraSlots: [],
+    closures: [],
   };
   const dayOpenState = useMemo(() => {
     const state: Record<string, boolean> = {};

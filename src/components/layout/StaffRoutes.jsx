@@ -136,6 +136,9 @@ export function StaffRoutes({ data, nav, ui }) {
     toggleImmediateSlot,
     handleAddSlot,
     handleRemoveSlot,
+    addClosure,
+    removeClosure,
+    updateClosureReason,
     updateConfig,
     isLoading,
     bookingsLoading,
@@ -320,6 +323,9 @@ export function StaffRoutes({ data, nav, ui }) {
           toggleImmediateSlot={toggleImmediateSlot}
           handleAddSlot={handleAddSlot}
           handleRemoveSlot={handleRemoveSlot}
+          addClosure={addClosure}
+          removeClosure={removeClosure}
+          updateClosureReason={updateClosureReason}
           toggleDayOpen={toggleDayOpen}
           showDatePicker={showDatePicker}
           setShowDatePicker={setShowDatePicker}

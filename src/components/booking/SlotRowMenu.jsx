@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, Clock, CalendarPlus, AlertTriangle, Zap } from "lucide-react";
+import { Ban, Clock, CalendarPlus, AlertTriangle, Zap, DoorClosed } from "lucide-react";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 function formatSlot(slot) {
@@ -71,6 +71,10 @@ export function computePlacement(rect, menuH, menuW = MENU_W) {
  *    `onToggleImmediate()`. The parent (SlotGrid) only passes the callback
  *    on today's slots before the 30-minute cutoff — the menu itself stays
  *    date-agnostic, like the rest of its options.
+ *  - "Close from here…" → `onCloseFromHere()`, opening the partial-day
+ *    closure dialog with this slot as the start. Offered whenever the slot
+ *    isn't already inside a closure (SlotGrid decides; a closure row has no
+ *    clock menu at all).
  *
  * The menu is portalled to document.body so it escapes the parent
  * row's opacity:0.7 (on empty rows).
@@ -85,6 +89,7 @@ export function SlotRowMenu({
   onOverbook,
   isImmediate,
   onToggleImmediate,
+  onCloseFromHere,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null); // trigger rect (viewport coords)
@@ -158,7 +163,10 @@ export function SlotRowMenu({
   // Opening needs a free seat to be worth anything; un-flagging is always
   // offered while the flag is set, even once the slot has filled.
   const canImmediate = !disabled && !!onToggleImmediate && (hasFreeSeat || isImmediate);
-  const hasActions = canBook || canOverbook || canBlock || canImmediate;
+  // Closing from here is offered even on a full slot: the bookings inside the
+  // range stay visible on the closure card, flagged for staff to deal with.
+  const canCloseFrom = !disabled && !!onCloseFromHere;
+  const hasActions = canBook || canOverbook || canBlock || canImmediate || canCloseFrom;
 
   const openMenu = () => {
     if (!hasActions) return;
@@ -332,6 +340,20 @@ export function SlotRowMenu({
               onClick={() => {
                 closeMenu();
                 onToggleImmediate();
+              }}
+            />
+          )}
+          {canCloseFrom && (canBook || canOverbook || canBlock || canImmediate) && (
+            <div role="separator" className="my-1 h-px bg-white/10" />
+          )}
+          {canCloseFrom && (
+            <MenuItem
+              variant="destructive"
+              icon={DoorClosed}
+              label="Close from here…"
+              onClick={() => {
+                closeMenu();
+                onCloseFromHere();
               }}
             />
           )}

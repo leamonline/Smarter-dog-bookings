@@ -7,12 +7,20 @@ import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
 import { closeDayWithRearrangementTasks } from "../rpc";
+import { buildSlotGrid } from "../../engine/slotGrid";
+import {
+  applyClosure,
+  releaseClosure,
+  validateClosure,
+  sanitiseClosures,
+  MAX_REASON_LENGTH,
+} from "../../engine/closures";
 import type { Database } from "../database.types";
 import type {
   RealtimePostgresChangesPayload,
   SupabaseClient,
 } from "@supabase/supabase-js";
-import type { DaySettings, SlotOverrides } from "../../types/index";
+import type { DayClosure, DaySettings, SlotOverrides } from "../../types/index";
 
 type DaySettingsRow = Database["public"]["Tables"]["day_settings"]["Row"];
 type DaySettingsWrite = Database["public"]["Tables"]["day_settings"]["Update"];
@@ -35,13 +43,19 @@ type DaySettingUpdater =
 
 /** The generated row types `overrides` / `extra_slots` as Json; narrow them once. */
 function fromRow(
-  row: Pick<DaySettingsRow, "is_open" | "overrides" | "extra_slots" | "immediate_slots">,
+  row: Pick<
+    DaySettingsRow,
+    "is_open" | "overrides" | "extra_slots" | "immediate_slots" | "closures"
+  >,
 ): WeekDaySetting {
   return {
     isOpen: row.is_open,
     overrides: (row.overrides as Record<string, SlotOverrides> | null) || {},
     extraSlots: (row.extra_slots as string[] | null) || [],
     immediateSlots: row.immediate_slots || [],
+    // Plain JSONB, only shape-checked as an array by the DB — narrow it here so
+    // a malformed legacy entry can't crash the calendar grid.
+    closures: sanitiseClosures(row.closures),
   };
 }
 
@@ -62,6 +76,7 @@ function buildWeekDefaults(weekStart: Date): WeekDaySettingsMap {
       overrides: {},
       extraSlots: [],
       immediateSlots: [],
+      closures: [],
     };
   }
   return defaults;
@@ -76,6 +91,7 @@ function mergeSetting(
     overrides: updates.overrides ?? current.overrides ?? {},
     extraSlots: updates.extraSlots ?? current.extraSlots ?? [],
     immediateSlots: updates.immediateSlots ?? current.immediateSlots ?? [],
+    closures: updates.closures ?? current.closures ?? [],
   };
 }
 
@@ -93,6 +109,12 @@ function changedColumns(
   if (updates.extraSlots !== undefined) columns.extra_slots = next.extraSlots;
   if (updates.immediateSlots !== undefined) {
     columns.immediate_slots = next.immediateSlots;
+  }
+  // DayClosure is a named interface, so it has no index signature and tsc will
+  // not widen it to Supabase's structural Json. The values are plain strings in
+  // a plain array, so the cast is at the serialisation boundary only.
+  if (updates.closures !== undefined) {
+    columns.closures = next.closures as unknown as DaySettingsWrite["closures"];
   }
   return columns;
 }
@@ -135,6 +157,7 @@ async function persistDaySetting(
       overrides: next.overrides,
       extra_slots: next.extraSlots,
       immediate_slots: next.immediateSlots,
+      closures: next.closures as unknown as DaySettingsWrite["closures"],
     },
     { onConflict: "setting_date" },
   );
@@ -254,6 +277,7 @@ export function useDaySettings(weekStart: Date | null | undefined) {
       overrides: {},
       extraSlots: [],
       immediateSlots: [],
+      closures: [],
     };
     const updates =
       typeof updater === "function" ? updater(prevSetting) : updater;
@@ -389,6 +413,88 @@ export function useDaySettings(weekStart: Date | null | undefined) {
     [upsertSetting],
   );
 
+  // ── Partial-day closures ────────────────────────────────────────
+  //
+  // A closure and the seats it blocks travel as ONE update. Sending them
+  // separately would put two writes on the same row in flight at once and the
+  // loser would silently undo the winner — the exact race setOverride's comment
+  // describes. It matters more here: the closure record is only the label, the
+  // blocked seats are the enforcement, so the two must never disagree. A row
+  // carrying a closure whose seats were never blocked would show staff a card
+  // saying "Closed" over slots a customer could still book.
+
+  const newClosureId = (from: string, to: string): string =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `closure-${from}-${to}-${Object.keys(daySettingsRef.current).length}`;
+
+  const addClosure = useCallback(
+    (
+      dateStr: string,
+      input: { from: string; to: string; reason: string },
+    ): Promise<DaySettingResult> => {
+      const current = daySettingsRef.current[dateStr];
+      const activeSlots = buildSlotGrid(current?.extraSlots || []);
+      const check = validateClosure(input, current?.closures || [], activeSlots);
+      if (!check.ok) return Promise.resolve({ ok: false, error: check.error });
+
+      const closure: DayClosure = {
+        id: newClosureId(input.from, input.to),
+        from: input.from,
+        to: input.to,
+        reason: input.reason.trim().slice(0, MAX_REASON_LENGTH),
+      };
+
+      return upsertSetting(dateStr, (setting) => {
+        const slots = buildSlotGrid(setting.extraSlots || []);
+        return {
+          closures: [...(setting.closures || []), closure],
+          overrides: applyClosure(setting.overrides || {}, closure, slots),
+        };
+      });
+    },
+    // newClosureId only reads a ref, so it needs no dependency of its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [upsertSetting],
+  );
+
+  const removeClosure = useCallback(
+    (dateStr: string, id: string): Promise<DaySettingResult> =>
+      upsertSetting(dateStr, (setting) => {
+        const closure = (setting.closures || []).find((c) => c.id === id);
+        // Already gone (a second click, or another device got there first) —
+        // returning {} declines the write rather than re-asserting the row.
+        if (!closure) return {};
+        const slots = buildSlotGrid(setting.extraSlots || []);
+        return {
+          closures: (setting.closures || []).filter((c) => c.id !== id),
+          overrides: releaseClosure(setting.overrides || {}, closure, slots),
+        };
+      }),
+    [upsertSetting],
+  );
+
+  const updateClosureReason = useCallback(
+    (dateStr: string, id: string, reason: string): Promise<DaySettingResult> => {
+      const trimmed = (reason || "").trim();
+      if (!trimmed) {
+        return Promise.resolve({
+          ok: false,
+          error: "Add a reason so the card says what's on.",
+        });
+      }
+      return upsertSetting(dateStr, (setting) => {
+        if (!(setting.closures || []).some((c) => c.id === id)) return {};
+        return {
+          closures: (setting.closures || []).map((c) =>
+            c.id === id ? { ...c, reason: trimmed.slice(0, MAX_REASON_LENGTH) } : c,
+          ),
+        };
+      });
+    },
+    [upsertSetting],
+  );
+
   return {
     daySettings,
     loading,
@@ -397,5 +503,8 @@ export function useDaySettings(weekStart: Date | null | undefined) {
     toggleImmediateSlot,
     addExtraSlot,
     removeExtraSlot,
+    addClosure,
+    removeClosure,
+    updateClosureReason,
   };
 }

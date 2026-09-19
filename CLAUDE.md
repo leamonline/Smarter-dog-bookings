@@ -185,6 +185,16 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `IMMEDIATE_CUTOFF_MINUTES` is mirrored in `salon.ts`/`salonConstants.ts` for UI gating only. A
   multi-dog group needs **every** assigned slot flagged. Future dates unchanged (portal: tomorrow+28;
   the WhatsApp Flow shows "Today — last minute" when flagged).
+- **Partial-day closures:** staff close part of a date (late start, early finish) in
+  half-hour steps. `day_settings.closures` holds `[{id, from, to, reason}]` — `from`
+  inclusive, `to` exclusive — and is **display + authoring only**. Saving one also blocks
+  both seats on every covered slot in `day_settings.overrides`, and **those blocks are the
+  enforcement**, via the existing `seat_blocked` path; no gate, RPC or capacity engine
+  changed. A closure and its blocks are written in ONE update payload so they can never
+  disagree. A booking already in the range is kept and flagged NEEDS ATTENTION, never moved
+  or cancelled, and its reminders still send. Overlaps are refused, not merged.
+  [migration 20260919140000](supabase/migrations/20260919140000_day_settings_closures.sql);
+  see [docs/partial-day-closures.md](docs/partial-day-closures.md).
 - **Services:** only 4 are bookable — Full Groom, Bath & Brush, Bath & De-shed, Puppy Groom
   ([salon.ts](src/constants/salon.ts#L28); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
   Sensitive Shampoo, Anal Glands.

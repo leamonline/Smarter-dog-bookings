@@ -71,6 +71,9 @@ These files remain authoritative for their bounded topics:
 
 - [`capacity-engine.md`](capacity-engine.md) — current 2-2-1, large-dog,
   blocked-seat, extra-slot and daily-cap behaviour.
+- [`partial-day-closures.md`](partial-day-closures.md) — closing part of a date
+  (late starts, early finishes) and how it rides on staff seat blocks rather
+  than adding a gate of its own.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
