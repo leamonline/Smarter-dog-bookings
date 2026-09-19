@@ -35,6 +35,7 @@
 // ============================================================
 
 import { useLayoutEffect, useState } from "react";
+import { scheduleSettled } from "./viewportSettle";
 
 // Clearance below the shell, matching the workspace track's own bottom
 // padding: reserve less than that and the padding pushes the pane past the
@@ -93,7 +94,14 @@ export function useFillViewportHeight(ref) {
       setHeight(available);
     };
 
+    let cancelSettle = null;
+
     const scheduleCompute = () => {
+      // The settled re-reads restart on every trigger, so a burst of events
+      // (a keyboard animating, an orientation change) ends in one series
+      // that reads the geometry after it has stopped moving.
+      cancelSettle?.();
+      cancelSettle = scheduleSettled(compute);
       if (animationFrameId !== null) return;
       animationFrameId = window.requestAnimationFrame(() => {
         animationFrameId = null;
@@ -106,6 +114,12 @@ export function useFillViewportHeight(ref) {
     window.addEventListener("orientationchange", scheduleCompute);
     visualViewport?.addEventListener("resize", scheduleCompute);
     visualViewport?.addEventListener("scroll", scheduleCompute);
+    // Focus moving is what opens and closes the keyboard, and on iOS the
+    // viewport events that follow can carry a height the keyboard has not
+    // finished reaching (see viewportSettle.js) — so measure from the focus
+    // change too, and let the settled re-reads catch the landing.
+    document.addEventListener("focusin", scheduleCompute);
+    document.addEventListener("focusout", scheduleCompute);
 
     // The chrome above the shell can change height without the window
     // resizing at all: an error or offline banner appearing, the toolbar
@@ -136,6 +150,9 @@ export function useFillViewportHeight(ref) {
       window.removeEventListener("orientationchange", scheduleCompute);
       visualViewport?.removeEventListener("resize", scheduleCompute);
       visualViewport?.removeEventListener("scroll", scheduleCompute);
+      document.removeEventListener("focusin", scheduleCompute);
+      document.removeEventListener("focusout", scheduleCompute);
+      cancelSettle?.();
       ancestorObserver?.disconnect();
       if (animationFrameId !== null) {
         window.cancelAnimationFrame(animationFrameId);

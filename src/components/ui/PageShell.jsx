@@ -40,7 +40,14 @@ export function AppFrame({
 
   return (
     <div className={[SHELL, className].filter(Boolean).join(" ")}>
-      {chrome && <div className={`${TRACK} shrink-0`}>{chrome}</div>}
+      {/* While a phone keyboard hides the toolbar (see useKeyboardOpen) the
+          status-bar inset it carried must stay, or the workspace slides up
+          under the Dynamic Island. */}
+      {chrome && (
+        <div className={`${TRACK} shrink-0 max-md:keyboard:pt-[env(safe-area-inset-top)]`}>
+          {chrome}
+        </div>
+      )}
       <main
         ref={mainRef}
         {...restMainProps}

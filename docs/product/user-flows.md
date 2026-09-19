@@ -178,8 +178,12 @@ the on-screen keyboard has shrunk the visible viewport, the phone toolbar and
 nav strip step aside so the conversation keeps most of its height; the thread's
 own Back control remains, and the chrome returns the moment focus leaves.
 Pinch-zoom never hides the chrome, because nothing is being typed into.
-Keyboard regression tests simulate visual-viewport resize and pan; a physical
-iPhone check remains part of release verification.
+Because iOS reports the visual viewport as the keyboard starts to move and not
+when it lands, every keyboard measurement is re-read a few times over the
+following second, and the message log re-pins to the newest message as it
+shrinks. Keyboard regression tests simulate visual-viewport resize and pan,
+including a late-landing keyboard; a physical iPhone check remains part of
+release verification.
 
 ## `FLOW-07` — a new or changed Edge Function is released
 
