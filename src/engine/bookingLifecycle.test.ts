@@ -49,12 +49,14 @@ describe("the canonical seven", () => {
     expect(values).not.toContain("Ready for pick-up");
   });
 
-  it("matches the CHECK constraint the database enforces", () => {
+  it("is permitted in full by the constraint the database currently enforces", () => {
     // The database is the authority. If these disagree, a write the app
-    // considers legal is rejected at the gate. The CONTRACT migration holds
-    // the final constraint; the expand migration before it deliberately
-    // permits the retired words as well, so that one is asserted separately.
-    const sql = migrationSql("contract_booking_statuses");
+    // considers legal is rejected at the gate. The EXPAND migration is what is
+    // live while this change deploys: it permits all seven canonical values
+    // plus the three retired ones. The final, narrowed constraint arrives with
+    // the contract migration, which ships separately — see
+    // bookingLifecycleContract.test.ts.
+    const sql = migrationSql("expand_booking_statuses");
     for (const status of ALL_BOOKING_STATUSES) {
       expect(sql, `constraint is missing ${status}`).toContain(`'${status}'`);
     }
@@ -97,10 +99,14 @@ describe("the expand phase", () => {
     expect(sql).toMatch(/when\s+'Ready for pick-up'\s+then\s+3/i);
   });
 
-  it("carries a warning that the contract migration must not run early", () => {
-    expect(migrationSql("contract_booking_statuses")).toMatch(
-      /ONLY AFTER THE NEW FRONTEND IS DEPLOYED/i,
-    );
+  it("says in the file itself which phase comes next and when", () => {
+    // The contract migration is not in this pull request — it cannot be, since
+    // it must not run until this frontend is live. The expand migration is
+    // therefore the only place a reader of this repository at this commit will
+    // find the rest of the plan, so it has to carry it.
+    const sql = expand();
+    expect(sql).toMatch(/CONTRACT \(20260919120000\)/);
+    expect(sql).toMatch(/20260919120000 once the new frontend is live/);
   });
 });
 
@@ -132,7 +138,12 @@ describe("the progression", () => {
   });
 
   it("agrees with the trigger's ranking in the database", () => {
-    const sql = migrationSql("contract_booking_statuses");
+    // Asserted against the expand migration, which is the trigger definition
+    // that is live while this frontend runs. It ranks the canonical values at
+    // these positions and additionally maps each retired word onto its
+    // successor's position; the contract migration later drops the retired
+    // rankings without moving any of these.
+    const sql = migrationSql("expand_booking_statuses");
     for (const [status, rank] of Object.entries(STATUS_RANK)) {
       expect(sql).toMatch(new RegExp(`when\\s+'${status}'\\s+then\\s+${rank}`, "i"));
     }
@@ -206,39 +217,7 @@ describe("the active stack", () => {
   });
 });
 
-describe("the migration's conversions", () => {
-  const sql = () => migrationSql("contract_booking_statuses");
-
-  it("maps Checked in and In bath to Arrived", () => {
-    // In bath -> Arrived, not Ready: the dog has arrived but is not finished,
-    // and every such row already carries checked_in_at with a null ready_at,
-    // which is exactly an Arrived row's shape.
-    expect(sql()).toMatch(
-      /update\s+public\.bookings\s+set\s+status\s*=\s*'Arrived'\s+where\s+status\s+in\s*\(\s*'Checked in'\s*,\s*'In bath'\s*\)/i,
-    );
-  });
-
-  it("maps Ready for pick-up to Ready for collection", () => {
-    expect(sql()).toMatch(
-      /set\s+status\s*=\s*'Ready for collection'\s+where\s+status\s*=\s*'Ready for pick-up'/i,
-    );
-  });
-
-  it("converts the old no-show shape to the No-show status", () => {
-    const text = sql();
-    expect(text).toMatch(/set\s+status\s*=\s*'No-show'/i);
-    expect(text).toMatch(/status\s*=\s*'Cancelled'/i);
-    // Matched case-insensitively and trimmed, the same way the application's
-    // isNoShowReason() does, so 'no-show ' converts too.
-    expect(text).toMatch(/lower\s*\(\s*btrim/i);
-  });
-
-  it("keeps cancel_reason rather than clearing it", () => {
-    // The reason is history worth keeping; nothing reads it to decide
-    // no-show-ness any more.
-    expect(sql()).not.toMatch(/set\s+status\s*=\s*'No-show'\s*,\s*cancel_reason\s*=\s*null/i);
-  });
-
+describe("the seat-freeing indexes", () => {
   it("rebuilds both unique indexes so a no-show frees its slot", () => {
     // Otherwise rebooking a dog that no-showed into the same slot raises a
     // unique violation. These live in the EXPAND migration: no row carries
