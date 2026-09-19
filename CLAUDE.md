@@ -193,7 +193,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   changed. A closure and its blocks are written in ONE update payload so they can never
   disagree. A booking already in the range is kept and flagged NEEDS ATTENTION, never moved
   or cancelled, and its reminders still send. Overlaps are refused, not merged.
-  [migration 20260916120000](supabase/migrations/20260916120000_day_settings_closures.sql);
+  [migration 20260919140000](supabase/migrations/20260919140000_day_settings_closures.sql);
   see [docs/partial-day-closures.md](docs/partial-day-closures.md).
 - **Services:** only 4 are bookable — Full Groom, Bath & Brush, Bath & De-shed, Puppy Groom
   ([salon.ts](src/constants/salon.ts#L28); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),

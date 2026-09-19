@@ -99,5 +99,5 @@ undo that restores the same closure, reason and all.
 - [`ClosureCard.jsx`](../src/components/booking/ClosureCard.jsx),
   [`NeedsAttentionFrame.jsx`](../src/components/booking/NeedsAttentionFrame.jsx),
   [`CloseTimesDialog.jsx`](../src/components/modals/CloseTimesDialog.jsx).
-- Migration `20260916120000_day_settings_closures.sql` — one additive column
+- Migration `20260919140000_day_settings_closures.sql` — one additive column
   plus a JSON-array check. Apply to production by hand before merging.
