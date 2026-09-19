@@ -62,6 +62,22 @@ interface SupabaseFns {
     dateStr: string,
     slot: string,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  // Partial-day closures. Same upsertSetting outcome union as the rest of the
+  // day-settings family — the dialog branches on `ok === false` to keep itself
+  // open and show the error rather than closing on a failed save.
+  sbAddClosure: (
+    dateStr: string,
+    input: { from: string; to: string; reason: string },
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  sbRemoveClosure: (
+    dateStr: string,
+    id: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  sbUpdateClosureReason: (
+    dateStr: string,
+    id: string,
+    reason: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   sbAddExtraSlot: (
     dateStr: string,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
@@ -134,6 +150,9 @@ export function useBookingActions({
     sbToggleImmediateSlot,
     sbAddExtraSlot,
     sbRemoveExtraSlot,
+    sbAddClosure,
+    sbRemoveClosure,
+    sbUpdateClosureReason,
   } = sb;
   const { handleAddToDate: offlineHandleAddToDate } = offline;
 
@@ -176,6 +195,22 @@ export function useBookingActions({
     (slot: string) => sbToggleImmediateSlot(currentDateStr, slot),
     [sbToggleImmediateSlot, currentDateStr],
   );
+  // The date is implicit at this layer, matching handleOverride and the rest
+  // of the day-settings family — callers act on the day they are looking at.
+  const onlineAddClosure = useCallback(
+    (input: { from: string; to: string; reason: string }) =>
+      sbAddClosure(currentDateStr, input),
+    [sbAddClosure, currentDateStr],
+  );
+  const onlineRemoveClosure = useCallback(
+    (id: string) => sbRemoveClosure(currentDateStr, id),
+    [sbRemoveClosure, currentDateStr],
+  );
+  const onlineUpdateClosureReason = useCallback(
+    (id: string, reason: string) =>
+      sbUpdateClosureReason(currentDateStr, id, reason),
+    [sbUpdateClosureReason, currentDateStr],
+  );
   const onlineHandleAddSlot = useCallback(
     () => sbAddExtraSlot(currentDateStr),
     [sbAddExtraSlot, currentDateStr],
@@ -206,6 +241,11 @@ export function useBookingActions({
       : offline.toggleImmediateSlot,
     handleAddSlot: isOnline ? onlineHandleAddSlot : offline.handleAddSlot,
     handleRemoveSlot: isOnline ? onlineHandleRemoveSlot : offline.handleRemoveSlot,
+    addClosure: isOnline ? onlineAddClosure : offline.addClosure,
+    removeClosure: isOnline ? onlineRemoveClosure : offline.removeClosure,
+    updateClosureReason: isOnline
+      ? onlineUpdateClosureReason
+      : offline.updateClosureReason,
     updateDog: isOnline ? sb.sbUpdateDog : offline.updateDog,
     updateHuman: isOnline ? sb.sbUpdateHuman : offline.updateHuman,
     updateConfig: isOnline ? sb.sbUpdateConfig : offline.updateConfig,

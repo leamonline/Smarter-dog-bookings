@@ -110,7 +110,12 @@ function changedColumns(
   if (updates.immediateSlots !== undefined) {
     columns.immediate_slots = next.immediateSlots;
   }
-  if (updates.closures !== undefined) columns.closures = next.closures;
+  // DayClosure is a named interface, so it has no index signature and tsc will
+  // not widen it to Supabase's structural Json. The values are plain strings in
+  // a plain array, so the cast is at the serialisation boundary only.
+  if (updates.closures !== undefined) {
+    columns.closures = next.closures as unknown as DaySettingsWrite["closures"];
+  }
   return columns;
 }
 
@@ -152,7 +157,7 @@ async function persistDaySetting(
       overrides: next.overrides,
       extra_slots: next.extraSlots,
       immediate_slots: next.immediateSlots,
-      closures: next.closures,
+      closures: next.closures as unknown as DaySettingsWrite["closures"],
     },
     { onConflict: "setting_date" },
   );

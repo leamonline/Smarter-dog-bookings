@@ -5,6 +5,9 @@ import { excludeCancelled } from "../../engine/occupancy";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
+import { ClosureCard } from "./ClosureCard.jsx";
+import { NeedsAttentionFrame } from "./NeedsAttentionFrame.jsx";
+import { buildCalendarRows, bookingsInClosure } from "../../engine/closures";
 import { SkeletonCard } from "../shared/SkeletonCard.jsx";
 import { SlotRowMenu } from "./SlotRowMenu.jsx";
 import { Zap } from "lucide-react";
@@ -14,6 +17,12 @@ import { currentSlotIndex } from "../../engine/utilisation";
 import { isBeforeImmediateCutoff } from "../../engine/immediateBooking";
 import { SLOT_SHAPE } from "../../engine/slotGrid";
 import { toDateStr } from "../../supabase/transforms";
+
+/** 24-hour, no leading zero: "9:00", "13:00". Matches SlotRowMenu's formatSlot. */
+function formatSlotLabel(slot) {
+  const [h, m] = slot.split(":");
+  return `${parseInt(h, 10)}:${m}`;
+}
 
 export function SlotGrid({
   bookings,
@@ -28,6 +37,10 @@ export function SlotGrid({
   immediateSlots,
   onToggleImmediate,
   searchQuery,
+  closures = [],
+  onReopenClosure,
+  onEditClosureReason,
+  onCloseFromSlot,
 }) {
   const toast = useToast();
 
@@ -159,15 +172,26 @@ export function SlotGrid({
     nowRowRef.current?.scrollIntoView?.({ block: "center" });
   }, [nowIdx, loading]);
 
+  // Covered slots collapse into one closure row each; everything else is an
+  // ordinary slot row carrying its original grid index, so the alternating tint
+  // and the "now" marker keep lining up with the real timeline.
   const rows = useMemo(() => {
-    const result = activeSlots.map((slot, i) => {
-      const slotOverrides = overrides?.[slot] || {};
-      const seatStates = getSeatStatesForSlot(activeBookings, slot, activeSlots, slotOverrides);
-      return { type: "slot", slot, index: i, seatStates };
+    const result = buildCalendarRows(activeSlots, closures || []).map((row) => {
+      if (row.type === "closure") return { ...row };
+      const slotOverrides = overrides?.[row.slot] || {};
+      return {
+        ...row,
+        seatStates: getSeatStatesForSlot(
+          activeBookings,
+          row.slot,
+          activeSlots,
+          slotOverrides,
+        ),
+      };
     });
     if (result.length > 0) result[result.length - 1].isLast = true;
     return result;
-  }, [activeSlots, activeBookings, overrides]);
+  }, [activeSlots, activeBookings, overrides, closures]);
 
   const renderSlot = useCallback((slot, index, precalculatedSeatStates, isLast) => {
     const slotOverrides = overrides?.[slot] || {};
@@ -224,6 +248,9 @@ export function SlotGrid({
             canToggleImmediate
               ? () => toggleImmediate(slot, isImmediate)
               : undefined
+          }
+          onCloseFromHere={
+            onCloseFromSlot ? () => onCloseFromSlot(slot) : undefined
           }
         />
       </div>
@@ -361,11 +388,70 @@ export function SlotGrid({
         )}
       </div>
     );
-  }, [block, unblock, toggleImmediate, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, immediateSlots, onToggleImmediate, isToday, activeSlots, onOverride, onMoveBooking, dnd, nowIdx, draftPick]);
+  }, [block, unblock, toggleImmediate, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, immediateSlots, onToggleImmediate, isToday, activeSlots, onOverride, onMoveBooking, dnd, nowIdx, draftPick, onCloseFromSlot]);
+
+  // A closure row stands in for every slot it covers: the clock boxes stack
+  // down the time gutter so the grid still lines up, and one coral card fills
+  // the seat column. Bookings already in the diary when the closure was saved
+  // stay visible inside it, hazard-framed and still draggable — staff decide
+  // what happens to them, nothing is moved or cancelled automatically.
+  const renderClosure = useCallback((closure, slots, isLast) => {
+    const clashes = bookingsInClosure(activeBookings, closure, activeSlots);
+
+    return (
+      <div
+        key={`closure-${closure.id}`}
+        className={[
+          "relative flex flex-col gap-1.5 md:gap-2 p-2 md:p-[10px_14px] bg-brand-coral/[0.06]",
+          isLast ? "" : "border-b border-[#F1F3F5]",
+        ].filter(Boolean).join(" ")}
+      >
+        <div className="grid grid-cols-[64px_1fr] md:grid-cols-[80px_1fr] gap-2 md:gap-3 items-stretch">
+          <div className="flex flex-col gap-1.5">
+            {slots.map((slot) => (
+              <div
+                key={slot}
+                className="flex-1 min-h-[34px] flex items-center justify-center rounded-xl border border-brand-coral/30 bg-white/70 px-1 py-1.5"
+              >
+                <span className="text-[12px] md:text-[13px] font-bold tabular-nums leading-none text-brand-coral-text">
+                  {formatSlotLabel(slot)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <ClosureCard
+            closure={closure}
+            slots={slots}
+            onReopen={onReopenClosure ? () => onReopenClosure(closure) : undefined}
+            onEditReason={
+              onEditClosureReason ? () => onEditClosureReason(closure) : undefined
+            }
+          >
+            {clashes.map((b) => (
+              <NeedsAttentionFrame key={b.id}>
+                <BookingCardNew
+                  booking={b}
+                  draggable={!!onMoveBooking}
+                  onDragStart={onMoveBooking ? dnd.onCardDragStart : undefined}
+                  onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
+                  isBeingDragged={dnd.drag.booking?.id === b.id}
+                />
+              </NeedsAttentionFrame>
+            ))}
+          </ClosureCard>
+        </div>
+      </div>
+    );
+  }, [activeBookings, activeSlots, onReopenClosure, onEditClosureReason, onMoveBooking, dnd]);
 
   return (
     <div>
-      {rows.map((row) => renderSlot(row.slot, row.index, row.seatStates, row.isLast))}
+      {rows.map((row) =>
+        row.type === "closure"
+          ? renderClosure(row.closure, row.slots, row.isLast)
+          : renderSlot(row.slot, row.index, row.seatStates, row.isLast),
+      )}
     </div>
   );
 }

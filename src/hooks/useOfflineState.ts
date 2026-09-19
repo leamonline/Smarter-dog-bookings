@@ -16,9 +16,17 @@ import {
 import { toDateStr } from "../supabase/transforms";
 import { getDefaultOpenForDate } from "../engine/utils";
 import { applyLifecycleStamps } from "../engine/lifecycleStamps";
+import { buildSlotGrid } from "../engine/slotGrid";
+import {
+  applyClosure,
+  releaseClosure,
+  validateClosure,
+  MAX_REASON_LENGTH,
+} from "../engine/closures";
 import type {
   Booking,
   BookingsByDate,
+  DayClosure,
   DaySettings,
   Dog,
   Human,
@@ -46,6 +54,7 @@ function emptyDay(dateObj: Date): DaySettings {
     overrides: {},
     extraSlots: [],
     immediateSlots: [],
+    closures: [],
   };
 }
 
@@ -80,6 +89,7 @@ function buildDefaultDaySettings(weekStart: Date): OfflineDaySettingsMap {
       overrides: {},
       extraSlots: [],
       immediateSlots: [],
+      closures: [],
     };
   });
   return settings;
@@ -338,6 +348,100 @@ export function useOfflineState(weekStart: Date, currentDateStr: string, current
     [currentDateStr, currentDateObj],
   );
 
+  // ── Partial-day closures (offline mirror) ───────────────────────
+  //
+  // Mirrors useDaySettings' closure family. The same staff UI drives both, and
+  // the E2E suite runs entirely offline, so these must apply exactly the same
+  // engine rules — including writing the blocked seats alongside the closure.
+  // Synchronous and infallible-on-success, like the other offline mutations.
+
+  const offlineAddClosure = useCallback(
+    (input: { from: string; to: string; reason: string }):
+      | { ok: true }
+      | { ok: false; error: string } => {
+      let outcome: { ok: true } | { ok: false; error: string } = { ok: true };
+
+      setOfflineDaySettings((prev) => {
+        const setting = prev[currentDateStr] || emptyDay(currentDateObj);
+        const slots = buildSlotGrid(setting.extraSlots || []);
+        const check = validateClosure(input, setting.closures || [], slots);
+        if (!check.ok) {
+          outcome = { ok: false, error: check.error };
+          return prev;
+        }
+
+        const closure: DayClosure = {
+          id:
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `closure-${input.from}-${input.to}-${(setting.closures || []).length}`,
+          from: input.from,
+          to: input.to,
+          reason: input.reason.trim().slice(0, MAX_REASON_LENGTH),
+        };
+
+        return {
+          ...prev,
+          [currentDateStr]: {
+            ...setting,
+            closures: [...(setting.closures || []), closure],
+            overrides: applyClosure(setting.overrides || {}, closure, slots),
+          },
+        };
+      });
+
+      return outcome;
+    },
+    [currentDateStr, currentDateObj],
+  );
+
+  const offlineRemoveClosure = useCallback(
+    (id: string): { ok: true } => {
+      setOfflineDaySettings((prev) => {
+        const setting = prev[currentDateStr] || emptyDay(currentDateObj);
+        const closure = (setting.closures || []).find((c) => c.id === id);
+        if (!closure) return prev;
+        const slots = buildSlotGrid(setting.extraSlots || []);
+        return {
+          ...prev,
+          [currentDateStr]: {
+            ...setting,
+            closures: (setting.closures || []).filter((c) => c.id !== id),
+            overrides: releaseClosure(setting.overrides || {}, closure, slots),
+          },
+        };
+      });
+      return { ok: true };
+    },
+    [currentDateStr, currentDateObj],
+  );
+
+  const offlineUpdateClosureReason = useCallback(
+    (id: string, reason: string): { ok: true } | { ok: false; error: string } => {
+      const trimmed = (reason || "").trim();
+      if (!trimmed) {
+        return { ok: false, error: "Add a reason so the card says what's on." };
+      }
+      setOfflineDaySettings((prev) => {
+        const setting = prev[currentDateStr] || emptyDay(currentDateObj);
+        if (!(setting.closures || []).some((c) => c.id === id)) return prev;
+        return {
+          ...prev,
+          [currentDateStr]: {
+            ...setting,
+            closures: (setting.closures || []).map((c) =>
+              c.id === id
+                ? { ...c, reason: trimmed.slice(0, MAX_REASON_LENGTH) }
+                : c,
+            ),
+          },
+        };
+      });
+      return { ok: true };
+    },
+    [currentDateStr, currentDateObj],
+  );
+
   const offlineHandleAddSlot = useCallback(() => {
     setOfflineDaySettings((prev) => {
       const current = prev[currentDateStr] || emptyDay(currentDateObj);
@@ -394,5 +498,8 @@ export function useOfflineState(weekStart: Date, currentDateStr: string, current
     toggleImmediateSlot: offlineToggleImmediateSlot,
     handleAddSlot: offlineHandleAddSlot,
     handleRemoveSlot: offlineHandleRemoveSlot,
+    addClosure: offlineAddClosure,
+    removeClosure: offlineRemoveClosure,
+    updateClosureReason: offlineUpdateClosureReason,
   };
 }
