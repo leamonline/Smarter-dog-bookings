@@ -287,6 +287,15 @@
  */
 @custom-variant short (@media (height <= 52rem));
 
+/* `keyboard:` — styles that apply while a phone's on-screen keyboard is up
+ * and a text field has focus. useKeyboardOpen (src/hooks) sets
+ * <html data-keyboard-open> from the visual viewport; this variant is how
+ * the chrome reads it. Used as `max-md:keyboard:hidden` on the mobile
+ * toolbar and nav strip, so the conversation someone is replying to keeps
+ * its height instead of collapsing under ~130px of chrome that could not
+ * scroll away. Named for the same reason `short` is. */
+@custom-variant keyboard (&:where(:root[data-keyboard-open] *));
+
 /* ── Page gutter ──────────────────────────────────────────────── */
 /* One source of truth for the staff shell's horizontal padding.
  *

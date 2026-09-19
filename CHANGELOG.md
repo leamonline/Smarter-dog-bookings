@@ -7,6 +7,10 @@
   header and allow draft/header content to yield space to the composer.
 - Correct textarea padding/border sizing and add visual-viewport clipping checks
   alongside existing draft, focus and navigation continuity tests.
+- Hide the phone toolbar and nav strip while the on-screen keyboard is up and a
+  text field has focus, so the conversation being replied to keeps most of its
+  height instead of collapsing under chrome that cannot scroll away. Measure the
+  Inbox shell before first paint so it no longer flashes at content height.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 
