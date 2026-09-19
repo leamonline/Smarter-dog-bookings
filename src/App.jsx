@@ -29,6 +29,7 @@ import { AppContextRow } from "./components/layout/AppContextRow.jsx";
 import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
 import { StaffRoutes } from "./components/layout/StaffRoutes.jsx";
 import { StaffModals } from "./components/layout/StaffModals.jsx";
+import { ViewportReadout } from "./components/diagnostics/ViewportReadout.jsx";
 import { sectionScrollsInShell } from "./components/layout/navConfig.jsx";
 
 // Vercel page-view analytics. Dynamically imported so the library stays out
@@ -568,6 +569,7 @@ function AuthedApp({
       {import.meta.env.PROD ? (
         <Suspense fallback={null}>
           <Analytics />
+          <ViewportReadout />
         </Suspense>
       ) : null}
     </ToastProvider>
