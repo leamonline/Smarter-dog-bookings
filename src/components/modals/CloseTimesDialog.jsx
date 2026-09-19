@@ -45,6 +45,9 @@ export function CloseTimesDialog({
   closures = [],
   bookings = [],
   initialFrom,
+  initialTo,
+  initialReason = "",
+  timesLocked = false,
   dayLabel,
   submitLabel = "Close these times",
   onSave,
@@ -55,8 +58,10 @@ export function CloseTimesDialog({
     initialFrom && activeSlots.includes(initialFrom) ? initialFrom : firstSlot;
 
   const [from, setFrom] = useState(startFrom);
-  const [to, setTo] = useState(() => endTimeOptions(startFrom, activeSlots)[0] || "");
-  const [reason, setReason] = useState("");
+  const [to, setTo] = useState(
+    () => initialTo || endTimeOptions(startFrom, activeSlots)[0] || "",
+  );
+  const [reason, setReason] = useState(initialReason);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
@@ -64,7 +69,12 @@ export function CloseTimesDialog({
 
   // Moving the start past the current end would leave an impossible range
   // selected, so fall back to the first legal end rather than going invalid.
-  const effectiveTo = toOptions.includes(to) ? to : toOptions[0] || "";
+  // Locked times (the edit-reason flow) keep exactly the range they were given.
+  const effectiveTo = timesLocked
+    ? to
+    : toOptions.includes(to)
+      ? to
+      : toOptions[0] || "";
 
   // The full check gates saving. A second check with a stand-in reason isolates
   // whether the TIMES are wrong, because the engine validates the reason before
@@ -131,7 +141,9 @@ export function CloseTimesDialog({
     >
       <header className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)]">
         <div>
-          <div className="text-label text-ink-muted">Close part of the day</div>
+          <div className="text-label text-ink-muted">
+            {timesLocked ? "Edit closure reason" : "Close part of the day"}
+          </div>
           <h2
             id={TITLE_ID}
             className="text-base font-bold text-brand-purple font-display leading-tight"
@@ -150,41 +162,53 @@ export function CloseTimesDialog({
       </header>
 
       <div className="p-5 flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-label text-ink-muted">From</span>
-            <select
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className={fieldClass}
-            >
-              {activeSlots.map((slot) => (
-                <option key={slot} value={slot}>
-                  {formatTime(slot)}
-                </option>
-              ))}
-            </select>
-          </label>
+        {timesLocked ? (
+          <p className="text-[12px] text-slate-600">
+            Changing the reason on the{" "}
+            <span className="font-bold tabular-nums text-brand-purple">
+              {formatTime(from)} – {formatTime(effectiveTo)}
+            </span>{" "}
+            closure. To change the times, reopen it and close them again.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-label text-ink-muted">From</span>
+                <select
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className={fieldClass}
+                >
+                  {activeSlots.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {formatTime(slot)}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-label text-ink-muted">To</span>
-            <select
-              value={effectiveTo}
-              onChange={(e) => setTo(e.target.value)}
-              className={fieldClass}
-            >
-              {toOptions.map((slot) => (
-                <option key={slot} value={slot}>
-                  {formatTime(slot)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-label text-ink-muted">To</span>
+                <select
+                  value={effectiveTo}
+                  onChange={(e) => setTo(e.target.value)}
+                  className={fieldClass}
+                >
+                  {toOptions.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {formatTime(slot)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-        <p className="text-[11px] text-slate-500 -mt-2">
-          {covered.length} {covered.length === 1 ? "slot" : "slots"} will be closed.
-        </p>
+            <p className="text-[11px] text-slate-500 -mt-2">
+              {covered.length} {covered.length === 1 ? "slot" : "slots"} will be closed.
+            </p>
+          </>
+        )}
 
         <label className="flex flex-col gap-1.5">
           <span className="text-label text-ink-muted">Reason</span>
@@ -221,7 +245,9 @@ export function CloseTimesDialog({
           </div>
         </div>
 
-        {clashes.length > 0 && (
+        {/* Only worth warning about before the closure exists. Afterwards the
+            bookings are already flagged on the card itself. */}
+        {!timesLocked && clashes.length > 0 && (
           <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
             {clashes.length} {clashes.length === 1 ? "booking sits" : "bookings sit"} in these
             times. {clashes.length === 1 ? "It'll be flagged" : "They'll be flagged"} NEEDS

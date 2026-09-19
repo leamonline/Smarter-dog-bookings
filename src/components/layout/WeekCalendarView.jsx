@@ -49,6 +49,11 @@ const BroadcastMessageModal = lazy(() =>
     default: module.BroadcastMessageModal,
   })),
 );
+const CloseTimesDialog = lazy(() =>
+  import("../modals/CloseTimesDialog.jsx").then((module) => ({
+    default: module.CloseTimesDialog,
+  })),
+);
 
 export function WeekCalendarView({
   selectedDay,
@@ -59,6 +64,9 @@ export function WeekCalendarView({
   toggleImmediateSlot,
   handleAddSlot,
   handleRemoveSlot,
+  addClosure,
+  removeClosure,
+  updateClosureReason,
   toggleDayOpen,
   showDatePicker,
   setShowDatePicker,
@@ -101,6 +109,11 @@ export function WeekCalendarView({
   const [monthExpanded, setMonthExpanded] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
+  // Partial-day closures. `closeTimesFrom` is the start slot the authoring
+  // dialog opens on (null = shut); `editingClosure` reuses the same dialog to
+  // change just the reason on an existing card.
+  const [closeTimesFrom, setCloseTimesFrom] = useState(null);
+  const [editingClosure, setEditingClosure] = useState(null);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -159,6 +172,42 @@ export function WeekCalendarView({
 
   const handlePrintDaySheet = () => {
     if (typeof window !== "undefined") window.print();
+  };
+
+  // ── Partial-day closures ────────────────────────────────────────
+  const dayClosures = currentSettings.closures || [];
+  const dayLabel = currentDateObj?.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  // The dialog stays open on a failure and shows the error, so hand the
+  // result straight back rather than swallowing it into a toast.
+  const handleSaveClosure = async ({ from, to, reason }) => {
+    const result = await addClosure?.({ from, to, reason });
+    if (result?.ok === false) return result;
+    toast.show("Times closed", "success");
+    return { ok: true };
+  };
+
+  const handleReopenClosure = async (closure) => {
+    const result = await removeClosure?.(closure.id);
+    if (result?.ok === false) {
+      toast.show(result.error || "Couldn't reopen those times", "error");
+      return;
+    }
+    // Undo restores the same closure, reason and all.
+    toast.show("Times reopened", "info", () =>
+      addClosure?.({ from: closure.from, to: closure.to, reason: closure.reason }),
+    );
+  };
+
+  const handleSaveClosureReason = async ({ reason }) => {
+    const result = await updateClosureReason?.(editingClosure.id, reason);
+    if (result?.ok === false) return result;
+    toast.show("Reason updated", "success");
+    return { ok: true };
   };
 
   const handleConfirmDayToggle = async (mode) => {
@@ -339,6 +388,12 @@ export function WeekCalendarView({
               }
               onOverride={handleOverride}
               onToggleImmediate={toggleImmediateSlot}
+              closures={dayClosures}
+              onReopenClosure={removeClosure ? handleReopenClosure : undefined}
+              onEditClosureReason={
+                updateClosureReason ? (closure) => setEditingClosure(closure) : undefined
+              }
+              onCloseFromSlot={addClosure ? (slot) => setCloseTimesFrom(slot) : undefined}
               onOpenWaitlist={() => setShowWaitlist(true)}
               reminderCount={pendingReminderCount}
               waitlistCount={waitlist.length}
@@ -392,6 +447,14 @@ export function WeekCalendarView({
         isOpen={isOpen}
         extraSlots={currentSettings.extraSlots || []}
         bookingCount={dayBookings.length}
+        onCloseTimes={
+          addClosure
+            ? () => {
+                setShowDaySettings(false);
+                setCloseTimesFrom(activeSlots[0] || "08:30");
+              }
+            : undefined
+        }
         onAddSlot={() => {
           handleAddSlot();
         }}
@@ -458,6 +521,40 @@ export function WeekCalendarView({
           <BroadcastMessageModal
             defaultDate={currentDateStr}
             onClose={() => setShowBroadcast(false)}
+          />
+        </Suspense>
+      )}
+
+      {closeTimesFrom !== null && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <CloseTimesDialog
+            activeSlots={activeSlots}
+            closures={dayClosures}
+            bookings={dayBookings}
+            initialFrom={closeTimesFrom}
+            dayLabel={dayLabel}
+            onSave={handleSaveClosure}
+            onClose={() => setCloseTimesFrom(null)}
+          />
+        </Suspense>
+      )}
+
+      {/* Editing reuses the same dialog: the times are pinned to the closure
+          being edited and only the reason is saved. */}
+      {editingClosure && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <CloseTimesDialog
+            activeSlots={activeSlots}
+            closures={dayClosures.filter((c) => c.id !== editingClosure.id)}
+            bookings={dayBookings}
+            initialFrom={editingClosure.from}
+            initialTo={editingClosure.to}
+            initialReason={editingClosure.reason}
+            timesLocked
+            dayLabel={dayLabel}
+            submitLabel="Save reason"
+            onSave={handleSaveClosureReason}
+            onClose={() => setEditingClosure(null)}
           />
         </Suspense>
       )}
