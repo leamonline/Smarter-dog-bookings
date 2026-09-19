@@ -39,6 +39,11 @@
 --    below), so a moved booking cannot keep a Reconfirmed status for a date
 --    nobody confirmed.
 --
+-- ⚠ APPLY AFTER THE CONTRACT MIGRATION (20260919120000). This function starts
+-- writing 'Reconfirmed', which the deployed frontend cannot render until the
+-- new build is live, and which the pre-expand constraint would reject outright.
+-- It is numbered after the contract for that reason.
+--
 -- Idempotent: create or replace only.
 -- ============================================================
 

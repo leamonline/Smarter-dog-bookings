@@ -51,12 +51,56 @@ describe("the canonical seven", () => {
 
   it("matches the CHECK constraint the database enforces", () => {
     // The database is the authority. If these disagree, a write the app
-    // considers legal is rejected at the gate.
-    const sql = migrationSql("canonical_booking_statuses");
+    // considers legal is rejected at the gate. The CONTRACT migration holds
+    // the final constraint; the expand migration before it deliberately
+    // permits the retired words as well, so that one is asserted separately.
+    const sql = migrationSql("contract_booking_statuses");
     for (const status of ALL_BOOKING_STATUSES) {
       expect(sql, `constraint is missing ${status}`).toContain(`'${status}'`);
     }
     expect(sql).toMatch(/check\s*\(\s*status\s+in\s*\(/i);
+  });
+});
+
+// The rollout is expand -> deploy -> contract, because the rename is not
+// backward-compatible in either direction: whichever constraint is installed
+// rejects the other frontend's writes. These assert the property that makes the
+// middle step safe — that during the transition the database accepts both.
+describe("the expand phase", () => {
+  const expand = () => migrationSql("expand_booking_statuses");
+
+  it("accepts BOTH vocabularies, so neither frontend is rejected mid-deploy", () => {
+    const sql = expand();
+    for (const status of ALL_BOOKING_STATUSES) {
+      expect(sql, `expand must permit ${status}`).toContain(`'${status}'`);
+    }
+    for (const retired of ["Checked in", "In bath", "Ready for pick-up"]) {
+      expect(sql, `expand must still permit ${retired}`).toContain(`'${retired}'`);
+    }
+  });
+
+  it("does NOT convert any row — that is the contract phase's job", () => {
+    // Converting during expand would put values on screen that the deployed
+    // frontend cannot render. The point of this phase is that nothing visible
+    // changes.
+    expect(expand()).not.toMatch(/update\s+public\.bookings\s+set\s+status/i);
+  });
+
+  it("keeps ranking the retired words, so arrivals are still stamped", () => {
+    // If the ranking switched to the new vocabulary while the old frontend was
+    // live, 'Checked in' would resolve to NULL, the function would return
+    // early, and checking a dog in would silently stop recording
+    // checked_in_at.
+    const sql = expand();
+    expect(sql).toMatch(/when\s+'Checked in'\s+then\s+2/i);
+    expect(sql).toMatch(/when\s+'In bath'\s+then\s+2/i);
+    expect(sql).toMatch(/when\s+'Ready for pick-up'\s+then\s+3/i);
+  });
+
+  it("carries a warning that the contract migration must not run early", () => {
+    expect(migrationSql("contract_booking_statuses")).toMatch(
+      /ONLY AFTER THE NEW FRONTEND IS DEPLOYED/i,
+    );
   });
 });
 
@@ -88,7 +132,7 @@ describe("the progression", () => {
   });
 
   it("agrees with the trigger's ranking in the database", () => {
-    const sql = migrationSql("canonical_booking_statuses");
+    const sql = migrationSql("contract_booking_statuses");
     for (const [status, rank] of Object.entries(STATUS_RANK)) {
       expect(sql).toMatch(new RegExp(`when\\s+'${status}'\\s+then\\s+${rank}`, "i"));
     }
@@ -163,7 +207,7 @@ describe("the active stack", () => {
 });
 
 describe("the migration's conversions", () => {
-  const sql = () => migrationSql("canonical_booking_statuses");
+  const sql = () => migrationSql("contract_booking_statuses");
 
   it("maps Checked in and In bath to Arrived", () => {
     // In bath -> Arrived, not Ready: the dog has arrived but is not finished,
@@ -197,8 +241,10 @@ describe("the migration's conversions", () => {
 
   it("rebuilds both unique indexes so a no-show frees its slot", () => {
     // Otherwise rebooking a dog that no-showed into the same slot raises a
-    // unique violation.
-    const text = sql();
+    // unique violation. These live in the EXPAND migration: no row carries
+    // 'No-show' until the contract phase, so installing them early behaves
+    // exactly as the indexes they replace and keeps the contract step short.
+    const text = migrationSql("expand_booking_statuses");
     for (const index of ["bookings_one_active_per_dog_slot", "bookings_no_duplicate_dog_per_slot"]) {
       expect(text).toMatch(new RegExp(`create unique index ${index}[\\s\\S]*?'No-show'`, "i"));
     }
