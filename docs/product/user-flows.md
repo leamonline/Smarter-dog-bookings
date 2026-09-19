@@ -166,6 +166,17 @@ with append-only attempts, and staff reschedule does not create that intent.
 
 **Requirements:** `REQ-AI-001`, `REQ-CAP-002`, `REQ-UX-001`.
 
+### Mobile reply visibility
+
+Opening a conversation on a phone replaces the Inbox page heading with the
+thread's own Back control. The composer stays below the message and draft
+scrollers; its text area scrolls internally when the visible viewport is short.
+On very short viewports, the conversation header can also scroll to expose its
+actions. Resizing or opening/dismissing a keyboard preserves the selected
+conversation, reply text and navigation history. Keyboard regression tests
+simulate visual-viewport resize and pan; a physical iPhone check remains part of
+release verification.
+
 ## `FLOW-07` — a new or changed Edge Function is released
 
 ### Current

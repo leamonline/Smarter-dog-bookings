@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — mobile Inbox composer (#884)
+
+- Keep multi-line replies and Send reachable when a phone keyboard reduces the
+  visible viewport. Remove duplicate mobile thread navigation, compact the
+  header and allow draft/header content to yield space to the composer.
+- Correct textarea padding/border sizing and add visual-viewport clipping checks
+  alongside existing draft, focus and navigation continuity tests.
+
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) where useful. The project does not currently publish numbered releases, so entries are grouped under `Unreleased` until a release convention is adopted.

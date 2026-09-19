@@ -32,10 +32,9 @@ describe("InboxWorkspaceShell", () => {
       expect(region.className).toContain("min-h-0");
       expect(region.className).toContain("overscroll-contain");
     }
-    // List and thread scroll themselves.
-    for (const region of [conversations, thread]) {
-      expect(region.className).toContain("overflow-y-auto");
-    }
+    expect(conversations.className).toContain("overflow-y-auto");
+    // The thread owns its message and draft scrollers; its frame must not scroll.
+    expect(thread.className).toContain("overflow-hidden");
     // The context frame does not: its pane pins section headers and scrolls
     // only the open body, so a second scroller here would double up.
     expect(context.className).toContain("overflow-hidden");
@@ -116,8 +115,7 @@ describe("InboxWorkspaceShell", () => {
     const onPaneBack = vi.fn();
     const { props, rerender } = renderShell({ mobilePane: "thread", onPaneBack });
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to conversations" }));
-    expect(onPaneBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Back to conversations" })).not.toBeInTheDocument();
 
     rerender(
       <InboxWorkspaceShell
@@ -128,7 +126,7 @@ describe("InboxWorkspaceShell", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Back to message thread" }));
-    expect(onPaneBack).toHaveBeenCalledTimes(2);
+    expect(onPaneBack).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Booking")).toBeInTheDocument();
   });
 

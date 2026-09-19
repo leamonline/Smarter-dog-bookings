@@ -72,13 +72,8 @@ export function InboxWorkspaceShell({
         <section
           role="region"
           aria-label="Message thread"
-          className={`${threadVisibility} min-h-0 flex-col overflow-y-auto overscroll-contain bg-white md:flex`}
+          className={`${threadVisibility} min-h-0 min-w-0 flex-col overflow-hidden overscroll-contain bg-white md:flex`}
         >
-          <div className="sticky top-0 z-10 flex min-h-11 shrink-0 items-center border-b border-slate-200 bg-white px-2 md:hidden">
-            <button type="button" className={MOBILE_BACK_CLASS} onClick={onPaneBack}>
-              Back to conversations
-            </button>
-          </div>
           {threadPane}
         </section>
 
