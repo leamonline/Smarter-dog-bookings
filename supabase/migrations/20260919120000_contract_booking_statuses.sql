@@ -18,6 +18,9 @@
 --   2. The constraint narrows to the seven.
 --   3. The lifecycle trigger drops the transitional rankings.
 --
+-- The deferred booking-visit consistency trigger is fired between 1 and 2:
+-- ALTER TABLE cannot run while its events are still queued.
+--
 -- Conversions:
 --   'Checked in'        -> 'Arrived'
 --   'In bath'           -> 'Arrived'
@@ -58,6 +61,18 @@ update public.bookings set status = 'Ready for collection'
 update public.bookings set status = 'No-show'
   where status = 'Cancelled'
     and lower(btrim(coalesce(cancel_reason, ''))) = 'no-show';
+
+-- Those UPDATEs queue events for ct_booking_visit_consistency, which is
+-- DEFERRABLE INITIALLY DEFERRED, so they would not fire until COMMIT — and
+-- PostgreSQL refuses ALTER TABLE on a table with pending trigger events
+-- ("cannot ALTER TABLE ... because it has pending trigger events"). Firing
+-- them now runs exactly the check that would have run at COMMIT, just
+-- earlier, and leaves the queue empty so the constraint can be replaced.
+--
+-- This is invisible on an empty database: with no rows to convert, the UPDATEs
+-- queue nothing and the ALTER succeeds. It only appears against real data,
+-- which is how production found it.
+set constraints all immediate;
 
 -- ── 2. Narrow the constraint ─────────────────────────────────────────
 alter table public.bookings
