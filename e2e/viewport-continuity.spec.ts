@@ -164,6 +164,66 @@ test.describe("Viewport continuity", () => {
     expect(await page.evaluate(() => history.length)).toBe(historyLength);
   });
 
+  test("the app chrome steps aside while a phone keyboard is up", async ({ page }) => {
+    // #885 keeps the composer reachable under a keyboard, but ~130px of
+    // toolbar and nav strip still sat above it, none of which could scroll
+    // away — so the conversation being replied to collapsed from ~510px to
+    // under 200px, a reflow big enough to read as "the screen resized".
+    // While a text field has focus and the visual viewport has shrunk by a
+    // keyboard's worth, the mobile chrome now hides and the thread keeps
+    // most of its height. The thread's own Back control stays.
+    await page.setViewportSize(PHONE);
+    const composer = await openSarahsThread(page);
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    const shell = page.locator('[style*="--fill-visible-height"]').first();
+    const shellHeight = () =>
+      shell.evaluate((el) => Number.parseFloat(el.style.getPropertyValue("--fill-visible-height")));
+    await expect(nav).toBeVisible();
+    await composer.click();
+    await expect(composer).toBeFocused();
+
+    const setKeyboard = (height: number) =>
+      page.evaluate((height) => {
+        const viewport = window.visualViewport!;
+        Object.defineProperty(viewport, "height", { configurable: true, get: () => height });
+        Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => 0 });
+        viewport.dispatchEvent(new Event("resize"));
+      }, height);
+
+    await setKeyboard(330);
+    await expect(nav).toBeHidden();
+    await expect(page.getByRole("button", { name: "Back to inbox" })).toBeVisible();
+    // With the chrome in place a 330px viewport left the shell ~113px. The
+    // toolbar and nav strip together are over 100px, so the shell must
+    // gain at least that much back.
+    await expect.poll(shellHeight).toBeGreaterThanOrEqual(200);
+    for (const control of [composer, page.getByRole("button", { name: "Send", exact: true })]) {
+      await expect.poll(() => control.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        let top = window.visualViewport?.offsetTop ?? 0;
+        let bottom = top + (window.visualViewport?.height ?? window.innerHeight);
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowY)) {
+            const bounds = parent.getBoundingClientRect();
+            top = Math.max(top, bounds.top);
+            bottom = Math.min(bottom, bounds.bottom);
+          }
+        }
+        return rect.top >= top - 1 && rect.bottom <= bottom + 1;
+      })).toBe(true);
+    }
+
+    // Pinch-zoom shrinks the visual viewport too, but with nothing to type
+    // into the chrome must stay. Blur first, then shrink.
+    await setKeyboard(PHONE.height);
+    await composer.blur();
+    await expect(nav).toBeVisible();
+    await setKeyboard(330);
+    await expect(nav).toBeVisible();
+    await setKeyboard(PHONE.height);
+    await expect(composer).toHaveValue("");
+  });
+
   test("the calendar drops its sidebar-derived height cap when it collapses", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     // The first staff entry of a tab session redirects to Daily Brief, so

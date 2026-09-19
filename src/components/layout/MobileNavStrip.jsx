@@ -9,6 +9,8 @@ import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 // glyph means — and the active tab is a soft purple-tinted pill. The
 // chrome stays light so the day's work below it holds the colour.
 // Badges (Inbox unread, Humans approvals) ride on the icon.
+// Steps aside on phones while the on-screen keyboard is up (see
+// useKeyboardOpen): the view being typed into keeps its own Back control.
 export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false }) {
   const { unread: waUnread } = useWhatsAppUnread();
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
@@ -18,7 +20,7 @@ export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false })
 
   return (
     <nav
-      className="lg:hidden -mx-[var(--app-gutter)] px-1.5 sm:px-3 py-1.5 short:py-0.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
+      className="lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-1.5 sm:px-3 py-1.5 short:py-0.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
       aria-label="Primary"
     >
       {MOBILE_NAV.filter(

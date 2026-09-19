@@ -173,9 +173,13 @@ thread's own Back control. The composer stays below the message and draft
 scrollers; its text area scrolls internally when the visible viewport is short.
 On very short viewports, the conversation header can also scroll to expose its
 actions. Resizing or opening/dismissing a keyboard preserves the selected
-conversation, reply text and navigation history. Keyboard regression tests
-simulate visual-viewport resize and pan; a physical iPhone check remains part of
-release verification.
+conversation, reply text and navigation history. While a text field has focus and
+the on-screen keyboard has shrunk the visible viewport, the phone toolbar and
+nav strip step aside so the conversation keeps most of its height; the thread's
+own Back control remains, and the chrome returns the moment focus leaves.
+Pinch-zoom never hides the chrome, because nothing is being typed into.
+Keyboard regression tests simulate visual-viewport resize and pan; a physical
+iPhone check remains part of release verification.
 
 ## `FLOW-07` — a new or changed Edge Function is released
 

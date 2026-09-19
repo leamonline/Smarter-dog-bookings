@@ -15,6 +15,7 @@ import { useProfileRouting } from "./hooks/useProfileRouting";
 import { useBookingDeepLink } from "./hooks/useBookingDeepLink";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMainScrollReset } from "./hooks/useMainScrollReset";
+import { useKeyboardOpen } from "./hooks/useKeyboardOpen";
 import { SalonProvider } from "./contexts/SalonContext";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
@@ -356,6 +357,10 @@ function AuthedApp({
     currentDateStr,
   });
   const { requestNewBooking } = session;
+
+  // Flags <html data-keyboard-open> while a phone keyboard is up so the
+  // toolbar and nav strip can step aside for the field being typed into.
+  useKeyboardOpen();
 
   useKeyboardShortcuts({
     activeOnPath: "/",

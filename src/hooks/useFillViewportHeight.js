@@ -24,9 +24,17 @@
 // Returns a px number (or null before first measure, so the caller can
 // keep a CSS fallback for the first paint). Recomputes whenever the
 // window, the visual viewport or the chrome above the shell changes.
+//
+// Measured in a layout effect, not a passive one. A passive effect runs
+// after the browser has painted, so the first frame of the inbox went out
+// with no height applied at all — and the CSS fallback could not catch it,
+// because its calc() reads --fill-top and --fill-bottom-gap, which nothing
+// but this hook ever defines, and a var() of an undefined property makes
+// the whole declaration invalid. The shell painted at content height, then
+// snapped. Measuring before paint removes that frame.
 // ============================================================
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 // Clearance below the shell, matching the workspace track's own bottom
 // padding: reserve less than that and the padding pushes the pane past the
@@ -57,7 +65,7 @@ function safeAreaInsetBottom() {
 export function useFillViewportHeight(ref) {
   const [height, setHeight] = useState(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el || typeof window === "undefined") return undefined;
 
