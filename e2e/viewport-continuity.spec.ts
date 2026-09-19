@@ -125,6 +125,45 @@ test.describe("Viewport continuity", () => {
     await expect(composer).toBeVisible();
   });
 
+  test("a multi-line reply remains reachable above a visual-only keyboard", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    const composer = await openSarahsThread(page);
+    await composer.fill("One\nTwo\nThree\nFour\nFive");
+    const url = page.url();
+    const historyLength = await page.evaluate(() => history.length);
+    // Keep the layout viewport unchanged: mobile keyboards resize/pan only
+    // the visual viewport. This simulates geometry, not a physical keyboard.
+    for (const [height, offsetTop] of [[500, 0], [400, 0], [430, 40], [844, 0]]) {
+      await page.evaluate(({ height, offsetTop }) => {
+        const viewport = window.visualViewport!;
+        Object.defineProperty(viewport, "height", { configurable: true, get: () => height });
+        Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => offsetTop });
+        viewport.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("scroll"));
+      }, { height, offsetTop });
+      const send = page.getByRole("button", { name: "Send", exact: true });
+      for (const control of [composer, send]) {
+        await expect.poll(() => control.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          let top = window.visualViewport?.offsetTop ?? 0;
+          let bottom = top + (window.visualViewport?.height ?? window.innerHeight);
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowY)) {
+              const bounds = parent.getBoundingClientRect();
+              top = Math.max(top, bounds.top);
+              bottom = Math.min(bottom, bounds.bottom);
+            }
+          }
+          return rect.top >= top - 1 && rect.bottom <= bottom + 1;
+        })).toBe(true);
+      }
+      await expect(composer).toHaveValue("One\nTwo\nThree\nFour\nFive");
+      await expect(composer).toBeFocused();
+    }
+    expect(page.url()).toBe(url);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  });
+
   test("the calendar drops its sidebar-derived height cap when it collapses", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     // The first staff entry of a tab session redirects to Daily Brief, so

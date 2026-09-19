@@ -329,7 +329,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      {pageHeader}
+      <div className={workspaceState.mobilePane === "list" ? "shrink-0" : "hidden shrink-0 md:block"}>
+        {pageHeader}
+      </div>
       <InboxWorkspaceShell
         rootRef={rootRef}
         fillHeight={fillHeight}

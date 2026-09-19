@@ -185,6 +185,10 @@ describe("ComposePanel", () => {
     vi.spyOn(window, "getComputedStyle").mockImplementation((element) => ({
       ...originalGetComputedStyle(element),
       lineHeight: "20px",
+      paddingTop: "8px",
+      paddingBottom: "8px",
+      borderTopWidth: "1px",
+      borderBottomWidth: "1px",
     }));
 
     render(<ControlledComposePanel onSend={vi.fn()} />);
@@ -196,7 +200,7 @@ describe("ComposePanel", () => {
 
     fireEvent.change(textarea, { target: { value: "One\nTwo\nThree\nFour\nFive\nSix" } });
 
-    expect(textarea.style.height).toBe("100px");
+    expect(textarea.style.height).toBe("118px");
     expect(textarea.style.overflowY).toBe("auto");
   });
 });

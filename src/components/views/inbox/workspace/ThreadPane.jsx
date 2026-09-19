@@ -73,7 +73,7 @@ export function ThreadPane({
 
   if (!selectedId) {
     return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex flex-1 items-center justify-center px-6 text-center text-[14px] text-slate-500">
           {!hasConversations
             ? "Nothing here yet — when a customer messages your WhatsApp number, the thread will open here."
@@ -128,14 +128,14 @@ export function ThreadPane({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex flex-col gap-1.5 border-b border-slate-100 bg-brand-paper px-4 py-2.5">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+      <div className="min-h-0 shrink overflow-y-auto flex flex-col gap-1.5 border-b border-slate-100 bg-brand-paper px-2 py-1.5 sm:px-4 sm:py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
               onClick={onBack}
-              className="h-9 w-9 rounded-full text-[18px] text-brand-purple transition-colors hover:bg-brand-purple/5 md:hidden"
+              className="h-11 w-11 shrink-0 rounded-full text-[18px] text-brand-purple transition-colors hover:bg-brand-purple/5 md:hidden"
               aria-label="Back to inbox"
             >
               ←
@@ -155,7 +155,7 @@ export function ThreadPane({
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-1 md:w-auto md:gap-2">
             {conversation?.closed_at && (
               <span
                 className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-500"
@@ -206,27 +206,29 @@ export function ThreadPane({
         role="log"
         aria-label="Conversation messages"
         aria-live="polite"
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-brand-paper px-4 py-3 overscroll-contain"
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-brand-paper overscroll-contain"
       >
-        {loadingDetail ? (
-          <ThreadSkeleton bubbles={5} />
-        ) : detailError ? (
-          <div className="py-8 text-center text-body text-slate-600">
-            Couldn&apos;t load the thread.
-            <button
-              type="button"
-              onClick={onRetryLoad}
-              className="ml-2 border-none bg-transparent p-0 font-[inherit] font-semibold text-brand-purple underline"
-            >
-              Retry
-            </button>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="py-8 text-center text-body text-slate-500">No messages yet.</div>
-        ) : chronology}
+        <div className="px-4 py-3">
+          {loadingDetail ? (
+            <ThreadSkeleton bubbles={5} />
+          ) : detailError ? (
+            <div className="py-8 text-center text-body text-slate-600">
+              Couldn&apos;t load the thread.
+              <button
+                type="button"
+                onClick={onRetryLoad}
+                className="ml-2 border-none bg-transparent p-0 font-[inherit] font-semibold text-brand-purple underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="py-8 text-center text-body text-slate-500">No messages yet.</div>
+          ) : chronology}
+        </div>
       </div>
 
-      <div className="max-h-[45%] shrink-0 overflow-y-auto">
+      <div className="max-h-[45%] min-h-0 shrink overflow-y-auto">
         {draft && (
           <DraftPanel
             draft={draft}
