@@ -16,10 +16,12 @@
   lands: measured once, the reply box sat exactly under the keyboard on a real
   iPhone. Re-pin the message log to the newest message as it shrinks, and keep
   the status-bar inset while the toolbar is hidden.
-- Carry, briefly, an opt-in viewport readout (`?vvdebug=1`) that showed and
-  reported to Sentry the visual-viewport and composer numbers under a phone
-  keyboard, to put figures on the hidden reply box. Removed once the focus-zoom
-  fix below made it unnecessary; nothing else referenced it.
+- Add an opt-in viewport readout (`?vvdebug=1`, staff shell only, geometry
+  only) that shows — and reports to Sentry — the visual-viewport, scroll and
+  composer numbers under a real phone keyboard, so the next report of the
+  reply box hiding comes with figures rather than a screenshot to infer from.
+  (Shipped to production in #888 on 20 September 2026. Superseded — removed
+  the same day, see below.)
 - Suppress iOS Safari's automatic zoom on field focus with `maximum-scale=1`,
   applied at boot on iOS only. A real iPhone zoomed ~1.18× on tapping the
   reply box despite every field computing at 16px; once zoomed, no layout
@@ -30,6 +32,12 @@
   its min-content width, so the bubble ran off the right of a phone screen.
   `overflow-wrap: anywhere` (not `break-word`, which leaves min-content alone)
   plus `min-w-0` keep every message inside the thread.
+- Remove the opt-in viewport readout and the three pieces that existed only
+  for it: the `captureMessage` Sentry helper, the build-SHA `define` in the
+  Vite config, and the `?vvdebug` flag. #889 fixed the iOS focus zoom the
+  readout was there to measure and the salon confirmed the fix on the device,
+  so nothing needed the figures any more. No effect on staff or customers:
+  the overlay rendered only when the flag was set.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 
