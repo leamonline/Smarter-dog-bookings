@@ -21,7 +21,7 @@
   --sd-buttercup-tint: var(--color-sd-buttercup-tint);
   --sd-mint-tint: var(--color-sd-mint-tint);
   --sd-coral-tint: var(--color-sd-coral-tint);
-  --sd-lavender-tint: #F3EDFB; /* soft tint of the brand navy — past appointments */
+  --sd-lavender-tint: var(--color-sd-cloud-tint); /* past appointments — brand reskin step 2: promoted from a purple-derived literal to a neutral token */
   --sd-paper: var(--color-sd-paper);
   --sd-white: #FFFFFF;
   --sd-dark: #2A1810;
