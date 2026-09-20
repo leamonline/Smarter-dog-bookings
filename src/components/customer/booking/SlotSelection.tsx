@@ -172,7 +172,7 @@ export function SlotSelection({
             ) : (
               <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
             )}
-            <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
+            <span className="font-display text-[15px] font-bold">
               {formatSlot(allocation.dropOffTime)}
             </span>
           </span>

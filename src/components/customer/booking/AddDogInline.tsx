@@ -52,7 +52,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
 
   return (
     <div className="wizard-card flex flex-col gap-3">
-      <div className="font-['Quicksand',sans-serif] font-bold text-[15px] text-[var(--sd-navy)]">
+      <div className="font-display font-bold text-[15px] text-[var(--sd-navy)]">
         Add a new pup
       </div>
 

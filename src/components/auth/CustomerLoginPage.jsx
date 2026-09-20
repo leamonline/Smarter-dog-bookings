@@ -391,7 +391,7 @@ export function CustomerLoginPage({
 
           {/* aria-live wrapper announces the stage change to screen readers. */}
           <div aria-live="polite">
-            <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+            <h1 className="font-display font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
               <span className="relative inline-block">
                 {heading}
                 <ScribbleUnderline />
