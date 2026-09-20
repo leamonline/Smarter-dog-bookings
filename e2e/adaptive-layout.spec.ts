@@ -301,7 +301,12 @@ test.describe("Adaptive layout", () => {
         for (const el of document.querySelectorAll("main#main-content button, main#main-content a, nav button, nav a")) {
           if (schedule?.contains(el)) continue;
           const b = el.getBoundingClientRect();
-          if (b.width === 0 || b.height === 0) continue;
+          // At most 1x1 means visually hidden, not small. Tailwind's sr-only
+          // is a 1x1 box under clip-path: a keyboard/screen-reader fallback
+          // that only becomes a visible target on focus (PullToRefresh's
+          // "Refresh appointments"). A box nobody can see is not a target
+          // this sweep can judge; its focused size is asserted below.
+          if (b.width <= 1 || b.height <= 1) continue;
           if (b.height < 44 || b.width < 44) {
             out.push(
               `${(el.textContent || el.getAttribute("aria-label") || "?").trim().slice(0, 34)} ${Math.round(b.width)}x${Math.round(b.height)}`,
@@ -312,6 +317,14 @@ test.describe("Adaptive layout", () => {
       });
 
       expect(tooSmall).toEqual([]);
+
+      // The hidden refresh fallback skipped above must still be a real target
+      // once a keyboard reaches it, or skipping it would hide a regression.
+      const refresh = page.getByRole("button", { name: "Refresh appointments" });
+      await refresh.focus();
+      const focused = await refresh.boundingBox();
+      expect(focused?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(focused?.width ?? 0).toBeGreaterThanOrEqual(44);
     });
 
     // The seat card's status trigger, measured across widths rather than at
