@@ -183,13 +183,10 @@ when it lands, every keyboard measurement is re-read a few times over the
 following second, and the message log re-pins to the newest message as it
 shrinks. Keyboard regression tests simulate visual-viewport resize and pan,
 including a late-landing keyboard; a physical iPhone check remains part of
-release verification. For that check, opening `/staff/inbox?vvdebug=1` shows a
-geometry-only readout (build, visual viewport, scroll offsets, composer
-position) pinned to the visible area, and sends the same figures to Sentry a
-second after a text field gains or loses focus; `?vvdebug=0` turns it off.
-On iOS the viewport carries `maximum-scale=1`, added at boot, so Safari never
-auto-zooms a focused field (pinch-zoom is unaffected on iOS); the readout's
-`vv scale` should read 1 with the keyboard up.
+release verification: open a thread, tap the reply box, and confirm the page
+does not zoom and the composer, Send and Generate stay above the keyboard. On
+iOS the viewport carries `maximum-scale=1`, added at boot, so Safari never
+auto-zooms a focused field (pinch-zoom is unaffected on iOS).
 
 ## `FLOW-07` — a new or changed Edge Function is released
 
