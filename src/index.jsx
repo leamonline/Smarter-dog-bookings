@@ -8,10 +8,13 @@ import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.js
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
 import { initSentry } from "./lib/sentry.js";
 import { installChunkReloadHandler } from "./lib/chunkReload.js";
+import { suppressIOSFocusZoom } from "./lib/iosFocusZoom.js";
 import { resolveLegacyRedirect, resolveMount } from "./routing/entrypoints";
 
 initSentry();
 installChunkReloadHandler();
+// Before either app mounts, so the first focused field is already covered.
+suppressIOSFocusZoom();
 
 const App = lazy(() => import("./App.jsx"));
 const CustomerApp = lazy(() => import("./CustomerApp.jsx"));

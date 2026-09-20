@@ -380,8 +380,11 @@
    This lives in index.css (unlayered) on purpose: unlayered rules win over
    Tailwind's layered `text-[13px]` utilities, so it catches every field —
    current and future — under the `.bm-fields` root without touching each
-   call site. We deliberately do NOT add maximum-scale/user-scalable to the
-   viewport (that breaks pinch-zoom / accessibility); the fix is field-only. */
+   call site. These field rules are the first line of defence. The second is
+   maximum-scale=1 on the viewport, added at boot for iOS ONLY
+   (src/lib/iosFocusZoom.js): a real iPhone zoomed on focus with every field
+   at 16px. iOS keeps pinch-zoom regardless of maximum-scale; Android would
+   not, which is why it is never written into index.html. */
 .bm-fields :is(input, select, textarea) {
   font-size: 16px;
 }
@@ -397,7 +400,7 @@
    template fields (13px) trip it. Bump to 16px on touch ONLY, so desktop
    keeps its denser sizes (the composer mixes 13–14px, unlike the booking
    modal). Unlayered so it beats Tailwind's text-[14px]/text-[13px]
-   utilities. No viewport maximum-scale change (breaks pinch-zoom). */
+   utilities. maximum-scale is handled per platform in iosFocusZoom.js. */
 @media (hover: none) and (pointer: coarse) {
   .compose-fields :is(input, select, textarea) {
     font-size: 16px;
@@ -414,8 +417,9 @@
    pointer) untouched, so its denser sizes are unchanged. Unlayered, so it
    beats Tailwind's layered text-* utilities; the more specific
    .bm-fields/.portal-input rules still win where they apply (same 16px on
-   touch; their own desktop density elsewhere). No viewport maximum-scale /
-   user-scalable change — that would break pinch-zoom / accessibility. */
+   touch; their own desktop density elsewhere). maximum-scale is added for
+   iOS only in iosFocusZoom.js, where the reasoning lives; never
+   user-scalable=no, which serves no one. */
 @media (width < 40rem), (hover: none) and (pointer: coarse) {
   input,
   select,
