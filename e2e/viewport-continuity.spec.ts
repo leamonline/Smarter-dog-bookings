@@ -274,6 +274,29 @@ test.describe("Viewport continuity", () => {
     await expect(composer).toBeFocused();
   });
 
+  test("a message carrying a long unbroken URL wraps inside the thread on a phone", async ({ page }) => {
+    // The bubble is a flex item, so its minimum width is its min-content
+    // width — for an unbroken ~90-character customer-portal link, the whole
+    // link. Two device screenshots showed such a bubble running off the right
+    // of a 393px screen, at rest and with the keyboard up. The sample thread
+    // carries one such message so this is exercised offline.
+    await page.setViewportSize(PHONE);
+    await openSarahsThread(page);
+    const log = page.getByRole("log");
+    // The innermost div containing the link text is the bubble itself.
+    const bubble = log.locator("div").filter({ hasText: /smarterdog\.vercel\.app\/customer\/manage/ }).last();
+    await expect(bubble).toBeVisible();
+    const box = await bubble.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(PHONE.width);
+    // No sideways overflow anywhere: neither the page nor the thread scroller.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    expect(await log.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  });
+
   test("the calendar drops its sidebar-derived height cap when it collapses", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     // The first staff entry of a tab session redirects to Daily Brief, so

@@ -108,8 +108,14 @@ export function MessageBubble({ message, onRetry }) {
 
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}>
+      {/* wrap-anywhere, not break-words: as a flex item the bubble's minimum
+          width is its min-content width, and only overflow-wrap:anywhere
+          lets an unbroken URL contribute break points to that — break-word
+          wraps the text but leaves the box as wide as the URL, which is how
+          a 40-character customer link pushed bubbles off a phone screen.
+          min-w-0 is the belt to that brace. */}
       <div
-        className={`max-w-[75%] rounded-2xl px-3 py-2 text-[14px] whitespace-pre-wrap ${
+        className={`min-w-0 max-w-[75%] wrap-anywhere rounded-2xl px-3 py-2 text-[14px] whitespace-pre-wrap ${
           isInbound
             ? "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
             : isFailed

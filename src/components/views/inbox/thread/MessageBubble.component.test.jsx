@@ -152,6 +152,37 @@ describe("MessageBubble — special message rendering", () => {
     expect(screen.queryByText("👍")).not.toBeInTheDocument();
   });
 
+  it("breaks a long unbroken URL so the bubble never outgrows the thread", () => {
+    // A customer-portal link is one unbroken 100+ character word. As a flex
+    // item the bubble's minimum width is its min-content width, which for
+    // that word is the whole URL — wider than a phone — unless the wrap
+    // rule is one that adds break points to min-content sizing.
+    const url = `https://smarterdog.vercel.app/customer/${"a".repeat(80)}/manage`;
+    expect(url.length).toBeGreaterThanOrEqual(120);
+    const { container } = render(
+      <MessageBubble
+        message={{ ...base, direction: "outbound", content: `Manage it all at ${url} — or just message us.` }}
+      />,
+    );
+    const bubble = container.firstChild.firstChild;
+    expect(bubble.className).toContain("wrap-anywhere");
+    expect(bubble.className).toContain("min-w-0");
+    expect(bubble.textContent).toContain(url);
+  });
+
+  it("wraps template and system bodies the same way, since they render in the same bubble", () => {
+    const url = `https://smarterdog.vercel.app/customer/${"b".repeat(80)}`;
+    for (const content of [`[template:some_new_template] ${url}`, `[flow:1771222127176573] ${url}`]) {
+      const { container, unmount } = render(
+        <MessageBubble message={{ ...base, direction: "outbound", content }} />,
+      );
+      const bubble = container.firstChild.firstChild;
+      expect(bubble.className, content).toContain("wrap-anywhere");
+      expect(bubble.textContent, content).toContain(url);
+      unmount();
+    }
+  });
+
   it("leaves a plain text message exactly as-is", () => {
     render(
       <MessageBubble
