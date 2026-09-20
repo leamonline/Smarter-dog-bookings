@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Daily Brief appointment stack (#891)
+
+- Overlap future appointment cards at the bottom of the available scrollport,
+  with fixed-height headers and reserved welfare-warning space.
+- Animate selection and tie card separation directly to pull-to-refresh distance;
+  retain readable tap targets, long-day scrolling and reduced-motion support.
+- Preserve appointment actions and expose complete safety notes in the existing
+  details area without changing header dimensions.
+
 ## Unreleased — mobile Inbox composer (#884)
 
 - Keep multi-line replies and Send reachable when a phone keyboard reduces the

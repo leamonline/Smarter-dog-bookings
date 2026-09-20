@@ -1,4 +1,4 @@
-// One dog, one row, expanding in place.
+// One dog, one fixed header, with the existing details/actions below it.
 //
 // The collapsed row is the whole screen's job: time, who, what, where in the
 // day, and how long it has been there. Everything else is behind the
@@ -18,15 +18,13 @@
 //   • urgency           — weight on the left rule AND the wording of the timing
 //                         line, which also changes weight. Never a new hue.
 //
-// The safety chip is a real button, so it cannot live inside the disclosure
-// button. It sits beside it instead, which also means the two are independently
-// tappable at full size.
+// The safety chip is a sibling button. Full notes open in the details area
+// so long warnings never change the fixed header or exposed strip height.
 import { useMemo, useState } from "react";
-import { Car, Clock } from "lucide-react";
+import { AlertTriangle, Car, Clock } from "lucide-react";
 import { money } from "../../../../engine/dayStack";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { BookingStatusBadge, resolveDayStatus } from "../../../ui";
-import { SafetyAlertChip } from "../../../ui/SafetyAlertChip.jsx";
 import { firstName, telephoneHref } from "../parts.jsx";
 import { titleCase } from "../../../../utils/text";
 import { StackActions } from "./StackActions.jsx";
@@ -60,6 +58,9 @@ export function StackCard({
   onTheWay = false,
   dimmed = false,
   expanded,
+  stackStyle,
+  focused = false,
+  onHeadFocus,
   onToggle,
   /**
    * The board token for this booking, or null for a row the board has no
@@ -125,8 +126,8 @@ export function StackCard({
     [allActions],
   );
 
-  // One sentence, in the order a person would say it. The badge and the chip
-  // are both aria-hidden precisely so this is the single spoken version.
+  // One sentence gives the disclosure its complete accessible name. The
+  // separate safety button also names every warning for direct navigation.
   const spoken = [
     booking.slot,
     dogName,
@@ -150,13 +151,15 @@ export function StackCard({
   return (
     <li
       data-stack-card
+      data-focused={focused ? "true" : "false"}
       data-booking-id={row.id}
       data-status-key={tone.key}
       data-urgent={urgent ? "true" : "false"}
-      className={`overflow-hidden rounded-lg motion-safe:transition-opacity ${
+      className={`wallet-appointment overflow-hidden rounded-xl ${
         dimmed ? "opacity-50" : "opacity-100"
       }`}
       style={{
+        ...stackStyle,
         backgroundColor: tone.tint,
         borderLeftStyle: "solid",
         borderLeftColor: tone.edge,
@@ -167,75 +170,73 @@ export function StackCard({
         color: tone.ink,
       }}
     >
-      <button
-        type="button"
-        data-stack-head
-        aria-label={spoken}
-        aria-expanded={expanded}
-        aria-controls={drawerId}
-        onClick={onToggle}
-        className="grid w-full min-h-16 grid-cols-[auto_1fr_auto] items-center gap-3 px-3.5 py-3 text-left
-          outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-[3px]"
-        style={{ outlineColor: tone.ink }}
-      >
-        <span className="text-[19px] font-bold tabular-nums tracking-[-0.01em]">
-          {row.time || "--:--"}
-        </span>
+      <div className="wallet-header" data-stack-header onClick={(event) => {
+        // Blank reserved space and metadata are part of the card's tap target;
+        // sibling buttons keep their own explicit keyboard/click behaviour.
+        if (!event.target.closest("button")) onToggle();
+      }}>
+        <button
+          type="button"
+          data-stack-head
+          aria-label={spoken}
+          aria-expanded={expanded}
+          aria-controls={drawerId}
+          onClick={onToggle}
+          onFocus={onHeadFocus}
+          className="wallet-heading w-full text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-[3px]"
+          style={{ outlineColor: tone.ink }}
+        >
+          <span className="wallet-time text-[19px] font-bold tabular-nums tracking-[-0.01em]">
+            {row.time || "--:--"}
+          </span>
 
-        <span className="min-w-0">
-          <span className="block truncate text-[17px] font-medium">{dogName}</span>
-          {row.subtitle ? (
-            <span className="block truncate text-[13px]" style={{ color: "var(--card-meta)" }}>
-              {row.subtitle}
-            </span>
-          ) : null}
+          <span className="wallet-name block truncate text-[17px] font-medium">{dogName}</span>
+          <span className="wallet-status text-right text-[12px] leading-[1.3]">
+            <BookingStatusBadge
+              status={booking.status}
+              cancelReason={booking.cancelReason}
+              variant="onTint"
+              className="block font-medium"
+            />
+            {hasBalance ? (
+              <span className="block font-bold tabular-nums">{money(amountDue)} due</span>
+            ) : settled ? (
+              <span className="block" style={{ color: "var(--card-meta)" }}>Paid</span>
+            ) : unknownBalance ? (
+              <span className="block" style={{ color: "var(--card-meta)" }}>Payment not known</span>
+            ) : null}
+          </span>
+        </button>
+        <span className="wallet-metadata text-[12px]" style={{ color: "var(--card-meta)" }}>
+          <span className="block truncate">{row.subtitle}</span>
+          <span className={`flex flex-wrap items-center gap-x-3 ${urgent ? "font-bold" : ""}`}>
+            {timing && <span>{readyOverdue && <Clock size={12} aria-hidden="true" className="mr-1 inline" />}{timing}</span>}
+            {onTheWay && <span><Car size={12} aria-hidden="true" className="mr-1 inline" />On the way</span>}
+          </span>
         </span>
-
-        <span className="text-right text-[12.5px] leading-[1.35] whitespace-nowrap">
-          <BookingStatusBadge
-            status={booking.status}
-            cancelReason={booking.cancelReason}
-            variant="onTint"
-            className="block font-medium"
-          />
-          {hasBalance ? (
-            <span className="block font-bold tabular-nums">{money(amountDue)} due</span>
-          ) : settled ? (
-            <span className="block" style={{ color: "var(--card-meta)" }}>Paid</span>
-          ) : unknownBalance ? (
-            <span className="block" style={{ color: "var(--card-meta)" }}>Payment not known</span>
-          ) : null}
-          {onTheWay ? (
-            <span className="flex items-center justify-end gap-1 font-medium">
-              <Car size={12} strokeWidth={2.4} aria-hidden="true" />
-              On the way
-            </span>
-          ) : null}
-          {timing ? (
-            <span
-              className={`block tabular-nums ${urgent ? "font-bold" : ""}`}
-              style={{ color: urgent ? "var(--card-ink)" : "var(--card-meta)" }}
+        <div className="wallet-safety">
+          {safetyFacts.length > 0 && (
+            <button
+              type="button"
+              aria-label={`Safety alert: ${safetyFacts.join(", ")}`}
+              aria-expanded={expanded}
+              aria-controls={drawerId}
+              onClick={() => { if (!expanded) onToggle(); }}
+              className="flex h-11 max-w-full items-center gap-1 text-left text-[11px] font-semibold text-brand-coral-text"
             >
-              {readyOverdue ? (
-                <Clock size={12} strokeWidth={2.4} aria-hidden="true" className="mr-[3px] inline align-[-1px]" />
-              ) : null}
-              {timing}
-            </span>
-          ) : null}
-        </span>
-      </button>
-
-      {safetyFacts.length > 0 ? (
-        <div className="px-3.5 pb-2.5">
-          <SafetyAlertChip items={safetyFacts} />
+              <AlertTriangle size={14} className="shrink-0" aria-hidden="true" />
+              <span className="truncate rounded bg-brand-coral-light px-1.5 py-1">
+                {safetyFacts[0]}{safetyFacts.length > 1 ? ` +${safetyFacts.length - 1}` : ""}
+              </span>
+            </button>
+          )}
         </div>
-      ) : null}
+      </div>
 
       {/*
-        0fr → 1fr rather than a height, so the drawer animates to its real
-        content size without anybody measuring it. The reduced-motion query is
-        global (index.css) but restated here because this transition is the one
-        most likely to be noticed.
+        The drawer animates to its natural content size. The stack measures
+        its inner content independently to position upcoming cards. Reduced
+        motion removes the disclosure transition as well as card movement.
       */}
       <div
         id={drawerId}
@@ -251,7 +252,12 @@ export function StackCard({
           aria-expanded said "false" while the contents said otherwise.
         */}
         <div className="overflow-hidden" inert={expanded ? undefined : ""}>
-          <div className="border-t border-black/[0.09] px-3.5 pb-3.5">
+          <div data-stack-details className="border-t border-black/[0.09] px-3.5 pb-3.5">
+            {safetyFacts.length > 0 && (
+              <p className="mt-3 rounded bg-brand-coral-light p-3 text-[13px] text-brand-coral-text">
+                <strong>Safety note: </strong>{safetyFacts.join(", ")}
+              </p>
+            )}
             <div className="my-3 text-[14px]">
               {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}
               {display.ownerPhone ? (

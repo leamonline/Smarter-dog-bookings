@@ -1,0 +1,40 @@
+/* Card motion must not make browser scroll anchoring move the viewport too. */
+main:has([data-day-stack]) { overflow-anchor: none; }
+.day-wallet-stack {
+  position: relative;
+  isolation: isolate;
+  /* Native vertical scrolling outside an eligible refresh gesture. */
+  touch-action: pan-y;
+}
+.wallet-appointment {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-shadow: 0 -1px 0 rgb(255 255 255 / 60%);
+  transition: transform 360ms cubic-bezier(.2, .85, .25, 1.04);
+}
+/* Dim the ink, never the opaque card: transparent layers leak hidden text. */
+.wallet-appointment.opacity-50 { opacity: 1; }
+.wallet-appointment.opacity-50 > * { opacity: .5; }
+.wallet-appointment[data-focused="true"] { box-shadow: 0 3px 9px rgb(30 20 40 / 7%); }
+.day-wallet-stack[data-dragging="true"] .wallet-appointment { transition: none; }
+.wallet-header { position: relative; height: var(--stack-header-height, 144px); }
+.wallet-heading {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(64px, auto);
+  grid-template-rows: 48px;
+  column-gap: 10px;
+  height: 48px;
+  padding: 0 12px;
+  align-items: center;
+}
+.wallet-time, .wallet-name, .wallet-status { grid-row: 1; }
+.wallet-metadata { position: absolute; top: 96px; left: 12px; right: 12px; }
+.wallet-safety { position: absolute; top: 48px; left: 12px; right: 12px; height: 44px; pointer-events: none; }
+.wallet-safety button { pointer-events: auto; }
+.wallet-appointment:has(:focus-visible) { outline: 2px solid var(--card-ink); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .wallet-appointment { transition: none; }
+}

@@ -41,6 +41,7 @@ import { FEATURE_FLAGS } from "../../constants/features";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
+import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ConfirmDialog } from "../modals/ConfirmDialog.jsx";
 import { TodayHeader } from "./today/TodayHeader.jsx";
 import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
@@ -483,7 +484,7 @@ export function TodayView({
   }, [attention.reasons]);
 
   return (
-    <div className="min-h-full bg-brand-paper">
+    <PullToRefresh onRefresh={onRefresh} className="min-h-full bg-brand-paper">
       <TodayHeader
         dateLabel={dateLabel}
         dogsBooked={summary.dogsBooked}
@@ -569,6 +570,7 @@ export function TodayView({
                 />
               ) : (
                 <DayStack
+                  key={dateStr}
                   rows={stackRows}
                   resolve={resolve}
                   getWelfare={getWelfare}
@@ -652,6 +654,6 @@ export function TodayView({
           />
         )}
       </div>
-    </div>
+    </PullToRefresh>
   );
 }

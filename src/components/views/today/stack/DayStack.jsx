@@ -5,10 +5,13 @@
 // day off screen and turns a list you scan into a page you scroll. Opening a
 // second closes the first.
 //
-// This component reads. It does not write — every action lives on the card in a
-// later step, and all of them go through `tokenActions` and the existing
-// booking write path.
-import { useCallback, useState } from "react";
+// This component only owns presentation. All appointment actions still go
+// through `tokenActions` and the existing booking write path.
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { usePullToRefresh } from "../../../shared/PullToRefresh.jsx";
+import { stackLayout, STACK_HEADER_HEIGHT } from "./stackLayout";
+import { useStackGeometry } from "./useStackGeometry.js";
+import "./dayStack.css";
 import { StackCard } from "./StackCard.jsx";
 
 function formatLastVisit(dateStr) {
@@ -35,10 +38,41 @@ export function DayStack({
   emptyMessage = "No bookings on this date",
 }) {
   const [openId, setOpenId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const listRef = useRef(null);
+  const revealRef = useRef(false);
+  const refresh = usePullToRefresh();
+  const rowKey = rows.map((row) => row.id).join("|");
+  const geometry = useStackGeometry(listRef, openId, rowKey);
+  const selectedIndex = Math.max(0, rows.findIndex((row) => row.id === selectedId));
+  const layout = stackLayout({
+    count: rows.length, selectedIndex, ...geometry, pullProgress: refresh.progress,
+  });
+
+  useLayoutEffect(() => {
+    if (!revealRef.current) return;
+    const list = listRef.current;
+    const main = list?.closest("main");
+    if (!main) { revealRef.current = false; return; }
+    // Wait for the measured drawer height to reach the DOM; otherwise the
+    // browser clamps the target to the previous (collapsed) scroll height.
+    const frame = requestAnimationFrame(() => {
+      revealRef.current = false;
+      const target = main.scrollTop + list.getBoundingClientRect().top
+        - main.getBoundingClientRect().top + layout.positions[selectedIndex] - 12;
+      main.scrollTo({
+        top: Math.max(0, target),
+        behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId, openId, selectedIndex, layout.positions]);
 
   const toggle = useCallback((id) => {
+    revealRef.current = id !== openId;
+    setSelectedId(id);
     setOpenId((current) => (current === id ? null : id));
-  }, []);
+  }, [openId]);
 
   if (rows.length === 0) {
     return (
@@ -47,11 +81,30 @@ export function DayStack({
   }
 
   return (
-    <ul data-day-stack className="m-0 flex list-none flex-col gap-2 p-0">
-      {rows.map((row) => (
+    <ul
+      ref={listRef}
+      data-day-stack
+      data-dragging={refresh.dragging ? "true" : "false"}
+      className="day-wallet-stack m-0 list-none p-0"
+      style={{ height: layout.height, "--stack-header-height": `${STACK_HEADER_HEIGHT}px` }}
+    >
+      {rows.map((row, index) => (
         <StackCard
           key={row.id}
           row={row}
+          stackStyle={{
+            transform: `translate3d(0, ${layout.positions[index]}px, 0)`,
+            zIndex: index === selectedIndex ? rows.length + 1 : index + 1,
+          }}
+          focused={index === selectedIndex}
+          onHeadFocus={(event) => {
+            // Keyboard navigation reveals the whole card before its actions.
+            if (event.target.matches(":focus-visible")) {
+              revealRef.current = row.id !== selectedId;
+              setSelectedId(row.id);
+              setOpenId((current) => current === row.id ? current : null);
+            }
+          }}
           display={resolve(row.booking)}
           welfare={getWelfare(row.booking)}
           payment={paymentOf(row.booking)}
