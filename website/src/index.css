@@ -16,7 +16,7 @@
 }
 
 .heading-font {
-  font-family: 'Quicksand', sans-serif;
+  font-family: 'Poppins', sans-serif;
   letter-spacing: 0.02em;
   /* Increased tracking for headings */
 }
@@ -339,7 +339,7 @@ html {
 :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [role="button"], [role="menuitem"]):focus-visible {
   outline: 3px solid #005fcc;
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #00c2ff;
+  box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #5595DC;
   border-radius: 6px;
 }
 

@@ -58,7 +58,7 @@ class ErrorBoundary extends React.Component {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="underline hover:opacity-80"
-                                style={{ color: colors.cyan }}
+                                style={{ color: colors.cyanText }}
                             >
                                 WhatsApp
                             </a>
