@@ -16,6 +16,14 @@ import { defineConfig, devices } from "@playwright/test";
 // merges, because its pull request never ran the spec it had just rewritten.
 // One viewport catches that class at roughly a third of the matrix cost; the
 // three-viewport sweep stays post-merge for genuinely viewport-specific breaks.
+//
+// With one exception: the specs a pull request itself changes. #894 fixed a
+// spec that passed on desktop and failed on every narrow project, and could
+// only fail after merge, because the narrow projects never ran on its pull
+// request. So the gate also runs the changed specs on the `tablet` and
+// `mobile` projects of the full matrix below. That selection lives in ci.yml,
+// not here (its comment says why); locally it is
+//   npx playwright test e2e/<spec> --project=tablet --project=mobile
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 4173;
 const baseURL =
