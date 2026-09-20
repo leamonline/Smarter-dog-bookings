@@ -569,3 +569,17 @@ describe("the route to the full invoice", () => {
     expect(onOpenInvoice).toHaveBeenCalledWith(expect.objectContaining({ id: "waiting" }));
   });
 });
+
+describe("fixed-header welfare disclosure", () => {
+  it("reveals every long warning in the details area without putting text into the header", () => {
+    const warnings = ["Nervous / Anxious", "Needs a quiet room and a slow introduction before grooming"];
+    renderStack({ getWelfare: () => ({ alerts: warnings }) });
+    const target = card("bathing");
+    const safety = within(target).getByRole("button", { name: `Safety alert: ${warnings.join(", ")}` });
+    fireEvent.click(safety);
+    expect(head("bathing").getAttribute("aria-expanded")).toBe("true");
+    const details = target.querySelector("[data-stack-details]");
+    expect(details.textContent).toContain(warnings.join(", "));
+    expect(target.querySelector("[data-stack-header]").contains(details)).toBe(false);
+  });
+});

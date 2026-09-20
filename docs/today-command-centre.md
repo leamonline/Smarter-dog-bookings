@@ -81,6 +81,30 @@ one timing line. **Expanded**, it adds owner, phone, last visit, price, notes an
 that dog's actions. One card is open at a time: the cards are tinted by status
 and an open one is tall, so two at once pushes the day off screen.
 
+**Overlapping appointment cards (#891).** The first appointment is initially
+in focus, with its details closed. Selecting another card opens its existing
+information and brings it into view. Earlier cards stay in chronological order;
+future cards gather at the bottom of the available app scrollport. These are
+opaque, full-height cards positioned with transforms, not shortened rows or a
+list with negative margins. Within the future stack later cards cover the lower
+part of earlier cards, exposing consistent 96px strips. The focused card has the
+highest layer. Long days retain these reachable strips and scroll normally.
+
+Every collapsed card and expanded header is 144px tall. A reserved 44px warning
+row keeps optional warnings from changing dimensions. Time, name, status/balance
+and warnings sit in the exposed portion; breed/service and timing remain in the
+full header. Pressing a warning reveals its complete text in the details area,
+including long or multiple alerts, without resizing the header.
+
+Pulling down at the top of the app progressively separates future cards in
+proportion to finger movement. Crossing the threshold and releasing calls the
+existing refresh callback once; short/cancelled pulls settle without a refresh.
+Scrolling away from the top, horizontal gestures, multi-touch and gestures
+inside detail controls retain their normal behaviour. A keyboard-accessible
+Refresh appointments button provides the same action without a gesture.
+Reduced motion disables settling transitions. Navigation/visual viewport size
+and expanded content are measured; no phone-specific bottom position is used.
+
 The disclosure animates `grid-template-rows` from `0fr` to `1fr` rather than a
 height, so the drawer fits its own content without anybody measuring it, and
 `prefers-reduced-motion` is honoured.
@@ -126,7 +150,8 @@ status says it is.
 **The three facts the token carried all survived**, each with its own channel:
 
 - **The safety note is now words, not an icon.** It has its own always-visible
-  row on the card, rendered by the existing `SafetyAlertChip`. The board showed a
+  reserved row on the card. Pressing it reveals complete warning text in the
+  details area while the header stays fixed. The board showed a
   coral triangle with the text in a `title` tooltip, which reaches neither a
   touch user nor a screen reader — the June 2026 review said so, and this is
   welfare information. The chip is a real button, so it sits beside the
@@ -531,9 +556,8 @@ is **no** no-show status — see G2).
 Every card header is a focusable button carrying `aria-expanded` and an
 accessible name that is a whole sentence ("09:00. Bramble. Cockapoo · Full
 Groom. Ready. waiting 50 min. £42 due. owner Sarah Wilson. Safety note: Hates
-the dryer."). The badge and the safety chip are both `aria-hidden`, precisely so
-that sentence is the single spoken version rather than the third repetition of
-the same fact.
+the dryer."). The status is included in that sentence, and the separate safety control has
+its own complete accessible label. Hidden drawer controls remain inert.
 
 Touch targets are ≥ 44px everywhere, including the quiet action tier — the
 prototype drops those to 40px and this does not, because the hands using it are
@@ -541,9 +565,10 @@ wet and one of them is usually holding a dog. Urgency is never colour alone, and
 there is no hover-only information: the safety note in particular is words on the
 card, not a tooltip.
 
-The stack does not move a card when its status changes — the row stays where the
-appointment time puts it — so the board's focus-restoration problem does not
-arise here.
+Status changes do not re-sort appointments. Selection changes only presentation:
+stable booking keys and DOM order preserve focus, and keyboard focus brings a
+header out of the future stack. Browser scroll anchoring is disabled within this
+view so it cannot counteract intentional card transitions.
 
 ### The board's contract (superseded, behind the flag)
 
