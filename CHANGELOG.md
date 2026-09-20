@@ -20,6 +20,11 @@
   only) that shows — and reports to Sentry — the visual-viewport, scroll and
   composer numbers under a real phone keyboard, so the next report of the
   reply box hiding comes with figures rather than a screenshot to infer from.
+- Suppress iOS Safari's automatic zoom on field focus with `maximum-scale=1`,
+  applied at boot on iOS only. A real iPhone zoomed ~1.18× on tapping the
+  reply box despite every field computing at 16px; once zoomed, no layout
+  keeps the composer above the keyboard. iOS keeps pinch-zoom regardless;
+  Android, which would lose it, is untouched.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 

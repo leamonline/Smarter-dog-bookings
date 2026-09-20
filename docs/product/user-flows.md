@@ -187,6 +187,9 @@ release verification. For that check, opening `/staff/inbox?vvdebug=1` shows a
 geometry-only readout (build, visual viewport, scroll offsets, composer
 position) pinned to the visible area, and sends the same figures to Sentry a
 second after a text field gains or loses focus; `?vvdebug=0` turns it off.
+On iOS the viewport carries `maximum-scale=1`, added at boot, so Safari never
+auto-zooms a focused field (pinch-zoom is unaffected on iOS); the readout's
+`vv scale` should read 1 with the keyboard up.
 
 ## `FLOW-07` — a new or changed Edge Function is released
 
