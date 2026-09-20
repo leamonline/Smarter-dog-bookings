@@ -16,10 +16,22 @@ test.describe("Partial-day closures", () => {
       .getByRole("navigation", { name: "Primary" })
       .getByRole("link", { name: "Bookings" })
       .click();
-    await page
-      .getByRole("button", { name: /, availability$/ })
-      .first()
-      .click();
+
+    // The month grid that carries the ", availability" labels is the desktop
+    // left-sidebar card, shown from `lg` (1024px) up. Below that the Bookings
+    // route opens on a compact week strip instead, and the same grid is only
+    // mounted once "Month view" is pressed — so on a phone or tablet the day
+    // button this hook waits for does not exist until then. Wait for whichever
+    // of the two layouts has rendered, then open the month where it is needed.
+    // A visible "Month view" button is the narrow layout; on desktop it is
+    // `lg:hidden`, so it never matches.
+    const availabilityDay = page.getByRole("button", { name: /, availability$/ }).first();
+    const monthView = page.getByRole("button", { name: "Month view" });
+    await expect(availabilityDay.or(monthView).first()).toBeVisible();
+    if (await monthView.isVisible()) {
+      await monthView.click();
+    }
+    await availabilityDay.click();
     await expect(
       page.getByRole("button", { name: /open slot actions/ }).first(),
     ).toBeVisible();
