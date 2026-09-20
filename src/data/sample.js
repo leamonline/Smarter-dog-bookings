@@ -191,6 +191,15 @@ export const SAMPLE_WHATSAPP_MESSAGES = {
     sampleMessage("s1", "outbound", "Hi Sarah, thanks for getting in touch!", 180),
     sampleMessage("s2", "inbound", "Any chance of a morning slot this week?", 120),
     sampleMessage("s3", "outbound", "Of course — let me have a look at the diary for you.", 100),
+    // A customer-portal link is one unbroken ~90-character word. It used to
+    // push the bubble off the right of a phone screen; viewport-continuity
+    // e2e keeps it inside the thread.
+    sampleMessage(
+      "s3-link",
+      "outbound",
+      "If you ever need to check, change or add anything, you can manage it all through your account at https://smarterdog.vercel.app/customer/manage/3f9c2e7a-4b1d-4c8e-9a6f-0d2b7e5c1a3f/bookings — or just message us and we'll sort it.",
+      60,
+    ),
     sampleMessage("s4", "inbound", "Would Wednesday morning work?", 18),
   ],
   "sample-request-david": [

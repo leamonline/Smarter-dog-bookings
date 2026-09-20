@@ -25,6 +25,11 @@
   reply box despite every field computing at 16px; once zoomed, no layout
   keeps the composer above the keyboard. iOS keeps pinch-zoom regardless;
   Android, which would lose it, is untouched.
+- Wrap long unbroken URLs inside WhatsApp message bubbles. A customer-portal
+  link is one ~90-character word; as a flex item the bubble's minimum width was
+  its min-content width, so the bubble ran off the right of a phone screen.
+  `overflow-wrap: anywhere` (not `break-word`, which leaves min-content alone)
+  plus `min-w-0` keep every message inside the thread.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 
