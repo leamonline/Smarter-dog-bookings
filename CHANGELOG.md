@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — changed specs run on tablet and mobile at PR time (#895)
+
+- Run the Playwright specs a pull request changes on the `tablet` and
+  `mobile` Chromium projects in `pr-production-smoke`, in a third invocation
+  after the desktop and WebKit ones. A spec was only exercised on narrow
+  viewports after merge, so one written against the desktop layout could pass
+  its own pull request and then fail `e2e` on `main` for every merge that
+  followed; #894 fixed one that had done so for seven merges. The selection
+  (merge base with the base branch, deletions dropped; a Playwright config or
+  e2e helper change selects every spec) lives in the merged workflow, and the
+  projects come from the full matrix every branch already carries, so no
+  PR-smoke config change was needed. A pull request that changes no spec sees
+  no new work.
+- Let `scripts/assert-playwright-pr-smoke-results.mjs` accept viewport-gated
+  skips when `PR_SMOKE_ALLOW_SKIPPED=1`, set by that run only; the desktop
+  and WebKit steps still fail on any skip. A guard test executes the selection
+  step's script with a stubbed `git` and checks the assertion in both modes.
+
 ## Unreleased — Daily Brief appointment stack (#891)
 
 - Overlap future appointment cards at the bottom of the available scrollport,
