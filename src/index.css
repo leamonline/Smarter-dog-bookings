@@ -80,10 +80,12 @@
   --font-display: "Quicksand", "Montserrat", sans-serif;
   --font-handwriting: "Caveat", cursive;
 
-  /* Primary brand scale — accessible cyan */
-  --color-brand-cyan-light: #10C2FC;
-  --color-brand-cyan: #007AAB;
-  --color-brand-cyan-dark: #005986;
+  /* Primary brand scale — accessible sky (brand reskin step 2, 2026-09-20;
+     starting values from docs/plans/active/2026-09-20-brand-reskin.md,
+     tuned by eye against the salon's charcoal/cream/sky/sun identity) */
+  --color-brand-cyan-light: #5595DC;
+  --color-brand-cyan: #2A62A8;
+  --color-brand-cyan-dark: #1F4E8C;
 
   /* Accents */
   --color-brand-coral: #E7546C;
@@ -132,11 +134,11 @@
   --color-brand-mustard-paper: #FFFBF2;
 
   /* Customer portal palette */
-  --color-brand-purple: #2D004B;
-  --color-brand-purple-light: #5B3D80;
+  --color-brand-purple: #1F1F1F;
+  --color-brand-purple-light: #4A4A4A;
   --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
-  --color-brand-paper: #FAF9F6;
+  --color-brand-paper: #F7EFE6;
   --color-brand-paper-line: #ECE7E0; /* warm card border on the paper surface */
   --color-brand-dark: #2A1810;
 
@@ -153,20 +155,27 @@
   /* === Customer-portal palette (PR 1) === */
 
   /* Surface tints — pulled up from customer-portal.css so wizard + auth can use them */
-  --color-sd-sky-tint: #EAF6FF;
+  --color-sd-sky-tint: #EAF4FF;
   --color-sd-buttercup-tint: #FFF7DC;
   --color-sd-mint-tint: #E9FBEF;
   --color-sd-coral-tint: #FFEFF3;
-  --color-sd-paper: #FAF9F6;
+  /* Neutral cloud tint (brand reskin step 2) — promoted here from a
+     customer-portal.css-local literal so --sd-lavender-tint can alias it;
+     was a purple-derived "soft tint of the brand navy", now a plain warm
+     grey wash for the past-appointments tint. */
+  --color-sd-cloud-tint: #F6F4F2;
+  --color-sd-paper: #F7EFE6;
 
   /* Ink + mute (semantic aliases of brand-purple) */
-  --color-sd-navy: #2D004B;
-  --color-sd-navy-soft: #43326C;
-  /* WCAG AA (4.5:1) for normal-size text needs darker than the original
-     #6B7891 (4.45:1 on white, 4.23:1 on --sd-paper). This measures 4.77:1 on
-     white and 4.53:1 on --sd-paper, preserving hue/saturation (219.5°→220.0°,
-     15.1%→14.9%) — only lightness drops (49.4%→47.5%). */
-  --color-sd-ink-light: #67738B;
+  --color-sd-navy: #1F1F1F;
+  --color-sd-navy-soft: #4A4A4A;
+  /* WCAG AA (4.5:1) for normal-size text. Brand reskin step 2 (2026-09-20):
+     --color-sd-paper moved from #FAF9F6 to #F7EFE6, which dropped the
+     previous #67738B below 4.5:1 on the new paper (4.19:1). Recomputed by
+     the same method as before — preserve hue/saturation (220.6°/14.8% vs.
+     220.0°/14.9%), drop only lightness (47.5%→45.1%) — to #626D84: 4.57:1 on
+     --sd-paper, 5.20:1 on white. */
+  --color-sd-ink-light: #626D84;
 
   /* Action colour aliases */
   --color-sd-yellow: #FECC13;
@@ -174,8 +183,8 @@
   --color-sd-green: #00C247;
   --color-sd-green-dark: #009536;
   --color-sd-coral: #E7546C;
-  --color-sd-cyan: #007AAB;
-  --color-sd-cyan-dark: #005986;
+  --color-sd-cyan: #2A62A8;
+  --color-sd-cyan-dark: #1F4E8C;
 
   /* Tape colours */
   --color-sd-tape-yellow: rgba(254, 204, 19, 0.75);
@@ -183,8 +192,8 @@
   --color-sd-tape-sky:    rgba(16, 194, 252, 0.55);
 
   /* Elevation */
-  --shadow-sd-card: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
-  --shadow-sd-card-hover: 0 14px 28px -14px rgba(45, 0, 75, 0.28);
+  --shadow-sd-card: 0 6px 20px -12px rgba(0, 0, 0, 0.18);
+  --shadow-sd-card-hover: 0 14px 28px -14px rgba(0, 0, 0, 0.28);
   --shadow-sd-cta-green: 0 10px 22px -10px rgba(0, 194, 71, 0.55);
   --shadow-sd-cta-yellow: 0 10px 22px -10px rgba(254, 204, 19, 0.75);
   /* Modal/overlay shadow — replaces the 17 inline copies of
@@ -214,7 +223,7 @@
      hand-written .text-body/.text-heading/.text-link colour classes
      (which had zero consumers) and free the `text-body` name for the
      type scale below. */
-  --color-ink: #2D004B;        /* body/heading/link ink = brand-purple */
+  --color-ink: #1F1F1F;        /* body/heading/link ink = brand-purple */
   --color-ink-muted: #64748B;  /* accessible muted grey — slate-500 ≈ 4.76:1 on white */
 
   /* ── Type scale ──────────────────────────────────────────────
