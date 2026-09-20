@@ -4,7 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { env } from "node:process";
 
 // The booking app shares an origin with the marketing site, where "/" is the
 // marketing page. So the booking shell also gets a home of its own that no
@@ -25,14 +24,6 @@ function emitNamespacedShell() {
 }
 
 export default defineConfig({
-  // The short commit a build came from, so the viewport readout can say
-  // which build a screenshot is of. Vercel sets VERCEL_GIT_COMMIT_SHA at
-  // build time; anywhere else it reads "local".
-  define: {
-    "import.meta.env.VITE_BUILD_SHA": JSON.stringify(
-      (env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7) || "local",
-    ),
-  },
   plugins: [
     react(),
     tailwindcss(),

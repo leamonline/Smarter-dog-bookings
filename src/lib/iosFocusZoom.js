@@ -22,8 +22,8 @@
 // iOS only, at boot, rather than written into index.html for everyone.
 //
 // The field-size rules stay as the first line of defence; this is the
-// second. The viewport readout (?vvdebug=1) shows `vv scale`, which should
-// now read 1 with the keyboard up.
+// second. With it in place, `visualViewport.scale` stays at 1 when a field
+// takes focus with the keyboard up.
 // ============================================================
 
 /** True on iPhone, iPod and iPad — including iPadOS 13+, whose Safari sends a Mac user agent but reports touch points. */
