@@ -126,3 +126,11 @@ export function captureException(error, context) {
   if (!initialized) return;
   Sentry.captureException(error, context);
 }
+
+// Info-level message with structured context, for diagnostics staff opt
+// into (the viewport readout). Same gate, and the same PII redaction in
+// beforeSend, as captureException. Never used for anything customer-facing.
+export function captureMessage(message, context) {
+  if (!initialized) return;
+  Sentry.captureMessage(message, { level: "info", ...context });
+}

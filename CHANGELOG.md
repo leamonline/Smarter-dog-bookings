@@ -16,6 +16,10 @@
   lands: measured once, the reply box sat exactly under the keyboard on a real
   iPhone. Re-pin the message log to the newest message as it shrinks, and keep
   the status-bar inset while the toolbar is hidden.
+- Add an opt-in viewport readout (`?vvdebug=1`, staff shell only, geometry
+  only) that shows — and reports to Sentry — the visual-viewport, scroll and
+  composer numbers under a real phone keyboard, so the next report of the
+  reply box hiding comes with figures rather than a screenshot to infer from.
 
 This changelog records meaningful completed product, architecture and operational changes from 9 August 2026 onwards. Earlier history remains available in Git and the repository's dated plans and runbooks; it has not been reconstructed as release history.
 
