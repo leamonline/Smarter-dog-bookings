@@ -201,6 +201,12 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     );
   }
 
+  // Past the loading gate the arrays are only meaningful if the fetch actually
+  // succeeded: a failure leaves them at their initial [], which must never be
+  // read out as "nothing booked" / "no dogs yet". Loading, empty and error are
+  // three different states and do not share copy.
+  const dataLoaded = !loadError;
+
   const requestSignOut = () => {
     if (editing) { setShowSignOutConfirm(true); return; }
     onSignOut();
@@ -277,6 +283,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           <BookingCard
             upcomingBookings={upcomingBookings}
             dogs={dogs}
+            dataLoaded={dataLoaded}
             onBook={handleBook}
             onBookingChanged={refreshBookings}
           />
@@ -299,6 +306,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               dogs={dogs}
               lastGroomByDog={lastGroomByDog}
               humanId={humanRecord?.id}
+              dataLoaded={dataLoaded}
               onBook={handleBook}
               onDogUpdated={updateDog}
               onDogAdded={addDog}
@@ -312,6 +320,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             <AppointmentsSection
               pastBookings={pastBookings}
               dogs={dogs}
+              dataLoaded={dataLoaded}
               pastExpanded={pastExpanded}
               setPastExpanded={setPastExpanded}
               hasMorePast={hasMorePast}

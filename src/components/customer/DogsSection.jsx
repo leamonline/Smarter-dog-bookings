@@ -214,7 +214,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
   );
 }
 
-export function DogsSection({ dogs, lastGroomByDog = {}, humanId, onDogUpdated, onDogAdded }) {
+export function DogsSection({ dogs, lastGroomByDog = {}, humanId, dataLoaded = true, onDogUpdated, onDogAdded }) {
   const toast = useToast();
   const [addingNew, setAddingNew] = useState(false);
 
@@ -236,7 +236,9 @@ export function DogsSection({ dogs, lastGroomByDog = {}, humanId, onDogUpdated, 
       </div>
 
       <div className="flex-1">
-        {isEmpty && !addingNew && (
+        {/* Only claim the list is empty once the fetch succeeded — see
+            CustomerDashboard's dataLoaded. */}
+        {isEmpty && dataLoaded && !addingNew && (
           <p className="portal-empty-body" style={{ marginTop: 0 }}>
             Add your pup so we can keep their grooming history together.
           </p>
