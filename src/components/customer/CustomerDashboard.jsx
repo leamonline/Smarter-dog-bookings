@@ -37,6 +37,14 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     trustedHumans,
     loading,
     loadError,
+    // Past the loading gate an array is only meaningful if the fetch that
+    // fills it actually succeeded: a failure leaves it at its initial [],
+    // which must never be read out as "nothing booked" / "no dogs yet".
+    // Loading, empty and error are three different states and do not share
+    // copy. Per resource rather than one flag off `loadError`, because the
+    // fetches run as one chain — a trusted-humans failure lands after
+    // bookings have loaded, and must not take a good booking list with it.
+    loaded,
     hasMorePast,
     loadingMore,
     loadMore,
@@ -201,12 +209,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     );
   }
 
-  // Past the loading gate the arrays are only meaningful if the fetch actually
-  // succeeded: a failure leaves them at their initial [], which must never be
-  // read out as "nothing booked" / "no dogs yet". Loading, empty and error are
-  // three different states and do not share copy.
-  const dataLoaded = !loadError;
-
   const requestSignOut = () => {
     if (editing) { setShowSignOutConfirm(true); return; }
     onSignOut();
@@ -283,7 +285,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           <BookingCard
             upcomingBookings={upcomingBookings}
             dogs={dogs}
-            dataLoaded={dataLoaded}
+            dataLoaded={loaded.bookings}
             onBook={handleBook}
             onBookingChanged={refreshBookings}
           />
@@ -306,7 +308,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               dogs={dogs}
               lastGroomByDog={lastGroomByDog}
               humanId={humanRecord?.id}
-              dataLoaded={dataLoaded}
+              dataLoaded={loaded.dogs}
               onBook={handleBook}
               onDogUpdated={updateDog}
               onDogAdded={addDog}
@@ -320,7 +322,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             <AppointmentsSection
               pastBookings={pastBookings}
               dogs={dogs}
-              dataLoaded={dataLoaded}
+              dataLoaded={loaded.bookings}
               pastExpanded={pastExpanded}
               setPastExpanded={setPastExpanded}
               hasMorePast={hasMorePast}
@@ -373,14 +375,19 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         </footer>
       </main>
 
-      {/* Sticky mobile CTA — kept because the header CTA is gone and the
-          page CTA scrolls off-screen on mobile. */}
-      <div className="portal-sticky-cta">
-        <button className="portal-btn portal-btn--cta" onClick={handleBook}>
-          <PawPrint size={18} aria-hidden="true" />
-          Book a groom
-        </button>
-      </div>
+      {/* Sticky mobile CTA — kept because the header CTA is gone and the page
+          CTA scrolls off-screen on mobile. Hidden while the diary is unknown:
+          this bar is `display:none` above 640px, so leaving it up after a
+          failed booking fetch would keep on phones the exact duplicate-booking
+          path the in-page card drops. */}
+      {loaded.bookings && (
+        <div className="portal-sticky-cta">
+          <button className="portal-btn portal-btn--cta" onClick={handleBook}>
+            <PawPrint size={18} aria-hidden="true" />
+            Book a groom
+          </button>
+        </div>
+      )}
 
       {showCalendarModal && (
         <CalendarSubscribeModal onClose={() => setShowCalendarModal(false)} />

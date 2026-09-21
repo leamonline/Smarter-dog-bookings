@@ -19,6 +19,8 @@ vi.mock("./AddToCalendarButton.tsx", () => ({
 
 import { BookingCard } from "./BookingCard.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
+import { DogsSection } from "./DogsSection.jsx";
+import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
 /**
  * Loading, empty and error are three different states and must never share
@@ -109,5 +111,43 @@ describe("portal empty states wait for a fetch that succeeded", () => {
     expect(screen.queryByText("Nothing yet")).not.toBeInTheDocument();
     // The card itself stays, so the page keeps its shape.
     expect(screen.getByText("Past appointments")).toBeInTheDocument();
+  });
+});
+describe("the add-dog action waits for the dog list too", () => {
+  function renderDogs(props) {
+    return render(
+      <MemoryRouter>
+        <ToastProvider>
+          <DogsSection
+            dogs={[]}
+            humanId="h1"
+            onDogUpdated={vi.fn()}
+            onDogAdded={vi.fn()}
+            {...props}
+          />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  it("offers 'Add a dog' once the dog fetch has succeeded", () => {
+    renderDogs({ dataLoaded: true });
+    expect(screen.getByText(/Add your pup/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add a dog/ })).toBeInTheDocument();
+  });
+
+  it("withholds the action as well as the copy when the dog fetch failed", () => {
+    renderDogs({ dataLoaded: false });
+    // The button's label is itself an emptiness claim — "Add a dog" rather
+    // than "Add another" — and acting on it while the list is unknown is how
+    // a customer ends up with two records for the same dog.
+    expect(screen.queryByText(/Add your pup/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add a dog/ })).not.toBeInTheDocument();
+  });
+
+  it("still lists dogs that did load, and then offers 'Add another dog'", () => {
+    renderDogs({ dataLoaded: true, dogs: [{ id: "d1", name: "Alfie", breed: "Poodle" }] });
+    expect(screen.getAllByText(/Alfie/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Add another dog/ })).toBeInTheDocument();
   });
 });

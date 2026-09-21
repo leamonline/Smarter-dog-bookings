@@ -264,7 +264,12 @@ export function DogsSection({ dogs, lastGroomByDog = {}, humanId, dataLoaded = t
         )}
       </div>
 
-      {!addingNew && (
+      {/* The label is derived from emptiness ("Add a dog" vs "Add another"),
+          so it asserts what is on the account just as the copy above does.
+          After a failed fetch we do not know, and offering it invites a second
+          record for a dog that is already there — so the whole action waits
+          for the dog list, with the error banner as the only message. */}
+      {!addingNew && dataLoaded && (
         <div className="portal-card-bottom-action">
           <button
             type="button"
