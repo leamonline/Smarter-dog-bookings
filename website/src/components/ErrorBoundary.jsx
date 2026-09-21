@@ -33,9 +33,15 @@ class ErrorBoundary extends React.Component {
                             Something went wrong
                         </h1>
 
+                        {/*
+                          * Hierarchy here comes from size and weight, never from opacity.
+                          * `opacity` on a parent creates a compositing group its children
+                          * cannot escape, so it silently dims the link below too — that is
+                          * how the WhatsApp link ended up at 2.54:1 against the cream.
+                          */}
                         <p
                             className="body-font text-lg mb-8"
-                            style={{ color: colors.teal, opacity: 0.8 }}
+                            style={{ color: colors.teal }}
                         >
                             We're sorry, but something unexpected happened. Please try refreshing the page.
                         </p>
@@ -50,14 +56,14 @@ class ErrorBoundary extends React.Component {
 
                         <p
                             className="body-font text-sm mt-6"
-                            style={{ color: colors.teal, opacity: 0.6 }}
+                            style={{ color: colors.teal }}
                         >
                             Or message us on{' '}
                             <a
                                 href={whatsAppUrl(SALON_FACTS_FALLBACK.businessPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="underline hover:opacity-80"
+                                className="underline hover:brightness-90"
                                 style={{ color: colors.cyanText }}
                             >
                                 WhatsApp
