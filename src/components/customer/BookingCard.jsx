@@ -29,6 +29,11 @@ function friendlyCancellationError(error) {
 export function BookingCard(props) {
   const appointments = groupUpcomingBookings(props.upcomingBookings);
   if (appointments.length === 0) {
+    // An empty list only means "nothing booked" once the fetch has succeeded.
+    // After a failure the caller's error banner is the whole message; offering
+    // "Ready to book?" here would tell someone with an appointment tomorrow
+    // that they have none, and invite a duplicate booking.
+    if (props.dataLoaded === false) return null;
     return <AppointmentCard {...props} bookings={[]} isNext />;
   }
   return appointments.map((appointment, index) => (

@@ -34,8 +34,12 @@ export function AppointmentsSection({
   loadingMore,
   onLoadMore,
   onSubscribe,
+  dataLoaded = true,
 }) {
   const isEmpty = pastBookings.length === 0;
+  // "Nothing yet" is a claim about the customer's history, so it waits for a
+  // fetch that actually succeeded — see CustomerDashboard's dataLoaded.
+  const showEmptyCopy = isEmpty && dataLoaded;
 
   return (
     <div className="portal-card portal-card--lavender">
@@ -56,9 +60,11 @@ export function AppointmentsSection({
           </h2>
         </div>
         {isEmpty ? (
-          <span className="text-[12px] text-[var(--sd-ink-light)] font-semibold">
-            Nothing yet
-          </span>
+          showEmptyCopy ? (
+            <span className="text-[12px] text-[var(--sd-ink-light)] font-semibold">
+              Nothing yet
+            </span>
+          ) : null
         ) : (
           <span className="text-[13px] text-[var(--sd-navy-soft)] font-semibold flex items-center gap-1.5">
             {pastExpanded ? "Hide" : "Show"}
