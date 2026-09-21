@@ -93,7 +93,7 @@
 }
 
 .booking-wizard-title h1 {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(22px, 5vw, 28px);
   color: var(--sd-navy);
@@ -300,7 +300,7 @@
   cursor: not-allowed;
 }
 .wizard-calendar-month {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -418,7 +418,7 @@
 
 /* Slot group header */
 .wizard-slot-group {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
   color: var(--sd-ink-light);
@@ -462,7 +462,7 @@
   gap: 14px;
 }
 .wizard-summary-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -490,7 +490,7 @@
   gap: 2px;
 }
 .wizard-summary-dog-name {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -540,7 +540,7 @@
   color: var(--sd-navy-soft);
 }
 .wizard-summary-total strong {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   color: var(--sd-navy);
 }
@@ -679,7 +679,7 @@
 }
 
 .booking-success-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 30px;
   font-weight: 700;
   color: var(--sd-navy);

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — brand reskin, steps 2 and 4 (#896)
+
+- Swap the brand token values from purple/cyan to charcoal, cream and sky
+  (`src/index.css`, `customer-portal.css`). Every token name is kept, status,
+  size and safety colours are untouched, and `--color-sd-ink-light` is darkened
+  to hold 4.5:1 on the new cream paper.
+- Headings now render in Poppins, the wordmark's own face, and Barlow
+  Condensed 800 is added as `--font-hero` for later hero lines. Both are
+  self-hosted woff2 (latin + latin-ext) with their OFL licences. The Quicksand
+  files and every hardcoded `'Quicksand'` stack are gone; display type is
+  read from the `--font-display` token throughout.
+
 ## Unreleased — Daily Brief appointment stack (#891)
 
 - Overlap future appointment cards at the bottom of the available scrollport,

@@ -139,7 +139,7 @@
 .portal-header-text { min-width: 0; }
 
 .portal-welcome {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(26px, 5.4vw, 34px);
   font-weight: 700;
   color: var(--sd-navy);
@@ -167,7 +167,7 @@
 
 .portal-tagline {
   margin: 10px 0 0;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
   font-size: 14px;
@@ -312,7 +312,7 @@
 .portal-card-iconbadge--lavender { background: #E5D8F4; color: var(--sd-navy); }
 
 .portal-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -581,14 +581,14 @@
   left: 0;
   right: 0;
   text-align: center;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-size: 11px;
   color: var(--sd-ink-light);
 }
 
 .portal-empty-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 15px;
   color: var(--sd-navy);
@@ -824,7 +824,7 @@
 }
 
 .portal-footer-tagline {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
   font-size: 16px;
@@ -912,7 +912,7 @@
 .portal-booking-card--empty  { background: var(--sd-white); }
 
 .portal-booking-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -1014,7 +1014,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -1097,7 +1097,7 @@
    Not every inline text-class needs replacing — these exist so new code
    can reach for the canonical step instead of inventing a new size. */
 .portal-text-display {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(24px, 5vw, 34px);
   letter-spacing: -0.4px;
@@ -1105,14 +1105,14 @@
   line-height: 1.1;
 }
 .portal-text-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -0.2px;
   color: var(--sd-navy);
 }
 .portal-text-subhead {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   color: var(--sd-navy);

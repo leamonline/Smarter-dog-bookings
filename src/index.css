@@ -36,26 +36,58 @@
   font-display: swap;
   src: url("/app/fonts/montserrat-700.woff2") format("woff2");
 }
+/* Poppins (headings — matches the wordmark) and Barlow Condensed (hero lines
+   only). Both SIL OFL 1.1; woff2 subsets and unicode-ranges taken from
+   @fontsource/poppins and @fontsource/barlow-condensed 5.3.0, vendored here
+   rather than imported so nothing new is fetched at runtime. The latin-ext
+   file is only downloaded when a glyph needs it (Zoë, Łukasz, Renée). */
 @font-face {
-  font-family: "Quicksand";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/app/fonts/quicksand-500.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Quicksand";
+  font-family: "Poppins";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/app/fonts/quicksand-600.woff2") format("woff2");
+  src: url("/app/fonts/poppins-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Quicksand";
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/app/fonts/poppins-600-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Poppins";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/app/fonts/quicksand-700.woff2") format("woff2");
+  src: url("/app/fonts/poppins-700.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/fonts/poppins-700-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/barlow-condensed-800.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/app/fonts/barlow-condensed-800-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 @theme {
@@ -75,9 +107,13 @@
           again. In rem it sorts correctly, between xl (80rem) and 2xl (96rem). */
   --breakpoint-wide: 90rem;
 
-  /* Typography — matches smarterdog.co.uk: Montserrat for body/UI, Quicksand for display */
+  /* Typography — Montserrat for body/UI, Poppins for headings (the wordmark's
+     face), Barlow Condensed for the occasional hero line on auth and portal
+     screens only (brand reskin step 4). Tailwind v4 emits font-display and
+     font-hero utilities from these. */
   --font-sans: "Montserrat", system-ui, -apple-system, sans-serif;
-  --font-display: "Quicksand", "Montserrat", sans-serif;
+  --font-display: "Poppins", "Montserrat", sans-serif;
+  --font-hero: "Barlow Condensed", "Poppins", "Montserrat", sans-serif;
   --font-handwriting: "Caveat", cursive;
 
   /* Primary brand scale — accessible sky (brand reskin step 2, 2026-09-20;

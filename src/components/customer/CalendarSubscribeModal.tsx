@@ -91,7 +91,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       className="bg-white rounded-2xl shadow-xl max-w-md w-[90vw] p-6"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 id="calendar-subscribe-title" className="font-['Quicksand','Montserrat',sans-serif] text-lg font-bold text-[var(--sd-navy)] m-0">
+        <h2 id="calendar-subscribe-title" className="font-display text-lg font-bold text-[var(--sd-navy)] m-0">
           Sync to Calendar
         </h2>
         <button

@@ -34,25 +34,12 @@ const html = (size) => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <style>
-  @font-face {
-    font-family: 'Quicksand';
-    font-weight: 700;
-    font-style: normal;
-    src: url('/fonts/quicksand-700.woff2') format('woff2');
-    font-display: block;
-  }
   html, body { margin: 0; padding: 0; background: transparent; }
   body { width: ${size}px; height: ${size}px; }
   svg { display: block; width: ${size}px; height: ${size}px; }
-  /* Preload font into layout so the SVG <text> uses it. */
-  .preload {
-    position: absolute; left: -9999px; top: -9999px;
-    font-family: 'Quicksand'; font-weight: 700;
-  }
 </style>
 </head>
 <body>
-<span class="preload">Smarter dog</span>
 ${svg}
 </body>
 </html>`;

@@ -88,7 +88,7 @@ export function ServiceSelection({
         const allowed = getAllowedServicesForSize(dog.size);
         return (
           <div key={dog.dogId} className="wizard-card">
-            <div className="font-['Quicksand',sans-serif] text-[15px] font-bold text-[var(--sd-navy)] mb-2.5">
+            <div className="font-display text-[15px] font-bold text-[var(--sd-navy)] mb-2.5">
               {dog.name}
             </div>
             <div className="flex flex-col gap-2">
@@ -105,7 +105,7 @@ export function ServiceSelection({
                   >
                     <ServiceIcon name={iconName} color={selected ? "var(--sd-navy)" : "var(--sd-cyan-dark)"} />
                     <div className="wizard-service-body">
-                      <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">{svc.name}</span>
+                      <span className="font-display text-[15px] font-bold">{svc.name}</span>
                       {SERVICE_DESCRIPTIONS[svc.id] && (
                         <span className="text-[12px] text-[var(--sd-ink-light)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
                       )}
