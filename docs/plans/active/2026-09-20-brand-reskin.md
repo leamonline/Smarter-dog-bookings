@@ -311,19 +311,97 @@ Serial unless marked. Each step is one pull request.
    `--color-sd-ink-light`. **This step touches exactly two CSS files and nothing
    under `public/**` or `index.html`**, so it cannot collide with the
    domain-routing work. *Hand-off: owner tunes values by eye.*
-3. **Logo files.** Add the five SVGs to `public/app/`. Point `AppToolbar`'s mask,
-   `CustomerDashboard` and the auth pages at them. Replace `og:image` with a
-   1200×630 roundel-on-sky image, saved as **JPEG** (the service worker precaches
-   every PNG under `public/`, and staff devices have no use for a social
-   preview). Replace the calendar-and-paw app icon: white dog
-   on a full-bleed square in the logo's black (`#000000`, to match the roundel,
-   not the interface charcoal), dog inside the central 80% maskable safe zone;
-   regenerate `icons/*` and `apple-touch-icon.png` from it and add a
-   `"purpose": "maskable"` entry to the manifest. The browser favicon becomes
-   the small roundel SVG. Update `theme-color` in
-   `index.html` and `theme_color` / `background_color` in `manifest.json` here,
-   not in step 2. Confirm each SVG's path bounds sit inside its `viewBox`.
+3. **Logo files.** Add the five master SVGs to `public/app/logos/`, on default
+   caching: `/app/(fonts|icons|images)/` is `immutable` for a year and these are
+   unversioned filenames we may legitimately replace. Widening that rule is
+   deliberately **not** done here — `vercelRouting.test.ts` rejects nested
+   capturing groups, and routing stays untouched in this step. Point
+   `AppToolbar`'s mask, `CustomerDashboard` and the auth pages at them. Replace
+   the calendar-and-paw app icon: white dog on a full-bleed square in the logo's
+   black (`#000000`, to match the roundel, not the interface charcoal), dog
+   at 80% of the canvas; regenerate `icons/*` and `apple-touch-icon.png` from it.
+   The manifest's `purpose` stays **`"any"`**, as it is today, and the
+   `"maskable"` entry the first draft called for is **deferred** — measured, at
+   80% the dog's extremities reach 267.9px from centre against a 204.8px safe
+   radius, so 9.17% of its ink falls outside the strict maskable circle. Making
+   the declaration honest needs the dog at roughly 61% of the canvas, which is
+   visibly smaller on a home screen, or a second render target sized for
+   masking. That is a design decision, not an implementation detail; see Open
+   questions. Full-bleed is load-bearing: `render-icons.mjs` screenshots with
+   `omitBackground: true`, so any corner radius on the source becomes a
+   transparent corner in every PNG — exactly what a maskable icon must not have.
+   The browser favicon becomes a **rounded square**, not the small roundel — see
+   Recorded decisions. Update `theme-color` in `index.html` and `theme_color` /
+   `background_color` in `manifest.json` here, not in step 2. Note that on an
+   installed iOS PWA the status bar is driven by
+   `apple-mobile-web-app-status-bar-style` (`index.html:10`), not by
+   `theme-color`. Confirm each SVG's path bounds sit inside its `viewBox`.
    *Domain-routing sensitive — see Dependencies.*
+
+   **Open Graph.** The preview image moves out of `/app/`, which the published
+   `robots.txt` disallows, to `website/public/og-booking-2026.png`, served at the
+   deployment root. Verified by running the combined build: it survives the merge
+   as a real `PNG image data, 1200 x 630` and is crawlable. It is referenced by
+   absolute URL, because the booking app has no `og:url` for a relative path to
+   resolve against — and gains one here.
+
+   | Meta | Value |
+   |---|---|
+   | `og:url` | `https://smarterdog.co.uk/book` |
+   | `og:image` | `https://smarterdog.co.uk/og-booking-2026.png` |
+   | `og:image:width` | `1200` |
+   | `og:image:height` | `630` |
+   | `og:image:type` | `image/png` |
+   | `twitter:image` | `https://smarterdog.co.uk/og-booking-2026.png` |
+
+   `og:url` is the customer portal's canonical entry: `CUSTOMER_BASENAME` in
+   `entrypoints.ts`, apex host, matching the website's own canonical. The
+   filename is **versioned** because social caches are sticky — a future
+   replacement becomes `og-booking-2027.png`, never an overwrite of this file.
+   The name must not begin with a disallowed prefix: `robots.txt` matches by
+   prefix, so `/booking-og-2026.png` would be blocked by `Disallow: /book`, which
+   is the same bug in a new place.
+
+   What this achieves, precisely — **step 3 does not fix link previews
+   universally**:
+
+   - The OG image is moved to a crawlable, correctly served root asset.
+   - The OG metadata becomes internally correct and complete.
+   - Platforms that fetch `/book` can now retrieve the image successfully.
+   - Platforms that honour the current `Disallow: /book` may still not unfurl the
+     page at all.
+
+   `robots.txt` is **not** changed in this step. Whether `/book` should be
+   crawlable is a separate decision — see Open questions.
+
+   **Guards.** Two, both new:
+
+   - *Dangling references.* A test resolving every asset URL in `index.html` and
+     `manifest.json` against the filesystem. A wrong path does not 404:
+     `vercel.json`'s catch-all rewrite returns the marketing homepage with HTTP
+     200, and under `/app/(fonts|icons|images)/` that response is then cached
+     `immutable` for a year at the wrong URL, unfixable at the same filename. The
+     guard stops the reference being committed; it cannot change what the
+     platform does with one.
+   - *Icon drift.* `icons.lock.json`, written only by `render-icons.mjs`,
+     recording the source SVG's SHA-256, the Chromium and Playwright versions
+     used, and every output PNG's SHA-256 and dimensions. `npm run check:icons`
+     verifies the source hash, each output hash and each dimension — no
+     dependencies, so it runs in `lint` — and in CI, where Chromium is present
+     and its build matches the recorded one, re-renders and byte-compares.
+     Rendering is byte-deterministic for a fixed Chromium build (verified: three
+     renders in one process and one after a restart gave an identical SHA-256).
+     Be honest about the split: the hash checks are *tamper-evident*, proving
+     these PNGs were recorded against this SVG by the generator; only the CI
+     byte-compare *proves* the pixels depict the SVG. `render-icons.mjs`'s
+     hardcoded Chromium path — and its undocumented `PW_CHROMIUM_PATH` variable —
+     are fixed to fall back to Playwright's own resolution so CI can perform that
+     proof.
+
+   **Ordering inside the pull request**, because a dangling reference is
+   expensive: add every new file first; rewrite `app-icon.svg` and run
+   `render-icons.mjs` in the same commit; update references only once the files
+   exist; delete superseded assets last.
 4. **Fonts.** Add Poppins 600/700 and Barlow Condensed 800 woff2 to
    `public/app/fonts/` with their `@font-face` rules (`font-display: swap`).
    Repoint `--font-display` to Poppins and introduce `--font-hero` for Barlow
@@ -442,10 +520,25 @@ only steps that change markup on a critical path).
 2. ~~Condensed headline face~~ — decided 2026-09-20; see Recorded decisions.
 3. ~~Staff PWA icon~~ — decided 2026-09-20; see Recorded decisions.
 4. **"Blue skies" copy** for empty states — owner to approve wording.
-5. **Email, SMS and WhatsApp templates:** do any carry the old colours or logo?
+5. **`/book` crawlability — follow-up, not step 3.** The published `robots.txt`
+   carries `Disallow: /book`, so platforms honouring it never fetch the page and
+   never read its Open Graph tags, whatever the image path. Step 3 deliberately
+   does not change `robots.txt`. Two things to settle separately: whether the
+   booking landing page should be crawlable at all, and — if `/book` is
+   disallowed for privacy — that **`robots.txt` is not a privacy boundary**. It
+   is a request to well-behaved crawlers and protects nothing; anything relying
+   on it for confidentiality needs a real control, and that rationale should be
+   revisited on its own terms.
+6. **Maskable app icon.** Step 3 ships the dog at 80% of the canvas with
+   `purpose: "any"`, unchanged from today. A `"maskable"` entry would guarantee
+   the icon survives any Android mask shape, but the safe zone is a circle of
+   80% diameter and 9.17% of the dog's ink currently sits outside it. The
+   options are a smaller dog (about 61% of the canvas, noticeably reduced on a
+   home screen) or a second, separately-scaled render target. Owner to choose.
+7. **Email, SMS and WhatsApp templates:** do any carry the old colours or logo?
    Not searched beyond `supabase/` and `whatsapp-flows/`. Needs a look before
    the brand can be called consistent; out of scope here.
-6. **"Grooming Salon" subline weight** in the lockup is set in Poppins SemiBold
+8. **"Grooming Salon" subline weight** in the lockup is set in Poppins SemiBold
    as a best reading of a small, soft raster. Owner to eyeball against print.
 
 ## Recorded decisions
@@ -470,8 +563,34 @@ only steps that change markup on a critical path).
 - **Staff app icon: the dog replaces the calendar-and-paw.** Only `/staff/`
   installs as an app, so there is no customer icon to confuse it with. Built as
   a white dog on a full-bleed black square (phones mask the corners, so a
-  circle inside a square would waste them). The small roundel stays the browser
-  favicon.
+  circle inside a square would waste them). ~~The small roundel stays the browser
+  favicon.~~ — superseded 2026-09-22, below.
+
+2026-09-22, owner:
+
+- **The browser favicon is a rounded square, not the small roundel.** The circle
+  costs the dog too much room at favicon size: measured, the dog is 10.2px tall
+  at a 16px canvas inside the roundel (63.9% of its viewBox) against 14.0px in
+  the square (87.5%). It also removes an inconsistency this plan would otherwise
+  have created — `index.html` offers the SVG favicon *and* the 192/512 PNGs as
+  `rel="icon"`, and those PNGs are square, so some browsers would have shown a
+  circle and others a square. The small roundel keeps its other jobs.
+- **Provenance of that favicon, recorded deliberately.** The file was generated
+  or modified by Claude at the owner's request. It uses the same approved dog
+  geometry as the five masters — verified identical, aspect ratio 0.9150 in the
+  square, the roundel and the silhouette alike — scaled up and otherwise
+  untouched, so the frozen-proportions rule holds. The owner approved the square
+  treatment after a 16px/32px geometry comparison. The file arrived carrying an
+  embedded C2PA manifest (`com.anthropic.claude.provided`); it was **stripped
+  before shipping**, taking the file from 9,754 to 2,018 bytes, because no
+  browser consumes it and a favicon is fetched on nearly every page load and
+  precached to every installed device. This record replaces it.
+- **The Open Graph image moves out of `/app/`** to a versioned, crawlable root
+  asset, and `og:image` becomes an absolute URL. The old `/app/logo.png` could
+  never be fetched by any crawler honouring `robots.txt`. Format is **PNG**, not
+  the JPEG the first draft specified: the asset now lives in the website's
+  `public/`, outside the booking app's service-worker precache, so the reason
+  for avoiding PNG no longer applies.
 
 ## Revisions
 
