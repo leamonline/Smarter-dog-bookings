@@ -822,8 +822,8 @@ ${manifest.map((item) => `- ${item.title}: \`${item.output}\` (${item.width} x $
 
 async function main() {
   fontCss = await buildFontCss();
-  const logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
-  dogSilhouetteDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
+  const logoDataUrl = await readDataUrl("scripts/assets/legacy-logo.png", "image/png");
+  dogSilhouetteDataUrl = await readDataUrl("scripts/assets/legacy-dog-silhouette.png", "image/png");
   const iconDataUrl = launchIconDataUrl();
 
   await fs.mkdir(outDir, { recursive: true });

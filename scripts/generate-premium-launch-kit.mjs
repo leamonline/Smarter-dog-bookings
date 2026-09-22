@@ -563,8 +563,8 @@ async function writeShowcase() {
 
 async function main() {
   fontCss = await buildFontCss();
-  logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
-  dogDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
+  logoDataUrl = await readDataUrl("scripts/assets/legacy-logo.png", "image/png");
+  dogDataUrl = await readDataUrl("scripts/assets/legacy-dog-silhouette.png", "image/png");
   dashboardDataUrl = await readDataUrl(screenshotPath, "image/png");
 
   await fs.rm(outDir, { recursive: true, force: true });
