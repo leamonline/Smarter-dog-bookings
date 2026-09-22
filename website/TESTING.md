@@ -191,7 +191,7 @@ vi.mock('./ChildComponent', () => ({
 vi.mock('../constants/colors', () => ({
   colors: {
     teal: '#2A6F6B',
-    cyan: '#00C2FF',
+    cyan: '#5595DC',
   }
 }));
 ```

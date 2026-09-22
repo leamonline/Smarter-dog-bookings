@@ -18,7 +18,14 @@ const MobileQuickActions = ({ onBookClick }) => {
             <div
                 className="mx-4 mb-4 rounded-2xl border p-2 shadow-2xl pointer-events-auto backdrop-blur-md"
                 style={{
-                    backgroundColor: 'rgba(250, 249, 246, 0.94)',
+                    // Derived from the token so it cannot drift again: this bar
+                    // floats over the page and had the old off-white's value
+                    // (#FAF9F6) frozen into an rgba literal, which left it a
+                    // cool near-white island once the paper turned cream. `F0`
+                    // is the 0.94 alpha it always had.
+                    backgroundColor: `${colors.offWhite}F0`,
+                    // The purple hairline is one of the stray `rgba(45, 0, 75, …)`
+                    // literals the plan hands to the step 8 sweep, so it stays.
                     borderColor: 'rgba(45, 0, 75, 0.12)',
                 }}
             >
