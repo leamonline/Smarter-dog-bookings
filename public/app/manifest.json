@@ -5,8 +5,8 @@
   "start_url": "/staff/",
   "scope": "/staff/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#FFFFFF",
+  "background_color": "#F7EFE6",
+  "theme_color": "#F7EFE6",
   "icons": [
     {
       "src": "/app/favicon.svg",

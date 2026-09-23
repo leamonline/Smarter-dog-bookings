@@ -16,8 +16,13 @@
  * customer-facing behaviour here.
  */
 
-const PUSH_ICON = "/icons/icon-192.png";
-const PUSH_BADGE = "/icons/icon-192.png";
+// /app/, not /icons/ — every booking static file lives under /app/ (see
+// src/test/staticOutputNamespace.test.ts). These pointed at /icons/... which
+// has never existed, so staff push notifications fell back to the browser's
+// default icon. A wrong path here does not 404 either: vercel.json's catch-all
+// rewrite returns the marketing homepage with HTTP 200.
+const PUSH_ICON = "/app/icons/icon-192.png";
+const PUSH_BADGE = "/app/icons/icon-192.png";
 const DEFAULT_URL = "/staff/";
 
 self.addEventListener("push", (event) => {

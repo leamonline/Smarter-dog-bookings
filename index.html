@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="description" content="SmarterDog — Dog grooming salon booking and management dashboard" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#FAF9F6" />
+    <meta name="theme-color" content="#F7EFE6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SmarterDog" />
@@ -18,20 +18,31 @@
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/app/fonts/montserrat-400.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/app/fonts/poppins-700.woff2">
 
-    <!-- Open Graph / WhatsApp / Slack link previews -->
+    <!-- Open Graph / WhatsApp / Slack link previews.
+         The image is an ABSOLUTE url and lives outside /app/ on purpose. The
+         published robots.txt carries `Disallow: /app/`, so the old
+         /app/logo.png could never be fetched by any crawler that honours it;
+         and with no og:url there was no base for a relative path to resolve
+         against, so og:url is declared here too. The filename is versioned
+         because social caches are sticky — a future image becomes
+         og-booking-2027.png rather than an overwrite of this one.
+         Note this does not make every platform unfurl /book: robots.txt still
+         disallows the page itself. See the plan's Open questions. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="SmarterDog" />
+    <meta property="og:url" content="https://smarterdog.co.uk/book" />
     <meta property="og:title" content="SmarterDog — Salon Bookings" />
     <meta property="og:description" content="Dog grooming salon booking and management dashboard." />
-    <meta property="og:image" content="/app/logo.png" />
+    <meta property="og:image" content="https://smarterdog.co.uk/og-booking-2026.png" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="300" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="SmarterDog — Salon Bookings" />
     <meta name="twitter:description" content="Dog grooming salon booking and management dashboard." />
-    <meta name="twitter:image" content="/app/logo.png" />
+    <meta name="twitter:image" content="https://smarterdog.co.uk/og-booking-2026.png" />
 
     <title>SmarterDog — Salon Bookings</title>
     <link rel="stylesheet" href="/src/index.css" />
