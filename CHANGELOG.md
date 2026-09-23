@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — brand reskin, steps 2 and 4 (#896)
+## Unreleased — brand reskin, steps 2, 4, 6 and 9 (#896)
 
 - Swap the brand token values from purple/cyan to charcoal, cream and sky
   (`src/index.css`, `customer-portal.css`). Every token name is kept, status,
@@ -11,6 +11,18 @@
   self-hosted woff2 (latin + latin-ext) with their OFL licences. The Quicksand
   files and every hardcoded `'Quicksand'` stack are gone; display type is
   read from the `--font-display` token throughout.
+- The customer portal no longer reads an unknown state as an empty one. After a
+  failed fetch the dashboard withholds "nothing booked" / "no dogs yet" and the
+  actions derived from them — including the phone's sticky booking bar — instead
+  of inviting a duplicate booking beside an error banner. Success is tracked per
+  request, so an unrelated failure cannot silence a list that loaded, and rows
+  that did arrive still render. Portal and wizard gradients, polaroid stripes,
+  the sticky-bar fade and the skeleton shimmer move onto the new palette.
+- The marketing site under `website/` takes the same palette and Poppins
+  headings. `cyanText` joins its colour system so type and links use a blue that
+  clears 4.5:1 while the brighter sky stays on surfaces and tape, and the error
+  boundary stops dimming its own copy with `opacity`, which had been holding its
+  WhatsApp link well below the contrast floor.
 
 ## Unreleased — Daily Brief appointment stack (#891)
 
