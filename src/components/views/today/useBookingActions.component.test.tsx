@@ -16,6 +16,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useBookingActions } from "./useBookingActions";
 import { BOOKING_STATUS } from "../../../constants/index";
+import { buildMiniInvoicePatch } from "../../../engine/dailyBrief";
+import { buildTakingsByMethod } from "../../../engine/today";
 
 const DATE = "2026-07-13";
 
@@ -190,6 +192,46 @@ describe("collecting a dog that pays on the way out", () => {
     expect(row.payment).toBe("Due at Pick-up");
     expect(row.paymentMethod).toBeNull();
     expect(row.paidAmount).toBeNull();
+  });
+});
+
+describe("taking a payment through the mini invoice", () => {
+  // #874: the invoice wrote the appointment's gross value to paid_amount, so on
+  // a deposit-paid visit the day's takings reported £42 when the till held £32.
+  // The patch is built by the real engine function and saved through the real
+  // hook, and the assertions are on the row that reached the writer — and on
+  // the takings figure staff read off that same row.
+  it("writes the balance taken, not the gross, and the takings agree", async () => {
+    const { result, onUpdateBooking } = setup();
+    const deposited = { ...OWES, payment: "Deposit Paid", depositAmount: 10 };
+
+    const invoice = buildMiniInvoicePatch({
+      booking: { ...PRICING, payment: "Deposit Paid", depositAmount: 10 } as never,
+      basePrice: 42,
+      addons: [],
+      depositAmount: 10,
+      paymentReceived: 32,
+      paymentMethod: "card",
+    });
+    if (!invoice.ok) throw new Error(invoice.error);
+
+    await act(async () => {
+      await result.current.saveInvoice(deposited as never, invoice.patch as never);
+    });
+
+    const row = writtenRow(onUpdateBooking);
+    expect(row.payment).toBe("Paid in Full");
+    expect(row.paymentMethod).toBe("card");
+    expect(row.paidAmount).toBe(32);
+    // The deposit is kept in its own column, so the appointment's full value is
+    // still recoverable as depositAmount + paidAmount.
+    expect(row.depositAmount).toBe(10);
+
+    const takings = buildTakingsByMethod([row as never]);
+    expect(takings.total).toBe(32);
+    expect(takings.byMethod).toEqual([
+      { method: "card", label: "Card", amount: 32, count: 1 },
+    ]);
   });
 });
 

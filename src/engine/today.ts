@@ -1041,12 +1041,20 @@ export interface TakingsByMethod {
  * paid_amount where present, else the computed appointment total (legacy paid
  * bookings have no recorded amount). Bookings with no recorded method fall into
  * an "unrecorded" bucket. Cancelled bookings are excluded.
+ *
+ * `dogs` and `configPricing` only matter for that legacy fallback: they give it
+ * the same price precedence as every other figure (the dog's agreed price, then
+ * the Settings price), rather than the hard-coded table (#874).
  */
 function methodLabel(method: string): string {
   return method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method);
 }
 
-export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod {
+export function buildTakingsByMethod(
+  bookings: TodayBooking[],
+  dogs: Record<string, Dog> | null = null,
+  configPricing?: PricingConfig,
+): TakingsByMethod {
   const paid = bookings.filter((b) => (b.payment || "") === "Paid in Full" && isCountableBooking(b));
   const acc: Record<string, { amount: number; count: number }> = {};
   const rows: TakingsByMethod["bookings"] = [];
@@ -1061,6 +1069,10 @@ export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod 
             addons: b.addons ?? null,
             payment: b.payment ?? null,
             priceOverride: b.priceOverride ?? null,
+            customPrice: dogs
+              ? getDogByIdOrName(dogs, b._dogId || b.dogName || "")?.customPrice ?? null
+              : null,
+            configPricing,
           }).subtotal;
     const method = b.paymentMethod || "unrecorded";
     (acc[method] ||= { amount: 0, count: 0 });

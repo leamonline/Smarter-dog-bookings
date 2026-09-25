@@ -43,7 +43,8 @@ describe("MiniInvoiceModal", () => {
         expect.objectContaining({
           payment: "Paid in Full",
           paymentMethod: "card",
-          paidAmount: 42,
+          // The £32 balance the till took, not the £42 appointment (#874).
+          paidAmount: 32,
         }),
       ),
     );
@@ -73,7 +74,10 @@ describe("MiniInvoiceModal", () => {
     expect(screen.getByRole("radio", { name: "Card" })).toBeChecked();
   });
 
-  it("preserves an existing paid booking and its retained deposit when saved unchanged", async () => {
+  // A row the invoice wrote before #874 carries the gross (£42) alongside a £10
+  // deposit. Saving it again records what the till actually took, so the
+  // figure moves to £32 — the price, deposit and method are kept as they were.
+  it("keeps an existing paid booking's price, deposit and method, recording the balance taken", async () => {
     const onSave = vi.fn().mockResolvedValue({ id: "b1" });
     render(
       <MiniInvoiceModal
@@ -104,7 +108,7 @@ describe("MiniInvoiceModal", () => {
         payment: "Paid in Full",
         depositAmount: 10,
         paymentMethod: "card",
-        paidAmount: 42,
+        paidAmount: 32,
       }),
     );
   });
@@ -141,7 +145,7 @@ describe("MiniInvoiceModal", () => {
           payment: "Paid in Full",
           depositAmount: 10,
           paymentMethod: "cash",
-          paidAmount: 46,
+          paidAmount: 36,
         }),
       ),
     );
