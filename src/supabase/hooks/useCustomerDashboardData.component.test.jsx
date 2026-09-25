@@ -119,6 +119,78 @@ describe("useCustomerDashboardData", () => {
     expect(result.current.dogs).toEqual([]);
   });
 
+  describe("per-resource load flags", () => {
+    // The fetches run as one sequential chain sharing a single `loadError`,
+    // so a late failure leaves earlier results perfectly valid. Consumers ask
+    // these flags, not the error, or an unrelated outage suppresses an empty
+    // state that was honestly empty.
+    it("marks every resource loaded on a clean fetch", async () => {
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.loaded).toEqual({
+        dogs: true,
+        bookings: true,
+        trustedHumans: true,
+      });
+    });
+
+    it("keeps dogs and bookings loaded when only trusted humans fails", async () => {
+      mocks.listCustomerTrustedHumans.mockResolvedValue({
+        data: null,
+        error: new Error("permission denied"),
+      });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.loadError).toBeInstanceOf(Error);
+      // The point of the change: the booking card must not be silenced by a
+      // failure in a request that has nothing to do with bookings.
+      expect(result.current.loaded.dogs).toBe(true);
+      expect(result.current.loaded.bookings).toBe(true);
+      expect(result.current.loaded.trustedHumans).toBe(false);
+    });
+
+    it("leaves bookings unloaded when the booking query itself fails", async () => {
+      mocks.listCustomerBookings.mockResolvedValue({
+        bookings: [],
+        error: new Error("permission denied"),
+      });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.loaded.dogs).toBe(true);
+      expect(result.current.loaded.bookings).toBe(false);
+    });
+
+    it("leaves everything unloaded when the first query fails", async () => {
+      mocks.listForHuman.mockResolvedValue({
+        dogs: [],
+        error: new Error("permission denied"),
+      });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.loaded).toEqual({
+        dogs: false,
+        bookings: false,
+        trustedHumans: false,
+      });
+    });
+
+    it("counts bookings as loaded for a customer with no dogs", async () => {
+      // Nothing to attach a booking to, so the empty diary is known, not
+      // unknown, and the empty state is honest.
+      mocks.listForHuman.mockResolvedValue({ dogs: [], error: null });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(mocks.listCustomerBookings).not.toHaveBeenCalled();
+      expect(result.current.loaded.dogs).toBe(true);
+      expect(result.current.loaded.bookings).toBe(true);
+    });
+  });
+
   it("pages older bookings from the oldest loaded date and stops when a short page returns", async () => {
     const older = { ...BOOKING, id: "40000000-0000-4000-8000-000000000002", bookingDate: "2098-01-05" };
     mocks.listOlderCustomerBookings.mockResolvedValue({ bookings: [older], error: null });

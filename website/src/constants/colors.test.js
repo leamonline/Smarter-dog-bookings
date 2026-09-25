@@ -10,12 +10,17 @@ describe('colors constants', () => {
 
     it('defines offWhite color', () => {
       expect(colors.offWhite).toBeDefined();
-      expect(colors.offWhite).toBe('#FAF9F6');
+      expect(colors.offWhite).toBe('#F7EFE6');
     });
 
     it('defines cyan bright color', () => {
       expect(colors.cyan).toBeDefined();
-      expect(colors.cyan).toBe('#00C2FF');
+      expect(colors.cyan).toBe('#5595DC');
+    });
+
+    it('defines cyanText, the calm blue that passes AA as type', () => {
+      expect(colors.cyanText).toBeDefined();
+      expect(colors.cyanText).toBe('#2A62A8');
     });
 
     it('defines green bright color', () => {
@@ -40,7 +45,7 @@ describe('colors constants', () => {
 
     it('defines cyanLight tint', () => {
       expect(colors.cyanLight).toBeDefined();
-      expect(colors.cyanLight).toBe('#E0F7FF');
+      expect(colors.cyanLight).toBe('#E0EFFF');
     });
 
     it('defines greenLight tint', () => {
@@ -101,7 +106,7 @@ describe('colors constants', () => {
 
   describe('color palette structure', () => {
     it('exports the full palette', () => {
-      expect(Object.keys(colors)).toHaveLength(17);
+      expect(Object.keys(colors)).toHaveLength(18);
     });
 
     it('has 2 anchor colors (teal, offWhite)', () => {
@@ -185,7 +190,7 @@ describe('colors constants', () => {
     });
 
     it('offWhite is close to white but not pure white', () => {
-      expect(colors.offWhite).toBe('#FAF9F6');
+      expect(colors.offWhite).toBe('#F7EFE6');
       expect(colors.offWhite).not.toBe('#FFFFFF');
     });
   });

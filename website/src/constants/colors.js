@@ -3,14 +3,15 @@
 
 export const colors = {
     // === ANCHORS (Typography & Foundations) ===
-    plum: '#2D004B',
+    plum: '#1F1F1F',        // Charcoal ink; the key name predates the 2026 reskin (#896)
     teal: '#2A6F6B',        // Primary text on light backgrounds
-    offWhite: '#FAF9F6',
+    offWhite: '#F7EFE6',    // Cream paper
     warmBeige: '#FDFBF7',
 
     // === CALM (Trust, Safety, Reviews) ===
     // Use for: Hero, Stats, Reviews, Footer
-    cyan: '#00C2FF',        // Primary calm colour
+    cyan: '#5595DC',        // Primary calm colour — surfaces, tape and strokes only (3.1:1 as text)
+    cyanText: '#2A62A8',    // The same blue for type and links: 6.2:1 on white, 5.4:1 on offWhite
 
     // === ACTION (CTAs Only — never decorative) ===
     // If it's this colour, it must do something
@@ -31,7 +32,7 @@ export const colors = {
     darkGray: '#4A4A4A',    // Price text
 
     // === TINTS (Cards & elements only) ===
-    cyanLight: '#E0F7FF',
+    cyanLight: '#E0EFFF',
     greenLight: '#E3FCE8',
     tealLight: '#E8F5F5',
     pinkLight: '#FFE3EB',

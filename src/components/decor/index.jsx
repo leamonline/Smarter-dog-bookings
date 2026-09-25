@@ -4,8 +4,10 @@
 
 /**
  * The brand dog silhouette, paintable in any colour.
- * Uses the PNG at /images/dog-silhouette.png as a CSS mask, then
- * fills with a background-color. That way one asset → infinite colours.
+ * Uses the silhouette master at /app/logos/smarter-dog-silhouette.svg as a
+ * CSS mask and fills it with a background-color, so one asset gives every
+ * colour. The master is black on transparent, which is what makes it work as
+ * a mask — do not recolour the file itself.
  *
  * Props:
  *   color    — any valid CSS colour (default: deep purple)
@@ -33,8 +35,8 @@ export function DogSilhouette({
         backgroundColor: color,
         opacity,
         transform: `rotate(${rotation}deg)`,
-        WebkitMaskImage: "url(/app/images/dog-silhouette.png)",
-        maskImage: "url(/app/images/dog-silhouette.png)",
+        WebkitMaskImage: "url(/app/logos/smarter-dog-silhouette.svg)",
+        maskImage: "url(/app/logos/smarter-dog-silhouette.svg)",
         WebkitMaskRepeat: "no-repeat",
         maskRepeat: "no-repeat",
         WebkitMaskSize: "contain",

@@ -8,7 +8,11 @@ export const communityCategories = [
         id: 'dog-walks',
         title: 'Dog Walks',
         subtitle: 'Our favourite local spots for a good sniff and a stretch.',
-        color: colors.cyan,
+        // `color` reaches ListingCard as `accentColor`, whose only job is the
+        // 14px "Visit website" link on a white card — so it must be the
+        // text-safe blue. `cyan` is the surface/tape blue and manages just
+        // 3.13:1 there; `cyanText` is the same hue at 6.16:1.
+        color: colors.cyanText,
         tint: colors.cyanLight,
         iconName: 'DogWalkIcon',
         listings: [

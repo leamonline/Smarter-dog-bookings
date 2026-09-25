@@ -21,7 +21,7 @@
   --sd-buttercup-tint: var(--color-sd-buttercup-tint);
   --sd-mint-tint: var(--color-sd-mint-tint);
   --sd-coral-tint: var(--color-sd-coral-tint);
-  --sd-lavender-tint: #F3EDFB; /* soft tint of the brand navy — past appointments */
+  --sd-lavender-tint: var(--color-sd-cloud-tint); /* past appointments — brand reskin step 2: promoted from a purple-derived literal to a neutral token */
   --sd-paper: var(--color-sd-paper);
   --sd-white: #FFFFFF;
   --sd-dark: #2A1810;
@@ -38,7 +38,7 @@
   flex-direction: column;
   font-family: 'Montserrat', sans-serif;
   background:
-    radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.15), transparent 70%),
+    radial-gradient(900px 280px at 12% -80px, rgba(85, 149, 220, 0.15), transparent 70%),
     radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%),
     var(--sd-paper);
   color: var(--sd-navy);
@@ -139,7 +139,7 @@
 .portal-header-text { min-width: 0; }
 
 .portal-welcome {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(26px, 5.4vw, 34px);
   font-weight: 700;
   color: var(--sd-navy);
@@ -167,7 +167,7 @@
 
 .portal-tagline {
   margin: 10px 0 0;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
   font-size: 14px;
@@ -312,7 +312,7 @@
 .portal-card-iconbadge--lavender { background: #E5D8F4; color: var(--sd-navy); }
 
 .portal-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -571,7 +571,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: repeating-linear-gradient(45deg, #E6F4FB 0 10px, #DBEEF8 10px 20px);
+  background: repeating-linear-gradient(45deg, #E6F0FB 0 10px, #DBE9F8 10px 20px);
   color: var(--sd-cyan-dark);
 }
 
@@ -581,14 +581,14 @@
   left: 0;
   right: 0;
   text-align: center;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-size: 11px;
   color: var(--sd-ink-light);
 }
 
 .portal-empty-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 15px;
   color: var(--sd-navy);
@@ -703,7 +703,7 @@
 .skeleton-row {
   height: 56px;
   border-radius: 14px;
-  background: linear-gradient(90deg, rgba(45,0,75,0.04), rgba(45,0,75,0.08), rgba(45,0,75,0.04));
+  background: linear-gradient(90deg, rgba(31,31,31,0.04), rgba(31,31,31,0.08), rgba(31,31,31,0.04));
   background-size: 200% 100%;
   animation: skeleton 1.4s ease-in-out infinite;
 }
@@ -714,7 +714,7 @@
   100% { background-position: -200% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-row { animation: none; background: rgba(45, 0, 75, 0.06); }
+  .skeleton-row { animation: none; background: rgba(31, 31, 31, 0.06); }
 }
 
 /* --- Animations --- */
@@ -824,7 +824,7 @@
 }
 
 .portal-footer-tagline {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
   font-size: 16px;
@@ -912,7 +912,7 @@
 .portal-booking-card--empty  { background: var(--sd-white); }
 
 .portal-booking-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -1014,7 +1014,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
   color: var(--sd-navy);
@@ -1097,7 +1097,7 @@
    Not every inline text-class needs replacing — these exist so new code
    can reach for the canonical step instead of inventing a new size. */
 .portal-text-display {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(24px, 5vw, 34px);
   letter-spacing: -0.4px;
@@ -1105,14 +1105,14 @@
   line-height: 1.1;
 }
 .portal-text-card-title {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -0.2px;
   color: var(--sd-navy);
 }
 .portal-text-subhead {
-  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   color: var(--sd-navy);
@@ -1148,7 +1148,7 @@
   bottom: 0;
   z-index: 50;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(250, 249, 246, 1) 60%, rgba(250, 249, 246, 0));
+  background: linear-gradient(to top, rgba(247, 239, 230, 1) 60%, rgba(247, 239, 230, 0));
   display: flex;
   justify-content: center;
 }

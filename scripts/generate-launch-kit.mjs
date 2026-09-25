@@ -37,7 +37,7 @@ const colours = {
 };
 
 let fontCss = `
-  .display { font-family: "Quicksand", "Montserrat", system-ui, sans-serif; font-weight: 700; }
+  .display { font-family: "Poppins", "Montserrat", system-ui, sans-serif; font-weight: 700; }
   .sans { font-family: "Montserrat", system-ui, sans-serif; }
   .caps { font-family: "Montserrat", system-ui, sans-serif; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 `;
@@ -67,7 +67,7 @@ async function buildFontCss() {
   const montserrat700 = await font("public/app/fonts/montserrat-700.woff2");
   const montserrat600 = await font("public/app/fonts/montserrat-600.woff2");
   const montserrat500 = await font("public/app/fonts/montserrat-500.woff2");
-  const quicksand700 = await font("public/app/fonts/quicksand-700.woff2");
+  const poppins700 = await font("public/app/fonts/poppins-700.woff2");
 
   return `
   @font-face {
@@ -86,11 +86,11 @@ async function buildFontCss() {
     font-weight: 500;
   }
   @font-face {
-    font-family: "Quicksand";
-    src: url("${quicksand700}") format("woff2");
+    font-family: "Poppins";
+    src: url("${poppins700}") format("woff2");
     font-weight: 700;
   }
-  .display { font-family: "Quicksand", "Montserrat", system-ui, sans-serif; font-weight: 700; }
+  .display { font-family: "Poppins", "Montserrat", system-ui, sans-serif; font-weight: 700; }
   .sans { font-family: "Montserrat", system-ui, sans-serif; }
   .caps { font-family: "Montserrat", system-ui, sans-serif; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 `;
@@ -822,8 +822,8 @@ ${manifest.map((item) => `- ${item.title}: \`${item.output}\` (${item.width} x $
 
 async function main() {
   fontCss = await buildFontCss();
-  const logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
-  dogSilhouetteDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
+  const logoDataUrl = await readDataUrl("scripts/assets/legacy-logo.png", "image/png");
+  dogSilhouetteDataUrl = await readDataUrl("scripts/assets/legacy-dog-silhouette.png", "image/png");
   const iconDataUrl = launchIconDataUrl();
 
   await fs.mkdir(outDir, { recursive: true });

@@ -54,14 +54,14 @@ async function buildFontCss() {
   };
   const montserrat700 = await font("public/app/fonts/montserrat-700.woff2");
   const montserrat600 = await font("public/app/fonts/montserrat-600.woff2");
-  const quicksand700 = await font("public/app/fonts/quicksand-700.woff2");
-  const quicksand600 = await font("public/app/fonts/quicksand-600.woff2");
+  const poppins700 = await font("public/app/fonts/poppins-700.woff2");
+  const poppins600 = await font("public/app/fonts/poppins-600.woff2");
   return `
     @font-face { font-family: "Montserrat"; src: url("${montserrat700}") format("woff2"); font-weight: 700; }
     @font-face { font-family: "Montserrat"; src: url("${montserrat600}") format("woff2"); font-weight: 600; }
-    @font-face { font-family: "Quicksand"; src: url("${quicksand700}") format("woff2"); font-weight: 700; }
-    @font-face { font-family: "Quicksand"; src: url("${quicksand600}") format("woff2"); font-weight: 600; }
-    .display { font-family: "Quicksand", "Montserrat", system-ui, sans-serif; font-weight: 700; }
+    @font-face { font-family: "Poppins"; src: url("${poppins700}") format("woff2"); font-weight: 700; }
+    @font-face { font-family: "Poppins"; src: url("${poppins600}") format("woff2"); font-weight: 600; }
+    .display { font-family: "Poppins", "Montserrat", system-ui, sans-serif; font-weight: 700; }
     .sans { font-family: "Montserrat", system-ui, sans-serif; font-weight: 700; }
     .body { font-family: "Montserrat", system-ui, sans-serif; font-weight: 600; }
     .caps { font-family: "Montserrat", system-ui, sans-serif; font-weight: 700; letter-spacing: 0.075em; text-transform: uppercase; }
@@ -563,8 +563,8 @@ async function writeShowcase() {
 
 async function main() {
   fontCss = await buildFontCss();
-  logoDataUrl = await readDataUrl("public/app/logo.png", "image/png");
-  dogDataUrl = await readDataUrl("public/app/images/dog-silhouette.png", "image/png");
+  logoDataUrl = await readDataUrl("scripts/assets/legacy-logo.png", "image/png");
+  dogDataUrl = await readDataUrl("scripts/assets/legacy-dog-silhouette.png", "image/png");
   dashboardDataUrl = await readDataUrl(screenshotPath, "image/png");
 
   await fs.rm(outDir, { recursive: true, force: true });

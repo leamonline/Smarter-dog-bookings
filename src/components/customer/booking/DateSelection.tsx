@@ -330,7 +330,7 @@ export function DateSelection({
           <span className="inline-flex flex-col items-start gap-0.5 min-w-0">
             <span className="inline-flex items-center gap-2">
               <Zap size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
-              <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">Today — last minute</span>
+              <span className="font-display text-[15px] font-bold">Today — last minute</span>
             </span>
             <span className="text-[12px] text-[var(--sd-ink-light)]">A time has come free today — book up to 30 minutes before</span>
           </span>

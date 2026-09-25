@@ -124,13 +124,13 @@ src/
 
 ### Colors
 
-- **Anchors**: Plum, Dungaree Teal, Off-White
-- **Brights**: Cyan, Green
+- **Anchors**: Charcoal (`plum`), Dungaree Teal, Cream (`offWhite`)
+- **Brights**: Sky (`cyan` for surfaces, `cyanText` for type), Green
 - **Accents**: Pink, Yellow, Orange
 
 ### Typography
 
-- **Headings**: Quicksand
+- **Headings**: Poppins
 - **Body**: Montserrat
 - **Handwriting**: Caveat
 

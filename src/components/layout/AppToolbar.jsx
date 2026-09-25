@@ -16,18 +16,20 @@ function initialsFromUser(user) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// The wordmark as brand-purple ink on the light bar — /app/logo.png is a
-// black-on-transparent lockup, so a CSS mask recolours it to match the
-// chrome exactly (same technique as DogSilhouette). Source is 4:1, so
-// keep width = 4 × height for a crisp `contain` fit.
+// The wordmark as ink on the light bar — the lockup master is black on
+// transparent, so a CSS mask recolours it to match the chrome exactly (same
+// technique as DogSilhouette). The master's viewBox is 1088.2x231.2, i.e.
+// **4.706:1**, not the 4:1 the old raster was; width must follow or `contain`
+// letterboxes the mark inside its box and it renders smaller than the layout
+// reserves. Keep width = 4.706 x height when changing these sizes.
 function BrandWordmark({ className = "" }) {
   return (
     <span
       aria-hidden="true"
       className={`block bg-brand-purple ${className}`}
       style={{
-        WebkitMaskImage: "url(/app/logo.png)",
-        maskImage: "url(/app/logo.png)",
+        WebkitMaskImage: "url(/app/logos/smarter-dog-lockup-black.svg)",
+        maskImage: "url(/app/logos/smarter-dog-lockup-black.svg)",
         WebkitMaskRepeat: "no-repeat",
         maskRepeat: "no-repeat",
         WebkitMaskSize: "contain",
@@ -81,7 +83,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           saturated colour up here is signal (badges, the one CTA). */}
       <div className="hidden lg:flex items-center gap-2 -mx-[var(--app-gutter)] px-[var(--app-gutter)] py-2 bg-white text-slate-700 border-b border-slate-200">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
-          <BrandWordmark className="h-7 w-28" />
+          <BrandWordmark className="h-7 w-[132px]" />
         </NavLink>
 
         {/* Primary nav — sits inline next to the logo to keep the right
@@ -284,7 +286,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           room. */}
       <div className="lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
-          <BrandWordmark className="h-6 w-24" />
+          <BrandWordmark className="h-6 w-[113px]" />
         </NavLink>
         <div className="flex-1" />
         {/* The one persistent booking entry point on mobile — every screen,

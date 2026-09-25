@@ -43,6 +43,16 @@ export function useCustomerDashboardData(
   const [trustedHumans, setTrustedHumans] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<unknown>(null);
+  // The fetches below run as one sequential chain, so a late failure leaves
+  // earlier results valid while `loadError` is set. A single flag would make
+  // a trusted-humans outage suppress a booking list that loaded perfectly
+  // well, so each resource records its own success and consumers ask only
+  // about the fetch that fills them.
+  const [loaded, setLoaded] = useState({
+    dogs: false,
+    bookings: false,
+    trustedHumans: false,
+  });
   const [hasMorePast, setHasMorePast] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -54,6 +64,10 @@ export function useCustomerDashboardData(
     const client = customerSupabase;
     const humanId = humanRecord.id;
     let cancelled = false;
+    const markLoaded = (key: "dogs" | "bookings" | "trustedHumans") => {
+      if (cancelled) return;
+      setLoaded((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+    };
 
     async function fetchData() {
       try {
@@ -63,6 +77,7 @@ export function useCustomerDashboardData(
         if (dogErr) throw dogErr;
         if (cancelled) return;
         setDogs(dogRows);
+        markLoaded("dogs");
 
         const dogIds = dogRows.map((d) => d.id);
         if (dogIds.length > 0) {
@@ -78,6 +93,12 @@ export function useCustomerDashboardData(
             beforeDate: pastStr,
           });
           if (!cancelled) setHasMorePast(more);
+          markLoaded("bookings");
+        } else {
+          // No dogs on the account means there is nothing a booking could be
+          // attached to. That is a known-empty diary, not an unknown one, so
+          // the empty state is honest here.
+          markLoaded("bookings");
         }
 
         const { data: trustedLinks, error: trustedErr } =
@@ -86,6 +107,7 @@ export function useCustomerDashboardData(
 
         if (!cancelled) {
           setTrustedHumans(Array.isArray(trustedLinks) ? trustedLinks : []);
+          markLoaded("trustedHumans");
         }
       } catch (err) {
         logger.error("CustomerDashboard fetch failed", err, {
@@ -165,6 +187,7 @@ export function useCustomerDashboardData(
     trustedHumans,
     loading,
     loadError,
+    loaded,
     hasMorePast,
     loadingMore,
     loadMore,

@@ -50,7 +50,7 @@ function PortalShell({ children }) {
         <div className="relative">
           <div className="flex justify-center mb-2 sm:mb-4">
             <img
-              src="/app/logo.png"
+              src="/app/logos/smarter-dog-lockup-black.svg"
               alt="Smarter Dog Grooming Salon"
               className="h-10 sm:h-[72px] w-auto select-none"
               draggable={false}
@@ -188,7 +188,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   if (isOffline) {
     return (
       <PortalShell>
-        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
           <span className="relative inline-block">
             Sample data
             <ScribbleUnderline />
@@ -208,7 +208,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
             <span className="relative inline-block">
               Hello again
               <ScribbleUnderline />
@@ -318,7 +318,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
             <span className="relative inline-block">
               Check your inbox
               <ScribbleUnderline />
@@ -344,7 +344,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   return (
     <PortalShell>
       <div aria-live="polite">
-        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
           <span className="relative inline-block">
             Reset your password
             <ScribbleUnderline />

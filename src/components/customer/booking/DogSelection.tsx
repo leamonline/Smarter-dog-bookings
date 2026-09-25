@@ -80,7 +80,7 @@ export function DogSelection({
                 className="wizard-option"
               >
                 <div className="flex flex-col items-start gap-0.5 min-w-0">
-                  <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">{titleCase(dog.name)}</span>
+                  <span className="font-display text-[15px] font-bold">{titleCase(dog.name)}</span>
                   <span className="text-[12px] font-medium text-[var(--sd-ink-light)]">
                     {dog.breed ? titleCase(dog.breed) : "Breed not set"}
                     {sizeLabel ? ` · ${sizeLabel}` : ""}
