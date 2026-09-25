@@ -228,7 +228,8 @@ jobs:
   pr-production-smoke:
     # This is intentionally separate from `e2e`: PRs run every spec once, on
     # desktop Chromium, plus the smoke and viewport-continuity journeys on
-    # WebKit — while the full desktop/tablet/mobile matrix remains
+    # WebKit, plus the specs the pull request itself changes on tablet and
+    # mobile Chromium — while the full desktop/tablet/mobile matrix remains
     # post-merge/manual to control cost.
     #
     # The job name is load-bearing (branch protection may require it by name),
@@ -244,6 +245,12 @@ jobs:
         with:
           # Test the reviewed PR head, not GitHub's synthetic merge commit.
           ref: ${{ github.event.pull_request.head.sha }}
+          # Full history, so the changed-spec step below can diff this head
+          # against its merge base with the base branch. The pack is small
+          # (about 11 MB), so this costs seconds; a shallow clone cannot tell
+          # "changed by this pull request" from "changed on main since it
+          # branched".
+          fetch-depth: 0
       - name: Verify checked-out pull-request head
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
@@ -253,6 +260,47 @@ jobs:
             echo "::error::Checked out $actual_sha, expected PR head $EXPECTED_SHA"
             exit 1
           }
+      # Feeds the narrow-viewport run at the end of this job. A spec is only
+      # exercised on tablet and mobile after merge, so a spec written against
+      # the desktop layout can pass its own pull request and then turn `e2e`
+      # red on main for every merge that follows — #894 fixed one that had
+      # done exactly that for seven merges. Running just the changed spec on
+      # the two narrow projects closes that gap at the cost of one extra spec
+      # run, not the whole matrix.
+      #
+      # The diff is against the MERGE BASE with the base branch, not its tip:
+      # a two-commit diff would also list every spec main has changed since
+      # this branch was cut, and run a fix the branch does not carry. Deleted
+      # specs are dropped (`--diff-filter=d`). A change to the Playwright
+      # config, or to anything under e2e/ that is not itself a spec (a shared
+      # helper, say), can affect every spec, so it selects them all. Paths in
+      # this repository carry no spaces, which the space-separated output
+      # relies on.
+      - name: Select the specs this pull request changes
+        id: changed-specs
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          merge_base="$(git merge-base "origin/$BASE_REF" HEAD)"
+          specs=""
+          all=""
+          while IFS= read -r file; do
+            case "$file" in
+              e2e/*.spec.ts) specs="$specs $file" ;;
+              playwright.config.ts|e2e/*) all=1 ;;
+            esac
+          done < <(git diff --name-only --diff-filter=d "$merge_base" HEAD -- e2e playwright.config.ts)
+          if [ -n "$all" ]; then
+            selection="all"
+          else
+            selection="${specs# }"
+          fi
+          echo "specs=$selection" >> "$GITHUB_OUTPUT"
+          if [ -z "$selection" ]; then
+            echo "No spec, e2e helper or Playwright config changed; the narrow-viewport run is skipped."
+          else
+            echo "Narrow-viewport run will cover: $selection"
+          fi
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -332,6 +380,34 @@ jobs:
             --reporter=line,github,html,json
           node scripts/assert-playwright-pr-smoke-results.mjs \
             pr-gate-results/pr-webkit-results.json mobile-webkit
+      # Third invocation: the specs this pull request changes, on the same
+      # tablet and mobile Chromium projects the post-merge `e2e` job runs. It
+      # deliberately does NOT set PLAYWRIGHT_PR_SMOKE: the two projects are
+      # read from the checked-out config's full matrix, which every live
+      # branch has carried since that matrix was introduced, so the step works
+      # at any branch age without adding projects to the PR-smoke config. The
+      # selection itself comes from the merged workflow (the step above), for
+      # the reason given at the desktop step. Locally:
+      #   npx playwright test e2e/<spec> --project=tablet --project=mobile
+      #
+      # Skipped tests are allowed here and nowhere else: a spec may gate
+      # itself on viewport (`test.skip(width < 1024, …)`), and on a phone that
+      # is the spec working as written, not the gate going quiet. The "ran no
+      # tests" check still applies to both projects. A branch cut before this
+      # step existed carries the older assertion script, which does not read
+      # PR_SMOKE_ALLOW_SKIPPED; if that fails on a skipped test, merge main.
+      - name: Run production-build PR suite — changed specs on tablet and mobile Chromium
+        if: steps.changed-specs.outputs.specs != ''
+        env:
+          SPECS: ${{ steps.changed-specs.outputs.specs }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/pr-gate-results/pr-narrow-results.json
+          PR_SMOKE_ALLOW_SKIPPED: "1"
+        run: |
+          if [ "$SPECS" = all ]; then set --; else set -- $SPECS; fi
+          npx playwright test "$@" --project=tablet --project=mobile \
+            --reporter=line,github,html,json
+          node scripts/assert-playwright-pr-smoke-results.mjs \
+            pr-gate-results/pr-narrow-results.json tablet mobile
       - name: Retain Playwright failure context
         if: always()
         uses: actions/upload-artifact@v7

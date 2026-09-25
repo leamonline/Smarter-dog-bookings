@@ -72,8 +72,9 @@ test → build`. Match that before pushing — "builds" alone is not the bar. CI
 required jobs to avoid running the suite twice: `build` does lint/docs/types/migrations/build, and
 `coverage` runs the suite as `vitest run --coverage`, gating the tests and the ratchet together.
 Locally it is still one command each. (E2E: a pull request runs
-every spec once on desktop Chromium plus WebKit smoke, via `pr-production-smoke`; the full
-desktop/tablet/mobile matrix runs on push to `main` or manual dispatch.) **Without `VITE_` creds in
+every spec once on desktop Chromium plus WebKit smoke, and any spec it changes on tablet and mobile
+Chromium too, via `pr-production-smoke`; the full desktop/tablet/mobile matrix runs on push to `main`
+or manual dispatch.) **Without `VITE_` creds in
 dev**, `npm run dev` falls back to offline sample-data mode rather than erroring.
 
 ## Environment

@@ -61,7 +61,7 @@ unclear.
 | --- | --- |
 | `build` | The GitHub Actions job from `.github/workflows/ci.yml` completed successfully, covering lint, documentation links, type checking, migration-file validation, Vitest and the production build. |
 | `agent-tests` | The GitHub Actions job from `.github/workflows/ci.yml` completed successfully, covering Edge Function type checks and Deno tests. |
-| `pr-production-smoke` | The GitHub Actions job from `.github/workflows/ci.yml` completed successfully with the non-empty production-build Chromium and mobile WebKit smoke suite. |
+| `pr-production-smoke` | The GitHub Actions job from `.github/workflows/ci.yml` completed successfully with the non-empty production-build Chromium and mobile WebKit smoke suite, plus any spec the pull request changed on tablet and mobile Chromium. |
 | `migrations-applied` | The job from `.github/workflows/check-migrations-applied.yml` completed successfully. Apply the separate migration review below; the green conclusion alone is not enough. |
 | `Vercel` | The exact `Vercel` commit status from `vercel[bot]` is successful on this head SHA. Open its target and confirm it identifies the candidate deployment; `Vercel Preview Comments` is not a substitute. |
 
