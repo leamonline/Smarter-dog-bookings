@@ -342,8 +342,7 @@ export function useBookingActions({
    *
    * `paidAmount` is the amount actually handed over, not the appointment's gross
    * value. On a deposit-paid visit those differ, and the till only saw the
-   * balance. (The existing mini-invoice writes the gross; that is issue #874 and
-   * is deliberately not changed here.)
+   * balance. The mini invoice writes the same figure (#874).
    *
    * WHEN NO MONEY CHANGES HANDS, NO PAYMENT FIELD IS WRITTEN. A dog that paid in
    * advance reaches the two-step chain, which hands back no method and a zero

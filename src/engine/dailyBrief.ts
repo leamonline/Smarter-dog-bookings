@@ -91,7 +91,11 @@ export function buildMiniInvoicePatch(input: MiniInvoiceInput) {
           : ("Due at Pick-up" as const),
       depositAmount: deposit > 0 ? deposit : null,
       paymentMethod: settled ? input.paymentMethod : null,
-      paidAmount: settled ? subtotal : null,
+      // What crossed the counter, not what the appointment is worth (#874).
+      // The takings figures read paid_amount as till money; on a deposit-paid
+      // visit the till only saw the balance, and the deposit keeps its own
+      // column above. The check-out chain writes the same figure.
+      paidAmount: settled ? Math.round(received * 100) / 100 : null,
     },
   };
 }

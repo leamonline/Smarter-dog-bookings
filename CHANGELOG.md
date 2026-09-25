@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — mini invoice records the money taken, not the appointment value (#874)
+
+- The mini invoice on `/staff/today` now writes the amount actually received
+  to `paid_amount`, not the appointment's gross subtotal. On a deposit-paid
+  visit the till only takes the balance, so "collected today" and the
+  "collected by method" report overstated takings by the deposit. The deposit
+  stays in `deposit_amount`, and the check-out chain already wrote the balance,
+  so the two payment surfaces on `/today` now agree. Fixed going forward only:
+  no historical rows are rewritten, though re-saving an older invoice records
+  the balance.
+- `buildTakingsByMethod` prices a legacy paid row with no recorded amount at
+  the dog's agreed price, then the Settings price, instead of the hard-coded
+  price table.
+
 ## Unreleased — changed specs run on tablet and mobile at PR time (#895)
 
 - Run the Playwright specs a pull request changes on the `tablet` and
