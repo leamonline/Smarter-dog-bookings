@@ -78,6 +78,11 @@ function tokenMap(bookings = BOOKINGS) {
   for (const zone of BOARD_ZONES) {
     for (const token of tokens[zone] || []) map.set(String(token.booking.id), token);
   }
+  for (const row of buildDayStack({ bookings, dateStr: TODAY, now: NOW })) {
+    if (row.entry.stage === "noShow" && !map.has(row.id)) {
+      map.set(row.id, { booking: row.booking, entry: row.entry, zone: null });
+    }
+  }
   return map;
 }
 
@@ -113,13 +118,12 @@ const card = (id) => document.querySelector(`[data-booking-id="${id}"]`);
 const head = (id) => card(id).querySelector("[data-stack-head]");
 
 describe("the stack renders the day in time order", () => {
-  it("lists every ACTIVE booking, earliest first, and nothing else", () => {
+  it("lists active and recoverable bookings, earliest first, and nothing else", () => {
     renderStack();
     const ids = [...document.querySelectorAll("[data-stack-card]")]
       .map((el) => el.getAttribute("data-booking-id"));
-    // "absent" is a No-show: it has left the day, so it is not here. The
-    // stack is an allow-list of the four active statuses.
-    expect(ids).toEqual(["waiting", "bathing", "arriving"]);
+    // "absent" is a no-show: it remains in place because staff can recover it.
+    expect(ids).toEqual(["waiting", "bathing", "absent", "arriving"]);
   });
 
   it("shows an empty day as words, not a blank screen", () => {
@@ -388,12 +392,16 @@ describe("pressing an action", () => {
 });
 
 describe("a no-show", () => {
-  it("has no card at all — it has left the day", () => {
-    // It used to render as a card with no actions. Now it is simply not in
-    // the stack: the screen shows work still in front of you, and a dog that
-    // did not turn up is not that. Chasing it happens elsewhere.
-    renderWithActions();
-    expect(card("absent")).toBeNull();
+  it("offers one clear way back into the active day", () => {
+    const { onAction } = renderWithActions();
+    expect(card("absent")).toBeTruthy();
+    expect(actionsIn("absent")).toContain("They turned up");
+
+    fireEvent.click(within(card("absent")).getByLabelText("They turned up — Otto"));
+    expect(onAction).toHaveBeenCalledTimes(1);
+    const [token, action] = onAction.mock.calls[0];
+    expect(token.zone).toBeNull();
+    expect(action.id).toBe("undoNoShow");
   });
 });
 

@@ -266,8 +266,16 @@ export function TodayView({
     for (const zone of BOARD_ZONES) {
       for (const token of tokens[zone] || []) map.set(String(token.booking.id), token);
     }
+    // No-shows are off the board progression, but the stack keeps them visible
+    // so staff can correct a mistaken mark. Their null zone is real state,
+    // rather than a placeholder that could accidentally unlock board actions.
+    for (const row of stackRows) {
+      if (row.entry.stage === "noShow" && !map.has(row.id)) {
+        map.set(row.id, { booking: row.booking, entry: row.entry, zone: null });
+      }
+    }
     return map;
-  }, [tokens]);
+  }, [tokens, stackRows]);
 
   const lastVisitFor = useCallback((booking) => {
     const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);

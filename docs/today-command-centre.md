@@ -120,7 +120,7 @@ reaching a till. The palette:
 | Checked in | Checked in | `#D3EAE4` | `#2E8B76` |
 | In bath | In the bath | `#D9EAC6` | `#5C9A33` |
 | Ready for pick-up | Ready | `#F7E6BE` | `#B8860B` |
-| Cancelled + `No-show` reason | No-show | `#F2D9D9` | `#B33A3A` |
+| No-show | No-show | `#F2D9D9` | `#B33A3A` |
 
 Completed leaves the stack. The olive is deliberately not mint: it sits directly
 below the teal in the progression and therefore directly beside it on screen, so
@@ -207,8 +207,9 @@ the rows**, so a list and the total above it cannot disagree.
 
 ### No-shows
 
-A no-show is a `Cancelled` booking carrying `cancel_reason = 'No-show'`. There is
-no no-show status and never has been.
+A no-show is the first-class `No-show` status. A legacy `Cancelled` booking
+carrying `cancel_reason = 'No-show'` is still read the same way so an
+unconverted row remains usable.
 
 Every other day surface drops cancelled bookings, and must keep dropping them, so
 the stack opts in rather than reassembling the day itself:
@@ -219,10 +220,12 @@ uncountable in all of them. `FeedStage` gains `noShow`, because `Cancelled` rank
 -1 and would otherwise fall back to `booked`, which is what the "Next" scan and
 the late-arrival lists key on.
 
-**Known gap:** a no-show card offers no transitions. `tokenActions` switches on
-board zone and a no-show has none, so there is currently no "they turned up" from
-the stack; the booking detail modal is the way back. Adding one is a new
-transition and belongs in `tokenActions`.
+A no-show card has no board zone and exposes **They turned up** through a
+zone-less `TokenActionSubject`. The correction returns the booking to `Booked`
+and clears `cancel_reason`; it does not claim the dog is already checked in.
+The ordinary **Arrived** action is then available. The write follows the same
+update path as booking details, including database capacity and grouped-visit
+guards.
 
 ### The old board, behind a flag
 
@@ -548,8 +551,9 @@ whose update is filtered on `reminder_confirmed_source = 'staff'` — so a
 customer confirmation that raced in matches nothing and stands (the UI then says
 so in an info toast). A customer's confirmation is never removable from the UI.
 
-"Didn't show" writes `cancel_reason = 'No-show'` on a Cancelled booking (there
-is **no** no-show status — see G2).
+"Didn't show" writes the first-class `No-show` status and keeps
+`cancel_reason = 'No-show'` as readable context while that status stands. It
+sends no customer message.
 
 ## Accessibility contract
 
@@ -634,8 +638,8 @@ Carried from the build's gap analysis (G1–G7):
 
 - **Arrival/ready timings** accrue only from 2026-07-02 (no history) — "time
   waiting" is blank for anything before that.
-- **No no-show status** — represented as `Cancelled` + `cancel_reason='No-show'`,
-  staff-action only; never auto-labelled.
+- **No-shows are staff-classified only** — the first-class `No-show` status is
+  never inferred or applied automatically.
 - **Portal funnel abandonment** ("started but didn't finish") and
   **booking-link → completion conversion** — not captured (2E/2F can't show them).
 - **Actual groom duration** — until `checked_in_at→ready_at` data builds up,

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — recover a mistaken no-show from the day stack (#876)
+
+- No-shows remain in their appointment position on `/today` and offer a clear
+  **They turned up** action. The correction restores the booking to `Booked`,
+  clears the no-show reason and then offers the normal **Arrived** action.
+- The action model now represents a day-stack booking with no board zone
+  explicitly. This keeps the legacy board's zoned token contract intact and
+  prevents a placeholder zone from granting unrelated board actions.
+- Legacy `Cancelled` rows carrying a `No-show` reason get the same recovery;
+  ordinary cancellations and completed bookings remain outside the stack.
+
 ## Unreleased — payment change history and operator recovery (#879)
 
 - Production now records before/after payment

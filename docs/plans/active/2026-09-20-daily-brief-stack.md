@@ -132,6 +132,19 @@ untested device limitations. Production release is separate.
 None blocking implementation. Physical iPhone feel needs owner review even
 with passing emulated mobile checks.
 
+## No-show recovery — 27 September 2026
+
+Issue #876 closes the stack's zone-less action gap. Confirmed no-shows remain in
+appointment order and expose **They turned up**, which restores `Booked` and
+clears the no-show reason through the existing booking writer. The board token
+type remains strictly zoned; the shared action engine accepts the smaller
+`TokenActionSubject` shape so the stack can state `zone: null` truthfully.
+
+Logic and component coverage pass. The Playwright test now exercises the full
+No-show → Expected → Arrived-action journey on the offline sample, but it could
+not be launched locally on 27 September because the configured Playwright
+Chromium binary was absent; CI remains the browser verification authority.
+
 ## Implementation discoveries and validation — 20 September 2026
 
 - Selection scrolling must wait one animation frame for measured expanded height

@@ -21,7 +21,7 @@ import {
   BOARD_ZONE_META,
   reverseStatusFor,
   zoneForStatus,
-  type BoardToken,
+  type TokenActionSubject,
   type TokenAction,
   type TokenActionId,
 } from "../../../engine/salonBoard";
@@ -453,7 +453,7 @@ export function useBookingActions({
    * row, or a dog dragged into the next zone — the same function runs, so the
    * three input methods can never diverge in what they actually do.
    */
-  const runTokenAction = useCallback((token: BoardToken, action: Pick<TokenAction, "id">) => {
+  const runTokenAction = useCallback((token: TokenActionSubject, action: Pick<TokenAction, "id">) => {
     const booking = token.booking;
     switch (action.id) {
       case "checkIn":
@@ -489,10 +489,10 @@ export function useBookingActions({
         return null;
       case "didntShow":
         // A no-show is now a status of its own rather than a Cancelled row
-        // carrying a reason. The reason text is still written, because staff
-        // read it in the booking history and because it keeps pre-migration
-        // and post-migration rows looking the same in that list. Nothing
-        // auto-labels a no-show, and nothing is sent to the customer.
+        // carrying a reason. The reason text is still written as readable
+        // context while the booking is marked No-show and keeps pre-migration
+        // and post-migration rows looking the same. Nothing auto-labels a
+        // no-show, and nothing is sent to the customer.
         return patch(
           booking,
           {
@@ -501,6 +501,19 @@ export function useBookingActions({
           } as Partial<Booking>,
           `${booking.dogName} marked as a no-show`,
           "Marking this booking as a no-show could not be saved.",
+        );
+      case "undoNoShow":
+        // This is an attendance correction, not a check-in. Returning to
+        // Booked restores the ordinary Arrived action and lets the database
+        // re-check slot capacity before the correction is accepted.
+        return patch(
+          booking,
+          {
+            status: BOOKING_STATUS.BOOKED,
+            cancelReason: null,
+          } as Partial<Booking>,
+          `${booking.dogName} is back in today's appointments`,
+          "Restoring this booking could not be saved.",
         );
       case "booking":
         onOpenBooking?.(String(booking.id));

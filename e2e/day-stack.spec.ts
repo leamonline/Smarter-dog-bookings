@@ -480,14 +480,19 @@ test("a reconfirmed dog says so, and is still expected rather than here", async 
   await expect(nala.getByRole("button", { name: "Arrived — Nala" })).toBeVisible();
 });
 
-test("a no-show leaves the day without being mistaken for a cancellation", async ({ page }) => {
+test("a no-show stays visible with a way back into the day", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
-  // Not in the stack.
-  await expect(page.locator("[data-stack-card]").filter({ hasText: "Pepper" })).toHaveCount(0);
-  // And not quietly counted as money in the collected summary either.
+  const pepper = page.locator("[data-stack-card]").filter({ hasText: "Pepper" });
+  await expect(pepper).toHaveCount(1);
+  await pepper.locator("[data-stack-head]").click();
+  await pepper.getByRole("button", { name: "They turned up — Pepper" }).click();
+  await expect(pepper).toContainText("Expected");
+  await expect(pepper.getByRole("button", { name: "Arrived — Pepper" })).toBeVisible();
+
+  // It is still not quietly counted as money in the collected summary.
   const summary = page.locator("[data-collected-summary]");
   await summary.locator("summary").click();
   await expect(page.locator("[data-collected-row]").filter({ hasText: "Pepper" })).toHaveCount(0);

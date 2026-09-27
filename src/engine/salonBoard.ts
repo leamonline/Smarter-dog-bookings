@@ -24,6 +24,7 @@ import {
   minutesUntilSlot,
   timeInSalonMinutes,
 } from "./today";
+import type { TodayFeedEntry } from "./today";
 
 // ---- Zones -------------------------------------------------------------------
 
@@ -113,9 +114,18 @@ export const IN_SALON_LONG_MINUTES = 180;
  */
 export const NO_ARRIVAL_MINUTES = 120;
 
-export interface BoardToken {
-  entry: DailyBriefBoardEntry;
+/**
+ * The part of a token needed to decide and run booking actions. Day-stack
+ * no-shows are deliberately off the board progression, so they have no zone.
+ */
+export interface TokenActionSubject {
+  entry: TodayFeedEntry;
   booking: Booking;
+  zone: BoardZone | null;
+}
+
+export interface BoardToken extends TokenActionSubject {
+  entry: DailyBriefBoardEntry;
   zone: BoardZone;
   tier: TokenTier;
   /**
@@ -497,6 +507,7 @@ export type TokenActionId =
   | "message"
   | "call"
   | "didntShow"
+  | "undoNoShow"
   | "booking"
   | "dogFile"
   | "humanFile";
@@ -543,7 +554,7 @@ function money(amount: number): string {
  * on file has no "Call". Both the desktop menu and the mobile sheet render
  * this one list, so they cannot drift apart.
  */
-export function tokenActions(token: BoardToken, context: TokenActionContext = {}): TokenAction[] {
+export function tokenActions(token: TokenActionSubject, context: TokenActionContext = {}): TokenAction[] {
   const {
     amountDue = null,
     paid = false,
@@ -557,8 +568,11 @@ export function tokenActions(token: BoardToken, context: TokenActionContext = {}
   const owes = amountDue != null && amountDue > 0;
   const booking = token.booking;
   const actions: TokenAction[] = [];
+  const isNoShow = token.entry.stage === "noShow";
 
-  if (token.zone === "due") {
+  if (isNoShow) {
+    actions.push({ id: "undoNoShow", label: "They turned up", kind: "primary" });
+  } else if (token.zone === "due") {
     // Reconfirm sits ahead of arrival for a booking nobody has confirmed yet.
     // It is offered, never forced: staff can check a dog straight in from
     // Booked if it simply turns up, and skipping the step is legitimate.
@@ -587,14 +601,14 @@ export function tokenActions(token: BoardToken, context: TokenActionContext = {}
     }
   }
 
-  if (token.zone !== "ready" && owes) {
+  if (!isNoShow && token.zone !== "ready" && owes) {
     actions.push({
       id: "payment",
       label: `Take ${money(amountDue as number)} payment`,
       kind: token.zone === "home" ? "primary" : "default",
     });
   }
-  if (!owes && paid) {
+  if (!isNoShow && !owes && paid) {
     actions.push({ id: "payment", label: "View payment", kind: "quiet" });
   }
 
@@ -653,6 +667,7 @@ const MOVE_COPY: Record<TokenActionId, (dogName: string) => string> = {
   message: (dog) => `Messaging ${dog}'s owner`,
   call: (dog) => `Calling ${dog}'s owner`,
   didntShow: (dog) => `${dog} marked as a no-show`,
+  undoNoShow: (dog) => `${dog} is back in today's appointments`,
   booking: (dog) => `${dog}'s booking`,
   dogFile: (dog) => `${dog}'s file`,
   humanFile: (dog) => `${dog}'s owner's file`,
