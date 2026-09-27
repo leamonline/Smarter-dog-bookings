@@ -71,8 +71,8 @@ not run an old client snapshot back through the normal save path.
 Only staff may read or restore. Non-staff and anonymous negative tests are
 required. Privileged database administrators remain a trust boundary: this is
 not a tamper-proof external archive. Recovery reasons must avoid customer or
-banking details. Financial-history retention and authorised disposal require an
-owner decision before production installation; no expiry or backfill is inferred.
+  banking details. Financial-history retention and authorised disposal remain an
+  owner decision; the installed history has no expiry or backfill.
 
 ## Scope, non-goals and dependencies
 
@@ -90,7 +90,8 @@ access and negative controls on a disposable database first. Apply the reviewed
 migration to an explicitly authorised target before enabling any dependent UI.
 Do not merge schema-dependent UI without that compatibility evidence. Roll back
 the UI independently; preserve history on database rollback rather than dropping
-it. No production installation or customer-data recovery is authorised here.
+  it. Production installation was separately authorised on 27 September 2026.
+  No customer-data recovery is authorised here.
 
 ## Implementation sequence and testing
 
@@ -132,5 +133,9 @@ this plan remains active until its acceptance and release gates are verified.
 - Migration structure and documentation link checks passed.
 - Staff UI choice and financial-history retention decision remain pending.
   The implemented slice currently exposes the documented operator RPC only.
-- Full Supabase DB workflow remains required. No production migration, merge,
-  customer-data read or repair has been performed.
+- Full Supabase DB workflow passed: 53 files and 1,242 tests, plus the existing
+  concurrency suite. The migration was applied to the explicitly verified
+  production project on 27 September 2026. Post-apply checks confirmed the
+  table, RLS, intended grants, recovery function and enabled trigger. Aggregate
+  inspection found five INSERT and five DELETE events already captured, with no
+  recovery events; no booking or customer details were read or repaired.

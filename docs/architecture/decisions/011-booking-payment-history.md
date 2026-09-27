@@ -1,6 +1,6 @@
 # ADR 011: Database-owned booking payment history
 
-Status: Proposed — implementation prepared for review; production retention decision outstanding
+Status: Accepted and implemented — production retention/disposal decision outstanding
 Date: 2026-09-27
 Issue: [#879](https://github.com/leamonline/Smarter-dog-bookings/issues/879)
 
@@ -41,8 +41,9 @@ Existing booking rules still apply; inability to restore exactly rolls back.
   still bypass database controls; this is not an external tamper-proof archive.
 - Audit failures fail the booking write atomically. Rollout must validate grants,
   latency and triggers. Recovery is not available before schema installation.
-- Owner-approved retention and disposal are release prerequisites. No automatic
-  deletion schedule or historical backfill is introduced by this draft.
+- No automatic deletion schedule or historical backfill is introduced.
+  Retention and authorised disposal remain a separate owner-policy decision;
+  records are preserved until that decision is made.
 
 ## Alternatives
 

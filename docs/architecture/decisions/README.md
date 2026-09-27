@@ -24,7 +24,7 @@ complete.
 
 | [010](010-holiday-notices-operational-closures.md) | Scheduled holiday notices assert operational diary closures | Accepted |
 
-| [011](011-booking-payment-history.md) | Database-owned payment history and guarded recovery | Proposed; retention decision outstanding |
+| [011](011-booking-payment-history.md) | Database-owned payment history and guarded recovery | Accepted and implemented; retention decision outstanding |
 
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately

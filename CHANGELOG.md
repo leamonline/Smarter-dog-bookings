@@ -2,13 +2,13 @@
 
 ## Unreleased — payment change history and operator recovery (#879)
 
-- Prepared an additive database migration recording before/after payment
+- Production now records before/after payment
   values for every successful booking insert, payment change and deletion.
   A staff-only recovery command restores a recorded before-state with a reason,
   checks for intervening changes and appends its own evidence.
-- Existing payment/reporting semantics remain unchanged. History starts only
-  when the migration is installed; no historical repair is performed. Production
-  installation is pending retention/disposal approval and release verification.
+- Existing payment/reporting semantics remain unchanged. History started on
+  27 September 2026; no historical repair was performed. Records currently have
+  no automatic expiry; retention and authorised disposal remain a follow-up.
   See the [operator runbook](docs/payment-history.md).
 
 ## Unreleased — mini invoice records the money taken, not the appointment value (#874)

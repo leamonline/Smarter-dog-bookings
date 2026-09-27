@@ -1084,6 +1084,53 @@ export type Database = {
           },
         ]
       }
+      booking_payment_history: {
+        Row: {
+          actor_id: string | null
+          actor_role: string
+          after_values: Json | null
+          before_values: Json | null
+          booking_id: string
+          id: number
+          operation: string
+          reason: string | null
+          recorded_at: string
+          restored_from: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role: string
+          after_values?: Json | null
+          before_values?: Json | null
+          booking_id: string
+          id?: never
+          operation: string
+          reason?: string | null
+          recorded_at?: string
+          restored_from?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string
+          after_values?: Json | null
+          before_values?: Json | null
+          booking_id?: string
+          id?: never
+          operation?: string
+          reason?: string | null
+          recorded_at?: string
+          restored_from?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_payment_history_restored_from_fkey"
+            columns: ["restored_from"]
+            isOneToOne: false
+            referencedRelation: "booking_payment_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_policy_audit: {
         Row: {
           action: string
@@ -4633,6 +4680,15 @@ export type Database = {
           p_visit_id: string
         }
         Returns: Json
+      }
+      restore_booking_payment: {
+        Args: {
+          p_booking_id: string
+          p_event_id: number
+          p_expected_latest_id: number
+          p_reason: string
+        }
+        Returns: number
       }
       revoke_calendar_feed_token: {
         Args: { p_feed_type: string }

@@ -1,6 +1,6 @@
 # Payment history and correction
 
-Status: Prepared for review; not installed in production
+Status: Active in production from 27 September 2026; operator recovery only
 Issue: [#879](https://github.com/leamonline/Smarter-dog-bookings/issues/879)
 Decision: [ADR 011](architecture/decisions/011-booking-payment-history.md)
 
@@ -62,12 +62,16 @@ Errors:
 
 ## Rollout and rollback
 
-Owner approval of retention/disposal is required before production installation.
-Use the [hosted target guard](hosted-supabase-target-guard.md) and separate
-production authority. Rehearse the complete migration/test suite on a disposable
-stack, then the authorised staging target. Verify staff read/recovery and
-non-staff denial with synthetic records. Verify permissions after any type/API
-schema refresh. No application deployment is needed for trigger coverage.
+The migration was applied to the explicitly verified production project on
+27 September 2026 after the full local database suite passed. The table, RLS,
+grants, recovery function and enabled trigger were then verified in production.
+History began accruing immediately. No application deployment is needed for
+trigger coverage.
+
+There is currently no automatic expiry. An owner decision is still required
+before adding retention or authorised disposal; until then, preserve the audit
+record. The staff-facing recovery interface remains unbuilt, so recovery uses
+the operator contract above.
 
 Do not drop history on rollback. If a trigger must be disabled as an authorised
 incident response, record the gap explicitly; writes during the gap have no

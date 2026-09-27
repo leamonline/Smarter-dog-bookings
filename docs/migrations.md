@@ -3,13 +3,14 @@
 `supabase/migrations/` is a near-complete record of prod schema
 history.
 
-## Prepared payment history migration (#879)
+## Payment history migration (#879) — applied 27 September 2026
 
-`20260927160000_booking_payment_history.sql` is prepared, not verified as
-installed in production. It adds atomic payment snapshots and guarded staff
-recovery; see [payment history](payment-history.md). An approved retention and
-disposal policy, full database validation and explicit target authorisation are
-required before installation. No backfill or report-authority change is included.
+`20260927160000_booking_payment_history.sql` adds atomic payment snapshots and
+guarded staff recovery; see [payment history](payment-history.md). It was applied
+to the explicitly verified production project as migration
+`20260927145955 booking_payment_history`. No backfill or report-authority change
+was included. Records have no automatic expiry; retention and authorised
+disposal remain an owner-policy follow-up.
 
 ## Gaps in `supabase_migrations.schema_migrations` on prod
 
