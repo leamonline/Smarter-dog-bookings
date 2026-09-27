@@ -2,12 +2,12 @@
 
 Status: Active
 Issue: #879
-Base: origin/main, ef2af497 (full SHA recorded by Git)
+Base: origin/main, d6ca6b7a302318337bfcbb5ac3dea1f7904137be
 Last verified: 2026-09-27
 Owners: payment history schema, recovery command, tests and documentation
 Dependencies: None; #908 is merged into this base
 Related requirements: GOAL-04 and GOAL-05 in [PROJECT](../../../PROJECT.md)
-Related ADRs: Proposed payment-history decision below
+Related ADRs: [ADR 011](../../architecture/decisions/011-booking-payment-history.md)
 
 ## Goal and why
 
@@ -60,7 +60,7 @@ prevent an exact restore, roll back and require operator investigation.
 
 ## UI changes
 
-Staff-facing history and restore controls are proposed inside booking details.
+Staff-facing history and restore controls live inside booking details.
 History must show before/after values, time, actor attribution and correction
 reason. Never show an unavailable history service as an empty history. Disable
 recovery during unsaved edits; a successful restore must refresh current data,
@@ -131,8 +131,14 @@ this plan remains active until its acceptance and release gates are verified.
   `40001` for both restore/restore and ordinary-write/restore races. The latest
   stored amount was preserved in both scenarios. No hosted database was used.
 - Migration structure and documentation link checks passed.
-- Staff UI choice and financial-history retention decision remain pending.
-  The implemented slice currently exposes the documented operator RPC only.
+- Booking details now expose a collapsed payment-history panel. It resolves
+  staff display names, shows changed before/after values and correction reasons,
+  requires a reason to restore, passes the reviewed latest event id to the RPC,
+  and refreshes history plus current booking data after success. Component and
+  hook tests cover disclosure, attribution, recovery arguments, refresh and a
+  stale-write failure.
+- Financial-history retention remains an owner-policy decision. Until then,
+  records remain preserved without automatic expiry.
 - Full Supabase DB workflow passed: 53 files and 1,242 tests, plus the existing
   concurrency suite. The migration was applied to the explicitly verified
   production project on 27 September 2026. Post-apply checks confirmed the

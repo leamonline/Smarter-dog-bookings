@@ -66,6 +66,7 @@ export function BookingDetailModal({
   searchHumansByTerm,
   fetchHumanById,
   daySettings = {},
+  onRefresh,
 }) {
   const configPricing = useSalonPricing();
   const dogData = useMemo(
@@ -406,6 +407,7 @@ export function BookingDetailModal({
             activeAddons={activeAddons}
             onUpdate={onUpdate}
             currentDateStr={currentDateStr}
+            onPaymentRestored={onRefresh}
           />
 
           {/* ── Card 3: Reminder ── (between Services & Payment and the

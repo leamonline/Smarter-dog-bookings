@@ -143,6 +143,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     daySettings,
     onAdd,
     onRemove,
+    onRefreshBookings,
     onUpdate,
     onUpdateDog,
     onUpdateHuman,
@@ -519,6 +520,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             findHumanByFullName={findHumanByFullName}
             searchHumansByTerm={searchHumansByTerm}
             daySettings={daySettings}
+            onRefresh={onRefreshBookings}
           />
         </Suspense>
       )}

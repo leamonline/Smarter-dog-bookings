@@ -20,6 +20,7 @@ export interface SalonContextValue {
   onAdd: (booking: Booking, targetDateStr?: string) => void | Promise<void>;
   onUpdate: (booking: Booking) => void | Promise<void>;
   onRemove: (bookingId: string) => void | Promise<void>;
+  onRefreshBookings?: () => void | Promise<void>;
   onUpdateDog: (dog: Dog) => void | Promise<void>;
   /** Staff update path for a human (key, patch) — used by the booking
    *  detail's delivery-failure "Fix the number" inline save. */
@@ -62,6 +63,7 @@ export function SalonProvider({
   onAdd,
   onUpdate,
   onRemove,
+  onRefreshBookings,
   onUpdateDog,
   onUpdateHuman,
   onAddHuman,
@@ -90,6 +92,7 @@ export function SalonProvider({
       onAdd,
       onUpdate,
       onRemove,
+      onRefreshBookings,
       onUpdateDog,
       onUpdateHuman,
       onAddHuman,
@@ -117,6 +120,7 @@ export function SalonProvider({
       onAdd,
       onUpdate,
       onRemove,
+      onRefreshBookings,
       onUpdateDog,
       onUpdateHuman,
       onAddHuman,
