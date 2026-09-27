@@ -439,22 +439,22 @@ test("a collected dog leaves the stack for the takings summary", async ({ page }
   await expect(summary).toContainText("Luna");
 });
 
-test("the stack shows the four active statuses and nothing else", async ({ page }) => {
+test("the stack shows the four active statuses plus no-shows, and nothing else", async ({ page }) => {
   // The allow-list, proved in a real browser against the sample day. Monday
   // carries one dog in every state the fixtures can produce.
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
-  // Present: the four that are still work.
-  for (const name of ["Rex", "Nala", "Bella", "Luna"]) {
+  // Present: the four that are still work, and the no-show, which stays so
+  // staff can correct it with "They turned up".
+  for (const name of ["Rex", "Nala", "Bella", "Luna", "Pepper"]) {
     await expect(card(page, name), `${name} should be in the stack`).toHaveCount(1);
   }
 
-  // Absent: the three that have left the day.
+  // Absent: the one that has left the day.
   for (const [name, why] of [
     ["Daisy", "Completed — it is in the collected summary"],
-    ["Pepper", "No-show — it did not happen"],
   ] as Array<[string, string]>) {
     await expect(
       page.locator("[data-stack-card]").filter({ hasText: name }),
