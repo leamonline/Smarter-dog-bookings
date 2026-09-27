@@ -291,6 +291,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               findHumanByFullName={humansApi.findHumanByFullName}
               searchHumansByTerm={humansApi.searchHumansByTerm}
               daySettings={daySettings}
+              onRefresh={bookingsApi.refetch}
             />
           </Suspense>
         </ErrorBoundary>

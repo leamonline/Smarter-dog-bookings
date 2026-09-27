@@ -443,6 +443,7 @@ function AuthedApp({
           onAdd={data.handleAdd}
           onUpdate={data.handleUpdate}
           onRemove={data.handleRemove}
+          onRefreshBookings={data.bookingsApi.refetch}
           onUpdateDog={data.updateDog}
           onUpdateHuman={data.updateHuman}
           onAddHuman={data.addHuman}

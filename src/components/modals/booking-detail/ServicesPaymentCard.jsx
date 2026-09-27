@@ -1,6 +1,7 @@
 import { Scissors } from "lucide-react";
 import { PanelShell } from "../shell/index.js";
 import { PaymentStateSection } from "./PaymentStateSection.jsx";
+import { PaymentHistoryPanel } from "./PaymentHistoryPanel.jsx";
 import { ServicesAddonsCard } from "./ServicesAddonsCard.jsx";
 
 export function ServicesPaymentCard({
@@ -16,6 +17,7 @@ export function ServicesPaymentCard({
   activeAddons,
   onUpdate,
   currentDateStr,
+  onPaymentRestored,
 }) {
   return (
     <PanelShell
@@ -56,6 +58,9 @@ export function ServicesPaymentCard({
         onUpdate={onUpdate}
         currentDateStr={currentDateStr}
       />
+      {!isEditing && booking.id && (
+        <PaymentHistoryPanel bookingId={booking.id} onRestored={onPaymentRestored} />
+      )}
     </PanelShell>
   );
 }

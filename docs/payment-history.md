@@ -1,6 +1,6 @@
 # Payment history and correction
 
-Status: Active in production from 27 September 2026; operator recovery only
+Status: Active in production from 27 September 2026
 Issue: [#879](https://github.com/leamonline/Smarter-dog-bookings/issues/879)
 Decision: [ADR 011](architecture/decisions/011-booking-payment-history.md)
 
@@ -17,10 +17,25 @@ The six captured fields are `payment`, `paid_amount`, `payment_method`,
 existing pound units and precision. Price overrides, services, notes, names,
 contacts and bank references are excluded. Reports keep reading bookings.
 
-## Inspect and recover
+## Inspect and recover in booking details
+
+Authenticated staff can open a booking, expand **Payment history** under
+Services & payment, and review saved changes newest first. Each entry shows the
+changed values, recording time, staff display name where one is available, and
+any correction reason. The panel states clearly when history cannot be loaded;
+it does not present an unavailable service as an empty history.
+
+Choose **Restore** on the incorrect update, review the before-state, and enter a
+short correction reason without customer or banking details. Recovery restores
+all six captured payment fields together. It does not charge or refund anyone.
+The interface sends the latest event id the staff member reviewed, so an
+intervening write stops the restore and asks them to reload and review again.
+After success, both the history and current booking data refresh.
+
+## Operator fallback
 
 Use an authenticated staff session against an explicitly approved environment.
-These calls are for an operator tool or a future staff interface; no command
+These calls are the operator fallback; no command
 below is authority to access or change production customer data.
 
 1. Query history for the booking, descending by `id`. Read all relevant events;
@@ -70,8 +85,7 @@ trigger coverage.
 
 There is currently no automatic expiry. An owner decision is still required
 before adding retention or authorised disposal; until then, preserve the audit
-record. The staff-facing recovery interface remains unbuilt, so recovery uses
-the operator contract above.
+record.
 
 Do not drop history on rollback. If a trigger must be disabled as an authorised
 incident response, record the gap explicitly; writes during the gap have no

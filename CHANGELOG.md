@@ -10,6 +10,10 @@
   27 September 2026; no historical repair was performed. Records currently have
   no automatic expiry; retention and authorised disposal remain a follow-up.
   See the [operator runbook](docs/payment-history.md).
+- Staff can review that history inside booking details and restore the complete
+  payment state from before an incorrect update. Corrections require a reason,
+  stop if another payment change occurred during review, refresh the booking on
+  success, and clearly state that they do not charge or refund anyone.
 
 ## Unreleased — mini invoice records the money taken, not the appointment value (#874)
 
