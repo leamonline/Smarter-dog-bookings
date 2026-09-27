@@ -403,6 +403,13 @@ describe("a no-show", () => {
     expect(token.zone).toBeNull();
     expect(action.id).toBe("undoNoShow");
   });
+
+  it("offers no price to edit and no invoice to take money on", () => {
+    renderStack({ tokensById: tokenMap(), onAction: vi.fn(), onSetPrice: vi.fn(), onOpenInvoice: vi.fn() });
+    fireEvent.click(head("absent"));
+    expect(within(card("absent")).queryByLabelText(/Change the price for Otto/)).toBeNull();
+    expect(within(card("absent")).queryByLabelText("Open full invoice — Otto")).toBeNull();
+  });
 });
 
 // ---- Check out ----------------------------------------------------------------

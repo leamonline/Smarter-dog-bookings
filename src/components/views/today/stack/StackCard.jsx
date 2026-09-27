@@ -86,6 +86,9 @@ export function StackCard({
   // Money only matters once the dog is ready to leave. Before that it is a
   // number nobody can act on.
   const showBalance = tone.key === "ready";
+  // A no-show is a terminal appointment: no price to edit, no invoice to take
+  // money on. "They turned up" brings the controls back with the booking.
+  const noShow = tone.key === "noShow";
   const amountDue = payment?.amountDue ?? null;
   const hasBalance = showBalance && amountDue != null && amountDue > 0;
   // `paymentState` returns amountDue: null for its "other" kind — a payment
@@ -272,7 +275,7 @@ export function StackCard({
                 </DetailRow>
               ) : null}
               {lastVisit ? <DetailRow label="Last visit">{lastVisit}</DetailRow> : null}
-              {payment?.subtotal != null ? (
+              {payment?.subtotal != null && !noShow ? (
                 <DetailRow label="Price">
                   <PriceField
                     basePrice={payment.basePrice}
@@ -330,7 +333,7 @@ export function StackCard({
               the real thing — and the old board, which was the other way to
               reach it, is going behind a flag.
             */}
-            {onOpenInvoice && payment?.kind !== "other" ? (
+            {onOpenInvoice && payment?.kind !== "other" && !noShow ? (
               <button
                 type="button"
                 data-open-invoice

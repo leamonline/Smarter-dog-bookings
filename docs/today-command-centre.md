@@ -225,7 +225,10 @@ zone-less `TokenActionSubject`. The correction returns the booking to `Booked`
 and clears `cancel_reason`; it does not claim the dog is already checked in.
 The ordinary **Arrived** action is then available. The write follows the same
 update path as booking details, including database capacity and grouped-visit
-guards.
+guards. Because the grouped-visit guard refuses a grouped booking moving back
+onto a seat (`SDC03`), a no-show in a grouped visit is not offered the button.
+A no-show card also hides the price field and **Open full invoice**: there is
+no money to take on an appointment that did not happen.
 
 ### The old board, behind a flag
 

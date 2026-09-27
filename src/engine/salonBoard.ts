@@ -571,7 +571,11 @@ export function tokenActions(token: TokenActionSubject, context: TokenActionCont
   const isNoShow = token.entry.stage === "noShow";
 
   if (isNoShow) {
-    actions.push({ id: "undoNoShow", label: "They turned up", kind: "primary" });
+    // Not for a dog in a grouped visit: the capacity trigger refuses a grouped
+    // booking moving back onto a seat (SDC03), so the button could only fail.
+    if (!booking._groupId) {
+      actions.push({ id: "undoNoShow", label: "They turned up", kind: "primary" });
+    }
   } else if (token.zone === "due") {
     // Reconfirm sits ahead of arrival for a booking nobody has confirmed yet.
     // It is offered, never forced: staff can check a dog straight in from

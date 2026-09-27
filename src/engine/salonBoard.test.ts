@@ -461,6 +461,16 @@ describe("actions available by state", () => {
     expect(ids).not.toContain("didntShow");
   });
 
+  it("does not offer recovery to a no-show in a grouped visit, which the database refuses", () => {
+    const noShow = booking({ id: "a", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show", _groupId: "g1" });
+    const [entry] = buildDailyBriefFeed([noShow], TODAY, NOW, { includeNoShows: true });
+    const ids = actionIds({ booking: noShow, entry, zone: null }, { telHref: "tel:07700900000" });
+
+    expect(ids).not.toContain("undoNoShow");
+    expect(ids).toContain("call");
+    expect(ids).toContain("booking");
+  });
+
   it("offers Check in — and nothing further along — to an arriving dog", () => {
     const [token] = tokensFor([booking({ id: "a", slot: "12:00" })]).due;
     const ids = actionIds(token);
