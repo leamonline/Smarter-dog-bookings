@@ -356,59 +356,62 @@ test("the unknown-status warning still opens the affected booking", async ({ pag
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
-test("the full invoice is still one tap away and fits the viewport", async ({
-  page,
-}, testInfo) => {
-  // The same per-project sizes the board's spec used. 390px is deliberately NOT
-  // among them: the mini invoice overflows by ~2px at exactly that width, which
-  // predates this work and is not the day stack's to fix here.
-  const viewport =
-    testInfo.project.name === "mobile"
-      ? { width: 320, height: 568 }
-      : testInfo.project.name === "tablet"
-        ? { width: 768, height: 1024 }
-        : { width: 1280, height: 640 };
-  await page.setViewportSize(viewport);
-  await page.clock.setFixedTime(SAMPLE_NOW);
-  await page.goto(MONDAY);
-  await settle(page);
+// A sweep of real screen sizes rather than one hand-picked size per project:
+// three hand-picked sizes once missed 390x844, the most common phone (#877).
+const INVOICE_VIEWPORTS = [
+  { width: 320, height: 568 }, // iPhone SE (1st gen), the smallest we support
+  { width: 360, height: 740 }, // common Android
+  { width: 375, height: 667 }, // iPhone SE (2nd/3rd gen)
+  { width: 390, height: 844 }, // iPhone 12–15
+  { width: 430, height: 932 }, // iPhone Pro Max
+  { width: 768, height: 1024 }, // tablet portrait
+  { width: 1280, height: 640 }, // short laptop
+];
 
-  const luna = await openDog(page, "Luna");
-  await luna.getByRole("button", { name: "Open full invoice — Luna" }).click();
+for (const viewport of INVOICE_VIEWPORTS) {
+  test(`the full invoice is one tap away and fits a ${viewport.width}x${viewport.height} screen`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.clock.setFixedTime(SAMPLE_NOW);
+    await page.goto(MONDAY);
+    await settle(page);
 
-  const invoice = page.getByRole("dialog", { name: "Invoice · Luna" });
-  await expect(invoice).toBeVisible();
-  await expect(invoice.getByRole("button", { name: "Save payment" })).toBeInViewport();
+    const luna = await openDog(page, "Luna");
+    await luna.getByRole("button", { name: "Open full invoice — Luna" }).click();
 
-  const geometry = await invoice.evaluate((element) => {
-    const body = element.querySelector(".mini-invoice-body");
-    const bounds = element.getBoundingClientRect();
-    if (!(body instanceof HTMLElement)) throw new Error("Mini invoice body missing");
-    return {
-      bodyClientHeight: body.clientHeight,
-      bodyScrollHeight: body.scrollHeight,
-      bottom: bounds.bottom,
-      top: bounds.top,
-    };
-  });
-  // Below `sm`, ModalShell's default "full" presentation deliberately cancels
-  // whatever max-height the modal asked for (`max-sm:max-h-none`) and goes
-  // full-bleed at 100dvh. A phone invoice is MEANT to fill the screen and
-  // scroll, so "fits without scrolling" is the wrong contract to hold it to —
-  // asserting it here was asserting the desktop design on a phone. What must
-  // hold on every size is that nothing is pushed out of reach, and the earlier
-  // `toBeInViewport()` on "Save payment" is the assertion that says so.
-  //
-  // The dialog still measures ~17px past the bottom of a 320x568 screen, which
-  // is a shell-level offset rather than anything the day stack does. Recorded
-  // on #876 with the 390x844 overflow, not fixed here: ModalShell backs about
-  // twenty modals and this is not the change to go widening.
-  if (viewport.width >= 640) {
-    expect(geometry.bodyScrollHeight).toBeLessThanOrEqual(geometry.bodyClientHeight + 1);
+    const invoice = page.getByRole("dialog", { name: "Invoice · Luna" });
+    await expect(invoice).toBeVisible();
+    // Measure where the sheet comes to rest, not where it is mid-entrance.
+    // Below `sm` it slides up from off-screen (`sheetIn`, 260ms), so a reading
+    // taken during the animation lands anywhere from a few pixels to a few
+    // hundred below the fold. That, not the layout, was the "overflow" in #877.
+    await invoice.evaluate((element) =>
+      Promise.all(element.getAnimations().map((animation) => animation.finished)),
+    );
+    await expect(invoice.getByRole("button", { name: "Save payment" })).toBeInViewport();
+
+    const geometry = await invoice.evaluate((element) => {
+      const body = element.querySelector(".mini-invoice-body");
+      const bounds = element.getBoundingClientRect();
+      if (!(body instanceof HTMLElement)) throw new Error("Mini invoice body missing");
+      return {
+        bodyClientHeight: body.clientHeight,
+        bodyScrollHeight: body.scrollHeight,
+        bottom: bounds.bottom,
+        top: bounds.top,
+      };
+    });
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
     expect(geometry.bottom).toBeLessThanOrEqual(viewport.height + 1);
-  }
-  expect(geometry.top).toBeGreaterThanOrEqual(0);
-});
+    // On a phone the invoice is a bottom sheet capped at 92dvh, so a long
+    // invoice is allowed to scroll inside it. From `sm` up it is a centred box
+    // sized for the whole invoice, and must not need to.
+    if (viewport.width >= 640) {
+      expect(geometry.bodyScrollHeight).toBeLessThanOrEqual(geometry.bodyClientHeight + 1);
+    }
+  });
+}
 
 test("a browsed date shows no live timing at all", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
