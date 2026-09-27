@@ -439,22 +439,22 @@ test("a collected dog leaves the stack for the takings summary", async ({ page }
   await expect(summary).toContainText("Luna");
 });
 
-test("the stack shows the four active statuses and nothing else", async ({ page }) => {
+test("the stack shows the four active statuses plus no-shows, and nothing else", async ({ page }) => {
   // The allow-list, proved in a real browser against the sample day. Monday
   // carries one dog in every state the fixtures can produce.
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
-  // Present: the four that are still work.
-  for (const name of ["Rex", "Nala", "Bella", "Luna"]) {
+  // Present: the four that are still work, and the no-show, which stays so
+  // staff can correct it with "They turned up".
+  for (const name of ["Rex", "Nala", "Bella", "Luna", "Pepper"]) {
     await expect(card(page, name), `${name} should be in the stack`).toHaveCount(1);
   }
 
-  // Absent: the three that have left the day.
+  // Absent: the one that has left the day.
   for (const [name, why] of [
     ["Daisy", "Completed — it is in the collected summary"],
-    ["Pepper", "No-show — it did not happen"],
   ] as Array<[string, string]>) {
     await expect(
       page.locator("[data-stack-card]").filter({ hasText: name }),
@@ -480,14 +480,19 @@ test("a reconfirmed dog says so, and is still expected rather than here", async 
   await expect(nala.getByRole("button", { name: "Arrived — Nala" })).toBeVisible();
 });
 
-test("a no-show leaves the day without being mistaken for a cancellation", async ({ page }) => {
+test("a no-show stays visible with a way back into the day", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
-  // Not in the stack.
-  await expect(page.locator("[data-stack-card]").filter({ hasText: "Pepper" })).toHaveCount(0);
-  // And not quietly counted as money in the collected summary either.
+  const pepper = page.locator("[data-stack-card]").filter({ hasText: "Pepper" });
+  await expect(pepper).toHaveCount(1);
+  await pepper.locator("[data-stack-head]").click();
+  await pepper.getByRole("button", { name: "They turned up — Pepper" }).click();
+  await expect(pepper).toContainText("Expected");
+  await expect(pepper.getByRole("button", { name: "Arrived — Pepper" })).toBeVisible();
+
+  // It is still not quietly counted as money in the collected summary.
   const summary = page.locator("[data-collected-summary]");
   await summary.locator("summary").click();
   await expect(page.locator("[data-collected-row]").filter({ hasText: "Pepper" })).toHaveCount(0);

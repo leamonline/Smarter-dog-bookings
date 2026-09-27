@@ -53,7 +53,8 @@ describe("buildDayStack ordering", () => {
 });
 
 describe("buildDayStack membership", () => {
-  // The stack is an ALLOW-LIST of the four active statuses. These tests state
+  // The stack is an ALLOW-LIST of the four active statuses plus a recoverable
+  // no-show. These tests state
   // both halves: what is shown, and what is deliberately not.
 
   it("shows the four active statuses, in appointment order", () => {
@@ -76,21 +77,23 @@ describe("buildDayStack membership", () => {
     expect(rows.map((r) => r.id)).toEqual(["early-but-booked", "late-but-ready"]);
   });
 
-  it("leaves a no-show out — it is not work still in front of you", () => {
+  it("keeps a no-show visible so staff can correct it", () => {
     const rows = stack([
       bk({ id: "ns", slot: "09:00", status: BOOKING_STATUS.NO_SHOW, cancelReason: NO_SHOW_REASON }),
       bk({ id: "live", slot: "12:00", status: BOOKING_STATUS.BOOKED }),
     ]);
-    expect(rows.map((r) => r.id)).toEqual(["live"]);
+    expect(rows.map((r) => r.id)).toEqual(["ns", "live"]);
+    expect(rows[0].entry.stage).toBe("noShow");
   });
 
-  it("leaves the pre-migration no-show shape out too", () => {
+  it("keeps the pre-migration no-show shape recoverable too", () => {
     // Cancelled + cancel_reason = 'No-show'. Nothing writes this any more, but
-    // a row that escaped conversion must not reappear in the stack.
+    // a row that escaped conversion still needs the same way back.
     const rows = stack([
       bk({ id: "old-ns", slot: "09:00", status: BOOKING_STATUS.CANCELLED, cancelReason: NO_SHOW_REASON }),
     ]);
-    expect(rows).toEqual([]);
+    expect(rows.map((r) => r.id)).toEqual(["old-ns"]);
+    expect(rows[0].entry.stage).toBe("noShow");
   });
 
   it("leaves an ordinary cancellation out", () => {

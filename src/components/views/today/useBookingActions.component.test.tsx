@@ -298,6 +298,16 @@ describe("walking a booking through its lifecycle", () => {
     // The reason text still rides along as history for the booking log.
     expect(row.cancelReason).toBe("No-show");
   });
+
+  it("restores a no-show to Booked and clears its no-show reason", async () => {
+    const { onUpdateBooking } = await runAction(
+      { ...at(BOOKING_STATUS.NO_SHOW), cancelReason: "No-show" },
+      "undoNoShow",
+    );
+    const row = writtenRow(onUpdateBooking);
+    expect(row.status).toBe(BOOKING_STATUS.BOOKED);
+    expect(row.cancelReason).toBeNull();
+  });
 });
 
 describe("marking a dog ready never messages anyone by itself", () => {

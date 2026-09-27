@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BOOKING_STATUS } from "../constants/index";
-import { buildDailyBriefBoard } from "./dailyBrief";
+import { buildDailyBriefBoard, buildDailyBriefFeed } from "./dailyBrief";
 import type { Booking } from "../types/index";
 import {
   ACTIVE_BOARD_ZONES,
@@ -15,6 +15,7 @@ import {
   tokenActions,
   zoneForStatus,
   type BoardToken,
+  type TokenActionSubject,
 } from "./salonBoard";
 
 // 2026-07-14 is a Tuesday. 10:00 London = 09:00Z (BST).
@@ -442,7 +443,33 @@ describe("needs attention", () => {
 });
 
 describe("actions available by state", () => {
-  const actionIds = (token: BoardToken, context = {}) => tokenActions(token, context).map((a) => a.id);
+  const actionIds = (token: TokenActionSubject, context = {}) => tokenActions(token, context).map((a) => a.id);
+
+  it("offers a zone-less no-show recovery without payment or care actions", () => {
+    const noShow = booking({ id: "a", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show" });
+    const [entry] = buildDailyBriefFeed([noShow], TODAY, NOW, { includeNoShows: true });
+    const ids = actionIds(
+      { booking: noShow, entry, zone: null },
+      { amountDue: 42, paid: false, telHref: "tel:07700900000" },
+    );
+
+    expect(ids[0]).toBe("undoNoShow");
+    expect(ids).toContain("call");
+    expect(ids).toContain("booking");
+    expect(ids).not.toContain("payment");
+    expect(ids).not.toContain("checkIn");
+    expect(ids).not.toContain("didntShow");
+  });
+
+  it("does not offer recovery to a no-show in a grouped visit, which the database refuses", () => {
+    const noShow = booking({ id: "a", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show", _groupId: "g1" });
+    const [entry] = buildDailyBriefFeed([noShow], TODAY, NOW, { includeNoShows: true });
+    const ids = actionIds({ booking: noShow, entry, zone: null }, { telHref: "tel:07700900000" });
+
+    expect(ids).not.toContain("undoNoShow");
+    expect(ids).toContain("call");
+    expect(ids).toContain("booking");
+  });
 
   it("offers Check in — and nothing further along — to an arriving dog", () => {
     const [token] = tokensFor([booking({ id: "a", slot: "12:00" })]).due;

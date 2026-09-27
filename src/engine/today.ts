@@ -585,10 +585,10 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
  * A dog's lifecycle stage, collapsed from its status rank.
  *
  * `noShow` is off the progression and is the ONLY stage that is not derived
- * from `STAGE_BY_RANK`. It exists so that a no-show, which is a Cancelled
- * booking rather than a status of its own, can never be mistaken for a Booked
- * one by a stage check. Every existing consumer tests for a specific stage, so
- * a `noShow` entry naturally falls out of all of them.
+ * from `STAGE_BY_RANK`. It keeps both the first-class No-show status and its
+ * legacy Cancelled shape from being mistaken for Booked by a stage check.
+ * Every existing consumer tests for a specific stage, so a `noShow` entry
+ * naturally falls out of all of them unless that surface opts in.
  */
 export type FeedStage = "booked" | "inSalon" | "ready" | "collected" | "noShow";
 export type NeedActionReason = "late" | "confirmation" | "collection" | "payment";
@@ -632,7 +632,7 @@ function isVisibleInFeed(b: Booking, includeNoShows: boolean): boolean {
 /** Options shared by the two day-feed builders. */
 export interface FeedVisibilityOptions {
   /**
-   * Include staff-confirmed no-shows (Cancelled + `cancel_reason = 'No-show'`).
+   * Include staff-confirmed no-shows, including the legacy Cancelled shape.
    *
    * Default false. The day stack opts in because a dog that did not turn up is
    * part of the day's story and staff need it on screen; nothing else does,

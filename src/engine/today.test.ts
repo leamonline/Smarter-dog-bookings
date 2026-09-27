@@ -1081,9 +1081,10 @@ describe("selectDogsMissingSize", () => {
 
 // ---- No-show visibility opt-in -------------------------------------------------
 //
-// A no-show is a Cancelled booking carrying `cancel_reason = 'No-show'`. Every
-// existing day surface drops it, and must keep dropping it. The day stack needs
-// it on screen, so the feed builders take an opt-in that defaults to off.
+// A no-show is now a first-class status; the legacy Cancelled shape still reads
+// as a no-show. Every existing day surface drops it, and must keep dropping it.
+// The day stack needs it on screen, so the feed builders take an opt-in that
+// defaults to off.
 //
 // The guarantee these tests exist to protect: opting IN changes visibility and
 // nothing else. A no-show never becomes countable, never becomes "Next", never

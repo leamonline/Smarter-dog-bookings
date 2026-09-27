@@ -144,7 +144,8 @@ export interface DayStackInput {
 }
 
 /**
- * Build the stack: the ACTIVE bookings on the date, in appointment order.
+ * Build the stack: the active and recoverable bookings on the date, in
+ * appointment order.
  *
  * Nothing is grouped and nothing is re-sorted by status. A dog that has been in
  * since 08:30 stays at the top of the list all morning, which is the entire
@@ -158,25 +159,24 @@ export function buildDayStack({
   breedById = {},
 }: DayStackInput): DayStackRow[] {
   const isToday = dateStr === londonDateStr(now);
-  // No-shows are no longer pulled into the feed for the stack. The stack is
-  // work still in front of you, and a dog that did not turn up is not work —
-  // it is a thing to deal with elsewhere. Completed dogs drop out below into
-  // the collected summary.
-  const feed = buildDailyBriefFeed(bookings, dateStr, now);
+  // A no-show stays in the stack because it is the only terminal outcome staff
+  // may need to correct from this screen ("They turned up"). Ordinary
+  // cancellations remain excluded by the feed. Completed dogs drop out below
+  // into the collected summary.
+  const feed = buildDailyBriefFeed(bookings, dateStr, now, { includeNoShows: true });
 
   return feed
     // An ALLOW-LIST, not a list of exclusions.
     //
-    // The stack shows exactly the four active statuses: Booked, Reconfirmed,
-    // Arrived and Ready for collection. Completed dogs leave for the summary
+    // The stack shows the four active statuses plus a confirmed no-show, which
+    // has one explicit recovery action. Completed dogs leave for the summary
     // at the bottom (they stay in the feed, because the takings line is built
-    // from them); Cancelled and No-show leave the day altogether rather than
-    // cluttering a list of things to do with things nobody can act on.
+    // from them); ordinary cancellations leave the day altogether.
     //
     // Written as an allow-list on purpose: a status added later is invisible
     // until somebody decides it belongs here, which is the safe direction to
     // fail. Excluding by name would have silently admitted it.
-    .filter((entry) => isStackVisibleStatus(entry.booking.status))
+    .filter((entry) => entry.stage === "noShow" || isStackVisibleStatus(entry.booking.status))
     .map((entry) => {
       const timing = isToday ? timingFor(entry, now) : QUIET;
       const id = String(entry.booking.id ?? "");
