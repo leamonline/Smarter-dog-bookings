@@ -229,6 +229,9 @@ guards. Because the grouped-visit guard refuses a grouped booking moving back
 onto a seat (`SDC03`), a no-show in a grouped visit is not offered the button.
 A no-show card also hides the price field and **Open full invoice**: there is
 no money to take on an appointment that did not happen.
+On a closed day the database's closed-day guard refuses the revival (`SCL03`)
+unless the visit has an open closure-rearrangement task, exactly as it does
+for a revived cancellation (migration `20260927204500`).
 
 ### The old board, behind a flag
 
