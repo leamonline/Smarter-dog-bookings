@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — payment change history and operator recovery (#879)
+
+- Production now records before/after payment
+  values for every successful booking insert, payment change and deletion.
+  A staff-only recovery command restores a recorded before-state with a reason,
+  checks for intervening changes and appends its own evidence.
+- Existing payment/reporting semantics remain unchanged. History started on
+  27 September 2026; no historical repair was performed. Records currently have
+  no automatic expiry; retention and authorised disposal remain a follow-up.
+  See the [operator runbook](docs/payment-history.md).
+
 ## Unreleased — mini invoice records the money taken, not the appointment value (#874)
 
 - The mini invoice on `/staff/today` now writes the amount actually received

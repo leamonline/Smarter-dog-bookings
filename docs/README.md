@@ -96,6 +96,8 @@ These files remain authoritative for their bounded topics:
   code.
 - [`today-command-centre.md`](today-command-centre.md) — Daily Brief and report
   behaviour.
+- [`payment-history.md`](payment-history.md) — prepared payment-history schema,
+  operator recovery contract and release prerequisites; not yet live.
 - [`superpowers/runbooks/`](superpowers/runbooks/) — production and operational
   procedures. Treat embedded evidence as dated unless it is freshly rerun.
 - [`.design-sync/`](../.design-sync/) — design system evidence. The early rebrand spec
