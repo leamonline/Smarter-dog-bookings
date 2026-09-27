@@ -183,7 +183,10 @@ export function TodayView({
     () => buildDaySummary(selectedBookings, dogs, configPricing),
     [selectedBookings, dogs, configPricing],
   );
-  const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
+  const takings = useMemo(
+    () => buildTakingsByMethod(selectedBookings, dogs, configPricing),
+    [selectedBookings, dogs, configPricing],
+  );
   // Every dog that has gone home, settled or not.
   //
   // Built from the COLLECTED bookings rather than the day's, because `takings`
@@ -196,7 +199,10 @@ export function TodayView({
     () => selectCollected(selectedBookings, dateStr, now),
     [selectedBookings, dateStr, now],
   );
-  const collectedTakings = useMemo(() => buildTakingsByMethod(collected), [collected]);
+  const collectedTakings = useMemo(
+    () => buildTakingsByMethod(collected, dogs, configPricing),
+    [collected, dogs, configPricing],
+  );
   const collectedRows = useMemo(
     () => buildCollectedRows(collected, collectedTakings),
     [collected, collectedTakings],

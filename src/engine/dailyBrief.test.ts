@@ -433,7 +433,10 @@ describe("buildMiniInvoicePatch", () => {
     paymentMethod: "card",
   };
 
-  it("stores the appointment total, final method and retained deposit", () => {
+  // paid_amount is what crossed the counter, not what the appointment is worth
+  // (#874). On a deposit-paid visit the till only ever saw the balance; the
+  // deposit stays recorded in its own column, so nothing is lost.
+  it("stores the balance actually received, the final method and the retained deposit", () => {
     expect(buildMiniInvoicePatch(input)).toEqual({
       ok: true,
       subtotal: 42,
@@ -444,9 +447,15 @@ describe("buildMiniInvoicePatch", () => {
         payment: "Paid in Full",
         depositAmount: 10,
         paymentMethod: "card",
-        paidAmount: 42,
+        paidAmount: 32,
       },
     });
+  });
+
+  it("records pence exactly on a non-integer balance", () => {
+    expect(
+      buildMiniInvoicePatch({ ...input, depositAmount: 9.5, paymentReceived: 32.5 }),
+    ).toMatchObject({ ok: true, patch: { paidAmount: 32.5, depositAmount: 9.5 } });
   });
 
   it("does not mark a partial final payment as paid", () => {

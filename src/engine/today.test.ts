@@ -1238,6 +1238,35 @@ describe("buildTakingsByMethod rows", () => {
     expect(takings.total).toBe(42);
   });
 
+  // #874, related: a legacy paid row with no recorded amount fell back to the
+  // hard-coded price table, ignoring the dog's agreed price and the Settings
+  // prices. The fallback now uses the same precedence as every other figure.
+  it("prices a legacy row with no recorded amount at the dog's agreed price", () => {
+    const dogs = { d1: { id: "d1", name: "Bella", customPrice: 55 } } as never;
+    const takings = buildTakingsByMethod([paid({ id: "a", _dogId: "d1" })], dogs);
+    expect(takings.total).toBe(55);
+    expect(takings.bookings[0].amount).toBe(55);
+  });
+
+  it("prices a legacy row with no recorded amount at the Settings price", () => {
+    const takings = buildTakingsByMethod(
+      [paid({ id: "a" })],
+      null,
+      { "full-groom": { small: 4400 } },
+    );
+    expect(takings.total).toBe(44);
+  });
+
+  it("still prefers a recorded amount over any computed price", () => {
+    const dogs = { d1: { id: "d1", name: "Bella", customPrice: 55 } } as never;
+    const takings = buildTakingsByMethod(
+      [paid({ id: "a", _dogId: "d1", paidAmount: 32 })],
+      dogs,
+      { "full-groom": { small: 4400 } },
+    );
+    expect(takings.total).toBe(32);
+  });
+
   it("puts the most recently collected dog first", () => {
     const takings = buildTakingsByMethod([
       paid({ id: "early", paidAmount: 10, completedAt: "2026-07-14T08:00:00Z" }),
