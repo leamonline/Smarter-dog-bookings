@@ -1,6 +1,6 @@
 # Keep development and previews away from production messaging
 
-Status: Draft — awaiting decisions in "Open questions"
+Status: Active — step 1 in progress
 Issue: #875
 Base: origin/main, a457024
 Last verified: 2026-09-28
@@ -10,7 +10,7 @@ outbound send helpers, documentation
 Dependencies: None. Vercel project environment variables are an external
 configuration change that needs the owner's approval.
 Related requirements: None recorded
-Related ADRs: None; the send guard in step 4 may warrant one
+Related ADRs: None
 
 ## Goal
 
@@ -138,7 +138,7 @@ of the protection.
    existing override would keep localhost regardless of the default. Deploys
    through the normal edge-function workflow. Tests: the existing CORS tests,
    plus one asserting no `localhost` in the default.
-4. **(Optional, recommended only if staging is pursued.)** An outbound guard in
+4. **Dropped (decision 3, 2026-09-28).** Was: *(optional, recommended only if staging is pursued)* An outbound guard in
    the three customer send sites (`whatsapp-send` fetch, `_shared/twilio.ts`,
    `_shared/email.ts`). It derives the project ref from `SUPABASE_URL`; on any
    project other than production it sends only to an `OUTBOUND_TEST_RECIPIENTS`
@@ -202,7 +202,19 @@ runs `npm run check:edge-types` and the edge CORS tests.
   confirmed by the preflight check above.
 - All CI checks green. Docs updated and #875 updated or closed.
 
-## Open questions (owner decisions)
+## Decisions (owner, 2026-09-28)
+
+1. Nobody uses `npm run dev` against production on purpose. Step 1 keeps
+   `dev:live` as a cheap, explicit escape hatch rather than removing the path.
+2. Sample-data previews are acceptable. Step 2 proceeds as written.
+3. No staging environment for now. Step 4 is dropped, and the staging project
+   remains a migration-rehearsal target only.
+
+Delivery note: step 1 ships in the same pull request as this plan
+(#913), because the session has one working branch. Steps 2 and 3 follow
+separately.
+
+## Open questions as originally asked
 
 1. **Is anyone using `npm run dev` against production on purpose?** For
    example, to debug a live issue. If so, `dev:live` keeps that possible, but

@@ -52,7 +52,8 @@ signal, not a broken checkout. `.npmrc` sets `legacy-peer-deps=true`, so use `np
 
 ```bash
 npm ci
-npm run dev            # Vite dev server on :5173  (needs VITE_ creds, see below)
+npm run dev            # Vite dev server on :5173 — SAMPLE DATA, whatever .env.local holds (#875)
+npm run dev:live       # same, but connected to the project in .env.local (usually PROD); shows a banner
 npm run build          # production build → dist/
 npm run preview        # serve the built app
 npm run lint           # eslint + repo check scripts (import extensions, duplicate files,
@@ -74,8 +75,8 @@ required jobs to avoid running the suite twice: `build` does lint/docs/types/mig
 Locally it is still one command each. (E2E: a pull request runs
 every spec once on desktop Chromium plus WebKit smoke, and any spec it changes on tablet and mobile
 Chromium too, via `pr-production-smoke`; the full desktop/tablet/mobile matrix runs on push to `main`
-or manual dispatch.) **Without `VITE_` creds in
-dev**, `npm run dev` falls back to offline sample-data mode rather than erroring.
+or manual dispatch.) `npm run dev` always runs on offline sample data; only `npm run dev:live`
+connects to a real project ([scripts/dev.mjs](scripts/dev.mjs)).
 
 ## Environment
 
@@ -251,10 +252,10 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   prod history has known gaps). See [docs/migrations.md](docs/migrations.md).
 - **`vite.config.js` manual chunks must use `rollupOptions`, not `rolldownOptions`** — the wrong key is
   silently ignored and ships one 443 KB chunk that thrashes the PWA precache. A logic test guards it.
-- **Local dev hits the LIVE cloud Supabase** (real PII) unless explicitly put in demo mode.
-  Demo/sample-data mode (`VITE_FORCE_OFFLINE=1`, or missing creds in dev) serves
-  `src/data/sample.js`; it is deterministic test data, not durable offline production operation.
-  Use it for visual checks and E2E so you never touch real customer data.
+- **`npm run dev:live` hits the LIVE cloud Supabase** (real PII, real outbound messages). Plain
+  `npm run dev` does not: since #875 it forces `VITE_FORCE_OFFLINE=1` and serves
+  `src/data/sample.js`, deterministic test data rather than durable offline operation. Use
+  `dev:live` only deliberately; a red "LIVE DATA" banner names the project while it is connected.
 - **Use `npm ci` locally, not `npm install`.** A darwin `npm install` silently strips the Linux
   `libc` (glibc/musl) metadata from `package-lock.json` for 12 Linux-only optional binaries, and
   CI runs `npm ci` on ubuntu-latest where that discriminator matters. It has been committed

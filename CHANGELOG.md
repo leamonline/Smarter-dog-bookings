@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — `npm run dev` runs on sample data by default (#875)
+
+- `npm run dev` now always serves the deterministic sample data, even when
+  `.env.local` holds production credentials, so a dev session can no longer read
+  real customers or send them real WhatsApp, SMS or email by accident.
+- `npm run dev:live` is the explicit way to connect to the project in
+  `.env.local`; while connected, a red "LIVE DATA" banner names the project.
+  Production builds are unchanged.
+
 ## Unreleased — recover a mistaken no-show from the day stack (#876)
 
 - No-shows remain in their appointment position on `/today` and offer a clear
