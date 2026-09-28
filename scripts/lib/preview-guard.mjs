@@ -17,8 +17,14 @@ export function previewDataGuard(env) {
   const vercelEnv = env.VERCEL_ENV;
   const offline = env.VITE_FORCE_OFFLINE === "1";
   if (vercelEnv === "preview" && !offline) {
+    // Say what the build actually saw: an unset variable and a wrong value
+    // ("true", " 1", a quoted "1") need different fixes. Not a secret.
+    const seen =
+      env.VITE_FORCE_OFFLINE === undefined
+        ? "VITE_FORCE_OFFLINE is not set for this build"
+        : `VITE_FORCE_OFFLINE is ${JSON.stringify(env.VITE_FORCE_OFFLINE)}, not "1"`;
     return (
-      "Refusing to build a Vercel PREVIEW that would connect to production data. " +
+      `Refusing to build a Vercel PREVIEW that would connect to production data (${seen}). ` +
       "Set VITE_FORCE_OFFLINE=1 on the Preview environment (Project Settings → " +
       "Environment Variables, Preview only). See #875."
     );

@@ -11,6 +11,11 @@ describe("previewDataGuard", () => {
     expect(previewDataGuard({ VERCEL_ENV: "preview", VITE_FORCE_OFFLINE: "0" })).not.toBeNull();
   });
 
+  it("says what it saw, so an unset variable and a wrong value can be told apart", () => {
+    expect(previewDataGuard({ VERCEL_ENV: "preview" })).toContain("not set for this build");
+    expect(previewDataGuard({ VERCEL_ENV: "preview", VITE_FORCE_OFFLINE: "true" })).toContain('is "true", not "1"');
+  });
+
   it("allows a preview on sample data", () => {
     expect(previewDataGuard({ VERCEL_ENV: "preview", VITE_FORCE_OFFLINE: "1" })).toBeNull();
   });
