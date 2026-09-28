@@ -12,8 +12,11 @@ export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
   // The Vercel origin still serves the same deployment and keeps working for
   // anyone on an old bookmark. Remove it only once that traffic has stopped.
   "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
+  // No localhost (#875). A dev server listed here was a first-class caller of
+  // the PRODUCTION send functions, so a laptop could message real customers.
+  // `npm run dev` now runs on sample data anyway; a deliberate `dev:live`
+  // session that truly needs a function sets that function's
+  // *_ALLOWED_ORIGINS secret explicitly.
 ];
 
 export function buildAllowedOrigins(envVarName: string): Set<string> {

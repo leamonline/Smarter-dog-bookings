@@ -8,6 +8,9 @@
 - `npm run dev:live` is the explicit way to connect to the project in
   `.env.local`; while connected, a red "LIVE DATA" banner names the project.
   Production builds are unchanged.
+- Production edge functions no longer accept browser calls from `localhost`
+  by default. A function that genuinely needs one sets its `*_ALLOWED_ORIGINS`
+  secret explicitly.
 
 ## Unreleased — recover a mistaken no-show from the day stack (#876)
 

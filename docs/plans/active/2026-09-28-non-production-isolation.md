@@ -1,6 +1,6 @@
 # Keep development and previews away from production messaging
 
-Status: Active — step 1 in progress
+Status: Active — steps 1 and 3 in #913; step 2 waiting on the Vercel Preview variable
 Issue: #875
 Base: origin/main, a457024
 Last verified: 2026-09-28
@@ -201,6 +201,25 @@ runs `npm run check:edge-types` and the edge CORS tests.
 - Production functions no longer grant CORS to `localhost` by default,
   confirmed by the preflight check above.
 - All CI checks green. Docs updated and #875 updated or closed.
+
+## Progress (2026-09-28)
+
+- **Step 1:** done in #913.
+- **Step 3:** done in #913. The pre-merge evidence is an `OPTIONS` preflight
+  from `http://localhost:5173` against all 12 CORS-using production functions.
+  Every one returned `Access-Control-Allow-Origin: http://localhost:5173`. No
+  function code runs on `OPTIONS`, since each handler returns before auth or
+  I/O. The [domain cutover runbook](../../superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md)
+  records (11 September) that only `POSTCODE_LOOKUP_ALLOWED_ORIGINS` is set as
+  an override, and it lists localhost deliberately. So after deploy, every
+  function except `postcode-lookup` should refuse localhost. `postcode-lookup`
+  sends no messages; removing localhost from its secret is optional owner
+  clean-up. Re-run the same probe after the merge deploys the functions.
+- **Step 2:** blocked on an owner action. The Vercel connector in this session
+  was refused (403) both listing and creating project environment variables,
+  so `VITE_FORCE_OFFLINE=1` on the **Preview** target must be set in the
+  Vercel dashboard. The build guard lands after that, so it cannot fail
+  previews in the meantime.
 
 ## Decisions (owner, 2026-09-28)
 
