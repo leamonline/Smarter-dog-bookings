@@ -1,6 +1,6 @@
 # Keep development and previews away from production messaging
 
-Status: Active — steps 1 and 3 in #913; step 2 waiting on the Vercel Preview variable
+Status: Active — steps 1–3 in #913; post-merge verification pending
 Issue: #875
 Base: origin/main, a457024
 Last verified: 2026-09-28
@@ -215,7 +215,11 @@ runs `npm run check:edge-types` and the edge CORS tests.
   function except `postcode-lookup` should refuse localhost. `postcode-lookup`
   sends no messages; removing localhost from its secret is optional owner
   clean-up. Re-run the same probe after the merge deploys the functions.
-- **Step 2:** blocked on an owner action. The Vercel connector in this session
+- **Step 2:** done in #913 once the owner set `VITE_FORCE_OFFLINE=1` on the Vercel
+  Preview target (confirmed by the owner, 2026-09-28). The build guard
+  (`scripts/lib/preview-guard.mjs`, first thing in `scripts/build-combined.mjs`)
+  also refuses the reverse mistake: a Production build with the variable set.
+  Previous state, kept for the record: blocked on an owner action. The Vercel connector in this session
   was refused (403) both listing and creating project environment variables,
   so `VITE_FORCE_OFFLINE=1` on the **Preview** target must be set in the
   Vercel dashboard. The build guard lands after that, so it cannot fail

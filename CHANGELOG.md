@@ -11,6 +11,9 @@
 - Production edge functions no longer accept browser calls from `localhost`
   by default. A function that genuinely needs one sets its `*_ALLOWED_ORIGINS`
   secret explicitly.
+- Vercel preview builds run on sample data, and the build refuses to deploy a
+  preview that would connect to production, or a production build that would
+  serve sample data.
 
 ## Unreleased — recover a mistaken no-show from the day stack (#876)
 

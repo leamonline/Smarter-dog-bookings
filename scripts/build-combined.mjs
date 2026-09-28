@@ -18,6 +18,7 @@ import { join, relative, resolve } from "node:path";
 import {
   BOOKING_ROOT_EXCLUSIONS, disallowsEverything, findCollisions, mergeRobots,
 } from "./lib/combined-output.mjs";
+import { previewDataGuard } from "./lib/preview-guard.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const websiteDist = join(root, "website", "dist");
@@ -46,6 +47,12 @@ function assert(condition, message) {
     process.exit(1);
   }
 }
+
+// 0. Before anything is built: a preview must be on sample data and production
+// must not be (#875). VITE_ values are baked in at build time, so this is the
+// last point at which the wrong one can be stopped.
+const dataGuard = previewDataGuard(process.env);
+assert(dataGuard === null, dataGuard);
 
 // 1. Build both. The website has its own lockfile and node_modules.
 if (!process.env.SKIP_BUILDS) {
