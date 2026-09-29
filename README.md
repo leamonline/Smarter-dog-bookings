@@ -122,8 +122,11 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
 EOF
 
-# Start dev server
+# Start dev server (sample data, even with the credentials above)
 npm run dev
+
+# Connect to the project in .env.local instead — real data, real messages
+npm run dev:live
 ```
 
 See [`.env.example`](.env.example) for the complete, documented list of environment
@@ -327,7 +330,8 @@ GitHub Actions (see [Deploy](#deploy)).
 ## Development
 
 ```bash
-npm run dev            # start the Vite dev server
+npm run dev            # start the Vite dev server on sample data
+npm run dev:live       # dev server connected to the project in .env.local
 npm run build          # production build → dist/
 npm run preview        # preview the production build locally
 

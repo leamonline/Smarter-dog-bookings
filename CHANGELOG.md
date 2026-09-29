@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — `npm run dev` runs on sample data by default (#875)
+
+- `npm run dev` now always serves the deterministic sample data, even when
+  `.env.local` holds production credentials, so a dev session can no longer read
+  real customers or send them real WhatsApp, SMS or email by accident.
+- `npm run dev:live` is the explicit way to connect to the project in
+  `.env.local`; while connected, a red "LIVE DATA" banner names the project.
+  Production builds are unchanged.
+- Production edge functions no longer accept browser calls from `localhost`
+  by default. A function that genuinely needs one sets its `*_ALLOWED_ORIGINS`
+  secret explicitly.
+- Vercel preview builds run on sample data, and the build refuses to deploy a
+  preview that would connect to production, or a production build that would
+  serve sample data.
+
 ## Unreleased — recover a mistaken no-show from the day stack (#876)
 
 - No-shows remain in their appointment position on `/today` and offer a clear

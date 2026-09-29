@@ -6,6 +6,7 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { supabaseConfigError } from "./supabase/client";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
+import { DevConnectionBanner } from "./components/dev/DevConnectionBanner.jsx";
 import { initSentry } from "./lib/sentry.js";
 import { installChunkReloadHandler } from "./lib/chunkReload.js";
 import { suppressIOSFocusZoom } from "./lib/iosFocusZoom.js";
@@ -55,6 +56,7 @@ if (legacyRedirect) {
     <BrowserRouter basename={basename}>
       <OverlayProvider>
         <Suspense fallback={<LoadingSpinner />}>{screen()}</Suspense>
+        <DevConnectionBanner />
       </OverlayProvider>
     </BrowserRouter>,
   );
