@@ -1,0 +1,32 @@
+-- Re-lock two internal capacity helpers that a later migration re-exposed.
+--
+-- 20260615180000_revoke_internal_availability_helper_grants.sql deliberately
+-- revoked EXECUTE from anon and authenticated on get_seats_used and
+-- has_large_dog (with three siblings): they are called only from inside other
+-- SECURITY DEFINER functions — the capacity trigger, get_slot_occupancy,
+-- create_customer_booking_group — which run as the definer, so no real caller
+-- needs a direct grant. Zero frontend or edge-function .rpc() callers then,
+-- and none now (checked 2026-09-29).
+--
+-- 20260919090100_no_show_frees_its_seat.sql re-issued both functions and, in
+-- its grants block, applied the customer-RPC pattern ("revoke, then grant to
+-- authenticated") to every function it touched — including these two. That
+-- quietly undid the June decision. The Supabase security advisor reported both
+-- as new `authenticated_security_definer_function_executable` findings against
+-- the accepted baseline, which is how it was noticed.
+--
+-- Exposure was small (a seat count, or whether a large dog is booked, for one
+-- slot — no names, rows or money; customers already read equivalent occupancy
+-- through get_slot_occupancy by design). But a deliberate lock-down undone by
+-- accident is exactly what the advisor baseline exists to catch, and the
+-- helpers take an `p_exclude_id` the customer RPCs never expose.
+--
+-- REVOKE is idempotent. service_role keeps EXECUTE (it is not named here), as
+-- in June. The three siblings were not re-granted and are left alone.
+--
+-- Guarded by supabase/tests/232_internal_capacity_helpers_locked.test.sql
+-- (database privileges) and src/security/customerCapacityReadDisclosure.test.ts
+-- (the last privilege statement in migration order must not re-grant them).
+
+revoke execute on function public.get_seats_used(date, text, uuid) from public, anon, authenticated;
+revoke execute on function public.has_large_dog(date, text, uuid) from public, anon, authenticated;

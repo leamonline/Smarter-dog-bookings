@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — re-lock two internal capacity helpers
+
+- `get_seats_used` and `has_large_dog` are internal to the capacity engine and
+  were revoked from logged-in users in June 2026. The 19 September no-show
+  migration re-issued them with the customer-RPC grant pattern and quietly
+  re-exposed both; the Supabase advisor baseline caught it. Migration
+  `20260929170000` restores the lock. No caller is affected: nothing in the app
+  or edge functions calls either directly, and the functions that do run as the
+  definer. Guarded by pgTAP 232 and the internal-helper section of
+  `customerCapacityReadDisclosure.test.ts`.
+
 ## Unreleased — `npm run dev` runs on sample data by default (#875)
 
 - `npm run dev` now always serves the deterministic sample data, even when

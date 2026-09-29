@@ -161,7 +161,7 @@ function declaredArgs(definition: string, rpc: Rpc): string {
 }
 
 /** Every grant/revoke statement naming this function, across all migrations. */
-function privilegeStatements(rpc: Rpc): Array<{ file: string; statement: string }> {
+function privilegeStatements(rpc: string): Array<{ file: string; statement: string }> {
   const out: Array<{ file: string; statement: string }> = [];
   for (const file of migrationFiles()) {
     const sql = stripComments(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
@@ -308,5 +308,67 @@ describe("customer capacity reads: the decision record", () => {
       "20260823080000_cap_get_occupancy_range",
     );
     expect(adr, "must record the 92-day cap the fix added").toMatch(/92 day/i);
+  });
+});
+// ---- Internal helpers: the ones a customer must NOT be able to call --------
+//
+// The four RPCs above are the deliberate disclosure surface. Beneath them sit
+// helpers that only other SECURITY DEFINER functions call (the capacity
+// trigger, get_slot_occupancy, create_customer_booking_group) — those run as
+// the definer, so the helpers need no grant of their own. 20260615180000
+// revoked anon and authenticated on all five for exactly that reason.
+//
+// 20260919090100 then re-issued two of them and, in its grants block, applied
+// the customer-RPC pattern ("revoke, then grant to authenticated") to every
+// function it touched — undoing the June decision for get_seats_used and
+// has_large_dog. The Supabase advisor baseline caught it (two new
+// authenticated_security_definer_function_executable findings), and
+// 20260929170000 re-locked them. This guard makes the source say so: in
+// migration (apply) order, the LAST statement to mention `authenticated` for
+// each helper must be a revoke. Re-issue a helper with the wrong grant block
+// again and this fails before it reaches production.
+const INTERNAL_HELPERS = [
+  "get_seats_used",
+  "has_large_dog",
+  "large_dog_can_fit_on_day",
+  "get_small_medium_availability",
+  "get_large_dog_day_availability",
+] as const;
+
+describe("internal capacity helpers: never callable by a customer", () => {
+  it.each(INTERNAL_HELPERS)("%s ends migration history revoked from authenticated", (helper) => {
+    const touchingAuthenticated = privilegeStatements(helper).filter((entry) =>
+      /\bauthenticated\b/.test(entry.statement),
+    );
+    expect(
+      touchingAuthenticated.length,
+      `no migration grants or revokes public.${helper} for authenticated — 20260615180000 should`,
+    ).toBeGreaterThan(0);
+
+    const last = touchingAuthenticated[touchingAuthenticated.length - 1];
+    expect(
+      last.statement.startsWith("revoke"),
+      `public.${helper} is an internal helper (called only from inside other SECURITY ` +
+        `DEFINER functions), but the last privilege statement for it in ${last.file} is a ` +
+        `grant to authenticated. That re-exposes it to every logged-in customer — the ` +
+        `regression 20260919090100 introduced and 20260929170000 fixed. If a re-issue is ` +
+        `needed, end its grants block with a revoke for these helpers, not the customer-RPC ` +
+        `pattern.`,
+    ).toBe(true);
+  });
+
+  it.each(INTERNAL_HELPERS)("%s ends migration history revoked from anon", (helper) => {
+    // 20260519055000 originally granted these to anon AND authenticated;
+    // 20260615180000 revoked both. So "never granted" is historically false —
+    // what must hold is that the lock is the last word, as for authenticated.
+    const touchingAnon = privilegeStatements(helper).filter((entry) =>
+      /\banon\b/.test(entry.statement),
+    );
+    expect(touchingAnon.length, `no migration mentions anon for public.${helper}`).toBeGreaterThan(0);
+    const last = touchingAnon[touchingAnon.length - 1];
+    expect(
+      last.statement.startsWith("revoke"),
+      `public.${helper}'s last anon privilege statement (${last.file}) is a grant`,
+    ).toBe(true);
   });
 });

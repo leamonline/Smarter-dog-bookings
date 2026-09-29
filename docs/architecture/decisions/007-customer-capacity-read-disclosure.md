@@ -143,3 +143,22 @@ Related: [capacity engine reference](../../capacity-engine.md), issue #667,
 the `#661` `bookings`-column classification guard
 (`src/security/bookingNotificationPayloadColumns.test.ts`) this test's
 recompute-from-source pattern follows.
+
+## Addendum, 29 September 2026: the helpers beneath the surface
+
+The four RPCs above are the deliberate disclosure surface. Beneath them sit
+five internal helpers (`get_seats_used`, `has_large_dog`,
+`large_dog_can_fit_on_day`, `get_small_medium_availability`,
+`get_large_dog_day_availability`) that only other `SECURITY DEFINER` functions
+call, and which `20260615180000` revoked from `anon` and `authenticated` for
+that reason. `20260919090100` re-issued two of them and applied this ADR's
+grant pattern ("revoke, then grant to authenticated") to every function it
+touched, re-exposing `get_seats_used` and `has_large_dog` to any logged-in
+customer. The advisor baseline (`npm run check:advisors`) reported both as new
+findings; `20260929170000` restores the lock.
+
+The pattern this ADR records is correct for the four customer RPCs and wrong
+for their helpers. `customerCapacityReadDisclosure.test.ts` now pins both
+sides: the RPCs must end with a grant to `authenticated`, the helpers with a
+revoke. pgTAP `232_internal_capacity_helpers_locked.test.sql` asserts the same
+against a real database.
