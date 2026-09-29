@@ -1,6 +1,6 @@
 # Keep development and previews away from production messaging
 
-Status: Active — steps 1–3 in #913; post-merge verification pending
+Status: Active — steps 1–3 in #913, preview verified; post-merge CORS probe pending
 Issue: #875
 Base: origin/main, a457024
 Last verified: 2026-09-28
@@ -216,7 +216,16 @@ runs `npm run check:edge-types` and the edge CORS tests.
   sends no messages; removing localhost from its secret is optional owner
   clean-up. Re-run the same probe after the merge deploys the functions.
 - **Step 2:** done in #913 once the owner set `VITE_FORCE_OFFLINE=1` on the Vercel
-  Preview target (confirmed by the owner, 2026-09-28). The build guard
+  Preview target. The first attempts (2026-09-28) did not reach the build:
+  three Preview builds of `31d10aa` were refused with
+  `VITE_FORCE_OFFLINE is not set for this build`, so the guard did its job. On
+  2026-09-29 the owner corrected the Vercel setting and redeployed; deployment
+  `dpl_CnD7R4sSTEpwSoExa7Aha6dM7j6e` of the same commit passed the guard and
+  completed (326 files), and the PR's Vercel status turned green. The preview
+  host is behind Vercel deployment protection, so it was not opened from the
+  session; the same build-time variable that satisfied the guard is the one
+  `src/supabase/client.ts` reads, so the preview serves sample data by
+  construction. The build guard
   (`scripts/lib/preview-guard.mjs`, first thing in `scripts/build-combined.mjs`)
   also refuses the reverse mistake: a Production build with the variable set.
   Previous state, kept for the record: blocked on an owner action. The Vercel connector in this session
