@@ -1,9 +1,9 @@
 # Keep development and previews away from production messaging
 
-Status: Active — steps 1–3 in #913, preview verified; post-merge CORS probe pending
+Status: Completed — #913 merged as 6becc58 on 2026-09-29; post-merge CORS probe verified
 Issue: #875
 Base: origin/main, a457024
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 Owners: dev/preview runtime configuration (`package.json`, `vite.config.js`,
 `src/supabase/client.ts`), shared edge CORS (`supabase/functions/_shared/cors.ts`),
 outbound send helpers, documentation
@@ -233,6 +233,19 @@ runs `npm run check:edge-types` and the edge CORS tests.
   so `VITE_FORCE_OFFLINE=1` on the **Preview** target must be set in the
   Vercel dashboard. The build guard lands after that, so it cannot fail
   previews in the meantime.
+
+## Post-merge verification (2026-09-29)
+
+- #913 merged into `main` as `6becc58`. Edge-function deploy run
+  [36590847278](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/36590847278)
+  completed successfully at 15:33 UTC (every function redeployed, because
+  `_shared/` changed).
+- `OPTIONS` preflight from `http://localhost:5173` against all 12 CORS-using
+  production functions, run after that deploy: 11 return no
+  `Access-Control-Allow-Origin`; `postcode-lookup` still allows it through its
+  explicit `POSTCODE_LOOKUP_ALLOWED_ORIGINS` secret (it sends nothing).
+  `https://smarterdog.co.uk` is still allowed on all 12, so nothing regressed.
+- #875 closed with the same evidence. Definition of done met.
 
 ## Decisions (owner, 2026-09-28)
 
