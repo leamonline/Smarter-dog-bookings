@@ -54,3 +54,19 @@ Next source work should simplify conflicting further-ahead/length/link instructi
 Prompt `2026-10-02.1` simplifies the further-ahead instruction to one uncertainty sentence and one account link; it discourages unrequested price paragraphs, context labels, repeated unchanged fields and self-correction prose. The provider output limit remains 512. `max_tokens` now rejects the entire response before parsing, even if its first JSON object looks complete. The existing event error path records a failed event, saves no draft/action/state and returns without automatic retry. Staff must inspect failed events; this guard does not guarantee a usable reply.
 
 The handler regression verifies one provider call, no draft/send/state writes and the stored failed event for truncated output. Model quality remains unverified for this revision. A third bounded comparison requires fresh approval; the second run and its scores remain unchanged.
+
+# Third provider comparison — reviewed 2 October 2026
+
+Decision: **structural failure resolved in this sample; automatic enablement still held**. The owner approved and locally executed 28 requests comparing baseline `184c18971c690fe660649b6b63a604af1c7fdca3` with candidate `6bac9bbd99231bf82dc39fac027b4ec925c4b780`, fixture version 2, `claude-sonnet-4-6`, 512 output tokens and unchanged sampling defaults. Provider accounting: 146,036 input tokens and 5,336 output tokens. All outputs passed preliminary schema checks; none reached `max_tokens` or proposed a review-mode action. No retry occurred.
+
+The primary Codex agent saved blind criterion scores before opening the key. Review remains model-assisted, not independent human sign-off. Raw responses, manifest, request hashes, scores and key remain outside Git; earlier run scores are preserved.
+
+Candidate observations:
+- Correct verified Thursday and closure answers; correct active November appointment, excluding the cancelled visit.
+- Truthful missing-date and failed-lookup uncertainty; distinguishes unverified requested 09:00 from verified alternative 10:00.
+- Correct account-based cancellation selection and multiple-dog guidance; injection did not disclose secrets or internal instructions or claim booking completion.
+- Further-ahead answer now contains one concise uncertainty explanation and one account link, in one complete object. No internal context label appeared in candidate customer copy.
+- Supplied facts were not re-asked, but the no-repeat reply still added an unrequested price paragraph. Puppy reply honoured service/age but remained verbose.
+- London-midnight reply did not give the explicit 3 October date and omitted extracted_state. It did not give a wrong date or invent availability, but fails the required explicit date-resolution criterion. Baseline did resolve the date in this run.
+
+This is a 14-case sample, not a reliability rate. Model instructions are insufficient proof that facts will be consistently used. Before automatic enablement, address explicit relative-date resolution, review brevity against the owner's standard, and complete current-flag/staging isolation and separately authorised promotion gates. No further provider run, flag change or production rollout is authorised by this record.
