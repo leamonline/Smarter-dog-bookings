@@ -66,3 +66,15 @@ test('provider execution records blinded results and stops without retry after a
     assert.throws(() => run(failed, false), /already contains run evidence/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('follow-up preparation pins explicit revisions without altering first-run evidence', () => {
+  const output = mkdtempSync(join(tmpdir(), 'whatsapp-follow-up-test-'));
+  try {
+    execFileSync(process.execPath, [script, 'prepare', output, '48895646', '48895646']);
+    const manifest = JSON.parse(readFileSync(join(output, 'manifest.json')));
+    assert.equal(manifest.base, '48895646d7292d91001d6960ed9f5515eb97d48e');
+    assert.equal(manifest.candidate, manifest.base);
+    assert.equal(manifest.fixtureVersion, 2);
+    assert.equal(manifest.calls, 28);
+  } finally { rmSync(output, { recursive: true, force: true }); }
+});

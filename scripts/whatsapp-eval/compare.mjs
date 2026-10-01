@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
 const [command, target, ...extra] = process.argv.slice(2);
-if (!['prepare', 'execute'].includes(command) || !target || extra.length) {
-  throw new Error('Usage: node scripts/whatsapp-eval/compare.mjs prepare|execute /absolute/output-directory');
+if (!['prepare', 'execute'].includes(command) || !target || (extra.length && (command !== 'prepare' || extra.length !== 2))) {
+  throw new Error('Usage: node scripts/whatsapp-eval/compare.mjs prepare|execute /absolute/output-directory [base-revision candidate-revision]');
 }
 const output = resolve(target);
 if (output === repo || output.startsWith(repo + '/')) throw new Error('Generated evaluation evidence must stay outside the repository.');
@@ -21,8 +21,12 @@ if (command === 'prepare') {
   if (readdirSync(output).length) throw new Error('Preparation requires an empty directory; existing evaluation evidence is preserved.');
   const fixturesPath = join(here, 'fixtures.json');
   const fixtures = JSON.parse(readFileSync(fixturesPath, 'utf8'));
-  const base = 'c699e904506450ad346be50207866edc78f74d74';
-  const candidate = '48895646d7292d91001d6960ed9f5515eb97d48e';
+  const revision = (ref) => {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._\/-]*$/.test(ref)) throw new Error('Invalid source revision');
+    return execFileSync('git', ['rev-parse', '--verify', `${ref}^{commit}`], { cwd: repo, encoding: 'utf8' }).trim();
+  };
+  const base = revision(extra[0] ?? 'c699e904506450ad346be50207866edc78f74d74');
+  const candidate = revision(extra[1] ?? '48895646d7292d91001d6960ed9f5515eb97d48e');
   const temporary = mkdtempSync(join(tmpdir(), 'whatsapp-eval-'));
   try {
     for (const [label, revision] of [['base', base], ['candidate', candidate]]) {
