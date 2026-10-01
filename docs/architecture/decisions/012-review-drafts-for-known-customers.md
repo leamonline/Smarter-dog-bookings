@@ -21,7 +21,9 @@ A review draft is **review-only by construction**: a `draftOnly` policy flag is 
 
 The behaviour ships behind `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` (default `false`) and is enabled per environment, staging first.
 
-Ordering decision (1 October 2026, delegated judgement): preserve book-entry precedence. If the existing flag, eligibility and debounce checks select `book_entry`, that path consumes the inbound and no additional review draft is created. Option C runs when that path is disabled or debounced out. It is not a fallback after failed or uncertain delivery. Existing delivery failure handling is unchanged; no new retry or dual response is introduced. Confirm `WHATSAPP_BOOK_ENTRY_ENABLED` before rollout and account for fast-path requests separately in draft coverage.
+Ordering decision (1 October 2026, delegated judgement; refined after refusal evidence): preserve book-entry precedence, but consume the inbound only when the attempt is accepted or its delivery is uncertain. A refused or conclusively unsent attempt falls through to Option C when its flag, customer, state and intent conditions qualify. This creates a staff-review draft, not an automatic retry or second customer message. An accepted attempt (including acceptance without a delivery receipt) or an uncertain attempt does not trigger a further response. Apply [ADR 003](003-separate-operation-success-from-notification-delivery.md): provider acceptance is not delivery proof.
+
+Implementation must return an explicit outcome (`accepted`, `definitely_not_sent`, `uncertain`) from `dispatchBookEntry` and branch on it at the call site. At the discovery base it returns `Promise<void>`; the boolean `callWhatsappSend` also conflates non-OK responses and network errors and is insufficient. A validated pre-send gate refusal such as 409 `global_disabled`, or a documented explicit provider rejection, is definitely not sent. Missing local send configuration is also definitely not sent. Do not classify every 4xx/5xx or boolean false as conclusively unsent without the endpoint contract; malformed responses, post-send failures and network/timeouts are uncertain unless evidence proves otherwise. Confirm `WHATSAPP_BOOK_ENTRY_ENABLED` before rollout and account for accepted/uncertain and refused attempts separately in draft coverage.
 
 Separately, the staff inbox shows elapsed working time since the last unanswered inbound request in every conversation state, derived from `day_settings` and `salon_holidays`. External alerting is not part of this decision.
 
@@ -49,7 +51,11 @@ Tests must prove, for an Option C draft:
 | Same as first row with per-conversation `auto_send_enabled = true` and `AI_AUTO_SEND_LOW_RISK = true` | Still no send — `draftOnly` wins |
 | Book-entry enabled and eligible, review flag on | Existing book-entry path wins; no Option C draft or second response |
 | Book-entry disabled or debounced out, review flag on | Option C creates isolated review draft if otherwise eligible |
-| Book-entry selected but delivery fails or is uncertain | Existing failure handling; no new retry, second send or Option C fallback |
+| Book-entry returns validated 409 `global_disabled`, review flag on, otherwise eligible | Fall through to one isolated review draft; no further send or booking action |
+| Book-entry definitely not sent, review flag off or Human only | Existing on-demand behaviour; no new automatic draft |
+| Explicit provider rejection or missing local send configuration | Classified definitely not sent; eligible Option C draft, no resend |
+| Book-entry accepted (2xx), delivery receipt pending | No Option C draft or second response; acceptance is not proof of delivery |
+| Timeout/network failure, malformed response or ambiguous downstream failure | Outcome uncertain; no Option C fallback, retry or second response |
 | Reminder-confirmation fast path | Behaviour identical to base commit |
 | Staff "Generate reply" (`force_draft`) | Behaviour identical to base commit |
 

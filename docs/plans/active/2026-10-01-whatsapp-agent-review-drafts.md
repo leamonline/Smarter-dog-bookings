@@ -62,7 +62,9 @@ Assumption: "no WhatsApp reply" may still have been answered by phone or in pers
 | `ai_handling` | Review draft created when no existing fast path consumes the inbound; staff send | On demand (unchanged) | One agent pass (unchanged) |
 | `human_takeover` | On demand (unchanged) | On demand (unchanged) | One agent pass (unchanged) |
 
-Precedence decision (1 October 2026, delegated judgement): retain the existing book-entry fast path first. When its existing eligibility and debounce checks select it, it consumes the inbound and Option C does not also create a draft. When it is disabled or debounced out, the inbound may reach Option C. This is routing fallback, not retry after failed or uncertain delivery; preserve existing failure handling. A handled fast-path request is outside the review-draft denominator. Do not enable, retire or bypass the fast path as part of this change.
+Precedence decision (1 October 2026, delegated judgement; refined after refusal evidence): retain book-entry first, but branch on its explicit send outcome. Accepted or uncertain attempts consume the inbound without a further response. Refused or conclusively unsent attempts fall through to eligible Option C processing, creating only a staff-review draft. Disabled/debounced paths also may reach Option C. No automatic resend is introduced. See ADR 012 for outcome classification and ADR 003 for acceptance versus delivery. Accepted/uncertain attempts are outside the review-draft denominator; eligible definite refusals are included. Do not enable or retire the fast path in this change.
+
+Discovery correction: `dispatchBookEntry` at the base returns `Promise<void>` and the caller unconditionally continues; `callWhatsappSend` returns a boolean but conflates refusals with network errors. User-supplied live evidence reports a 409 `global_disabled` refusal followed by silence; that evidence has not been independently re-read here. Implementation must introduce an explicit accepted/definitely-not-sent/uncertain result and make it load-bearing at the caller.
 
 Both states: the staff inbox shows how long a conversation has waited since its last unanswered inbound request, using working hours derived from `day_settings` and `salon_holidays`.
 
@@ -173,7 +175,7 @@ Hand-off: issue number recorded; ADR status `Proposed` until step 1b merges.
 1. Prompt. File: `handler.ts` `SYSTEM_PROMPT`. Remove the three open-day/Thursday lines; add "the Availability block is the only source for whether a date is open, closed or full". Bump the prompt version constant. Tests: snapshot of the salon-basics section; synthetic Thursday-open and closure-day conversations.
 2. Bookings context. File: `handler.ts` `buildContext`. Window = `booking_policy_settings.booking_horizon_days` (fallback 180); exclude `Cancelled`; render status; distinguish empty from error. Tests: six-weeks-out booking rendered; cancelled booking omitted; query error renders "lookup unavailable".
 3. Dates. File: `handler.ts` `buildContext` and `_shared` date helpers. Europe/London via `Intl.DateTimeFormat`. Test: 23:30 UTC on a BST date yields the next London date.
-4. Review drafts (Option C). File: `handler.ts`. Narrow the skip: `if (isKnownCustomer && !forceDraft && !(REVIEW_DRAFTS_ENABLED && conversation.state === 'ai_handling' && guessIntentFromText(text) === "booking_propose")) continue;`. Set `policy.draftOnly = true` for these drafts; return through an isolated draft-save path before learned-state writes and customer-record creation/correction; check `draftOnly` in `dispatchIfEligible`, the booking-action staging path, and any confirm-button dispatch. Tests: the matrix in ADR 012 section "Verification"; test book-entry enabled and selected → existing dispatch only, no review draft; disabled or debounced → isolated review draft; failed/uncertain fast-path delivery → no new retry or second send; existing never-auto-send tests still pass; `human_takeover` unchanged; non-booking intents unchanged.
+4. Review drafts (Option C). File: `handler.ts`. Narrow the skip: `if (isKnownCustomer && !forceDraft && !(REVIEW_DRAFTS_ENABLED && conversation.state === 'ai_handling' && guessIntentFromText(text) === "booking_propose")) continue;`. Set `policy.draftOnly = true` for these drafts; return through an isolated draft-save path before learned-state writes and customer-record creation/correction; check `draftOnly` in `dispatchIfEligible`, the booking-action staging path, and any confirm-button dispatch. Tests: the matrix in ADR 012 section "Verification"; test book-entry accepted or uncertain → no review draft or second response; validated 409 `global_disabled` or other documented definite non-send → eligible isolated review draft; flag off/Human only → no new draft; disabled or debounced → eligible isolated review draft; introduce an explicit outcome from `dispatchBookEntry` and branch at its call site, never use an ambiguous boolean to decide fallback; existing never-auto-send tests still pass; `human_takeover` unchanged; non-booking intents unchanged.
 
 ### Step 1c: Data correction (separate authorisation)
 
@@ -202,7 +204,7 @@ Focused: `npm run test -- src/lib/whatsapp` and the agent tests named above; `de
 ## Observability
 
 - Metric: count of conversations whose last message is an inbound request older than the working-hours threshold, split by state and by whether a draft exists. Historical evidence on 1 Oct 2026: 14 requests older than 24 elapsed hours, 5 in 30 days (±3). This is not a working-hours baseline. Establish a fresh baseline using the final threshold, classifier and resolution rules before release comparison.
-- After step 1b enablement: `ai_handling` known-customer new-booking requests that reach Option C with no draft should trend to zero; track fast-path-consumed requests separately, without treating a sent button or unsent draft as a resolved request; `whatsapp_drafts.state` must show no `auto_sent`; `whatsapp_booking_actions` must show no new `auto_applied` rows attributable to review drafts.
+- After step 1b enablement: `ai_handling` known-customer new-booking requests that reach Option C with no draft should trend to zero; track accepted/uncertain fast-path attempts separately from definite refusals eligible for draft fallback, without treating a sent button or unsent draft as a resolved request; `whatsapp_drafts.state` must show no `auto_sent`; `whatsapp_booking_actions` must show no new `auto_applied` rows attributable to review drafts.
 - Logs: `ai_initiated` visible in send warnings.
 
 ## Documentation updates
@@ -223,7 +225,7 @@ Focused: `npm run test -- src/lib/whatsapp` and the agent tests named above; `de
 
 ## Open questions
 
-Book-entry ordering resolved under delegated judgement: preserve fast-path precedence; Option C is fallback only when the fast path does not select the inbound. Its production flag remains unknown and must be confirmed before rollout.
+Book-entry ordering resolved under delegated judgement: preserve precedence for accepted/uncertain attempts; definite non-send or no selected fast path may fall through to eligible Option C. Its production flag remains unknown and must be confirmed before rollout.
 
 1. Operational reason behind commit `1646e45d` (3 June 2026). Owner.
 2. Production values of `AI_AUTO_SEND_LOW_RISK`, `AI_AUTONOMOUS_BOOKING_ENABLED`, `WHATSAPP_MANAGE_BOOKING_ENABLED` and `WHATSAPP_BOOK_ENTRY_ENABLED`. Owner.
