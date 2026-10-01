@@ -26,6 +26,8 @@ complete.
 
 | [011](011-booking-payment-history.md) | Database-owned payment history and guarded recovery | Accepted and implemented; staff UI included, retention decision outstanding |
 
+| [012](012-review-drafts-for-known-customers.md) | Known customers in `ai_handling` conversations get review-only drafts; unanswered requests are visible in every state | Proposed |
+
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately
 in the [dated audit](../../research/2026-08-09-issue-603-plan-reality-audit.md).
