@@ -24,6 +24,7 @@ const STATUS_TONES = {
 
 export function ConversationListItem({
   conv,
+  waitingLabel = null,
   isSelected,
   onSelect,
   isChecked = false,
@@ -57,7 +58,7 @@ export function ConversationListItem({
 
   return (
     <div
-      className={`relative flex min-h-16 max-h-[72px] items-stretch border-b border-slate-100 ${
+      className={`relative flex min-h-16 ${waitingLabel ? "max-h-[96px]" : "max-h-[72px]"} items-stretch border-b border-slate-100 ${
         isChecked ? "bg-brand-yellow/30" : ""
       }`}
     >
@@ -109,6 +110,8 @@ export function ConversationListItem({
             </span>
           )}
         </div>
+
+        {waitingLabel && <p className="mt-1 text-[10px] font-semibold text-amber-900">{waitingLabel}</p>}
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {preview ? (

@@ -255,3 +255,17 @@ where l.direction = 'inbound' and c.human_id is not null and l.sent_at < now() -
   and not exists (select 1 from whatsapp_drafts d where d.conversation_id = c.id and d.created_at >= l.sent_at)
 group by c.state;
 ```
+
+## Step 1a implementation evidence — 1 October 2026
+
+Base revalidated after PR #922: `main@a154902603f5a7b568439acf6796fe1250d0f7c0`. Issue #921 governs this slice.
+
+- Added pure London working-hours calculation (08:30–15:00 operational hours), normal Mon–Wed defaults, explicit opening exceptions, enabled holiday ranges and unioned partial-day closures. These are working hours, not free booking slots or staffing capacity.
+- Added synthetic ask/closer fixtures and per-row staff inbox waiting labels. An unsent draft never resolves a request. The classifier is heuristic: no label is not proof that no help is needed. Done conversations are explicit resolution; failed sends remain waiting. The timestamp is the latest inbound request, not the oldest unhandled message in a sequence.
+- Schedule reads use the staff holiday RPC and bounded operational date reads. Refresh each minute and on window focus. Incomplete/error reads display unavailable, including requests older than the one-year read window. Current schedule is used; there is no historical schedule snapshot, so past edits may change calculated waiting time.
+- No threshold badge or ordering change yet: the final working-hours threshold remains an owner decision. Existing Awaiting reply filtering is preserved. Numeric working-time labels provide visibility without inventing a target.
+- Source audit: `saveBookingAction` already calls `auditAiAction` for staged and rejected outcomes; it writes `whatsapp_ai_action_audit` and warns on insert failure. No duplicate audit writer added. Zero historical rows do not establish a missing source write; production cause remains unverified.
+- AI manual-mode warning logs explicitly carry `ai_initiated=true`. No send, onboarding, proposal, fast-path or feature-gate behaviour changes.
+- Production flag confirmation remains an external release dependency; no production credentials, message content or settings were accessed for this implementation. The plan stays active for step 1b and later stages.
+
+Validation: full coverage passes (393 files, 4,126 tests, no unhandled errors); lint passes with existing warnings; typecheck, build, documentation and migration validation pass. Edge type checks and 14 agent Deno tests pass. Required PR CI and rendered device review remain release evidence, not established by these local checks.

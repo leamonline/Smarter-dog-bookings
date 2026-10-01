@@ -150,3 +150,9 @@ render a "Created from WhatsApp · open thread" link. The inbox
 thread renders the inverse: inline "Booking created" cards at
 `applied_at`, sorted into the message timeline. See migration
 `20260513140000_link_bookings_to_whatsapp.sql`.
+
+## Staff unanswered-request waiting time
+
+The inbox shows elapsed salon working time for open conversations whose latest customer text looks like a request and has no later outbound reply. Pending drafts do not clear the waiting label; failed sends remain waiting. Marking a conversation Done is explicit resolution. This is heuristic triage, not proof that a customer was ignored or that an outbound message was delivered.
+
+Working time uses Europe/London, 08:30–15:00, normal Monday–Wednesday opening, diary opening exceptions, enabled holiday closures and partial-day closures. It uses the current schedule, not historical opening snapshots. Schedule reads refresh every minute and on focus. If required reads fail or the request predates the bounded one-year schedule window, the row says "Waiting time unavailable". No response-time threshold or automatic alert is enabled in this slice.

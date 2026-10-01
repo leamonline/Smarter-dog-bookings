@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useInboxWaitingTimes } from "../../../../supabase/hooks/useInboxWaitingTimes";
 import { Search, X } from "lucide-react";
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { InboxFilterChip } from "../InboxFilterChip.jsx";
@@ -73,6 +74,7 @@ export function ConversationPane({
   onSelectConversation,
   onToggleSelect,
 }) {
+  const waitingTimes = useInboxWaitingTimes(conversations);
   const selectedIndex = displayedConversations.findIndex(
     (conversation) => conversation.id === selectedId,
   );
@@ -250,6 +252,7 @@ export function ConversationPane({
             >
               <ConversationListItem
                 conv={conversation}
+                waitingLabel={waitingTimes[conversation.id]}
                 isSelected={conversation.id === selectedId}
                 onSelect={(conversationId) => handleSelect(index, conversationId)}
                 isChecked={selectedIds.has(conversation.id)}
