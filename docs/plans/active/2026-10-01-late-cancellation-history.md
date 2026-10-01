@@ -5,9 +5,9 @@ Issue: [#930](https://github.com/leamonline/Smarter-dog-bookings/issues/930)
 Base: origin/main, 924770f1d61f9b9b2156b6d41412de1ca14d854c
 Last verified: 2026-10-01
 Owners: cancellation/reschedule SQL commands, customer portal copy, customer-card booking rules and history, command/row/concurrency tests
-Dependencies: Deposit counting window and automatic versus staff-reviewed action require owner answers. Production migration requires separate authorisation.
+Dependencies: Owner approved staff review after three late cancellations within 12 months on 1 October 2026. Production migration requires separate authorisation.
 Related requirements: [PROJECT](../../../PROJECT.md) GOAL-01, GOAL-02 and GOAL-05; [booking policy baseline](../../archive/superpowers/specs/2026-07-22-booking-cancellation-rescheduling-policy-design.md)
-Related ADRs: [ADR 001](../../architecture/decisions/001-postgresql-capacity-authority.md), [ADR 002](../../architecture/decisions/002-separate-visit-authority-from-policy-activation.md), [ADR 003](../../architecture/decisions/003-separate-operation-success-from-notification-delivery.md), [ADR 006](../../architecture/decisions/006-manual-target-verified-database-rollout.md), proposed [ADR 013](../../architecture/decisions/013-allow-late-cancellations-with-customer-history.md)
+Related ADRs: [ADR 001](../../architecture/decisions/001-postgresql-capacity-authority.md), [ADR 002](../../architecture/decisions/002-separate-visit-authority-from-policy-activation.md), [ADR 003](../../architecture/decisions/003-separate-operation-success-from-notification-delivery.md), [ADR 006](../../architecture/decisions/006-manual-target-verified-database-rollout.md), [ADR 013](../../architecture/decisions/013-allow-late-cancellations-with-customer-history.md)
 
 ## Goal
 
@@ -35,7 +35,7 @@ Cancellation permission and lateness are separate server decisions. Retain the e
 
 Record one attributable late-cancellation incident per customer appointment. Two dogs in one group/date count once; recurring dates count separately; retries and concurrent requests do not add strikes. A staff member recording a customer's cancellation must explicitly attribute it to the customer. Salon-caused cancellations, automated unpaid-deposit releases, rescheduling and no-shows do not count as customer late cancellations.
 
-At three late cancellations in the agreed period, show the agreed deposit response. Staff review versus automatic future-deposit enforcement and the period are awaiting owner answers. Never silently change existing booked appointments, paid deposits or refund/retention policy.
+At three late cancellations in the agreed period, show the agreed deposit response. Owner-approved response: staff review at three unwaived late cancellations within the preceding 12 calendar months; no automatic deposit flag mutation. Never silently change existing booked appointments, paid deposits or refund/retention policy.
 
 ## Scope
 
@@ -81,7 +81,7 @@ No production customer data needed for development. Test synthetic UUIDs and fix
 
 ## Dependencies
 
-Owner answers: staff-reviewed versus automatic deposits at the third strike; last 12 months versus all recorded cancellations. The existing deposit lifecycle remains the implementation path after the decision. Source work may prepare independent cancellation separation first, but threshold policy must not be guessed.
+Owner decision recorded: staff-reviewed deposit requirement after three late cancellations in the preceding 12 calendar months. The existing deposit lifecycle remains the implementation path after the decision. Source work may prepare independent cancellation separation first, but threshold policy must not be guessed.
 
 ## Risks
 
@@ -93,7 +93,7 @@ Prepare and review source on a feature branch. Run local synthetic database and 
 
 ## Implementation sequence
 
-1. Resolve the two threshold decisions and record them in issue #930 and this plan.
+1. Record the owner-approved staff-review/12-month threshold in issue #930 and this plan.
 2. Add the tested append-only migration separating cancellation and reschedule policy, recording committed customer incidents and exposing staff projections. Cover attributed staff cancellations and recovery without recording salon/system changes as customer incidents.
 3. Wire staff customer history/count and agreed deposit response through existing controls; update authoritative preview and portal copy. Add synthetic component/repository tests.
 4. Align WhatsApp wording with the new authoritative cancellation contract without widening automation modes or doing another paid evaluation implicitly.
@@ -119,7 +119,23 @@ Owned future appointments can be cancelled late atomically; unrelated rescheduli
 
 ## Open questions
 
-- Owner: flag for staff review or automatically require future deposits at the third cancellation?
-- Owner: last 12 months or all recorded late cancellations?
 - Implementation verification: exact existing staff cancellation paths and attribution mechanism; independent RPC/history contract must cover customer-requested staff cancellations without counting salon-caused changes.
 - Release: establish local database verification and later confirm staging target before any hosted command.
+
+Implementation discovery: WhatsApp cancellation RPCs also cancel the old visit during rescheduling. Separate service-only reschedule entry points carry explicit provenance so these operations never create late-cancellation incidents. By-id WhatsApp cancellation is constrained to group plus date; a group-only request spanning multiple active dates fails as ambiguous rather than cancelling recurring appointments. Customer cancellations cannot cancel a visit that has already started.
+
+Customer merges must transfer incident ownership transactionally, with an audit record. A conflicting same-appointment incident fails the merge for staff review rather than losing or double-counting history.
+
+WhatsApp also enforces a fixed 24-hour cancellation cutoff in the agent manage-action handler and confirmation handler. Both must distinguish cancellation (allowed until start) from rescheduling (existing cutoff); old staged cancellation payloads must not retain the retired refusal. Autonomous single-row confirmation updates need explicit customer provenance and a server start-time guard.
+
+## Implementation evidence (1 October 2026)
+
+Source prepared on `feat/late-cancellation-history`; no hosted migration or deployment applied. The policy is accepted; rollout remains pending.
+
+- Repository tests: 395 files / 4,136 tests pass. Lint passes with 66 existing warnings; typecheck, documentation links, migration validation and build pass.
+- Edge entry-point types pass. Relevant confirmation and Flow Deno tests: 13 pass. New shared deadline tests distinguish late cancellation from late rescheduling and fail closed on unverified timestamps.
+- A fresh isolated PostgreSQL 17 database accepts the migration. Actual-row assertions pass for multi-dog cancellation, receipts/retries, staff-only history, deposit review, waivers, partial/full undo and WhatsApp attribution. Two concurrent requests leave two cancelled rows, one incident and one receipt.
+- `npm run test:db` cannot connect to local Supabase on port 54322. Full-schema pgTAP, existing concurrency suites, notification integration, merge integration and browser/staging acceptance are still release blockers. The isolated fixture is not a substitute.
+- Database types were mirrored from the new SQL contract; regenerate and compare against the complete local schema before release.
+
+Do not merge dependent client/Edge changes before target-verified migration approval and schema evidence. Keep the PR in draft until the missing release checks are satisfied.

@@ -33,7 +33,7 @@ export type StaffBookingInput = Partial<Booking> &
   };
 
 /** An edited booking; the reschedule/edit flows may set the snake_case override flag. */
-export type StaffBookingUpdate = Booking & { staff_capacity_override?: boolean };
+export type StaffBookingUpdate = Booking & { staff_capacity_override?: boolean; _cancellationCause?: "customer" | "salon" };
 
 export interface UseBookingsOptions {
   onError?: (message: string) => void;
@@ -535,6 +535,7 @@ export function useBookings(
         // action can persist cancel_reason='No-show' through this same path.
         // Normal edits write back the booking's current value (usually null).
         cancel_reason: updatedBooking.cancelReason ?? null,
+        ...(updatedBooking._cancellationCause ? { cancellation_cause: updatedBooking._cancellationCause } : {}),
         confirmed: updatedBooking.confirmed ?? false,
         // Reschedule / Edit flows that override capacity flip
         // this flag on the in-memory booking before calling onUpdate.

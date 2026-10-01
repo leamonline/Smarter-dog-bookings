@@ -1,6 +1,6 @@
 # ADR 013: Allow late cancellations with customer history
 
-Status: Proposed — owner authorised the cancellation policy; threshold details and implementation pending
+Status: Accepted policy — implementation and rollout pending
 Date: 2026-10-01
 Issue: [#930](https://github.com/leamonline/Smarter-dog-bookings/issues/930)
 Plan: [Late cancellation history](../../plans/active/2026-10-01-late-cancellation-history.md)
@@ -15,7 +15,7 @@ Separate cancellation permission from lateness classification. Accept an owned a
 
 Record one attributable late customer cancellation per appointment in the same transaction as the committed cancellation. Use stable appointment and receipt identity; group plus date counts once across dog rows and retries, while recurring dates remain distinct. Preserve reason, time and applicable cutoff. Staff acting on a customer's request must attribute its cause explicitly. Salon cancellations, no-shows, rescheduling and unpaid-deposit releases are not customer late-cancellation incidents.
 
-Expose dated records and the threshold on the customer file using staff-only reads and the existing deposit control. The third incident triggers the owner-selected deposit response; automatic versus staff-reviewed action and counting period remain pending. No retrospective backfill, existing-booking payment alteration or new refund/retention rule is implied.
+Expose dated records and the threshold on the customer file using staff-only reads and the existing deposit control. On 1 October 2026 the owner accepted staff review after three unwaived late cancellations within the preceding 12 calendar months. The existing deposit switch remains a staff decision; there is no automatic flag mutation. No retrospective backfill, existing-booking payment alteration or new refund/retention rule is implied.
 
 ## Verification
 

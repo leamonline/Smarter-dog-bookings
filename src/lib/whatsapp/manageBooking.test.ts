@@ -4,6 +4,7 @@ import {
   buildRescheduleInitialState,
   groupUpcomingBookings,
   isInsideManageCutoff,
+  isManageActionBlocked,
   joinNames,
   type ManageBookingRow,
   manageRowId,
@@ -151,5 +152,23 @@ describe("summaries", () => {
   it("summarises a visit", () => {
     const s = summariseVisit([{ id: "d1", name: "Alfie" }, { id: "d2", name: "Tipi" }], "2026-06-24", "09:30");
     expect(s).toBe("Alfie & Tipi's groom on Wed 24 Jun at 9:30");
+  });
+});
+
+
+describe("cancellation and rescheduling deadlines", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+  it("allows cancellation within 24 hours while still restricting a move", () => {
+    const start = new Date("2026-10-01T13:00:00Z");
+    expect(isManageActionBlocked("cancel", start, now)).toBe(false);
+    expect(isManageActionBlocked("reschedule", start, now)).toBe(true);
+  });
+  it("refers an already-started appointment to staff", () => {
+    expect(isManageActionBlocked("cancel", now, now)).toBe(true);
+    expect(isManageActionBlocked("cancel", new Date("2026-10-01T11:59:59Z"), now)).toBe(true);
+  });
+  it("requires staff review if the start time cannot be verified", () => {
+    expect(isManageActionBlocked("cancel", new Date("invalid"), now)).toBe(true);
+    expect(isManageActionBlocked("reschedule", new Date("invalid"), now)).toBe(true);
   });
 });

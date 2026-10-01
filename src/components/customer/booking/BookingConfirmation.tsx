@@ -22,13 +22,13 @@ interface BookingConfirmationProps {
   depositTotal?: number | null;
   /**
    * Staff-configured sentence describing the change deadline, straight from
-   * `current_customer_booking_rules()`. Null when cancellation is switched off or
+   * `current_customer_booking_rules()`. Null when online customer actions are switched off or
    * the policy could not be read — in both cases no promise is displayed.
    */
   changeDeadlineNote?: string | null;
   /**
    * True when the server has confirmed that THIS date and slot is already past
-   * the point where the customer could change or cancel it online — a booking
+   * the point where the customer could reschedule it online — a booking
    * made inside the change window. It replaces the generic sentence, which is
    * true in general and misleading here.
    *
@@ -178,8 +178,8 @@ export function BookingConfirmation({
           }}
         >
           <PawPrint size={13} aria-hidden="true" className="inline-block mr-1.5 align-[-2px]" />
-          Heads up — this one&rsquo;s too close to the day to change or cancel online.
-          Book away, and just message us if anything changes. We&rsquo;ll always sort it.
+          Heads up — this one&rsquo;s too close to the day to reschedule online.
+          You can still cancel from your dashboard before the appointment starts; late cancellations are recorded. For a different time, message us if anything changes.
         </p>
       ) : (
         changeDeadlineNote && (

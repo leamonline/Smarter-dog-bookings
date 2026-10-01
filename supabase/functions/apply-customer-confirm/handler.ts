@@ -20,7 +20,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
-import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
+import { isManageActionBlocked, visitStartInstant } from "../_shared/manageBooking.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -596,32 +596,28 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
         return new Response("not_cancellable", { status: 200 });
       }
 
-      // 24h cut-off re-check — manage-booking (Flow C) cancels only. An action
-      // staged outside 24h but confirmed AFTER the booking crossed into the
-      // window is blocked here, regardless of the original stage time.
-      if (action.payload.enforce_24h_cutoff) {
-        // Use the VISIT's drop-off (earliest slot in the group), frozen at
-        // stage time, not just the target booking's slot — for a multi-dog
-        // group the target row may not be the earliest. The booking date can't
-        // move without a reschedule, so the frozen start is authoritative.
+      // Cancellation is allowed until the visit starts, including old staged actions.
+      {
+        // Preflight the staged visit start; PostgreSQL checks the current
+        // earliest group/date start when applying the cancellation.
         const startIso = action.payload.visit_start_at as string | undefined;
         const start = startIso
           ? new Date(startIso)
           : visitStartInstant(existing.booking_date as string, existing.slot as string);
-        if (isInsideManageCutoff(start, new Date())) {
+        if (isManageActionBlocked("cancel", start, new Date())) {
           const { data: blockedRows } = await supabase
             .from("whatsapp_booking_actions")
-            .update({ state: "rejected_by_customer", rejection_reason: "within_24h_at_confirm" })
+            .update({ state: "rejected_by_customer", rejection_reason: "appointment_started_at_confirm" })
             .eq("id", action.id)
             .eq("state", "awaiting_customer_confirm")
             .select("id");
           if (blockedRows && blockedRows.length > 0) {
             await sendAckText(
               action.conversation_id,
-              "That groom's now within 24 hours, so I can't cancel it automatically — one of the team will be in touch. 🎓🐶❤️ X",
+              "That appointment has already started, so the team needs to check before cancelling it — one of the team will be in touch. 🎓🐶❤️ X",
             );
           }
-          return new Response("within_24h", { status: 200 });
+          return new Response("appointment_started", { status: 200 });
         }
       }
 
@@ -668,7 +664,7 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
       } else {
         const { data: updatedRows, error: updateErr } = await supabase
           .from("bookings")
-          .update({ status: "Cancelled", cancel_reason: reason.slice(0, 500) })
+          .update({ status: "Cancelled", cancel_reason: reason.slice(0, 500), cancellation_cause: "customer" })
           .eq("id", oldBookingId)
           .eq("status", "Booked")
           .select("id");

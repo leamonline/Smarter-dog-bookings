@@ -97,7 +97,7 @@ import { CUSTOMER_PORTAL_URL as PORTAL_URL_DEFAULT, type DogSize } from "../_sha
 import {
   buildRescheduleInitialState,
   groupUpcomingBookings,
-  isInsideManageCutoff,
+  isManageActionBlocked,
   joinNames,
   type ManageBookingRow,
   manageRowId,
@@ -1503,7 +1503,6 @@ async function dispatchManageCancel(
       payload: {
         reason: "Customer cancelled via WhatsApp",
         cancel_whole_group: true,
-        enforce_24h_cutoff: true,
         visit_start_at: visit.startAt,
         booking_ids: visit.bookingIds,
         group_id: visit.groupId,
@@ -1558,7 +1557,7 @@ function dispatchRescheduleFlow(
   });
 }
 
-/** 24h cut-off: tell the customer warmly + flag the conversation for staff. */
+/** Blocked change: tell the customer warmly and flag it for staff. */
 async function manageCutoffHandoff(
   supabase: SupabaseClient,
   conversationId: string,
@@ -1566,7 +1565,7 @@ async function manageCutoffHandoff(
   action: "cancel" | "reschedule",
 ): Promise<void> {
   const msg = action === "cancel"
-    ? "This one's within 24 hours, so I can't cancel it automatically here. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
+    ? "This appointment has already started, so I need the team to check its status before cancelling. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
     : "This appointment is within 24 hours, so I can't move it automatically here. I've flagged it for the team so they can help you properly. 🐾";
   await sendManageText(conversationId, msg);
   const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false, draftOnly: false };
@@ -1574,13 +1573,13 @@ async function manageCutoffHandoff(
     intent: "escalate",
     confidence: 0,
     proposed_text:
-      `[Within 24h ${action}] Customer asked to ${action} within 24h of their groom — needs the team. They've already been told you'll be in touch.`,
+      `[Blocked ${action}] Customer asked to ${action} after its permitted deadline — needs the team. They've already been told you'll be in touch.`,
     extracted_state: null,
   };
-  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_24h_cutoff:${action}` });
+  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
 }
 
-/** Run the chosen action against a resolved visit; re-applies the 24h cut-off. */
+/** Run the chosen action against a resolved visit and its applicable deadline. */
 async function executeManageAction(
   supabase: SupabaseClient,
   conversationId: string,
@@ -1591,7 +1590,7 @@ async function executeManageAction(
   visit: UpcomingVisit,
   dogSizes: Record<string, DogSize>,
 ): Promise<void> {
-  if (isInsideManageCutoff(new Date(visit.startAt), new Date())) {
+  if (isManageActionBlocked(action, new Date(visit.startAt), new Date())) {
     await manageCutoffHandoff(supabase, conversationId, eventId, action);
     return;
   }

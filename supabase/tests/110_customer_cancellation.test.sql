@@ -304,12 +304,11 @@ select lives_ok(
   'a request exactly on the London cancellation deadline is allowed'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000022', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'a request one microsecond after the London deadline is rejected'
+  'a request one microsecond after the London deadline is allowed and recorded as late'
 );
 
 set local role postgres;
@@ -323,12 +322,11 @@ select lives_ok(
   'missing cancellation settings allow the exact default 24-hour deadline'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000024', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'missing cancellation settings reject one microsecond inside the default 24-hour deadline'
+  'missing cancellation settings allow and record one microsecond inside the default 24-hour deadline'
 );
 
 set local role postgres;
@@ -343,12 +341,11 @@ select lives_ok(
   'malformed cancellation settings allow the exact default 24-hour deadline without a cast error'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000026', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'malformed cancellation settings reject one microsecond inside the default 24-hour deadline'
+  'malformed cancellation settings allow and record one microsecond inside the default 24-hour deadline'
 );
 
 set local role postgres;
