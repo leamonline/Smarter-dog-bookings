@@ -48,3 +48,9 @@ The primary Codex agent saved criterion-by-criterion blind scores before reading
 Twenty-seven outputs passed the runner's preliminary schema check. The candidate further-ahead output failed and reached `max_tokens`. No review-mode booking action was detected; those preliminary checks do not prove every server path. One response per case cannot establish reliability rates.
 
 Next source work should simplify conflicting further-ahead/length/link instructions, prevent context-label wording in customer copy, and explicitly reject truncated provider output before parsing. Do not increase the output limit merely to conceal the failure. Preserve the approved account next step and verify a concise, single-object response through another separately approved comparison. Current flags, staging isolation and production promotion remain separate gates.
+
+# Third candidate preparation — 2 October 2026
+
+Prompt `2026-10-02.1` simplifies the further-ahead instruction to one uncertainty sentence and one account link; it discourages unrequested price paragraphs, context labels, repeated unchanged fields and self-correction prose. The provider output limit remains 512. `max_tokens` now rejects the entire response before parsing, even if its first JSON object looks complete. The existing event error path records a failed event, saves no draft/action/state and returns without automatic retry. Staff must inspect failed events; this guard does not guarantee a usable reply.
+
+The handler regression verifies one provider call, no draft/send/state writes and the stored failed event for truncated output. Model quality remains unverified for this revision. A third bounded comparison requires fresh approval; the second run and its scores remain unchanged.
