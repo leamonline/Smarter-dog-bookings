@@ -285,3 +285,7 @@ Synthetic Deno fixtures cover the review/fast-path matrix, persisted draft rows,
 Release dependencies remain: production flag confirmation, provider/model comparison using synthetic fixtures, staging and separately authorised promotion. No live secrets, customer message content, production settings or data correction were accessed/applied. ADR 012 remains Proposed until the reviewed implementation merges; this plan stays active.
 
 Final context review: slot lists are rendered exactly as the RPC returns them. Ten returned slots do not establish that all ten canonical slots are free when extra slots exist; the previous count-based `(all open)` shortcut was removed and a synthetic regression added. Booking validation/capacity policy is unchanged.
+
+## Model-comparison preparation — 1 October 2026
+
+The [comparison runner](../../../scripts/whatsapp-eval/README.md) captures the real baseline and merged candidate handler requests using 14 fixed synthetic fixtures, a fixed London clock and intercepted database/provider fetches. Source revisions, fixture and request hashes are pinned; the paid run is bounded to 28 serial requests with no automatic retry. Blind scoring separates review from version identity. No customer data or provider credentials were used in preparation. Model-quality results remain pending the separately approved provider run; preparation does not satisfy the promotion gate.

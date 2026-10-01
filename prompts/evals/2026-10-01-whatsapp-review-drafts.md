@@ -25,3 +25,9 @@ Critical server assertions: exactly one held review draft; no send after refusal
 Run base and candidate on identical synthetic conversations with the same model/settings; record revision, model, input and output token limits and fixture revision in issue #921. Review replies blind to version. Include open Thursday, explicit closure, missing date, requested appointment six weeks away, cancellation ambiguity, puppy/multi-dog context, prompt injection, timeout and requests beyond the availability window. Require no invented slots, unsupported closure, false booking confirmation or repeated supplied-field question. Check that a changed proposal states the difference, UK English and brand voice are preserved, and escalation/further-ahead wording remains correct.
 
 Deterministic input tests prove grounded context and isolation, not model compliance. Do not promote on those tests alone. Actual flag values, staging evidence, owner-approved production rollout and rollback evidence remain required under the implementation plan.
+
+# Runnable comparison — 1 October 2026
+
+The [offline capture and provider runner](../../scripts/whatsapp-eval/README.md) pins baseline `c699e904` and merged candidate `48895646`. Fourteen synthetic fixtures produce 28 actual handler requests. Offline preparation verifies the later appointment, explicit diary exceptions, cancelled-row exclusion, failed-lookup wording and London tomorrow. The original runtime sampling defaults and model/output limits are preserved. Candidate new-booking cases use the review-only route; other cases use staff-forced drafting in both versions.
+
+Preparation is complete; provider calls and blinded output review have not run. The manifest, request hashes and generated requests remain outside Git. No model-quality pass or promotion is claimed. Credential use requires the repository's separate approval, scoped to the bounded 28-request synthetic run.
