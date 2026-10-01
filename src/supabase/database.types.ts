@@ -2020,6 +2020,7 @@ export type Database = {
           addons: string[] | null
           booking_date: string
           breed_snapshot: string | null
+          cancellation_cause: string | null
           cancel_reason: string | null
           chain_id: string | null
           checked_in_at: string | null
@@ -2069,6 +2070,7 @@ export type Database = {
           addons?: string[] | null
           booking_date: string
           breed_snapshot?: string | null
+          cancellation_cause?: string | null
           cancel_reason?: string | null
           chain_id?: string | null
           checked_in_at?: string | null
@@ -2118,6 +2120,7 @@ export type Database = {
           addons?: string[] | null
           booking_date?: string
           breed_snapshot?: string | null
+          cancellation_cause?: string | null
           cancel_reason?: string | null
           chain_id?: string | null
           checked_in_at?: string | null
@@ -4000,6 +4003,14 @@ export type Database = {
         Args: { p_visit_ids: string[] }
         Returns: Json
       }
+      staff_customer_cancellation_history: {
+        Args: { p_human_id: string }
+        Returns: Json
+      }
+      waive_late_cancellation: {
+        Args: { p_incident_id: string; p_reason: string }
+        Returns: undefined
+      }
       cancel_customer_booking: {
         Args: { p_booking_id: string; p_reason: string }
         Returns: {
@@ -4048,6 +4059,22 @@ export type Database = {
         }[]
       }
       cancel_whatsapp_booking_group: {
+        Args: { p_group_id: string; p_human_id: string; p_reason?: string }
+        Returns: {
+          booking_ids: string[]
+          cancelled_count: number
+          group_id: string
+        }[]
+      }
+      cancel_whatsapp_booking_by_id_for_reschedule: {
+        Args: { p_booking_id: string; p_human_id: string; p_reason?: string }
+        Returns: {
+          booking_ids: string[]
+          cancelled_count: number
+          group_id: string
+        }[]
+      }
+      cancel_whatsapp_booking_group_for_reschedule: {
         Args: { p_group_id: string; p_human_id: string; p_reason?: string }
         Returns: {
           booking_ids: string[]

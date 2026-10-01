@@ -65,6 +65,7 @@ const CONSUMED: Record<string, string> = {
 // Columns forwarded but read by nobody. Each states what it is, so that
 // "harmless" is a judgement on the record rather than an assumption.
 const FORWARDED_UNUSED: Record<string, string> = {
+  cancellation_cause: "operational — explicit customer/salon/reschedule cancellation attribution",
   addons: "operational — extras chosen for the groom",
   breed_snapshot: "operational — breed captured at booking time",
   chain_id: "operational — links a recurring chain",

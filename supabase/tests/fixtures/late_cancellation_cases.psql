@@ -1,0 +1,20 @@
+-- Synthetic transaction-level cases; usable by pgTAP or the isolated smoke harness.
+select set_config('request.jwt.claim.sub','93000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claims','{"sub":"93000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+set local session_replication_role=replica;
+insert into auth.users(id) values ('93000000-0000-4000-8000-000000000001'),('93000000-0000-4000-8000-000000000005');
+insert into public.staff_profiles(user_id,role,display_name) values ('93000000-0000-4000-8000-000000000005','owner','Synthetic cancellation staff');
+insert into public.humans(id,name,surname,customer_user_id) values
+ ('93000000-0000-4000-8000-000000000002','Synthetic','Cancellation owner','93000000-0000-4000-8000-000000000001');
+insert into public.dogs(id,name,breed,human_id,size) values
+ ('93000000-0000-4000-8000-000000000003','Synthetic one','Poodle','93000000-0000-4000-8000-000000000002','small'),
+ ('93000000-0000-4000-8000-000000000004','Synthetic two','Poodle','93000000-0000-4000-8000-000000000002','small');
+insert into public.bookings(id,dog_id,group_id,booking_date,slot,status,service,size) values
+ ('93000000-0000-4000-8000-000000000010','93000000-0000-4000-8000-000000000003','93000000-0000-4000-8000-000000000020',(now() at time zone 'Europe/London')::date+1,'08:30','Booked','full-groom','small'),
+ ('93000000-0000-4000-8000-000000000011','93000000-0000-4000-8000-000000000004','93000000-0000-4000-8000-000000000020',(now() at time zone 'Europe/London')::date+1,'09:00','Booked','full-groom','small'),
+ ('93000000-0000-4000-8000-000000000012','93000000-0000-4000-8000-000000000003',null,(now() at time zone 'Europe/London')::date+1,'10:00','Booked','full-groom','small'),
+ ('93000000-0000-4000-8000-000000000013','93000000-0000-4000-8000-000000000003',null,(now() at time zone 'Europe/London')::date+1,'11:00','Booked','full-groom','small'),
+ ('93000000-0000-4000-8000-000000000014','93000000-0000-4000-8000-000000000003',null,(now() at time zone 'Europe/London')::date+1,'12:00','Booked','full-groom','small');
+set local session_replication_role=origin;
+delete from public.salon_config;
+insert into public.salon_config(settings) values ('{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}');

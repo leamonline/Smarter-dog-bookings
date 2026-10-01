@@ -27,6 +27,7 @@ complete.
 | [011](011-booking-payment-history.md) | Database-owned payment history and guarded recovery | Accepted and implemented; staff UI included, retention decision outstanding |
 
 | [012](012-review-drafts-for-known-customers.md) | Known customers in `ai_handling` conversations get review-only drafts; unanswered requests are visible in every state | Proposed |
+| [013](013-allow-late-cancellations-with-customer-history.md) | Allow late cancellations with attributable customer history and a third-incident deposit response | Accepted policy; implementation pending |
 
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately
