@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFillViewportHeight } from "./useFillViewportHeight.js";
 import { VIEWPORT_SETTLE_DELAYS_MS } from "./viewportSettle.js";
@@ -82,6 +82,7 @@ function installAnimationFrameQueue() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   setWindowValue("innerWidth", 1024);
   setWindowValue("innerHeight", 900);
   setWindowValue("visualViewport", undefined);
@@ -89,6 +90,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmount while the same timer and browser APIs are still installed.
+  cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   for (const name of Object.keys(originalDescriptors)) restoreWindowValue(name);
@@ -236,6 +240,27 @@ describe("useFillViewportHeight", () => {
     expect(removeWindowListener).toHaveBeenCalledWith("orientationchange", expect.any(Function));
     expect(animationFrames.cancel).toHaveBeenCalledTimes(1);
   });
+  it("cancels every settled measurement on unmount", () => {
+    const animationFrames = installAnimationFrameQueue();
+    const root = makeRoot(100);
+    const ref = { current: root };
+    const { unmount } = renderHook(() => useFillViewportHeight(ref));
+
+    act(() => window.dispatchEvent(new Event("resize")));
+    expect(vi.getTimerCount()).toBe(VIEWPORT_SETTLE_DELAYS_MS.length);
+    const measurements = root.getBoundingClientRect.mock.calls.length;
+
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => {
+      animationFrames.flush();
+      vi.advanceTimersByTime(VIEWPORT_SETTLE_DELAYS_MS.at(-1));
+      window.dispatchEvent(new Event("resize"));
+      document.dispatchEvent(new Event("focusin"));
+    });
+    expect(root.getBoundingClientRect).toHaveBeenCalledTimes(measurements);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("re-measures after the keyboard lands when the first resize carried an intermediate height", () => {
     // iOS fires visualViewport resize as the keyboard STARTS to move, with
     // the height at that instant, and nothing when it finishes landing
@@ -244,35 +269,30 @@ describe("useFillViewportHeight", () => {
     // iPhone — while a simulation that reported the final height in one
     // event passed. These numbers are that phone's: 852 tall, 84px of chrome
     // once the toolbar has stepped aside, 495px visible above the keyboard.
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    try {
-      const animationFrames = installAnimationFrameQueue();
-      setWindowValue("innerWidth", 393);
-      setWindowValue("innerHeight", 852);
-      const viewport = makeVisualViewport({ height: 852, offsetTop: 0 });
-      setWindowValue("visualViewport", viewport);
-      const root = makeRoot(84);
-      // A stable ref, as useRef gives the real caller: a fresh { current }
-      // object per render would re-run the effect on every measurement and
-      // cancel the settle timers this test exists to exercise.
-      const ref = { current: root };
-      const { result } = renderHook(() => useFillViewportHeight(ref));
-      expect(result.current).toBe(744);
+    const animationFrames = installAnimationFrameQueue();
+    setWindowValue("innerWidth", 393);
+    setWindowValue("innerHeight", 852);
+    const viewport = makeVisualViewport({ height: 852, offsetTop: 0 });
+    setWindowValue("visualViewport", viewport);
+    const root = makeRoot(84);
+    // A stable ref, as useRef gives the real caller: a fresh { current }
+    // object per render would re-run the effect on every measurement and
+    // cancel the settle timers this test exists to exercise.
+    const ref = { current: root };
+    const { result } = renderHook(() => useFillViewportHeight(ref));
+    expect(result.current).toBe(744);
 
-      viewport.height = 640;
-      act(() => viewport.dispatchEvent(new Event("resize")));
-      act(() => animationFrames.flush());
-      // The intermediate answer, which used to be the final one.
-      expect(result.current).toBe(532);
+    viewport.height = 640;
+    act(() => viewport.dispatchEvent(new Event("resize")));
+    act(() => animationFrames.flush());
+    // The intermediate answer, which used to be the final one.
+    expect(result.current).toBe(532);
 
-      viewport.height = 495;
-      act(() => {
-        vi.advanceTimersByTime(VIEWPORT_SETTLE_DELAYS_MS[VIEWPORT_SETTLE_DELAYS_MS.length - 1]);
-      });
-      expect(result.current).toBe(387);
-      expect(root.style.getPropertyValue("--fill-visible-height")).toBe("387px");
-    } finally {
-      vi.useRealTimers();
-    }
+    viewport.height = 495;
+    act(() => {
+      vi.advanceTimersByTime(VIEWPORT_SETTLE_DELAYS_MS[VIEWPORT_SETTLE_DELAYS_MS.length - 1]);
+    });
+    expect(result.current).toBe(387);
+    expect(root.style.getPropertyValue("--fill-visible-height")).toBe("387px");
   });
 });
