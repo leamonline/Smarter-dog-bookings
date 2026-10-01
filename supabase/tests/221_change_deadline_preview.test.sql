@@ -118,11 +118,11 @@ select is(
 select is(
   (select count(*)::int
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public'
-      and p.proname in ('cancel_customer_booking', 'customer_change_deadline_preview')
+    where ((n.nspname='smarter_dog_private' and p.proname='cancel_booking_impl')
+      or (n.nspname='public' and p.proname='customer_change_deadline_preview'))
       and p.prosrc like '%now() at time zone ''Europe/London''%'),
   2,
-  'gate and preview both compare in the Europe/London wall clock'
+  'private rescheduling gate and preview both compare in the Europe/London wall clock'
 );
 
 -- --------------------------------------------------------------------------

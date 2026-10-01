@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(30);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -208,7 +208,7 @@ insert into public.bookings (
   );
 
 -- Exercise fields managed by unrelated booking triggers. Cancellation may
--- change only status, cancel_reason and the standard updated_at timestamp.
+-- change only status, reason, explicit cancellation cause and the standard updated_at timestamp.
 update public.bookings
 set addons = array['nails'],
     pickup_by_id = '41000000-0000-4000-8000-000000000001',
@@ -242,7 +242,7 @@ set local session_replication_role = default;
 
 create temp table _before_success as
 select id,
-       to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+       to_jsonb(b) - array['status', 'cancel_reason', 'cancellation_cause', 'updated_at']::text[]
          as snapshot
 from public.bookings b
 where group_id = '44000000-0000-4000-8000-000000000001';
@@ -432,9 +432,11 @@ select is(
   'a later recurring appointment sharing group_id remains booked'
 );
 
+select ok((select bool_and(cancellation_cause='customer') from public.bookings where group_id='44000000-0000-4000-8000-000000000001' and booking_date=current_date+30),'customer cancellation writes explicit customer provenance');
+
 select results_eq(
   $$ select id,
-            to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+            to_jsonb(b) - array['status', 'cancel_reason', 'cancellation_cause', 'updated_at']::text[]
               as snapshot
      from public.bookings b
      where group_id = '44000000-0000-4000-8000-000000000001'

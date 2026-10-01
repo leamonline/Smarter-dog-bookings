@@ -139,3 +139,5 @@ Source prepared on `feat/late-cancellation-history`; no hosted migration or depl
 - Database types were mirrored from the new SQL contract; regenerate and compare against the complete local schema before release.
 
 Do not merge dependent client/Edge changes before target-verified migration approval and schema evidence. Keep the PR in draft until the missing release checks are satisfied.
+
+Full-schema CI discovery: the existing capacity trigger forbids reviving a cancelled group through a raw row update. Keep that guard; the explicit audited waiver is the correction path for a mistaken grouped incident. Automatic strike removal applies only when an existing guarded restoration succeeds. Isolated partial/full undo assertions do not establish grouped revival support.
