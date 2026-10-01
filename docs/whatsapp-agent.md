@@ -20,12 +20,9 @@ requests, so a later failure could leave the diary and the customer message
 disagreeing. A future server-owned, idempotent command may restore a combined
 action only when both outcomes and retries have one authoritative contract.
 
-**Drafting is on demand, not on every inbound.** A *known* customer's inbound
-message is persisted and the loop continues — no automatic Claude draft —
-until staff click **"Generate reply"** (the `force_draft` / `suggest_only`
-path). Only an *unknown* customer (no linked `human_id`) still gets one
-automatic agent pass for onboarding. Auto-send is plumbed but off everywhere
-unless explicitly opted in, and booking-touching intents can never auto-send.
+**Known-customer drafting is on demand by default.** The default-off `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` flag allows a known customer's `booking_propose` message in `ai_handling` to create a held staff-review draft. Human only, changes, cancellations and other intents stay on demand. Unknown-customer onboarding and staff Generate reply retain their existing contracts.
+
+An automatic review draft writes no learned state, customer records or booking actions and sends no confirmation buttons or reply. Existing book-entry handling runs first: accepted or uncertain attempts stop; a validated pre-send refusal can fall through to an eligible review draft. Generic 502/network failures are uncertain, never automatic retry permission. Draft creation does not require the durable AI send switch to be enabled. Existing send gates still govern any later AI send.
 
 ## Function secrets
 
@@ -37,6 +34,7 @@ Set with `supabase secrets set NAME=value`. **Never** put these in
 | `ANTHROPIC_API_KEY` | _required_ | Claude API key. Server-side only — never put behind a `VITE_` prefix. |
 | `CLAUDE_MODEL` | `claude-sonnet-4-6` | Model used by the agent. |
 | `AGENT_CALLBACK_SECRET` | _required_ | Shared secret between the `whatsapp_events` pg_net trigger and the function. |
+| `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` | `false` | Opt-in review-only drafts for known customers in `ai_handling` with new-booking intent. No automatic sending, state corrections or booking-action staging. |
 | `AI_ASSISTANT_ENABLED` | `true` | Kill switch. Set to `false` to bypass Claude entirely; the agent writes a brand-voiced "I'll get someone to look at this" fallback draft tagged for handoff. Useful during incidents. |
 | `AI_AUTO_SEND_LOW_RISK` | `false` | Global gate for auto-send. Even when `true`, all the per-draft gates below must also pass. |
 | `WHATSAPP_SEND_URL` | `${SUPABASE_URL}/functions/v1/whatsapp-send` | Where the agent posts approved-for-auto-send drafts. Override only if you've moved the function. |
@@ -156,3 +154,9 @@ thread renders the inverse: inline "Booking created" cards at
 The inbox shows elapsed salon working time for open conversations whose latest customer text looks like a request and has no later outbound reply. Pending drafts do not clear the waiting label; failed sends remain waiting. Marking a conversation Done is explicit resolution. This is heuristic triage, not proof that a customer was ignored or that an outbound message was delivered.
 
 Working time uses Europe/London, 08:30–15:00, normal Monday–Wednesday opening, diary opening exceptions, enabled holiday closures and partial-day closures. It uses the current schedule, not historical opening snapshots. Schedule reads refresh every minute and on focus. If required reads fail or the request predates the bounded one-year schedule window, the row says "Waiting time unavailable". No response-time threshold or automatic alert is enabled in this slice.
+
+## Reply prompt and context revision
+
+`WHATSAPP_REPLY_PROMPT_VERSION = 2026-10-01.1` is recorded in each new draft's `tool_calls.prompt_version`, alongside `review_only`. Historical drafts are not relabelled. Date-relative context is Europe/London, including tomorrow and all date-window endpoints. Upcoming appointments use the configured `booking_horizon_days` (validated range 1–730; context fallback 180), exclude Cancelled, show status and cap at 40 rendered records with an explicit omission notice. A failed lookup is not reported as no appointments.
+
+The Availability block includes explicit diary opening/closure exceptions. An open exception is not free capacity. Missing dates remain unverified. Static Monday–Wednesday/Thursday refusals, including the walk-in weekday wording, are removed; brand-voice sections are unchanged. Review-draft enablement and production promotion remain separate release decisions. Synthetic server-contract tests do not establish model reply quality; see [the evaluation record](../prompts/evals/2026-10-01-whatsapp-review-drafts.md).

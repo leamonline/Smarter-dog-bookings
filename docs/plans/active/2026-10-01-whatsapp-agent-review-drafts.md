@@ -269,3 +269,19 @@ Base revalidated after PR #922: `main@a154902603f5a7b568439acf6796fe1250d0f7c0`.
 - Production flag confirmation remains an external release dependency; no production credentials, message content or settings were accessed for this implementation. The plan stays active for step 1b and later stages.
 
 Validation: full coverage passes (393 files, 4,126 tests, no unhandled errors); lint passes with existing warnings; typecheck, build, documentation and migration validation pass. Edge type checks and 14 agent Deno tests pass. Required PR CI and rendered device review remain release evidence, not established by these local checks.
+
+## Step 1b implementation evidence — 1 October 2026
+
+Base revalidated after PR #923: `main@c699e904506450ad346be50207866edc78f74d74`. New review drafts default off behind `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS`. The isolated path saves a pending draft and exits before learned-state persistence, lead/record corrections, booking-action staging or confirmation dispatch. All three downstream dispatch/staging functions also check `draftOnly` defensively. Draft metadata records candidate prompt version `2026-10-01.1` and `review_only`; old drafts are not relabelled.
+
+Discovery: the send endpoint's book-entry response distinguishes successful acceptance and known pre-send gate refusals. It does not preserve the difference between a Meta rejection and a network failure (both can become 502). Consequently, only validated 409 gate reasons or missing local send configuration are classified refused; generic HTTP failures/malformed responses and network errors remain uncertain. The caller uses this explicit outcome. Provider acceptance does not prove delivery.
+
+Discovery: slot availability alone cannot establish closure. The Availability block now includes explicit date-specific `day_settings` exceptions within its 30-day window, independent of a slot RPC error. An open exception is not free capacity. Missing dates remain unverified. The walk-in fixed weekday phrase carried the same contradiction, so its weekday assertion was removed while leaving the brand-voice sections and service/price policy unchanged.
+
+Known-customer appointment context uses the supported configured horizon (1–730 days; fallback context window 180), excludes Cancelled and renders status. Read failures have a distinct unavailable message. Forty records are rendered at most, with a fetched 41st signalling explicit omission. Dates and both availability endpoints use London calendar dates; no UTC label mismatch.
+
+Synthetic Deno fixtures cover the review/fast-path matrix, persisted draft rows, no customer/state/booking writes, default-off/Human only/other intents, existing staff force/suggest modes, duplicate inbound, context exceptions and failures. The candidate [evaluation record](../../../prompts/evals/2026-10-01-whatsapp-review-drafts.md) separates server-contract proof from outstanding model-quality comparison.
+
+Release dependencies remain: production flag confirmation, provider/model comparison using synthetic fixtures, staging and separately authorised promotion. No live secrets, customer message content, production settings or data correction were accessed/applied. ADR 012 remains Proposed until the reviewed implementation merges; this plan stays active.
+
+Final context review: slot lists are rendered exactly as the RPC returns them. Ten returned slots do not establish that all ten canonical slots are free when extra slots exist; the previous count-based `(all open)` shortcut was removed and a synthetic regression added. Booking validation/capacity policy is unchanged.
