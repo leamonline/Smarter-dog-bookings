@@ -107,6 +107,8 @@ import {
   visitStartInstant,
 } from "../_shared/manageBooking.ts";
 
+import { agentCalendar, addCalendarDays, contextHorizon, bookEntryOutcome, type BookEntryOutcome } from "../_shared/agentContext.ts";
+
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -120,6 +122,8 @@ const AGENT_CALLBACK_SECRET = Deno.env.get("AGENT_CALLBACK_SECRET")!;
 // OFF (we never silently text a customer without staff approval).
 const AI_ASSISTANT_ENABLED =
   (Deno.env.get("AI_ASSISTANT_ENABLED") ?? "true").toLowerCase() !== "false";
+const AI_KNOWN_CUSTOMER_REVIEW_DRAFTS =
+  (Deno.env.get("AI_KNOWN_CUSTOMER_REVIEW_DRAFTS") ?? "false").toLowerCase() === "true";
 const AI_AUTO_SEND_LOW_RISK =
   (Deno.env.get("AI_AUTO_SEND_LOW_RISK") ?? "false").toLowerCase() === "true";
 const AI_AUTONOMOUS_BOOKING_ENABLED =
@@ -229,6 +233,7 @@ type BookingActionFromClaude =
 // A human member of staff reviews every draft before it's sent, so
 // the prompt err on the side of brevity, safety, and honesty. Low
 // confidence + escalate is always a valid move.
+export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-01.1";
 const SYSTEM_PROMPT = `You are the WhatsApp reply assistant for Smarter Dog Grooming Salon — a small, caring dog grooming business in Ashton-under-Lyne, UK, run by a small team who know every dog by name.
 
 A human staff member reviews every reply you draft before it's sent. Your goal is to save them time on routine replies while matching the brand voice exactly. When in doubt, prefer a short holding reply and let staff take over.
@@ -236,12 +241,10 @@ A human staff member reviews every reply you draft before it's sent. Your goal i
 ────────────────────────────────────────────────────────
 SALON BASICS (use when relevant, never invent around these)
 ────────────────────────────────────────────────────────
-- Open days: Monday, Tuesday, Wednesday only.
-- Hours: 08:30 to 15:00.
+- Hours on an open day: 08:30 to 15:00.
+- The Availability block is the only source for date-specific opening, closure and verified slots. Explicit diary exceptions override the normal weekly pattern. A missing date is unverified, never proof it is closed or full.
 - Booking slots: every 30 minutes: 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30, 12:00, 12:30, 13:00.
 - Service IDs you may use in booking_action: full-groom, bath-and-brush, bath-and-deshed, puppy-groom.
-- Bank holidays: closed; they make up the day on the following Thursday.
-- If a customer asks for Thursday/Friday/weekend, kindly point out we're Mon-Wed and offer to find a slot in the next open window.
 - Appointments are usually booked for up to 2.5 hours. Some dogs are ready sooner, but we allow that time so the groom can be done calmly and properly.
 
 ────────────────────────────────────────────────────────
@@ -359,7 +362,7 @@ Report honestly. Staff reads this number.
 ────────────────────────────────────────────────────────
 WALK-IN SERVICES
 ────────────────────────────────────────────────────────
-Nail clips, gland expression, and ear cleans are walk-in only — no booking needed. If a customer asks about any of these, classify intent="faq" and answer with: "These are walk-in only — just pop in anytime between 08:30 and 13:00 (Mon, Tue or Wed), done while you wait 😊 🎓🐶❤️ X". Do NOT propose a booking_action for walk-in services.
+Nail clips, gland expression, and ear cleans are walk-in only — no booking needed. If a customer asks about any of these, classify intent="faq" and explain that these are walk-in services between 08:30 and 13:00 on a verified open day, done while you wait. Do not assert a weekday opening pattern or encourage a visit on an unverified date. Do NOT propose a booking_action for walk-in services.
 
 ────────────────────────────────────────────────────────
 KNOWN-STATE / NO RE-ASKING
@@ -616,14 +619,13 @@ async function insertInboundMessage(
 // Format example:
 //   --- Availability (next 30 days, small/medium dogs only) ---
 //   Mon 27 Apr: 08:30 09:00 10:30 11:00 12:30
-//   Tue 28 Apr: (all open)
+//   Tue 28 Apr: 08:30 09:00 09:30 10:00
 //   Wed 29 Apr: 09:00 10:30
 //
-// - "(all open)" when all 10 slots in active_slots() are free
+// - Always list the exact verified slots returned by the RPC.
 // - Dates appear only when the RPC returned one or more verified slots.
 // - Missing rows are unverified: they must not be translated into a closure,
 //   a full day, or unavailable availability.
-const ACTIVE_SLOT_COUNT = 10; // matches active_slots() from migration 006
 const AVAILABILITY_WINDOW_DAYS = 30;
 const VERIFIED_SMALL_MEDIUM_NOTE =
   "Only the date-and-slot combinations listed above are verified. Any missing date is unverified — do NOT infer it is closed, full, or unavailable.";
@@ -642,18 +644,25 @@ async function buildAvailabilityBlock(
   supabase: SupabaseClient,
   todayIso: string,
 ): Promise<string> {
-  const toIso = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 24 * 3600 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const toIso = addCalendarDays(todayIso, AVAILABILITY_WINDOW_DAYS);
 
   const { data, error } = await supabase.rpc("get_small_medium_availability", {
     p_from: todayIso,
     p_to: toIso,
   });
 
+  const { data: exceptions, error: calendarError } = await supabase
+    .from("day_settings").select("setting_date,is_open").gte("setting_date", todayIso).lte("setting_date", toIso).limit(32);
+  const calendarLines = calendarError
+    ? "Diary exceptions lookup unavailable; do not infer date-specific opening."
+    : (exceptions ?? []).filter((r: { is_open: unknown }) => typeof r.is_open === "boolean")
+      .map((r: { setting_date: string; is_open: boolean }) => `${r.setting_date}: ${r.is_open ? "open" : "closed"} (verified diary exception; not a capacity claim)`).join("\n");
+  const calendarNote = calendarLines ? `\n${calendarLines}` : "";
+  const header = `--- Availability (next ${AVAILABILITY_WINDOW_DAYS} days, small/medium dogs only) ---`;
+
   if (error) {
     console.warn("buildAvailabilityBlock RPC error:", error.message);
-    return `--- Availability ---\n(no verified availability was returned — do NOT infer that any date is closed, full, or unavailable)`;
+    return `${header}${calendarNote}\n(no verified slots returned — missing dates are unverified; only explicit diary exceptions establish open or closed)`;
   }
 
   // Group slots by date
@@ -668,17 +677,14 @@ async function buildAvailabilityBlock(
   for (const [iso, slots] of byDate) {
     if (slots.length === 0) continue;
     const label = formatShortDate(iso);
-    const slotList = slots.length >= ACTIVE_SLOT_COUNT
-      ? "(all open)"
-      : slots.join(" ");
+    const slotList = slots.join(" ");
     lines.push(`${label}: ${slotList}`);
   }
 
-  const header = `--- Availability (next ${AVAILABILITY_WINDOW_DAYS} days, small/medium dogs only) ---`;
   if (lines.length === 0) {
-    return `${header}\n(no verified availability was returned — do NOT infer that any date is closed, full, or unavailable)`;
+    return `${header}${calendarNote}\n(no verified availability was returned — do NOT infer that any missing date is closed, full, or unavailable)`;
   }
-  return `${header}\n${lines.join("\n")}\n(${VERIFIED_SMALL_MEDIUM_NOTE})`;
+  return `${header}${calendarNote}\n${lines.join("\n")}\n(${VERIFIED_SMALL_MEDIUM_NOTE})`;
 }
 
 // ── Large-dog availability block ──────────────────────────────
@@ -699,9 +705,7 @@ async function buildLargeDogAvailabilityBlock(
   supabase: SupabaseClient,
   todayIso: string,
 ): Promise<string> {
-  const toIso = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 24 * 3600 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const toIso = addCalendarDays(todayIso, AVAILABILITY_WINDOW_DAYS);
 
   const { data, error } = await supabase.rpc("get_large_dog_day_availability", {
     p_from: todayIso,
@@ -783,6 +787,7 @@ async function buildContext(
   humanId: string | null,
   agentState: AgentState | null,
   autonomousBookingEnabled: boolean,
+  reviewOnly = false,
 ): Promise<string> {
   // Recent message history (last 20, oldest first)
   const { data: messages } = await supabase
@@ -805,9 +810,10 @@ async function buildContext(
   // Give Claude today's date so it can interpret "tomorrow" / "next Monday"
   // in customer messages without needing a tool call.
   const today = new Date();
-  const todayIso = today.toISOString().slice(0, 10);
-  const dayName = today.toLocaleDateString("en-GB", { weekday: "long" });
-  parts.push(`--- Today ---\n${dayName} ${todayIso} (UK time)`);
+  const calendar = agentCalendar(today);
+  const todayIso = calendar.today;
+  const dayName = calendar.weekday;
+  parts.push(`--- Today ---\n${dayName} ${todayIso} (Europe/London); tomorrow: ${calendar.tomorrow}`);
 
   parts.push(`--- Recent conversation (oldest first) ---\n${history || "(no prior messages)"}`);
 
@@ -855,28 +861,36 @@ async function buildContext(
       parts.push(`--- Dogs ---\n${dogLines}`);
     }
 
-    // Next 14 days of bookings for this customer's dogs
-    const in14 = new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-
-    const { data: bookings } = await supabase
+    const { data: policySettings, error: policyError } = await supabase
+      .from("booking_policy_settings").select("booking_horizon_days").eq("singleton", true).maybeSingle();
+    const horizon = contextHorizon(policySettings?.booking_horizon_days);
+    const through = addCalendarDays(todayIso, horizon);
+    if (policyError) console.warn("Booking context horizon lookup unavailable; using bounded 180-day context");
+    const { data: bookings, error: bookingError } = await supabase
       .from("bookings")
       .select("id, booking_date, slot, service, status, confirmed, dogs!inner(name, human_id)")
       .eq("dogs.human_id", humanId)
       .gte("booking_date", todayIso)
-      .lte("booking_date", in14)
-      .order("booking_date", { ascending: true });
+      .lte("booking_date", through)
+      .neq("status", "Cancelled")
+      .order("booking_date", { ascending: true })
+      .order("slot", { ascending: true })
+      .limit(41);
 
-    if (bookings?.length) {
+    const visibleBookings = (bookings ?? []).filter((b: { status: string }) => b.status !== "Cancelled");
+    if (bookingError) {
+      parts.push("--- Upcoming bookings ---\n(lookup unavailable — do not claim the customer has no appointment or infer an appointment identity)");
+    } else if (visibleBookings.length) {
       // booking_id rendered so the agent can populate old_booking_id for
       // reschedule / cancel booking_actions (see HARD RULES in SYSTEM_PROMPT).
-      const bookingLines = bookings.map((b: any) =>
+      const bookingLines = visibleBookings.slice(0, 40).map((b: any) =>
         `  - ${b.dogs?.name ?? "?"}: ${b.booking_date} at ${b.slot} — ${b.service}${
           b.confirmed ? " (confirmed)" : " (unconfirmed)"
-        } [booking_id: ${b.id}]`
+        } [status: ${b.status}] [booking_id: ${b.id}]`
       ).join("\n");
-      parts.push(`--- Upcoming bookings (next 14 days) ---\n${bookingLines}`);
+      parts.push(`--- Upcoming bookings (through ${through}; ${horizon}-day context window) ---\n${bookingLines}${visibleBookings.length > 40 ? "\nAdditional appointments omitted; staff lookup required. Do not infer an omitted appointment is absent." : ""}`);
     } else {
-      parts.push(`--- Upcoming bookings ---\n(none in next 14 days)`);
+      parts.push(`--- Upcoming bookings ---\n(none found through ${through}; ${horizon}-day context window)`);
     }
   } else {
     parts.push(`--- Customer ---\nUnknown (phone not matched to any existing customer record). Do NOT address by name.`);
@@ -923,6 +937,7 @@ async function buildContext(
     );
   }
 
+  if (reviewOnly) parts.push("--- Review-only drafting mode ---\nThis reply is for staff review only. Do not propose booking_action or imply a booking has been made. No confirmation button will be sent for this draft. Use verified facts; never promise that an automatic action will follow.");
   return parts.join("\n\n");
 }
 
@@ -1131,6 +1146,7 @@ interface DraftPolicy {
   riskLevel: RiskLevel;
   handoffRequired: boolean;
   autoSendEligible: boolean;
+  draftOnly: boolean;
 }
 
 async function saveDraft(
@@ -1174,11 +1190,11 @@ async function saveDraft(
     state: "pending",
     risk_level: policy.riskLevel,
     handoff_required: policy.handoffRequired,
-    auto_send_eligible: policy.autoSendEligible,
+    auto_send_eligible: !policy.draftOnly && policy.autoSendEligible,
     model: CLAUDE_MODEL,
     tokens_input: tokensIn,
     tokens_output: tokensOut,
-    tool_calls: rawResponse as Record<string, unknown>,
+    tool_calls: { ...(rawResponse as Record<string, unknown>), prompt_version: WHATSAPP_REPLY_PROMPT_VERSION, review_only: policy.draftOnly },
   }).select("id").single();
   if (error) throw new Error(`saveDraft failed: ${error.message}`);
   return data.id as string;
@@ -1210,7 +1226,7 @@ async function dispatchIfEligible(
   draftId: string,
   policy: DraftPolicy,
 ): Promise<void> {
-  if (!policy.autoSendEligible) return;
+  if (policy.draftOnly || !policy.autoSendEligible) return;
   if (!SEND_INTERNAL_SECRET) {
     console.warn("dispatchIfEligible: SEND_INTERNAL_SECRET is not set; skipping auto-send");
     return;
@@ -1268,10 +1284,10 @@ async function dispatchBookEntry(
   conversationId: string,
   humanId: string,
   phoneE164: string,
-): Promise<void> {
+): Promise<BookEntryOutcome> {
   if (!SEND_INTERNAL_SECRET) {
     console.warn("dispatchBookEntry: SEND_INTERNAL_SECRET not set; skipping");
-    return;
+    return { kind: "refused", reason: "missing_send_configuration" };
   }
   try {
     const res = await fetch(WHATSAPP_SEND_URL, {
@@ -1285,11 +1301,12 @@ async function dispatchBookEntry(
         ai_initiated: true,
       }),
     });
-    if (!res.ok) {
-      console.warn(`dispatchBookEntry: whatsapp-send returned ${res.status}: ${await res.text()}`);
-    }
+    const outcome = await bookEntryOutcome(res);
+    if (outcome.kind !== "accepted") console.warn(`dispatchBookEntry: ${outcome.kind} ${outcome.reason}`);
+    return outcome;
   } catch (err) {
     console.warn("dispatchBookEntry failed (non-fatal):", err instanceof Error ? err.message : String(err));
+    return { kind: "uncertain", reason: "network_or_timeout" };
   }
 }
 
@@ -1552,7 +1569,7 @@ async function manageCutoffHandoff(
     ? "This one's within 24 hours, so I can't cancel it automatically here. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
     : "This appointment is within 24 hours, so I can't move it automatically here. I've flagged it for the team so they can help you properly. 🐾";
   await sendManageText(conversationId, msg);
-  const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false };
+  const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false, draftOnly: false };
   const draft: DraftFromClaude = {
     intent: "escalate",
     confidence: 0,
@@ -1828,7 +1845,9 @@ async function saveBookingAction(
   conversationId: string,
   draftId: string,
   draft: DraftFromClaude,
+  policy: DraftPolicy,
 ) {
+  if (policy.draftOnly) return;
   const action = draft.booking_action;
   if (!action) return;
 
@@ -2156,7 +2175,9 @@ async function dispatchConfirmButtons(
   conversationId: string,
   draftId: string,
   bookingAction: BookingActionFromClaude,
+  policy: DraftPolicy,
 ): Promise<void> {
+  if (policy.draftOnly) return;
   // The action row was just inserted by saveBookingAction. Find it by
   // draft_id + state='pending' (the staging state). After whatsapp-send
   // succeeds, the action row transitions to 'awaiting_customer_confirm'.
@@ -2663,6 +2684,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                 riskLevel: "high",
                 handoffRequired: true,
                 autoSendEligible: false,
+                draftOnly: false,
               };
               const draft: DraftFromClaude = {
                 intent: "escalate",
@@ -2759,19 +2781,20 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             guessIntentFromText(text ?? "") === "booking_propose" &&
             !(await recentlySentBookEntry(supabase, conversation.id))
           ) {
-            await dispatchBookEntry(conversation.id, conversation.human_id, phoneE164);
-            continue;
+            const outcome = await dispatchBookEntry(conversation.id, conversation.human_id, phoneE164);
+            if (outcome.kind !== "refused") continue;
           }
 
-          // AI on demand. AI replies are generated ONLY on an explicit
-          // staff click (force_draft via the "Generate reply" button). A
-          // KNOWN customer never gets an automatic draft regardless of
-          // conversation state — the inbound is persisted and waits.
+          // Known customers remain on demand except for flagged new-booking
+          // review drafts in ai_handling. Every automatic review draft takes
+          // the isolated save-only path below; Human only stays on demand.
           // Unknown customers (human_id IS NULL) still get one agent pass
           // so the onboarding state machine can collect their details —
           // staff don't have to babysit every cold inbound.
           const isKnownCustomer = conversation.human_id != null;
-          if (isKnownCustomer && !forceDraft) {
+          const reviewDraftOnly = AI_KNOWN_CUSTOMER_REVIEW_DRAFTS && isKnownCustomer && !forceDraft &&
+            conversation.state === "ai_handling" && guessIntentFromText(text ?? "") === "booking_propose";
+          if (isKnownCustomer && !forceDraft && !reviewDraftOnly) {
             continue;
           }
 
@@ -2796,6 +2819,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               riskLevel: "high",
               handoffRequired: true,
               autoSendEligible: false,
+              draftOnly: reviewDraftOnly,
             };
             const draft: DraftFromClaude = {
               intent: "escalate",
@@ -2827,6 +2851,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             conversation.human_id ?? humanId,
             conversation.agent_state,
             conversation.autonomous_booking_enabled === true,
+            reviewDraftOnly,
           );
           const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText);
 
@@ -2850,7 +2875,14 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             envFlagEnabled: AI_AUTO_SEND_LOW_RISK,
             conversationOptedIn: conversation.auto_send_enabled,
           });
-          const policy: DraftPolicy = { riskLevel, handoffRequired, autoSendEligible };
+          const policy: DraftPolicy = { riskLevel, handoffRequired, autoSendEligible: !reviewDraftOnly && autoSendEligible, draftOnly: reviewDraftOnly };
+
+          // Isolated review path: only the draft row plus existing inbound/event bookkeeping.
+          // In particular, bypass learned state and AI-onboarded record corrections.
+          if (policy.draftOnly) {
+            await saveDraft(supabase, conversation.id, event.id, draft, policy, tokensIn, tokensOut, raw);
+            continue;
+          }
 
           // Persist learned state first — even if downstream writes
           // fail, the next turn benefits.
@@ -2936,14 +2968,14 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             tokensOut,
             raw,
           );
-          await saveBookingAction(supabase, conversation.id, draftId, draft);
+          await saveBookingAction(supabase, conversation.id, draftId, draft, policy);
           // Autonomous booking: if every gate passes (env flag, per-conv
           // opt-in, known customer, low risk, high confidence, small/medium
           // recognised breed, booking-related intent, ai_handling state),
           // send the confirm-buttons message. Otherwise the action stays
           // at 'pending' and the staff inbox handles it via the legacy
           // BookingActionPanel.
-          if (draft.booking_action) {
+          if (!policy.draftOnly && draft.booking_action) {
             const breed = conversation.agent_state?.breed ?? null;
             const dogSize = inferDogSize(breed, draft.booking_action);
             const breedKnown = dogSize !== "unknown" && dogSize !== null;
@@ -2959,7 +2991,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               breedKnown,
             });
             if (eligible) {
-              await dispatchConfirmButtons(supabase, conversation.id, draftId, draft.booking_action);
+              await dispatchConfirmButtons(supabase, conversation.id, draftId, draft.booking_action, policy);
             }
           }
           // A staff-clicked (force_draft) draft always waits for approval —
