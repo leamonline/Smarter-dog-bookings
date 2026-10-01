@@ -4,22 +4,26 @@ import { test, expect } from "@playwright/test";
 // sample data — no Supabase, no customer PII.
 //
 // The suite runs on real wall-clock dates, so nothing here hardcodes a day.
-// Open days carry an ", availability" mini-calendar label; closed ones say
-// ", closed", so the first availability button is a stable way to land on a
-// day that actually has a slot grid.
+// It also runs on desktop, tablet, mobile and both folds, and the mini
+// calendar with its ", availability" day buttons is a desktop sidebar only —
+// so navigation goes through the calendar's ?date= parameter (honoured by
+// useWeekNav on first load), which behaves identically on every viewport.
+
+/** The next Monday on or after today — always an open salon day (Mon–Wed). */
+function nextOpenDate(): string {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 test.describe("Partial-day closures", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // "/" lands on the Daily Brief; the weekly calendar with the slot grid is
-    // the Bookings route.
-    await page
-      .getByRole("navigation", { name: "Primary" })
-      .getByRole("link", { name: "Bookings" })
-      .click();
-    await page
-      .getByRole("button", { name: /, availability$/ })
-      .first()
-      .click();
+    // "/staff" is the weekly calendar; "/" redirects to the Daily Brief, which
+    // has no slot grid. ?date= is honoured by useWeekNav on first load.
+    await page.goto(`/staff?date=${nextOpenDate()}`);
     await expect(
       page.getByRole("button", { name: /open slot actions/ }).first(),
     ).toBeVisible();
