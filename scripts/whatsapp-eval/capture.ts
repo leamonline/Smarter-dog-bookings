@@ -1,3 +1,5 @@
+export {};
+
 /** Offline-only capture of the actual handler request. Every fetch is intercepted. */
 const [root, fixturesPath, output, mode] = Deno.args;
 const fixtures = JSON.parse(await Deno.readTextFile(fixturesPath));

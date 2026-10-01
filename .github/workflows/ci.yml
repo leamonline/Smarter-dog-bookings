@@ -87,6 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The offline comparison captures two pinned historical handlers.
+          fetch-depth: 0
       # Pinned so the two Node scripts (check:edge-types, check:edge-auth) run
       # on the version the repository declares and tests against, not whatever
       # the runner image ships.
@@ -168,6 +171,12 @@ jobs:
           done
           echo "::error::deno test failed after 3 attempts"
           exit 1
+
+      - name: Type-check WhatsApp comparison capture (Deno)
+        run: deno check --no-config --no-lock scripts/whatsapp-eval/capture.ts
+
+      - name: Test offline WhatsApp comparison and mocked provider boundaries
+        run: node --test scripts/whatsapp-eval/compare.test.mjs
 
   e2e:
     # Playwright is by far the heaviest CI consumer (npm ci + browser
