@@ -316,3 +316,13 @@ describe("ConversationListItem", () => {
     expect(screen.getByText("Sarah Jones")).toBeInTheDocument();
   });
 });
+
+ it("shows waiting time as accessible text without clipping the extra line", () => {
+  render(<ConversationListItem conv={baseConversation()} waitingLabel="Waiting 2h 30m working time" onSelect={vi.fn()} />);
+  expect(screen.getByText("Waiting 2h 30m working time")).toBeInTheDocument();
+  expect(screen.getByRole("button").closest("div")).toHaveClass("max-h-[96px]");
+});
+it("shows unavailable instead of guessed waiting time", () => {
+  render(<ConversationListItem conv={baseConversation()} waitingLabel="Waiting time unavailable" onSelect={vi.fn()} />);
+  expect(screen.getByText("Waiting time unavailable")).toBeInTheDocument();
+});

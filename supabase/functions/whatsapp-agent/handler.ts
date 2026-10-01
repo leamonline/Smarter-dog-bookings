@@ -1355,10 +1355,10 @@ async function callWhatsappSend(body: Record<string, unknown>): Promise<boolean>
       headers: { "content-type": "application/json", "x-internal-secret": SEND_INTERNAL_SECRET },
       body: JSON.stringify({ ...body, ai_initiated: true }),
     });
-    if (!res.ok) console.warn(`whatsapp-send ${body.mode} returned ${res.status}: ${await res.text()}`);
+    if (!res.ok) console.warn(`whatsapp-send ${body.mode} ai_initiated=true returned ${res.status}: ${await res.text()}`);
     return res.ok;
   } catch (err) {
-    console.warn(`whatsapp-send ${body.mode} failed:`, err instanceof Error ? err.message : String(err));
+    console.warn(`whatsapp-send ${body.mode} ai_initiated=true failed:`, err instanceof Error ? err.message : String(err));
     return false;
   }
 }

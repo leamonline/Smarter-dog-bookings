@@ -52,4 +52,10 @@ describe("AI WhatsApp operational controls", () => {
       /mode:\s*"manual",\s*ai_initiated:\s*true/,
     );
   });
+  it("identifies AI-initiated manual-mode calls in refusal and failure logs", () => {
+    const agent = read("supabase/functions/whatsapp-agent/handler.ts");
+    expect(agent).toContain("whatsapp-send ${body.mode} ai_initiated=true returned ${res.status}");
+    expect(agent).toContain("whatsapp-send ${body.mode} ai_initiated=true failed:");
+  });
+
 });
