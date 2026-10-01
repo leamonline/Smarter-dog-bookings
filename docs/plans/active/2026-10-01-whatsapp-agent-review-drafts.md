@@ -289,3 +289,7 @@ Final context review: slot lists are rendered exactly as the RPC returns them. T
 ## Model-comparison preparation — 1 October 2026
 
 The [comparison runner](../../../scripts/whatsapp-eval/README.md) captures the real baseline and merged candidate handler requests using 14 fixed synthetic fixtures, a fixed London clock and intercepted database/provider fetches. Source revisions, fixture and request hashes are pinned; the paid run is bounded to 28 serial requests with no automatic retry. Blind scoring separates review from version identity. No customer data or provider credentials were used in preparation. Model-quality results remain pending the separately approved provider run; preparation does not satisfy the promotion gate.
+
+## Grounded-reply follow-up — 1 October 2026
+
+Base revalidated at `main@3b5185ab86772b0b18a588aab6778d3a142678e3`. The first comparison is recorded in documentation PR #929; preserve its scores and hold enablement. Candidate `2026-10-01.2` corrects generic account-link answers, internal-control disclosure and invented multi-dog instructions. The [follow-up evaluation](../../../prompts/evals/2026-10-01-whatsapp-grounded-replies.md) records portal evidence and revised fixture criteria. Confirmation questions apply only to permitted action proposals. No send gate, booking mutation, cancellation policy or learned-state contract changes in this slice. Further provider use and environment promotion remain separate approval points.

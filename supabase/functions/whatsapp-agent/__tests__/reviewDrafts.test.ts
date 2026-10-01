@@ -19,6 +19,7 @@ interface Scenario {
   defaultFlag?: boolean;
   duplicate?: boolean;
   manage?: boolean;
+  selfService?: boolean;
   emptyBookings?: boolean;
   availabilityError?: boolean;
   extraSlots?: boolean;
@@ -47,7 +48,7 @@ async function run(s: Scenario = {}) {
   const today = agentCalendar().today;
   const later = addCalendarDays(today, 42);
   const oldFetch = globalThis.fetch;
-  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: true, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog" }, lead_status: "records_created", lead_payload: null };
+  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog" }, lead_status: "records_created", lead_payload: null };
   const payload = { entry: [{ changes: [{ value: { messages: [{ id: "synthetic-inbound", from: "447700900111", type: "text", text: { body: s.text ?? "Can I book my dog?" }, timestamp: String(Math.floor(Date.now() / 1000)) }] } }] }] };
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -111,7 +112,7 @@ function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = fa
 Deno.test("review draft writes only a held draft despite all automation opt-ins and extracted corrections", async () => {
   const result = await run({ manage: true });
   assertIsolation(result);
-  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-01.1");
+  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-01.2");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
 });
@@ -216,4 +217,21 @@ Deno.test("ten returned slots do not imply every canonical slot is free", async 
   assert(!context.includes("(all open)"));
   const availability = context.slice(context.indexOf("--- Availability"), context.indexOf("--- Large-dog"));
   assert(!availability.includes("09:00"));
+});
+
+Deno.test("self-service instructions answer verified facts and keep internal controls out of customer copy", async () => {
+  const result = await run({ selfService: true, bookingError: true });
+  const model = result.calls.find((c) => c.path === "/v1/messages")!;
+  const context = (model.body.messages as { content: string }[])[0].content;
+  const system = model.body.system as string;
+  assertStringIncludes(context, "Answers the actual question");
+  assertStringIncludes(context, "booking_cancel");
+  assertStringIncludes(context, "verified answer is enough");
+  assert(!context.includes("staff have turned autonomous booking off"));
+  assertStringIncludes(system, "cannot check the appointment details right now");
+  assertStringIncludes(system, "explicitly identify 10:00 as a different time");
+  assertStringIncludes(system, "Do not instruct customers to book dogs separately");
+  assertStringIncludes(system, "Never mention internal switches");
+  assertStringIncludes(system, "Only when proposing a permitted booking_action");
+  assertIsolation(result);
 });
