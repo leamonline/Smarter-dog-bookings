@@ -3,6 +3,7 @@ import { agentCalendar, addCalendarDays } from "../../_shared/agentContext.ts";
 
 interface Scenario {
   enabled?: boolean;
+  memoryFailure?: "error" | "missing";
   state?: string;
   text?: string;
   bookEntry?: boolean;
@@ -59,6 +60,7 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/whatsapp_events") return method === "PATCH" ? new Response(null, { status: 204 }) : reply({ id: "event-review", processing_status: "pending", signature_valid: true, payload });
     if (url.pathname === "/rest/v1/humans") return url.searchParams.get("select")?.startsWith("name,") ? reply({ name: "Synthetic", surname: "Person" }) : reply([{ id: "human-review", phone: "07700900111" }]);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && (method === "POST" || method === "GET")) return reply(conversation);
+    if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && s.memoryFailure) return s.memoryFailure === "error" ? reply({ message: "synthetic save failure" }, 500) : reply(null);
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       if (method === "POST") return s.duplicate ? reply({ code: "23505", message: "duplicate key idx_whatsapp_messages_meta_msg" }, 409) : reply({ id: "message-review" }, 201);
       if (url.searchParams.has("or")) return reply(s.recent ? [{ id: "previous", content: "[book_entry] synthetic" }] : []);
@@ -75,7 +77,7 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/day_settings") return s.calendarError ? reply({ message: "synthetic calendar failure" }, 500) : reply([{ setting_date: addCalendarDays(today, 1), is_open: true }, { setting_date: addCalendarDays(today, 2), is_open: false }]);
     if (url.pathname === "/rest/v1/rpc/get_small_medium_availability") return s.availabilityError ? reply({ message: "synthetic availability failure" }, 500) : reply(s.extraSlots ? ["08:30", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"].map((slot) => ({ booking_date: today, slot })) : [{ booking_date: today, slot: "09:00" }]);
     if (url.pathname === "/rest/v1/rpc/get_large_dog_day_availability") return reply([]);
-    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...(s.force || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) }) }], usage: { input_tokens: 10, output_tokens: 10 } });
+    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) }) }], usage: { input_tokens: 10, output_tokens: 10 } });
     if (url.pathname === "/rest/v1/whatsapp_drafts" && method === "POST") { rows.push(body); return reply({ id: "review-draft" }, 201); }
     if (url.pathname.endsWith("/functions/v1/whatsapp-send")) {
       if (s.outcome === "timeout") throw new Error("synthetic timeout after request");
@@ -90,7 +92,7 @@ async function run(s: Scenario = {}) {
     const response = await handleAgentRequest(new Request("http://agent.test", { method: "POST", headers: { "x-agent-secret": "test-secret", "content-type": "application/json" }, body: JSON.stringify({ event_id: "event-review", force_draft: s.force, suggest_only: s.suggest }) }));
     assertEquals(response.status, 200);
     const text = await response.text();
-    if (!s.suggest) assertEquals(text, s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
+    if (!s.suggest) assertEquals(text, s.memoryFailure ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
     return { calls, rows, today, later, text };
   } finally { globalThis.fetch = oldFetch; }
 }
@@ -235,3 +237,17 @@ Deno.test("self-service instructions answer verified facts and keep internal con
   assertStringIncludes(system, "Only when proposing a permitted booking_action");
   assertIsolation(result);
 });
+
+for (const memoryFailure of ["error", "missing"] as const) {
+  Deno.test(`failed memory save stops downstream work: ${memoryFailure}`, async () => {
+    const result = await run({ force: true, memoryFailure });
+    assertEquals(result.rows.length, 0);
+    assertEquals(result.calls.filter(c => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+    assertEquals(result.calls.filter(c => c.path.includes("whatsapp_booking_actions") || c.path.includes("whatsapp_ai_action_audit")).length, 0);
+    const writes = result.calls.filter(c => c.method === "PATCH");
+    assert(writes.every(c => ["/rest/v1/whatsapp_conversations", "/rest/v1/whatsapp_events"].includes(c.path)));
+    const event = writes.find(c => c.path === "/rest/v1/whatsapp_events")!;
+    assertEquals(event.body.processing_status, "failed");
+    assertStringIncludes(String(event.body.error_message), "Agent memory save failed");
+  });
+}
