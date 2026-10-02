@@ -114,6 +114,10 @@ protecting an endpoint that already has two-tier rate limiting.
 
 Raised as a separate issue. Not smuggled into this change.
 
+Decision (2 October 2026): closed as won't-fix in issue #852. The existing
+rate limits defend the endpoint and the second challenge round was judged not
+worth the login friction; revisit only if those limits prove insufficient.
+
 ## Design
 
 ### 1. Site key resolver
