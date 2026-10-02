@@ -113,7 +113,7 @@ function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = fa
 Deno.test("review draft writes only a held draft despite all automation opt-ins and extracted corrections", async () => {
   const result = await run({ manage: true });
   assertIsolation(result);
-  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.1");
+  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.2");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
 });
@@ -246,4 +246,14 @@ Deno.test("truncated provider output cannot persist even an apparently complete 
   assert(writes.every((c) => c.path === "/rest/v1/whatsapp_events"));
   assertEquals(writes.at(-1)?.body.processing_status, "failed");
   assertStringIncludes(String(writes.at(-1)?.body.error_message), "output truncated");
+});
+
+Deno.test("relative-date customer answers are bound to the London calendar supplied to the model", async () => {
+  const result = await run({ selfService: true, text: "Can I book my dog tomorrow?" });
+  const model = result.calls.find((c) => c.path === "/v1/messages")!;
+  const context = (model.body.messages as { content: string }[])[0].content;
+  assertStringIncludes(context, `tomorrow: ${addCalendarDays(result.today, 1)}`);
+  assertStringIncludes(model.body.system as string, "explicitly name the corresponding calendar date");
+  assertStringIncludes(model.body.system as string, "Do not rely on extracted_state");
+  assertIsolation(result);
 });

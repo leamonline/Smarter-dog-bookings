@@ -70,3 +70,7 @@ Candidate observations:
 - London-midnight reply did not give the explicit 3 October date and omitted extracted_state. It did not give a wrong date or invent availability, but fails the required explicit date-resolution criterion. Baseline did resolve the date in this run.
 
 This is a 14-case sample, not a reliability rate. Model instructions are insufficient proof that facts will be consistently used. Before automatic enablement, address explicit relative-date resolution, review brevity against the owner's standard, and complete current-flag/staging isolation and separately authorised promotion gates. No further provider run, flag change or production rollout is authorised by this record.
+
+# Fourth candidate preparation — 2 October 2026
+
+Prompt `2026-10-02.2` requires today/tomorrow requests to name the explicit date from the London Today block in customer-facing text, before any account link and even when availability is unverified. Extracted state is not treated as communicating that date. It forbids unrequested prices and limits service explanation. The synthetic handler test verifies the supplied calendar and instructions, not model compliance. A new paid comparison and hosted staging writes require separate approval; no environment flag is changed by this source work.
