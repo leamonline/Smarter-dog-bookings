@@ -294,6 +294,12 @@ The [comparison runner](../../../scripts/whatsapp-eval/README.md) captures the r
 
 Base revalidated at `main@3b5185ab86772b0b18a588aab6778d3a142678e3`. The first comparison is recorded in documentation PR #929; preserve its scores and hold enablement. Candidate `2026-10-01.2` corrects generic account-link answers, internal-control disclosure and invented multi-dog instructions. The [follow-up evaluation](../../../prompts/evals/2026-10-01-whatsapp-grounded-replies.md) records portal evidence and revised fixture criteria. Confirmation questions apply only to permitted action proposals. No send gate, booking mutation, cancellation policy or learned-state contract changes in this slice. Further provider use and environment promotion remain separate approval points.
 
+## Step 2 first slice: memory-write failure — 2 October 2026
+
+Discovery: `persistAgentState` said drafts were already saved, but the handler actually persists memory before saving the draft. It logged database errors and continued into onboarding, record correction and booking processing. The first slice makes a failed or missing-row memory write stop the event through the existing failed-event path, with no dependent draft/action/send. The update returns the row ID to detect zero-row writes. There is no automatic retry or schema change; staff must inspect failed events.
+
+Compatibility discovery: current prompt/schema and existing merge tests use `null` for unknown/no change. Reinterpreting historical nulls as deletion would erase supplied details. Explicit removal therefore needs a separately represented, validated correction contract; it is not implemented by this failure slice. Per-dog identity, revision concurrency, delivered-summary binding and corrected-state reconciliation remain outstanding. The draft-only path still exits before memory writes and keeps its original isolation contract.
+
 ## Isolation readiness — 2 October 2026
 
 The [isolation runbook](../../runbooks/whatsapp-review-draft-isolation.md) separates the executable mocked handler matrix from pending hosted staging evidence. The fourth provider comparison is interrupted by insufficient Anthropic API credit; 20 completed responses remain preserved. No hosted fixture writes, configuration changes or new provider requests are part of readiness verification. The production handler has no mock-provider deployment switch, so hosted accepted/uncertain transport scenarios require separately reviewed preparation rather than a live customer send.

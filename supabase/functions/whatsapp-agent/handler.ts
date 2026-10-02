@@ -1214,22 +1214,20 @@ async function saveDraft(
   return data.id as string;
 }
 
-// Persist a merged agent_state patch onto whatsapp_conversations.
-// Errors here are non-fatal — if state persistence fails, the draft
-// has already been saved and staff can act on it. The next inbound
-// will just see the previous state.
+// Persist memory before dependent draft, onboarding or booking work.
+// A failed or missing-row write stops the event rather than using unsaved facts.
 async function persistAgentState(
   supabase: SupabaseClient,
   conversationId: string,
   state: AgentState,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("whatsapp_conversations")
     .update({ agent_state: state })
-    .eq("id", conversationId);
-  if (error) {
-    console.warn("persistAgentState failed (non-fatal):", error.message);
-  }
+    .eq("id", conversationId)
+    .select("id")
+    .single();
+  if (error || !data?.id) throw new Error("Agent memory save failed; dependent processing stopped");
 }
 
 // Auto-dispatch hook. Calls whatsapp-send with mode:'draft' so the
