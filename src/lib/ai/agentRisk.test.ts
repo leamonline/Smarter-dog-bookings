@@ -644,3 +644,16 @@ describe("canAutoBook", () => {
     expect(canAutoBook({ ...base, intent: "booking_confirm" })).toBe(false);
   });
 });
+
+describe("explicit booking-preference corrections", () => {
+  it("clears only the named preference and retains a bounded correction trail", () => {
+    const result = mergeAgentState({dogName:"Milo", preferredDay:"Tuesday", preferredTime:"09:00"}, {corrections:[{field:"preferredTime",value:null,evidence:"Forget 09:00"}]});
+    expect(result.preferredTime).toBeNull();
+    expect(result.preferredDay).toBe("Tuesday");
+    expect(result.dogName).toBe("Milo");
+    expect(result.corrections).toEqual([{field:"preferredTime",value:null,evidence:"Forget 09:00"}]);
+  });
+  it("an explicit corrected value takes precedence over an ordinary extracted value", () => {
+    expect(mergeAgentState({preferredDay:"Monday"}, {preferredDay:"Monday",corrections:[{field:"preferredDay",value:"Tuesday",evidence:"Tuesday instead"}]}).preferredDay).toBe("Tuesday");
+  });
+});

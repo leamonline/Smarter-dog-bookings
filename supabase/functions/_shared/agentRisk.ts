@@ -300,7 +300,14 @@ export type AgentStateStatus =
  * when the field has been explicitly unset; `undefined` is used when
  * it has never been populated. Treat them equivalently when reading.
  */
+export interface AgentCorrection {
+  field: "preferredDay" | "preferredTime" | "service";
+  value: string | null;
+  evidence: string;
+}
+
 export interface AgentState {
+  corrections?: AgentCorrection[];
   customerName?: string | null;
   customerSurname?: string | null;
   dogName?: string | null;
@@ -375,6 +382,16 @@ export function mergeAgentState(
     (next as Record<string, unknown>)[key] = value;
   }
 
+  if (Array.isArray(patch.corrections)) {
+    const corrections = patch.corrections.filter(c =>
+      c && ["preferredDay", "preferredTime", "service"].includes(c.field) &&
+      (c.value === null || (typeof c.value === "string" && c.value.trim().length > 0)) &&
+      typeof c.evidence === "string" && c.evidence.trim().length > 0 &&
+      (c.field !== "service" || c.value === null || ["full-groom", "bath-and-brush", "bath-and-deshed", "puppy-groom"].includes(c.value))
+    ).slice(0, 5).map(c => ({...c, value: c.value === null ? null : c.value.trim().slice(0, 200), evidence: c.evidence.slice(0, 200)}));
+    for (const correction of corrections) (next as Record<string, unknown>)[correction.field] = correction.value;
+    if (corrections.length) next.corrections = [...(prev?.corrections ?? []), ...corrections].slice(-10);
+  }
   return next;
 }
 

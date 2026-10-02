@@ -309,3 +309,11 @@ Compatibility discovery: current prompt/schema and existing merge tests use `nul
 ## Isolation readiness — 2 October 2026
 
 The [isolation runbook](../../runbooks/whatsapp-review-draft-isolation.md) separates the executable mocked handler matrix from pending hosted staging evidence. The fourth provider comparison is interrupted by insufficient Anthropic API credit; 20 completed responses remain preserved. No hosted fixture writes, configuration changes or new provider requests are part of readiness verification. The production handler has no mock-provider deployment switch, so hosted accepted/uncertain transport scenarios require separately reviewed preparation rather than a live customer send.
+
+## Step 2 explicit preference corrections — 2 October 2026
+
+The first additive correction contract covers `preferredDay`, `preferredTime` and `service` only. Ordinary null still means unknown/no change. An explicit `corrections` array carries field, replacement (null clears) and an exact quote present in the latest inbound message. Invalid fields, values, absent evidence and unsupported services are ignored. This validates provenance and shape, not whether the model correctly understood the quoted instruction; model-quality review remains required before enabling automated drafting.
+
+Accepted corrections override ordinary extracted values for the named preference and retain the latest ten entries in conversation JSON. Each turn accepts at most five corrections; field/evidence lengths are bounded. The correction trail is operational memory, not an immutable audit. Customer records are not updated through these preference fields. Review-only drafts still bypass memory writes. No schema migration or deployment is included.
+
+Synthetic tests cover unknown nulls, absent/invalid evidence, disallowed identity changes, explicit clears and replacements, preservation of unrelated details, and the conversation-memory row written by the handler. Per-dog targeting, alerts clearing, profile removals, concurrency/revision and delivered-summary identity remain outstanding; no unbound dog correction is introduced.

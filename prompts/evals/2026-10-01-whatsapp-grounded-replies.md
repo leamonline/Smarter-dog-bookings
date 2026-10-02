@@ -80,3 +80,7 @@ Prompt `2026-10-02.2` requires today/tomorrow requests to name the explicit date
 The owner-approved comparison recorded 20 responses before HTTP 400 on `candidate-no-repeat`. Successful responses and the rejected request marker remain in `/tmp/whatsapp-fourth-comparison-2026-10-02`; no retry occurred. The runner discarded the provider error body, so the refusal cause is unknown. Do not infer invalid credentials, exhausted credit, model failure or prompt failure from status alone. This incomplete run cannot support a comparative promotion decision.
 
 The runner now retains bounded, credential-redacted error type/message and provider request ID for future failures. It still refuses directories with previous execution evidence. Recovery must preserve the first 20 responses and avoid replaying them; no recovery provider calls have been authorised or performed.
+
+# Conversation preference correction contract — 2 October 2026
+
+Prompt `2026-10-02.memory-1` adds explicit corrections for booking day/time/service, with replacement or null-to-clear and a quote from the latest inbound. Unknown nulls keep their previous meaning. Deterministic parser/merge/handler-write tests exercise the contract. They cannot prove semantic interpretation of the quote; a future approved model comparison must include explicit withdrawals, changed preferences, contradictory requests, missing evidence and multi-dog ambiguity. This revision has not had a paid provider evaluation. Review-only drafts retain their no-memory-write boundary.
