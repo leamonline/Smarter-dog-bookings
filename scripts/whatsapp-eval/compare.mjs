@@ -86,7 +86,7 @@ if (command === 'prepare') {
       try { parsed = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '')); } catch { /* a schema failure is evidence, not a retry */ }
       const schemaValid = ['faq', 'greeting', 'booking_query', 'booking_propose', 'booking_confirm', 'booking_change', 'booking_cancel', 'confirm_time', 'smalltalk', 'escalate', 'other'].includes(parsed?.intent) && typeof parsed?.confidence === 'number' && parsed.confidence >= 0 && parsed.confidence <= 1 && typeof parsed?.proposed_text === 'string';
       results.push({ label: job.label, fixture: job.id, route: job.route, text, schemaValid, forbiddenReviewAction: job.route === 'automatic-review-only' && !!parsed?.booking_action, stopReason: body.stop_reason, usage: body.usage });
-      console.log(`Recorded ${results.length}/${jobs.length}: ${job.id}`);
+      console.log(`${previous ? "Reused saved response" : "Recorded"} ${results.length}/${jobs.length}: ${job.id}`);
     } catch (error) {
       save('incomplete.json', { completed: results.length, failedCase: id, reason: 'Stopped without automatic retry; inspect evidence before a separately approved retry' });
       throw error;
