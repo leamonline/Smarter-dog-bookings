@@ -6,6 +6,7 @@ interface Scenario {
   preferenceCorrection?: boolean;
   perDog?: boolean;
   singleDogUpdate?: boolean;
+  memoryConflict?: "disjoint" | "overlap" | "twice";
   memoryFailure?: "error" | "missing";
   state?: string;
   text?: string;
@@ -50,11 +51,12 @@ async function run(s: Scenario = {}) {
     : s.enabled === false ? await import("../handler.ts?review-off") : await import("../handler.ts?review-on");
   const calls: { method: string; path: string; query: URLSearchParams; body: Record<string, unknown> }[] = [];
   const rows: Record<string, unknown>[] = [];
+  let memoryAttempts = 0;
   const memoryRows: Record<string, unknown>[] = [];
   const today = agentCalendar().today;
   const later = addCalendarDays(today, 42);
   const oldFetch = globalThis.fetch;
-  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog", preferredTime: "09:00", ...(s.singleDogUpdate ? {dogAge:"12 weeks",coatCondition:"good"} : {}), ...(s.perDog ? {dogs:[{dogId, dogAge:"12 weeks"},{dogId:"00000000-0000-4000-8000-000000000002",coatCondition:"matted"}]} : {}) }, lead_status: "records_created", lead_payload: null };
+  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state_rev: 0, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog", preferredTime: "09:00", ...(s.singleDogUpdate ? {dogAge:"12 weeks",coatCondition:"good"} : {}), ...(s.perDog ? {dogs:[{dogId, dogAge:"12 weeks"},{dogId:"00000000-0000-4000-8000-000000000002",coatCondition:"matted"}]} : {}) }, lead_status: "records_created", lead_payload: null };
   const payload = { entry: [{ changes: [{ value: { messages: [{ id: "synthetic-inbound", from: "447700900111", type: "text", text: { body: s.text ?? "Can I book my dog?" }, timestamp: String(Math.floor(Date.now() / 1000)) }] } }] }] };
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -67,6 +69,13 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/whatsapp_conversations" && (method === "POST" || method === "GET")) return reply(conversation);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && s.memoryFailure) return s.memoryFailure === "error" ? reply({ message: "synthetic save failure" }, 500) : reply(null);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && (s.preferenceCorrection || s.perDog || s.singleDogUpdate)) { memoryRows.push({id: conversation.id, ...body}); return reply({id: conversation.id}); }
+    if (url.pathname === "/rest/v1/rpc/compare_and_set_whatsapp_agent_state") {
+      memoryAttempts++;
+      if (s.memoryFailure) return s.memoryFailure === "error" ? reply({message:"synthetic save failure"},500) : reply([]);
+      if (s.memoryConflict && (memoryAttempts === 1 || s.memoryConflict === "twice")) return reply([{saved:false,agent_state:{...conversation.agent_state,...(s.memoryConflict === "overlap" ? {preferredTime:"11:00"} : {preferredDay:"Tuesday"})},agent_state_rev:memoryAttempts}]);
+      memoryRows.push({id: conversation.id, agent_state:body.p_state});
+      return reply([{saved:true,agent_state:body.p_state,agent_state_rev:memoryAttempts}]);
+    }
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       if (method === "POST") return s.duplicate ? reply({ code: "23505", message: "duplicate key idx_whatsapp_messages_meta_msg" }, 409) : reply({ id: "message-review" }, 201);
       if (url.searchParams.has("or")) return reply(s.recent ? [{ id: "previous", content: "[book_entry] synthetic" }] : []);
@@ -98,8 +107,8 @@ async function run(s: Scenario = {}) {
     const response = await handleAgentRequest(new Request("http://agent.test", { method: "POST", headers: { "x-agent-secret": "test-secret", "content-type": "application/json" }, body: JSON.stringify({ event_id: "event-review", force_draft: s.force, suggest_only: s.suggest }) }));
     assertEquals(response.status, 200);
     const text = await response.text();
-    if (!s.suggest) assertEquals(text, s.memoryFailure || s.truncated ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
-    return { calls, rows, memoryRows, today, later, text };
+    if (!s.suggest) assertEquals(text, s.memoryFailure || s.truncated || s.memoryConflict === "overlap" || s.memoryConflict === "twice" ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
+    return { calls, rows, memoryRows, memoryAttempts, today, later, text };
   } finally { globalThis.fetch = oldFetch; }
 }
 function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = false) {
@@ -310,4 +319,19 @@ Deno.test("first targeted update on a single-dog legacy state retains already su
   const result = await run({force:true, singleDogUpdate:true});
   const state = result.memoryRows[0].agent_state as {dogs: Record<string, unknown>[]};
   assertEquals(state.dogs, [{dogId,dogAge:"12 weeks",coatCondition:"good",service:"puppy-groom"}]);
+});
+
+Deno.test("disjoint memory conflict retries once and retains the newer field", async () => {
+  const result = await run({force:true,preferenceCorrection:true,text:"Forget 09:00",memoryConflict:"disjoint"});
+  assertEquals(result.memoryAttempts, 2);
+  assertEquals(result.rows[0].auto_send_eligible, false);
+  assertEquals(result.rows[0].handoff_required, true);
+  assertEquals((result.memoryRows[0].agent_state as Record<string,unknown>).preferredDay,"Tuesday");
+  assertEquals((result.memoryRows[0].agent_state as Record<string,unknown>).preferredTime,null);
+});
+for (const memoryConflict of ["overlap","twice"] as const) Deno.test(`memory conflict ${memoryConflict} stops without dependent draft`, async () => {
+  const result = await run({force:true,preferenceCorrection:true,text:"Forget 09:00",memoryConflict});
+  assertEquals(result.memoryRows.length,0);
+  assertEquals(result.rows.length,0);
+  assertEquals(result.memoryAttempts, memoryConflict === "overlap" ? 1 : 2);
 });
