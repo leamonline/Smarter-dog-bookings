@@ -293,3 +293,7 @@ The [comparison runner](../../../scripts/whatsapp-eval/README.md) captures the r
 ## Grounded-reply follow-up — 1 October 2026
 
 Base revalidated at `main@3b5185ab86772b0b18a588aab6778d3a142678e3`. The first comparison is recorded in documentation PR #929; preserve its scores and hold enablement. Candidate `2026-10-01.2` corrects generic account-link answers, internal-control disclosure and invented multi-dog instructions. The [follow-up evaluation](../../../prompts/evals/2026-10-01-whatsapp-grounded-replies.md) records portal evidence and revised fixture criteria. Confirmation questions apply only to permitted action proposals. No send gate, booking mutation, cancellation policy or learned-state contract changes in this slice. Further provider use and environment promotion remain separate approval points.
+
+## Isolation readiness — 2 October 2026
+
+The [isolation runbook](../../runbooks/whatsapp-review-draft-isolation.md) separates the executable mocked handler matrix from pending hosted staging evidence. The fourth provider comparison is interrupted by insufficient Anthropic API credit; 20 completed responses remain preserved. No hosted fixture writes, configuration changes or new provider requests are part of readiness verification. The production handler has no mock-provider deployment switch, so hosted accepted/uncertain transport scenarios require separately reviewed preparation rather than a live customer send.
