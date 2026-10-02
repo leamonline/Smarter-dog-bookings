@@ -3,6 +3,7 @@ import { agentCalendar, addCalendarDays } from "../../_shared/agentContext.ts";
 
 interface Scenario {
   enabled?: boolean;
+  preferenceCorrection?: boolean;
   memoryFailure?: "error" | "missing";
   state?: string;
   text?: string;
@@ -47,10 +48,11 @@ async function run(s: Scenario = {}) {
     : s.enabled === false ? await import("../handler.ts?review-off") : await import("../handler.ts?review-on");
   const calls: { method: string; path: string; query: URLSearchParams; body: Record<string, unknown> }[] = [];
   const rows: Record<string, unknown>[] = [];
+  const memoryRows: Record<string, unknown>[] = [];
   const today = agentCalendar().today;
   const later = addCalendarDays(today, 42);
   const oldFetch = globalThis.fetch;
-  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog" }, lead_status: "records_created", lead_payload: null };
+  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog", preferredTime: "09:00" }, lead_status: "records_created", lead_payload: null };
   const payload = { entry: [{ changes: [{ value: { messages: [{ id: "synthetic-inbound", from: "447700900111", type: "text", text: { body: s.text ?? "Can I book my dog?" }, timestamp: String(Math.floor(Date.now() / 1000)) }] } }] }] };
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -62,6 +64,7 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/humans") return url.searchParams.get("select")?.startsWith("name,") ? reply({ name: "Synthetic", surname: "Person" }) : reply([{ id: "human-review", phone: "07700900111" }]);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && (method === "POST" || method === "GET")) return reply(conversation);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && s.memoryFailure) return s.memoryFailure === "error" ? reply({ message: "synthetic save failure" }, 500) : reply(null);
+    if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && s.preferenceCorrection) { memoryRows.push({id: conversation.id, ...body}); return reply({id: conversation.id}); }
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       if (method === "POST") return s.duplicate ? reply({ code: "23505", message: "duplicate key idx_whatsapp_messages_meta_msg" }, 409) : reply({ id: "message-review" }, 201);
       if (url.searchParams.has("or")) return reply(s.recent ? [{ id: "previous", content: "[book_entry] synthetic" }] : []);
@@ -78,7 +81,7 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/day_settings") return s.calendarError ? reply({ message: "synthetic calendar failure" }, 500) : reply([{ setting_date: addCalendarDays(today, 1), is_open: true }, { setting_date: addCalendarDays(today, 2), is_open: false }]);
     if (url.pathname === "/rest/v1/rpc/get_small_medium_availability") return s.availabilityError ? reply({ message: "synthetic availability failure" }, 500) : reply(s.extraSlots ? ["08:30", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"].map((slot) => ({ booking_date: today, slot })) : [{ booking_date: today, slot: "09:00" }]);
     if (url.pathname === "/rest/v1/rpc/get_large_dog_day_availability") return reply([]);
-    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) }) }], stop_reason: s.truncated ? "max_tokens" : "end_turn", usage: { input_tokens: 10, output_tokens: 10 } });
+    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) , ...(s.preferenceCorrection ? {extracted_state:{corrections:[{field:"preferredTime",value:null,evidence:"Forget 09:00"}]}} : {}) }) }], stop_reason: s.truncated ? "max_tokens" : "end_turn", usage: { input_tokens: 10, output_tokens: 10 } });
     if (url.pathname === "/rest/v1/whatsapp_drafts" && method === "POST") { rows.push(body); return reply({ id: "review-draft" }, 201); }
     if (url.pathname.endsWith("/functions/v1/whatsapp-send")) {
       if (s.outcome === "timeout") throw new Error("synthetic timeout after request");
@@ -94,7 +97,7 @@ async function run(s: Scenario = {}) {
     assertEquals(response.status, 200);
     const text = await response.text();
     if (!s.suggest) assertEquals(text, s.memoryFailure || s.truncated ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
-    return { calls, rows, today, later, text };
+    return { calls, rows, memoryRows, today, later, text };
   } finally { globalThis.fetch = oldFetch; }
 }
 function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = false) {
@@ -115,7 +118,7 @@ function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = fa
 Deno.test("review draft writes only a held draft despite all automation opt-ins and extracted corrections", async () => {
   const result = await run({ manage: true });
   assertIsolation(result);
-  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.2");
+  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.memory-1");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
 });
@@ -272,4 +275,19 @@ Deno.test("relative-date customer answers are bound to the London calendar suppl
   assertStringIncludes(model.body.system as string, "explicitly name the corresponding calendar date");
   assertStringIncludes(model.body.system as string, "Do not rely on extracted_state");
   assertIsolation(result);
+});
+
+Deno.test("explicit correction persists only the targeted conversation preference", async () => {
+  const result = await run({force: true, preferenceCorrection: true, text: "Forget 09:00"});
+  assertEquals(result.memoryRows.length, 1);
+  const state = result.memoryRows[0].agent_state as Record<string, unknown>;
+  assertEquals(state.preferredTime, null);
+  assertEquals(state.breed, "Cockapoo");
+  assertEquals(state.dogName, "Synthetic dog");
+  assertEquals(state.corrections, [{field:"preferredTime",value:null,evidence:"Forget 09:00"}]);
+});
+Deno.test("review-only correction remains draft metadata and cannot change conversation memory", async () => {
+  const result = await run({preferenceCorrection: true, text: "Can I book my dog? Forget 09:00"});
+  assertIsolation(result);
+  assertEquals(result.memoryRows.length, 0);
 });

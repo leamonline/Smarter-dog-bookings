@@ -233,7 +233,7 @@ type BookingActionFromClaude =
 // A human member of staff reviews every draft before it's sent, so
 // the prompt err on the side of brevity, safety, and honesty. Low
 // confidence + escalate is always a valid move.
-export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-02.2";
+export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-02.memory-1";
 const SYSTEM_PROMPT = `You are the WhatsApp reply assistant for Smarter Dog Grooming Salon — a small, caring dog grooming business in Ashton-under-Lyne, UK, run by a small team who know every dog by name.
 
 A human staff member reviews every reply you draft before it's sent. Your goal is to save them time on routine replies while matching the brand voice exactly. When in doubt, prefer a short holding reply and let staff take over.
@@ -382,7 +382,7 @@ KNOWN-STATE / NO RE-ASKING
 ────────────────────────────────────────────────────────
 When you receive a "--- Known so far ---" block, that is what we have already learned about this customer (dog name, breed, preferred day, etc.). Do NOT ask again for anything already in that block. Use those facts directly. If the customer corrects something (e.g. "actually it's a Cockapoo not a Cocker"), update via extracted_state.
 
-After drafting your reply, include any newly-learned customer facts in the optional "extracted_state" field. Only include fields you are confident about from the latest message — leave a field out (or set null) if you don't know. The system merges your patch non-destructively.
+After drafting your reply, include any newly-learned customer facts in the optional "extracted_state" field. Only include fields you are confident about from the latest message — leave a field out (or set null) if you don't know. The system merges your patch non-destructively. Ordinary null means unknown, not deletion. For an explicit change or withdrawal of preferredDay, preferredTime or service only, include corrections: [{field, value, evidence}]. Evidence must quote the latest customer message exactly; value null explicitly clears that booking preference. Omit corrections when there is no explicit correction. Do not use this structure for dog identity or health facts.
 
 ────────────────────────────────────────────────────────
 NEW CUSTOMER COLLECTION
@@ -444,7 +444,8 @@ Reply with ONE JSON object, no prose, no markdown, no code fences. Do not emit y
     "coatCondition":     string | null,
     "service":           "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null,
     "preferredDay":      string | null,
-    "preferredTime":     string | null
+    "preferredTime":     string | null,
+    "corrections":       [{"field": "preferredDay" | "preferredTime" | "service", "value": string | null, "evidence": "exact quote from latest customer message"}]
   }
 }
 
@@ -1021,7 +1022,7 @@ function parseClaudeJson(text: string, latestMessage: string): DraftFromClaude {
         confidence: parsed.confidence,
         proposed_text: parsed.proposed_text,
         booking_action: parseBookingAction(parsed.booking_action),
-        extracted_state: parseExtractedState(parsed.extracted_state),
+        extracted_state: parseExtractedState(parsed.extracted_state, latestMessage),
       };
     }
   } catch {
@@ -1050,7 +1051,7 @@ function parseClaudeJson(text: string, latestMessage: string): DraftFromClaude {
 // Whitelist of state-patch keys we accept from Claude's JSON. Anything
 // else is silently dropped — keeps the column clean if a model decides
 // to invent fields.
-function parseExtractedState(value: unknown): Partial<AgentState> | null {
+export function parseExtractedState(value: unknown, latestMessage = ""): Partial<AgentState> | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
   const out: Partial<AgentState> = {};
@@ -1083,6 +1084,19 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
       .map((a) => a.trim().slice(0, 100))
       .slice(0, 10);
     if (alerts.length > 0) out.alerts = alerts;
+  }
+  if (Array.isArray(v.corrections)) {
+    const corrections: NonNullable<AgentState["corrections"]> = [];
+    for (const entry of v.corrections.slice(0, 5)) {
+      if (!entry || typeof entry !== "object") continue;
+      const { field, value: replacement, evidence } = entry as Record<string, unknown>;
+      if (field !== "preferredDay" && field !== "preferredTime" && field !== "service") continue;
+      if (typeof evidence !== "string" || !evidence.trim() || evidence.length > 200 || !latestMessage.includes(evidence)) continue;
+      if (replacement !== null && (typeof replacement !== "string" || !replacement.trim() || replacement.length > 200)) continue;
+      if (field === "service" && replacement !== null && !["full-groom", "bath-and-brush", "bath-and-deshed", "puppy-groom"].includes(replacement as string)) continue;
+      corrections.push({ field, value: replacement === null ? null : (replacement as string).trim(), evidence });
+    }
+    if (corrections.length) out.corrections = corrections;
   }
   return Object.keys(out).length > 0 ? out : null;
 }
