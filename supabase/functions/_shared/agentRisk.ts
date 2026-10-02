@@ -1,3 +1,4 @@
+import { mergeDogMemory, type AgentDogMemory } from "./agentDogMemory.ts";
 // ============================================================
 // supabase/functions/_shared/agentRisk.ts
 //
@@ -307,6 +308,7 @@ export interface AgentCorrection {
 }
 
 export interface AgentState {
+  dogs?: AgentDogMemory[];
   corrections?: AgentCorrection[];
   customerName?: string | null;
   customerSurname?: string | null;
@@ -382,6 +384,7 @@ export function mergeAgentState(
     (next as Record<string, unknown>)[key] = value;
   }
 
+  if (Array.isArray(patch.dogs)) next.dogs = mergeDogMemory(prev?.dogs, patch.dogs);
   if (Array.isArray(patch.corrections)) {
     const corrections = patch.corrections.filter(c =>
       c && ["preferredDay", "preferredTime", "service"].includes(c.field) &&
