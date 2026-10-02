@@ -84,3 +84,7 @@ The runner now retains bounded, credential-redacted error type/message and provi
 # Conversation preference correction contract — 2 October 2026
 
 Prompt `2026-10-02.memory-1` adds explicit corrections for booking day/time/service, with replacement or null-to-clear and a quote from the latest inbound. Unknown nulls keep their previous meaning. Deterministic parser/merge/handler-write tests exercise the contract. They cannot prove semantic interpretation of the quote; a future approved model comparison must include explicit withdrawals, changed preferences, contradictory requests, missing evidence and multi-dog ambiguity. This revision has not had a paid provider evaluation. Review-only drafts retain their no-memory-write boundary.
+
+# Per-dog memory candidate — 2 October 2026
+
+Prompt `2026-10-02.memory-2` uses canonical IDs for known-customer dog memory; unknown onboarding remains flat. Per-dog age/coat/service/alerts do not update canonical customer records. A future approved model-quality comparison needs two dogs with different services/ages/alerts, an ambiguous “he”, correction of only one dog, a customer-injected foreign ID and legacy unbound memory. Deterministic ownership/merge/write tests establish isolation, not semantic attribution. No provider evaluation or environment enablement is claimed.
