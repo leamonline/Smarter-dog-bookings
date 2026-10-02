@@ -36,7 +36,7 @@ test('provider execution records blinded results and stops without retry after a
       if (url !== 'https://api.anthropic.com/v1/messages') throw new Error('Forbidden destination');
       const request = JSON.parse(init.body); count++;
       if (request.max_tokens !== 512 || request.model !== 'claude-sonnet-4-6') throw new Error('Unexpected model scope');
-      if (${fail} && count === 2) return Response.json({error: 'synthetic error'}, {status: 502});
+      if (${fail} && count === 2) return Response.json({error: {type: 'invalid_request_error', message: 'synthetic-provider-key sk-ant-example-private'}}, {status: 400, headers: {'request-id': 'synthetic-request'}});
       return Response.json({ content: [{type: 'text', text: JSON.stringify({intent: 'booking_query', confidence: 0.5, proposed_text: 'Synthetic reply ' + count})}], stop_reason: 'end_turn', usage: {input_tokens: 1, output_tokens: 1} });
     };`;
     return execFileSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(mock)}`, script, 'execute', output], { env: environment, stdio: 'pipe' });
@@ -62,6 +62,11 @@ test('provider execution records blinded results and stops without retry after a
     execFileSync(process.execPath, [script, 'prepare', failed]);
     assert.throws(() => run(failed, true), /stopped without retry/);
     assert.equal(JSON.parse(readFileSync(join(failed, 'incomplete.json'))).completed, 1);
+    const diagnostic = JSON.parse(readFileSync(join(failed, 'base-explicit-closure.json')));
+    assert.equal(diagnostic.status, 400);
+    assert.equal(diagnostic.errorType, 'invalid_request_error');
+    assert.equal(diagnostic.message, '[redacted] [redacted]');
+    assert.equal(diagnostic.requestId, 'synthetic-request');
     assert.deepEqual(readdirSync(failed).sort(), ['base-explicit-closure.json', 'base-open-thursday.json', 'base-requests.json', 'candidate-requests.json', 'incomplete.json', 'manifest.json']);
     assert.throws(() => run(failed, false), /already contains run evidence/);
   } finally { rmSync(root, { recursive: true, force: true }); }

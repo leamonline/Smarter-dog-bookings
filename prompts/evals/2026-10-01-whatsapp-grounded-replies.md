@@ -74,3 +74,9 @@ This is a 14-case sample, not a reliability rate. Model instructions are insuffi
 # Fourth candidate preparation — 2 October 2026
 
 Prompt `2026-10-02.2` requires today/tomorrow requests to name the explicit date from the London Today block in customer-facing text, before any account link and even when availability is unverified. Extracted state is not treated as communicating that date. It forbids unrequested prices and limits service explanation. The synthetic handler test verifies the supplied calendar and instructions, not model compliance. A new paid comparison and hosted staging writes require separate approval; no environment flag is changed by this source work.
+
+# Fourth run interrupted — 2 October 2026
+
+The owner-approved comparison recorded 20 responses before HTTP 400 on `candidate-no-repeat`. Successful responses and the rejected request marker remain in `/tmp/whatsapp-fourth-comparison-2026-10-02`; no retry occurred. The runner discarded the provider error body, so the refusal cause is unknown. Do not infer invalid credentials, exhausted credit, model failure or prompt failure from status alone. This incomplete run cannot support a comparative promotion decision.
+
+The runner now retains bounded, credential-redacted error type/message and provider request ID for future failures. It still refuses directories with previous execution evidence. Recovery must preserve the first 20 responses and avoid replaying them; no recovery provider calls have been authorised or performed.

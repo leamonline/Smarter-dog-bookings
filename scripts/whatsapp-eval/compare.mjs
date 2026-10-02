@@ -65,7 +65,13 @@ if (command === 'prepare') {
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify(job.request), signal: AbortSignal.timeout(60000) });
       const body = await response.json();
-      if (!response.ok) { save(`${id}.json`, { status: response.status, outcome: 'provider-error' }); throw new Error(`Provider refused request (${response.status}); stopped without retry`); }
+      if (!response.ok) {
+        // Preserve bounded diagnostics, never headers or credentials. Synthetic requests only.
+        const safe = (value) => typeof value === 'string' ? value.replaceAll(process.env.ANTHROPIC_API_KEY, '[redacted]').replace(/sk-ant-[A-Za-z0-9_-]+/g, '[redacted]').slice(0, 1000) : null;
+        const diagnostic = { status: response.status, outcome: 'provider-error', errorType: safe(body?.error?.type), message: safe(body?.error?.message), requestId: safe(response.headers.get('request-id')) };
+        save(`${id}.json`, diagnostic);
+        throw new Error(`Provider refused request (${response.status}${diagnostic.errorType ? ': ' + diagnostic.errorType : ''}); stopped without retry. Details saved in ${id}.json`);
+      }
       save(`${id}.json`, body);
       const text = body.content?.find((block) => block.type === 'text')?.text ?? '';
       let parsed;
