@@ -50,7 +50,7 @@ if (command === 'prepare') {
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 } else {
   const manifest = load('manifest.json');
-  if (readdirSync(output).some((name) => !['manifest.json', 'base-requests.json', 'candidate-requests.json'].includes(name))) throw new Error('This directory already contains run evidence. Refusing to repeat potentially charged requests.');
+  if (readdirSync(output).some((name) => ![...['manifest.json', 'base-requests.json', 'candidate-requests.json'], ...(manifest.recovery ? ['cached-responses.json'] : [])].includes(name))) throw new Error('This directory already contains run evidence. Refusing to repeat potentially charged requests.');
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('Approved ANTHROPIC_API_KEY must already be present in the process environment; no secret files are read.');
   const jobs = ['base', 'candidate'].flatMap((label) => {
     const bytes = readFileSync(join(output, `${label}-requests.json`));
@@ -58,21 +58,35 @@ if (command === 'prepare') {
     return JSON.parse(bytes).map((row) => ({ label, ...row }));
   });
   if (jobs.length !== 28 || manifest.calls !== jobs.length || jobs.some((j) => j.request.model !== manifest.model || j.request.max_tokens !== 512)) throw new Error('Run scope differs from approved 28-request contract');
+  let cached = [];
+  if (manifest.recovery) {
+    const bytes = readFileSync(join(output, 'cached-responses.json'));
+    if (hash(bytes) !== manifest.recovery.cacheHash) throw new Error('Recovery cache integrity check failed');
+    cached = JSON.parse(bytes);
+    if (cached.length !== 20 || manifest.recovery.remainingCalls !== 8 || cached.some((row, i) => row.id !== `${jobs[i].label}-${jobs[i].id}` || row.body.type !== 'message')) throw new Error('Recovery differs from reviewed 20-complete / 8-remaining scope');
+  }
   // Serial, bounded requests; no automatic retries after uncertain failures.
   const results = [];
   for (const job of jobs) {
     const id = `${job.label}-${job.id}`;
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify(job.request), signal: AbortSignal.timeout(60000) });
+      const previous = cached[results.length];
+      const response = previous ? Response.json(previous.body) : await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify(job.request), signal: AbortSignal.timeout(60000) });
       const body = await response.json();
-      if (!response.ok) { save(`${id}.json`, { status: response.status, outcome: 'provider-error' }); throw new Error(`Provider refused request (${response.status}); stopped without retry`); }
+      if (!response.ok) {
+        // Preserve bounded diagnostics, never headers or credentials. Synthetic requests only.
+        const safe = (value) => typeof value === 'string' ? value.replaceAll(process.env.ANTHROPIC_API_KEY, '[redacted]').replace(/sk-ant-[A-Za-z0-9_-]+/g, '[redacted]').slice(0, 1000) : null;
+        const diagnostic = { status: response.status, outcome: 'provider-error', errorType: safe(body?.error?.type), message: safe(body?.error?.message), requestId: safe(response.headers.get('request-id')) };
+        save(`${id}.json`, diagnostic);
+        throw new Error(`Provider refused request (${response.status}${diagnostic.errorType ? ': ' + diagnostic.errorType : ''}); stopped without retry. Details saved in ${id}.json`);
+      }
       save(`${id}.json`, body);
       const text = body.content?.find((block) => block.type === 'text')?.text ?? '';
       let parsed;
       try { parsed = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '')); } catch { /* a schema failure is evidence, not a retry */ }
       const schemaValid = ['faq', 'greeting', 'booking_query', 'booking_propose', 'booking_confirm', 'booking_change', 'booking_cancel', 'confirm_time', 'smalltalk', 'escalate', 'other'].includes(parsed?.intent) && typeof parsed?.confidence === 'number' && parsed.confidence >= 0 && parsed.confidence <= 1 && typeof parsed?.proposed_text === 'string';
       results.push({ label: job.label, fixture: job.id, route: job.route, text, schemaValid, forbiddenReviewAction: job.route === 'automatic-review-only' && !!parsed?.booking_action, stopReason: body.stop_reason, usage: body.usage });
-      console.log(`Recorded ${results.length}/${jobs.length}: ${job.id}`);
+      console.log(`${previous ? "Reused saved response" : "Recorded"} ${results.length}/${jobs.length}: ${job.id}`);
     } catch (error) {
       save('incomplete.json', { completed: results.length, failedCase: id, reason: 'Stopped without automatic retry; inspect evidence before a separately approved retry' });
       throw error;

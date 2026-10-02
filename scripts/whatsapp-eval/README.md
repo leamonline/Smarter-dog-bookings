@@ -32,3 +32,7 @@ First read `blind-review.json`, scoring each reply against its fixture criteria 
 Automated schema checks and review-mode action detection in `results.json` are preliminary, not a substitute for reading each reply. They do not reimplement the production parser or prove server action enforcement. Existing Edge tests cover timeouts, malformed model output, routing and actual stored rows separately. Provider evaluation never contacts customers, sends WhatsApp messages or exercises a live database.
 
 Keep raw replies, blinded scores and manifest outside Git; commit only the synthetic fixtures, runner and a minimised result summary. Passing this comparison does not authorise staging or production flag changes. Staging isolation evidence, current production settings and owner-approved promotion/rollback remain separate gates.
+
+## Recovery of the interrupted fourth run
+
+`prepare-recovery.mjs` prepares a new evidence directory from the reviewed 20-complete / 8-remaining HTTP-400 interruption. It checks original request hashes, preserves completed responses in a hashed cache and refuses later responses or an uncertain failure. Execution reuses those 20 responses and calls the provider only for eight remaining requests. Original evidence is unchanged. Any repeated failure stops; execution cannot be repeated in its evidence directory. Recovery still needs separate approval. All 28 replies are blind-scored together after completion; provider timing differs for the resumed cases.

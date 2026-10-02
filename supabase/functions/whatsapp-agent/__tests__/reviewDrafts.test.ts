@@ -21,6 +21,7 @@ interface Scenario {
   duplicate?: boolean;
   manage?: boolean;
   selfService?: boolean;
+  truncated?: boolean;
   emptyBookings?: boolean;
   availabilityError?: boolean;
   extraSlots?: boolean;
@@ -77,7 +78,7 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/day_settings") return s.calendarError ? reply({ message: "synthetic calendar failure" }, 500) : reply([{ setting_date: addCalendarDays(today, 1), is_open: true }, { setting_date: addCalendarDays(today, 2), is_open: false }]);
     if (url.pathname === "/rest/v1/rpc/get_small_medium_availability") return s.availabilityError ? reply({ message: "synthetic availability failure" }, 500) : reply(s.extraSlots ? ["08:30", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"].map((slot) => ({ booking_date: today, slot })) : [{ booking_date: today, slot: "09:00" }]);
     if (url.pathname === "/rest/v1/rpc/get_large_dog_day_availability") return reply([]);
-    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) }) }], usage: { input_tokens: 10, output_tokens: 10 } });
+    if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) }) }], stop_reason: s.truncated ? "max_tokens" : "end_turn", usage: { input_tokens: 10, output_tokens: 10 } });
     if (url.pathname === "/rest/v1/whatsapp_drafts" && method === "POST") { rows.push(body); return reply({ id: "review-draft" }, 201); }
     if (url.pathname.endsWith("/functions/v1/whatsapp-send")) {
       if (s.outcome === "timeout") throw new Error("synthetic timeout after request");
@@ -92,7 +93,7 @@ async function run(s: Scenario = {}) {
     const response = await handleAgentRequest(new Request("http://agent.test", { method: "POST", headers: { "x-agent-secret": "test-secret", "content-type": "application/json" }, body: JSON.stringify({ event_id: "event-review", force_draft: s.force, suggest_only: s.suggest }) }));
     assertEquals(response.status, 200);
     const text = await response.text();
-    if (!s.suggest) assertEquals(text, s.memoryFailure ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
+    if (!s.suggest) assertEquals(text, s.memoryFailure || s.truncated ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
     return { calls, rows, today, later, text };
   } finally { globalThis.fetch = oldFetch; }
 }
@@ -114,7 +115,7 @@ function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = fa
 Deno.test("review draft writes only a held draft despite all automation opt-ins and extracted corrections", async () => {
   const result = await run({ manage: true });
   assertIsolation(result);
-  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-01.2");
+  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.2");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
 });
@@ -233,7 +234,7 @@ Deno.test("self-service instructions answer verified facts and keep internal con
   assertStringIncludes(system, "cannot check the appointment details right now");
   assertStringIncludes(system, "explicitly identify 10:00 as a different time");
   assertStringIncludes(system, "Do not instruct customers to book dogs separately");
-  assertStringIncludes(system, "Never mention internal switches");
+  assertStringIncludes(system, "Never mention context labels");
   assertStringIncludes(system, "Only when proposing a permitted booking_action");
   assertIsolation(result);
 });
@@ -251,3 +252,24 @@ for (const memoryFailure of ["error", "missing"] as const) {
     assertStringIncludes(String(event.body.error_message), "Agent memory save failed");
   });
 }
+
+Deno.test("truncated provider output cannot persist even an apparently complete first JSON object", async () => {
+  const result = await run({ truncated: true });
+  assertEquals(result.rows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 1);
+  assertEquals(result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+  const writes = result.calls.filter((c) => c.method === "PATCH");
+  assert(writes.every((c) => c.path === "/rest/v1/whatsapp_events"));
+  assertEquals(writes.at(-1)?.body.processing_status, "failed");
+  assertStringIncludes(String(writes.at(-1)?.body.error_message), "output truncated");
+});
+
+Deno.test("relative-date customer answers are bound to the London calendar supplied to the model", async () => {
+  const result = await run({ selfService: true, text: "Can I book my dog tomorrow?" });
+  const model = result.calls.find((c) => c.path === "/v1/messages")!;
+  const context = (model.body.messages as { content: string }[])[0].content;
+  assertStringIncludes(context, `tomorrow: ${addCalendarDays(result.today, 1)}`);
+  assertStringIncludes(model.body.system as string, "explicitly name the corresponding calendar date");
+  assertStringIncludes(model.body.system as string, "Do not rely on extracted_state");
+  assertIsolation(result);
+});
