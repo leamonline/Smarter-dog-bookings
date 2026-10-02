@@ -19,6 +19,18 @@ function atomicRescheduleMigration(): string {
   expect(file, "expected an atomic customer reschedule migration").toBeTruthy();
   const latest = readFileSync(join(migrationsDir, file as string), "utf8");
 
+  // The late-cancellation migration replaces the private reschedule implementation.
+  // Inspect that exact function, its existing public wrapper and receipt DDL;
+  // an earlier public cancellation definition is not a reschedule call.
+  if (latest.includes("smarter_dog_private.cancel_booking_impl(p_booking_id, v_reason, true)")) {
+    const implementation = latest.slice(latest.indexOf("create or replace function public.reschedule_customer_booking_direct_unchecked"), latest.indexOf("-- No foreign keys:"));
+    const original = files.find((name) => readFileSync(join(migrationsDir, name), "utf8").includes("create table if not exists smarter_dog_private.customer_reschedule_receipts"));
+    const wrapper = files.find((name) => readFileSync(join(migrationsDir, name), "utf8").includes("alter function public.reschedule_customer_booking"));
+    expect(original).toBeTruthy(); expect(wrapper).toBeTruthy();
+    const originalSql = readFileSync(join(migrationsDir, original!), "utf8");
+    return originalSql.slice(0, originalSql.indexOf("create or replace function public.reschedule_customer_booking")) + implementation + readFileSync(join(migrationsDir, wrapper!), "utf8");
+  }
+
   // A later safety wrapper may delegate ordinary visits to a renamed,
   // browser-revoked copy of the original atomic implementation. Inspect both
   // halves so this regression test still proves cancellation, replacement,
@@ -48,7 +60,7 @@ function atomicRescheduleMigration(): string {
 describe("atomic customer rescheduling", () => {
   it("cancels the old visit and creates the replacement in one database command", () => {
     const sql = atomicRescheduleMigration();
-    const cancellation = sql.indexOf("public.cancel_customer_booking(");
+    const cancellation = sql.includes("smarter_dog_private.cancel_booking_impl(p_booking_id, v_reason, true)") ? sql.indexOf("smarter_dog_private.cancel_booking_impl(p_booking_id, v_reason, true)") : sql.indexOf("public.cancel_customer_booking(");
     const replacement = sql.indexOf("public.create_customer_booking_group(");
 
     expect(sql).toMatch(
@@ -77,7 +89,7 @@ describe("atomic customer rescheduling", () => {
   it("stores and replays an exact committed reschedule", () => {
     const sql = atomicRescheduleMigration();
     const replayLookup = sql.indexOf("customer_reschedule_receipts");
-    const cancellation = sql.indexOf("public.cancel_customer_booking(");
+    const cancellation = sql.includes("smarter_dog_private.cancel_booking_impl(p_booking_id, v_reason, true)") ? sql.indexOf("smarter_dog_private.cancel_booking_impl(p_booking_id, v_reason, true)") : sql.indexOf("public.cancel_customer_booking(");
 
     expect(sql).toMatch(
       /create\s+table[\s\S]*smarter_dog_private\.customer_reschedule_receipts/i,

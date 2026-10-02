@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(30);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -208,7 +208,7 @@ insert into public.bookings (
   );
 
 -- Exercise fields managed by unrelated booking triggers. Cancellation may
--- change only status, cancel_reason and the standard updated_at timestamp.
+-- change only status, reason, explicit cancellation cause and the standard updated_at timestamp.
 update public.bookings
 set addons = array['nails'],
     pickup_by_id = '41000000-0000-4000-8000-000000000001',
@@ -242,7 +242,7 @@ set local session_replication_role = default;
 
 create temp table _before_success as
 select id,
-       to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+       to_jsonb(b) - array['status', 'cancel_reason', 'cancellation_cause', 'updated_at']::text[]
          as snapshot
 from public.bookings b
 where group_id = '44000000-0000-4000-8000-000000000001';
@@ -304,12 +304,11 @@ select lives_ok(
   'a request exactly on the London cancellation deadline is allowed'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000022', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'a request one microsecond after the London deadline is rejected'
+  'a request one microsecond after the London deadline is allowed and recorded as late'
 );
 
 set local role postgres;
@@ -323,12 +322,11 @@ select lives_ok(
   'missing cancellation settings allow the exact default 24-hour deadline'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000024', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'missing cancellation settings reject one microsecond inside the default 24-hour deadline'
+  'missing cancellation settings allow and record one microsecond inside the default 24-hour deadline'
 );
 
 set local role postgres;
@@ -343,12 +341,11 @@ select lives_ok(
   'malformed cancellation settings allow the exact default 24-hour deadline without a cast error'
 );
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000026', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'malformed cancellation settings reject one microsecond inside the default 24-hour deadline'
+  'malformed cancellation settings allow and record one microsecond inside the default 24-hour deadline'
 );
 
 set local role postgres;
@@ -435,9 +432,11 @@ select is(
   'a later recurring appointment sharing group_id remains booked'
 );
 
+select ok((select bool_and(cancellation_cause='customer') from public.bookings where group_id='44000000-0000-4000-8000-000000000001' and booking_date=current_date+30),'customer cancellation writes explicit customer provenance');
+
 select results_eq(
   $$ select id,
-            to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+            to_jsonb(b) - array['status', 'cancel_reason', 'cancellation_cause', 'updated_at']::text[]
               as snapshot
      from public.bookings b
      where group_id = '44000000-0000-4000-8000-000000000001'

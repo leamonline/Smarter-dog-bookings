@@ -119,7 +119,7 @@ describe("BookingConfirmation — a booking made inside the change window", () =
   it("warns that this booking cannot be changed online", () => {
     renderStep5({ changeDeadlineNote: GENERIC, changeAlreadyClosed: true });
 
-    expect(screen.getByText(/too close to the day to change or cancel online/i))
+    expect(screen.getByText(/too close to the day to reschedule online/i))
       .toBeInTheDocument();
   });
 
@@ -151,7 +151,7 @@ describe("BookingConfirmation — a booking made inside the change window", () =
     // suppress a warning the server has positively confirmed.
     renderStep5({ changeDeadlineNote: null, changeAlreadyClosed: true });
 
-    expect(screen.getByText(/too close to the day to change or cancel online/i))
+    expect(screen.getByText(/too close to the day to reschedule online/i))
       .toBeInTheDocument();
   });
 });

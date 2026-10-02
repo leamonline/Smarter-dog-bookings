@@ -265,5 +265,7 @@ helpers in `src/engine/immediateBooking.ts` (mirrored in
 inserted row's own slot, so a **multi-dog group needs EVERY assigned slot
 flagged** — a 2-dog visit that spills into the next slot requires both
 consecutive slots opened. Consequences to know: a last-minute booking is
-immediately inside the 24 h manage cutoff (no customer self-cancel/
-reschedule) and gets no day-before reminder.
+immediately inside the rescheduling notice cutoff and gets no day-before reminder.
+[ADR 013](architecture/decisions/013-allow-late-cancellations-with-customer-history.md)
+allows cancellation before the appointment starts and records late customer cancellations.
+This policy is awaiting migration and rollout; source changes do not establish live behaviour.

@@ -23,6 +23,10 @@ export function BookingActions({
   const toast = useToast();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [cancelCause, setCancelCause] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState(null);
+  const [cancelSaving, setCancelSaving] = useState(false);
 
   if (isEditing) {
     return (
@@ -80,7 +84,7 @@ export function BookingActions({
           </button>
         )}
         <button
-          onClick={() => setShowCancelConfirm(true)}
+          onClick={() => { setCancelCause(""); setCancelReason(""); setCancelError(null); setShowCancelConfirm(true); }}
           disabled={!canSoftCancel}
           aria-label="Cancel booking"
           className="flex-1 py-2.5 rounded-full border-[1.5px] border-rose-200 text-[13px] font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
@@ -115,23 +119,36 @@ export function BookingActions({
       {showCancelConfirm && (
         <ConfirmDialog
           title="Cancel this booking?"
-          message={
-            canSoftCancel
-              ? "The booking will be marked as cancelled and removed from today's grid, but kept on file for your records."
-              : "This booking will be removed from the schedule."
-          }
+          message={<>
+            <span>The booking stays on file. Customer-requested late cancellations are recorded; salon cancellations do not count.</span>
+            <label className="block mt-3">Who requested the cancellation?
+              <select value={cancelCause} onChange={(e) => setCancelCause(e.target.value)}>
+                <option value="">Choose…</option><option value="customer">Customer</option><option value="salon">Salon</option>
+              </select>
+            </label>
+            <label className="block mt-2">Cancellation reason
+              <input value={cancelReason} maxLength={500} onChange={(e) => setCancelReason(e.target.value)} />
+            </label>
+            {cancelError && <span role="alert">{cancelError}</span>}
+          </>}
+          pending={cancelSaving}
           confirmLabel="Yes, cancel it"
           cancelLabel="Keep booking"
           variant="danger"
           onConfirm={async () => {
-            setShowCancelConfirm(false);
+            if (!cancelCause || !cancelReason.trim()) { setCancelError("Choose who requested it and give a reason."); return; }
+            setCancelSaving(true);
             const previousStatus = booking.status || BOOKING_STATUS.BOOKED;
+            try {
             if (canSoftCancel) {
-              await onUpdate(
-                { ...booking, status: BOOKING_STATUS.CANCELLED },
+              const result = await onUpdate(
+                { ...booking, status: BOOKING_STATUS.CANCELLED, cancelReason: cancelReason.trim(), _cancellationCause: cancelCause },
                 currentDateStr,
                 currentDateStr,
               );
+              setCancelSaving(false);
+              if (!result || result.success === false) { setCancelError("Couldn’t cancel this booking. Please try again."); return; }
+              setShowCancelConfirm(false);
               toast.show(
                 "Booking cancelled — you can undo",
                 "success",
@@ -154,6 +171,8 @@ export function BookingActions({
                 onClose();
               }
             }
+            } catch { setCancelError("Couldn’t cancel this booking. Please try again."); }
+            finally { setCancelSaving(false); }
           }}
           onCancel={() => setShowCancelConfirm(false)}
         />

@@ -124,6 +124,13 @@ export function isInsideManageCutoff(visitStart: Date, now: Date): boolean {
   return visitStart.getTime() < now.getTime() + 24 * 60 * 60 * 1000;
 }
 
+/** Cancellation releases a future visit, while rescheduling keeps its notice gate.
+ * Unknown timestamps require staff review rather than authorising a change. */
+export function isManageActionBlocked(action: "cancel" | "reschedule", visitStart: Date, now: Date): boolean {
+  if (!Number.isFinite(visitStart.getTime()) || !Number.isFinite(now.getTime())) return true;
+  return action === "cancel" ? visitStart.getTime() <= now.getTime() : isInsideManageCutoff(visitStart, now);
+}
+
 // ── Pretty formatting ──────────────────────────────────────────
 
 /** "Wed 24 Jun at 9:30" (salon-local). */

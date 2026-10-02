@@ -97,7 +97,7 @@ export async function resolveCustomerPortalPolicy(
 
 /**
  * Whether a slot the customer is about to take is already past the point where
- * they could change or cancel it online.
+ * they could reschedule it online.
  *
  * Every field comes from `customer_change_deadline_preview`, which answers from
  * the settings `cancel_customer_booking` actually enforces. Nothing here is

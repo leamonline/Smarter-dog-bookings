@@ -1,3 +1,4 @@
+import { CancellationHistoryPanel } from "./CancellationHistoryPanel";
 import { CalendarClock } from "lucide-react";
 import { PanelShell } from "../shell/PanelShell.jsx";
 import { SALON_SLOTS } from "../../../constants/salon";
@@ -61,6 +62,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
   return (
     <PanelShell eyebrow="Booking rules" icon={CalendarClock} accent="sky">
       <div className="flex flex-col gap-3">
+        <CancellationHistoryPanel key={human?.id} humanId={human?.id} />
         <div>
           <p className="text-[12px] font-bold text-slate-600 mb-1">Preferred times</p>
           <p className="text-[11px] text-slate-400 mb-1.5">

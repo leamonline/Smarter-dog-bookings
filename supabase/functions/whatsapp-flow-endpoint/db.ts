@@ -433,7 +433,7 @@ export async function cancelOldBookingForReschedule(
   sel: { groupId?: string | null; bookingId?: string },
 ): Promise<{ cancelledCount: number; bookingIds: string[] }> {
   const p_reason = WHATSAPP_RESCHEDULE_CANCEL_REASON;
-  const rpc = sel.groupId ? "cancel_whatsapp_booking_group" : "cancel_whatsapp_booking_by_id";
+  const rpc = sel.groupId ? "cancel_whatsapp_booking_group_for_reschedule" : "cancel_whatsapp_booking_by_id_for_reschedule";
   const args = sel.groupId
     ? { p_group_id: sel.groupId, p_human_id: humanId, p_reason }
     : { p_booking_id: sel.bookingId, p_human_id: humanId, p_reason };

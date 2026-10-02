@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { BookingActions } from "./BookingActions.jsx";
 import { BOOKING_STATUS } from "../../../constants/salon";
@@ -43,4 +43,22 @@ describe("BookingActions", () => {
       screen.getByRole("button", { name: /delete booking permanently/i }),
     ).toBeInTheDocument();
   });
+  it("requires explicit attribution and a reason before cancelling", async () => {
+    const onUpdate = vi.fn();
+    render(<BookingActions {...baseProps} onUpdate={onUpdate} isEditing={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel booking" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, cancel it" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose who requested it and give a reason");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+  it("retains the cancellation dialogue when the database write fails", async () => {
+    render(<BookingActions {...baseProps} onUpdate={vi.fn().mockResolvedValue({success: false})} isEditing={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel booking" }));
+    fireEvent.change(screen.getByLabelText("Who requested the cancellation?"), {target: {value: "customer"}});
+    fireEvent.change(screen.getByLabelText("Cancellation reason"), {target: {value: "Cannot attend"}});
+    fireEvent.click(screen.getByRole("button", { name: "Yes, cancel it" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn’t cancel this booking");
+    expect(screen.getByRole("button", {name: "Keep booking"})).toBeInTheDocument();
+  });
+
 });
