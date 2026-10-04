@@ -2679,6 +2679,7 @@ export type Database = {
           blocked_slots: string[]
           claims_human_id: string | null
           created_at: string | null
+          customer_notes: string
           customer_user_id: string | null
           deposit_required: boolean
           email: string | null
@@ -2693,6 +2694,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          phone_normalised: string | null
           policies_accepted_at: string | null
           policies_version: string | null
           postcode: string | null
@@ -2706,7 +2708,7 @@ export type Database = {
           sms_opted_out_at: string | null
           sms_opted_out_reason: string | null
           source: string | null
-          surname: string
+          surname: string | null
           tiktok: string | null
           updated_at: string | null
           whatsapp: boolean | null
@@ -2723,6 +2725,7 @@ export type Database = {
           blocked_slots?: string[]
           claims_human_id?: string | null
           created_at?: string | null
+          customer_notes?: string
           customer_user_id?: string | null
           deposit_required?: boolean
           email?: string | null
@@ -2737,6 +2740,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          phone_normalised?: string | null
           policies_accepted_at?: string | null
           policies_version?: string | null
           postcode?: string | null
@@ -2750,7 +2754,7 @@ export type Database = {
           sms_opted_out_at?: string | null
           sms_opted_out_reason?: string | null
           source?: string | null
-          surname: string
+          surname?: string | null
           tiktok?: string | null
           updated_at?: string | null
           whatsapp?: boolean | null
@@ -2767,6 +2771,7 @@ export type Database = {
           blocked_slots?: string[]
           claims_human_id?: string | null
           created_at?: string | null
+          customer_notes?: string
           customer_user_id?: string | null
           deposit_required?: boolean
           email?: string | null
@@ -2781,6 +2786,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          phone_normalised?: string | null
           policies_accepted_at?: string | null
           policies_version?: string | null
           postcode?: string | null
@@ -2794,7 +2800,7 @@ export type Database = {
           sms_opted_out_at?: string | null
           sms_opted_out_reason?: string | null
           source?: string | null
-          surname?: string
+          surname?: string | null
           tiktok?: string | null
           updated_at?: string | null
           whatsapp?: boolean | null
