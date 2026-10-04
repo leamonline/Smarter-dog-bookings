@@ -27,7 +27,7 @@ for value in A B; do
 done
 wait "$worker_a"; worker_a=
 wait "$worker_b"; worker_b=
-[[ $(cat "$task_tmp/A" "$task_tmp/B" | rg -c '^t$') == 1 ]]
-[[ $(cat "$task_tmp/A" "$task_tmp/B" | rg -c '^f$') == 1 ]]
+[[ $(cat "$task_tmp/A" "$task_tmp/B" | grep -c '^t$') == 1 ]]
+[[ $(cat "$task_tmp/A" "$task_tmp/B" | grep -c '^f$') == 1 ]]
 [[ $(psql "$DATABASE_URL" -X -Atq -v ON_ERROR_STOP=1 -c "select agent_state_rev = 1 and agent_state->>'preferredDay' in ('A','B') from public.whatsapp_conversations where id='$fixture_id'") == t ]]
 echo 'PASS: two concurrent snapshots, one saved update, one conflict, revision 1'
