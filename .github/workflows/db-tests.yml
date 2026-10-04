@@ -84,14 +84,17 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash scripts/verify-whatsapp-memory-concurrency.sh
 
+      # Written into the workspace, not the temp directory: upload-artifact's
+      # `path` cannot expand $RUNNER_TEMP, and the workflow isolation test
+      # forbids the `runner.temp` expression anywhere in this file.
       - name: Generate migrated database types
-        run: supabase --workdir "$RUNNER_TEMP/db-test-project" gen types typescript --local --schema public > "$RUNNER_TEMP/database.types.ts"
+        run: supabase --workdir "$RUNNER_TEMP/db-test-project" gen types typescript --local --schema public > migrated-database.types.ts
 
       - name: Save generated types for review
         uses: actions/upload-artifact@v6
         with:
           name: migrated-database-types
-          path: ${{ runner.temp }}/database.types.ts
+          path: migrated-database.types.ts
 
       - name: Dump diagnostics on failure
         if: failure()
