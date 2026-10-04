@@ -51,6 +51,17 @@ the ledger), and `supabase/tests/237_humans_prod_shape.test.sql` pins it.
 The remaining three ledger-only rows are function-level and have not been
 diffed against their committed successors.
 
+Reconciling exposed a live bug. `submit_customer_signup` (September's
+signup-claims feature) detected "this name belongs to an existing
+customer" by catching the `unique_violation` from `unique (name, surname)`,
+a constraint prod no longer had, so on prod the claim path never fired and
+such signups became silent duplicates. pgTAP 184 failed the moment the local
+schema matched prod. `20261004121000_signup_claim_detects_existing_name.sql`
+replaces the catch with an explicit lookup; unlike the reconciliation it is
+a real change on prod (the feature starts working as reviewed) and
+`src/security/signupClaimsMigration.test.ts` forbids the constraint catch
+from returning.
+
 ## Letter-suffixed filenames
 
 Files with letter suffixes (e.g. `012a_…`, `017a_…`) are backfills
