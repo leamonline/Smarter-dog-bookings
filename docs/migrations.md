@@ -1,5 +1,27 @@
 # Migration history
 
+## Humans reconciliation and signup-claim fix (#939) — applied 4 October 2026
+
+Both migrations were applied to **prod** (`nlzhllhkigmsvrzduefz`) through the
+Supabase MCP on 4 October 2026, in file order, with the names the checks
+expect: `reconcile_humans_with_prod` (ledger version `20261004124020`) and
+`signup_claim_detects_existing_name` (`20261004124106`). Ledger: 236 → 238
+rows.
+
+Post-apply evidence, read from the prod catalog: `submit_customer_signup`
+no longer contains `unique_violation` and carries the explicit
+`(name, surname)` lookup; it is still SECURITY DEFINER, executable by
+`authenticated` only (not `anon`, not `public`); the `claims_human_id`
+column comment is the new text; `public.humans` is unchanged (44 columns,
+8 indexes, 948 rows, `surname` nullable, no `humans_name_surname_key`),
+which is what a no-op reconciliation should look like.
+
+**Not applied to staging.** Staging (`btjnxvgkpdbfrrqxvkfj`) is missing
+`humans.claims_human_id`, so it has never had
+`20260902150000_signup_claims_existing_customer`; the second migration's
+`comment on column` would fail there. Bring staging up to date with that
+migration first, then apply both of these.
+
 `supabase/migrations/` is a near-complete record of prod schema
 history.
 
