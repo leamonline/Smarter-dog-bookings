@@ -868,28 +868,43 @@ export type Database = {
       }
       booking_funnel_events: {
         Row: {
+          blocked_reason: string | null
           created_at: string
           dog_count: number | null
+          failure_code: string | null
+          failure_detail: string | null
           human_id: string | null
           id: string
+          occurred_at: string | null
           session_id: string
           step: string
+          step_index: number | null
         }
         Insert: {
+          blocked_reason?: string | null
           created_at?: string
           dog_count?: number | null
+          failure_code?: string | null
+          failure_detail?: string | null
           human_id?: string | null
           id?: string
+          occurred_at?: string | null
           session_id: string
           step: string
+          step_index?: number | null
         }
         Update: {
+          blocked_reason?: string | null
           created_at?: string
           dog_count?: number | null
+          failure_code?: string | null
+          failure_detail?: string | null
           human_id?: string | null
           id?: string
+          occurred_at?: string | null
           session_id?: string
           step?: string
+          step_index?: number | null
         }
         Relationships: [
           {
@@ -2020,8 +2035,8 @@ export type Database = {
           addons: string[] | null
           booking_date: string
           breed_snapshot: string | null
-          cancellation_cause: string | null
           cancel_reason: string | null
+          cancellation_cause: string | null
           chain_id: string | null
           checked_in_at: string | null
           completed_at: string | null
@@ -2070,8 +2085,8 @@ export type Database = {
           addons?: string[] | null
           booking_date: string
           breed_snapshot?: string | null
-          cancellation_cause?: string | null
           cancel_reason?: string | null
+          cancellation_cause?: string | null
           chain_id?: string | null
           checked_in_at?: string | null
           completed_at?: string | null
@@ -2120,8 +2135,8 @@ export type Database = {
           addons?: string[] | null
           booking_date?: string
           breed_snapshot?: string | null
-          cancellation_cause?: string | null
           cancel_reason?: string | null
+          cancellation_cause?: string | null
           chain_id?: string | null
           checked_in_at?: string | null
           completed_at?: string | null
@@ -2664,7 +2679,6 @@ export type Database = {
           blocked_slots: string[]
           claims_human_id: string | null
           created_at: string | null
-          customer_notes: string
           customer_user_id: string | null
           deposit_required: boolean
           email: string | null
@@ -2679,7 +2693,6 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          phone_normalised: string | null
           policies_accepted_at: string | null
           policies_version: string | null
           postcode: string | null
@@ -2693,7 +2706,7 @@ export type Database = {
           sms_opted_out_at: string | null
           sms_opted_out_reason: string | null
           source: string | null
-          surname: string | null
+          surname: string
           tiktok: string | null
           updated_at: string | null
           whatsapp: boolean | null
@@ -2710,7 +2723,6 @@ export type Database = {
           blocked_slots?: string[]
           claims_human_id?: string | null
           created_at?: string | null
-          customer_notes?: string
           customer_user_id?: string | null
           deposit_required?: boolean
           email?: string | null
@@ -2725,7 +2737,6 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          phone_normalised?: string | null
           policies_accepted_at?: string | null
           policies_version?: string | null
           postcode?: string | null
@@ -2739,7 +2750,7 @@ export type Database = {
           sms_opted_out_at?: string | null
           sms_opted_out_reason?: string | null
           source?: string | null
-          surname?: string | null
+          surname: string
           tiktok?: string | null
           updated_at?: string | null
           whatsapp?: boolean | null
@@ -2756,7 +2767,6 @@ export type Database = {
           blocked_slots?: string[]
           claims_human_id?: string | null
           created_at?: string | null
-          customer_notes?: string
           customer_user_id?: string | null
           deposit_required?: boolean
           email?: string | null
@@ -2771,7 +2781,6 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          phone_normalised?: string | null
           policies_accepted_at?: string | null
           policies_version?: string | null
           postcode?: string | null
@@ -2785,7 +2794,7 @@ export type Database = {
           sms_opted_out_at?: string | null
           sms_opted_out_reason?: string | null
           source?: string | null
-          surname?: string | null
+          surname?: string
           tiktok?: string | null
           updated_at?: string | null
           whatsapp?: boolean | null
@@ -2793,7 +2802,15 @@ export type Database = {
           whatsapp_opted_out_at?: string | null
           whatsapp_opted_out_reason?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "humans_claims_human_id_fkey"
+            columns: ["claims_human_id"]
+            isOneToOne: false
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_dismissals: {
         Row: {
@@ -3058,6 +3075,66 @@ export type Database = {
             columns: ["human_id"]
             isOneToOne: false
             referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slack_alerts: {
+        Row: {
+          alert_key: string
+          alert_type: string
+          booking_date: string | null
+          booking_id: string | null
+          conversation_id: string | null
+          created_at: string
+          dry_run: boolean
+          id: string
+          message: string | null
+          posted_at: string | null
+          severity: string
+          state: string
+        }
+        Insert: {
+          alert_key: string
+          alert_type: string
+          booking_date?: string | null
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          dry_run?: boolean
+          id?: string
+          message?: string | null
+          posted_at?: string | null
+          severity: string
+          state?: string
+        }
+        Update: {
+          alert_key?: string
+          alert_type?: string
+          booking_date?: string | null
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          dry_run?: boolean
+          id?: string
+          message?: string | null
+          posted_at?: string | null
+          severity?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slack_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slack_alerts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -3330,6 +3407,7 @@ export type Database = {
       whatsapp_conversations: {
         Row: {
           agent_state: Json
+          agent_state_rev: number
           auto_send_enabled: boolean
           autonomous_booking_enabled: boolean
           channel: string
@@ -3359,6 +3437,7 @@ export type Database = {
         }
         Insert: {
           agent_state?: Json
+          agent_state_rev?: number
           auto_send_enabled?: boolean
           autonomous_booking_enabled?: boolean
           channel?: string
@@ -3388,6 +3467,7 @@ export type Database = {
         }
         Update: {
           agent_state?: Json
+          agent_state_rev?: number
           auto_send_enabled?: boolean
           autonomous_booking_enabled?: boolean
           channel?: string
@@ -3900,47 +3980,6 @@ export type Database = {
       }
     }
     Functions: {
-      get_public_holiday_notices: {
-        Args: never
-        Returns: {
-          closed_from: string
-          id: string
-          notice_from: string
-          phase: string
-          reopens_on: string
-        }[]
-      }
-
-      save_salon_holiday: {
-        Args: {
-          p_closed_from: string
-          p_enabled: boolean
-          p_id: string
-          p_notice_from: string
-          p_reopens_on: string
-          p_revision: number
-        }
-        Returns: Json
-      }
-
-      get_staff_holidays: {
-        Args: never
-        Returns: {
-          closed_from: string
-          enabled: boolean
-          id: string
-          notice_from: string
-          reopens_on: string
-          revision: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "salon_holidays"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-
       active_slots: { Args: never; Returns: string[] }
       active_slots_for: { Args: { p_date: string }; Returns: string[] }
       apply_booking_visit_backfill_reconciliation: {
@@ -3983,6 +4022,11 @@ export type Database = {
           dog_name: string
         }[]
       }
+      booking_occupies_seat: { Args: { p_status: string }; Returns: boolean }
+      booking_payment_snapshot: {
+        Args: { p_booking: Database["public"]["Tables"]["bookings"]["Row"] }
+        Returns: Json
+      }
       booking_policy_runtime: { Args: never; Returns: string }
       booking_policy_runtime_at: { Args: { p_at: string }; Returns: string }
       booking_policy_runtime_status: { Args: never; Returns: Json }
@@ -4002,14 +4046,6 @@ export type Database = {
       booking_visit_reconciliation_snapshot: {
         Args: { p_visit_ids: string[] }
         Returns: Json
-      }
-      staff_customer_cancellation_history: {
-        Args: { p_human_id: string }
-        Returns: Json
-      }
-      waive_late_cancellation: {
-        Args: { p_incident_id: string; p_reason: string }
-        Returns: undefined
       }
       cancel_customer_booking: {
         Args: { p_booking_id: string; p_reason: string }
@@ -4058,16 +4094,16 @@ export type Database = {
           group_id: string
         }[]
       }
-      cancel_whatsapp_booking_group: {
-        Args: { p_group_id: string; p_human_id: string; p_reason?: string }
+      cancel_whatsapp_booking_by_id_for_reschedule: {
+        Args: { p_booking_id: string; p_human_id: string; p_reason?: string }
         Returns: {
           booking_ids: string[]
           cancelled_count: number
           group_id: string
         }[]
       }
-      cancel_whatsapp_booking_by_id_for_reschedule: {
-        Args: { p_booking_id: string; p_human_id: string; p_reason?: string }
+      cancel_whatsapp_booking_group: {
+        Args: { p_group_id: string; p_human_id: string; p_reason?: string }
         Returns: {
           booking_ids: string[]
           cancelled_count: number
@@ -4097,6 +4133,18 @@ export type Database = {
       close_day_with_rearrangement_tasks: {
         Args: { p_date: string }
         Returns: Json
+      }
+      compare_and_set_whatsapp_agent_state: {
+        Args: {
+          p_conversation_id: string
+          p_expected_revision: number
+          p_state: Json
+        }
+        Returns: {
+          agent_state: Json
+          agent_state_rev: number
+          saved: boolean
+        }[]
       }
       complete_closure_rearrangement_task: {
         Args: { p_task_id: string }
@@ -4159,6 +4207,7 @@ export type Database = {
           booking_date: string
           breed_snapshot: string | null
           cancel_reason: string | null
+          cancellation_cause: string | null
           chain_id: string | null
           checked_in_at: string | null
           completed_at: string | null
@@ -4233,6 +4282,10 @@ export type Database = {
       }
       current_booking_rules: { Args: never; Returns: Json }
       current_customer_booking_rules: { Args: never; Returns: Json }
+      customer_change_deadline_preview: {
+        Args: { p_booking_date: string; p_slot: string }
+        Returns: Json
+      }
       customer_credit_balance: { Args: { p_human_id: string }; Returns: Json }
       customer_phone_login_state: {
         Args: { p_phone: string }
@@ -4389,6 +4442,36 @@ export type Database = {
         Args: { p_feed_type: string }
         Returns: string
       }
+      get_public_holiday_notices: {
+        Args: never
+        Returns: {
+          closed_from: string
+          id: string
+          notice_from: string
+          phase: string
+          reopens_on: string
+        }[]
+      }
+      get_public_open_days: {
+        Args: never
+        Returns: {
+          is_fully_booked: boolean
+          is_open: boolean
+          setting_date: string
+        }[]
+      }
+      get_public_salon_facts: {
+        Args: never
+        Returns: {
+          business_address: string
+          business_email: string
+          business_hours: Json
+          business_name: string
+          business_phone: string
+          closures: Json
+          updated_at: string
+        }[]
+      }
       get_seats_needed: {
         Args: { p_size: string; p_slot: string }
         Returns: number
@@ -4414,6 +4497,23 @@ export type Database = {
       get_staff_customer_credit_balance: {
         Args: { p_human_id: string }
         Returns: Json
+      }
+      get_staff_holidays: {
+        Args: never
+        Returns: {
+          closed_from: string
+          enabled: boolean
+          id: string
+          notice_from: string
+          reopens_on: string
+          revision: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "salon_holidays"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_supabase_url: { Args: never; Returns: string }
       get_webhook_secret: { Args: never; Returns: string }
@@ -4491,7 +4591,10 @@ export type Database = {
       }
       log_funnel_event: {
         Args: {
+          p_blocked_reason?: string
           p_dog_count?: number
+          p_failure_code?: string
+          p_failure_detail?: string
           p_human_id?: string
           p_occurred_at?: string
           p_session_id: string
@@ -4538,6 +4641,14 @@ export type Database = {
         Returns: Json
       }
       prune_abandoned_signups: { Args: never; Returns: number }
+      prune_measurement_telemetry: {
+        Args: never
+        Returns: {
+          denials_deleted: number
+          funnel_events_deleted: number
+        }[]
+      }
+      prune_slack_alerts: { Args: never; Returns: number }
       recompute_legacy_booking_visit: {
         Args: { p_visit_id: string }
         Returns: undefined
@@ -4722,6 +4833,17 @@ export type Database = {
         Returns: undefined
       }
       run_legacy_deposit_auto_release: { Args: never; Returns: number }
+      save_salon_holiday: {
+        Args: {
+          p_closed_from: string
+          p_enabled: boolean
+          p_id: string
+          p_notice_from: string
+          p_reopens_on: string
+          p_revision: number
+        }
+        Returns: Json
+      }
       search_dogs_directory: {
         Args: {
           p_alert?: boolean
@@ -4792,6 +4914,10 @@ export type Database = {
         Returns: Json
       }
       slots_are_hhmm: { Args: { p_slots: string[] }; Returns: boolean }
+      staff_customer_cancellation_history: {
+        Args: { p_human_id: string }
+        Returns: Json
+      }
       submit_customer_signup: {
         Args: { p_dogs: Json; p_owner: Json }
         Returns: Json
@@ -4876,6 +5002,7 @@ export type Database = {
           booking_date: string
           breed_snapshot: string | null
           cancel_reason: string | null
+          cancellation_cause: string | null
           chain_id: string | null
           checked_in_at: string | null
           completed_at: string | null
@@ -4928,6 +5055,10 @@ export type Database = {
         }
       }
       visit_start_at: { Args: { p_visit_id: string }; Returns: string }
+      waive_late_cancellation: {
+        Args: { p_incident_id: string; p_reason: string }
+        Returns: undefined
+      }
       waive_visit_deposit_requirement: {
         Args: {
           p_expected_visit_revision: number
@@ -5081,3 +5212,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
