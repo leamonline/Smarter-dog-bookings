@@ -26,7 +26,30 @@ Two small differences between the repo and the prod tracking table:
   columns (`humans.reminder_hours`, `humans.reminder_channels`)
   exist on prod, but the file isn't in the migration history table.
 
-Everything else matches.
+### Prod-only migrations found 4 October 2026
+
+A name-by-name comparison of the prod ledger against the repo (versions
+cannot be compared: a migration applied through the MCP is recorded under
+the MCP's own timestamp, and some repo filenames reuse a timestamp the
+ledger holds under a different name) found more than the two cases above.
+Five ledger rows have no committed file and no renamed equivalent:
+`relax_human_uniqueness` (30 April), `customer_self_register_phone`
+(5 May), `fix_link_customer_to_human_phone_ambiguity` (13 May, later
+superseded by `20260618144000_drop_link_or_create_customer_human`),
+`notification_log_idempotency` and `update_customer_dog_rpc_v2`.
+
+The first two left `public.humans` in a shape no committed migration
+describes: a nullable `surname`, no `unique (name, surname)`, a
+`customer_notes` column, a generated `phone_normalised` column with its
+partial index, and the `humans_phone_unique` partial unique index. A
+database rebuilt from committed history therefore differed from prod on
+all five, and `src/supabase/database.types.ts` could not be regenerated
+from migrations without losing them.
+`20261004120000_reconcile_humans_with_prod.sql` restates that shape
+idempotently (a no-op on prod and staging, which must still record it in
+the ledger), and `supabase/tests/237_humans_prod_shape.test.sql` pins it.
+The remaining three ledger-only rows are function-level and have not been
+diffed against their committed successors.
 
 ## Letter-suffixed filenames
 
