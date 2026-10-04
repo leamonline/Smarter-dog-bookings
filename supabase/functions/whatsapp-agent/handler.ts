@@ -1,4 +1,5 @@
 import { parseDogMemory } from "../_shared/agentDogMemory.ts";
+import { rebaseAgentPatch } from "../_shared/agentStateConcurrency.ts";
 // ============================================================
 // supabase/functions/whatsapp-agent/index.ts
 //
@@ -497,6 +498,7 @@ interface ConversationRow {
   auto_send_enabled: boolean;
   autonomous_booking_enabled: boolean;
   agent_state: AgentState;
+  agent_state_rev: number;
   lead_status: "collecting" | "awaiting_summary_confirm" | "records_created" | null;
   lead_payload: AgentState | null;
 }
@@ -548,7 +550,7 @@ async function upsertConversation(
       upsertBody,
       { onConflict: "phone_e164,channel" },
     )
-    .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, lead_status, lead_payload")
+    .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, agent_state_rev, lead_status, lead_payload")
     .single();
 
   if (error || !data) {
@@ -563,6 +565,7 @@ async function upsertConversation(
     auto_send_enabled: boolean | null;
     autonomous_booking_enabled: boolean | null;
     agent_state: unknown;
+    agent_state_rev: number;
     lead_status: string | null;
     lead_payload: unknown;
   };
@@ -579,6 +582,7 @@ async function upsertConversation(
     agent_state: (row.agent_state && typeof row.agent_state === "object"
       ? (row.agent_state as AgentState)
       : {}) as AgentState,
+    agent_state_rev: row.agent_state_rev,
     lead_status: (typeof row.lead_status === "string" && validLeadStatuses.has(row.lead_status)
       ? row.lead_status as "collecting" | "awaiting_summary_confirm" | "records_created"
       : null) ?? null,
@@ -1256,15 +1260,27 @@ async function saveDraft(
 async function persistAgentState(
   supabase: SupabaseClient,
   conversationId: string,
-  state: AgentState,
-): Promise<void> {
-  const { data, error } = await supabase
-    .from("whatsapp_conversations")
-    .update({ agent_state: state })
-    .eq("id", conversationId)
-    .select("id")
-    .single();
-  if (error || !data?.id) throw new Error("Agent memory save failed; dependent processing stopped");
+  original: AgentState,
+  revision: number,
+  patch: Partial<AgentState>,
+  allowRebase: boolean,
+): Promise<boolean> {
+  let state = mergeAgentState(original, patch);
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Agent memory revision unavailable; processing stopped");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase.rpc("compare_and_set_whatsapp_agent_state", {
+      p_conversation_id: conversationId, p_expected_revision: revision, p_state: state,
+    });
+    const result = data?.[0];
+    if (error || !result) throw new Error("Agent memory save failed; dependent processing stopped");
+    if (result.saved === true) return attempt === 1;
+    if (!allowRebase || attempt === 1 || !Number.isSafeInteger(result.agent_state_rev) || !result.agent_state || typeof result.agent_state !== "object") break;
+    const rebased = rebaseAgentPatch(original, result.agent_state as AgentState, patch);
+    if (!rebased) break;
+    state = rebased;
+    revision = result.agent_state_rev;
+  }
+  throw new Error("Agent memory conflict; dependent processing stopped");
 }
 
 // Auto-dispatch hook. Calls whatsapp-send with mode:'draft' so the
@@ -2941,8 +2957,13 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             const seeded = ownedDogIds.size === 1 && !Array.isArray(previous?.dogs)
               ? {...previous, dogs: parseDogMemory([{dogId: [...ownedDogIds][0], dogAge: previous?.dogAge, coatCondition: previous?.coatCondition, service: previous?.service, alerts: previous?.alerts}], ownedDogIds)}
               : previous;
-            const merged = mergeAgentState(seeded, draft.extracted_state);
-            await persistAgentState(supabase, conversation.id, merged);
+            const rebased = await persistAgentState(supabase, conversation.id, seeded ?? {}, conversation.agent_state_rev, draft.extracted_state, !!conversation.human_id && !draft.booking_action);
+            if (rebased) {
+              // The model saw the older snapshot. Hold its prose for staff review.
+              policy.autoSendEligible = false;
+              policy.handoffRequired = true;
+            }
+
           }
 
           // New-customer onboarding state machine. Runs only when the

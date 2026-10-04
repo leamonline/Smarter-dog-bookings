@@ -1,5 +1,22 @@
 # Migration history
 
+## WhatsApp agent-state revision (#938) — applied 4 October 2026
+
+`20261002140000_whatsapp_agent_state_revision.sql` was applied to **prod**
+(`nlzhllhkigmsvrzduefz`) through the Supabase MCP on 4 October 2026 as
+`whatsapp_agent_state_revision` (ledger version `20261004125800`; ledger
+238 → 239 rows), ahead of the dependent Edge deployment, as the file's own
+header requires.
+
+Post-apply evidence from the prod catalog: `whatsapp_conversations.agent_state_rev`
+is `bigint not null default 0` with its range check and comment; the
+`whatsapp_agent_state_revision` BEFORE UPDATE trigger is enabled;
+`bump_whatsapp_agent_state_revision()` is not executable by `anon` or
+`authenticated`; `compare_and_set_whatsapp_agent_state(uuid,bigint,jsonb)`
+is SECURITY DEFINER and executable by `service_role` only. All 399
+conversations sit at revision 0. The legacy write path in the deployed
+Edge function keeps working: the trigger advances the revision for it.
+
 ## Humans reconciliation and signup-claim fix (#939) — applied 4 October 2026
 
 Both migrations were applied to **prod** (`nlzhllhkigmsvrzduefz`) through the
