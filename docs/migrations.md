@@ -1,5 +1,27 @@
 # Migration history
 
+## Humans reconciliation and signup-claim fix (#939) — applied 4 October 2026
+
+Both migrations were applied to **prod** (`nlzhllhkigmsvrzduefz`) through the
+Supabase MCP on 4 October 2026, in file order, with the names the checks
+expect: `reconcile_humans_with_prod` (ledger version `20261004124020`) and
+`signup_claim_detects_existing_name` (`20261004124106`). Ledger: 236 → 238
+rows.
+
+Post-apply evidence, read from the prod catalog: `submit_customer_signup`
+no longer contains `unique_violation` and carries the explicit
+`(name, surname)` lookup; it is still SECURITY DEFINER, executable by
+`authenticated` only (not `anon`, not `public`); the `claims_human_id`
+column comment is the new text; `public.humans` is unchanged (44 columns,
+8 indexes, 948 rows, `surname` nullable, no `humans_name_surname_key`),
+which is what a no-op reconciliation should look like.
+
+**Not applied to staging.** Staging (`btjnxvgkpdbfrrqxvkfj`) is missing
+`humans.claims_human_id`, so it has never had
+`20260902150000_signup_claims_existing_customer`; the second migration's
+`comment on column` would fail there. Bring staging up to date with that
+migration first, then apply both of these.
+
 `supabase/migrations/` is a near-complete record of prod schema
 history.
 
@@ -26,7 +48,41 @@ Two small differences between the repo and the prod tracking table:
   columns (`humans.reminder_hours`, `humans.reminder_channels`)
   exist on prod, but the file isn't in the migration history table.
 
-Everything else matches.
+### Prod-only migrations found 4 October 2026
+
+A name-by-name comparison of the prod ledger against the repo (versions
+cannot be compared: a migration applied through the MCP is recorded under
+the MCP's own timestamp, and some repo filenames reuse a timestamp the
+ledger holds under a different name) found more than the two cases above.
+Five ledger rows have no committed file and no renamed equivalent:
+`relax_human_uniqueness` (30 April), `customer_self_register_phone`
+(5 May), `fix_link_customer_to_human_phone_ambiguity` (13 May, later
+superseded by `20260618144000_drop_link_or_create_customer_human`),
+`notification_log_idempotency` and `update_customer_dog_rpc_v2`.
+
+The first two left `public.humans` in a shape no committed migration
+describes: a nullable `surname`, no `unique (name, surname)`, a
+`customer_notes` column, a generated `phone_normalised` column with its
+partial index, and the `humans_phone_unique` partial unique index. A
+database rebuilt from committed history therefore differed from prod on
+all five, and `src/supabase/database.types.ts` could not be regenerated
+from migrations without losing them.
+`20261004120000_reconcile_humans_with_prod.sql` restates that shape
+idempotently (a no-op on prod and staging, which must still record it in
+the ledger), and `supabase/tests/237_humans_prod_shape.test.sql` pins it.
+The remaining three ledger-only rows are function-level and have not been
+diffed against their committed successors.
+
+Reconciling exposed a live bug. `submit_customer_signup` (September's
+signup-claims feature) detected "this name belongs to an existing
+customer" by catching the `unique_violation` from `unique (name, surname)`,
+a constraint prod no longer had, so on prod the claim path never fired and
+such signups became silent duplicates. pgTAP 184 failed the moment the local
+schema matched prod. `20261004121000_signup_claim_detects_existing_name.sql`
+replaces the catch with an explicit lookup; unlike the reconciliation it is
+a real change on prod (the feature starts working as reviewed) and
+`src/security/signupClaimsMigration.test.ts` forbids the constraint catch
+from returning.
 
 ## Letter-suffixed filenames
 
