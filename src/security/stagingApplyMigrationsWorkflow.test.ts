@@ -147,6 +147,15 @@ describe("staging apply-migrations workflow", () => {
     expect(script).toContain(
       "select count(*) from supabase_migrations.schema_migrations where name = :'name';",
     );
+    // The CLI's temporary login is not postgres: every psql session must adopt
+    // the role before touching supabase_migrations (run #3 failed on exactly this).
+    expect(script).toContain(
+      `      "set role postgres;" \\\n      "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |`,
+    );
+    expect(script).toContain('echo "set role postgres;"');
+    expect(script).toContain(
+      "--command \"set role postgres; select version || '  ' || name from supabase_migrations.schema_migrations order by version;\"",
+    );
     expect(script).toContain('if [ "$already" != "0" ] && ! may_reapply "$migration"; then');
     expect(script).toContain('for candidate in ${REAPPLY_MIGRATIONS:-}; do');
     expect(script).toContain(
