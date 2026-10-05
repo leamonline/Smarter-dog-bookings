@@ -299,3 +299,48 @@ then intentionally re-granted in `20260726144001`, returning only
 ## Measurement telemetry retention — 9 September 2026
 
 `20260909150000_telemetry_retention_90_days.sql` adds `prune_measurement_telemetry()` and a daily pg_cron job (03:25 UTC) that deletes `booking_funnel_events` and `booking_denials` rows older than 90 days — the retention period the measurement owner set for #612 (see the [catalogue](specifications/measurement-catalogue.md#privacy-and-retention)). Idempotent; touches neither logging RPC nor the booking write path. Guarded by `supabase/tests/222_telemetry_retention.test.sql`.
+
+## Applying migrations to staging that the MCP tool refuses
+
+The Supabase MCP `apply_migration` / `execute_sql` tools ask for a confirmation
+whenever the SQL text contains `drop function`, `drop trigger`, `drop table`,
+`drop policy` or `delete from`, even inside a function body or behind
+`if exists`. An agent session cannot answer that confirmation, so the call
+hangs until the MCP timeout. Several committed migrations need exactly those
+statements (signature-changing `drop function if exists`, trigger re-creation,
+retention `delete from`), which is how staging fell behind the repository.
+
+Use the manual workflow **Apply named migrations to staging**
+(`.github/workflows/staging-apply-migrations.yml`) instead. It runs under the
+`staging` GitHub environment, demands the exact staging ref as confirmation,
+links staging only, and hands the space-separated list of migration file names
+to `scripts/apply-hosted-migrations.sh`, which:
+
+- accepts only basenames under `supabase/migrations/` matching
+  `<14-digit version>_<snake_case_name>.sql`;
+- obtains the CLI's short-lived database login (as `scripts/run-hosted-pgtap.sh`
+  does; no stored database password);
+- skips any migration whose **name** is already in
+  `supabase_migrations.schema_migrations` (names are the identity CI's
+  `migrations-applied` check reads; the MCP tool records its own timestamp as
+  the version);
+- applies each file with `psql` under `ON_ERROR_STOP`, recording its ledger row
+  under the file's own version immediately afterwards in the same session: a
+  file without its own transaction is atomic with its ledger row; a file that
+  carries its own `begin`/`commit` commits itself first, so a failure between
+  the two (never seen) would need the ledger row added by hand before a re-run.
+
+The optional `reapply` input names files to run again even though they are
+already in the ledger. Staging has received migrations out of repository
+order, so an older file that redefines a function a newer, already-applied
+file also defines (for example `20260825100000_staff_booking_confirmation.sql`
+and `20260919130000_reconfirmed_from_customer_confirmation.sql`, which both
+define `reset_reminder_on_reschedule()`) must be followed by the newer file
+again. Before a run, check the files in the list against every later file
+already on staging for shared function, trigger and grant names, and add the
+later ones to both inputs, after the older ones. The ledger never gains a
+second row for a name.
+
+Production is refused by construction: the script hard-codes the staging ref
+and exits if asked for anything else. It is not a production migration path;
+production still follows the manual, target-verified procedure above.
