@@ -1,5 +1,55 @@
 # Migration history
 
+## Drop unused humans columns — applied 5 October 2026
+
+`20261005190000_drop_unused_humans_columns.sql` removes `humans.customer_notes`
+and `humans.phone_normalised` (and, with the generated column, its partial
+index `humans_phone_normalised_idx`). Both reached prod through the uncommitted
+May 2026 migration `customer_self_register_phone` for the phone-lookup RPC
+`link_or_create_customer_human`, which `20260618144000` dropped; nothing has
+referenced either since. `humans_phone_unique` is kept.
+
+Pre-apply evidence, read from the prod catalog on 5 October 2026: 948 humans
+rows, every `customer_notes` value is the empty string, `phone_normalised` is a
+STORED generated column (no data of its own), no function, view, policy or
+trigger references either name, and the only dependents are the generated
+column's own expression and `humans_phone_normalised_idx`. In the repository
+only the generated types, `supabase/tests/237_humans_prod_shape.test.sql` and a
+comment in `website/src/utils/phone.js` mentioned them; all three are updated
+in the same pull request.
+
+**Applied to prod by hand on 5 October 2026** (project `Smarter-dog-grooming`,
+ref `nlzhllhkigmsvrzduefz`) in the Supabase Dashboard SQL editor, as one
+transaction together with its ledger row. The Supabase MCP tool could not apply
+it: its destructive-statement confirmation also covers `drop column`, and that
+confirmation cannot be answered from an agent session, so `apply_migration` and
+`execute_sql` both hang until their timeout (three attempts in total, nothing
+executed each time: columns, index and ledger unchanged afterwards). The script
+that was run:
+
+```sql
+alter table public.humans drop column if exists phone_normalised;
+alter table public.humans drop column if exists customer_notes;
+insert into supabase_migrations.schema_migrations (version, name, statements)
+select '20261005190000', 'drop_unused_humans_columns',
+       array['alter table public.humans drop column if exists phone_normalised;',
+             'alter table public.humans drop column if exists customer_notes;']
+where not exists (select 1 from supabase_migrations.schema_migrations
+                  where name = 'drop_unused_humans_columns');
+```
+
+Post-apply evidence, read from the prod catalog at 20:41 UTC on 5 October 2026
+through the MCP (read-only): `information_schema.columns` lists neither
+`customer_notes` nor `phone_normalised` for `public.humans` (44 columns before,
+42 after); `pg_indexes` lists `humans_phone_unique` and no longer
+`humans_phone_normalised_idx`; `pg_depend` shows no remaining dependents on
+either attribute; the ledger holds exactly one row for the name, version
+`20261005190000`, name `drop_unused_humans_columns`, two statements, which is
+now the latest ledger version; `public.humans` has 948 rows before and after.
+The ledger row is what CI's `migrations-applied` check reads. Staging follows
+after merge through **Apply named migrations to staging** with
+`20261005190000_drop_unused_humans_columns.sql`.
+
 ## WhatsApp agent-state revision (#938) — applied 4 October 2026
 
 `20261002140000_whatsapp_agent_state_revision.sql` was applied to **prod**
