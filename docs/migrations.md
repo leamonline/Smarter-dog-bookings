@@ -1,6 +1,6 @@
 # Migration history
 
-## Drop unused humans columns — awaiting prod apply (5 October 2026)
+## Drop unused humans columns — applied 5 October 2026
 
 `20261005190000_drop_unused_humans_columns.sql` removes `humans.customer_notes`
 and `humans.phone_normalised` (and, with the generated column, its partial
@@ -18,13 +18,14 @@ only the generated types, `supabase/tests/237_humans_prod_shape.test.sql` and a
 comment in `website/src/utils/phone.js` mentioned them; all three are updated
 in the same pull request.
 
-**The Supabase MCP tool cannot apply this one.** Its destructive-statement
-confirmation also covers `drop column`, and the confirmation cannot be answered
-from an agent session, so `apply_migration` hangs until its timeout (confirmed
-twice, with nothing executed: columns, index and ledger unchanged afterwards).
-Apply it by hand in the Supabase Dashboard SQL editor for project
-`nlzhllhkigmsvrzduefz` (`Smarter-dog-grooming`), after confirming the project
-name in the editor's header, as one script:
+**Applied to prod by hand on 5 October 2026** (project `Smarter-dog-grooming`,
+ref `nlzhllhkigmsvrzduefz`) in the Supabase Dashboard SQL editor, as one
+transaction together with its ledger row. The Supabase MCP tool could not apply
+it: its destructive-statement confirmation also covers `drop column`, and that
+confirmation cannot be answered from an agent session, so `apply_migration` and
+`execute_sql` both hang until their timeout (three attempts in total, nothing
+executed each time: columns, index and ledger unchanged afterwards). The script
+that was run:
 
 ```sql
 alter table public.humans drop column if exists phone_normalised;
@@ -37,14 +38,17 @@ where not exists (select 1 from supabase_migrations.schema_migrations
                   where name = 'drop_unused_humans_columns');
 ```
 
-The ledger row is what CI's `migrations-applied` check reads, so the pull
-request cannot merge until it exists. Staging follows after merge through
-**Apply named migrations to staging** with `20261005190000_drop_unused_humans_columns.sql`.
-
-Post-apply evidence to record here: `information_schema.columns` lists neither
-name for `public.humans`; `pg_indexes` lists `humans_phone_unique` but not
-`humans_phone_normalised_idx`; the ledger holds one `drop_unused_humans_columns`
-row; the humans row count is unchanged.
+Post-apply evidence, read from the prod catalog at 20:41 UTC on 5 October 2026
+through the MCP (read-only): `information_schema.columns` lists neither
+`customer_notes` nor `phone_normalised` for `public.humans` (44 columns before,
+42 after); `pg_indexes` lists `humans_phone_unique` and no longer
+`humans_phone_normalised_idx`; `pg_depend` shows no remaining dependents on
+either attribute; the ledger holds exactly one row for the name, version
+`20261005190000`, name `drop_unused_humans_columns`, two statements, which is
+now the latest ledger version; `public.humans` has 948 rows before and after.
+The ledger row is what CI's `migrations-applied` check reads. Staging follows
+after merge through **Apply named migrations to staging** with
+`20261005190000_drop_unused_humans_columns.sql`.
 
 ## WhatsApp agent-state revision (#938) — applied 4 October 2026
 
