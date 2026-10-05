@@ -1,0 +1,76 @@
+name: Apply named migrations to staging
+
+# Staging only. Production is never linked here; the script refuses any other
+# ref by construction. Use this for migrations the MCP tool cannot apply (any
+# file containing DROP FUNCTION / DROP TRIGGER / DELETE FROM text).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_staging_ref:
+        description: Type the exact staging project ref to continue
+        required: true
+        type: string
+      migrations:
+        description: Space-separated migration file names under supabase/migrations/ (applied in the order given)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-apply-migrations
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
+      STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
+    steps:
+      - name: Confirm exact staging target
+        shell: bash
+        env:
+          CONFIRM_STAGING_REF: ${{ inputs.confirm_staging_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM_STAGING_REF" != "$STAGING_PROJECT_REF" ]; then
+            echo "::error::Confirmation does not match the staging project ref."
+            exit 1
+          fi
+          if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then
+            echo "::error::Staging and production project refs must differ."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.109.1
+
+      - name: Link staging and show its migration state
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Every linked command from here targets staging.
+          supabase link --project-ref "$STAGING_PROJECT_REF"
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          supabase migration list --linked
+
+      - name: Apply the named migrations to staging
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MIGRATIONS: ${{ inputs.migrations }}
+        run: |
+          set -euo pipefail
+          # Word-splitting the input is intentional; the script validates each name.
+          # shellcheck disable=SC2086
+          scripts/apply-hosted-migrations.sh "$STAGING_PROJECT_REF" $MIGRATIONS
