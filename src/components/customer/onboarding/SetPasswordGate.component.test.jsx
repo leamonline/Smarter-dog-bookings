@@ -45,6 +45,7 @@ describe("SetPasswordGate", () => {
     expect(
       screen.getByText(/appeared in a known data breach, so it isn't safe to keep/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/This doesn't mean Smarter Dog has had a data breach/)).toBeInTheDocument();
   });
 
   it("keeps the ordinary reset copy when there is no breach reason", () => {
@@ -53,7 +54,7 @@ describe("SetPasswordGate", () => {
     expect(screen.queryByText(/data breach/)).toBeNull();
   });
 
-  it("turns the server's weak_password rejection into the same friendly message as the local check", async () => {
+  it("does not describe an unspecified server password-policy rejection as a data breach", async () => {
     setSupabase({
       auth: {
         updateUser: vi.fn(async () => ({
@@ -65,9 +66,21 @@ describe("SetPasswordGate", () => {
     await submitPassword("correct horse battery");
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one.",
+        "That password doesn't meet our security requirements. Please choose a stronger one.",
       ),
     );
+  });
+
+  it("explains a confirmed server breach without implying that the salon was breached", async () => {
+    setSupabase({ auth: { updateUser: vi.fn(async () => ({
+      error: { code: "weak_password", reasons: ["pwned"], message: "Password is weak." },
+    })) } });
+    renderGate();
+    await submitPassword("correct horse battery");
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("That password has appeared in a known data breach");
+      expect(screen.getByRole("alert")).toHaveTextContent("This doesn't mean Smarter Dog has had a data breach.");
+    });
   });
 
   it("surfaces any other server message verbatim", async () => {

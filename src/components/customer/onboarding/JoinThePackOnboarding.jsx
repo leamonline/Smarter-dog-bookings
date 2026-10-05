@@ -139,6 +139,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   const step1Valid =
     // Real name, not just non-empty — "?" / "n/a" would create an
@@ -150,6 +151,15 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     referralValid &&
     policiesAccepted;
   const dogsValid = dogs.length > 0 && dogs.every(dogReady);
+  const ownerErrors = {
+    name: !isRealPersonName(name) ? "Enter your first name." : null,
+    surname: !surname.trim() ? "Enter your surname." : null,
+    address: !addr.ready ? "Select your address or enter it manually." : null,
+    email: !emailValid ? "Enter a valid email address." : null,
+    referral: !referralValid ? "Tell us where you heard about us, or choose another option." : null,
+    policies: !policiesAccepted ? "Please agree to the policies before continuing." : null,
+  };
+  const fieldError = (field) => showValidation && ownerErrors[field];
 
   function updateDog(index, patch) {
     setDogs((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
@@ -229,10 +239,26 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   return (
     <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           if (step === 1) {
-            if (step1Valid) setStep(2);
+            if (step1Valid) {
+              setShowValidation(false);
+              setStep(2);
+            } else {
+              setShowValidation(true);
+              const selectors = {
+                name: '[aria-label="First name"]',
+                surname: '[aria-label="Surname"]',
+                address: '#signup-address textarea, #signup-address select, #signup-address input',
+                email: '[aria-label="Email address"]',
+                referral: '[aria-label="Tell us where you heard about us"]',
+                policies: 'input[type="checkbox"]',
+              };
+              const firstInvalid = Object.keys(ownerErrors).find((field) => ownerErrors[field]);
+              e.currentTarget.querySelector(selectors[firstInvalid])?.focus();
+            }
           } else {
             handleSubmit();
           }
@@ -253,11 +279,19 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
         {step === 1 && (
           <>
+            {showValidation && !step1Valid && (
+              <div role="alert" className="portal-alert portal-alert--error mb-4 text-[13px]">
+                Please check the highlighted details below before continuing.
+              </div>
+            )}
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your name</legend>
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your name (required)</legend>
               <div className="flex gap-2">
                 <input
                   aria-label="First name"
+                  aria-required="true"
+                  aria-invalid={Boolean(fieldError("name"))}
+                  aria-describedby={fieldError("name") ? "signup-name-error" : undefined}
                   autoComplete="given-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -266,6 +300,9 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 />
                 <input
                   aria-label="Surname"
+                  aria-required="true"
+                  aria-invalid={Boolean(fieldError("surname"))}
+                  aria-describedby={fieldError("surname") ? "signup-surname-error" : undefined}
                   autoComplete="family-name"
                   value={surname}
                   onChange={(e) => setSurname(e.target.value)}
@@ -273,6 +310,8 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   className="portal-input"
                 />
               </div>
+              {fieldError("name") && <p id="signup-name-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.name}</p>}
+              {fieldError("surname") && <p id="signup-surname-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.surname}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
@@ -290,15 +329,25 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               </p>
             </fieldset>
 
-            <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your address</legend>
-              <AddressPicker existingAddress={existingAddressForPicker} onChange={setAddr} />
+            <fieldset id="signup-address" className="mb-5">
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your address (required)</legend>
+              <AddressPicker
+                existingAddress={existingAddressForPicker}
+                existingPostcode={humanRecord?.postcode}
+                initialValue={addr}
+                validationErrorId={fieldError("address") ? "signup-address-error" : undefined}
+                onChange={setAddr}
+              />
+              {fieldError("address") && <p id="signup-address-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.address}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Email address</legend>
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Email address (required)</legend>
               <input
                 aria-label="Email address"
+                aria-required="true"
+                aria-invalid={Boolean(fieldError("email"))}
+                aria-describedby={fieldError("email") ? "signup-email-error" : undefined}
                 type="email"
                 autoComplete="email"
                 value={email}
@@ -306,6 +355,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 placeholder="you@example.com"
                 className="portal-input w-full"
               />
+              {fieldError("email") && <p id="signup-email-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.email}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
@@ -326,17 +376,24 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               {referralOtherSelected && (
                 <input
                   aria-label="Tell us where you heard about us"
+                  aria-required="true"
+                  aria-invalid={Boolean(fieldError("referral"))}
+                  aria-describedby={fieldError("referral") ? "signup-referral-error" : undefined}
                   value={heardAboutUsOther}
                   onChange={(e) => setHeardAboutUsOther(e.target.value)}
                   placeholder="Tell us where…"
                   className="portal-input w-full mt-2"
                 />
               )}
+              {fieldError("referral") && <p id="signup-referral-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.referral}</p>}
             </fieldset>
 
             <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
               <input
                 type="checkbox"
+                aria-required="true"
+                aria-invalid={Boolean(fieldError("policies"))}
+                aria-describedby={fieldError("policies") ? "signup-policies-error" : undefined}
                 checked={policiesAccepted}
                 onChange={(e) => setPoliciesAccepted(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-brand-purple shrink-0"
@@ -349,8 +406,9 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 <a href={SALON_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Privacy Policy</a>.
               </span>
             </label>
+            {fieldError("policies") && <p id="signup-policies-error" className="text-[13px] text-brand-coral mb-3">{ownerErrors.policies}</p>}
 
-            <button type="submit" className="portal-btn portal-btn--cta w-full" disabled={!step1Valid}>
+            <button type="submit" className="portal-btn portal-btn--cta w-full">
               Continue
             </button>
           </>

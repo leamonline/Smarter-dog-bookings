@@ -37,6 +37,7 @@
 //   502 — upstream APITier failure
 // ============================================================
 
+import { lookupAddresses } from "./provider.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
@@ -44,8 +45,6 @@ import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const APITIER_API_KEY = Deno.env.get("APITIER_API_KEY") ?? "";
-
-const APITIER_BASE = "https://postcode.apitier.com/v1/postcodes";
 
 // Per-IP rate limit. A customer onboarding only needs a couple of
 // lookups even if they fat-finger the postcode; anything beyond this
@@ -110,47 +109,6 @@ function normalisePostcode(raw: string): string | null {
   const inward = compact.slice(-3);
   if (!/^[0-9][A-Z]{2}$/.test(inward)) return null;
   return `${outward} ${inward}`;
-}
-
-interface ApitierAddress {
-  address?: string;
-  postcode?: string;
-  post_town?: string;
-  udprn?: string;
-  uprn?: string;
-}
-
-async function lookupAddresses(
-  postcode: string,
-): Promise<{ postcode: string; addresses: Array<{ line: string; postcode: string; udprn: string | null }> }> {
-  const url = `${APITIER_BASE}/${encodeURIComponent(postcode)}?x-api-key=${encodeURIComponent(APITIER_API_KEY)}`;
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-
-  // 5xx = APITier is unhealthy -> surface as a retryable upstream error.
-  if (res.status >= 500) {
-    throw new Error(`apitier_upstream_${res.status}`);
-  }
-
-  // 4xx (e.g. unknown postcode) -> treat as "no matches", let the UI
-  // offer manual entry rather than showing a scary error.
-  let body: { result?: { postcode?: string; addresses?: ApitierAddress[] } } = {};
-  try {
-    body = await res.json();
-  } catch {
-    body = {};
-  }
-
-  const result = body?.result;
-  const rawAddresses = Array.isArray(result?.addresses) ? result!.addresses! : [];
-  const addresses = rawAddresses
-    .map((a) => ({
-      line: (a.address ?? "").trim(),
-      postcode: (a.postcode ?? result?.postcode ?? postcode).trim(),
-      udprn: a.udprn ?? null,
-    }))
-    .filter((a) => a.line !== "");
-
-  return { postcode: result?.postcode ?? postcode, addresses };
 }
 
 serve(async (req) => {
@@ -221,13 +179,18 @@ serve(async (req) => {
   }
 
   try {
-    const payload = await lookupAddresses(postcode);
+    const payload = await lookupAddresses(postcode, APITIER_API_KEY);
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { ...corsFor(req), "content-type": "application/json" },
     });
   } catch (err) {
-    console.error("postcode-lookup upstream error:", err);
+    // Fetch failures can include the URL (and its API key). Log only our own
+    // bounded diagnostic codes, never the provider body, URL or raw exception.
+    const code = err instanceof Error && /^apitier_(upstream_\d{3}|invalid_response)$/.test(err.message)
+      ? err.message
+      : "apitier_request_failed";
+    console.error("postcode-lookup upstream error:", code);
     return new Response(JSON.stringify({ error: "upstream" }), {
       status: 502,
       headers: { ...corsFor(req), "content-type": "application/json" },

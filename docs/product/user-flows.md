@@ -208,6 +208,26 @@ There is no complete manifest that fails discovery when a function is omitted.
 **Requirements:** `REQ-SEC-001`, `REQ-REL-002`.
 
 
+## Customer completes signup
+
+After phone verification and setting a password, a new customer completes the
+owner details and then the dog details. First name, surname, address, email and
+policy agreement are required. Selecting Other for the otherwise optional
+referral question requires an explanation.
+
+Continue accepts an attempt even when owner details are incomplete. It explains
+missing or invalid details beside the fields and focuses the first affected
+control. Address and postcode survive returning from the dog step or restoring
+the saved signup draft. A failed postcode service remains recoverable through
+manual entry; provider failures do not mean the customer's postcode is invalid.
+
+A confirmed breached-password warning explains that the chosen password has
+appeared in a breach; it does not mean the salon has had a breach. Other password
+policy failures ask for a stronger password without making that claim.
+
+Implementation and release evidence:
+[signup recovery plan](../plans/active/2026-10-05-signup-recovery.md), issue #942.
+
 ## Staff reviews a new customer signup
 
 Implemented for issue #782, verified against synthetic data and merged on
