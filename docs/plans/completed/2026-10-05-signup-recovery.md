@@ -152,3 +152,8 @@ question, not permission to change an account or paid subscription.
   Manual progression, Back and refresh were verified with synthetic offline
   component/browser checks; production evidence confirms release of that code,
   rather than claiming a real customer's successful signup.
+- [Main CI run 37302244932](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/37302244932)
+  passed build, coverage, Edge/agent tests and end-to-end checks after the merge.
+  The live public login redirected to `/book/login`, rendered at 390 × 844
+  without horizontal overflow and reported no browser errors. No phone number
+  was submitted and no security challenge was bypassed.
