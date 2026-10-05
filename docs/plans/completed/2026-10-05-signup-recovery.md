@@ -1,6 +1,6 @@
 # Customer signup recovery
 
-Status: Active  
+Status: Completed  
 Issue: [#942](https://github.com/leamonline/Smarter-dog-bookings/issues/942)  
 Base: main@4915f76a70cf4cbaf08930bccc2e3c879681fc5c  
 Last verified: 2026-10-05  
@@ -122,5 +122,38 @@ question, not permission to change an account or paid subscription.
   completed manual owner details advanced; Back and refresh preserved address
   and postcode with no horizontal overflow or browser errors. The harness was
   removed after verification.
-- Production release and a fresh synthetic live provider check remain pending.
-  This plan stays active until those release observations are recorded.
+- Release observations follow below; external provider account repair is tracked
+  separately from this implementation's acceptance criteria.
+
+## Release verification — 5 October 2026
+
+- With explicit user approval, [PR #943](https://github.com/leamonline/Smarter-dog-bookings/pull/943)
+  merged at `a53ab9ed4d92d76f5bb15bfcecaa71f05f5a57d9`. All PR checks passed,
+  including coverage, Edge checks and desktop/mobile WebKit smoke checks.
+- Vercel production deployment `dpl_GeUpdZK8SkAYooxgGH3j8NwYi1Ym` reached READY
+  for that exact SHA and was assigned `smarterdog.vercel.app`, `smarterdog.co.uk`
+  and `www.smarterdog.co.uk`. The public `/customer/login` route served the
+  new `CustomerApp-BhglMLn_.js` bundle, including validation feedback,
+  password-policy copy and the salon-breach clarification.
+- [Edge deploy run 37302244871](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/37302244871)
+  succeeded and confirmed only `postcode-lookup` deployed to production project
+  `nlzhllhkigmsvrzduefz`. No schema, credential or account changes were made.
+- Synthetic public lookups for `SK14 6JE` and `SW1A 1AA` returned 502/upstream,
+  with the expected CORS origin; incomplete `SK14` returned 400/invalid_postcode.
+  Bounded diagnostic aggregation over 11:20–11:22 UTC recorded
+  `apitier_upstream_402` twice. The implementation now distinguishes this
+  service failure from genuine no matches, while keeping manual entry usable.
+- Automatic lookup remains unavailable because the provider returns HTTP 402
+  (Payment Required). The precise account condition was not inspected; do not
+  infer an exhausted balance or failed payment. APITier's UK PostCode wallet is
+  separate from its general API wallet. Account-owner investigation and any
+  authorized repair are tracked in [#944](https://github.com/leamonline/Smarter-dog-bookings/issues/944).
+- Live verification did not create a customer account or access customer rows.
+  Manual progression, Back and refresh were verified with synthetic offline
+  component/browser checks; production evidence confirms release of that code,
+  rather than claiming a real customer's successful signup.
+- [Main CI run 37302244932](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/37302244932)
+  passed build, coverage, Edge/agent tests and end-to-end checks after the merge.
+  The live public login redirected to `/book/login`, rendered at 390 × 844
+  without horizontal overflow and reported no browser errors. No phone number
+  was submitted and no security challenge was bypassed.
