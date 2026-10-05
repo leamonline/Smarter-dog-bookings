@@ -226,7 +226,7 @@ appeared in a breach; it does not mean the salon has had a breach. Other passwor
 policy failures ask for a stronger password without making that claim.
 
 Implementation and release evidence:
-[signup recovery plan](../plans/active/2026-10-05-signup-recovery.md), issue #942.
+[signup recovery plan](../plans/completed/2026-10-05-signup-recovery.md), issue #942.
 
 ## Staff reviews a new customer signup
 
