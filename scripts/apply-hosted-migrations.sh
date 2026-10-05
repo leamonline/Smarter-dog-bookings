@@ -86,9 +86,13 @@ for migration in "$@"; do
   name="${name%.sql}"
   file="supabase/migrations/$migration"
 
+  # The temporary login is not postgres, so every psql session must adopt the
+  # role first (as run-hosted-pgtap.sh does), or supabase_migrations is denied.
   # psql only interpolates :'variables' in scripts, never in --command strings.
   already="$(
-    echo "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |
+    printf '%s\n' \
+      "set role postgres;" \
+      "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |
       psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --file -
   )"
   if [ "$already" != "0" ] && ! may_reapply "$migration"; then
@@ -124,4 +128,4 @@ done
 
 echo "Ledger rows after this run:"
 psql -X -A -t -q --set ON_ERROR_STOP=1 \
-  --command "select version || '  ' || name from supabase_migrations.schema_migrations order by version;"
+  --command "set role postgres; select version || '  ' || name from supabase_migrations.schema_migrations order by version;"
