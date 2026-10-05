@@ -33,11 +33,25 @@ column comment is the new text; `public.humans` is unchanged (44 columns,
 8 indexes, 948 rows, `surname` nullable, no `humans_name_surname_key`),
 which is what a no-op reconciliation should look like.
 
-**Not applied to staging.** Staging (`btjnxvgkpdbfrrqxvkfj`) is missing
-`humans.claims_human_id`, so it has never had
-`20260902150000_signup_claims_existing_customer`; the second migration's
-`comment on column` would fail there. Bring staging up to date with that
-migration first, then apply both of these.
+**Staging (`btjnxvgkpdbfrrqxvkfj`) caught up on 5 October 2026.** Thirteen of the
+twenty-five repository migrations missing from its ledger were applied through
+the Supabase MCP on 4–5 October; the twelve the MCP tool refuses (any file
+containing `drop function`/`drop trigger`/`delete from`) went through
+**Apply named migrations to staging** run #4
+(<https://github.com/leamonline/Smarter-dog-bookings/actions/runs/37355624432>),
+which also re-applied `20260919130000_reconfirmed_from_customer_confirmation`
+after the older `staff_booking_confirmation` so staging keeps the newer
+`reset_reminder_on_reschedule()`. `expand_booking_statuses` is deliberately
+skipped: staging already carries the contracted status check. Post-apply
+evidence: every repository migration name is in the staging ledger, and the 16
+functions, 2 triggers, 4 tables and 5 cron jobs those files touch fingerprint
+identically on staging and prod, except that `mark_reminder_confirmed` and
+`reset_reminder_on_reschedule` differ in SQL comments only (prod was applied
+from a revision of that file without them; with comments and whitespace
+normalised the two bodies hash identically). Staging-only ledger names
+(`prod_baseline`, `canonical_booking_statuses`, `contract_booking_statuses_v2`,
+`preserve_reconfirmed_booking_event`, `reconfirmed_from_customer_confirmation_v2`)
+remain from earlier rehearsals.
 
 `supabase/migrations/` is a near-complete record of prod schema
 history.
