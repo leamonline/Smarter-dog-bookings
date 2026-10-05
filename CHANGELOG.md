@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — customer signup validation and address recovery (#942)
+
+- Continue now identifies missing owner details and focuses the first field to
+  correct, including email, policy agreement and the conditional referral text.
+- Address and postcode survive Back from the dog step and signup draft
+  restoration. Manual entry remains available during postcode service failures.
+- Postcode provider authentication, credit, quota and malformed-response failures
+  use the existing upstream-error recovery instead of reporting no addresses.
+  Provider diagnostics log bounded codes without exposing the key or address.
+- Password-policy failures are distinguished from confirmed breached passwords;
+  breach warnings clarify that they do not mean the salon has had a breach.
+
 ## Unreleased — re-lock two internal capacity helpers
 
 - `get_seats_used` and `has_large_dog` are internal to the capacity engine and

@@ -13,7 +13,9 @@ import { PawPrint, Eye, EyeOff, KeyRound } from "lucide-react";
 const MIN_PASSWORD_LENGTH = 8;
 
 const BREACHED_PASSWORD_ERROR =
-  "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one.";
+  "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one. This doesn't mean Smarter Dog has had a data breach.";
+const PASSWORD_POLICY_ERROR =
+  "That password doesn't meet our security requirements. Please choose a stronger one.";
 
 /**
  * Blocking screen that requires a customer to set a password before they
@@ -45,7 +47,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
   const isBreach = reason === "breach";
   const heading = isReset ? "Set a new password" : "Set a password";
   const subtitle = isBreach
-    ? "The password you just used has appeared in a known data breach, so it isn't safe to keep. Please choose a new one before carrying on."
+    ? "The password you just used has appeared in a known data breach, so it isn't safe to keep. This doesn't mean Smarter Dog has had a data breach. Please choose a new one before carrying on."
     : isReset
       ? "Choose a new password — you'll use it with your mobile number to sign in from now on."
       : "Set a password so next time you can sign in with just your mobile number and password — no waiting for a text.";
@@ -85,14 +87,13 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
     setSaving(false);
 
     if (err) {
-      // If the project ever gains server-side leaked-password protection,
-      // Supabase rejects a breached password with code "weak_password" —
-      // give that the same friendly copy as our own check. Any other server
+      // weak_password also covers length/character rules. Only a confirmed
+      // pwned reason establishes a breach. Any other server
       // message is surfaced verbatim so a stricter project-wide password
       // policy than our client check expects can never silently disagree.
       setError(
         err.code === "weak_password"
-          ? BREACHED_PASSWORD_ERROR
+          ? (err.reasons?.includes("pwned") ? BREACHED_PASSWORD_ERROR : PASSWORD_POLICY_ERROR)
           : err.message || "We couldn't save your password. Please try again.",
       );
       return;

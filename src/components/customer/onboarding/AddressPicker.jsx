@@ -20,10 +20,13 @@ import { MapPin, Loader2, Search } from "lucide-react";
  *   { ready, address, postcode, keepingExisting }
  * The parent owns the submit; this component owns only the address sub-state.
  */
-export function AddressPicker({ existingAddress = "", onChange }) {
-  const trimmedExisting = existingAddress?.trim() || "";
+export function AddressPicker({ existingAddress = "", existingPostcode = "", initialValue, validationErrorId, onChange }) {
+  // Capture the parent's resolved value on mount. It changes as we report edits
+  // upward, but must only initialise the picker, including after a step change.
+  const [initial] = useState(() => initialValue);
+  const trimmedExisting = initial?.address?.trim() || existingAddress?.trim() || "";
   const onboarding = useCustomerOnboardingActions();
-  const [editing, setEditing] = useState(!trimmedExisting);
+  const [editing, setEditing] = useState(initial?.address ? !initial.keepingExisting : !trimmedExisting);
 
   const [postcode, setPostcode] = useState("");
   const [normalisedPostcode, setNormalisedPostcode] = useState("");
@@ -33,9 +36,9 @@ export function AddressPicker({ existingAddress = "", onChange }) {
   const [selectedIndex, setSelectedIndex] = useState("");
   const [lookupError, setLookupError] = useState(null);
 
-  const [manualMode, setManualMode] = useState(false);
-  const [manualAddress, setManualAddress] = useState("");
-  const [manualPostcode, setManualPostcode] = useState("");
+  const [manualMode, setManualMode] = useState(Boolean(initial?.address && !initial.keepingExisting));
+  const [manualAddress, setManualAddress] = useState(initial?.address || "");
+  const [manualPostcode, setManualPostcode] = useState(initial?.postcode || existingPostcode || "");
 
   const keepingExisting = Boolean(trimmedExisting) && !editing;
   const pickedReady =
@@ -51,6 +54,7 @@ export function AddressPicker({ existingAddress = "", onChange }) {
     let resolvedPostcode = null;
     if (keepingExisting) {
       address = trimmedExisting;
+      resolvedPostcode = initial?.postcode || existingPostcode || null;
     } else if (manualMode) {
       address = manualAddress.trim() || null;
       resolvedPostcode = manualPostcode.trim() ? manualPostcode.trim().toUpperCase() : null;
@@ -74,6 +78,8 @@ export function AddressPicker({ existingAddress = "", onChange }) {
     results,
     normalisedPostcode,
     trimmedExisting,
+    initial,
+    existingPostcode,
   ]);
 
   async function findAddresses() {
@@ -152,6 +158,9 @@ export function AddressPicker({ existingAddress = "", onChange }) {
       <>
         <textarea
           aria-label="Full address"
+          aria-required="true"
+          aria-invalid={Boolean(validationErrorId)}
+          aria-describedby={validationErrorId}
           value={manualAddress}
           onChange={(e) => setManualAddress(e.target.value)}
           placeholder={"Your full address\ne.g. 6 Back Lane, Mottram, Hyde"}
@@ -187,6 +196,8 @@ export function AddressPicker({ existingAddress = "", onChange }) {
           aria-label="Postcode"
           autoComplete="postal-code"
           value={postcode}
+          aria-invalid={Boolean(validationErrorId)}
+          aria-describedby={validationErrorId}
           onChange={(e) => {
             setPostcode(e.target.value);
             if (lookupStatus !== "idle") setLookupStatus("idle");
@@ -220,6 +231,9 @@ export function AddressPicker({ existingAddress = "", onChange }) {
         <>
           <select
             aria-label="Select your address"
+            aria-required="true"
+            aria-invalid={Boolean(validationErrorId)}
+            aria-describedby={validationErrorId}
             value={selectedIndex}
             onChange={(e) => {
               // Flats, sub-divided houses and new builds aren't always in the
