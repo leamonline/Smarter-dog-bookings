@@ -182,7 +182,8 @@ The current code integrates with:
 - Twilio Verify for customer OTP and Twilio messaging where configured;
 - SendGrid for email;
 - Anthropic for the staff-reviewed WhatsApp assistant and summaries;
-- APITier for postcode lookup;
+- Geoapify for UK address suggestions through the existing `postcode-lookup`
+  Edge proxy ([setup and recovery](../address-search.md));
 - Cloudflare Turnstile for login abuse protection — the widget alone proves
   nothing, because Supabase only calls Cloudflare's siteverify endpoint when
   CAPTCHA protection is enabled; `npm run check:captcha` probes the live

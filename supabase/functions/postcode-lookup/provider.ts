@@ -1,50 +1,92 @@
-const APITIER_BASE = "https://postcode.apitier.com/v1/postcodes";
+import { normalisePostcode } from "./input.ts";
+
+const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
+
+export function providerErrorCode(error: unknown): string {
+  return error instanceof Error &&
+    /^geoapify_(upstream_\d{3}|invalid_response)$/.test(error.message)
+    ? error.message
+    : "geoapify_request_failed";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export async function lookupAddresses(
-  postcode: string,
+  text: string,
   apiKey: string,
   request: typeof fetch = fetch,
-): Promise<{ postcode: string; addresses: Array<{ line: string; postcode: string; udprn: string | null }> }> {
-  const url = `${APITIER_BASE}/${encodeURIComponent(postcode)}?x-api-key=${encodeURIComponent(apiKey)}`;
-  const res = await request(url, { headers: { accept: "application/json" } });
+): Promise<{
+  postcode: string | null;
+  addresses: Array<{ line: string; postcode: string; udprn: null }>;
+}> {
+  const url = new URL(GEOAPIFY_URL);
+  url.search = new URLSearchParams({
+    text,
+    apiKey,
+    filter: "countrycode:gb",
+    format: "json",
+    limit: "10",
+  }).toString();
+  const res = await request(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
+  });
 
-  // A genuine missing postcode is different from a failed provider account,
-  // exhausted credit or outage. Those failures must never look like no matches.
-  if (res.status === 404) return { postcode, addresses: [] };
+  // Geoapify reports genuine no matches in a successful empty results array.
+  // Every HTTP failure remains a failure, including account/quota problems.
   if (!res.ok) {
-    throw new Error(`apitier_upstream_${res.status}`);
+    throw new Error(`geoapify_upstream_${res.status}`);
   }
 
   let body: unknown;
   try {
     body = await res.json();
   } catch {
-    throw new Error("apitier_invalid_response");
+    throw new Error("geoapify_invalid_response");
   }
 
-  const result = isRecord(body) ? body.result : null;
-  if (!isRecord(result) || !Array.isArray(result.addresses) ||
-    (result.postcode != null && typeof result.postcode !== "string")) {
-    throw new Error("apitier_invalid_response");
+  if (!isRecord(body) || !Array.isArray(body.results)) {
+    throw new Error("geoapify_invalid_response");
   }
-  const resolvedPostcode = typeof result.postcode === "string" ? result.postcode.trim() : postcode;
-  const addresses = result.addresses.map((address: unknown) => {
-    if (!isRecord(address) || typeof address.address !== "string" || !address.address.trim() ||
-      (address.postcode != null && typeof address.postcode !== "string") ||
-      (address.udprn != null && typeof address.udprn !== "string" &&
-        !(typeof address.udprn === "number" && Number.isSafeInteger(address.udprn) && address.udprn >= 0))) {
-      throw new Error("apitier_invalid_response");
+  const addresses: Array<{ line: string; postcode: string; udprn: null }> = [];
+  const seen = new Set<string>();
+  for (const address of body.results) {
+    if (
+      !isRecord(address) ||
+      typeof address.formatted !== "string" ||
+      !address.formatted.trim()
+    ) {
+      throw new Error("geoapify_invalid_response");
     }
-    return {
-      line: address.address.trim(),
-      postcode: typeof address.postcode === "string" ? address.postcode.trim() : resolvedPostcode,
-      udprn: address.udprn == null ? null : String(address.udprn),
-    };
-  });
+    const postcode =
+      typeof address.postcode === "string"
+        ? normalisePostcode(address.postcode)
+        : null;
+    const hasPremises =
+      (typeof address.housenumber === "string" && address.housenumber.trim()) ||
+      (typeof address.name === "string" && address.name.trim());
+    // Geoapify also suggests cities/postcodes/streets. Those are useful map
+    // locations but cannot complete a customer's postal address.
+    if (
+      address.country_code !== "gb" ||
+      !postcode ||
+      !hasPremises ||
+      typeof address.street !== "string" ||
+      !address.street.trim() ||
+      ["country", "state", "city", "postcode", "street", "locality"].includes(
+        String(address.result_type),
+      )
+    )
+      continue;
+    const line = address.formatted.trim();
+    const key = `${line}\n${postcode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    addresses.push({ line, postcode, udprn: null });
+    if (addresses.length === 10) break;
+  }
 
-  return { postcode: resolvedPostcode, addresses };
+  return { postcode: normalisePostcode(text), addresses };
 }
