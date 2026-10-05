@@ -14,6 +14,11 @@ on:
         description: Space-separated migration file names under supabase/migrations/ (applied in the order given)
         required: true
         type: string
+      reapply:
+        description: Optional subset of those names to run again even though they are already in the staging ledger (for out-of-order repairs)
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -69,6 +74,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           MIGRATIONS: ${{ inputs.migrations }}
+          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
         run: |
           set -euo pipefail
           # Word-splitting the input is intentional; the script validates each name.

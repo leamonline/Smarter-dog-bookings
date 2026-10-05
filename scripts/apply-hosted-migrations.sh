@@ -18,6 +18,13 @@
 # Usage: scripts/apply-hosted-migrations.sh <staging-project-ref> <file>...
 #   where each <file> is a basename under supabase/migrations/, e.g.
 #   20260830203000_funnel_blocked_reason.sql
+#
+# REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
+# though their name is already in the ledger. Needed when migrations reach
+# staging out of repository order: an older file that redefines a function a
+# newer, already-applied file also defines must be followed by that newer file
+# again, or staging keeps the older definition. Every file is still restricted
+# to committed basenames, and the ledger never gains a second row for a name.
 set -euo pipefail
 
 STAGING_PROJECT_REF="${1:?Usage: apply-hosted-migrations.sh <staging-project-ref> <migration-file>...}"
@@ -30,13 +37,22 @@ test "$STAGING_PROJECT_REF" != "$PRODUCTION_PROJECT_REF"
 test "$#" -ge 1
 
 # Validate every requested file before touching the database.
-for migration in "$@"; do
+# shellcheck disable=SC2086
+for migration in "$@" ${REAPPLY_MIGRATIONS:-}; do
   if [[ ! "$migration" =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
     echo "Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql" >&2
     exit 1
   fi
   test -f "supabase/migrations/$migration"
 done
+
+may_reapply() {
+  local candidate
+  for candidate in ${REAPPLY_MIGRATIONS:-}; do
+    [ "$candidate" = "$1" ] && return 0
+  done
+  return 1
+}
 
 umask 077
 credential_script="$(mktemp)"
@@ -75,12 +91,16 @@ for migration in "$@"; do
     echo "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |
       psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --file -
   )"
-  if [ "$already" != "0" ]; then
+  if [ "$already" != "0" ] && ! may_reapply "$migration"; then
     echo "skip   $migration (name already in the staging ledger)"
     continue
   fi
 
-  echo "apply  $migration"
+  if [ "$already" != "0" ]; then
+    echo "reapply $migration (name already in the staging ledger; ledger unchanged)"
+  else
+    echo "apply  $migration"
+  fi
   # Files without their own transaction become atomic here, ledger row
   # included. A file that carries its own begin/commit commits itself (the
   # nested begin only produces a WARNING) and its ledger row follows at once
@@ -92,7 +112,8 @@ for migration in "$@"; do
     cat "$file"
     echo
     echo "insert into supabase_migrations.schema_migrations (version, name, statements)"
-    echo "  values (:'version', :'name', array[:'body']) on conflict (version) do nothing;"
+    echo "  select :'version', :'name', array[:'body']"
+    echo "  where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');"
     echo "commit;"
   } | psql -X -q --set ON_ERROR_STOP=1 \
         --set=version="$version" \

@@ -330,6 +330,17 @@ to `scripts/apply-hosted-migrations.sh`, which:
   carries its own `begin`/`commit` commits itself first, so a failure between
   the two (never seen) would need the ledger row added by hand before a re-run.
 
+The optional `reapply` input names files to run again even though they are
+already in the ledger. Staging has received migrations out of repository
+order, so an older file that redefines a function a newer, already-applied
+file also defines (for example `20260825100000_staff_booking_confirmation.sql`
+and `20260919130000_reconfirmed_from_customer_confirmation.sql`, which both
+define `reset_reminder_on_reschedule()`) must be followed by the newer file
+again. Before a run, check the files in the list against every later file
+already on staging for shared function, trigger and grant names, and add the
+later ones to both inputs, after the older ones. The ledger never gains a
+second row for a name.
+
 Production is refused by construction: the script hard-codes the staging ref
 and exits if asked for anything else. It is not a production migration path;
 production still follows the manual, target-verified procedure above.

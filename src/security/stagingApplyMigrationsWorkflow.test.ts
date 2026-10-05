@@ -109,6 +109,12 @@ describe("staging apply-migrations workflow", () => {
       `${targetAssertion}\n          supabase migration list --linked`,
     );
     expect(workflow).toContain("          MIGRATIONS: ${{ inputs.migrations }}");
+    expect(workflow).toContain(
+      "          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}",
+    );
+    expect(workflow).toMatch(
+      /^ {6}reapply:\n(?: {8}.+\n)* {8}required: false\n(?: {8}.+\n)* {8}type: string$/m,
+    );
   });
 
   it("keeps the script staging-only and transactional with its ledger row", () => {
@@ -135,9 +141,16 @@ describe("staging apply-migrations workflow", () => {
     expect(script).toContain('^[0-9]{14}_[a-z0-9_]+\\.sql$');
     expect(script).toContain('test -f "supabase/migrations/$migration"');
 
-    // Ledger identity is the NAME (what CI's migrations-applied check reads).
+    // Ledger identity is the NAME (what CI's migrations-applied check reads):
+    // a present name is skipped unless explicitly re-applied, and even a
+    // re-apply never adds a second ledger row for that name.
     expect(script).toContain(
       "select count(*) from supabase_migrations.schema_migrations where name = :'name';",
+    );
+    expect(script).toContain('if [ "$already" != "0" ] && ! may_reapply "$migration"; then');
+    expect(script).toContain('for candidate in ${REAPPLY_MIGRATIONS:-}; do');
+    expect(script).toContain(
+      "where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');",
     );
 
     // Schema change and ledger row commit together.
