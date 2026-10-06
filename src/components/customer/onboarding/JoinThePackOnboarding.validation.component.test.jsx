@@ -111,4 +111,18 @@ describe("signup validation and address recovery", () => {
     attemptContinue();
     expect(screen.getByRole("heading", { name: "About your dog" })).toBeInTheDocument();
   });
+
+  it("offers a real manual-entry button when no addresses are found for the postcode", async () => {
+    actions.lookupPostcode.mockResolvedValue({ data: { postcode: "SK14 6JE", addresses: [] } });
+    renderForm();
+    change("Postcode", "SK14 6JE");
+    fireEvent.click(screen.getByRole("button", { name: "Find address" }));
+    expect(await screen.findByText(/No addresses found/)).toBeInTheDocument();
+    const manual = screen.getByRole("button", { name: "Enter it manually instead" });
+    expect(manual).toHaveClass("portal-btn");
+    expect(screen.queryByRole("button", { name: /Can't find your address/ })).not.toBeInTheDocument();
+    fireEvent.click(manual);
+    expect(screen.getByLabelText("Full address")).toBeInTheDocument();
+    expect(screen.getByLabelText("Postcode")).toHaveValue("SK14 6JE");
+  });
 });

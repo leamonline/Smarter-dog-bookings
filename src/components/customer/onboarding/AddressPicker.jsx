@@ -46,6 +46,7 @@ export function AddressPicker({ existingAddress = "", existingPostcode = "", ini
     selectedIndex !== "" &&
     Boolean(results[Number(selectedIndex)]);
   const manualReady = manualMode && manualAddress.trim() !== "";
+  const lookupFailed = lookupStatus === "none" || lookupStatus === "error";
   const ready = keepingExisting || manualReady || pickedReady;
 
   // Report the resolved address upward whenever it changes.
@@ -280,13 +281,26 @@ export function AddressPicker({ existingAddress = "", existingPostcode = "", ini
         </p>
       )}
 
-      <button
-        type="button"
-        className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
-        onClick={enterManual}
-      >
-        Can&apos;t find your address? Enter it manually
-      </button>
+      {lookupFailed ? (
+        // The lookup has already let the customer down, so the way forward
+        // must be a real button under the message, not a text link they can
+        // miss. Customers have stalled here and messaged in to ask for help.
+        <button
+          type="button"
+          className="portal-btn portal-btn--secondary portal-btn--small mt-2"
+          onClick={enterManual}
+        >
+          Enter it manually instead
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          onClick={enterManual}
+        >
+          Can&apos;t find your address? Enter it manually
+        </button>
+      )}
     </>
   );
 }
