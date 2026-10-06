@@ -122,10 +122,10 @@ secret. None of these can be created from this repository.
   operator to drop it or re-apply it. Detection: the run fails before writing.
 - A ledger row sharing only a file's version under another name (a known
   production condition) stops the run as a conflict; nothing is written to it.
-- A file carrying its own `begin;`/`commit;` has those lines removed so the
-  apply's transaction, with the ledger row, is the only one; any other
-  top-level transaction control, psql meta-command or variable interpolation
-  is refused. Both decisions come from `scripts/lex-migration-sql.pl`, a
+- A file enclosed in its own `begin;`/`commit;` has that one pair removed so
+  the apply's transaction, with the ledger row, is the only one; any other
+  top-level transaction control (a second pair included, which the apply
+  must not merge), psql meta-command or variable interpolation is refused. Both decisions come from `scripts/lex-migration-sql.pl`, a
   one-pass scan of the file's quoting in the order psql reads it, so a
   `commit;` inside a function body or a string is content and stays, a
   `--` inside a string hides nothing, and a file whose quoting is still

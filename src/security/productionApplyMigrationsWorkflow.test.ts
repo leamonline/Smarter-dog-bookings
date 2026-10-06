@@ -120,9 +120,18 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
     // Non-draft only, with no outstanding changes-requested review on that head; approvals are recorded.
     expect(workflow).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false)');
-    expect(workflow).toContain('reviews="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100" |');
-    expect(workflow).toContain("            if printf '%s' \"$reviews\" | grep -q 'CHANGES_REQUESTED'; then");
-    expect(workflow).toContain('provenance="current head of open pull request #$pr_number; reviews on this head: ${reviews:-none}"');
+    // Reviews are judged per reviewer across the whole pull request, never
+    // filtered to the current head: a changes request on an earlier push stays
+    // outstanding until that reviewer approves or it is dismissed. A truncated
+    // list is refused rather than judged.
+    expect(workflow).toContain('reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"');
+    expect(workflow).toContain("            if [ \"$(printf '%s' \"$reviews_json\" | jq 'length')\" -ge 100 ]; then");
+    expect(workflow).toContain(
+      "jq -r '[.[] | select(.state == \"APPROVED\" or .state == \"CHANGES_REQUESTED\" or .state == \"DISMISSED\")] | group_by(.user.login) | map(max_by(.submitted_at)) | map(select(.state != \"DISMISSED\")) | map(\"\\(.user.login)=\\(.state)@\\(.commit_id[0:7])\") | join(\" \")'",
+    );
+    expect(workflow).not.toContain("select(.commit_id == $sha");
+    expect(workflow).toContain("            if printf '%s' \"$reviews\" | grep -q '=CHANGES_REQUESTED'; then");
+    expect(workflow).toContain('provenance="current head of open pull request #$pr_number; latest review per reviewer: ${reviews:-none}"');
     expect(workflow.indexOf('compare="$(gh api')).toBeLessThan(workflow.indexOf('git fetch --no-tags --depth=1 origin "$MIGRATION_REF"'));
     expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
     // The directory is emptied first, so a main-only file cannot survive a wrong SHA.

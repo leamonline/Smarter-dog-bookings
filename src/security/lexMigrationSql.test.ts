@@ -59,15 +59,30 @@ describe("lex-migration-sql.pl: what the apply executes", () => {
     expect(refusals(file)).toEqual([]);
   });
 
+  it("removes only the pair that encloses the file, never a second pair, one inside other SQL or an unmatched begin;", () => {
+    const twoPairs = "begin;\nselect 1;\ncommit;\nbegin;\nselect 2;\ncommit;\n";
+    expect(lex("executed", twoPairs).stdout).toBe("select 1;\ncommit;\nbegin;\nselect 2;\n");
+    expect(refusals(twoPairs)).toEqual([`${TRANSACTION}commit`, `${TRANSACTION}begin`]);
+    const inner = "select 1;\nbegin;\nselect 2;\ncommit;\nselect 3;\n";
+    expect(lex("executed", inner).stdout).toBe(inner);
+    expect(refusals(inner)).toEqual([`${TRANSACTION}begin`, `${TRANSACTION}commit`]);
+    const unmatched = "begin;\nselect 1;\n";
+    expect(lex("executed", unmatched).stdout).toBe(unmatched);
+    expect(refusals(unmatched)).toEqual([`${TRANSACTION}begin`]);
+    const commented = "-- header\n\nbegin;\nselect 1;\ncommit;\n-- footer\n";
+    expect(lex("executed", commented).stdout).toBe("-- header\n\nselect 1;\n-- footer\n");
+    expect(refusals(commented)).toEqual([]);
+  });
+
   it("accepts the other spellings of the file's own transaction, with a trailing -- comment", () => {
     const { stdout } = lex("executed", "BEGIN TRANSACTION; -- start\nselect 1;\ncommit work;\n");
     expect(stdout).toBe("select 1;\n");
   });
 
-  it("keeps a begin; that shares its line with anything else, and then refuses it", () => {
+  it("keeps a begin; that shares its line with anything else, so there is no enclosing pair and both ends are refused", () => {
     const file = "begin; /* note */\nselect 1;\ncommit;\n";
-    expect(lex("executed", file).stdout).toBe("begin; /* note */\nselect 1;\n");
-    expect(refusals(file)).toEqual([`${TRANSACTION}begin`]);
+    expect(lex("executed", file).stdout).toBe(file);
+    expect(refusals(file)).toEqual([`${TRANSACTION}begin`, `${TRANSACTION}commit`]);
   });
 
   it("returns a file without its own transaction byte for byte", () => {
@@ -144,6 +159,9 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
       `${DIRECTIVE}:z`,
     ]);
     expect(refusals("select 'a'::int, $$ :w \\echo $$, '\\set', E'\\\\set', '-- :x';\n")).toEqual([]);
+    // psql's fourth form, the variable-existence test, substitutes TRUE/FALSE.
+    expect(refusals("select :{?version};\n")).toEqual([`${DIRECTIVE}:{?version}`]);
+    expect(refusals("select '{?version}', $$:{?x}$$, \"{?y}\";\n")).toEqual([]);
   });
 
   it("refuses a string, identifier, comment or dollar-quoted body still open at the end of the file", () => {

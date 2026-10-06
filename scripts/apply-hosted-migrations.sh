@@ -16,20 +16,22 @@
 #
 # Each file is applied inside one transaction together with its ledger row,
 # so the schema and supabase_migrations.schema_migrations can never disagree.
-# The apply supplies that transaction: a file's own top-level `begin;` and
-# `commit;` lines (the repository's usual style) are removed before execution
-# so they cannot commit the schema change ahead of the ledger row, while the
-# ledger stores the file exactly as committed. Which lines those are, and
-# whether anything else psql or PostgreSQL would act on is left, is decided
-# by scripts/lex-migration-sql.pl, a one-pass scan of the file's strings,
-# identifiers, comments and dollar-quoted bodies in the order psql reads
-# them: a `commit;` inside a function body or a string is content and stays,
-# and any other top-level transaction control (start transaction, rollback,
-# end, commit and chain, a commit sharing a line) is refused, because the
-# apply could not keep it atomic, as are psql meta-commands and variable
-# references outside strings, a quoted construct still open at the end of the
-# file, and a file that mentions standard_conforming_strings or
-# client_encoding (the two settings that would change how its quoting reads).
+# The apply supplies that transaction: the one `begin;`/`commit;` pair that
+# encloses a file (its first and last statements, the repository's usual
+# style) is removed before execution so it cannot commit the schema change
+# ahead of the ledger row, while the ledger stores the file exactly as
+# committed. Which lines those are, and whether anything else psql or
+# PostgreSQL would act on is left, is decided by scripts/lex-migration-sql.pl,
+# a one-pass scan of the file's strings, identifiers, comments and
+# dollar-quoted bodies in the order psql reads them: a `commit;` inside a
+# function body or a string is content and stays, and any other top-level
+# transaction control (a second begin;/commit; pair, start transaction,
+# rollback, end, commit and chain, a commit sharing a line) is refused,
+# because the apply must neither split nor merge what the file keeps atomic,
+# as are psql meta-commands and variable references outside strings, a
+# quoted construct still open at the end of the file, and a file that
+# mentions standard_conforming_strings or client_encoding (the two settings
+# that would change how its quoting reads).
 # A migration already in the ledger is skipped, but only when the SQL last
 # recorded on that row equals the committed file. "Already in the ledger"
 # means a row whose NAME is the file's name after the timestamp or its full

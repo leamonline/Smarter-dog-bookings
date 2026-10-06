@@ -9,18 +9,22 @@
 #       "identifier" collapsed to "I" and every $tag$ body removed with its
 #       delimiters. Every newline is kept, so output line N is input line N.
 #   lex-migration-sql.pl executed < file
-#       The SQL the apply executes: the file minus the lines that are exactly
-#       its own top-level begin;/commit; (begin/commit [transaction|work];
-#       optionally followed by a -- comment). A line counts only when its
-#       skeleton reads exactly that and the file's line is that same text, so
-#       a begin; or commit; inside a string or a dollar-quoted body is content
-#       and stays, and one that shares a line with the end of a string, an
-#       identifier or a comment stays too (check then refuses it).
+#       The SQL the apply executes: the file minus the one transaction that
+#       encloses it, a begin; that is its first statement and a commit; that
+#       is its last (begin/commit [transaction|work];, optionally followed by
+#       a -- comment), and nothing else. A line counts only when its skeleton
+#       reads exactly that and the file's line is that same text, so a begin;
+#       or commit; inside a string or a dollar-quoted body is content and
+#       stays, and one that shares a line with the end of a string, an
+#       identifier or a comment stays too. Any other transaction boundary (a
+#       second pair, a pair inside other top-level SQL, a begin; without its
+#       commit;) stays as well, and check then refuses it: the apply must not
+#       merge transactions the file keeps apart.
 #   lex-migration-sql.pl check < file
 #       Prints every top-level transaction-control statement and every psql
-#       meta-command or variable reference left in the executed SQL, one per
-#       line, and exits 1 when there is any; prints nothing and exits 0 when
-#       the executed SQL is clean.
+#       meta-command or variable reference (:name, :'name', :"name", :{?name})
+#       left in the executed SQL, one per line, and exits 1 when there is
+#       any; prints nothing and exits 0 when the executed SQL is clean.
 #
 # The scan is one pass, in order, as the psql and PostgreSQL lexers do it: a
 # -- inside a string is string content, a quote inside a comment is comment
@@ -147,13 +151,28 @@ my @skeleton_lines = split /\n/, $skeleton, -1;
 refuse('internal error: the skeleton does not line up with the file')
   unless @sql_lines == @skeleton_lines;
 
-# The file's own top-level begin;/commit; lines.
+# The file's own top-level begin;/commit; lines: exact in the skeleton and
+# exact in the file (a trailing -- comment aside).
 my $own_transaction = qr/^\s*(?:begin|commit)(?:\s+(?:transaction|work))?\s*;\s*$/i;
-my %drop;
+my %own;
 for my $i (0 .. $#skeleton_lines) {
   next unless $skeleton_lines[$i] =~ $own_transaction;
   my $bare = $skeleton_lines[$i];
-  $drop{$i} = 1 if $sql_lines[$i] =~ /^\Q$bare\E(?:--.*)?$/;
+  $own{$i} = 1 if $sql_lines[$i] =~ /^\Q$bare\E(?:--.*)?$/;
+}
+
+# Only the pair that encloses the whole file is removed: a begin; as the
+# first statement and a commit; as the last (comments and blank lines around
+# them do not count). Every other such line stays, so check refuses it rather
+# than letting the apply merge transactions the file keeps apart.
+my @statements = grep { $skeleton_lines[$_] =~ /\S/ } 0 .. $#skeleton_lines;
+my %drop;
+if (@statements >= 2) {
+  my ($first, $last) = ($statements[0], $statements[-1]);
+  if ($own{$first} && $own{$last} && $skeleton_lines[$first] =~ /^\s*begin/i && $skeleton_lines[$last] =~ /^\s*commit/i) {
+    $drop{$first} = 1;
+    $drop{$last}  = 1;
+  }
 }
 my @kept = grep { !$drop{$_} } 0 .. $#sql_lines;
 
@@ -174,9 +193,10 @@ for my $statement (split /;/, $flat) {
   push @findings, "top-level transaction control the apply cannot keep atomic: $statement";
 }
 
-# A backslash outside a string is a psql meta-command; :name, :'name' and
-# :"name" outside a string are psql variable references (a :: cast is not).
-while ($executed_skeleton =~ /(\\[A-Za-z!?.;]?\S*|(?<!:):[A-Za-z_"'][^\s,);]*)/g) {
+# A backslash outside a string is a psql meta-command; :name, :'name',
+# :"name" and :{?name} outside a string are psql variable references (a ::
+# cast is not).
+while ($executed_skeleton =~ /(\\[A-Za-z!?.;]?\S*|(?<!:):[A-Za-z_"'{][^\s,);]*)/g) {
   push @findings, "psql meta-command or variable interpolation outside a string: $1";
 }
 

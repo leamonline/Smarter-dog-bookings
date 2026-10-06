@@ -395,18 +395,21 @@ to `scripts/apply-hosted-migrations.sh`, which:
   (drop the file from the list if that row is this migration recorded under
   another name; otherwise resolve the ledger by hand first);
 - applies each file with `psql` under `ON_ERROR_STOP` inside one transaction
-  with its ledger row. The file's own top-level `begin;` and `commit;` lines
-  (the repository's usual style) are removed before execution so they cannot
-  commit the schema change ahead of the ledger row (the log says `strip`, and
-  the ledger stores the file exactly as committed). Which lines those are is
+  with its ledger row. The one `begin;`/`commit;` pair that encloses the file
+  (its first and last statements, the repository's usual style) is removed
+  before execution so it cannot commit the schema change ahead of the ledger
+  row (the log says `strip`, and the ledger stores the file exactly as
+  committed). Which lines those are is
   decided by `scripts/lex-migration-sql.pl`, a one-pass scan of the file's
   strings, identifiers, comments and dollar-quoted bodies in the order psql
   reads them, so a `begin;` or `commit;` inside a function body or a string
   is content and stays. The same scan refuses any other top-level
-  transaction control (`start transaction`, `rollback`, `end`, `commit and
+  transaction control (a second `begin;`/`commit;` pair, which the apply must
+  not merge into one, `start transaction`, `rollback`, `end`, `commit and
   chain`, `prepare transaction`, a `commit` sharing a line), because the
-  apply could not keep it atomic; psql meta-commands (a backslash outside a
-  string) and psql variable interpolation (`:name`, `:'name'`), because psql
+  apply must neither split nor merge what the file keeps atomic; psql
+  meta-commands (a backslash outside a string) and psql variable
+  interpolation (`:name`, `:'name'`, `:"name"`, `:{?name}`), because psql
   would act on them before PostgreSQL saw the file; a string, identifier,
   comment or dollar-quoted body still open at the end of the file; and a
   file that mentions `standard_conforming_strings` or `client_encoding`, the
@@ -478,10 +481,12 @@ reviewed there). Fill in:
 - `ref`: the full 40-character SHA of the reviewed pull request head (shown
   on the pull request), which is where the migration files live before merge;
   it must be the *current* head of an open, non-draft pull request into
-  `main` with no outstanding changes-requested review (or a commit already on
-  `main`), which the run checks through the GitHub API and records with the
-  approvals it found, so a superseded or unreviewed head cannot apply SQL
-  under a current filename; only `supabase/migrations/` is taken from that
+  `main` with no outstanding changes-requested review from any reviewer (a
+  changes request stays outstanding across later pushes until that reviewer
+  approves or it is dismissed, as GitHub counts it), or a commit already on
+  `main`; the run checks this through the GitHub API and records each
+  reviewer's latest review with the commit it was given on, so a superseded
+  or unreviewed head cannot apply SQL under a current filename; only `supabase/migrations/` is taken from that
   commit, and a file that already exists on `main` must be byte-identical to
   `main`'s copy (history is append-only: a fix is a new, later migration).
   `main` here is the branch as it is when the run executes, fetched once
