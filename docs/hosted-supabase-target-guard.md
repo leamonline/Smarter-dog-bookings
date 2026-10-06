@@ -3,7 +3,7 @@
 **Status:** Active
 **Authority:** Executable repository target-control contract
 **Issue:** [#618](https://github.com/leamonline/Smarter-dog-bookings/issues/618)
-**Last verified:** 10 August 2026
+**Last verified:** 6 October 2026
 
 ## Rule
 
@@ -36,7 +36,9 @@ the separate human authority defined in [ADR 006](architecture/decisions/006-man
 | `scripts/run-hosted-pgtap.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded staging ref and differ from production; adjacent link-state assertion | Retrieves ephemeral connection details for staging pgTAP | Script accepts staging only |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase link --project-ref "$STAGING_PROJECT_REF"` | Explicit staging ref; staging ref must differ from production | Sets local link state | Named `staging` GitHub environment and manual exact-ref confirmation |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase migration list --linked` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration-state read | Named `staging` environment |
-| `scripts/apply-hosted-migrations.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded staging ref and differ from production; adjacent link-state assertion | Retrieves ephemeral connection details, then applies the named committed migration files to staging with `psql`, one transaction per file including its ledger row | Script accepts staging only; the workflow is manual-only under the `staging` environment |
+| `scripts/apply-hosted-migrations.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded ref of the declared target: staging by default, production only with `HOSTED_MIGRATION_TARGET=production` and a matching `CONFIRM_PRODUCTION_REF`; the two refs must differ; adjacent link-state assertion | Retrieves ephemeral connection details, then applies the named committed migration files with `psql`, one transaction per file including its ledger row, and fails unless every requested name is recorded afterwards | Staging by default; production only through the manual-only workflow under the `production` environment |
+| `.github/workflows/production-apply-migrations.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref, typed again by the operator as the first step before checkout | Sets local link state | Named `production` GitHub environment with required reviewers and the environment-only `PRODUCTION_SUPABASE_ACCESS_TOKEN` secret (the first step fails closed without it); manual-only dispatch |
+| `.github/workflows/production-apply-migrations.yml` | `supabase migration list --linked` (before and after the apply) | Adjacent assertion of `PRODUCTION_PROJECT_REF` | Hosted migration-state read | Named `production` environment |
 | `.github/workflows/deploy-edge-functions.yml` | `supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"` | Explicit ref | Production Edge Function deployment after a merge to `main` | Existing main-merge release policy; not a database migration authority |
 | `scripts/generate-flow-keys.mjs`, `scripts/generate-vapid-keys.mjs` and operational runbooks | `supabase secrets set --project-ref "<project-ref>" …` | Explicit placeholder ref that the operator must replace and record | Hosted secret write | Separate human authority and no secret values in evidence |
 | Operational runbooks and Edge Function source comments | `supabase functions deploy … --project-ref "<project-ref>"` | Explicit placeholder ref that the operator must replace and record | Hosted function deployment | Separate release authority |
@@ -64,5 +66,6 @@ result=<pass or failure before write>
 For linked-only migration operations, fail before the command unless the named
 environment is approved, the expected ref is known for that environment, the
 link-state file exists and is non-empty, and its value equals that expected
-ref. The staging workflow and hosted pgTAP adapter are the executable examples;
-do not substitute a local link or a ref from another environment.
+ref. The staging and production workflows and the hosted pgTAP adapter are the
+executable examples; do not substitute a local link or a ref from another
+environment.

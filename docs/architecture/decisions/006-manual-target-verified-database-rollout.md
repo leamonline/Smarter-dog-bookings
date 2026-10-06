@@ -84,6 +84,13 @@ manual gate. Faster execution alone is not sufficient.
   compare repository files with the named production project.
 - **Explicit repository precedent:** the manual staging workflow requires an
   exact project-ref confirmation before a linked write.
+- **Explicit repository precedent (6 October 2026):** the manual production
+  workflow (`production-apply-migrations.yml`) is the executable form of this
+  gate: dispatch only, `production` environment approval, exact-ref
+  confirmation before checkout, a link-state assertion before every linked
+  command, one transaction per migration with its ledger row, and ledger
+  verification afterwards. The decision is unchanged: rollout stays manual
+  and human-approved.
 - **Current gap:** the same general target assertion is not yet enforced for
   every possible hosted CLI invocation.
 
