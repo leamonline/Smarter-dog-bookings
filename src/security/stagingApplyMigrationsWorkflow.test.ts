@@ -151,12 +151,15 @@ describe("staging apply-migrations workflow", () => {
     // a present name is skipped unless explicitly re-applied, and even a
     // re-apply never adds a second ledger row for that name.
     expect(script).toContain(
-      "select count(*) from supabase_migrations.schema_migrations where name = :'name';",
+      `LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"`,
+    );
+    expect(script).toContain(
+      'select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;',
     );
     // The CLI's temporary login is not postgres: every psql session must adopt
     // the role before touching supabase_migrations (run #3 failed on exactly this).
     expect(script).toContain(
-      `      "set role postgres;" \\\n      "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |`,
+      `      "set role postgres;" \\\n      "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |`,
     );
     expect(script).toContain('echo "set role postgres;"');
     expect(script).toContain(
@@ -165,7 +168,7 @@ describe("staging apply-migrations workflow", () => {
     expect(script).toContain('if [ "$already" != "0" ] && ! may_reapply "$migration"; then');
     expect(script).toContain('for candidate in ${REAPPLY_MIGRATIONS:-}; do');
     expect(script).toContain(
-      "where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');",
+      "where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);",
     );
 
     // Schema change and ledger row commit together.

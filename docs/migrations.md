@@ -384,12 +384,14 @@ to `scripts/apply-hosted-migrations.sh`, which:
   `<14-digit version>_<snake_case_name>.sql`;
 - obtains the CLI's short-lived database login (as `scripts/run-hosted-pgtap.sh`
   does; no stored database password);
-- skips any migration whose **name** is already in
-  `supabase_migrations.schema_migrations` (names are the identity CI's
-  `migrations-applied` check reads; the MCP tool records its own timestamp as
-  the version), but only when the SQL stored on that row equals the committed
-  file: a file edited after it was applied stops the run instead, and the
-  message says whether to drop it from the list or re-apply it;
+- skips any migration already in `supabase_migrations.schema_migrations`
+  under any of the three identities CI's `migrations-applied` check accepts
+  (the file's version, its name after the timestamp, or its full basename;
+  the MCP tool records its own timestamp as the version, and one row was once
+  recorded under the whole filename), but only when the SQL last recorded on
+  that row equals the committed file: a file edited after it was applied
+  stops the run instead, and the message says whether to drop it from the
+  list or re-apply it;
 - applies each file with `psql` under `ON_ERROR_STOP`, recording its ledger row
   under the file's own version immediately afterwards in the same session: a
   file without its own transaction is atomic with its ledger row; a file that
@@ -405,8 +407,10 @@ define `reset_reminder_on_reschedule()`) must be followed by the newer file
 again. Before a run, check the files in the list against every later file
 already on staging for shared function, trigger and grant names, and add the
 later ones to both inputs, after the older ones. The ledger never gains a
-second row for a name; a re-apply refreshes the SQL stored on the existing row
-so the next run can verify it against the committed file.
+second row for a migration; a re-apply **appends** the SQL it ran to the
+existing row's `statements`, so the original evidence is kept and the last
+element is what was applied most recently, which is what the next run
+verifies against the committed file.
 
 A bare call to the script reaches staging only: production is refused unless
 the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
@@ -429,6 +433,8 @@ reach:
 | Confirmation | Type the staging ref | Type the production ref; the script demands it again as `CONFIRM_PRODUCTION_REF` |
 | Target | Links staging; refuses production | Links production only after the exact-ref check; fails closed on any other ref |
 | Concurrency | One staging run at a time | One production run at a time; a second dispatch queues and never cancels the first |
+| Files applied | From the branch dispatched | From the commit named in `ref` (normally the reviewed pull request head); the workflow and script always run from `main` |
+| Postcondition | None | Required: one read-only `SELECT` that must return exactly one boolean true after the apply (ADR 006) |
 
 **When to use which.** Staging first, always: the staging workflow (or the MCP
 tool for files it accepts), then the pgTAP checks. Use the production workflow
@@ -447,30 +453,48 @@ environment-only secret is what makes an unconfigured environment fail closed:
 the workflow's first step refuses to continue without it.
 
 **How to run it.** Actions → **Apply named migrations to production** → *Run
-workflow*. `confirm_production_ref` is `nlzhllhkigmsvrzduefz`, `migrations` is
-the space-separated list of file basenames in the order they must run, and
-`reapply` is only for the out-of-order repair case described above. The run
-then waits for the `production` environment's required reviewer; nothing is
-checked out or linked until that approval is given.
+workflow* **from `main`** (the environment's branch policy allows only `main`,
+which is deliberate: the workflow and the apply script then always run as
+reviewed there). Fill in:
+
+- `confirm_production_ref`: `nlzhllhkigmsvrzduefz`;
+- `ref`: the full 40-character SHA of the reviewed pull request head (shown
+  on the pull request), which is where the migration files live before merge;
+  only `supabase/migrations/` is taken from that commit;
+- `migrations`: the space-separated file basenames in the order they must run;
+- `postcondition`: one read-only `SELECT` that proves the behavioural outcome
+  and returns exactly one boolean true, for example
+  `select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')`,
+  or `select not exists (...)` for a drop; it runs as `postgres` inside a
+  read-only transaction, so it can prove the schema but cannot change it;
+- `reapply`: only for the out-of-order repair case described above.
+
+The run then waits for the `production` environment's required reviewer, who
+sees every input; nothing is checked out or linked until that approval is
+given.
 
 **What the run proves**, in order, each step failing the run if it does not
 hold:
 
-1. the typed ref equals the production ref and differs from staging, and the
-   environment-only token is present, before checkout, so a wrong ref or an
-   unconfigured environment never reaches the repository or the CLI;
-2. every requested name matches `<14-digit version>_<snake_case_name>.sql`
-   and exists under `supabase/migrations/` at the dispatched commit; the full
+1. the typed ref equals the production ref and differs from staging, the
+   environment-only token is present, `ref` is a full SHA and a postcondition
+   was given, all before checkout, so a wrong ref or an unconfigured
+   environment never reaches the repository or the CLI;
+2. `main` is checked out, then only `supabase/migrations/` is taken from the
+   named commit; every requested name matches
+   `<14-digit version>_<snake_case_name>.sql` and exists there, and the full
    SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
 4. the script re-checks the target (opt-in, confirmation and link state),
    prints each file's digest and length and the ledger before the run, applies
-   each file in one transaction with its ledger row, skipping a name already
-   recorded only when its stored SQL equals the committed file (a mismatch
-   stops the run: drop the file, or re-apply it to install the committed
-   content and refresh the stored SQL), then fails unless every requested name
-   is in the ledger with the committed content;
+   each file in one transaction with its ledger row, skipping a migration
+   already recorded under any of its three identities only when the SQL last
+   recorded on it equals the committed file (a mismatch stops the run: drop
+   the file, or re-apply it to install the committed content, which appends
+   it to the row's evidence), then fails unless every requested migration is
+   in the ledger with the committed content and the postcondition returns
+   true in a read-only transaction;
 5. `supabase migration list --linked` records the after-state.
 
 The run's step summary names who dispatched it, the migrations requested, the
@@ -482,12 +506,12 @@ row, so files before the failure are applied and recorded, the failing file is
 rolled back, and later files were not started. Read the failing statement in
 the log and the after-state listing (it still runs whenever the link
 succeeded). Fix the cause in a reviewed change if the SQL is wrong, then
-dispatch again with the same list: recorded names are skipped by name, so only
-the remaining files run. Never recreate a migration under a new name to get
-past the ledger, and never add a ledger row by hand unless you have confirmed
-the schema change it stands for is present; the one case where the two can
-part is a file carrying its own `begin`/`commit`, which commits itself before
-its ledger row is written.
+dispatch again with the same `ref` and list: recorded migrations whose stored
+SQL matches are skipped, so only the remaining files run. Never recreate a
+migration under a new name to get past the ledger, and never add a ledger row
+by hand unless you have confirmed the schema change it stands for is present;
+the one case where the two can part is a file carrying its own
+`begin`/`commit`, which commits itself before its ledger row is written.
 
 ## The Supabase MCP tool and the Claude permission
 

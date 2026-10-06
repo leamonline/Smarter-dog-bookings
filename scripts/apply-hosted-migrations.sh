@@ -16,15 +16,19 @@
 #
 # Each file is applied inside one transaction together with its ledger row,
 # so the schema and supabase_migrations.schema_migrations can never disagree.
-# A migration whose NAME is already in the ledger is skipped, but only when
-# the SQL stored on that row equals the committed file: the ledger is what
-# CI's migrations-applied check reads, names (not versions) are the identity
-# because the MCP tool records its own timestamp as the version, and a file
-# edited after it was applied must never pass as applied. A mismatch stops
-# the run; REAPPLY_MIGRATIONS applies the committed content and refreshes the
-# stored SQL. After the last file, every requested name must be in the ledger
-# with the committed content or the script fails, so a run that ends green
-# has recorded exactly what it applied.
+# A migration already in the ledger is skipped, but only when the SQL last
+# recorded on that row equals the committed file. "Already in the ledger"
+# means any of the three identities CI's migrations-applied check accepts:
+# the file's version, its name after the timestamp, or its full basename
+# (the MCP tool records its own timestamp as the version; one row was once
+# recorded under the whole filename). A file edited after it was applied
+# must never pass as applied, so a mismatch stops the run; REAPPLY_MIGRATIONS
+# applies the committed content and APPENDS it to the row's statements, so
+# the original evidence is kept and the last element is what was applied
+# most recently. After the last file, every requested migration must be in
+# the ledger with the committed content, and the postcondition (a read-only
+# SELECT returning exactly one boolean true, required for production as
+# ADR 006 asks) must hold, or the script fails.
 #
 # Usage: scripts/apply-hosted-migrations.sh <project-ref> <file>...
 #   where each <file> is a basename under supabase/migrations/, e.g.
@@ -34,6 +38,11 @@
 #   <project-ref> must be that target's hard-coded ref, and `production` also
 #   needs CONFIRM_PRODUCTION_REF to equal it; anything else exits before any
 #   hosted command. Only the production workflow sets it.
+#
+# POSTCONDITION_SQL (required for production, optional for staging): one
+#   read-only SELECT, no backslashes, that must return exactly one boolean
+#   true after the files are applied. It runs as postgres inside a read-only
+#   transaction, so it can prove the schema but cannot change it.
 #
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
 # though their name is already in the ledger. Needed when migrations reach a
@@ -76,6 +85,17 @@ if [ "$TARGET_PROJECT_REF" != "$EXPECTED_PROJECT_REF" ]; then
 fi
 test "$#" -ge 1
 
+if [ "$TARGET" = "production" ] && [ -z "${POSTCONDITION_SQL:-}" ]; then
+  echo "Refusing production: POSTCONDITION_SQL is required (one read-only SELECT returning exactly one boolean true; ADR 006)." >&2
+  exit 1
+fi
+if [ -n "${POSTCONDITION_SQL:-}" ]; then
+  if [[ "$POSTCONDITION_SQL" == *"\\"* ]] || [[ ! "$POSTCONDITION_SQL" =~ ^[[:space:]]*[sS][eE][lL][eE][cC][tT][[:space:]] ]]; then
+    echo "Refusing POSTCONDITION_SQL: it must be a single SELECT with no backslashes." >&2
+    exit 1
+  fi
+fi
+
 # Validate every requested file before touching the database.
 # shellcheck disable=SC2086
 for migration in "$@" ${REAPPLY_MIGRATIONS:-}; do
@@ -94,13 +114,18 @@ may_reapply() {
   return 1
 }
 
-# The SQL the ledger holds for a name (newest version if there are several),
-# joined the way this script stores it: one element, the whole file.
+# Every ledger predicate matches the three identities the migrations-applied
+# check accepts, so a row recorded under another form is never applied twice.
+LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"
+
+# The SQL most recently recorded for a migration: the last element of the
+# newest matching row's statements (this script stores a whole file as one
+# element; a re-apply appends another).
 stored_sql() {
   printf '%s\n' \
     "set role postgres;" \
-    "select coalesce(array_to_string(statements, E'\\n'), '') from supabase_migrations.schema_migrations where name = :'name' order by version desc limit 1;" |
-    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --file -
+    "select coalesce(statements[array_upper(statements, 1)], '') from supabase_migrations.schema_migrations where $LEDGER_MATCH order by version desc limit 1;" |
+    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
 }
 
 umask 077
@@ -141,6 +166,7 @@ psql -X -A -t -q --set ON_ERROR_STOP=1 \
 
 for migration in "$@"; do
   version="${migration%%_*}"
+  base="${migration%.sql}"
   name="${migration#*_}"
   name="${name%.sql}"
   file="supabase/migrations/$migration"
@@ -151,11 +177,11 @@ for migration in "$@"; do
   already="$(
     printf '%s\n' \
       "set role postgres;" \
-      "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |
-      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --file -
+      "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
+      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --set=base="$base" --set=version="$version" --file -
   )"
   if [ "$already" != "0" ] && ! may_reapply "$migration"; then
-    if [ "$(stored_sql "$name")" = "$(cat "$file")" ]; then
+    if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then
       echo "skip   $migration (name already in the $TARGET ledger; stored SQL matches the committed file)"
       continue
     fi
@@ -179,13 +205,15 @@ for migration in "$@"; do
     echo "set role postgres;"
     cat "$file"
     echo
-    echo "update supabase_migrations.schema_migrations set statements = array[:'body'] where name = :'name';"
+    echo "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[:'body']"
+    echo "  where $LEDGER_MATCH;"
     echo "insert into supabase_migrations.schema_migrations (version, name, statements)"
     echo "  select :'version', :'name', array[:'body']"
-    echo "  where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');"
+    echo "  where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);"
     echo "commit;"
   } | psql -X -q --set ON_ERROR_STOP=1 \
         --set=version="$version" \
+        --set=base="$base" \
         --set=name="$name" \
         --set=body="$(cat "$file")" \
         --file -
@@ -197,25 +225,47 @@ done
 echo "Verifying the requested migrations are recorded in the $TARGET ledger with the committed SQL:"
 missing=0
 for migration in "$@"; do
+  version="${migration%%_*}"
+  base="${migration%.sql}"
   name="${migration#*_}"
   name="${name%.sql}"
   recorded="$(
     printf '%s\n' \
       "set role postgres;" \
-      "select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where name = :'name';" |
-      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --file -
+      "select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
+      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --set=base="$base" --set=version="$version" --file -
   )"
   if [ -z "$recorded" ]; then
-    echo "MISSING $migration: no ledger row is named '$name'" >&2
+    echo "MISSING $migration: no ledger row matches its version, name or basename" >&2
     missing=1
-  elif [ "$(stored_sql "$name")" != "$(cat "supabase/migrations/$migration")" ]; then
-    echo "MISMATCH $migration: recorded as version $recorded, but the stored SQL differs from the committed file" >&2
+  elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then
+    echo "MISMATCH $migration: recorded as [$recorded], but the stored SQL differs from the committed file" >&2
     missing=1
   else
-    echo "recorded $migration (ledger version $recorded; stored SQL matches the committed file)"
+    echo "recorded $migration (ledger row [$recorded]; stored SQL matches the committed file)"
   fi
 done
 test "$missing" = 0
+
+# ADR 006: a behavioural postcondition against the same target, read-only.
+if [ -n "${POSTCONDITION_SQL:-}" ]; then
+  echo "Checking the postcondition in a read-only transaction:"
+  verdict="$(
+    printf '%s\n' \
+      "set role postgres;" \
+      "begin;" \
+      "set transaction read only;" \
+      "$POSTCONDITION_SQL;" \
+      "rollback;" |
+      psql -X -A -t -q --set ON_ERROR_STOP=1 --file -
+  )"
+  if [ "$verdict" = "t" ]; then
+    echo "postcondition passed"
+  else
+    echo "POSTCONDITION FAILED: expected exactly 't', got '${verdict:-nothing}'" >&2
+    exit 1
+  fi
+fi
 
 echo "Ledger rows after this run:"
 psql -X -A -t -q --set ON_ERROR_STOP=1 \

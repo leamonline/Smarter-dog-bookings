@@ -53,6 +53,10 @@ describe("production apply-migrations workflow", () => {
     expect(trigger).toMatch(
       /^ {6}reapply:\n(?: {8}.+\n)* {8}required: false\n(?: {8}.+\n)* {8}type: string$/m,
     );
+    expect(trigger).toMatch(/^ {6}ref:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m);
+    expect(trigger).toMatch(
+      /^ {6}postcondition:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
+    );
     expect(trigger).not.toMatch(/^ {2}(?:push|pull_request|pull_request_target|schedule|repository_dispatch):/m);
     expect(workflow).toContain("permissions:\n  contents: read");
     expect(workflow).not.toMatch(/write-all|contents: write|id-token: write/);
@@ -89,8 +93,22 @@ describe("production apply-migrations workflow", () => {
       `${workflow}\nEND`.matchAll(/^ {8}run: \|\n((?:(?: {10}.*)?\n)+?)(?=^ {0,8}\S)/gm),
       (match) => match[1],
     );
-    expect(runScripts.length).toBe(6);
+    expect(runScripts.length).toBe(7);
     for (const body of runScripts) expect(body).not.toMatch(/\$\{\{/);
+  });
+
+  it("takes only supabase/migrations from the named commit, after checking out main", () => {
+    const checkout = positionOf("        uses: actions/checkout@v7");
+    const overlay = positionOf("      - name: Take supabase/migrations from the reviewed commit");
+    const preflight = positionOf("      - name: Validate the requested names and show the exact SQL");
+    expect(checkout).toBeLessThan(overlay);
+    expect(overlay).toBeLessThan(preflight);
+    expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
+    expect(workflow).toContain('          git checkout "$MIGRATION_REF" -- supabase/migrations/');
+    // Never the whole tree from the ref: the workflow and script stay as on main.
+    expect(workflow).not.toMatch(/git checkout "\$MIGRATION_REF"(?! -- supabase\/migrations\/)/);
+    expect(workflow).not.toMatch(/^\s+ref: \$\{\{ inputs\.ref }}/m);
+    expect(workflow).toContain("          MIGRATION_REF: ${{ inputs.ref }}");
   });
 
   it("validates the names and shows the SQL before production is linked", () => {
@@ -117,6 +135,13 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).not.toMatch(/secrets\.SUPABASE_ACCESS_TOKEN\b/);
     const secretCheck = positionOf('          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then');
     expect(secretCheck).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
+    // The ref and the postcondition are validated before checkout too.
+    expect(positionOf('          if [[ ! "$MIGRATION_REF" =~ ^[0-9a-f]{40}$ ]]; then')).toBeLessThan(
+      positionOf("        uses: actions/checkout@v7"),
+    );
+    expect(positionOf('          if [ -z "${POSTCONDITION_SQL// /}" ]; then')).toBeLessThan(
+      positionOf("        uses: actions/checkout@v7"),
+    );
     expect(workflow).toContain("          PRODUCTION_SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}");
     expect(workflow).not.toMatch(/SUPABASE_DB_PASSWORD|DATABASE_URL|SERVICE_ROLE|--password\b/i);
     expect(workflow).not.toMatch(
@@ -150,6 +175,7 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain("          CONFIRM_PRODUCTION_REF: ${{ inputs.confirm_production_ref }}");
     expect(workflow).toContain("          MIGRATIONS: ${{ inputs.migrations }}");
     expect(workflow).toContain("          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}");
+    expect(workflow).toContain("          POSTCONDITION_SQL: ${{ inputs.postcondition }}");
   });
 
   it("records who, what and the verified ref, and summarises every step's outcome", () => {
@@ -163,7 +189,8 @@ describe("production apply-migrations workflow", () => {
     for (const outcome of ["PREFLIGHT_OUTCOME", "LINK_OUTCOME", "APPLY_OUTCOME", "AFTER_OUTCOME"]) {
       expect(workflow).toContain(outcome);
     }
-    expect(workflow).toContain("grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH) ' apply.log");
+    expect(workflow).toContain("grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH|postcondition|POSTCONDITION) ' apply.log");
+    expect(workflow).toContain('echo "| Migration files from commit | \\`$MIGRATION_REF\\` |"');
   });
 
   it("keeps the staging workflow unable to reach production through the shared script", () => {
@@ -182,16 +209,19 @@ describe("production apply-migrations workflow", () => {
     expect(script).toMatch(/^ {2}\*\)\n(?: {4}.+\n)* {4}exit 1/m);
     expect(script).toContain('test "$STAGING_PROJECT_REF" != "$PRODUCTION_PROJECT_REF"');
     expect(script).toContain('if [ "$TARGET_PROJECT_REF" != "$EXPECTED_PROJECT_REF" ]; then');
+    expect(script).toContain('if [ "$TARGET" = "production" ] && [ -z "${POSTCONDITION_SQL:-}" ]; then');
     expect(script).toContain(
       'test "$(cat supabase/.temp/project-ref)" = "$TARGET_PROJECT_REF"\nsupabase db dump --linked --schema public --dry-run',
     );
 
     // Target resolution happens before any file is read or any hosted command runs.
     const resolution = script.indexOf('case "$TARGET" in');
+    const postconditionGate = script.indexOf('[ -z "${POSTCONDITION_SQL:-}" ]');
     const validation = script.indexOf('test -f "supabase/migrations/$migration"');
     const dump = script.indexOf("supabase db dump --linked");
     expect(resolution).toBeGreaterThan(-1);
-    expect(resolution).toBeLessThan(validation);
+    expect(resolution).toBeLessThan(postconditionGate);
+    expect(postconditionGate).toBeLessThan(validation);
     expect(validation).toBeLessThan(dump);
   });
 
@@ -204,22 +234,34 @@ describe("production apply-migrations workflow", () => {
     expect(script).toMatch(/echo "file {3}\$migration sha256=\$\(sha256sum/);
     expect(script).toContain('echo "done   $migration"');
     expect(script).toContain(
-      "\"select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations where name = :'name';\" |",
+      "\"select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;\" |",
     );
-    expect(script).toContain('echo "MISSING $migration: no ledger row is named \'$name\'" >&2');
+    expect(script).toContain('echo "MISSING $migration: no ledger row matches its version, name or basename" >&2');
     expect(script).toContain('test "$missing" = 0');
 
     // A recorded name is skipped only when the stored SQL equals the committed
     // file; otherwise the run stops. A re-apply refreshes the stored SQL in the
     // same transaction, and the final verification compares content too.
-    expect(script).toContain("select coalesce(array_to_string(statements, E'\\\\n'), '') from supabase_migrations.schema_migrations where name = :'name' order by version desc limit 1;");
-    expect(script).toContain('    if [ "$(stored_sql "$name")" = "$(cat "$file")" ]; then');
+    // Every ledger predicate accepts the three identities the migrations-applied
+    // gate accepts (version, name after the timestamp, full basename).
+    expect(script).toContain(`LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"`);
+    expect(script.match(/where \$LEDGER_MATCH/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(script).not.toMatch(/where name = :'name'[;)]/);
+    expect(script).toContain("select coalesce(statements[array_upper(statements, 1)], '') from supabase_migrations.schema_migrations where $LEDGER_MATCH order by version desc limit 1;");
+    expect(script).toContain('    if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then');
     expect(script).toMatch(/echo "MISMATCH \$migration: name already in the \$TARGET ledger but its stored SQL differs from the committed file\." >&2\n(?:.*\n)? {4}exit 1/);
-    expect(script).toContain(`echo "update supabase_migrations.schema_migrations set statements = array[:'body'] where name = :'name';"`);
+    // A re-apply appends evidence; it never overwrites what was applied before.
+    expect(script).toContain(`echo "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[:'body']"`);
+    expect(script).not.toMatch(/set statements = array\[/);
     expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
       script.indexOf("insert into supabase_migrations.schema_migrations (version, name, statements)"),
     );
-    expect(script).toContain('  elif [ "$(stored_sql "$name")" != "$(cat "supabase/migrations/$migration")" ]; then');
+    expect(script).toContain('  elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then');
+    // ADR 006 postcondition: read-only, must be exactly one boolean true.
+    expect(script).toContain('      "set transaction read only;" \\\n      "$POSTCONDITION_SQL;" \\\n      "rollback;" |');
+    expect(script).toContain('  if [ "$verdict" = "t" ]; then');
+    expect(script).toContain('echo "POSTCONDITION FAILED: expected exactly \'t\', got \'${verdict:-nothing}\'" >&2');
+    expect(script).toMatch(/\[\[ ! "\$POSTCONDITION_SQL" =~ \^\[\[:space:]]\*\[sS]\[eE]\[lL]\[eE]\[cC]\[tT]\[\[:space:]] ]]/);
 
     const apply = script.indexOf('echo "commit;"');
     const verify = script.indexOf("Verifying the requested migrations are recorded");
