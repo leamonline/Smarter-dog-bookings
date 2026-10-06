@@ -2,7 +2,7 @@ name: Apply named migrations to staging
 
 # Staging only. Production is never linked here; the script refuses any other
 # ref by construction. Use this for migrations the MCP tool cannot apply (any
-# file containing DROP FUNCTION / DROP TRIGGER / DELETE FROM text).
+# file containing DROP FUNCTION / DROP TRIGGER / DROP COLUMN / DELETE FROM text).
 on:
   workflow_dispatch:
     inputs:
