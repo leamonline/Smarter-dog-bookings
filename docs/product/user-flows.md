@@ -218,8 +218,13 @@ referral question requires an explanation.
 Continue accepts an attempt even when owner details are incomplete. It explains
 missing or invalid details beside the fields and focuses the first affected
 control. Address and postcode survive returning from the dog step or restoring
-the saved signup draft. A failed postcode service remains recoverable through
-manual entry; provider failures do not mean the customer's postcode is invalid.
+the saved signup draft. Customers enter their house number/name, street and town
+and request Geoapify suggestions with Find address or Enter. Typing alone makes
+no lookup. The selected suggestion must include a UK premises and postcode;
+postcode/city/street-only locations cannot complete the address. Every suggestion
+needs customer confirmation. Geoapify and OpenStreetMap attribution is shown.
+Missing premises, search failures and provider quota problems remain recoverable
+through manual entry; they do not mean the customer's postcode is invalid.
 
 A confirmed breached-password warning explains that the chosen password has
 appeared in a breach; it does not mean the salon has had a breach. Other password
@@ -227,6 +232,9 @@ policy failures ask for a stronger password without making that claim.
 
 Implementation and release evidence:
 [signup recovery plan](../plans/completed/2026-10-05-signup-recovery.md), issue #942.
+The provider replacement is tracked in the
+[Geoapify plan](../plans/active/2026-10-05-geoapify-address-search.md), issue #944;
+see [address-search setup and recovery](../address-search.md).
 
 ## Staff reviews a new customer signup
 

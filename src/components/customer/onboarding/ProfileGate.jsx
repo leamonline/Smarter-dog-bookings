@@ -20,7 +20,7 @@ import {
  * customer can't book without these on file. The same requirement is enforced
  * server-side in create_customer_booking_group().
  *
- * Address capture is handled by the shared AddressPicker (postcode lookup with
+ * Address capture is handled by the shared AddressPicker (UK address search with
  * a manual fallback). This gate is for already-approved customers; brand-new
  * self-signups go through JoinThePackOnboarding instead.
  */

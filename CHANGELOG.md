@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Geoapify address suggestions (#944)
+
+- Signup and profile completion search a typed UK address using Geoapify's free
+  plan, with provider/data attribution and manual entry for missing premises.
+  Searches run on Find address or Enter, not on each keystroke.
+- Only premises with a street and usable UK postcode can be selected. Every
+  suggestion needs confirmation; changing a query clears its old selection and
+  late responses cannot replace newer search/manual details.
+- The existing Edge route accepts address text and legacy postcode requests.
+  Its Geoapify key stays server-side, with rate limits, a bounded upstream wait
+  and diagnostics that omit keys, queries, URLs and provider bodies.
+
 ## Unreleased — customer signup validation and address recovery (#942)
 
 - Continue now identifies missing owner details and focuses the first field to

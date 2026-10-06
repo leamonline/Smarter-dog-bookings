@@ -88,6 +88,8 @@ These files remain authoritative for their bounded topics:
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
   behaviour.
+- [`address-search.md`](address-search.md) — Geoapify free-plan address search,
+  server-held key setup, attribution and manual signup recovery.
 - [`booking-pane-actions-spec.md`](booking-pane-actions-spec.md) — current
   appointment-offer interaction; it is not the future visit notification
   authority.
