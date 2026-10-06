@@ -123,7 +123,13 @@ describe("production apply-migrations workflow", () => {
     expect(statSync(join(root, "scripts/production-ref-provenance.sh")).mode & 0o111).not.toBe(0);
     expect(provenance).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$ref" --jq \'.status\')"');
     expect(provenance).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
-    expect(provenance).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |');
+    expect(provenance).toContain('pr_numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |');
+    // ... and exactly one of them: two open pull requests sharing the head
+    // are refused, since the apply could be recorded against only one.
+    expect(provenance).toContain(`| .number] | unique | map(tostring) | join(" ")')"`);
+    expect(provenance).not.toContain("first // empty");
+    expect(provenance).toMatch(/if \[ "\$\(wc -w <<< "\$pr_numbers" \| tr -d ' '\)" != "1" \]; then\n {2}echo "::error::Commit \$ref is the current head of more than one open pull request into main[^\n]*\n {2}exit 1/);
+    expect(provenance).toContain('pr_number="$pr_numbers"');
     // Only a same-repository pull request opened by a person: a fork's or a
     // bot's gets no repository secrets, so the merge gate could never look up
     // what was applied from it.
@@ -540,7 +546,7 @@ describe("check-migrations-applied.yml binds the applied content", () => {
     expect(gate).toContain('grep -qxF "$1" <<<"$applied_versions" || grep -qxF "$2" <<<"$applied_names" || grep -qxF "$3" <<<"$applied_names"');
   });
 
-  it("refuses deleting, renaming or editing an applied migration (an edit restoring the recorded SQL aside)", () => {
+  it("refuses deleting or renaming an applied migration, and editing any migration the base branch carries", () => {
     expect(gate).toContain(`deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
     expect(gate).toContain(`added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
     // A type change (a file turned into a symbolic link) counts as an edit, and
@@ -550,7 +556,13 @@ describe("check-migrations-applied.yml binds the applied content", () => {
     expect(gate.indexOf("irregular=$(git ls-files -s")).toBeLessThan(gate.indexOf('if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then'));
     expect(gate).toContain("          MODIFIED_FILES: ${{ steps.added.outputs.modified }}");
     expect(gate).toMatch(/echo "✗ REMOVED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
-    expect(gate).toMatch(/elif \[ "\$\(content_verdict "\$ver" "\$name" "\$base" "\$f"\)" = "match" \]; then\n {14}echo "✓ edited to exactly the SQL prod recorded applying: \$base"/);
+    // Every edit to a base-branch migration is refused, applied to prod or
+    // not (staging may have run it; history is append-only either way), and
+    // there is no restore-to-recorded-SQL exception.
+    expect(gate).toMatch(/if is_applied "\$ver" "\$name" "\$base"; then\n {14}echo "✗ EDITED BUT APPLIED: \$base"/);
+    expect(gate).toMatch(/echo "✗ EDITED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
+    expect(gate).not.toContain("edited to exactly the SQL prod recorded applying");
+    expect(gate).not.toContain("edited, not yet applied on prod");
     expect(gate).toMatch(/echo "✗ EDITED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
     expect(gate).toContain('            if [ -n "$ADDED_FILES$DELETED_FILES$MODIFIED_FILES" ]; then');
   });

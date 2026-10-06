@@ -472,9 +472,12 @@ from that recorded SQL (trailing whitespace aside). So a file edited after it
 was applied, or a head pushed after the apply, cannot merge under the applied
 name: re-apply the committed content (`reapply`) or restore what was applied.
 A row that recorded no SQL (applied and ledgered by hand) is still matched by
-name alone. The check also refuses a change that deletes, renames or edits a
-migration production has applied (an edit that restores exactly the SQL
-production recorded is the one exception), and, on every pull request, a
+name alone. The check also refuses a change that deletes or renames a
+migration production has applied, any edit to a migration the base branch
+carries (applied to production or not: staging may have run it, and history
+is append-only in the repository too, so add a corrective migration, or
+remove a never-applied file and add a replacement), and, on every pull
+request, a
 migration the production workflow applied from an earlier head of that pull
 request (found through the provenance line in its ledger row, which names
 the exact file) that the current head no longer carries under that very

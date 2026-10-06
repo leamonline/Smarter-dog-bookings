@@ -243,7 +243,11 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   Round sixteen: the lexer ends a `--` comment at a carriage return as well
   as a line feed, as psql does, and reads a run of colons as psql does (pairs
   are `::` casts, a leftover colon starts a variable reference), so
-  `null:::name` is refused as interpolation.
+  `null:::name` is refused as interpolation. Round seventeen: the check
+  refuses every edit to a migration the base branch carries, applied to
+  production or not (the restore-to-recorded-SQL exception is gone), and
+  the provenance script requires exactly one open pull request at the
+  dispatched head.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

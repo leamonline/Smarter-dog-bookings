@@ -14,8 +14,9 @@
 #   and exits 1 with one ::error:: line when it does not.
 #
 # A commit qualifies when it is on main (identical to, or behind, the given
-# main SHA), or when it is the current head of an open, non-draft pull request
-# into main on which no reviewer's latest review requests changes. Reviews are
+# main SHA), or when it is the current head of exactly one open, non-draft
+# pull request into main on which no reviewer's latest review requests
+# changes (two open pull requests sharing a head are refused). Reviews are
 # judged per reviewer across the whole pull request, as GitHub counts them: a
 # changes request stays outstanding across later pushes until that reviewer
 # approves or it is dismissed. Each reviewer's latest review is recorded with
@@ -45,12 +46,20 @@ fi
 # qualifies: a fork's or a bot's pull request receives no repository secrets,
 # so the migrations-applied check could not look up what was applied from
 # it, and production must never run SQL it cannot later hold a merge to.
-pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |
-  jq -r --arg sha "$ref" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false and .head.repo.full_name == $repo and .user.type != "Bot") | .number] | first // empty')"
-if [ -z "$pr_number" ]; then
+# And exactly one: when two open pull requests share this head, the apply
+# would be recorded against one of them, and the other could later drop the
+# migration and merge with nothing in the ledger naming it.
+pr_numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |
+  jq -r --arg sha "$ref" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false and .head.repo.full_name == $repo and .user.type != "Bot") | .number] | unique | map(tostring) | join(" ")')"
+if [ -z "$pr_numbers" ]; then
   echo "::error::Commit $ref is neither on main nor the current head of an open, non-draft pull request into main from a branch of this repository opened by a person (compare status: $compare). Dispatch with the reviewed pull request's present head."
   exit 1
 fi
+if [ "$(wc -w <<< "$pr_numbers" | tr -d ' ')" != "1" ]; then
+  echo "::error::Commit $ref is the current head of more than one open pull request into main (#${pr_numbers// / and #}); the apply would be recorded against only one of them, and the other's merge gate could not hold it to what was applied. Close or re-point one of them, or dispatch once their heads differ."
+  exit 1
+fi
+pr_number="$pr_numbers"
 
 reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"
 if [ "$(printf '%s' "$reviews_json" | jq 'length')" -ge 100 ]; then

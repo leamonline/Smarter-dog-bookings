@@ -40,8 +40,8 @@ name: Migrations Applied Check
 # apply, cannot merge under the applied name. A row that recorded no SQL
 # (applied and ledgered by hand) is still matched by name alone. History is
 # append-only in every direction: a migration prod has applied cannot be
-# deleted, renamed or edited by a change (an edit that restores exactly what
-# prod recorded is the one exception), and a migration the production
+# deleted or renamed by a change, no migration the base branch carries can
+# be edited (applied to prod or not), and a migration the production
 # workflow applied from an earlier head of a pull request (its row carries a
 # provenance line naming that pull request and the exact file) must still be
 # in the tree under that very name, so a later push cannot quietly drop or
@@ -261,20 +261,23 @@ jobs:
             fi
           done <<< "$DELETED_FILES"
 
-          # Nor can an applied migration be edited in place. The one exception
-          # is an edit that restores exactly the SQL prod recorded applying.
+          # Nor can a migration the base branch carries be edited in place,
+          # whether or not prod has applied it: it may have run on staging or
+          # elsewhere, and history is append-only in the repository too. Add
+          # a corrective migration; a file never applied anywhere may be
+          # removed and replaced under a new name instead.
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             base=$(basename "$f" .sql)
             ver=${base%%_*}
             name=${base#*_}
-            if ! is_applied "$ver" "$name" "$base"; then
-              echo "✓ edited, not yet applied on prod: $base"
-            elif [ "$(content_verdict "$ver" "$name" "$base" "$f")" = "match" ]; then
-              echo "✓ edited to exactly the SQL prod recorded applying: $base"
-            else
+            if is_applied "$ver" "$name" "$base"; then
               echo "✗ EDITED BUT APPLIED: $base"
               echo "    prod has applied this migration; history is append-only, so it cannot be edited. Add a new, later migration instead."
+              problems+=("$base")
+            else
+              echo "✗ EDITED: $base"
+              echo "    this migration is on the base branch; history is append-only, so it cannot be edited even before prod applies it (staging may have). Add a new, later migration instead, or remove it and add a replacement under a new name if it was never applied anywhere."
               problems+=("$base")
             fi
           done <<< "$MODIFIED_FILES"
