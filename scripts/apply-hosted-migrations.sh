@@ -42,9 +42,10 @@
 # POSTCONDITION_SQL (required for production, optional for staging): one
 #   SELECT with no semicolons or backslashes that must return exactly one
 #   boolean true after the files are applied. It runs as postgres inside a
-#   read-only transaction AND inside a scalar subquery, `select (<query>)`,
-#   so no statement separator can end the transaction and smuggle a write
-#   behind the verdict; it can prove the schema but cannot change it.
+#   read-only transaction AND as `select (<query>) is true`, so no statement
+#   separator can end the transaction and smuggle a write behind the verdict,
+#   and only a genuine boolean true (never the text 't') passes; it can prove
+#   the schema but cannot change it.
 #
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
 # though their name is already in the ledger. Needed when migrations reach a
@@ -122,6 +123,12 @@ for migration in "$@" ${REAPPLY_MIGRATIONS:-}; do
   fi
   test -f "supabase/migrations/$migration"
 done
+
+# A file listed twice would run twice under REAPPLY_MIGRATIONS: refused.
+if [ "$(printf '%s\n' "$@" | sort | uniq -d | wc -l | tr -d ' ')" != "0" ]; then
+  echo "Refusing the migration list: it names the same file more than once: $(printf '%s\n' "$@" | sort | uniq -d | tr '\n' ' ')" >&2
+  exit 1
+fi
 
 may_reapply() {
   local candidate
@@ -267,9 +274,10 @@ test "$missing" = 0
 # ADR 006: a behavioural postcondition against the same target, read-only.
 if [ -n "${POSTCONDITION_SQL:-}" ]; then
   echo "Checking the postcondition in a read-only transaction:"
-  # The query is a scalar subquery: it must yield one row and one column, and
-  # a statement separator inside the parentheses is a syntax error, so the
-  # read-only transaction cannot be ended from inside the input.
+  # The query is a scalar subquery: it must yield one row and one column, a
+  # statement separator inside the parentheses is a syntax error, so the
+  # read-only transaction cannot be ended from inside the input, and IS TRUE
+  # errors on anything that is not a boolean, so the text 't' cannot pass.
   verdict="$(
     printf '%s\n' \
       "set role postgres;" \
@@ -277,7 +285,7 @@ if [ -n "${POSTCONDITION_SQL:-}" ]; then
       "set transaction read only;" \
       "select (" \
       "$POSTCONDITION_SQL" \
-      ");" \
+      ") is true;" \
       "rollback;" |
       psql -X -A -t -q --set ON_ERROR_STOP=1 --file -
   )"

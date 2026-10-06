@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Authority:** Implementation plan for the production apply path (ADR 006's manual gate, made executable)
-**Issue:** None opened; [PR #956](https://github.com/leamonline/Smarter-dog-bookings/pull/956) is the tracking thread (see Open questions)
+**Issue:** [#957](https://github.com/leamonline/Smarter-dog-bookings/issues/957) (opened retrospectively on 6 October 2026; delivered by [PR #956](https://github.com/leamonline/Smarter-dog-bookings/pull/956))
 **Base:** `main@a45d298` (6 October 2026)
 **Last verified:** 6 October 2026
 **Owners:** `.github/workflows/production-apply-migrations.yml`, `scripts/apply-hosted-migrations.sh`, `.claude/settings.json`, `.claude/hooks/guard-supabase-apply-migration.sh`, `src/security/productionApplyMigrationsWorkflow.test.ts`
@@ -124,7 +124,12 @@ secret. None of these can be created from this repository.
   (`set role postgres`); only the first real dispatch proves it. Detection: the
   before-state listing fails before any apply.
 - Hook precedence: the PreToolUse `ask` decision is relied upon to override
-  the allow rule; confirm once in a live session after merge.
+  the allow rule; confirm once in a live session after merge. The hook path
+  is quoted with a working-directory fallback so a path with spaces or an
+  unset variable cannot stop it launching (a launch failure is non-blocking).
+- A superseded pull request head: the overlay step confirms through the
+  GitHub API that the commit is on `main` or the current head of an open
+  pull request into `main` before any file is taken from it.
 
 ## Migration/rollout
 
@@ -180,7 +185,5 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
 
 ## Open questions
 
-- Whether a GitHub issue should be opened retrospectively for traceability
-  (`.agent/PLANS.md` expects one; the repository owner decides).
 - Whether `check-migrations-applied.yml` should also compare content, now
   that the ledger stores it for script-applied rows.

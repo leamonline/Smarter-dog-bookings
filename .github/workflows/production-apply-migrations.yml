@@ -38,7 +38,7 @@ on:
         required: true
         type: string
       postcondition:
-        description: One SELECT, no semicolons, that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition; it runs read-only inside a scalar subquery), e.g. select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')
+        description: One SELECT, no semicolons, that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition; it runs read-only as `select (…) is true`), e.g. select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')
         required: true
         type: string
       reapply:
@@ -49,6 +49,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # only to confirm `ref` is the current head of an open pull request
 
 concurrency:
   group: production-apply-migrations
@@ -127,8 +128,25 @@ jobs:
         shell: bash
         env:
           MIGRATION_REF: ${{ inputs.ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The named commit must be current: either already on main, or the
+          # present head of an open pull request into main. A superseded head
+          # could carry older SQL under a filename the pull request still has.
+          compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$MIGRATION_REF" --jq '.status')"
+          if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
+            provenance="already on main ($compare)"
+          else
+            open_heads="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |
+              jq --arg sha "$MIGRATION_REF" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha) | .number] | length')"
+            if [ "$open_heads" = "0" ]; then
+              echo "::error::Commit $MIGRATION_REF is neither on main nor the current head of an open pull request into main (compare status: $compare). Dispatch with the pull request's present head."
+              exit 1
+            fi
+            provenance="current head of an open pull request into main"
+          fi
+          echo "Commit provenance: $provenance"
           # The checkout above is main (the dispatched ref): the workflow and
           # scripts/apply-hosted-migrations.sh stay as reviewed there. Only the
           # migration directory is taken from the named commit, and it is
@@ -138,7 +156,7 @@ jobs:
           rm -rf supabase/migrations
           git checkout "$MIGRATION_REF" -- supabase/migrations/
           echo "Migration files taken from commit $MIGRATION_REF: $(git log -1 --format='%s' "$MIGRATION_REF")"
-          echo "| Migration files overlaid from | \`$MIGRATION_REF\` ($(git log -1 --format='%s' "$MIGRATION_REF" | sed 's/|/ /g')) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Migration files overlaid from | \`$MIGRATION_REF\` ($(git log -1 --format='%s' "$MIGRATION_REF" | sed 's/|/ /g')); $provenance |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate the requested names and show the exact SQL
         id: preflight
@@ -168,6 +186,11 @@ jobs:
               exit 1
             fi
           done
+          # shellcheck disable=SC2086
+          if [ "$(printf '%s\n' $MIGRATIONS | sort | uniq -d | wc -l | tr -d ' ')" != "0" ]; then
+            echo "::error::migrations names the same file more than once; a duplicate would run twice under reapply."
+            exit 1
+          fi
           # shellcheck disable=SC2086
           for candidate in $REAPPLY_MIGRATIONS; do
             listed=0

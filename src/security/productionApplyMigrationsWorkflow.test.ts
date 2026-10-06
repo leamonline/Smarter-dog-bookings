@@ -58,8 +58,8 @@ describe("production apply-migrations workflow", () => {
       /^ {6}postcondition:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
     );
     expect(trigger).not.toMatch(/^ {2}(?:push|pull_request|pull_request_target|schedule|repository_dispatch):/m);
-    expect(workflow).toContain("permissions:\n  contents: read");
-    expect(workflow).not.toMatch(/write-all|contents: write|id-token: write/);
+    expect(workflow).toMatch(/^permissions:\n {2}contents: read\n {2}pull-requests: read(?: #.*)?\n\n/m);
+    expect(workflow).not.toMatch(/write-all|: write\b|id-token/);
     expect(workflow).toMatch(
       /concurrency:\n {2}group: production-apply-migrations\n {2}cancel-in-progress: false/,
     );
@@ -103,6 +103,13 @@ describe("production apply-migrations workflow", () => {
     const preflight = positionOf("      - name: Validate the requested names and show the exact SQL");
     expect(checkout).toBeLessThan(overlay);
     expect(overlay).toBeLessThan(preflight);
+    // The commit must be current: on main, or the present head of an open pull request into main.
+    expect(workflow).toContain('          GH_TOKEN: ${{ github.token }}');
+    expect(workflow).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$MIGRATION_REF" --jq \'.status\')"');
+    expect(workflow).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
+    expect(workflow).toContain('open_heads="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
+    expect(workflow).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha)');
+    expect(workflow.indexOf('compare="$(gh api')).toBeLessThan(workflow.indexOf('git fetch --no-tags --depth=1 origin "$MIGRATION_REF"'));
     expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
     // The directory is emptied first, so a main-only file cannot survive a wrong SHA.
     expect(workflow).toContain(
@@ -111,6 +118,7 @@ describe("production apply-migrations workflow", () => {
     // And every requested file must exist in that commit itself.
     expect(workflow).toContain('            if ! git cat-file -e "$MIGRATION_REF:supabase/migrations/$migration" 2>/dev/null; then');
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
+    expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.
     expect(workflow).not.toMatch(/git checkout "\$MIGRATION_REF"(?! -- supabase\/migrations\/)/);
     expect(workflow).not.toMatch(/^\s+ref: \$\{\{ inputs\.ref }}/m);
@@ -267,8 +275,11 @@ describe("production apply-migrations workflow", () => {
     // The query runs inside a scalar subquery, so no separator can end the
     // read-only transaction, and semicolons are refused up front.
     expect(script).toContain(
-      '      "set transaction read only;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ");" \\\n      "rollback;" |',
+      '      "set transaction read only;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ") is true;" \\\n      "rollback;" |',
     );
+    // A file listed twice would run twice under a re-apply: refused before any hosted command.
+    expect(script).toContain('if [ "$(printf \'%s\\n\' "$@" | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
+    expect(script.indexOf("names the same file more than once")).toBeLessThan(script.indexOf("supabase db dump --linked"));
     expect(script).toContain('  POSTCONDITION_SQL="${POSTCONDITION_SQL%;}"');
     expect(script).toContain('if [[ "$POSTCONDITION_SQL" == *";"* ]] ||');
     // A re-apply name that is not in the list would never run: refused before any hosted command.
@@ -302,8 +313,10 @@ describe("the Claude permission for apply_migration is guarded", () => {
       (entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration",
     );
     expect(matcher).toBeDefined();
+    // Quoted, with a working-directory fallback: an unquoted path with a space
+    // would stop the hook launching, and a launch failure is non-blocking.
     expect(matcher.hooks.map((h: { command: string }) => h.command)).toEqual([
-      "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-supabase-apply-migration.sh",
+      '"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard-supabase-apply-migration.sh"',
     ]);
     expect(statSync(guardPath).mode & 0o111).not.toBe(0);
     expect(guard).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
