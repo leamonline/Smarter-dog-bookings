@@ -38,7 +38,7 @@ on:
         required: true
         type: string
       postcondition:
-        description: One SELECT, no semicolons, that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition; it runs read-only as `select (…) is true`), e.g. select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')
+        description: One SELECT, no semicolons, that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition; it runs read-only as the anon role, as `select (…) is true`), written against pg_catalog, never information_schema (which hides what anon cannot select), e.g. select exists (select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'humans' and a.attname = 'x' and not a.attisdropped)
         required: true
         type: string
       reapply:

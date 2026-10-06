@@ -398,14 +398,22 @@ to `scripts/apply-hosted-migrations.sh`, which:
   with its ledger row. The file's own top-level `begin;` and `commit;` lines
   (the repository's usual style) are removed before execution so they cannot
   commit the schema change ahead of the ledger row (the log says `strip`, and
-  the ledger stores the file exactly as committed); any other top-level
+  the ledger stores the file exactly as committed). Which lines those are is
+  decided by `scripts/lex-migration-sql.pl`, a one-pass scan of the file's
+  strings, identifiers, comments and dollar-quoted bodies in the order psql
+  reads them, so a `begin;` or `commit;` inside a function body or a string
+  is content and stays. The same scan refuses any other top-level
   transaction control (`start transaction`, `rollback`, `end`, `commit and
-  chain`, `prepare transaction`, a `commit` sharing a line) is refused,
-  because the apply could not keep it atomic. psql meta-commands (a
-  backslash outside a string) and psql variable interpolation (`:name`,
-  `:'name'`) are refused too, because psql would act on them before
-  PostgreSQL saw the file. Symbolic links under `supabase/migrations/` are
-  refused.
+  chain`, `prepare transaction`, a `commit` sharing a line), because the
+  apply could not keep it atomic; psql meta-commands (a backslash outside a
+  string) and psql variable interpolation (`:name`, `:'name'`), because psql
+  would act on them before PostgreSQL saw the file; a string, identifier,
+  comment or dollar-quoted body still open at the end of the file; and a
+  file that mentions `standard_conforming_strings` or `client_encoding`, the
+  two settings that would change how its quoting is read (a CI test runs the
+  scan over every committed migration, so a new file it would refuse fails
+  the pull request, not the apply). Symbolic links under
+  `supabase/migrations/` are refused.
 
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
@@ -481,8 +489,8 @@ reviewed there). Fill in:
 - `postcondition`: one `SELECT` (no semicolons) that proves the behavioural
   outcome and returns exactly one boolean true, written against
   `pg_catalog`, for example
-  `select exists (select 1 from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'humans' and a.attname = 'x' and not a.attisdropped)`
-  or `select exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'x')`,
+  `select exists (select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'humans' and a.attname = 'x' and not a.attisdropped)`
+  or `select exists (select 1 from pg_catalog.pg_tables where schemaname = 'public' and tablename = 'x')`,
   with `not exists` for a drop. It runs as the `anon` role inside a
   read-only transaction with a 30-second timeout, as `select (…) is true`:
   it sees the catalogs in full but tables only as an anonymous API client
@@ -517,8 +525,9 @@ hold:
 4. the script re-checks the target (opt-in, confirmation and link state),
    prints each file's digest and length and the ledger before the run, stops
    on a version conflict, applies each file in one transaction with its
-   ledger row (its own `begin;`/`commit;` lines removed; other transaction
-   control, psql meta-commands and variable interpolation refused), skipping
+   ledger row (its own top-level `begin;`/`commit;` lines removed as the
+   quoting scan above finds them; other transaction control, psql
+   meta-commands, variable interpolation and unreadable quoting refused), skipping
    a migration already recorded under its name or basename only when the SQL
    last recorded on it equals the committed file (a mismatch stops the run:
    drop the file, or re-apply it to install the committed content, which
@@ -541,6 +550,14 @@ dispatch again with the same `ref` and list: recorded migrations whose stored
 SQL matches are skipped, so only the remaining files run. Never recreate a
 migration under a new name to get past the ledger, and never add a ledger row
 by hand unless you have confirmed the schema change it stands for is present.
+A postcondition that fails after the files were applied does not undo them:
+they are applied and recorded, the run is red, and the after-state listing
+shows them. Decide from the log whether the postcondition was wrong (it ran
+as `anon`, so a query that needs more than an anonymous client can see, or
+one written against `information_schema`, returns false for a change that
+succeeded; correct it and dispatch again with the same inputs, and every
+recorded file is skipped) or the migration was (fix forward with a new,
+later migration).
 
 ## The Supabase MCP tool and the Claude permission
 

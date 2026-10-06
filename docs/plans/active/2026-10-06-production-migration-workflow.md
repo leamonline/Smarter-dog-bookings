@@ -125,7 +125,12 @@ secret. None of these can be created from this repository.
 - A file carrying its own `begin;`/`commit;` has those lines removed so the
   apply's transaction, with the ledger row, is the only one; any other
   top-level transaction control, psql meta-command or variable interpolation
-  is refused.
+  is refused. Both decisions come from `scripts/lex-migration-sql.pl`, a
+  one-pass scan of the file's quoting in the order psql reads it, so a
+  `commit;` inside a function body or a string is content and stays, a
+  `--` inside a string hides nothing, and a file whose quoting is still
+  open at its end is refused; a CI test runs it over every committed
+  migration.
 - The postcondition runs as `anon`: it reads the catalogs in full, sees
   tables only as an anonymous API client would (grants and row-level
   security apply), and cannot use privileged functions, so an operator's

@@ -263,19 +263,23 @@ describe("production apply-migrations workflow", () => {
     );
     expect(script).toContain('echo "MISSING $migration: no ledger row is named after it (name or basename)" >&2');
     // A file's own top-level begin;/commit; lines are removed so the apply's
-    // transaction (with the ledger row) is the only one; any other top-level
-    // transaction control is refused after a comment- and dollar-quote-aware scan.
-    expect(script).toContain(`grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true`);
-    expect(script).toContain("perl -0pe 's/\\$([A-Za-z_][A-Za-z0-9_]*|)\\$.*?\\$\\1\\$//gs'");
-    // Every transaction-ending form counts (and [no] chain, prepared, prepare transaction),
-    // and psql meta-commands or variable interpolation outside strings are refused.
-    expect(script).toContain("grep -iE '^(begin|start|commit|rollback|end|abort)([[:space:]].*)?$|^prepare[[:space:]]+transaction([[:space:]].*)?$' || true");
-    expect(script).toContain(`perl -0pe "s/'(?:[^']|'')*'/'S'/gs"`);
-    expect(script).toContain('directives="$(psql_directives "$executed")"');
-    expect(script).toMatch(/echo "REFUSED \$migration: psql meta-command or variable interpolation outside a string: .*" >&2\n {4}exit 1/);
-    expect(script).toContain('executed="$(executed_sql "$file")"');
-    expect(script).toContain('leftover="$(transaction_control "$executed")"');
-    expect(script).toMatch(/echo "REFUSED \$migration: top-level transaction control the apply cannot keep atomic: .*" >&2\n {4}exit 1/);
+    // transaction (with the ledger row) is the only one, and anything else
+    // psql or PostgreSQL would still act on (other transaction control, psql
+    // meta-commands, variable interpolation, unreadable quoting) is refused.
+    // Both come from one quoting-aware scan, scripts/lex-migration-sql.pl
+    // (behaviour pinned in lexMigrationSql.test.ts), never from a line-wise
+    // grep or a comment strip over the raw file, which quoted text can fool.
+    expect(script).toContain('lexer="$(cd "$(dirname "$0")" && pwd)/lex-migration-sql.pl"');
+    expect(script).toContain('test -f "$lexer"');
+    expect(script).toContain("command -v perl >/dev/null");
+    expect(script).toMatch(/if ! executed="\$\(perl "\$lexer" executed < "\$file" 2>\/dev\/null\)"; then\n {4}echo "REFUSED \$migration: \$\(perl "\$lexer" executed < "\$file" 2>&1 >\/dev\/null\)" >&2\n {4}exit 1/);
+    expect(script).toMatch(/if ! findings="\$\(perl "\$lexer" check < "\$file"\)"; then\n {4}echo "REFUSED \$migration: .*" >&2\n {4}exit 1/);
+    expect(script).not.toMatch(/grep -viE '\^\[\[:space:]]\*\(begin\|commit\)/);
+    expect(script).not.toMatch(/sed -E 's\/--\.\*\$\/\/'/);
+    expect(script).not.toMatch(/perl -0pe/);
+    // The check runs before the psql session opens, and what runs is the
+    // lexer's executed text, never the raw file.
+    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.indexOf('    echo "begin;"'));
     expect(script).toContain('    printf \'%s\\n\' "$executed"');
     expect(script).not.toMatch(/^ {4}cat "\$file"$/m);
     expect(script).toContain('test "$missing" = 0');

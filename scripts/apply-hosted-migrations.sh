@@ -19,9 +19,17 @@
 # The apply supplies that transaction: a file's own top-level `begin;` and
 # `commit;` lines (the repository's usual style) are removed before execution
 # so they cannot commit the schema change ahead of the ledger row, while the
-# ledger stores the file exactly as committed. Any other top-level transaction
-# control (start transaction, rollback, end, a commit sharing a line) is
-# refused, because the apply could not keep it atomic.
+# ledger stores the file exactly as committed. Which lines those are, and
+# whether anything else psql or PostgreSQL would act on is left, is decided
+# by scripts/lex-migration-sql.pl, a one-pass scan of the file's strings,
+# identifiers, comments and dollar-quoted bodies in the order psql reads
+# them: a `commit;` inside a function body or a string is content and stays,
+# and any other top-level transaction control (start transaction, rollback,
+# end, commit and chain, a commit sharing a line) is refused, because the
+# apply could not keep it atomic, as are psql meta-commands and variable
+# references outside strings, a quoted construct still open at the end of the
+# file, and a file that mentions standard_conforming_strings or
+# client_encoding (the two settings that would change how its quoting reads).
 # A migration already in the ledger is skipped, but only when the SQL last
 # recorded on that row equals the committed file. "Already in the ledger"
 # means a row whose NAME is the file's name after the timestamp or its full
@@ -168,44 +176,17 @@ version_conflicts() {
     psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
 }
 
-# The text that is executed for a file: the file minus lines that are exactly
-# its own begin;/commit;. Exact line matches only; nothing else is rewritten.
-executed_sql() {
-  grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true
-}
-
-# The text with `--` comments and dollar-quoted bodies removed and every
-# single-quoted string collapsed to 'S': what psql itself would read as
-# commands, identifiers and variable references.
-sql_skeleton() {
-  printf '%s\n' "$1" |
-    sed -E 's/--.*$//' |
-    perl -0pe 's/\$([A-Za-z_][A-Za-z0-9_]*|)\$.*?\$\1\$//gs' |
-    perl -0pe "s/'(?:[^']|'')*'/'S'/gs"
-}
-
-# Top-level transaction-control statements left in a text (so a plpgsql
-# `end;` or a `commit` inside a string never counts). Every form counts:
-# begin/start with any options, commit/rollback/end/abort with or without
-# `work`, `transaction`, `and [no] chain` or `prepared`, and `prepare
-# transaction`. Prints one offending statement per line; nothing when clean.
-transaction_control() {
-  sql_skeleton "$1" |
-    tr '\n' ' ' |
-    tr ';' '\n' |
-    sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' |
-    grep -iE '^(begin|start|commit|rollback|end|abort)([[:space:]].*)?$|^prepare[[:space:]]+transaction([[:space:]].*)?$' || true
-}
-
-# psql meta-commands (a backslash outside strings and bodies) and psql
-# variable interpolation (`:name`, `:'name'`, `:"name"`, but never a `::`
-# cast) would be read by psql, not by PostgreSQL: a migration could overwrite
-# the ledger variables or run shell commands. Prints the offending text.
-psql_directives() {
-  sql_skeleton "$1" |
-    grep -oE '\\[A-Za-z!?.;]?[^[:space:]]*|(^|[^:]):[A-Za-z_"'"'"'][^[:space:],)]*' |
-    sed -E 's/^[^:\\]//' || true
-}
+# What a file executes as, and whether anything psql or PostgreSQL would act
+# on is left in it, comes from one scan of its quoting (see the header):
+#   lex-migration-sql.pl executed  the file minus its own top-level begin;/commit;
+#   lex-migration-sql.pl check     every top-level transaction-control
+#                                  statement, psql meta-command or variable
+#                                  reference left in that text (exit 1 if any)
+# Both exit 1, with the reason on stderr, for a file whose quoting cannot be
+# read as psql would read it.
+lexer="$(cd "$(dirname "$0")" && pwd)/lex-migration-sql.pl"
+test -f "$lexer"
+command -v perl >/dev/null
 
 # The SQL most recently recorded for a migration: the last element of the
 # newest matching row's statements (this script stores a whole file as one
@@ -292,18 +273,15 @@ for migration in "$@"; do
   else
     echo "apply  $migration"
   fi
-  executed="$(executed_sql "$file")"
+  if ! executed="$(perl "$lexer" executed < "$file" 2>/dev/null)"; then
+    echo "REFUSED $migration: $(perl "$lexer" executed < "$file" 2>&1 >/dev/null)" >&2
+    exit 1
+  fi
   if [ "$executed" != "$(cat "$file")" ]; then
     echo "strip  $migration (its own begin;/commit; lines removed: the apply supplies one transaction with the ledger row)"
   fi
-  leftover="$(transaction_control "$executed")"
-  if [ -n "$leftover" ]; then
-    echo "REFUSED $migration: top-level transaction control the apply cannot keep atomic: $(printf '%s' "$leftover" | tr '\n' ',')" >&2
-    exit 1
-  fi
-  directives="$(psql_directives "$executed")"
-  if [ -n "$directives" ]; then
-    echo "REFUSED $migration: psql meta-command or variable interpolation outside a string: $(printf '%s' "$directives" | tr '\n' ',')" >&2
+  if ! findings="$(perl "$lexer" check < "$file")"; then
+    echo "REFUSED $migration: $(printf '%s' "${findings:-its quoting could not be read as psql would read it (see the message above)}" | tr '\n' ';' | sed 's/;/; /g')" >&2
     exit 1
   fi
   # The file's statements, the ledger row and the commit are one transaction.
