@@ -385,18 +385,23 @@ to `scripts/apply-hosted-migrations.sh`, which:
 - obtains the CLI's short-lived database login (as `scripts/run-hosted-pgtap.sh`
   does; no stored database password);
 - skips any migration already in `supabase_migrations.schema_migrations`
-  under any of the three identities CI's `migrations-applied` check accepts
-  (the file's version, its name after the timestamp, or its full basename;
-  the MCP tool records its own timestamp as the version, and one row was once
-  recorded under the whole filename), but only when the SQL last recorded on
-  that row equals the committed file: a file edited after it was applied
-  stops the run instead, and the message says whether to drop it from the
-  list or re-apply it;
-- applies each file with `psql` under `ON_ERROR_STOP`, recording its ledger row
-  under the file's own version immediately afterwards in the same session: a
-  file without its own transaction is atomic with its ledger row; a file that
-  carries its own `begin`/`commit` commits itself first, so a failure between
-  the two (never seen) would need the ledger row added by hand before a re-run.
+  under its name after the timestamp or its full basename (the MCP tool
+  records its own timestamp as the version, and one row was once recorded
+  under the whole filename), but only when the SQL last recorded on that row
+  equals the committed file: a file edited after it was applied stops the run
+  instead, and the message says whether to drop it from the list or re-apply
+  it. A row that shares only the file's **version** under another name is a
+  conflict: the run stops and names the row, and nothing is written to it
+  (drop the file from the list if that row is this migration recorded under
+  another name; otherwise resolve the ledger by hand first);
+- applies each file with `psql` under `ON_ERROR_STOP` inside one transaction
+  with its ledger row. The file's own top-level `begin;` and `commit;` lines
+  (the repository's usual style) are removed before execution so they cannot
+  commit the schema change ahead of the ledger row (the log says `strip`, and
+  the ledger stores the file exactly as committed); any other top-level
+  transaction control (`start transaction`, `rollback`, `end`, a `commit`
+  sharing a line) is refused, because the apply could not keep it atomic.
+  Symbolic links under `supabase/migrations/` are refused.
 
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
@@ -491,20 +496,22 @@ hold:
    the current head of an open pull request into `main`; then
    `supabase/migrations/` is emptied and refilled from that commit alone;
    every requested name matches `<14-digit version>_<snake_case_name>.sql`,
-   appears once, and exists in that commit (a file that only exists on
-   `main` fails the run), every `reapply` name is in the list, and the full
-   SQL of each file is printed in the log;
+   appears once, is a regular file in that commit (never a symbolic link)
+   and is byte-identical to its blob after the overlay (a file that only
+   exists on `main` fails the run), every `reapply` name is in the list, and
+   the full SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
 4. the script re-checks the target (opt-in, confirmation and link state),
-   prints each file's digest and length and the ledger before the run, applies
-   each file in one transaction with its ledger row, skipping a migration
-   already recorded under any of its three identities only when the SQL last
-   recorded on it equals the committed file (a mismatch stops the run: drop
-   the file, or re-apply it to install the committed content, which appends
-   it to the row's evidence), then fails unless every requested migration is
-   in the ledger with the committed content and the postcondition returns
-   true in a read-only transaction;
+   prints each file's digest and length and the ledger before the run, stops
+   on a version conflict, applies each file in one transaction with its
+   ledger row (its own `begin;`/`commit;` lines removed; other transaction
+   control refused), skipping a migration already recorded under its name or
+   basename only when the SQL last recorded on it equals the committed file
+   (a mismatch stops the run: drop the file, or re-apply it to install the
+   committed content, which appends it to the row's evidence), then fails
+   unless every requested migration is in the ledger with the committed
+   content and the postcondition returns true in a read-only transaction;
 5. `supabase migration list --linked` records the after-state.
 
 The run's step summary names who dispatched it, the migrations requested, the
@@ -512,16 +519,15 @@ verified ref and each step's outcome. Keep the run URL as the evidence record
 ADR 006 asks for, and add the usual dated note at the top of this file.
 
 **If a run fails part-way.** Each file is its own transaction with its ledger
-row, so files before the failure are applied and recorded, the failing file is
-rolled back, and later files were not started. Read the failing statement in
+row (a file's own `begin;`/`commit;` cannot commit it early, because they are
+removed before execution), so files before the failure are applied and
+recorded, the failing file is rolled back, and later files were not started. Read the failing statement in
 the log and the after-state listing (it still runs whenever the link
 succeeded). Fix the cause in a reviewed change if the SQL is wrong, then
 dispatch again with the same `ref` and list: recorded migrations whose stored
 SQL matches are skipped, so only the remaining files run. Never recreate a
 migration under a new name to get past the ledger, and never add a ledger row
-by hand unless you have confirmed the schema change it stands for is present;
-the one case where the two can part is a file carrying its own
-`begin`/`commit`, which commits itself before its ledger row is written.
+by hand unless you have confirmed the schema change it stands for is present.
 
 ## The Supabase MCP tool and the Claude permission
 

@@ -16,19 +16,27 @@
 #
 # Each file is applied inside one transaction together with its ledger row,
 # so the schema and supabase_migrations.schema_migrations can never disagree.
+# The apply supplies that transaction: a file's own top-level `begin;` and
+# `commit;` lines (the repository's usual style) are removed before execution
+# so they cannot commit the schema change ahead of the ledger row, while the
+# ledger stores the file exactly as committed. Any other top-level transaction
+# control (start transaction, rollback, end, a commit sharing a line) is
+# refused, because the apply could not keep it atomic.
 # A migration already in the ledger is skipped, but only when the SQL last
 # recorded on that row equals the committed file. "Already in the ledger"
-# means any of the three identities CI's migrations-applied check accepts:
-# the file's version, its name after the timestamp, or its full basename
-# (the MCP tool records its own timestamp as the version; one row was once
-# recorded under the whole filename). A file edited after it was applied
-# must never pass as applied, so a mismatch stops the run; REAPPLY_MIGRATIONS
-# applies the committed content and APPENDS it to the row's statements, so
-# the original evidence is kept and the last element is what was applied
-# most recently. After the last file, every requested migration must be in
-# the ledger with the committed content, and the postcondition (a read-only
-# SELECT returning exactly one boolean true, required for production as
-# ADR 006 asks) must hold, or the script fails.
+# means a row whose NAME is the file's name after the timestamp or its full
+# basename (the MCP tool records its own timestamp as the version; one row
+# was once recorded under the whole filename). A row that shares only the
+# file's VERSION under another name is a conflict, not an identity: it may be
+# this migration recorded under a different name or an unrelated row, so the
+# run stops and says which, and nothing is written to that row. A file edited
+# after it was applied must never pass as applied, so a mismatch stops the
+# run; REAPPLY_MIGRATIONS applies the committed content and APPENDS it to the
+# row's statements, so the original evidence is kept and the last element is
+# what was applied most recently. After the last file, every requested
+# migration must be in the ledger with the committed content, and the
+# postcondition (a read-only SELECT returning exactly one boolean true,
+# required for production as ADR 006 asks) must hold, or the script fails.
 #
 # Usage: scripts/apply-hosted-migrations.sh <project-ref> <file>...
 #   where each <file> is a basename under supabase/migrations/, e.g.
@@ -121,6 +129,10 @@ for migration in "$@" ${REAPPLY_MIGRATIONS:-}; do
     echo "Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql" >&2
     exit 1
   fi
+  if [ -L "supabase/migrations/$migration" ]; then
+    echo "Refusing '$migration': it is a symbolic link, not a committed file." >&2
+    exit 1
+  fi
   test -f "supabase/migrations/$migration"
 done
 
@@ -138,9 +150,37 @@ may_reapply() {
   return 1
 }
 
-# Every ledger predicate matches the three identities the migrations-applied
-# check accepts, so a row recorded under another form is never applied twice.
-LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"
+# Every ledger predicate that reads or writes a row identifies the migration
+# by NAME (stripped name or full basename), never by version alone; a
+# version-only match is reported as a conflict before anything is written.
+LEDGER_MATCH="(name = :'name' or name = :'base')"
+
+# Rows that share the file's version under some other name.
+version_conflicts() {
+  printf '%s\n' \
+    "set role postgres;" \
+    "select string_agg(version || ' ' || name, ', ' order by name) from supabase_migrations.schema_migrations where version = :'version' and not $LEDGER_MATCH;" |
+    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
+}
+
+# The text that is executed for a file: the file minus lines that are exactly
+# its own begin;/commit;. Exact line matches only; nothing else is rewritten.
+executed_sql() {
+  grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true
+}
+
+# Top-level transaction-control statements left in a text, after removing
+# `--` comments and dollar-quoted bodies (so a plpgsql `end;` never counts).
+# Prints one offending statement per line; prints nothing when clean.
+transaction_control() {
+  printf '%s\n' "$1" |
+    sed -E 's/--.*$//' |
+    perl -0pe 's/\$([A-Za-z_][A-Za-z0-9_]*|)\$.*?\$\1\$//gs' |
+    tr '\n' ' ' |
+    tr ';' '\n' |
+    sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' |
+    grep -iE '^(begin|start)([[:space:]]+(transaction|work))?$|^(commit|rollback|end|abort)([[:space:]]+(transaction|work|prepared.*))?$' || true
+}
 
 # The SQL most recently recorded for a migration: the last element of the
 # newest matching row's statements (this script stores a whole file as one
@@ -195,6 +235,14 @@ for migration in "$@"; do
   name="${name%.sql}"
   file="supabase/migrations/$migration"
 
+  # A row with this version but another name is neither skipped nor written
+  # to: it is reported, and a person decides what it is.
+  conflict="$(version_conflicts "$name" "$base" "$version")"
+  if [ -n "$conflict" ]; then
+    echo "CONFLICT $migration: ledger row(s) [$conflict] share its version under another name. Drop it from the list if that row is this migration recorded under another name; otherwise resolve the ledger by hand first." >&2
+    exit 1
+  fi
+
   # The temporary login is not postgres, so every psql session must adopt the
   # role first (as run-hosted-pgtap.sh does), or supabase_migrations is denied.
   # psql only interpolates :'variables' in scripts, never in --command strings.
@@ -219,15 +267,20 @@ for migration in "$@"; do
   else
     echo "apply  $migration"
   fi
-  # Files without their own transaction become atomic here, ledger row
-  # included. A file that carries its own begin/commit commits itself (the
-  # nested begin only produces a WARNING) and its ledger row follows at once
-  # in the same psql session under ON_ERROR_STOP; if that insert ever failed,
-  # the ledger row would have to be added by hand before re-running.
+  executed="$(executed_sql "$file")"
+  if [ "$executed" != "$(cat "$file")" ]; then
+    echo "strip  $migration (its own begin;/commit; lines removed: the apply supplies one transaction with the ledger row)"
+  fi
+  leftover="$(transaction_control "$executed")"
+  if [ -n "$leftover" ]; then
+    echo "REFUSED $migration: top-level transaction control the apply cannot keep atomic: $(printf '%s' "$leftover" | tr '\n' ',')" >&2
+    exit 1
+  fi
+  # The file's statements, the ledger row and the commit are one transaction.
   {
     echo "begin;"
     echo "set role postgres;"
-    cat "$file"
+    printf '%s\n' "$executed"
     echo
     echo "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[:'body']"
     echo "  where $LEDGER_MATCH;"
@@ -260,7 +313,7 @@ for migration in "$@"; do
       psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --set=base="$base" --set=version="$version" --file -
   )"
   if [ -z "$recorded" ]; then
-    echo "MISSING $migration: no ledger row matches its version, name or basename" >&2
+    echo "MISSING $migration: no ledger row is named after it (name or basename)" >&2
     missing=1
   elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then
     echo "MISMATCH $migration: recorded as [$recorded], but the stored SQL differs from the committed file" >&2

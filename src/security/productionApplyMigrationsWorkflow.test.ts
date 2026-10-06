@@ -115,8 +115,12 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain(
       '          rm -rf supabase/migrations\n          git checkout "$MIGRATION_REF" -- supabase/migrations/',
     );
-    // And every requested file must exist in that commit itself.
-    expect(workflow).toContain('            if ! git cat-file -e "$MIGRATION_REF:supabase/migrations/$migration" 2>/dev/null; then');
+    // Every requested file must be a regular blob in that commit (never a symlink)
+    // and byte-identical to it after the overlay.
+    expect(workflow).toContain('mode="$(git ls-tree "$MIGRATION_REF" -- "supabase/migrations/$migration" | awk \'{print $1}\')"');
+    expect(workflow).toContain('            if [ "$mode" != "100644" ] && [ "$mode" != "100755" ]; then');
+    expect(workflow).toContain('            if [ -L "supabase/migrations/$migration" ] || [ ! -f "supabase/migrations/$migration" ]; then');
+    expect(workflow).toContain('            if ! git show "$MIGRATION_REF:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.
@@ -130,7 +134,7 @@ describe("production apply-migrations workflow", () => {
     const link = positionOf('supabase link --project-ref "$PRODUCTION_PROJECT_REF"');
     expect(preflight).toBeLessThan(link);
     expect(workflow).toContain('^[0-9]{14}_[a-z0-9_]+\\.sql$');
-    expect(workflow).toContain('if [ ! -f "supabase/migrations/$migration" ]; then');
+    expect(workflow).toContain('if [ -L "supabase/migrations/$migration" ] || [ ! -f "supabase/migrations/$migration" ]; then');
     expect(workflow).toContain('cat "supabase/migrations/$migration"');
   });
 
@@ -203,7 +207,7 @@ describe("production apply-migrations workflow", () => {
     for (const outcome of ["PREFLIGHT_OUTCOME", "LINK_OUTCOME", "APPLY_OUTCOME", "AFTER_OUTCOME"]) {
       expect(workflow).toContain(outcome);
     }
-    expect(workflow).toContain("grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH|postcondition|POSTCONDITION) ' apply.log");
+    expect(workflow).toContain("grep -E '^(file|strip|apply|reapply|skip|done|recorded|MISSING|MISMATCH|CONFLICT|REFUSED|postcondition|POSTCONDITION) ' apply.log");
     expect(workflow).toContain('echo "| Migration files from commit | \\`$MIGRATION_REF\\` |"');
   });
 
@@ -250,17 +254,34 @@ describe("production apply-migrations workflow", () => {
     expect(script).toContain(
       "\"select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;\" |",
     );
-    expect(script).toContain('echo "MISSING $migration: no ledger row matches its version, name or basename" >&2');
+    expect(script).toContain('echo "MISSING $migration: no ledger row is named after it (name or basename)" >&2');
+    // A file's own top-level begin;/commit; lines are removed so the apply's
+    // transaction (with the ledger row) is the only one; any other top-level
+    // transaction control is refused after a comment- and dollar-quote-aware scan.
+    expect(script).toContain(`grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true`);
+    expect(script).toContain("perl -0pe 's/\\$([A-Za-z_][A-Za-z0-9_]*|)\\$.*?\\$\\1\\$//gs'");
+    expect(script).toContain('executed="$(executed_sql "$file")"');
+    expect(script).toContain('leftover="$(transaction_control "$executed")"');
+    expect(script).toMatch(/echo "REFUSED \$migration: top-level transaction control the apply cannot keep atomic: .*" >&2\n {4}exit 1/);
+    expect(script).toContain('    printf \'%s\\n\' "$executed"');
+    expect(script).not.toMatch(/^ {4}cat "\$file"$/m);
     expect(script).toContain('test "$missing" = 0');
 
     // A recorded name is skipped only when the stored SQL equals the committed
     // file; otherwise the run stops. A re-apply refreshes the stored SQL in the
     // same transaction, and the final verification compares content too.
-    // Every ledger predicate accepts the three identities the migrations-applied
-    // gate accepts (version, name after the timestamp, full basename).
-    expect(script).toContain(`LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"`);
+    // Every ledger predicate that reads or writes a row identifies the migration
+    // by name or basename; a row sharing only the version is a conflict that
+    // stops the run before anything is written.
+    expect(script).toContain(`LEDGER_MATCH="(name = :'name' or name = :'base')"`);
     expect(script.match(/where \$LEDGER_MATCH/g)?.length).toBeGreaterThanOrEqual(5);
     expect(script).not.toMatch(/where name = :'name'[;)]/);
+    expect(script).not.toMatch(/LEDGER_MATCH=.*version/);
+    expect(script).toContain("where version = :'version' and not $LEDGER_MATCH;");
+    expect(script).toMatch(/conflict="\$\(version_conflicts "\$name" "\$base" "\$version"\)"\n {2}if \[ -n "\$conflict" \]; then\n(?: {4}.+\n)* {4}exit 1/);
+    expect(script.indexOf('conflict="$(version_conflicts')).toBeLessThan(script.indexOf('already="$('));
+    // Symbolic links are never applied.
+    expect(script).toContain('  if [ -L "supabase/migrations/$migration" ]; then');
     expect(script).toContain("select coalesce(statements[array_upper(statements, 1)], '') from supabase_migrations.schema_migrations where $LEDGER_MATCH order by version desc limit 1;");
     expect(script).toContain('    if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then');
     expect(script).toMatch(/echo "MISMATCH \$migration: name already in the \$TARGET ledger but its stored SQL differs from the committed file\." >&2\n(?:.*\n)? {4}exit 1/);

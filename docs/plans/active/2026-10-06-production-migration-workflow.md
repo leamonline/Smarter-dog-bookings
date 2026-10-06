@@ -120,6 +120,11 @@ secret. None of these can be created from this repository.
 - A migration whose ledger row was recorded by another tool with different
   `statements` text stops the run as a mismatch; the message tells the
   operator to drop it or re-apply it. Detection: the run fails before writing.
+- A ledger row sharing only a file's version under another name (a known
+  production condition) stops the run as a conflict; nothing is written to it.
+- A file carrying its own `begin;`/`commit;` has those lines removed so the
+  apply's transaction, with the ledger row, is the only one; any other
+  top-level transaction control is refused.
 - The CLI's temporary login on production is assumed to behave as on staging
   (`set role postgres`); only the first real dispatch proves it. Detection: the
   before-state listing fails before any apply.

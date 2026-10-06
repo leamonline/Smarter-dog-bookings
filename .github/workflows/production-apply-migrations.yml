@@ -177,12 +177,20 @@ jobs:
               echo "::error::Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql"
               exit 1
             fi
-            if ! git cat-file -e "$MIGRATION_REF:supabase/migrations/$migration" 2>/dev/null; then
-              echo "::error::supabase/migrations/$migration does not exist in commit $MIGRATION_REF."
+            # A regular file in the named commit (mode 100644/100755), never a
+            # symbolic link that could point outside the directory, and the
+            # overlaid working-tree file must be byte-identical to that blob.
+            mode="$(git ls-tree "$MIGRATION_REF" -- "supabase/migrations/$migration" | awk '{print $1}')"
+            if [ "$mode" != "100644" ] && [ "$mode" != "100755" ]; then
+              echo "::error::supabase/migrations/$migration is not a regular file in commit $MIGRATION_REF (tree mode: ${mode:-absent})."
               exit 1
             fi
-            if [ ! -f "supabase/migrations/$migration" ]; then
-              echo "::error::supabase/migrations/$migration was not overlaid from commit $MIGRATION_REF."
+            if [ -L "supabase/migrations/$migration" ] || [ ! -f "supabase/migrations/$migration" ]; then
+              echo "::error::supabase/migrations/$migration was not overlaid as a regular file from commit $MIGRATION_REF."
+              exit 1
+            fi
+            if ! git show "$MIGRATION_REF:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
+              echo "::error::supabase/migrations/$migration differs from the blob in commit $MIGRATION_REF."
               exit 1
             fi
           done
@@ -285,7 +293,7 @@ jobs:
               echo "### Per-migration result"
               echo
               echo '```text'
-              grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH|postcondition|POSTCONDITION) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
+              grep -E '^(file|strip|apply|reapply|skip|done|recorded|MISSING|MISMATCH|CONFLICT|REFUSED|postcondition|POSTCONDITION) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -150,9 +150,7 @@ describe("staging apply-migrations workflow", () => {
     // Ledger identity is the NAME (what CI's migrations-applied check reads):
     // a present name is skipped unless explicitly re-applied, and even a
     // re-apply never adds a second ledger row for that name.
-    expect(script).toContain(
-      `LEDGER_MATCH="name = :'name' or name = :'base' or version = :'version'"`,
-    );
+    expect(script).toContain(`LEDGER_MATCH="(name = :'name' or name = :'base')"`);
     expect(script).toContain(
       'select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;',
     );
@@ -173,7 +171,7 @@ describe("staging apply-migrations workflow", () => {
 
     // Schema change and ledger row commit together.
     const begin = script.indexOf('echo "begin;"');
-    const body = script.indexOf('cat "$file"', begin);
+    const body = script.indexOf("printf '%s\\n' \"$executed\"", begin);
     const ledger = script.indexOf(
       "insert into supabase_migrations.schema_migrations (version, name, statements)",
     );
