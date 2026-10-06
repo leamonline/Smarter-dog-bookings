@@ -233,7 +233,13 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   must carry every migration current `main` has, so the tree validated is
   the one its merge would produce; the write is refused if `main` moved
   after the files were checked against it; and the drift guard covers the
-  migration validator and its import.
+  migration validator and its import. Round fifteen: a skipped migration
+  (already applied with identical SQL) still has this run's provenance line
+  and the file appended to its row, so the gate can hold a later push that
+  drops it; a migration named by more than one ledger row is a conflict
+  before and after the apply, never judged by version order; and the
+  no-SQL refusal reads the executed form, so a file that is only its own
+  `begin;`/`commit;` pair and comments is refused rather than recorded.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

@@ -220,6 +220,23 @@ stored_sql() {
     psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
 }
 
+# How many rows are named after a migration (stripped name or basename), and
+# which. One migration must have one row: with two (one under each name) the
+# stored SQL, a skip and a re-apply could not be judged against one row, and
+# their version order says nothing about which was applied, so the run stops.
+ledger_row_count() {
+  printf '%s\n' \
+    "set role postgres;" \
+    "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
+    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
+}
+ledger_rows() {
+  printf '%s\n' \
+    "set role postgres;" \
+    "select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
+    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --set=base="$2" --set=version="$3" --file -
+}
+
 umask 077
 credential_script="$(mktemp)"
 credential_exports="$(mktemp)"
@@ -271,18 +288,49 @@ for migration in "$@"; do
     exit 1
   fi
 
+  # The ledger text travels inside the same stdin stream as a dollar-quoted
+  # literal under a tag neither the file nor the provenance line contains,
+  # never as a command-line argument (Linux caps one argument at 128 KiB, and
+  # a file that size would fail here after earlier files had committed). psql
+  # reads neither variables nor meta-commands inside a dollar quote, so the
+  # file is stored exactly as committed, trailing newlines aside, as before.
+  # With LEDGER_PROVENANCE set, that line is stored just ahead of the file;
+  # the file stays the last element either way, which is what every
+  # comparison reads.
+  body="$(cat "$file")"
+  tag="ledger_$RANDOM$RANDOM"
+  while grep -qF "\$$tag\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done
+  recorded="\$$tag\$$body\$$tag\$"
+
   # The temporary login is not postgres, so every psql session must adopt the
   # role first (as run-hosted-pgtap.sh does), or supabase_migrations is denied.
   # psql only interpolates :'variables' in scripts, never in --command strings.
-  already="$(
-    printf '%s\n' \
-      "set role postgres;" \
-      "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
-      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --set=base="$base" --set=version="$version" --file -
-  )"
+  already="$(ledger_row_count "$name" "$base" "$version")"
+  if [ "$already" -gt 1 ]; then
+    echo "CONFLICT $migration: $already ledger rows are named after it [$(ledger_rows "$name" "$base" "$version")]; neither its stored SQL nor a skip or re-apply can be judged against one row. Resolve the ledger by hand so one row remains, then run again." >&2
+    exit 1
+  fi
   if [ "$already" != "0" ] && ! may_reapply "$migration"; then
     if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then
       echo "skip   $migration (name already in the $TARGET ledger; stored SQL matches the committed file)"
+      if [ -n "${LEDGER_PROVENANCE:-}" ]; then
+        # Production holds this file, whoever applied it: this run says so on
+        # the row, the file following the line again so it stays the last
+        # element, and the merge gate can then hold a later push that drops
+        # the file even though nothing was executed here.
+        {
+          echo "begin;"
+          echo "set role postgres;"
+          printf '%s\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\$$tag\$$LEDGER_PROVENANCE, found already applied with identical SQL (file $migration)\$$tag\$, $recorded]"
+          echo "  where $LEDGER_MATCH;"
+          echo "commit;"
+        } | psql -X -q --set ON_ERROR_STOP=1 \
+              --set=version="$version" \
+              --set=base="$base" \
+              --set=name="$name" \
+              --file -
+        echo "recorded $migration (this run's provenance appended to its ledger row; nothing executed)"
+      fi
       continue
     fi
     echo "MISMATCH $migration: name already in the $TARGET ledger but its stored SQL differs from the committed file." >&2
@@ -306,26 +354,16 @@ for migration in "$@"; do
     echo "REFUSED $migration: $(printf '%s' "${findings:-its quoting could not be read as psql would read it (see the message above)}" | tr '\n' ';' | sed 's/;/; /g')" >&2
     exit 1
   fi
-  # A file with no SQL statement (empty, whitespace or comments only) has
+  # A file with no SQL statement left once its own begin;/commit; lines are
+  # removed (empty, whitespace or comments only, or just that pair) has
   # nothing to apply, and a ledger row recording it could later pass for a
-  # file that gained real SQL under the same name.
-  if [ -z "$(perl "$lexer" skeleton < "$file" | tr -d '[:space:]')" ]; then
-    echo "REFUSED $migration: it contains no SQL statement (empty, whitespace or comments only)." >&2
+  # file that gained real SQL under the same name. The executed form is
+  # judged, not the file, so the pair alone cannot pass as a statement.
+  if [ -z "$(printf '%s\n' "$executed" | perl "$lexer" skeleton | tr -d '[:space:]')" ]; then
+    echo "REFUSED $migration: it contains no SQL statement once its own begin;/commit; lines are removed (empty, whitespace or comments only)." >&2
     exit 1
   fi
   # The file's statements, the ledger row and the commit are one transaction.
-  # The ledger text travels inside the same stdin stream as a dollar-quoted
-  # literal under a tag neither the file nor the provenance line contains,
-  # never as a command-line argument (Linux caps one argument at 128 KiB, and
-  # a file that size would fail here after earlier files had committed). psql
-  # reads neither variables nor meta-commands inside a dollar quote, so the
-  # file is stored exactly as committed, trailing newlines aside, as before.
-  # With LEDGER_PROVENANCE set, that line is stored just ahead of the file;
-  # the file stays the last element either way.
-  body="$(cat "$file")"
-  tag="ledger_$RANDOM$RANDOM"
-  while grep -qF "\$$tag\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done
-  recorded="\$$tag\$$body\$$tag\$"
   if [ -n "${LEDGER_PROVENANCE:-}" ]; then
     # The exact basename applied is part of the line, so the merge gate can
     # demand that very file stays in the tree, not merely one sharing its
@@ -360,14 +398,13 @@ for migration in "$@"; do
   base="${migration%.sql}"
   name="${migration#*_}"
   name="${name%.sql}"
-  recorded="$(
-    printf '%s\n' \
-      "set role postgres;" \
-      "select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |
-      psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --set=base="$base" --set=version="$version" --file -
-  )"
-  if [ -z "$recorded" ]; then
+  rows="$(ledger_row_count "$name" "$base" "$version")"
+  recorded="$(ledger_rows "$name" "$base" "$version")"
+  if [ "$rows" = "0" ]; then
     echo "MISSING $migration: no ledger row is named after it (name or basename)" >&2
+    missing=1
+  elif [ "$rows" -gt 1 ]; then
+    echo "CONFLICT $migration: $rows ledger rows are named after it [$recorded]; one row must remain" >&2
     missing=1
   elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then
     echo "MISMATCH $migration: recorded as [$recorded], but the stored SQL differs from the committed file" >&2

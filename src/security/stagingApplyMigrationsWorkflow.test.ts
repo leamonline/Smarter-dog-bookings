@@ -157,7 +157,7 @@ describe("staging apply-migrations workflow", () => {
     // The CLI's temporary login is not postgres: every psql session must adopt
     // the role before touching supabase_migrations (run #3 failed on exactly this).
     expect(script).toContain(
-      `      "set role postgres;" \\\n      "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |`,
+      `    "set role postgres;" \\\n    "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |`,
     );
     expect(script).toContain('echo "set role postgres;"');
     expect(script).toContain(
@@ -169,13 +169,15 @@ describe("staging apply-migrations workflow", () => {
       "where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);",
     );
 
-    // Schema change and ledger row commit together.
-    const begin = script.indexOf('echo "begin;"');
+    // Schema change and ledger row commit together, in the apply's session:
+    // the last one that begins in the loop (the skip branch's provenance
+    // session comes earlier and executes no file text).
+    const begin = script.lastIndexOf('echo "begin;"');
     const body = script.indexOf("printf '%s\\n' \"$executed\"", begin);
     const ledger = script.indexOf(
       "insert into supabase_migrations.schema_migrations (version, name, statements)",
     );
-    const commit = script.indexOf('echo "commit;"');
+    const commit = script.indexOf('echo "commit;"', ledger);
     expect(begin).toBeGreaterThan(-1);
     expect(begin).toBeLessThan(body);
     expect(body).toBeLessThan(ledger);

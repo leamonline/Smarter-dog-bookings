@@ -415,9 +415,10 @@ to `scripts/apply-hosted-migrations.sh`, which:
   file that mentions `standard_conforming_strings` or `client_encoding`, the
   two settings that would change how its quoting is read (a CI test runs the
   scan over every committed migration, so a new file it would refuse fails
-  the pull request, not the apply). A file with no SQL statement (empty,
-  whitespace or comments only) and symbolic links under
-  `supabase/migrations/` are refused.
+  the pull request, not the apply). A file with no SQL statement left once
+  its own `begin;`/`commit;` lines are removed (empty, whitespace or
+  comments only, or just that pair), a migration named by more than one
+  ledger row, and symbolic links under `supabase/migrations/` are refused.
 
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
@@ -576,15 +577,18 @@ hold:
    review since is refused, nothing applied); then the script re-checks the
    target (opt-in, confirmation and link state),
    prints each file's digest and length and the ledger before the run, stops
-   on a version conflict, applies each file in one transaction with its
+   on a version conflict or when more than one ledger row is named after a
+   file, applies each file in one transaction with its
    ledger row (its own top-level `begin;`/`commit;` lines removed as the
    quoting scan above finds them; other transaction control, psql
    meta-commands, variable interpolation, unreadable quoting and a file with
-   no SQL statement refused; a provenance line naming the pull request or
+   no SQL statement left once those lines are removed refused; a provenance line naming the pull request or
    `main` commit, the actor and the run is stored in the row just ahead of
    the file, which stays the last element), skipping
    a migration already recorded under its name or basename only when the SQL
-   last recorded on it equals the committed file (a mismatch stops the run:
+   last recorded on it equals the committed file, and even then appending
+   this run's provenance line and the file to that row, so the merge gate can
+   hold a later push that drops a file production holds (a mismatch stops the run:
    drop the file, or re-apply it to install the committed content, which
    appends it to the row's evidence), then fails unless every requested
    migration is in the ledger with the committed content and the

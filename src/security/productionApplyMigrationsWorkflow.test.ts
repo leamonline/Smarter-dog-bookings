@@ -375,9 +375,12 @@ describe("production apply-migrations workflow", () => {
     expect(script).not.toMatch(/grep -viE '\^\[\[:space:]]\*\(begin\|commit\)/);
     expect(script).not.toMatch(/sed -E 's\/--\.\*\$\/\/'/);
     expect(script).not.toMatch(/perl -0pe/);
-    // The check runs before the psql session opens, and what runs is the
-    // lexer's executed text, never the raw file.
-    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.indexOf('    echo "begin;"'));
+    // The check runs before the apply's psql session opens (the last session
+    // that begins in the loop; the skip branch's provenance session executes
+    // no file text), and what runs is the lexer's executed text, never the
+    // raw file.
+    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.lastIndexOf('    echo "begin;"'));
+    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.indexOf('    printf \'%s\\n\' "$executed"'));
     expect(script).toContain('    printf \'%s\\n\' "$executed"');
     expect(script).not.toMatch(/^ {4}cat "\$file"$/m);
     expect(script).toContain('test "$missing" = 0');
@@ -415,7 +418,24 @@ describe("production apply-migrations workflow", () => {
     expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[$recorded]"`);
     expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[$recorded]"`);
     expect(script).toMatch(/if \[\[ "\$LEDGER_PROVENANCE" == \*\$'\\n'\* \]\] \|\| \[\[ "\$LEDGER_PROVENANCE" == \*'\$'\* \]\] \|\| \[\[ ! "\$LEDGER_PROVENANCE" =~ \^--\\ {2}\]\]; then\n {4}echo "Refusing LEDGER_PROVENANCE[^\n]*\n {4}exit 1/);
-    expect(script).toMatch(/if \[ -z "\$\(perl "\$lexer" skeleton < "\$file" \| tr -d '\[:space:\]'\)" \]; then\n {4}echo "REFUSED \$migration: it contains no SQL statement[^\n]*\n {4}exit 1/);
+    // ... judged on the executed form, so a file that is only its own
+    // begin;/commit; pair (and comments) is refused rather than recorded.
+    expect(script).toMatch(/if \[ -z "\$\(printf '%s\\n' "\$executed" \| perl "\$lexer" skeleton \| tr -d '\[:space:\]'\)" \]; then\n {4}echo "REFUSED \$migration: it contains no SQL statement once its own begin;\/commit; lines are removed[^\n]*\n {4}exit 1/);
+    expect(script).not.toMatch(/perl "\$lexer" skeleton < "\$file"/);
+    // One migration, one row: two rows named after it (stripped name and
+    // basename) stop the run before anything is written, and again at the
+    // verification, instead of judging one of them by version order.
+    expect(script).toContain('  already="$(ledger_row_count "$name" "$base" "$version")"');
+    expect(script).toMatch(/if \[ "\$already" -gt 1 \]; then\n {4}echo "CONFLICT \$migration: \$already ledger rows are named after it \[\$\(ledger_rows "\$name" "\$base" "\$version"\)\][^\n]*\n {4}exit 1/);
+    expect(script.indexOf('if [ "$already" -gt 1 ]; then')).toBeLessThan(script.indexOf('if [ "$already" != "0" ] && ! may_reapply "$migration"; then'));
+    expect(script).toMatch(/elif \[ "\$rows" -gt 1 \]; then\n {4}echo "CONFLICT \$migration: \$rows ledger rows are named after it \[\$recorded\][^\n]*\n {4}missing=1/);
+    // A skip still records this run's provenance (and the file again, so the
+    // file stays the last element) when the production workflow set it, so the
+    // merge gate can hold a later push that drops a file production holds.
+    expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\\$$tag\\$$LEDGER_PROVENANCE, found already applied with identical SQL (file $migration)\\$$tag\\$, $recorded]"`);
+    expect(script.indexOf("found already applied with identical SQL")).toBeGreaterThan(script.indexOf('echo "skip   $migration'));
+    expect(script.indexOf("found already applied with identical SQL")).toBeLessThan(script.indexOf('echo "MISMATCH $migration'));
+    expect(script).toContain('        echo "recorded $migration (this run\'s provenance appended to its ledger row; nothing executed)"');
     expect(stagingWorkflow).not.toContain("LEDGER_PROVENANCE");
     expect(script).not.toMatch(/set statements = array\[/);
     expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
