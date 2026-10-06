@@ -171,10 +171,11 @@ jobs:
           main_sha="$(git rev-parse FETCH_HEAD)"
           echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
           if [ "$main_sha" != "$GITHUB_SHA" ]; then
-            # The workflow and the apply code run as dispatched. If main has
-            # since changed them, what would run is not what main now has.
-            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh; then
-              echo "::error::main has changed the production apply workflow or scripts since this run was dispatched ($GITHUB_SHA; main is now $main_sha). Dispatch again from current main."
+            # The workflow, the apply code and the migration validator run as
+            # dispatched. If main has since changed any of them, what would
+            # run is not what main now has.
+            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then
+              echo "::error::main has changed the production apply workflow, its scripts or the migration validator since this run was dispatched ($GITHUB_SHA; main is now $main_sha). Dispatch again from current main."
               exit 1
             fi
             echo "::notice::main has moved on since this run was dispatched ($GITHUB_SHA; now $main_sha); the apply code is unchanged, and the migration checks use current main."
@@ -266,6 +267,19 @@ jobs:
             echo "::error::migrations names the same file more than once; a duplicate would run twice under reapply."
             exit 1
           fi
+          # The commit must also carry every migration current main has, so
+          # the tree validated below is the one a merge of the commit into
+          # main would produce: a head that has fallen behind main could
+          # otherwise reuse the timestamp or name of a migration main gained
+          # after it branched, pass every check on its own snapshot, and run
+          # SQL under a ledger identity the merged tree is refused for.
+          missing="$(git ls-tree --name-only "$MAIN_SHA" -- supabase/migrations/ | while IFS= read -r path; do
+            [ -e "$path" ] || printf '%s ' "${path#supabase/migrations/}"
+          done)"
+          if [ -n "$missing" ]; then
+            echo "::error::Commit $MIGRATION_REF lacks migrations current main ($MAIN_SHA) carries: ${missing% }. Bring the branch up to date with main (for a commit on main, dispatch current main itself) and dispatch again with the new head, so the tree checked is the one a merge would produce."
+            exit 1
+          fi
           # The overlaid tree must pass the repository's own structural
           # validation (scripts/check-migrations.mjs: the filename pattern,
           # unique timestamps, unique names after the timestamp, no empty or
@@ -326,14 +340,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Last look before the write: the commit must qualify now exactly as
-          # it did in the overlay step (same script, same main SHA, same pull
-          # request), so a pull request that moved on, closed, went back to
-          # draft or received a changes-requested review since is refused with
-          # nothing applied. A push after this point cannot merge different SQL
-          # under the same name either, because the migrations-applied check
-          # compares each file with the SQL this run records and looks for the
-          # provenance line below, so the window is closed from both sides.
+          # Last look before the write, in two parts. First, main itself must
+          # still be the tip the overlay step resolved: the preflight judged
+          # the files against that tip (append-only history, files main still
+          # carries, the merged-tree validation), and a merge to main since
+          # could have removed or added a migration that changes those
+          # answers, so a moved main is refused rather than re-judged.
+          git fetch --no-tags --depth=1 origin main
+          main_now="$(git rev-parse FETCH_HEAD)"
+          if [ "$main_now" != "$MAIN_SHA" ]; then
+            echo "::error::main moved from $MAIN_SHA to $main_now after the migration files were checked against it; nothing was applied. Dispatch again."
+            exit 1
+          fi
+          echo "| main at the write | \`$main_now\` (unchanged since the files were checked) |" >> "$GITHUB_STEP_SUMMARY"
+          # Second, the commit must qualify now exactly as it did in the
+          # overlay step (same script, same main SHA, same pull request), so a
+          # pull request that moved on, closed, went back to draft or received
+          # a changes-requested review since is refused with nothing applied.
+          # A push after this point cannot merge different SQL under the same
+          # name either, because the migrations-applied check compares each
+          # file with the SQL this run records and looks for the provenance
+          # line below, so the window is closed from both sides.
           scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out
           if [ "$(sed -n 's/^pr_number=//p' provenance-now.out)" != "$PR_NUMBER" ]; then
             echo "::error::The commit's provenance changed since the overlay step (pull request #${PR_NUMBER:-none} then, #$(sed -n 's/^pr_number=//p' provenance-now.out) now); nothing was applied. Dispatch again."

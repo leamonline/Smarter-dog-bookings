@@ -227,7 +227,13 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   refuses a fork's or a bot's pull request head, and the check fails closed
   when the token is missing for a same-repository pull request by a person;
   a type change counts as an edit and no migration entry may be anything but
-  a regular file.
+  a regular file. Round fourteen: `BEGIN ATOMIC` opens a body only inside a
+  `CREATE FUNCTION` or `CREATE PROCEDURE` after its parameter list, so the
+  two words used as identifiers no longer exempt a later `END`; the commit
+  must carry every migration current `main` has, so the tree validated is
+  the one its merge would produce; the write is refused if `main` moved
+  after the files were checked against it; and the drift guard covers the
+  migration validator and its import.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

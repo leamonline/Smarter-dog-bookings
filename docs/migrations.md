@@ -548,8 +548,8 @@ hold:
    SHA and a postcondition was given, all before checkout, so a wrong ref or an
    unconfigured environment never reaches the repository or the CLI;
 2. `main` is checked out; the current `main` tip is fetched and recorded, and
-   the run refuses if it has changed this workflow or the apply scripts since
-   the dispatch; the named commit is confirmed by
+   the run refuses if it has changed this workflow, the apply scripts or the
+   migration validator since the dispatch; the named commit is confirmed by
    `scripts/production-ref-provenance.sh`, against that tip, to be on `main`
    or the current head of an open, non-draft pull request into `main` with no
    reviewer's latest review requesting changes; then `supabase/migrations/`
@@ -560,14 +560,18 @@ hold:
    run) and, for a commit already on `main`, still exists on current `main`
    (a file `main` has since removed or renamed cannot be applied from an older
    commit; only a current pull request head may introduce a new path), every
-   `reapply` name is in the list, the overlaid tree passes
-   `scripts/check-migrations.mjs` (unique timestamps and names, no empty or
+   `reapply` name is in the list, the commit carries every migration current
+   `main` has (a head that has fallen behind `main` must take `main` in
+   first, so the tree checked is the one its merge would produce), the
+   overlaid tree passes `scripts/check-migrations.mjs` (unique timestamps and names, no empty or
    comment-only file, so two requested files can never fight over one ledger
    identity), and the full SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
-4. immediately before the write, the same provenance script runs again against
-   the same `main` tip and must reach the same verdict (a pull request that
+4. immediately before the write, `main` is fetched again and must still be
+   the tip the files were checked against (a `main` that moved in between is
+   refused, nothing applied), then the same provenance script runs again
+   against that tip and must reach the same verdict (a pull request that
    moved on, closed, went back to draft or received a changes-requested
    review since is refused, nothing applied); then the script re-checks the
    target (opt-in, confirmation and link state),

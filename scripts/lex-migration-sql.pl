@@ -189,8 +189,13 @@ my @findings;
 # A SQL-standard function body (CREATE FUNCTION ... BEGIN ATOMIC ...; END) is
 # not dollar-quoted, so its closing END arrives as a segment of its own: it
 # closes the body, not a transaction. Anything else inside the body is judged
-# as usual, so a COMMIT in there is still refused.
+# as usual, so a COMMIT in there is still refused. Only a CREATE FUNCTION or
+# CREATE PROCEDURE statement owns such a body, and only after its parameter
+# list: anywhere else BEGIN and ATOMIC are two ordinary non-reserved
+# identifiers (select begin atomic from ...), the text is judged whole, and
+# the END after it still ends a transaction.
 my $control = qr/^(?:begin|start|commit|rollback|end|abort)(?:\s.*)?$|^prepare\s+transaction(?:\s.*)?$/i;
+my $body_owner = qr/^\s*create\s+(?:or\s+replace\s+)?(?:function|procedure)\b/i;
 my $atomic_depth = 0;
 for my $statement (split /;/, $flat) {
   $statement =~ s/^\s+//;
@@ -202,17 +207,33 @@ for my $statement (split /;/, $flat) {
   # The segment that opens a body holds the CREATE statement and the body's
   # first statement (and, for a body that itself creates such a function,
   # further openings): every piece is judged, each opening deepens the
-  # nesting, and an empty body (BEGIN ATOMIC END) closes at once.
+  # nesting, and an empty body (BEGIN ATOMIC END) closes at once. A piece
+  # opens a body only when the text before it is a CREATE FUNCTION or
+  # CREATE PROCEDURE whose parentheses are all closed; otherwise the words
+  # are identifiers and the piece is joined back onto that text.
   my @pieces = split /\bbegin\s+atomic\b/i, $statement, -1;
-  my $head = shift @pieces;
-  my @parts = (defined $head ? $head : '');
-  for my $first (@pieces) {
-    $first =~ s/^\s+//;
-    $first =~ s/\s+$//;
-    next if $first =~ /^end$/i;
+  my $text = shift @pieces;
+  $text = '' unless defined $text;
+  my @parts;
+  for my $next (@pieces) {
+    my $opened = () = $text =~ /\(/g;
+    my $closed = () = $text =~ /\)/g;
+    if ($text !~ $body_owner || $opened != $closed) {
+      $text =~ s/\s+$//;
+      $text .= " begin atomic$next";
+      next;
+    }
+    push @parts, $text;
+    $next =~ s/^\s+//;
+    $next =~ s/\s+$//;
+    if ($next =~ /^end$/i) {
+      $text = '';
+      next;
+    }
     $atomic_depth++;
-    push @parts, $first;
+    $text = $next;
   }
+  push @parts, $text;
   for my $part (@parts) {
     $part =~ s/^\s+//;
     $part =~ s/\s+$//;

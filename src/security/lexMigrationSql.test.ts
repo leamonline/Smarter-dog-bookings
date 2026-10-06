@@ -150,6 +150,18 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
     expect(refusals(`${nested}end;\n`)).toEqual([`${TRANSACTION}end`]);
   });
 
+  it("opens a BEGIN ATOMIC body only in a CREATE FUNCTION or CREATE PROCEDURE, after its parameter list", () => {
+    // Both words are non-reserved identifiers anywhere else, and the END
+    // after them ends a transaction: the text is judged whole and that END
+    // is still refused.
+    expect(refusals("select begin atomic from (values (1)) t(begin);\nend;\n")).toEqual([`${TRANSACTION}end`]);
+    expect(refusals("begin atomic select 1;\nend;\n")).toEqual([`${TRANSACTION}begin atomic select 1`, `${TRANSACTION}end`]);
+    expect(refusals("create function f(begin atomic) returns int language sql as $$ select 1 $$;\nend;\n")).toEqual([`${TRANSACTION}end`]);
+    expect(refusals("create function f() returns int language sql begin atomic select begin atomic from (values (1)) t(begin); end;\nend;\n")).toEqual([`${TRANSACTION}end`]);
+    expect(refusals("create or replace procedure p() language sql begin atomic select 1; end;\n")).toEqual([]);
+    expect(refusals("CREATE FUNCTION f(a int) RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT a; END;\n")).toEqual([]);
+  });
+
   it("refuses every top-level transaction-ending form", () => {
     for (const statement of [
       "start transaction",

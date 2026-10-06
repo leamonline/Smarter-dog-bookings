@@ -111,7 +111,7 @@ describe("production apply-migrations workflow", () => {
     // provenance check and the append-only check; the dispatch-time checkout
     // (HEAD) is never the reference, and the apply code must match current main.
     expect(workflow).toContain("          git fetch --no-tags --depth=1 origin main\n          main_sha=\"$(git rev-parse FETCH_HEAD)\"\n          echo \"main_sha=$main_sha\" >> \"$GITHUB_OUTPUT\"");
-    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh; then');
+    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then');
     // Provenance (on main, or the current head of an open, non-draft pull
     // request with no outstanding changes request) is decided by one script,
     // run against the fetched main SHA, and run again before the write.
@@ -184,6 +184,43 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).not.toMatch(/git checkout "\$MIGRATION_REF"(?! -- supabase\/migrations\/)/);
     expect(workflow).not.toMatch(/^\s+ref: \$\{\{ inputs\.ref }}/m);
     expect(workflow).toContain("          MIGRATION_REF: ${{ inputs.ref }}");
+  });
+
+  it("guards every file the run executes against drift on main since the dispatch, the migration validator and its import included", () => {
+    const drift = workflow.match(/if ! git diff --quiet "\$GITHUB_SHA" "\$main_sha" -- ([^\n]+?); then/);
+    expect(drift).not.toBeNull();
+    const guarded = (drift as RegExpMatchArray)[1].split(/\s+/);
+    expect(guarded).toContain(".github/workflows/production-apply-migrations.yml");
+    // Every scripts/ path the workflow runs, and every relative import of a
+    // guarded module, is in the list: a rule tightened on main after the
+    // dispatch must not be bypassed by a run still waiting for approval.
+    const invoked = new Set<string>();
+    for (const match of workflow.matchAll(/(?:^|[\s"'])(scripts\/[A-Za-z0-9_.-]+)/g)) invoked.add(match[1]);
+    expect(invoked.size).toBeGreaterThanOrEqual(4);
+    for (const path of invoked) expect(guarded, `drift guard must cover ${path}`).toContain(path);
+    for (const path of guarded.filter((entry) => entry.endsWith(".mjs"))) {
+      const source = readFileSync(join(root, path), "utf8");
+      for (const match of source.matchAll(/from "\.\/([A-Za-z0-9_.-]+)"/g)) {
+        expect(guarded, `drift guard must cover the import ${match[1]} of ${path}`).toContain(`scripts/${match[1]}`);
+      }
+    }
+    expect(guarded).toEqual(expect.arrayContaining(["scripts/check-migrations.mjs", "scripts/migration-name.mjs"]));
+  });
+
+  it("checks the tree a merge would produce, and refuses the write once main has moved", () => {
+    // A head that has fallen behind main must carry every migration current
+    // main has before the validator runs, or its own snapshot could pass while
+    // a timestamp or name collides with a migration main gained after it branched.
+    const completeness = positionOf('          missing="$(git ls-tree --name-only "$MAIN_SHA" -- supabase/migrations/ | while IFS= read -r path; do');
+    expect(workflow).toContain('            [ -e "$path" ] || printf \'%s \' "${path#supabase/migrations/}"');
+    expect(workflow).toMatch(/if \[ -n "\$missing" \]; then\n {12}echo "::error::Commit \$MIGRATION_REF lacks migrations current main \(\$MAIN_SHA\) carries: [^\n]*\n {12}exit 1/);
+    expect(completeness).toBeLessThan(positionOf("          node scripts/check-migrations.mjs"));
+    // Immediately before the write, main is fetched again and must be the tip
+    // the files were checked against; the provenance re-check follows, then the apply.
+    const refetch = workflow.lastIndexOf('          git fetch --no-tags --depth=1 origin main\n          main_now="$(git rev-parse FETCH_HEAD)"');
+    expect(refetch).toBeGreaterThan(positionOf("      - name: Apply the named migrations to production"));
+    expect(workflow).toMatch(/if \[ "\$main_now" != "\$MAIN_SHA" \]; then\n {12}echo "::error::main moved from \$MAIN_SHA to \$main_now[^\n]*nothing was applied[^\n]*\n {12}exit 1/);
+    expect(refetch).toBeLessThan(positionOf('          scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out'));
   });
 
   it("validates the names and shows the SQL before production is linked", () => {
