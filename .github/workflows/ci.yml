@@ -40,7 +40,7 @@ jobs:
     #
     # The local bar in CLAUDE.md is unaffected: `npm run test` is still what a
     # contributor runs before pushing.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -70,7 +70,7 @@ jobs:
     # 76.15 vs 80) because jsdom component tests genuinely exercise those files.
     # Both projects stay. Lowering a threshold to buy runner minutes is exactly
     # what AGENTS.md forbids.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,7 +84,7 @@ jobs:
     # Deno-runtime tests for the Edge Functions (their own runtime, not vitest):
     # the whatsapp-agent dispatch-contract tests, plus the pure staff-push
     # reconciliation tests in supabase/functions/_shared/staffPush.test.ts.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -187,7 +187,7 @@ jobs:
     # saving the bulk of the Actions minutes that every PR push used to
     # burn. To run e2e against a branch on demand, use the "Run workflow"
     # button (workflow_dispatch) on the CI workflow.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Skip on pull requests
         if: github.event_name == 'pull_request'
@@ -246,7 +246,7 @@ jobs:
     # suite is no longer smoke-only. Project selection lives in
     # playwright.config.ts under PLAYWRIGHT_PR_SMOKE.
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:

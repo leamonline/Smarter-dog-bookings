@@ -258,7 +258,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `dev:live` only deliberately; a red "LIVE DATA" banner names the project while it is connected.
 - **Use `npm ci` locally, not `npm install`.** A darwin `npm install` silently strips the Linux
   `libc` (glibc/musl) metadata from `package-lock.json` for 12 Linux-only optional binaries, and
-  CI runs `npm ci` on ubuntu-latest where that discriminator matters. It has been committed
+  CI runs `npm ci` on ubuntu-24.04 where that discriminator matters. It has been committed
   accidentally twice. `npm run lint` now fails via `scripts/check-lockfile-platform.mjs`; the fix
   is `git restore package-lock.json`. Only run `npm install` when deliberately changing deps.
 - **`deno.lock` drifts on every Dependabot bump.** It mirrors `package.json`'s dependency ranges
