@@ -190,6 +190,31 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
     expect(refusals("select '{?version}', $$:{?x}$$, \"{?y}\";\n")).toEqual([]);
   });
 
+  it("ends a -- comment at a carriage return as psql does, so CR and CRLF line endings hide nothing", () => {
+    expect(refusals("select 1;\r-- comment\rcommit and chain;\r")).toEqual([`${TRANSACTION}commit and chain`]);
+    expect(refusals("select 1;\r\n-- comment\r\ncommit and chain;\r\n")).toEqual([`${TRANSACTION}commit and chain`]);
+    // A CRLF file's own pair is still recognised and removed; the skeleton
+    // keeps the CR, so its line numbers still line up.
+    expect(refusals("begin;\r\n-- comment\r\nselect 1;\r\ncommit;\r\n")).toEqual([]);
+    expect(lex("executed", "begin;\r\n-- comment\r\nselect 1;\r\ncommit;\r\n").stdout).toBe("-- comment\r\nselect 1;\r\n");
+    expect(lex("skeleton", "-- a\r\nselect 1; -- b\r\n").stdout).toBe("\r\nselect 1; \r\n");
+    // A CR-only file is one line to the pair detection, so its pair is
+    // refused as transaction control rather than merged into the apply's.
+    expect(refusals("begin;\rselect 1;\rcommit;\r")).toEqual([`${TRANSACTION}begin`, `${TRANSACTION}commit`]);
+  });
+
+  it("reads a run of colons as psql does: pairs are casts, a leftover colon starts a variable", () => {
+    expect(refusals("select null:::name;\n")).toEqual([`${DIRECTIVE}:name`]);
+    expect(refusals("select null::::name;\n")).toEqual([]);
+    expect(refusals("select 1::text:name, 2::int;\n")).toEqual([`${DIRECTIVE}:name`]);
+    expect(refusals("select :name::text;\n")).toEqual([`${DIRECTIVE}:name`]);
+    expect(refusals("select null:::'x', null:::\"y\", null:::{?z};\n")).toEqual([`${DIRECTIVE}:'S'`, `${DIRECTIVE}:"I"`, `${DIRECTIVE}:{?z}`]);
+    // 'a':::int is a string, a cast and the variable :int; a run inside a
+    // string or a dollar-quoted body is content.
+    expect(refusals("select 'a':::int;\n")).toEqual([`${DIRECTIVE}:int`]);
+    expect(refusals("select 'a'::int, ':::x', $$:::x$$;\n")).toEqual([]);
+  });
+
   it("refuses a string, identifier, comment or dollar-quoted body still open at the end of the file", () => {
     for (const [input, what] of [
       ["select 'abc;\n", "' string"],

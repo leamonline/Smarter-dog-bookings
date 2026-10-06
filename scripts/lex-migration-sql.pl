@@ -80,7 +80,10 @@ sub skeleton {
 
   pos($text) = 0;
   while (pos($text) < length $text) {
-    if ($text =~ /\G--[^\n]*/gc) {
+    # A -- comment ends at a line feed or a carriage return, as both the psql
+    # and the PostgreSQL lexers end it (non_newline is [^\n\r]), so a file
+    # with CR or CRLF line endings cannot hide the next line in a comment.
+    if ($text =~ /\G--[^\n\r]*/gc) {
       next;
     }
     if ($text =~ /\G\/\*/gc) {
@@ -243,10 +246,17 @@ for my $statement (split /;/, $flat) {
 }
 
 # A backslash outside a string is a psql meta-command; :name, :'name',
-# :"name" and :{?name} outside a string are psql variable references (a ::
-# cast is not).
-while ($executed_skeleton =~ /(\\[A-Za-z!?.;]?\S*|(?<!:):[A-Za-z_"'{][^\s,);]*)/g) {
-  push @findings, "psql meta-command or variable interpolation outside a string: $1";
+# :"name" and :{?name} outside a string are psql variable references. psql
+# reads a run of colons from the left, two at a time, as :: cast tokens, so
+# only a leftover colon (an odd run) starts a variable reference: null::name
+# is a cast, null:::name interpolates :name, null::::name is two casts.
+while ($executed_skeleton =~ /(\\[A-Za-z!?.;]?\S*)|(?<!:)(:+)([A-Za-z_"'{][^\s,);:]*)/g) {
+  if (defined $1) {
+    push @findings, "psql meta-command or variable interpolation outside a string: $1";
+    next;
+  }
+  next if length($2) % 2 == 0;
+  push @findings, "psql meta-command or variable interpolation outside a string: :$3";
 }
 
 print map { "$_\n" } @findings;

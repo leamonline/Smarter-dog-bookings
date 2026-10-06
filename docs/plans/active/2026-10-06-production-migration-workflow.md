@@ -240,6 +240,10 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   before and after the apply, never judged by version order; and the
   no-SQL refusal reads the executed form, so a file that is only its own
   `begin;`/`commit;` pair and comments is refused rather than recorded.
+  Round sixteen: the lexer ends a `--` comment at a carriage return as well
+  as a line feed, as psql does, and reads a run of colons as psql does (pairs
+  are `::` casts, a leftover colon starts a variable reference), so
+  `null:::name` is refused as interpolation.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

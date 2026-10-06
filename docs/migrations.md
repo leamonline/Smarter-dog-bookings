@@ -409,8 +409,11 @@ to `scripts/apply-hosted-migrations.sh`, which:
   chain`, `prepare transaction`, a `commit` sharing a line), because the
   apply must neither split nor merge what the file keeps atomic; psql
   meta-commands (a backslash outside a string) and psql variable
-  interpolation (`:name`, `:'name'`, `:"name"`, `:{?name}`), because psql
-  would act on them before PostgreSQL saw the file; a string, identifier,
+  interpolation (`:name`, `:'name'`, `:"name"`, `:{?name}`, a leftover colon
+  after any `::` casts included), because psql would act on them before
+  PostgreSQL saw the file (and a `--` comment ends at a carriage return as
+  well as a line feed, as psql ends it, so CR or CRLF line endings hide
+  nothing); a string, identifier,
   comment or dollar-quoted body still open at the end of the file; and a
   file that mentions `standard_conforming_strings` or `client_encoding`, the
   two settings that would change how its quoting is read (a CI test runs the
