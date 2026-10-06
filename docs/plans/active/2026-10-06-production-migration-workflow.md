@@ -221,7 +221,13 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   restores exactly what production recorded; the preflight runs
   `scripts/check-migrations.mjs` on the overlaid tree before production is
   linked; and the lexer reads a SQL-standard `BEGIN ATOMIC … END` body as a
-  body rather than refusing its `END`.
+  body rather than refusing its `END`. Round thirteen: the Claude grant for
+  staging is the hook alone (no `permissions.allow` entry, so a hook failure
+  falls back to the prompt instead of standing for production); the workflow
+  refuses a fork's or a bot's pull request head, and the check fails closed
+  when the token is missing for a same-repository pull request by a person;
+  a type change counts as an edit and no migration entry may be anything but
+  a regular file.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

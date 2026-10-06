@@ -475,7 +475,13 @@ migration the production workflow applied from an earlier head of that pull
 request (found through the provenance line in its ledger row, which names
 the exact file) that the current head no longer carries under that very
 name: a later push cannot quietly drop, rename or rewrite what production
-already ran.
+already ran. A type change counts as an edit, and no migration entry may be
+anything but a regular file (a symbolic link is refused before anything
+else). When the token is missing, which GitHub arranges for a fork's or a
+bot's pull request, the check passes only if nothing touched a migration and
+the pull request is one the production workflow could never have applied
+from; a same-repository pull request by a person without the token fails,
+because what was applied from it cannot be looked up.
 
 **Before the first run (one-off GitHub setup).** Create the `production`
 environment (Settings → Environments) with a required reviewer and a
@@ -495,7 +501,10 @@ reviewed there). Fill in:
 - `ref`: the full 40-character SHA of the reviewed pull request head (shown
   on the pull request), which is where the migration files live before merge;
   it must be the *current* head of an open, non-draft pull request into
-  `main` with no outstanding changes-requested review from any reviewer (a
+  `main` from a branch of this repository, opened by a person (a fork's or a
+  bot's pull request receives no repository secrets, so the merge gate could
+  never look up what was applied from it), with no outstanding
+  changes-requested review from any reviewer (a
   changes request stays outstanding across later pushes until that reviewer
   approves or it is dismissed, as GitHub counts it), or a commit already on
   `main`; the run checks this through the GitHub API and records each
@@ -603,11 +612,14 @@ later migration).
 
 ## The Supabase MCP tool and the Claude permission
 
-`.claude/settings.json` allows `mcp__Supabase__apply_migration` so an agent
-session can apply a migration to **staging** without a per-call prompt. The
-allow rule cannot tell projects apart, so the PreToolUse hook
-`.claude/hooks/guard-supabase-apply-migration.sh` reads the call's project ref
-and sends anything other than the staging ref back to the permission prompt:
-production is still confirmed by a person, per call, and the MCP server's own
-destructive-statement confirmation is unchanged. Production migrations go
+The PreToolUse hook `.claude/hooks/guard-supabase-apply-migration.sh`
+(wired in `.claude/settings.json`) reads each `mcp__Supabase__apply_migration`
+call's project ref and allows the call without a prompt for **staging** only;
+anything else (the production ref, an unknown ref, unreadable input) goes back
+to the permission prompt, so production is still confirmed by a person, per
+call, and the MCP server's own destructive-statement confirmation is
+unchanged. There is deliberately no `permissions.allow` entry for the tool: a
+hook that fails to run is non-blocking in Claude Code, and an allow rule would
+then have stood for every project, production included, whereas with the hook
+as the only grant a failure falls back to the prompt. Production migrations go
 through the workflow above, not through the MCP tool.

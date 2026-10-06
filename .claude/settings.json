@@ -1,9 +1,4 @@
 {
-  "permissions": {
-    "allow": [
-      "mcp__Supabase__apply_migration"
-    ]
-  },
   "hooks": {
     "PreToolUse": [
       {

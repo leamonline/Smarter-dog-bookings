@@ -124,7 +124,11 @@ describe("production apply-migrations workflow", () => {
     expect(provenance).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$ref" --jq \'.status\')"');
     expect(provenance).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
     expect(provenance).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |');
-    expect(provenance).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false)');
+    // Only a same-repository pull request opened by a person: a fork's or a
+    // bot's gets no repository secrets, so the merge gate could never look up
+    // what was applied from it.
+    expect(provenance).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false and .head.repo.full_name == $repo and .user.type != "Bot")');
+    expect(provenance).toContain('--arg repo "$GITHUB_REPOSITORY"');
     expect(provenance).toContain('reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"');
     expect(provenance).toContain("if [ \"$(printf '%s' \"$reviews_json\" | jq 'length')\" -ge 100 ]; then");
     expect(provenance).toContain(
@@ -411,13 +415,12 @@ describe("production apply-migrations workflow", () => {
 });
 
 describe("the Claude permission for apply_migration is guarded", () => {
-  it("allows exactly that one Supabase MCP tool", () => {
-    expect(settings.permissions.allow).toEqual(["mcp__Supabase__apply_migration"]);
-    const broad = (settings.permissions.allow as string[]).filter(
-      (rule) => rule !== "mcp__Supabase__apply_migration" && /supabase/i.test(rule),
-    );
-    expect(broad).toEqual([]);
-    expect(settings.permissions.deny ?? []).toEqual([]);
+  it("grants nothing through permissions.allow: the hook is the only grant, so a hook failure falls back to the prompt", () => {
+    // A hook that fails to launch is non-blocking in Claude Code and falls
+    // through to the permission rules; an allow entry there would then have
+    // stood for every project, production included.
+    expect(settings.permissions).toBeUndefined();
+    expect(settings.hooks.PreToolUse.some((entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration")).toBe(true);
   });
 
   it("sends every non-staging project ref back to the permission prompt", () => {
@@ -483,7 +486,11 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   it("refuses deleting, renaming or editing an applied migration (an edit restoring the recorded SQL aside)", () => {
     expect(gate).toContain(`deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
     expect(gate).toContain(`added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
-    expect(gate).toContain(`modified=$(git diff --name-only --no-renames --diff-filter=M "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    // A type change (a file turned into a symbolic link) counts as an edit, and
+    // no migration entry in the tree may be anything but a regular file.
+    expect(gate).toContain(`modified=$(git diff --name-only --no-renames --diff-filter=MT "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(gate).toContain(`irregular=$(git ls-files -s -- 'supabase/migrations/*.sql' | awk '$1 != "100644" && $1 != "100755" { print $1, $4 }')`);
+    expect(gate.indexOf("irregular=$(git ls-files -s")).toBeLessThan(gate.indexOf('if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then'));
     expect(gate).toContain("          MODIFIED_FILES: ${{ steps.added.outputs.modified }}");
     expect(gate).toMatch(/echo "✗ REMOVED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
     expect(gate).toMatch(/elif \[ "\$\(content_verdict "\$ver" "\$name" "\$base" "\$f"\)" = "match" \]; then\n {14}echo "✓ edited to exactly the SQL prod recorded applying: \$base"/);
@@ -501,6 +508,12 @@ describe("check-migrations-applied.yml binds the applied content", () => {
     // Every pull request is verified (an applied file may have been dropped),
     // while a run with neither token nor migration changes (Dependabot) skips.
     expect(gate).toContain("        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'");
-    expect(gate).toContain('            echo "No migration file changes and no token in this run (a Dependabot pull request) — nothing to verify. ✅"');
+    // Without the token, only a fork's or a bot's pull request may pass with
+    // nothing touched (the production workflow never applies from those); a
+    // same-repository pull request by a person without the token fails closed.
+    expect(gate).toContain("          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}");
+    expect(gate).toContain("          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}");
+    expect(gate).toMatch(/if \[ -n "\$PR_NUMBER" \] && \[ "\$PR_HEAD_REPO" = "\$GITHUB_REPOSITORY" \] && \[ "\$PR_AUTHOR_TYPE" != "Bot" \]; then\n {14}echo "::error::SUPABASE_ACCESS_TOKEN isn't available in this run, so what the production workflow applied from this pull request can't be verified[^\n]*\n {14}exit 1/);
+    expect(gate).toContain("            echo \"No migration file changes and no token in this run (a fork's or a bot's pull request, which the production workflow never applies from) — nothing to verify. ✅\"");
   });
 });

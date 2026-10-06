@@ -101,7 +101,8 @@ jobs:
           # Renames are read as a removal plus an addition: both sides matter.
           added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\.sql$' || true)
           deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\.sql$' || true)
-          modified=$(git diff --name-only --no-renames --diff-filter=M "$range" -- supabase/migrations/ | grep '\.sql$' || true)
+          # A type change (a file turned into a symbolic link, say) is an edit too.
+          modified=$(git diff --name-only --no-renames --diff-filter=MT "$range" -- supabase/migrations/ | grep '\.sql$' || true)
           echo "Migration files added in $range:"
           echo "${added:-  (none)}"
           echo "Migration files removed in $range:"
@@ -138,8 +139,19 @@ jobs:
           DELETED_FILES: ${{ steps.added.outputs.deleted }}
           MODIFIED_FILES: ${{ steps.added.outputs.modified }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
         run: |
           set -euo pipefail
+
+          # Every migration in the tree must be a regular file: a symbolic link
+          # would be followed by every reader of the path, so it could stand in
+          # for an applied migration's content. Needs no token, so it runs first.
+          irregular=$(git ls-files -s -- 'supabase/migrations/*.sql' | awk '$1 != "100644" && $1 != "100755" { print $1, $4 }')
+          if [ -n "$irregular" ]; then
+            echo "::error::These migration entries are not regular files (mode, path): $irregular"
+            exit 1
+          fi
 
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
             if [ -n "$ADDED_FILES$DELETED_FILES$MODIFIED_FILES" ]; then
@@ -147,7 +159,18 @@ jobs:
               echo "A Dependabot PR shouldn't be touching migrations; for anything else, ensure the secret is set."
               exit 1
             fi
-            echo "No migration file changes and no token in this run (a Dependabot pull request) — nothing to verify. ✅"
+            # Without the token the ledger cannot be asked what the production
+            # workflow applied from this pull request. That is safe only when
+            # nothing could have been: the workflow refuses a fork's or a bot's
+            # pull request head (scripts/production-ref-provenance.sh), and those
+            # are exactly the pull requests GitHub withholds secrets from. A
+            # same-repository pull request by a person without the token means
+            # the secret is missing, which must not pass.
+            if [ -n "$PR_NUMBER" ] && [ "$PR_HEAD_REPO" = "$GITHUB_REPOSITORY" ] && [ "$PR_AUTHOR_TYPE" != "Bot" ]; then
+              echo "::error::SUPABASE_ACCESS_TOKEN isn't available in this run, so what the production workflow applied from this pull request can't be verified; ensure the secret is set."
+              exit 1
+            fi
+            echo "No migration file changes and no token in this run (a fork's or a bot's pull request, which the production workflow never applies from) — nothing to verify. ✅"
             exit 0
           fi
           if [[ -n "$PR_NUMBER" && ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then

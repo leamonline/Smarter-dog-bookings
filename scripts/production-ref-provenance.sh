@@ -41,10 +41,14 @@ if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
   exit 0
 fi
 
+# Only a pull request from a branch of this repository, opened by a person,
+# qualifies: a fork's or a bot's pull request receives no repository secrets,
+# so the migrations-applied check could not look up what was applied from
+# it, and production must never run SQL it cannot later hold a merge to.
 pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |
-  jq -r --arg sha "$ref" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false) | .number] | first // empty')"
+  jq -r --arg sha "$ref" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false and .head.repo.full_name == $repo and .user.type != "Bot") | .number] | first // empty')"
 if [ -z "$pr_number" ]; then
-  echo "::error::Commit $ref is neither on main nor the current head of an open, non-draft pull request into main (compare status: $compare). Dispatch with the reviewed pull request's present head."
+  echo "::error::Commit $ref is neither on main nor the current head of an open, non-draft pull request into main from a branch of this repository opened by a person (compare status: $compare). Dispatch with the reviewed pull request's present head."
   exit 1
 fi
 
