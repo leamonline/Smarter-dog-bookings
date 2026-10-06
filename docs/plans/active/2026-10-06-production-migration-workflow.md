@@ -124,7 +124,13 @@ secret. None of these can be created from this repository.
   production condition) stops the run as a conflict; nothing is written to it.
 - A file carrying its own `begin;`/`commit;` has those lines removed so the
   apply's transaction, with the ledger row, is the only one; any other
-  top-level transaction control is refused.
+  top-level transaction control, psql meta-command or variable interpolation
+  is refused.
+- The postcondition runs as `anon`: it reads the catalogs in full, sees
+  tables only as an anonymous API client would (grants and row-level
+  security apply), and cannot use privileged functions, so an operator's
+  check cannot signal other sessions and reaches no more data than the
+  public API does.
 - The CLI's temporary login on production is assumed to behave as on staging
   (`set role postgres`); only the first real dispatch proves it. Detection: the
   before-state listing fails before any apply.
@@ -192,3 +198,10 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
 
 - Whether `check-migrations-applied.yml` should also compare content, now
   that the ledger stores it for script-applied rows.
+- Whether a dispatched pull request head must carry an *approving* review.
+  The workflow requires a non-draft pull request with no outstanding
+  changes-requested review and records the approvals it finds in the step
+  summary for the environment approver; it does not demand an approval,
+  because GitHub does not let an author approve their own pull request and a
+  hard requirement would lock out a sole maintainer. That is a product-policy
+  choice for the repository owner (6 October 2026, Codex review round six).

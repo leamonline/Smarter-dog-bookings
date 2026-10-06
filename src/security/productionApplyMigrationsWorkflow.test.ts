@@ -107,8 +107,12 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain('          GH_TOKEN: ${{ github.token }}');
     expect(workflow).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$MIGRATION_REF" --jq \'.status\')"');
     expect(workflow).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
-    expect(workflow).toContain('open_heads="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
-    expect(workflow).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha)');
+    expect(workflow).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
+    // Non-draft only, with no outstanding changes-requested review on that head; approvals are recorded.
+    expect(workflow).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false)');
+    expect(workflow).toContain('reviews="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100" |');
+    expect(workflow).toContain("            if printf '%s' \"$reviews\" | grep -q 'CHANGES_REQUESTED'; then");
+    expect(workflow).toContain('provenance="current head of open pull request #$pr_number; reviews on this head: ${reviews:-none}"');
     expect(workflow.indexOf('compare="$(gh api')).toBeLessThan(workflow.indexOf('git fetch --no-tags --depth=1 origin "$MIGRATION_REF"'));
     expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
     // The directory is emptied first, so a main-only file cannot survive a wrong SHA.
@@ -121,6 +125,9 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain('            if [ "$mode" != "100644" ] && [ "$mode" != "100755" ]; then');
     expect(workflow).toContain('            if [ -L "supabase/migrations/$migration" ] || [ ! -f "supabase/migrations/$migration" ]; then');
     expect(workflow).toContain('            if ! git show "$MIGRATION_REF:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
+    // Applied history is append-only: a file already on main must be identical to main's.
+    expect(workflow).toContain('            if git cat-file -e "HEAD:supabase/migrations/$migration" 2>/dev/null &&');
+    expect(workflow).toContain('               ! git show "HEAD:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.
@@ -260,6 +267,12 @@ describe("production apply-migrations workflow", () => {
     // transaction control is refused after a comment- and dollar-quote-aware scan.
     expect(script).toContain(`grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true`);
     expect(script).toContain("perl -0pe 's/\\$([A-Za-z_][A-Za-z0-9_]*|)\\$.*?\\$\\1\\$//gs'");
+    // Every transaction-ending form counts (and [no] chain, prepared, prepare transaction),
+    // and psql meta-commands or variable interpolation outside strings are refused.
+    expect(script).toContain("grep -iE '^(begin|start|commit|rollback|end|abort)([[:space:]].*)?$|^prepare[[:space:]]+transaction([[:space:]].*)?$' || true");
+    expect(script).toContain(`perl -0pe "s/'(?:[^']|'')*'/'S'/gs"`);
+    expect(script).toContain('directives="$(psql_directives "$executed")"');
+    expect(script).toMatch(/echo "REFUSED \$migration: psql meta-command or variable interpolation outside a string: .*" >&2\n {4}exit 1/);
     expect(script).toContain('executed="$(executed_sql "$file")"');
     expect(script).toContain('leftover="$(transaction_control "$executed")"');
     expect(script).toMatch(/echo "REFUSED \$migration: top-level transaction control the apply cannot keep atomic: .*" >&2\n {4}exit 1/);
@@ -295,8 +308,10 @@ describe("production apply-migrations workflow", () => {
     // ADR 006 postcondition: read-only, must be exactly one boolean true.
     // The query runs inside a scalar subquery, so no separator can end the
     // read-only transaction, and semicolons are refused up front.
+    // ... as the least-privileged `anon` role with a statement timeout: catalogs
+    // readable, customer rows and server-signalling functions denied.
     expect(script).toContain(
-      '      "set transaction read only;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ") is true;" \\\n      "rollback;" |',
+      '      "set transaction read only;" \\\n      "set local statement_timeout = \'30s\';" \\\n      "set local role anon;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ") is true;" \\\n      "rollback;" |',
     );
     // A file listed twice would run twice under a re-apply: refused before any hosted command.
     expect(script).toContain('if [ "$(printf \'%s\\n\' "$@" | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');

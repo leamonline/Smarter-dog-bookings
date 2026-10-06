@@ -49,11 +49,16 @@
 #
 # POSTCONDITION_SQL (required for production, optional for staging): one
 #   SELECT with no semicolons or backslashes that must return exactly one
-#   boolean true after the files are applied. It runs as postgres inside a
-#   read-only transaction AND as `select (<query>) is true`, so no statement
-#   separator can end the transaction and smuggle a write behind the verdict,
-#   and only a genuine boolean true (never the text 't') passes; it can prove
-#   the schema but cannot change it.
+#   boolean true after the files are applied. It runs as the `anon` role
+#   inside a read-only transaction with a 30-second statement timeout, and as
+#   `select (<query>) is true`: no statement separator can end the
+#   transaction, only a genuine boolean true (never the text 't') passes, and
+#   `anon` sees no more than an anonymous API client would (the catalogs
+#   pg_tables, pg_attribute, pg_proc, pg_indexes, pg_policies ... in full;
+#   tables only through their grants and row-level security) and cannot use
+#   privileged functions such as pg_terminate_backend. Write postconditions
+#   against pg_catalog, not information_schema (which hides what the role
+#   cannot select).
 #
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
 # though their name is already in the ledger. Needed when migrations reach a
@@ -169,17 +174,37 @@ executed_sql() {
   grep -viE '^[[:space:]]*(begin|commit)([[:space:]]+(transaction|work))?[[:space:]]*;[[:space:]]*(--.*)?$' "$1" || true
 }
 
-# Top-level transaction-control statements left in a text, after removing
-# `--` comments and dollar-quoted bodies (so a plpgsql `end;` never counts).
-# Prints one offending statement per line; prints nothing when clean.
-transaction_control() {
+# The text with `--` comments and dollar-quoted bodies removed and every
+# single-quoted string collapsed to 'S': what psql itself would read as
+# commands, identifiers and variable references.
+sql_skeleton() {
   printf '%s\n' "$1" |
     sed -E 's/--.*$//' |
     perl -0pe 's/\$([A-Za-z_][A-Za-z0-9_]*|)\$.*?\$\1\$//gs' |
+    perl -0pe "s/'(?:[^']|'')*'/'S'/gs"
+}
+
+# Top-level transaction-control statements left in a text (so a plpgsql
+# `end;` or a `commit` inside a string never counts). Every form counts:
+# begin/start with any options, commit/rollback/end/abort with or without
+# `work`, `transaction`, `and [no] chain` or `prepared`, and `prepare
+# transaction`. Prints one offending statement per line; nothing when clean.
+transaction_control() {
+  sql_skeleton "$1" |
     tr '\n' ' ' |
     tr ';' '\n' |
     sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' |
-    grep -iE '^(begin|start)([[:space:]]+(transaction|work))?$|^(commit|rollback|end|abort)([[:space:]]+(transaction|work|prepared.*))?$' || true
+    grep -iE '^(begin|start|commit|rollback|end|abort)([[:space:]].*)?$|^prepare[[:space:]]+transaction([[:space:]].*)?$' || true
+}
+
+# psql meta-commands (a backslash outside strings and bodies) and psql
+# variable interpolation (`:name`, `:'name'`, `:"name"`, but never a `::`
+# cast) would be read by psql, not by PostgreSQL: a migration could overwrite
+# the ledger variables or run shell commands. Prints the offending text.
+psql_directives() {
+  sql_skeleton "$1" |
+    grep -oE '\\[A-Za-z!?.;]?[^[:space:]]*|(^|[^:]):[A-Za-z_"'"'"'][^[:space:],)]*' |
+    sed -E 's/^[^:\\]//' || true
 }
 
 # The SQL most recently recorded for a migration: the last element of the
@@ -276,6 +301,11 @@ for migration in "$@"; do
     echo "REFUSED $migration: top-level transaction control the apply cannot keep atomic: $(printf '%s' "$leftover" | tr '\n' ',')" >&2
     exit 1
   fi
+  directives="$(psql_directives "$executed")"
+  if [ -n "$directives" ]; then
+    echo "REFUSED $migration: psql meta-command or variable interpolation outside a string: $(printf '%s' "$directives" | tr '\n' ',')" >&2
+    exit 1
+  fi
   # The file's statements, the ledger row and the commit are one transaction.
   {
     echo "begin;"
@@ -331,11 +361,15 @@ if [ -n "${POSTCONDITION_SQL:-}" ]; then
   # statement separator inside the parentheses is a syntax error, so the
   # read-only transaction cannot be ended from inside the input, and IS TRUE
   # errors on anything that is not a boolean, so the text 't' cannot pass.
+  # It runs as `anon` (postgres is a member of anon on every Supabase
+  # project): what an anonymous API client could see, no privileged functions.
   verdict="$(
     printf '%s\n' \
       "set role postgres;" \
       "begin;" \
       "set transaction read only;" \
+      "set local statement_timeout = '30s';" \
+      "set local role anon;" \
       "select (" \
       "$POSTCONDITION_SQL" \
       ") is true;" \

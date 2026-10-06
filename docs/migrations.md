@@ -399,9 +399,13 @@ to `scripts/apply-hosted-migrations.sh`, which:
   (the repository's usual style) are removed before execution so they cannot
   commit the schema change ahead of the ledger row (the log says `strip`, and
   the ledger stores the file exactly as committed); any other top-level
-  transaction control (`start transaction`, `rollback`, `end`, a `commit`
-  sharing a line) is refused, because the apply could not keep it atomic.
-  Symbolic links under `supabase/migrations/` are refused.
+  transaction control (`start transaction`, `rollback`, `end`, `commit and
+  chain`, `prepare transaction`, a `commit` sharing a line) is refused,
+  because the apply could not keep it atomic. psql meta-commands (a
+  backslash outside a string) and psql variable interpolation (`:name`,
+  `:'name'`) are refused too, because psql would act on them before
+  PostgreSQL saw the file. Symbolic links under `supabase/migrations/` are
+  refused.
 
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
@@ -465,19 +469,27 @@ reviewed there). Fill in:
 - `confirm_production_ref`: `nlzhllhkigmsvrzduefz`;
 - `ref`: the full 40-character SHA of the reviewed pull request head (shown
   on the pull request), which is where the migration files live before merge;
-  it must be the pull request's *current* head (or a commit already on
-  `main`), which the run checks through the GitHub API, so a superseded head
-  cannot apply older SQL under a current filename; only `supabase/migrations/`
-  is taken from that commit;
+  it must be the *current* head of an open, non-draft pull request into
+  `main` with no outstanding changes-requested review (or a commit already on
+  `main`), which the run checks through the GitHub API and records with the
+  approvals it found, so a superseded or unreviewed head cannot apply SQL
+  under a current filename; only `supabase/migrations/` is taken from that
+  commit, and a file that already exists on `main` must be byte-identical to
+  `main`'s copy (history is append-only: a fix is a new, later migration);
 - `migrations`: the space-separated file basenames in the order they must run,
   each at most once;
 - `postcondition`: one `SELECT` (no semicolons) that proves the behavioural
-  outcome and returns exactly one boolean true, for example
-  `select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')`,
-  or `select not exists (...)` for a drop; it runs as `postgres` inside a
-  read-only transaction as `select (…) is true`, so it can prove the schema
-  but cannot change it, cannot end the transaction, and must be a real
-  boolean (the text `'t'` does not pass);
+  outcome and returns exactly one boolean true, written against
+  `pg_catalog`, for example
+  `select exists (select 1 from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'humans' and a.attname = 'x' and not a.attisdropped)`
+  or `select exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'x')`,
+  with `not exists` for a drop. It runs as the `anon` role inside a
+  read-only transaction with a 30-second timeout, as `select (…) is true`:
+  it sees the catalogs in full but tables only as an anonymous API client
+  would (grants and row-level security apply), it cannot use privileged
+  functions such as `pg_terminate_backend`, it cannot end the transaction,
+  and it must be a real boolean (the text `'t'` does not pass). Do not use
+  `information_schema`, which hides objects the role cannot select;
 - `reapply`: only for the out-of-order repair case described above; every
   name here must also be in `migrations`, or the run is refused.
 
@@ -506,12 +518,13 @@ hold:
    prints each file's digest and length and the ledger before the run, stops
    on a version conflict, applies each file in one transaction with its
    ledger row (its own `begin;`/`commit;` lines removed; other transaction
-   control refused), skipping a migration already recorded under its name or
-   basename only when the SQL last recorded on it equals the committed file
-   (a mismatch stops the run: drop the file, or re-apply it to install the
-   committed content, which appends it to the row's evidence), then fails
-   unless every requested migration is in the ledger with the committed
-   content and the postcondition returns true in a read-only transaction;
+   control, psql meta-commands and variable interpolation refused), skipping
+   a migration already recorded under its name or basename only when the SQL
+   last recorded on it equals the committed file (a mismatch stops the run:
+   drop the file, or re-apply it to install the committed content, which
+   appends it to the row's evidence), then fails unless every requested
+   migration is in the ledger with the committed content and the
+   postcondition returns true as `anon` in a read-only transaction;
 5. `supabase migration list --linked` records the after-state.
 
 The run's step summary names who dispatched it, the migrations requested, the

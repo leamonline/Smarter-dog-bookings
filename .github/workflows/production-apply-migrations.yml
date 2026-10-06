@@ -138,13 +138,22 @@ jobs:
           if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
             provenance="already on main ($compare)"
           else
-            open_heads="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |
-              jq --arg sha "$MIGRATION_REF" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha) | .number] | length')"
-            if [ "$open_heads" = "0" ]; then
-              echo "::error::Commit $MIGRATION_REF is neither on main nor the current head of an open pull request into main (compare status: $compare). Dispatch with the pull request's present head."
+            pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |
+              jq -r --arg sha "$MIGRATION_REF" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false) | .number] | first // empty')"
+            if [ -z "$pr_number" ]; then
+              echo "::error::Commit $MIGRATION_REF is neither on main nor the current head of an open, non-draft pull request into main (compare status: $compare). Dispatch with the reviewed pull request's present head."
               exit 1
             fi
-            provenance="current head of an open pull request into main"
+            # Latest review per reviewer on this head: an outstanding
+            # "changes requested" refuses the run; approvals are recorded so
+            # the environment approver can see what review the head received.
+            reviews="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100" |
+              jq -r --arg sha "$MIGRATION_REF" '[.[] | select(.commit_id == $sha and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | group_by(.user.login) | map(max_by(.submitted_at)) | map("\(.user.login)=\(.state)") | join(" ")')"
+            if printf '%s' "$reviews" | grep -q 'CHANGES_REQUESTED'; then
+              echo "::error::Pull request #$pr_number has an outstanding changes-requested review on $MIGRATION_REF: $reviews"
+              exit 1
+            fi
+            provenance="current head of open pull request #$pr_number; reviews on this head: ${reviews:-none}"
           fi
           echo "Commit provenance: $provenance"
           # The checkout above is main (the dispatched ref): the workflow and
@@ -191,6 +200,14 @@ jobs:
             fi
             if ! git show "$MIGRATION_REF:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
               echo "::error::supabase/migrations/$migration differs from the blob in commit $MIGRATION_REF."
+              exit 1
+            fi
+            # Applied history is append-only: a file that already exists on
+            # main must be byte-identical to main's copy, or the fix belongs
+            # in a new, later migration.
+            if git cat-file -e "HEAD:supabase/migrations/$migration" 2>/dev/null &&
+               ! git show "HEAD:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
+              echo "::error::supabase/migrations/$migration already exists on main with different content; history is append-only, so add a new corrective migration instead."
               exit 1
             fi
           done
