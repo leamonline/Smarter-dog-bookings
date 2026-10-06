@@ -287,22 +287,30 @@ for migration in "$@"; do
     exit 1
   fi
   # The file's statements, the ledger row and the commit are one transaction.
+  # The ledger text travels inside the same stdin stream as a dollar-quoted
+  # literal under a tag the file does not contain, never as a command-line
+  # argument (Linux caps one argument at 128 KiB, and a file that size would
+  # fail here after earlier files had committed). psql reads neither
+  # variables nor meta-commands inside a dollar quote, so the file is stored
+  # exactly as committed, trailing newlines aside, as before.
+  body="$(cat "$file")"
+  tag="ledger_$RANDOM$RANDOM"
+  while grep -qF "\$$tag\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done
   {
     echo "begin;"
     echo "set role postgres;"
     printf '%s\n' "$executed"
     echo
-    echo "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[:'body']"
+    printf '%s\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\$$tag\$$body\$$tag\$]"
     echo "  where $LEDGER_MATCH;"
     echo "insert into supabase_migrations.schema_migrations (version, name, statements)"
-    echo "  select :'version', :'name', array[:'body']"
+    printf '%s\n' "  select :'version', :'name', array[\$$tag\$$body\$$tag\$]"
     echo "  where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);"
     echo "commit;"
   } | psql -X -q --set ON_ERROR_STOP=1 \
         --set=version="$version" \
         --set=base="$base" \
         --set=name="$name" \
-        --set=body="$(cat "$file")" \
         --file -
   echo "done   $migration"
 done

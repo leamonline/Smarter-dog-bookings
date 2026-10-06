@@ -31,6 +31,15 @@ name: Migrations Applied Check
 # It also only checks migrations this change *adds* (diff vs the base), so
 # historical drift on old files never trips it.
 #
+# Content note (6 October 2026): a name match is necessary, not sufficient.
+# The production apply workflow (production-apply-migrations.yml) records the
+# whole committed file as the last element of the row's `statements`, so for
+# every added file this check also compares that recorded SQL with the file in
+# the pull request (trailing whitespace aside) and fails on a difference: a
+# file edited after it was applied, or a pull request head pushed after the
+# apply, cannot merge under the applied name. A row that recorded no SQL
+# (applied and ledgered by hand) is still matched by name alone.
+#
 # Secret required:
 #   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
 
@@ -111,13 +120,32 @@ jobs:
             exit 1
           fi
 
+          # Only valid migration filenames take part: their version, name and
+          # basename are quoted into the query below, so nothing else may be.
+          in_versions=""
+          in_names=""
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            base=$(basename "$f" .sql)
+            if [[ ! "$base" =~ ^[0-9]{14}_[a-z0-9_]+$ ]]; then
+              echo "::error::$f is not a valid migration filename (<14-digit version>_<snake_case_name>.sql); scripts/check-migrations.mjs refuses it too."
+              exit 1
+            fi
+            in_versions="${in_versions:+$in_versions,}'${base%%_*}'"
+            in_names="${in_names:+$in_names,}'${base#*_}','$base'"
+          done <<< "$ADDED_FILES"
+
           # Read prod's applied migration history via the Supabase Management API
-          # (same endpoint the MCP uses — no DB password needed).
+          # (same endpoint the MCP uses — no DB password needed). Rows this change
+          # could match also carry the SQL last recorded against them (the last
+          # element of statements, which the production apply workflow stores as
+          # the whole committed file), so the applied content can be compared.
+          query="select version, name, case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end as recorded_sql from supabase_migrations.schema_migrations"
           resp=$(curl -sS -X POST \
             "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
-            --data '{"query":"select version, name from supabase_migrations.schema_migrations"}')
+            --data "$(jq -cn --arg query "$query" '{query: $query}')")
 
           # Tolerate either a bare array or a {result:[...]} wrapper; fail loudly otherwise.
           rows=$(echo "$resp" | jq -c 'if type=="array" then . elif (type=="object" and has("result")) then .result else empty end' 2>/dev/null || true)
@@ -137,7 +165,27 @@ jobs:
             ver=${base%%_*}              # 20260604120000
             name=${base#*_}              # add_salon_config_settings
             if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then
-              echo "✓ applied: $base"
+              # Applied by name. Now the content: among the rows this file
+              # matches, one that recorded SQL must have recorded this file
+              # (trailing whitespace aside). A row with no recorded SQL (applied
+              # by hand, ledger row inserted by hand) can only be matched by
+              # name. The file is read by jq itself, never passed as an argument.
+              verdict=$(echo "$rows" | jq -r --arg ver "$ver" --arg name "$name" --arg base "$base" --rawfile file "$f" '
+                [.[] | select(.version == $ver or .name == $name or .name == $base) | (.recorded_sql // "") | sub("\\s+$"; "")]
+                | map(select(length > 0))
+                | if length == 0 then "unrecorded"
+                  elif any(. == ($file | sub("\\s+$"; ""))) then "match"
+                  else "differs" end')
+              case "$verdict" in
+                match)      echo "✓ applied: $base (the SQL prod recorded for it equals this file)" ;;
+                unrecorded) echo "✓ applied: $base (matched by name; prod recorded no SQL to compare)" ;;
+                *)
+                  echo "✗ CONTENT MISMATCH: $base"
+                  echo "    prod recorded different SQL for this migration than this file holds. History is append-only:"
+                  echo "    re-apply the committed content with the production workflow (reapply input), or put back what was applied."
+                  pending+=("$base")
+                  ;;
+              esac
             else
               echo "✗ PENDING: $base"
               echo "    apply it with name: $name   (derived by scripts/migration-name.mjs)"
@@ -147,12 +195,12 @@ jobs:
 
           if [ ${#pending[@]} -gt 0 ]; then
             echo
-            echo "::error::This PR adds migration(s) not yet applied to prod: ${pending[*]}"
+            echo "::error::This PR adds migration(s) not applied to prod as committed: ${pending[*]}"
             echo "Apply them to the live project BEFORE merging — they are NOT auto-applied on deploy."
-            echo "Apply individually and keep them idempotent (e.g. Supabase MCP apply_migration, or"
-            echo "'supabase migration up --linked'), then re-run this check."
+            echo "Use the production migration workflow (Actions → Apply named migrations to production; docs/migrations.md),"
+            echo "which records the SQL it applied so this check can compare it, then re-run this check."
             exit 1
           fi
 
           echo
-          echo "All added migrations are already applied on prod. ✅"
+          echo "All added migrations are applied on prod as committed. ✅"

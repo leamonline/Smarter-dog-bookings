@@ -62,8 +62,6 @@ and the operator documentation in [migrations.md](../../migrations.md).
 ## Non-goals
 
 - Changing how staging is applied (its workflow YAML is byte-identical).
-- Tightening `check-migrations-applied.yml` to compare content as well as
-  names.
 - Any automatic production migration on push, merge or schedule (ADR 006).
 - Creating or configuring the GitHub environment from a workflow.
 
@@ -201,8 +199,14 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
 
 ## Open questions
 
-- Whether `check-migrations-applied.yml` should also compare content, now
-  that the ledger stores it for script-applied rows.
+- ~~Whether `check-migrations-applied.yml` should also compare content, now
+  that the ledger stores it for script-applied rows.~~ Decided and done
+  (Codex review round ten): the check now compares each added file with the
+  SQL last recorded on its ledger row and fails on a difference, so a head
+  pushed after the apply (the window the apply itself cannot close) cannot
+  merge different SQL under the applied name; rows that recorded no SQL are
+  still matched by name. `check-migrations-drift.yml` (the daily audit)
+  still matches by name only.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

@@ -461,7 +461,13 @@ tool for files it accepts), then the pgTAP checks. Use the production workflow
 once the same files have run on staging and the pull request that needs them
 is reviewed, and run it **before** that pull request merges: the
 `migrations-applied` check refuses a merge whose migration is not in the
-production ledger.
+production ledger, and, because this workflow records the whole file it
+applied as the SQL last recorded on the row, also a merge whose file differs
+from that recorded SQL (trailing whitespace aside). So a file edited after it
+was applied, or a head pushed after the apply, cannot merge under the applied
+name: re-apply the committed content (`reapply`) or restore what was applied.
+A row that recorded no SQL (applied and ledgered by hand) is still matched by
+name alone.
 
 **Before the first run (one-off GitHub setup).** Create the `production`
 environment (Settings → Environments) with a required reviewer and a
@@ -533,7 +539,10 @@ hold:
    the full SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
-4. the script re-checks the target (opt-in, confirmation and link state),
+4. immediately before the write, a pull request head confirmed in step 2 must
+   still be that pull request's head (a push made since is refused, nothing
+   applied); then the script re-checks the target (opt-in, confirmation and
+   link state),
    prints each file's digest and length and the ledger before the run, stops
    on a version conflict, applies each file in one transaction with its
    ledger row (its own top-level `begin;`/`commit;` lines removed as the

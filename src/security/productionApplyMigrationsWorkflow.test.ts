@@ -23,6 +23,7 @@ const script = readFileSync(
   join(root, "scripts/apply-hosted-migrations.sh"),
   "utf8",
 );
+const gate = readFileSync(join(root, ".github/workflows/check-migrations-applied.yml"), "utf8");
 const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
 const guardPath = join(root, ".claude/hooks/guard-supabase-apply-migration.sh");
 const guard = readFileSync(guardPath, "utf8");
@@ -116,6 +117,16 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain("          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}");
     expect(workflow).toContain('          if [[ ! "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then');
     expect(workflow).not.toMatch(/HEAD:supabase/);
+    // The pull request number confirmed in the overlay step is re-checked at
+    // the write boundary: the head must still be the dispatched commit, or
+    // nothing is applied.
+    expect(workflow).toContain('          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"');
+    expect(workflow).toContain("          PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}");
+    expect(workflow).toContain(
+      "            head_now=\"$(gh api \"repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER\" --jq 'if .state == \"open\" and .draft == false and .base.ref == \"main\" then .head.sha else \"\" end')\"",
+    );
+    expect(workflow).toMatch(/if \[ "\$head_now" != "\$MIGRATION_REF" \]; then\n {14}echo "::error::Pull request #\$PR_NUMBER no longer has \$MIGRATION_REF as its head[^\n]*\n {14}exit 1/);
+    expect(workflow.indexOf('head_now="$(gh api')).toBeLessThan(workflow.indexOf('scripts/apply-hosted-migrations.sh "$PRODUCTION_PROJECT_REF" $MIGRATIONS'));
     expect(workflow).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
     expect(workflow).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
     // Non-draft only, with no outstanding changes-requested review on that head; approvals are recorded.
@@ -322,7 +333,16 @@ describe("production apply-migrations workflow", () => {
     expect(script).toContain('    if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then');
     expect(script).toMatch(/echo "MISMATCH \$migration: name already in the \$TARGET ledger but its stored SQL differs from the committed file\." >&2\n(?:.*\n)? {4}exit 1/);
     // A re-apply appends evidence; it never overwrites what was applied before.
-    expect(script).toContain(`echo "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[:'body']"`);
+    // The ledger text travels inside the psql stdin stream as a dollar-quoted
+    // literal under a tag the file does not contain, never as an argument
+    // (Linux caps one argument at 128 KiB) and never as a psql variable.
+    expect(script).toContain(
+      `printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\\$$tag\\$$body\\$$tag\\$]"`,
+    );
+    expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[\\$$tag\\$$body\\$$tag\\$]"`);
+    expect(script).toContain('  while grep -qF "\\$$tag\\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done');
+    expect(script).not.toContain("--set=body=");
+    expect(script).not.toContain(":'body'");
     expect(script).not.toMatch(/set statements = array\[/);
     expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
       script.indexOf("insert into supabase_migrations.schema_migrations (version, name, statements)"),
@@ -386,5 +406,34 @@ describe("the Claude permission for apply_migration is guarded", () => {
     // "allow" appears for staging only.
     expect(guard.match(/decide allow /g)?.length).toBe(1);
     expect(guard).not.toMatch(/permissionDecision":"deny/);
+  });
+});
+
+describe("check-migrations-applied.yml binds the applied content", () => {
+  // The production apply records the whole committed file as the SQL last
+  // recorded on the ledger row, so the merge gate compares it with the file in
+  // the pull request: a head pushed after the apply, the window the apply
+  // itself cannot close, cannot merge different SQL under the applied name.
+  it("asks prod for the SQL last recorded against the rows this change could match", () => {
+    expect(gate).toContain(
+      'query="select version, name, case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end as recorded_sql from supabase_migrations.schema_migrations"',
+    );
+    expect(gate).toContain(`--data "$(jq -cn --arg query "$query" '{query: $query}')")`);
+    expect(gate).not.toContain('--data \'{"query":"select version, name from');
+    // Only validated names are quoted into the query.
+    expect(gate).toContain('            if [[ ! "$base" =~ ^[0-9]{14}_[a-z0-9_]+$ ]]; then');
+    expect(gate.indexOf('if [[ ! "$base" =~')).toBeLessThan(gate.indexOf('query="select version'));
+  });
+
+  it("fails a file whose content differs from the recorded SQL and still matches by name where nothing was recorded", () => {
+    expect(gate).toContain('--rawfile file "$f"');
+    expect(gate).not.toMatch(/--arg \w+ "\$\(cat /);
+    expect(gate).toContain('[.[] | select(.version == $ver or .name == $name or .name == $base) | (.recorded_sql // "") | sub("\\\\s+$"; "")]');
+    expect(gate).toContain('| if length == 0 then "unrecorded"');
+    expect(gate).toContain('elif any(. == ($file | sub("\\\\s+$"; ""))) then "match"');
+    expect(gate).toMatch(/\*\)\n {18}echo "✗ CONTENT MISMATCH: \$base"\n(?: {18}.*\n)* {18}pending\+=\("\$base"\)/);
+    expect(gate).toContain('unrecorded) echo "✓ applied: $base (matched by name; prod recorded no SQL to compare)" ;;');
+    // The name matching the daily drift audit shares is unchanged.
+    expect(gate).toContain('if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then');
   });
 });

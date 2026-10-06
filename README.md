@@ -409,7 +409,8 @@ CLI, or the approval-gated **Apply named migrations to production** workflow (ma
 under the `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)).
 The frontend can otherwise ship ahead of the schema and break production. The
 `check-migrations-applied` and `check-migrations-drift` workflows flag any committed
-migration that hasn't been applied to prod.
+migration that hasn't been applied to prod (and the former also one whose committed SQL
+differs from what prod recorded applying).
 
 ### Manual build
 ```bash

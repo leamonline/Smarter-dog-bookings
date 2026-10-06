@@ -243,7 +243,8 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   repeatable way is the manual, approval-gated **Apply named migrations to production** workflow
   (`production-apply-migrations.yml`, `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)). CI's
   `migrations-applied` check supplies that evidence, and the `Protect main` ruleset makes it a
-  **required status check** — a pull request adding a migration that is not yet live on prod is
+  **required status check** — a pull request adding a migration that is not yet live on prod, or
+  whose committed SQL differs from what prod recorded applying, is
   refused at merge with `405 Repository rule violations found`. It is a gate, not a discipline.
   ⚠️ That means an **expand/contract rollout cannot live in one pull request**: the contract phase
   must not run until the new frontend is deployed, but the check demands it already be applied.

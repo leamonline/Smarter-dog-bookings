@@ -151,6 +151,7 @@ jobs:
           # present head of an open pull request into main. A superseded head
           # could carry older SQL under a filename the pull request still has.
           compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$MIGRATION_REF" --jq '.status')"
+          pr_number=""
           if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
             provenance="already on main ($compare)"
           else
@@ -180,6 +181,7 @@ jobs:
             provenance="current head of open pull request #$pr_number; latest review per reviewer: ${reviews:-none}"
           fi
           echo "Commit provenance: $provenance"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           # The checkout above is main (the dispatched ref): the workflow and
           # scripts/apply-hosted-migrations.sh stay as reviewed there. Only the
           # migration directory is taken from the named commit, and it is
@@ -295,8 +297,25 @@ jobs:
           MIGRATIONS: ${{ inputs.migrations }}
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
           POSTCONDITION_SQL: ${{ inputs.postcondition }}
+          MIGRATION_REF: ${{ inputs.ref }}
+          PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Last look before the write: a pull request head confirmed in the
+          # overlay step must still be that pull request's head now, or a push
+          # made since would be applied as if reviewed. A push after this point
+          # cannot merge different SQL under the same name either, because the
+          # migrations-applied check compares each file with the SQL this run
+          # records, so the window is closed from both sides.
+          if [ -n "$PR_NUMBER" ]; then
+            head_now="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'if .state == "open" and .draft == false and .base.ref == "main" then .head.sha else "" end')"
+            if [ "$head_now" != "$MIGRATION_REF" ]; then
+              echo "::error::Pull request #$PR_NUMBER no longer has $MIGRATION_REF as its head (now: ${head_now:-not open, draft, or not into main}); nothing was applied. Dispatch again with the current head."
+              exit 1
+            fi
+            echo "Pull request #$PR_NUMBER still has $MIGRATION_REF as its head."
+          fi
           test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
           # Word-splitting the input is intentional; the script validates each name.
           # shellcheck disable=SC2086
