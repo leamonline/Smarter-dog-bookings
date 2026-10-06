@@ -483,7 +483,11 @@ reviewed there). Fill in:
   approvals it found, so a superseded or unreviewed head cannot apply SQL
   under a current filename; only `supabase/migrations/` is taken from that
   commit, and a file that already exists on `main` must be byte-identical to
-  `main`'s copy (history is append-only: a fix is a new, later migration);
+  `main`'s copy (history is append-only: a fix is a new, later migration).
+  `main` here is the branch as it is when the run executes, fetched once
+  after the approval wait and recorded in the summary, never the checkout
+  the dispatch pinned; and if `main` has changed this workflow or the apply
+  scripts since the dispatch, the run refuses and must be dispatched again;
 - `migrations`: the space-separated file basenames in the order they must run,
   each at most once;
 - `postcondition`: one `SELECT` (no semicolons) that proves the behavioural
@@ -512,8 +516,10 @@ hold:
    environment-only token is present, `ref` is a full SHA and a postcondition
    was given, all before checkout, so a wrong ref or an unconfigured
    environment never reaches the repository or the CLI;
-2. `main` is checked out; the named commit is confirmed to be on `main` or
-   the current head of an open pull request into `main`; then
+2. `main` is checked out; the current `main` tip is fetched and recorded, and
+   the run refuses if it has changed this workflow or the apply scripts since
+   the dispatch; the named commit is confirmed, against that tip, to be on
+   `main` or the current head of an open pull request into `main`; then
    `supabase/migrations/` is emptied and refilled from that commit alone;
    every requested name matches `<14-digit version>_<snake_case_name>.sql`,
    appears once, is a regular file in that commit (never a symbolic link)

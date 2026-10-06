@@ -105,7 +105,17 @@ describe("production apply-migrations workflow", () => {
     expect(overlay).toBeLessThan(preflight);
     // The commit must be current: on main, or the present head of an open pull request into main.
     expect(workflow).toContain('          GH_TOKEN: ${{ github.token }}');
-    expect(workflow).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$MIGRATION_REF" --jq \'.status\')"');
+    // One current main, resolved after the approval wait, serves both the
+    // provenance check and the append-only check; the dispatch-time checkout
+    // (HEAD) is never the reference, and the apply code must match current main.
+    expect(workflow).toContain("          git fetch --no-tags --depth=1 origin main\n          main_sha=\"$(git rev-parse FETCH_HEAD)\"\n          echo \"main_sha=$main_sha\" >> \"$GITHUB_OUTPUT\"");
+    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl; then');
+    expect(workflow).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$MIGRATION_REF" --jq \'.status\')"');
+    expect(workflow).not.toContain("compare/main...");
+    expect(workflow.indexOf("git fetch --no-tags --depth=1 origin main")).toBeLessThan(workflow.indexOf('compare="$(gh api'));
+    expect(workflow).toContain("          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}");
+    expect(workflow).toContain('          if [[ ! "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then');
+    expect(workflow).not.toMatch(/HEAD:supabase/);
     expect(workflow).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
     expect(workflow).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
     // Non-draft only, with no outstanding changes-requested review on that head; approvals are recorded.
@@ -126,8 +136,8 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).toContain('            if [ -L "supabase/migrations/$migration" ] || [ ! -f "supabase/migrations/$migration" ]; then');
     expect(workflow).toContain('            if ! git show "$MIGRATION_REF:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
     // Applied history is append-only: a file already on main must be identical to main's.
-    expect(workflow).toContain('            if git cat-file -e "HEAD:supabase/migrations/$migration" 2>/dev/null &&');
-    expect(workflow).toContain('               ! git show "HEAD:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
+    expect(workflow).toContain('            if git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null &&');
+    expect(workflow).toContain('               ! git show "$MAIN_SHA:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.

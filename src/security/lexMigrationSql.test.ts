@@ -96,6 +96,12 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
     expect(refusals("select 1 /* multi\nline */; rollback;\n")).toEqual([`${TRANSACTION}rollback`]);
   });
 
+  it("leaves whitespace where a /* */ comment was, so it cannot join two words into one", () => {
+    expect(refusals("select 1;\ncommit/**/and chain;\n")).toEqual([`${TRANSACTION}commit and chain`]);
+    expect(refusals("select 1;\ncommit/* a *//* b */work;\n")).toEqual([`${TRANSACTION}commit  work`]);
+    expect(lex("skeleton", "commit/**/and chain;\n").stdout).toBe("commit and chain;\n");
+  });
+
   it("reads foo$x$ as an identifier, never as the start of a dollar-quoted string", () => {
     expect(refusals("select foo$x$ from t; commit and chain; -- $x$\n")).toEqual([`${TRANSACTION}commit and chain`]);
     expect(refusals("select $x$ commit and chain; $x$;\n")).toEqual([]);
@@ -168,7 +174,7 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
 
   it("keeps line numbers in the skeleton so a stripped line is the file's line", () => {
     const file = "select $$\na\nb$$, 'x\ny', \"q\nr\" /* c\nd */ -- e\n;\nbegin;\n";
-    expect(lex("skeleton", file).stdout).toBe("select \n\n, 'S'\n, \"I\"\n \n \n;\nbegin;\n");
+    expect(lex("skeleton", file).stdout).toBe("select \n\n, 'S'\n, \"I\"\n \n  \n;\nbegin;\n");
   });
 
   it("rejects an unknown mode", () => {

@@ -131,10 +131,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # One current main, resolved now, after the environment approval and
+          # any concurrency wait, during which main may have moved on from the
+          # dispatched checkout. The provenance check here and the append-only
+          # check in the next step both use this one SHA, and it is recorded.
+          git fetch --no-tags --depth=1 origin main
+          main_sha="$(git rev-parse FETCH_HEAD)"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          if [ "$main_sha" != "$GITHUB_SHA" ]; then
+            # The workflow and the apply code run as dispatched. If main has
+            # since changed them, what would run is not what main now has.
+            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl; then
+              echo "::error::main has changed the production apply workflow or scripts since this run was dispatched ($GITHUB_SHA; main is now $main_sha). Dispatch again from current main."
+              exit 1
+            fi
+            echo "::notice::main has moved on since this run was dispatched ($GITHUB_SHA; now $main_sha); the apply code is unchanged, and the migration checks use current main."
+          fi
           # The named commit must be current: either already on main, or the
           # present head of an open pull request into main. A superseded head
           # could carry older SQL under a filename the pull request still has.
-          compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$MIGRATION_REF" --jq '.status')"
+          compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$MIGRATION_REF" --jq '.status')"
           if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
             provenance="already on main ($compare)"
           else
@@ -165,6 +181,7 @@ jobs:
           rm -rf supabase/migrations
           git checkout "$MIGRATION_REF" -- supabase/migrations/
           echo "Migration files taken from commit $MIGRATION_REF: $(git log -1 --format='%s' "$MIGRATION_REF")"
+          echo "| Current main at run time | \`$main_sha\` (dispatched from \`$GITHUB_SHA\`) |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Migration files overlaid from | \`$MIGRATION_REF\` ($(git log -1 --format='%s' "$MIGRATION_REF" | sed 's/|/ /g')); $provenance |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate the requested names and show the exact SQL
@@ -174,8 +191,13 @@ jobs:
           MIGRATION_REF: ${{ inputs.ref }}
           MIGRATIONS: ${{ inputs.migrations }}
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}
         run: |
           set -euo pipefail
+          if [[ ! "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The current main SHA from the overlay step is missing; refusing to check history against a stale checkout."
+            exit 1
+          fi
           # The same rules the script enforces, applied before production is
           # linked: only committed basenames, never paths or free SQL; every
           # file must exist in the named commit itself; and a re-apply name
@@ -203,11 +225,13 @@ jobs:
               exit 1
             fi
             # Applied history is append-only: a file that already exists on
-            # main must be byte-identical to main's copy, or the fix belongs
-            # in a new, later migration.
-            if git cat-file -e "HEAD:supabase/migrations/$migration" 2>/dev/null &&
-               ! git show "HEAD:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
-              echo "::error::supabase/migrations/$migration already exists on main with different content; history is append-only, so add a new corrective migration instead."
+            # current main (the SHA the overlay step resolved after the
+            # approval wait, never the dispatch-time checkout) must be
+            # byte-identical to that copy, or the fix belongs in a new, later
+            # migration.
+            if git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null &&
+               ! git show "$MAIN_SHA:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
+              echo "::error::supabase/migrations/$migration already exists on main ($MAIN_SHA) with different content; history is append-only, so add a new corrective migration instead."
               exit 1
             fi
           done

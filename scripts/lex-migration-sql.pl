@@ -87,6 +87,9 @@ sub skeleton {
         elsif ($text =~ /\G(\n|[^\n\/*]+|[\/*])/gc)   { $keep_newlines->($1) }
         else                                          { $open->('/* comment', $from) }
       }
+      # A comment separates tokens, as it does for PostgreSQL: without this
+      # space, commit/**/and chain would read as one word and pass the check.
+      $out .= ' ';
       next;
     }
     if ($text =~ /\G'/gc) {
