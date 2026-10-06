@@ -38,7 +38,7 @@ on:
         required: true
         type: string
       postcondition:
-        description: One read-only SELECT that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition), e.g. select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')
+        description: One SELECT, no semicolons, that must return exactly one boolean true after the apply (ADR 006 behavioural postcondition; it runs read-only inside a scalar subquery), e.g. select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')
         required: true
         type: string
       reapply:
@@ -131,8 +131,11 @@ jobs:
           set -euo pipefail
           # The checkout above is main (the dispatched ref): the workflow and
           # scripts/apply-hosted-migrations.sh stay as reviewed there. Only the
-          # migration directory is taken from the named commit.
+          # migration directory is taken from the named commit, and it is
+          # emptied first so a file that exists on main but not in that commit
+          # cannot survive the overlay and be applied under its name.
           git fetch --no-tags --depth=1 origin "$MIGRATION_REF"
+          rm -rf supabase/migrations
           git checkout "$MIGRATION_REF" -- supabase/migrations/
           echo "Migration files taken from commit $MIGRATION_REF: $(git log -1 --format='%s' "$MIGRATION_REF")"
           echo "| Migration files overlaid from | \`$MIGRATION_REF\` ($(git log -1 --format='%s' "$MIGRATION_REF" | sed 's/|/ /g')) |" >> "$GITHUB_STEP_SUMMARY"
@@ -141,20 +144,38 @@ jobs:
         id: preflight
         shell: bash
         env:
+          MIGRATION_REF: ${{ inputs.ref }}
           MIGRATIONS: ${{ inputs.migrations }}
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
         run: |
           set -euo pipefail
-          # The same rule the script enforces, applied before production is
-          # linked: only committed basenames, never paths or free SQL.
+          # The same rules the script enforces, applied before production is
+          # linked: only committed basenames, never paths or free SQL; every
+          # file must exist in the named commit itself; and a re-apply name
+          # must also be in the list to apply, or it would never run.
           # shellcheck disable=SC2086
           for migration in $MIGRATIONS $REAPPLY_MIGRATIONS; do
             if [[ ! "$migration" =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
               echo "::error::Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql"
               exit 1
             fi
+            if ! git cat-file -e "$MIGRATION_REF:supabase/migrations/$migration" 2>/dev/null; then
+              echo "::error::supabase/migrations/$migration does not exist in commit $MIGRATION_REF."
+              exit 1
+            fi
             if [ ! -f "supabase/migrations/$migration" ]; then
-              echo "::error::No committed file supabase/migrations/$migration at this commit."
+              echo "::error::supabase/migrations/$migration was not overlaid from commit $MIGRATION_REF."
+              exit 1
+            fi
+          done
+          # shellcheck disable=SC2086
+          for candidate in $REAPPLY_MIGRATIONS; do
+            listed=0
+            for migration in $MIGRATIONS; do
+              [ "$migration" = "$candidate" ] && listed=1
+            done
+            if [ "$listed" != 1 ]; then
+              echo "::error::reapply entry '$candidate' is not in migrations, so it would never run."
               exit 1
             fi
           done

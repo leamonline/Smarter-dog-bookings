@@ -104,7 +104,13 @@ describe("production apply-migrations workflow", () => {
     expect(checkout).toBeLessThan(overlay);
     expect(overlay).toBeLessThan(preflight);
     expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
-    expect(workflow).toContain('          git checkout "$MIGRATION_REF" -- supabase/migrations/');
+    // The directory is emptied first, so a main-only file cannot survive a wrong SHA.
+    expect(workflow).toContain(
+      '          rm -rf supabase/migrations\n          git checkout "$MIGRATION_REF" -- supabase/migrations/',
+    );
+    // And every requested file must exist in that commit itself.
+    expect(workflow).toContain('            if ! git cat-file -e "$MIGRATION_REF:supabase/migrations/$migration" 2>/dev/null; then');
+    expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     // Never the whole tree from the ref: the workflow and script stay as on main.
     expect(workflow).not.toMatch(/git checkout "\$MIGRATION_REF"(?! -- supabase\/migrations\/)/);
     expect(workflow).not.toMatch(/^\s+ref: \$\{\{ inputs\.ref }}/m);
@@ -258,7 +264,17 @@ describe("production apply-migrations workflow", () => {
     );
     expect(script).toContain('  elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then');
     // ADR 006 postcondition: read-only, must be exactly one boolean true.
-    expect(script).toContain('      "set transaction read only;" \\\n      "$POSTCONDITION_SQL;" \\\n      "rollback;" |');
+    // The query runs inside a scalar subquery, so no separator can end the
+    // read-only transaction, and semicolons are refused up front.
+    expect(script).toContain(
+      '      "set transaction read only;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ");" \\\n      "rollback;" |',
+    );
+    expect(script).toContain('  POSTCONDITION_SQL="${POSTCONDITION_SQL%;}"');
+    expect(script).toContain('if [[ "$POSTCONDITION_SQL" == *";"* ]] ||');
+    // A re-apply name that is not in the list would never run: refused before any hosted command.
+    const reapplyGate = script.indexOf("Refusing REAPPLY_MIGRATIONS entry");
+    expect(reapplyGate).toBeGreaterThan(-1);
+    expect(reapplyGate).toBeLessThan(script.indexOf("supabase db dump --linked"));
     expect(script).toContain('  if [ "$verdict" = "t" ]; then');
     expect(script).toContain('echo "POSTCONDITION FAILED: expected exactly \'t\', got \'${verdict:-nothing}\'" >&2');
     expect(script).toMatch(/\[\[ ! "\$POSTCONDITION_SQL" =~ \^\[\[:space:]]\*\[sS]\[eE]\[lL]\[eE]\[cC]\[tT]\[\[:space:]] ]]/);

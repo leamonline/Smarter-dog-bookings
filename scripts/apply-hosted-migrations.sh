@@ -40,9 +40,11 @@
 #   hosted command. Only the production workflow sets it.
 #
 # POSTCONDITION_SQL (required for production, optional for staging): one
-#   read-only SELECT, no backslashes, that must return exactly one boolean
-#   true after the files are applied. It runs as postgres inside a read-only
-#   transaction, so it can prove the schema but cannot change it.
+#   SELECT with no semicolons or backslashes that must return exactly one
+#   boolean true after the files are applied. It runs as postgres inside a
+#   read-only transaction AND inside a scalar subquery, `select (<query>)`,
+#   so no statement separator can end the transaction and smuggle a write
+#   behind the verdict; it can prove the schema but cannot change it.
 #
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
 # though their name is already in the ledger. Needed when migrations reach a
@@ -90,11 +92,26 @@ if [ "$TARGET" = "production" ] && [ -z "${POSTCONDITION_SQL:-}" ]; then
   exit 1
 fi
 if [ -n "${POSTCONDITION_SQL:-}" ]; then
-  if [[ "$POSTCONDITION_SQL" == *"\\"* ]] || [[ ! "$POSTCONDITION_SQL" =~ ^[[:space:]]*[sS][eE][lL][eE][cC][tT][[:space:]] ]]; then
-    echo "Refusing POSTCONDITION_SQL: it must be a single SELECT with no backslashes." >&2
+  # One trailing semicolon is tolerated; any other makes it more than one statement.
+  POSTCONDITION_SQL="${POSTCONDITION_SQL%;}"
+  if [[ "$POSTCONDITION_SQL" == *";"* ]] || [[ "$POSTCONDITION_SQL" == *"\\"* ]] || [[ ! "$POSTCONDITION_SQL" =~ ^[[:space:]]*[sS][eE][lL][eE][cC][tT][[:space:]] ]]; then
+    echo "Refusing POSTCONDITION_SQL: it must be a single SELECT with no semicolons or backslashes." >&2
     exit 1
   fi
 fi
+
+# Every REAPPLY_MIGRATIONS entry must also be in the list to apply: the list is
+# what runs; the re-apply set only lifts the already-recorded skip.
+for candidate in ${REAPPLY_MIGRATIONS:-}; do
+  listed=0
+  for migration in "$@"; do
+    [ "$migration" = "$candidate" ] && listed=1
+  done
+  if [ "$listed" != 1 ]; then
+    echo "Refusing REAPPLY_MIGRATIONS entry '$candidate': it is not in the list of migrations to apply, so it would never run." >&2
+    exit 1
+  fi
+done
 
 # Validate every requested file before touching the database.
 # shellcheck disable=SC2086
@@ -250,12 +267,17 @@ test "$missing" = 0
 # ADR 006: a behavioural postcondition against the same target, read-only.
 if [ -n "${POSTCONDITION_SQL:-}" ]; then
   echo "Checking the postcondition in a read-only transaction:"
+  # The query is a scalar subquery: it must yield one row and one column, and
+  # a statement separator inside the parentheses is a syntax error, so the
+  # read-only transaction cannot be ended from inside the input.
   verdict="$(
     printf '%s\n' \
       "set role postgres;" \
       "begin;" \
       "set transaction read only;" \
-      "$POSTCONDITION_SQL;" \
+      "select (" \
+      "$POSTCONDITION_SQL" \
+      ");" \
       "rollback;" |
       psql -X -A -t -q --set ON_ERROR_STOP=1 --file -
   )"

@@ -462,12 +462,14 @@ reviewed there). Fill in:
   on the pull request), which is where the migration files live before merge;
   only `supabase/migrations/` is taken from that commit;
 - `migrations`: the space-separated file basenames in the order they must run;
-- `postcondition`: one read-only `SELECT` that proves the behavioural outcome
-  and returns exactly one boolean true, for example
+- `postcondition`: one `SELECT` (no semicolons) that proves the behavioural
+  outcome and returns exactly one boolean true, for example
   `select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'humans' and column_name = 'x')`,
   or `select not exists (...)` for a drop; it runs as `postgres` inside a
-  read-only transaction, so it can prove the schema but cannot change it;
-- `reapply`: only for the out-of-order repair case described above.
+  read-only transaction and inside `select (…)`, so it can prove the schema
+  but cannot change it and cannot end the transaction;
+- `reapply`: only for the out-of-order repair case described above; every
+  name here must also be in `migrations`, or the run is refused.
 
 The run then waits for the `production` environment's required reviewer, who
 sees every input; nothing is checked out or linked until that approval is
@@ -480,10 +482,11 @@ hold:
    environment-only token is present, `ref` is a full SHA and a postcondition
    was given, all before checkout, so a wrong ref or an unconfigured
    environment never reaches the repository or the CLI;
-2. `main` is checked out, then only `supabase/migrations/` is taken from the
-   named commit; every requested name matches
-   `<14-digit version>_<snake_case_name>.sql` and exists there, and the full
-   SQL of each file is printed in the log;
+2. `main` is checked out, `supabase/migrations/` is emptied and refilled from
+   the named commit alone; every requested name matches
+   `<14-digit version>_<snake_case_name>.sql` and exists in that commit (a
+   file that only exists on `main` fails the run), every `reapply` name is in
+   the list, and the full SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
 4. the script re-checks the target (opt-in, confirmation and link state),
