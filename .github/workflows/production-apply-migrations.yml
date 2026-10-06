@@ -150,6 +150,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Set up Node for the migration validator
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - name: Take supabase/migrations from the reviewed commit
         id: overlay
         shell: bash
@@ -261,6 +266,13 @@ jobs:
             echo "::error::migrations names the same file more than once; a duplicate would run twice under reapply."
             exit 1
           fi
+          # The overlaid tree must pass the repository's own structural
+          # validation (scripts/check-migrations.mjs: the filename pattern,
+          # unique timestamps, unique names after the timestamp, no empty or
+          # comment-only file) before production is linked: two files sharing
+          # a timestamp or a name would fight over one ledger identity, and
+          # the first could commit before the second was refused.
+          node scripts/check-migrations.mjs
           # shellcheck disable=SC2086
           for candidate in $REAPPLY_MIGRATIONS; do
             listed=0

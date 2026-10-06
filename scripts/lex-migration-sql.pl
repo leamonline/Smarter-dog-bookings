@@ -186,11 +186,39 @@ my $executed_skeleton = join "\n", @skeleton_lines[@kept];
 my @findings;
 
 (my $flat = $executed_skeleton) =~ s/\n/ /g;
+# A SQL-standard function body (CREATE FUNCTION ... BEGIN ATOMIC ...; END) is
+# not dollar-quoted, so its closing END arrives as a segment of its own: it
+# closes the body, not a transaction. Anything else inside the body is judged
+# as usual, so a COMMIT in there is still refused.
+my $control = qr/^(?:begin|start|commit|rollback|end|abort)(?:\s.*)?$|^prepare\s+transaction(?:\s.*)?$/i;
+my $atomic_depth = 0;
 for my $statement (split /;/, $flat) {
   $statement =~ s/^\s+//;
   $statement =~ s/\s+$//;
-  next unless $statement =~ /^(?:begin|start|commit|rollback|end|abort)(?:\s.*)?$|^prepare\s+transaction(?:\s.*)?$/i;
-  push @findings, "top-level transaction control the apply cannot keep atomic: $statement";
+  if ($atomic_depth > 0 && $statement =~ /^end$/i) {
+    $atomic_depth--;
+    next;
+  }
+  # The segment that opens a body holds the CREATE statement and the body's
+  # first statement (and, for a body that itself creates such a function,
+  # further openings): every piece is judged, each opening deepens the
+  # nesting, and an empty body (BEGIN ATOMIC END) closes at once.
+  my @pieces = split /\bbegin\s+atomic\b/i, $statement, -1;
+  my $head = shift @pieces;
+  my @parts = (defined $head ? $head : '');
+  for my $first (@pieces) {
+    $first =~ s/^\s+//;
+    $first =~ s/\s+$//;
+    next if $first =~ /^end$/i;
+    $atomic_depth++;
+    push @parts, $first;
+  }
+  for my $part (@parts) {
+    $part =~ s/^\s+//;
+    $part =~ s/\s+$//;
+    next unless $part =~ $control;
+    push @findings, "top-level transaction control the apply cannot keep atomic: $part";
+  }
 }
 
 # A backslash outside a string is a psql meta-command; :name, :'name',

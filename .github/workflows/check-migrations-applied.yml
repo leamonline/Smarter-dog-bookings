@@ -39,11 +39,13 @@ name: Migrations Applied Check
 # file edited after it was applied, or a pull request head pushed after the
 # apply, cannot merge under the applied name. A row that recorded no SQL
 # (applied and ledgered by hand) is still matched by name alone. History is
-# append-only in the other direction too: a migration prod has applied cannot
-# be deleted or renamed by a change, and a migration the production workflow
-# applied from an earlier head of a pull request (its row carries a
-# provenance line naming that pull request) must still be in the tree, so a
-# later push cannot quietly drop it.
+# append-only in every direction: a migration prod has applied cannot be
+# deleted, renamed or edited by a change (an edit that restores exactly what
+# prod recorded is the one exception), and a migration the production
+# workflow applied from an earlier head of a pull request (its row carries a
+# provenance line naming that pull request and the exact file) must still be
+# in the tree under that very name, so a later push cannot quietly drop or
+# rename it.
 #
 # Secret required:
 #   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
@@ -73,7 +75,7 @@ jobs:
           # Need history to diff this change against its base.
           fetch-depth: 0
 
-      - name: Work out which migrations this change ADDS or REMOVES
+      - name: Work out which migrations this change ADDS, REMOVES or EDITS
         id: added
         shell: bash
         env:
@@ -99,10 +101,13 @@ jobs:
           # Renames are read as a removal plus an addition: both sides matter.
           added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\.sql$' || true)
           deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\.sql$' || true)
+          modified=$(git diff --name-only --no-renames --diff-filter=M "$range" -- supabase/migrations/ | grep '\.sql$' || true)
           echo "Migration files added in $range:"
           echo "${added:-  (none)}"
           echo "Migration files removed in $range:"
           echo "${deleted:-  (none)}"
+          echo "Migration files edited in $range:"
+          echo "${modified:-  (none)}"
 
           {
             echo "files<<EOF"
@@ -111,7 +116,10 @@ jobs:
             echo "deleted<<EOF"
             echo "$deleted"
             echo "EOF"
-            if [ -n "$added$deleted" ]; then echo "touched=yes"; else echo "touched="; fi
+            echo "modified<<EOF"
+            echo "$modified"
+            echo "EOF"
+            if [ -n "$added$deleted$modified" ]; then echo "touched=yes"; else echo "touched="; fi
           } >> "$GITHUB_OUTPUT"
 
       - name: No migrations touched
@@ -128,14 +136,15 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ADDED_FILES: ${{ steps.added.outputs.files }}
           DELETED_FILES: ${{ steps.added.outputs.deleted }}
+          MODIFIED_FILES: ${{ steps.added.outputs.modified }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
-            if [ -n "$ADDED_FILES$DELETED_FILES" ]; then
+            if [ -n "$ADDED_FILES$DELETED_FILES$MODIFIED_FILES" ]; then
               echo "::error::SUPABASE_ACCESS_TOKEN isn't available in this run, so applied migrations can't be verified."
-              echo "A Dependabot PR shouldn't be adding or removing migrations; for anything else, ensure the secret is set."
+              echo "A Dependabot PR shouldn't be touching migrations; for anything else, ensure the secret is set."
               exit 1
             fi
             echo "No migration file changes and no token in this run (a Dependabot pull request) — nothing to verify. ✅"
@@ -159,25 +168,26 @@ jobs:
             fi
             in_versions="${in_versions:+$in_versions,}'${base%%_*}'"
             in_names="${in_names:+$in_names,}'${base#*_}','$base'"
-          done <<< "$ADDED_FILES"$'\n'"$DELETED_FILES"
+          done <<< "$ADDED_FILES"$'\n'"$DELETED_FILES"$'\n'"$MODIFIED_FILES"
 
           # Read prod's applied migration history via the Supabase Management API
           # (same endpoint the MCP uses — no DB password needed). Rows this change
           # could match also carry the SQL last recorded against them (the last
           # element of statements, which the production apply workflow stores as
           # the whole committed file), so the applied content can be compared;
-          # and every row says whether the production workflow recorded it from
-          # THIS pull request (the provenance line it stores ahead of the file),
-          # so a file applied from an earlier head and then dropped still shows.
+          # and every row carries the provenance lines the production workflow
+          # stored ahead of the file for THIS pull request, each naming the exact
+          # file applied, so a file applied from an earlier head and then
+          # dropped or renamed still shows.
           recorded_sql="null"
           if [ -n "$in_versions" ]; then
             recorded_sql="case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end"
           fi
-          from_this_pr="false"
+          provenance="null"
           if [ -n "$PR_NUMBER" ]; then
-            from_this_pr="exists (select 1 from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')"
+            provenance="(select string_agg(s, E'\n') from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')"
           fi
-          query="select version, name, $recorded_sql as recorded_sql, $from_this_pr as from_this_pr from supabase_migrations.schema_migrations"
+          query="select version, name, $recorded_sql as recorded_sql, $provenance as provenance from supabase_migrations.schema_migrations"
           resp=$(curl -sS -X POST \
             "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
@@ -195,6 +205,21 @@ jobs:
           applied_versions=$(echo "$rows" | jq -r '.[].version // empty')
           applied_names=$(echo "$rows" | jq -r '.[].name // empty')
 
+          is_applied() {
+            grep -qxF "$1" <<<"$applied_versions" || grep -qxF "$2" <<<"$applied_names" || grep -qxF "$3" <<<"$applied_names"
+          }
+          # "match": a row this file matches recorded exactly this SQL (trailing
+          # whitespace aside); "unrecorded": no matching row recorded any SQL
+          # (null means nothing was recorded, "" means an empty file was);
+          # "differs": otherwise. jq reads the file itself, never as an argument.
+          content_verdict() {
+            echo "$rows" | jq -r --arg ver "$1" --arg name "$2" --arg base "$3" --rawfile file "$4" '
+              [.[] | select(.version == $ver or .name == $name or .name == $base) | .recorded_sql | select(. != null) | sub("\\s+$"; "")]
+              | if length == 0 then "unrecorded"
+                elif any(. == ($file | sub("\\s+$"; ""))) then "match"
+                else "differs" end'
+          }
+
           problems=()
 
           # A migration prod has applied is history: it cannot be deleted or
@@ -204,7 +229,7 @@ jobs:
             base=$(basename "$f" .sql)
             ver=${base%%_*}
             name=${base#*_}
-            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then
+            if is_applied "$ver" "$name" "$base"; then
               echo "✗ REMOVED BUT APPLIED: $base"
               echo "    prod has applied this migration; history is append-only, so it cannot be deleted or renamed. Add a new, later migration instead."
               problems+=("$base")
@@ -213,25 +238,31 @@ jobs:
             fi
           done <<< "$DELETED_FILES"
 
+          # Nor can an applied migration be edited in place. The one exception
+          # is an edit that restores exactly the SQL prod recorded applying.
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            base=$(basename "$f" .sql)
+            ver=${base%%_*}
+            name=${base#*_}
+            if ! is_applied "$ver" "$name" "$base"; then
+              echo "✓ edited, not yet applied on prod: $base"
+            elif [ "$(content_verdict "$ver" "$name" "$base" "$f")" = "match" ]; then
+              echo "✓ edited to exactly the SQL prod recorded applying: $base"
+            else
+              echo "✗ EDITED BUT APPLIED: $base"
+              echo "    prod has applied this migration; history is append-only, so it cannot be edited. Add a new, later migration instead."
+              problems+=("$base")
+            fi
+          done <<< "$MODIFIED_FILES"
+
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             base=$(basename "$f" .sql)   # 20260604120000_add_salon_config_settings
             ver=${base%%_*}              # 20260604120000
             name=${base#*_}              # add_salon_config_settings
-            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then
-              # Applied by name. Now the content: among the rows this file
-              # matches, one that recorded SQL (even empty SQL: null means
-              # nothing was recorded, "" means an empty file was) must have
-              # recorded this file, trailing whitespace aside. A row with no
-              # recorded SQL (applied by hand, ledger row inserted by hand) can
-              # only be matched by name. The file is read by jq itself, never
-              # passed as an argument.
-              verdict=$(echo "$rows" | jq -r --arg ver "$ver" --arg name "$name" --arg base "$base" --rawfile file "$f" '
-                [.[] | select(.version == $ver or .name == $name or .name == $base) | .recorded_sql | select(. != null) | sub("\\s+$"; "")]
-                | if length == 0 then "unrecorded"
-                  elif any(. == ($file | sub("\\s+$"; ""))) then "match"
-                  else "differs" end')
-              case "$verdict" in
+            if is_applied "$ver" "$name" "$base"; then
+              case "$(content_verdict "$ver" "$name" "$base" "$f")" in
                 match)      echo "✓ applied: $base (the SQL prod recorded for it equals this file)" ;;
                 unrecorded) echo "✓ applied: $base (matched by name; prod recorded no SQL to compare)" ;;
                 *)
@@ -249,22 +280,27 @@ jobs:
           done <<< "$ADDED_FILES"
 
           # What the production workflow applied from this pull request must
-          # still be in this tree, whatever a later push did to the file list.
+          # still be in this tree under the very name it was applied as,
+          # whatever a later push did to the file list. Each provenance line
+          # ends with "(file <basename>)"; one without it cannot be judged and
+          # fails.
           if [ -n "$PR_NUMBER" ]; then
-            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##; s/\.sql$//')
-            tree_versions=$(printf '%s\n' "$tree" | cut -d_ -f1)
-            tree_names=$(printf '%s\n' "$tree" | cut -d_ -f2-)
-            while IFS=$'\t' read -r rver rname; do
-              [ -z "$rver$rname" ] && continue
-              if grep -qxF "$rver" <<<"$tree_versions" || grep -qxF "$rname" <<<"$tree_names" || grep -qxF "$rname" <<<"$tree"; then
-                echo "✓ applied from this pull request and still in the tree: $rver $rname"
+            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##')
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              applied_file=$(printf '%s' "$line" | sed -n 's/.* (file \([0-9]\{14\}_[a-z0-9_]*\.sql\))$/\1/p')
+              if [ -z "$applied_file" ]; then
+                echo "✗ UNREADABLE PROVENANCE: $line"
+                problems+=("provenance")
+              elif grep -qxF "$applied_file" <<<"$tree"; then
+                echo "✓ applied from this pull request and still in the tree: $applied_file"
               else
-                echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: $rver $rname"
-                echo "    the production workflow applied it from an earlier head of this pull request; this head carries no file for it."
-                echo "    History is append-only: put the file back (with the applied content) rather than dropping it."
-                problems+=("$rver $rname")
+                echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: $applied_file"
+                echo "    the production workflow applied it from an earlier head of this pull request; this head no longer carries that file."
+                echo "    History is append-only: put it back under that name, with the applied content, rather than dropping or renaming it."
+                problems+=("$applied_file")
               fi
-            done <<< "$(echo "$rows" | jq -r '.[] | select(.from_this_pr == true) | "\(.version)\t\(.name)"')"
+            done <<< "$(echo "$rows" | jq -r '.[] | .provenance | select(. != null)')"
           fi
 
           if [ ${#problems[@]} -gt 0 ]; then

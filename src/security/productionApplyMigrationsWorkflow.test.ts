@@ -169,6 +169,11 @@ describe("production apply-migrations workflow", () => {
     // carries; only a current pull request head may introduce a new path.
     expect(workflow).toContain('            if [ -z "$PR_NUMBER" ] && ! git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null; then');
     expect(workflow).toMatch(/echo "::error::supabase\/migrations\/\$migration is not on current main \(\$MAIN_SHA\)[^\n]*\n {14}exit 1/);
+    // The overlaid tree passes the repository's own structural validation
+    // (unique timestamps and names, no empty file) before production is linked.
+    expect(workflow).toContain("          node scripts/check-migrations.mjs");
+    expect(workflow).toContain("      - name: Set up Node for the migration validator\n        uses: actions/setup-node@v7\n        with:\n          node-version: 24");
+    expect(positionOf("          node scripts/check-migrations.mjs")).toBeLessThan(positionOf("      - name: Link production and record its migration state before applying"));
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.
@@ -365,7 +370,7 @@ describe("production apply-migrations workflow", () => {
     // line is stored just ahead of the file; the file stays the last element,
     // which is what every comparison reads. A file with no SQL is refused.
     expect(script).toContain('  recorded="\\$$tag\\$$body\\$$tag\\$"');
-    expect(script).toContain('    recorded="\\$$tag\\$$LEDGER_PROVENANCE\\$$tag\\$, $recorded"');
+    expect(script).toContain('    recorded="\\$$tag\\$$LEDGER_PROVENANCE (file $migration)\\$$tag\\$, $recorded"');
     expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[$recorded]"`);
     expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[$recorded]"`);
     expect(script).toMatch(/if \[\[ "\$LEDGER_PROVENANCE" == \*\$'\\n'\* \]\] \|\| \[\[ "\$LEDGER_PROVENANCE" == \*'\$'\* \]\] \|\| \[\[ ! "\$LEDGER_PROVENANCE" =~ \^--\\ {2}\]\]; then\n {4}echo "Refusing LEDGER_PROVENANCE[^\n]*\n {4}exit 1/);
@@ -442,15 +447,15 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   // recorded on the ledger row, so the merge gate compares it with the file in
   // the pull request: a head pushed after the apply, the window the apply
   // itself cannot close, cannot merge different SQL under the applied name.
-  it("asks prod for the SQL last recorded against the rows this change could match, and which rows this pull request applied", () => {
+  it("asks prod for the SQL last recorded against the rows this change could match, and the provenance lines naming this pull request", () => {
     expect(gate).toContain(
       '            recorded_sql="case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end"',
     );
     expect(gate).toContain(
-      "            from_this_pr=\"exists (select 1 from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')\"",
+      "            provenance=\"(select string_agg(s, E'\\n') from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')\"",
     );
     expect(gate).toContain(
-      'query="select version, name, $recorded_sql as recorded_sql, $from_this_pr as from_this_pr from supabase_migrations.schema_migrations"',
+      'query="select version, name, $recorded_sql as recorded_sql, $provenance as provenance from supabase_migrations.schema_migrations"',
     );
     expect(gate).toContain(`--data "$(jq -cn --arg query "$query" '{query: $query}')")`);
     expect(gate).not.toContain('--data \'{"query":"select version, name from');
@@ -463,7 +468,7 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   });
 
   it("fails a file whose content differs from the recorded SQL (empty included) and still matches by name where nothing was recorded", () => {
-    expect(gate).toContain('--rawfile file "$f"');
+    expect(gate).toContain('--rawfile file "$4"');
     expect(gate).not.toMatch(/--arg \w+ "\$\(cat /);
     expect(gate).toContain('[.[] | select(.version == $ver or .name == $name or .name == $base) | .recorded_sql | select(. != null) | sub("\\\\s+$"; "")]');
     expect(gate).not.toContain('(.recorded_sql // "")');
@@ -472,20 +477,30 @@ describe("check-migrations-applied.yml binds the applied content", () => {
     expect(gate).toMatch(/\*\)\n {18}echo "✗ CONTENT MISMATCH: \$base"\n(?: {18}.*\n)* {18}problems\+=\("\$base"\)/);
     expect(gate).toContain('unrecorded) echo "✓ applied: $base (matched by name; prod recorded no SQL to compare)" ;;');
     // The name matching the daily drift audit shares is unchanged.
-    expect(gate).toContain('if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then');
+    expect(gate).toContain('grep -qxF "$1" <<<"$applied_versions" || grep -qxF "$2" <<<"$applied_names" || grep -qxF "$3" <<<"$applied_names"');
   });
 
-  it("refuses deleting or renaming an applied migration, and dropping one this pull request applied from an earlier head", () => {
+  it("refuses deleting, renaming or editing an applied migration (an edit restoring the recorded SQL aside)", () => {
     expect(gate).toContain(`deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
     expect(gate).toContain(`added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(gate).toContain(`modified=$(git diff --name-only --no-renames --diff-filter=M "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(gate).toContain("          MODIFIED_FILES: ${{ steps.added.outputs.modified }}");
     expect(gate).toMatch(/echo "✗ REMOVED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
-    expect(gate).toContain(`            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##; s/\\.sql$//')`);
-    expect(gate).toContain(`jq -r '.[] | select(.from_this_pr == true) | "\\(.version)\\t\\(.name)"'`);
-    expect(gate).toMatch(/echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: \$rver \$rname"\n(?: {16}.*\n)* {16}problems\+=\("\$rver \$rname"\)/);
+    expect(gate).toMatch(/elif \[ "\$\(content_verdict "\$ver" "\$name" "\$base" "\$f"\)" = "match" \]; then\n {14}echo "✓ edited to exactly the SQL prod recorded applying: \$base"/);
+    expect(gate).toMatch(/echo "✗ EDITED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
+    expect(gate).toContain('            if [ -n "$ADDED_FILES$DELETED_FILES$MODIFIED_FILES" ]; then');
+  });
+
+  it("requires the very file the production workflow applied from this pull request to stay in the tree", () => {
+    expect(gate).toContain(`            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##')`);
+    expect(gate).toContain(`jq -r '.[] | .provenance | select(. != null)'`);
+    expect(gate).toContain(`applied_file=$(printf '%s' "$line" | sed -n 's/.* (file \\([0-9]\\{14\\}_[a-z0-9_]*\\.sql\\))$/\\1/p')`);
+    expect(gate).toMatch(/echo "✗ UNREADABLE PROVENANCE: \$line"\n {16}problems\+=\("provenance"\)/);
+    expect(gate).toContain('              elif grep -qxF "$applied_file" <<<"$tree"; then');
+    expect(gate).toMatch(/echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: \$applied_file"\n(?: {16}.*\n)* {16}problems\+=\("\$applied_file"\)/);
     // Every pull request is verified (an applied file may have been dropped),
     // while a run with neither token nor migration changes (Dependabot) skips.
     expect(gate).toContain("        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'");
-    expect(gate).toContain('            if [ -n "$ADDED_FILES$DELETED_FILES" ]; then');
     expect(gate).toContain('            echo "No migration file changes and no token in this run (a Dependabot pull request) — nothing to verify. ✅"');
   });
 });

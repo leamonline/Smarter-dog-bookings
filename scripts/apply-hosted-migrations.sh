@@ -72,10 +72,11 @@
 #
 # LEDGER_PROVENANCE (optional; the production workflow sets it): one line,
 #   starting with `-- ` and containing no dollar sign, stored in the ledger row
-#   just ahead of the file (`-- applied to production from pull request #N
-#   head <sha> by <actor>, run <url>`), so the migrations-applied check can
-#   find what a pull request applied even if a later push drops the file. The
-#   last element of statements stays the SQL applied, which is what every
+#   just ahead of the file, with the exact basename appended (`-- applied to
+#   production from pull request #N head <sha> by <actor>, run <url> (file
+#   <basename>)`), so the migrations-applied check can demand that very file
+#   stays in a pull request's tree even if a later push drops or renames it.
+#   The last element of statements stays the SQL applied, which is what every
 #   comparison reads. A file with no SQL statement is refused.
 #
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
@@ -326,7 +327,10 @@ for migration in "$@"; do
   while grep -qF "\$$tag\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done
   recorded="\$$tag\$$body\$$tag\$"
   if [ -n "${LEDGER_PROVENANCE:-}" ]; then
-    recorded="\$$tag\$$LEDGER_PROVENANCE\$$tag\$, $recorded"
+    # The exact basename applied is part of the line, so the merge gate can
+    # demand that very file stays in the tree, not merely one sharing its
+    # timestamp or its name.
+    recorded="\$$tag\$$LEDGER_PROVENANCE (file $migration)\$$tag\$, $recorded"
   fi
   {
     echo "begin;"

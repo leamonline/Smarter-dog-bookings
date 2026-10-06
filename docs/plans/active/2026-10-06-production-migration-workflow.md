@@ -215,7 +215,13 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   policy through the API before checkout (a same-named repository secret is
   not proof of approval), re-runs the provenance check immediately before
   the write, and lets a commit already on `main` apply only files current
-  `main` still carries.
+  `main` still carries. Round twelve: the provenance line names the exact
+  file applied and the check demands that very file (not one sharing its
+  timestamp or name); an edit to an applied migration is refused unless it
+  restores exactly what production recorded; the preflight runs
+  `scripts/check-migrations.mjs` on the overlaid tree before production is
+  linked; and the lexer reads a SQL-standard `BEGIN ATOMIC … END` body as a
+  body rather than refusing its `END`.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

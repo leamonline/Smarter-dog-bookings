@@ -468,12 +468,14 @@ from that recorded SQL (trailing whitespace aside). So a file edited after it
 was applied, or a head pushed after the apply, cannot merge under the applied
 name: re-apply the committed content (`reapply`) or restore what was applied.
 A row that recorded no SQL (applied and ledgered by hand) is still matched by
-name alone. The check also refuses a change that deletes or renames a
-migration production has applied, and, on every pull request, a migration
-the production workflow applied from an earlier head of that pull request
-(found through the provenance line in its ledger row) that the current head
-no longer carries: a later push cannot quietly drop what production already
-ran.
+name alone. The check also refuses a change that deletes, renames or edits a
+migration production has applied (an edit that restores exactly the SQL
+production recorded is the one exception), and, on every pull request, a
+migration the production workflow applied from an earlier head of that pull
+request (found through the provenance line in its ledger row, which names
+the exact file) that the current head no longer carries under that very
+name: a later push cannot quietly drop, rename or rewrite what production
+already ran.
 
 **Before the first run (one-off GitHub setup).** Create the `production`
 environment (Settings → Environments) with a required reviewer and a
@@ -549,8 +551,10 @@ hold:
    run) and, for a commit already on `main`, still exists on current `main`
    (a file `main` has since removed or renamed cannot be applied from an older
    commit; only a current pull request head may introduce a new path), every
-   `reapply` name is in the list, and the full SQL of each file is printed in
-   the log;
+   `reapply` name is in the list, the overlaid tree passes
+   `scripts/check-migrations.mjs` (unique timestamps and names, no empty or
+   comment-only file, so two requested files can never fight over one ledger
+   identity), and the full SQL of each file is printed in the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
 4. immediately before the write, the same provenance script runs again against

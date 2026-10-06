@@ -136,6 +136,20 @@ describe("lex-migration-sql.pl: what the apply refuses", () => {
     expect(lex("skeleton", file).stdout).toBe('create table "I" (id int);\n');
   });
 
+  it("reads a SQL-standard BEGIN ATOMIC body as a body, not as a transaction", () => {
+    expect(refusals("create function f() returns int language sql begin atomic select 1; end;\n")).toEqual([]);
+    expect(refusals("create procedure p() language sql begin atomic insert into t values (1); delete from t; end;\nselect 1;\n")).toEqual([]);
+    // Transaction control inside such a body is still refused, and a lone END still is.
+    expect(refusals("create function f() returns int language sql begin atomic commit; select 1; end;\n")).toEqual([`${TRANSACTION}commit`]);
+    expect(refusals("select 1;\nend;\n")).toEqual([`${TRANSACTION}end`]);
+    // An empty body closes at once, bodies nest, and the END after the last
+    // body is still a lone END.
+    expect(refusals("create procedure p() language sql begin atomic end;\nselect 1;\n")).toEqual([]);
+    const nested = "create function f() returns int language sql begin atomic create function g() returns int language sql begin atomic select 2; end; select 1; end;\n";
+    expect(refusals(nested)).toEqual([]);
+    expect(refusals(`${nested}end;\n`)).toEqual([`${TRANSACTION}end`]);
+  });
+
   it("refuses every top-level transaction-ending form", () => {
     for (const statement of [
       "start transaction",
