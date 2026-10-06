@@ -387,7 +387,9 @@ to `scripts/apply-hosted-migrations.sh`, which:
 - skips any migration whose **name** is already in
   `supabase_migrations.schema_migrations` (names are the identity CI's
   `migrations-applied` check reads; the MCP tool records its own timestamp as
-  the version);
+  the version), but only when the SQL stored on that row equals the committed
+  file: a file edited after it was applied stops the run instead, and the
+  message says whether to drop it from the list or re-apply it;
 - applies each file with `psql` under `ON_ERROR_STOP`, recording its ledger row
   under the file's own version immediately afterwards in the same session: a
   file without its own transaction is atomic with its ledger row; a file that
@@ -403,7 +405,8 @@ define `reset_reminder_on_reschedule()`) must be followed by the newer file
 again. Before a run, check the files in the list against every later file
 already on staging for shared function, trigger and grant names, and add the
 later ones to both inputs, after the older ones. The ledger never gains a
-second row for a name.
+second row for a name; a re-apply refreshes the SQL stored on the existing row
+so the next run can verify it against the committed file.
 
 A bare call to the script reaches staging only: production is refused unless
 the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
@@ -434,6 +437,15 @@ is reviewed, and run it **before** that pull request merges: the
 `migrations-applied` check refuses a merge whose migration is not in the
 production ledger.
 
+**Before the first run (one-off GitHub setup).** Create the `production`
+environment (Settings → Environments) with a required reviewer and a
+deployment branch policy allowing `main`, the same shape as `staging`, and add
+`PRODUCTION_SUPABASE_ACCESS_TOKEN` (a Supabase Management API token) as an
+**environment** secret there, never as a repository secret. GitHub creates a
+referenced environment with no protection rules if it does not exist, so the
+environment-only secret is what makes an unconfigured environment fail closed:
+the workflow's first step refuses to continue without it.
+
 **How to run it.** Actions → **Apply named migrations to production** → *Run
 workflow*. `confirm_production_ref` is `nlzhllhkigmsvrzduefz`, `migrations` is
 the space-separated list of file basenames in the order they must run, and
@@ -444,8 +456,9 @@ checked out or linked until that approval is given.
 **What the run proves**, in order, each step failing the run if it does not
 hold:
 
-1. the typed ref equals the production ref and differs from staging, before
-   checkout, so a wrong ref never reaches the repository or the CLI;
+1. the typed ref equals the production ref and differs from staging, and the
+   environment-only token is present, before checkout, so a wrong ref or an
+   unconfigured environment never reaches the repository or the CLI;
 2. every requested name matches `<14-digit version>_<snake_case_name>.sql`
    and exists under `supabase/migrations/` at the dispatched commit; the full
    SQL of each file is printed in the log;
@@ -453,8 +466,11 @@ hold:
    `supabase migration list --linked` records the before-state;
 4. the script re-checks the target (opt-in, confirmation and link state),
    prints each file's digest and length and the ledger before the run, applies
-   each file in one transaction with its ledger row, skipping names already
-   recorded, then fails unless every requested name is in the ledger;
+   each file in one transaction with its ledger row, skipping a name already
+   recorded only when its stored SQL equals the committed file (a mismatch
+   stops the run: drop the file, or re-apply it to install the committed
+   content and refresh the stored SQL), then fails unless every requested name
+   is in the ledger with the committed content;
 5. `supabase migration list --linked` records the after-state.
 
 The run's step summary names who dispatched it, the migrations requested, the
@@ -472,3 +488,14 @@ past the ledger, and never add a ledger row by hand unless you have confirmed
 the schema change it stands for is present; the one case where the two can
 part is a file carrying its own `begin`/`commit`, which commits itself before
 its ledger row is written.
+
+## The Supabase MCP tool and the Claude permission
+
+`.claude/settings.json` allows `mcp__Supabase__apply_migration` so an agent
+session can apply a migration to **staging** without a per-call prompt. The
+allow rule cannot tell projects apart, so the PreToolUse hook
+`.claude/hooks/guard-supabase-apply-migration.sh` reads the call's project ref
+and sends anything other than the staging ref back to the permission prompt:
+production is still confirmed by a person, per call, and the MCP server's own
+destructive-statement confirmation is unchanged. Production migrations go
+through the workflow above, not through the MCP tool.

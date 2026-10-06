@@ -16,11 +16,15 @@
 #
 # Each file is applied inside one transaction together with its ledger row,
 # so the schema and supabase_migrations.schema_migrations can never disagree.
-# A migration whose NAME is already in the ledger is skipped: the ledger is
-# what CI's migrations-applied check reads, and names (not versions) are the
-# identity, because the MCP tool records its own timestamp as the version.
-# After the last file, every requested name must be in the ledger or the
-# script fails, so a run that ends green has recorded what it applied.
+# A migration whose NAME is already in the ledger is skipped, but only when
+# the SQL stored on that row equals the committed file: the ledger is what
+# CI's migrations-applied check reads, names (not versions) are the identity
+# because the MCP tool records its own timestamp as the version, and a file
+# edited after it was applied must never pass as applied. A mismatch stops
+# the run; REAPPLY_MIGRATIONS applies the committed content and refreshes the
+# stored SQL. After the last file, every requested name must be in the ledger
+# with the committed content or the script fails, so a run that ends green
+# has recorded exactly what it applied.
 #
 # Usage: scripts/apply-hosted-migrations.sh <project-ref> <file>...
 #   where each <file> is a basename under supabase/migrations/, e.g.
@@ -90,6 +94,15 @@ may_reapply() {
   return 1
 }
 
+# The SQL the ledger holds for a name (newest version if there are several),
+# joined the way this script stores it: one element, the whole file.
+stored_sql() {
+  printf '%s\n' \
+    "set role postgres;" \
+    "select coalesce(array_to_string(statements, E'\\n'), '') from supabase_migrations.schema_migrations where name = :'name' order by version desc limit 1;" |
+    psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$1" --file -
+}
+
 umask 077
 credential_script="$(mktemp)"
 credential_exports="$(mktemp)"
@@ -142,8 +155,13 @@ for migration in "$@"; do
       psql -X -A -t -q --set ON_ERROR_STOP=1 --set=name="$name" --file -
   )"
   if [ "$already" != "0" ] && ! may_reapply "$migration"; then
-    echo "skip   $migration (name already in the $TARGET ledger)"
-    continue
+    if [ "$(stored_sql "$name")" = "$(cat "$file")" ]; then
+      echo "skip   $migration (name already in the $TARGET ledger; stored SQL matches the committed file)"
+      continue
+    fi
+    echo "MISMATCH $migration: name already in the $TARGET ledger but its stored SQL differs from the committed file." >&2
+    echo "         Drop it from the list if another tool applied it and it is known good, or add it to REAPPLY_MIGRATIONS to apply the committed content." >&2
+    exit 1
   fi
 
   if [ "$already" != "0" ]; then
@@ -161,6 +179,7 @@ for migration in "$@"; do
     echo "set role postgres;"
     cat "$file"
     echo
+    echo "update supabase_migrations.schema_migrations set statements = array[:'body'] where name = :'name';"
     echo "insert into supabase_migrations.schema_migrations (version, name, statements)"
     echo "  select :'version', :'name', array[:'body']"
     echo "  where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');"
@@ -173,9 +192,9 @@ for migration in "$@"; do
   echo "done   $migration"
 done
 
-# A green run must have recorded every requested name, whether this run
-# applied it or an earlier one did.
-echo "Verifying the requested migrations are recorded in the $TARGET ledger:"
+# A green run must have recorded every requested name with the committed
+# content, whether this run applied it or an earlier one did.
+echo "Verifying the requested migrations are recorded in the $TARGET ledger with the committed SQL:"
 missing=0
 for migration in "$@"; do
   name="${migration#*_}"
@@ -189,8 +208,11 @@ for migration in "$@"; do
   if [ -z "$recorded" ]; then
     echo "MISSING $migration: no ledger row is named '$name'" >&2
     missing=1
+  elif [ "$(stored_sql "$name")" != "$(cat "supabase/migrations/$migration")" ]; then
+    echo "MISMATCH $migration: recorded as version $recorded, but the stored SQL differs from the committed file" >&2
+    missing=1
   else
-    echo "recorded $migration (ledger version $recorded)"
+    echo "recorded $migration (ledger version $recorded; stored SQL matches the committed file)"
   fi
 done
 test "$missing" = 0

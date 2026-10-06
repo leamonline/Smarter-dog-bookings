@@ -170,7 +170,7 @@ describe("staging apply-migrations workflow", () => {
 
     // Schema change and ledger row commit together.
     const begin = script.indexOf('echo "begin;"');
-    const body = script.indexOf('cat "$file"');
+    const body = script.indexOf('cat "$file"', begin);
     const ledger = script.indexOf(
       "insert into supabase_migrations.schema_migrations (version, name, statements)",
     );

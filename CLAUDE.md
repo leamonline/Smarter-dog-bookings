@@ -323,7 +323,9 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **No standing production authority.** A task that needs a production write, customer-data access,
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior
-  successful operation is not permission. For an authorised migration, follow
+  successful operation is not permission. `mcp__Supabase__apply_migration` is allowed without a
+  prompt for **staging only**: a PreToolUse hook (`.claude/hooks/guard-supabase-apply-migration.sh`)
+  sends any other project ref back to the permission prompt. For an authorised migration, follow
   [docs/migrations.md](docs/migrations.md), use an explicit verified project target, show and review
   the SQL before applying it, and record independent post-apply evidence. Never infer that merge
   applies a migration.

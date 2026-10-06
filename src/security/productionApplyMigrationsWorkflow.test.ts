@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -23,6 +23,9 @@ const script = readFileSync(
   join(root, "scripts/apply-hosted-migrations.sh"),
   "utf8",
 );
+const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
+const guardPath = join(root, ".claude/hooks/guard-supabase-apply-migration.sh");
+const guard = readFileSync(guardPath, "utf8");
 
 const productionRef = "nlzhllhkigmsvrzduefz";
 const stagingRef = "btjnxvgkpdbfrrqxvkfj";
@@ -108,12 +111,19 @@ describe("production apply-migrations workflow", () => {
       workflow.matchAll(/\$\{\{\s*secrets\.([A-Z0-9_]+)\s*}}/g),
       (match) => match[1],
     );
-    expect([...new Set(secretNames)]).toEqual(["SUPABASE_ACCESS_TOKEN"]);
+    // Environment-only secret: GitHub auto-creates a referenced environment with
+    // no protection rules, so the repository-level token must never be enough.
+    expect([...new Set(secretNames)]).toEqual(["PRODUCTION_SUPABASE_ACCESS_TOKEN"]);
+    expect(workflow).not.toMatch(/secrets\.SUPABASE_ACCESS_TOKEN\b/);
+    const secretCheck = positionOf('          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then');
+    expect(secretCheck).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
+    expect(workflow).toContain("          PRODUCTION_SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}");
     expect(workflow).not.toMatch(/SUPABASE_DB_PASSWORD|DATABASE_URL|SERVICE_ROLE|--password\b/i);
     expect(workflow).not.toMatch(
       /supabase functions deploy|vercel (?:deploy|--prod)|npm run seed|supabase (?:db )?seed\b/i,
     );
-    expect(workflow).not.toMatch(/set -x|echo .*(?:TOKEN|PGPASSWORD)/);
+    // Never echo a secret's value (a message naming the secret is fine).
+    expect(workflow).not.toMatch(/set -x|echo [^\n]*\$\{?[A-Z_]*(?:TOKEN|PGPASSWORD)/);
   });
 
   it("asserts the production link before every linked command and hands off with the opt-in", () => {
@@ -153,7 +163,7 @@ describe("production apply-migrations workflow", () => {
     for (const outcome of ["PREFLIGHT_OUTCOME", "LINK_OUTCOME", "APPLY_OUTCOME", "AFTER_OUTCOME"]) {
       expect(workflow).toContain(outcome);
     }
-    expect(workflow).toContain("grep -E '^(file|apply|reapply|skip|done|recorded|MISSING) ' apply.log");
+    expect(workflow).toContain("grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH) ' apply.log");
   });
 
   it("keeps the staging workflow unable to reach production through the shared script", () => {
@@ -199,10 +209,52 @@ describe("production apply-migrations workflow", () => {
     expect(script).toContain('echo "MISSING $migration: no ledger row is named \'$name\'" >&2');
     expect(script).toContain('test "$missing" = 0');
 
+    // A recorded name is skipped only when the stored SQL equals the committed
+    // file; otherwise the run stops. A re-apply refreshes the stored SQL in the
+    // same transaction, and the final verification compares content too.
+    expect(script).toContain("select coalesce(array_to_string(statements, E'\\\\n'), '') from supabase_migrations.schema_migrations where name = :'name' order by version desc limit 1;");
+    expect(script).toContain('    if [ "$(stored_sql "$name")" = "$(cat "$file")" ]; then');
+    expect(script).toMatch(/echo "MISMATCH \$migration: name already in the \$TARGET ledger but its stored SQL differs from the committed file\." >&2\n(?:.*\n)? {4}exit 1/);
+    expect(script).toContain(`echo "update supabase_migrations.schema_migrations set statements = array[:'body'] where name = :'name';"`);
+    expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
+      script.indexOf("insert into supabase_migrations.schema_migrations (version, name, statements)"),
+    );
+    expect(script).toContain('  elif [ "$(stored_sql "$name")" != "$(cat "supabase/migrations/$migration")" ]; then');
+
     const apply = script.indexOf('echo "commit;"');
     const verify = script.indexOf("Verifying the requested migrations are recorded");
     const after = script.indexOf('echo "Ledger rows after this run:"');
     expect(apply).toBeLessThan(verify);
     expect(verify).toBeLessThan(after);
+  });
+});
+
+describe("the Claude permission for apply_migration is guarded", () => {
+  it("allows exactly that one Supabase MCP tool", () => {
+    expect(settings.permissions.allow).toEqual(["mcp__Supabase__apply_migration"]);
+    const broad = (settings.permissions.allow as string[]).filter(
+      (rule) => rule !== "mcp__Supabase__apply_migration" && /supabase/i.test(rule),
+    );
+    expect(broad).toEqual([]);
+    expect(settings.permissions.deny ?? []).toEqual([]);
+  });
+
+  it("sends every non-staging project ref back to the permission prompt", () => {
+    const matcher = settings.hooks.PreToolUse.find(
+      (entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration",
+    );
+    expect(matcher).toBeDefined();
+    expect(matcher.hooks.map((h: { command: string }) => h.command)).toEqual([
+      "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-supabase-apply-migration.sh",
+    ]);
+    expect(statSync(guardPath).mode & 0o111).not.toBe(0);
+    expect(guard).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
+    expect(guard).toContain(`PRODUCTION_PROJECT_REF="${productionRef}"`);
+    expect(guard).toMatch(/^ {2}"\$STAGING_PROJECT_REF"\)\n {4}decide allow /m);
+    expect(guard).toMatch(/^ {2}"\$PRODUCTION_PROJECT_REF"\)\n {4}decide ask /m);
+    expect(guard).toMatch(/^ {2}\*\)\n {4}decide ask /m);
+    // "allow" appears for staging only.
+    expect(guard.match(/decide allow /g)?.length).toBe(1);
+    expect(guard).not.toMatch(/permissionDecision":"deny/);
   });
 });

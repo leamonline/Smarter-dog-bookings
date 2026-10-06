@@ -6,9 +6,15 @@ name: Apply named migrations to production
 # required reviewers approve the run, and only then does the job link
 # production. It runs scripts/apply-hosted-migrations.sh, the same script the
 # staging workflow uses, with that script's explicit production opt-in, so
-# there is one apply path to review. Procedure, evidence and what to do after
-# a partial failure: docs/migrations.md ("Applying migrations to production")
-# and ADR 006.
+# there is one apply path to review.
+#
+# The access token is read from PRODUCTION_SUPABASE_ACCESS_TOKEN, a secret that
+# must exist ONLY on the `production` environment (never at repository level):
+# GitHub creates a referenced environment with no protection rules if it does
+# not exist yet, so an unconfigured environment would otherwise run with the
+# repository-level token. Without that secret the first step fails closed.
+# Procedure, evidence and what to do after a partial failure:
+# docs/migrations.md ("Applying migrations to production") and ADR 006.
 on:
   workflow_dispatch:
     inputs:
@@ -53,6 +59,7 @@ jobs:
           ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCTION_SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           if [ "$CONFIRM_PRODUCTION_REF" != "$PRODUCTION_PROJECT_REF" ]; then
@@ -61,6 +68,10 @@ jobs:
           fi
           if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then
             echo "::error::Staging and production project refs must differ."
+            exit 1
+          fi
+          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::The production environment is not configured: no PRODUCTION_SUPABASE_ACCESS_TOKEN environment secret reached this job. Create the production environment with required reviewers and that secret before dispatching (docs/migrations.md)."
             exit 1
           fi
           echo "Target: PRODUCTION ($PRODUCTION_PROJECT_REF); dispatched by $ACTOR (triggering actor $TRIGGERING_ACTOR), attempt $RUN_ATTEMPT"
@@ -76,6 +87,7 @@ jobs:
             echo "| Migrations requested | \`$MIGRATIONS\` |"
             echo "| Re-apply | \`${REAPPLY_MIGRATIONS:-none}\` |"
             echo "| Exact-ref confirmation | passed |"
+            echo "| Production environment secret present | yes |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check out repository
@@ -119,7 +131,7 @@ jobs:
         id: link
         shell: bash
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           # Every linked command from here targets production.
@@ -132,7 +144,7 @@ jobs:
         id: apply
         shell: bash
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
           HOSTED_MIGRATION_TARGET: production
           CONFIRM_PRODUCTION_REF: ${{ inputs.confirm_production_ref }}
           MIGRATIONS: ${{ inputs.migrations }}
@@ -149,7 +161,7 @@ jobs:
         if: ${{ !cancelled() && steps.link.outcome == 'success' }}
         shell: bash
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
@@ -182,7 +194,7 @@ jobs:
               echo "### Per-migration result"
               echo
               echo '```text'
-              grep -E '^(file|apply|reapply|skip|done|recorded|MISSING) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
+              grep -E '^(file|apply|reapply|skip|done|recorded|MISSING|MISMATCH) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
