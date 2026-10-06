@@ -206,7 +206,16 @@ inventory, README, CLAUDE.md, ADR 006 implementation-state note. All in PR #956.
   pushed after the apply (the window the apply itself cannot close) cannot
   merge different SQL under the applied name; rows that recorded no SQL are
   still matched by name. `check-migrations-drift.yml` (the daily audit)
-  still matches by name only.
+  still matches by name only. Round eleven closed the remaining edges: the
+  check also refuses a change that deletes or renames an applied migration
+  and a pull request whose current head no longer carries a migration the
+  production workflow applied from an earlier head (each row the workflow
+  writes carries a provenance line naming the pull request); the workflow
+  verifies the `production` environment's required reviewers and branch
+  policy through the API before checkout (a same-named repository secret is
+  not proof of approval), re-runs the provenance check immediately before
+  the write, and lets a commit already on `main` apply only files current
+  `main` still carries.
 - Whether a dispatched pull request head must carry an *approving* review.
   The workflow requires a non-draft pull request with no outstanding
   changes-requested review and records the approvals it finds in the step

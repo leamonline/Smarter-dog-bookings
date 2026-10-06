@@ -415,7 +415,8 @@ to `scripts/apply-hosted-migrations.sh`, which:
   file that mentions `standard_conforming_strings` or `client_encoding`, the
   two settings that would change how its quoting is read (a CI test runs the
   scan over every committed migration, so a new file it would refuse fails
-  the pull request, not the apply). Symbolic links under
+  the pull request, not the apply). A file with no SQL statement (empty,
+  whitespace or comments only) and symbolic links under
   `supabase/migrations/` are refused.
 
 The optional `reapply` input names files to run again even though they are
@@ -467,7 +468,12 @@ from that recorded SQL (trailing whitespace aside). So a file edited after it
 was applied, or a head pushed after the apply, cannot merge under the applied
 name: re-apply the committed content (`reapply`) or restore what was applied.
 A row that recorded no SQL (applied and ledgered by hand) is still matched by
-name alone.
+name alone. The check also refuses a change that deletes or renames a
+migration production has applied, and, on every pull request, a migration
+the production workflow applied from an earlier head of that pull request
+(found through the provenance line in its ledger row) that the current head
+no longer carries: a later push cannot quietly drop what production already
+ran.
 
 **Before the first run (one-off GitHub setup).** Create the `production`
 environment (Settings → Environments) with a required reviewer and a
@@ -523,31 +529,43 @@ given.
 **What the run proves**, in order, each step failing the run if it does not
 hold:
 
-1. the typed ref equals the production ref and differs from staging, the
-   environment-only token is present, `ref` is a full SHA and a postcondition
-   was given, all before checkout, so a wrong ref or an unconfigured
-   environment never reaches the repository or the CLI;
+1. the typed ref equals the production ref and differs from staging, the run
+   was dispatched from `main`, the `production` environment exists with at
+   least one required reviewer and a deployment branch policy (read through
+   the API, so a same-named secret at repository level cannot stand in for the
+   environment's approval), the environment token is present, `ref` is a full
+   SHA and a postcondition was given, all before checkout, so a wrong ref or an
+   unconfigured environment never reaches the repository or the CLI;
 2. `main` is checked out; the current `main` tip is fetched and recorded, and
    the run refuses if it has changed this workflow or the apply scripts since
-   the dispatch; the named commit is confirmed, against that tip, to be on
-   `main` or the current head of an open pull request into `main`; then
-   `supabase/migrations/` is emptied and refilled from that commit alone;
-   every requested name matches `<14-digit version>_<snake_case_name>.sql`,
-   appears once, is a regular file in that commit (never a symbolic link)
-   and is byte-identical to its blob after the overlay (a file that only
-   exists on `main` fails the run), every `reapply` name is in the list, and
-   the full SQL of each file is printed in the log;
+   the dispatch; the named commit is confirmed by
+   `scripts/production-ref-provenance.sh`, against that tip, to be on `main`
+   or the current head of an open, non-draft pull request into `main` with no
+   reviewer's latest review requesting changes; then `supabase/migrations/`
+   is emptied and refilled from that commit alone; every requested name
+   matches `<14-digit version>_<snake_case_name>.sql`, appears once, is a
+   regular file in that commit (never a symbolic link), is byte-identical to
+   its blob after the overlay (a file that only exists on `main` fails the
+   run) and, for a commit already on `main`, still exists on current `main`
+   (a file `main` has since removed or renamed cannot be applied from an older
+   commit; only a current pull request head may introduce a new path), every
+   `reapply` name is in the list, and the full SQL of each file is printed in
+   the log;
 3. the linked project-ref file equals the production ref, immediately before
    `supabase migration list --linked` records the before-state;
-4. immediately before the write, a pull request head confirmed in step 2 must
-   still be that pull request's head (a push made since is refused, nothing
-   applied); then the script re-checks the target (opt-in, confirmation and
-   link state),
+4. immediately before the write, the same provenance script runs again against
+   the same `main` tip and must reach the same verdict (a pull request that
+   moved on, closed, went back to draft or received a changes-requested
+   review since is refused, nothing applied); then the script re-checks the
+   target (opt-in, confirmation and link state),
    prints each file's digest and length and the ledger before the run, stops
    on a version conflict, applies each file in one transaction with its
    ledger row (its own top-level `begin;`/`commit;` lines removed as the
    quoting scan above finds them; other transaction control, psql
-   meta-commands, variable interpolation and unreadable quoting refused), skipping
+   meta-commands, variable interpolation, unreadable quoting and a file with
+   no SQL statement refused; a provenance line naming the pull request or
+   `main` commit, the actor and the run is stored in the row just ahead of
+   the file, which stays the last element), skipping
    a migration already recorded under its name or basename only when the SQL
    last recorded on it equals the committed file (a mismatch stops the run:
    drop the file, or re-apply it to install the committed content, which

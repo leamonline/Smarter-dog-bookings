@@ -70,6 +70,14 @@
 #   against pg_catalog, not information_schema (which hides what the role
 #   cannot select).
 #
+# LEDGER_PROVENANCE (optional; the production workflow sets it): one line,
+#   starting with `-- ` and containing no dollar sign, stored in the ledger row
+#   just ahead of the file (`-- applied to production from pull request #N
+#   head <sha> by <actor>, run <url>`), so the migrations-applied check can
+#   find what a pull request applied even if a later push drops the file. The
+#   last element of statements stays the SQL applied, which is what every
+#   comparison reads. A file with no SQL statement is refused.
+#
 # REAPPLY_MIGRATIONS (optional, space-separated basenames): files to run even
 # though their name is already in the ledger. Needed when migrations reach a
 # project out of repository order: an older file that redefines a function a
@@ -120,6 +128,17 @@ if [ -n "${POSTCONDITION_SQL:-}" ]; then
   POSTCONDITION_SQL="${POSTCONDITION_SQL%;}"
   if [[ "$POSTCONDITION_SQL" == *";"* ]] || [[ "$POSTCONDITION_SQL" == *"\\"* ]] || [[ ! "$POSTCONDITION_SQL" =~ ^[[:space:]]*[sS][eE][lL][eE][cC][tT][[:space:]] ]]; then
     echo "Refusing POSTCONDITION_SQL: it must be a single SELECT with no semicolons or backslashes." >&2
+    exit 1
+  fi
+fi
+
+# LEDGER_PROVENANCE, when set, is stored in the ledger row ahead of the file:
+# one line, starting with `-- `, with no dollar sign (it travels inside the
+# same dollar-quoted literal as the file). The last element of statements
+# stays the SQL applied, which is what every comparison reads.
+if [ -n "${LEDGER_PROVENANCE:-}" ]; then
+  if [[ "$LEDGER_PROVENANCE" == *$'\n'* ]] || [[ "$LEDGER_PROVENANCE" == *'$'* ]] || [[ ! "$LEDGER_PROVENANCE" =~ ^--\  ]]; then
+    echo "Refusing LEDGER_PROVENANCE: it must be one line starting with '-- ' and contain no dollar sign." >&2
     exit 1
   fi
 fi
@@ -286,25 +305,38 @@ for migration in "$@"; do
     echo "REFUSED $migration: $(printf '%s' "${findings:-its quoting could not be read as psql would read it (see the message above)}" | tr '\n' ';' | sed 's/;/; /g')" >&2
     exit 1
   fi
+  # A file with no SQL statement (empty, whitespace or comments only) has
+  # nothing to apply, and a ledger row recording it could later pass for a
+  # file that gained real SQL under the same name.
+  if [ -z "$(perl "$lexer" skeleton < "$file" | tr -d '[:space:]')" ]; then
+    echo "REFUSED $migration: it contains no SQL statement (empty, whitespace or comments only)." >&2
+    exit 1
+  fi
   # The file's statements, the ledger row and the commit are one transaction.
   # The ledger text travels inside the same stdin stream as a dollar-quoted
-  # literal under a tag the file does not contain, never as a command-line
-  # argument (Linux caps one argument at 128 KiB, and a file that size would
-  # fail here after earlier files had committed). psql reads neither
-  # variables nor meta-commands inside a dollar quote, so the file is stored
-  # exactly as committed, trailing newlines aside, as before.
+  # literal under a tag neither the file nor the provenance line contains,
+  # never as a command-line argument (Linux caps one argument at 128 KiB, and
+  # a file that size would fail here after earlier files had committed). psql
+  # reads neither variables nor meta-commands inside a dollar quote, so the
+  # file is stored exactly as committed, trailing newlines aside, as before.
+  # With LEDGER_PROVENANCE set, that line is stored just ahead of the file;
+  # the file stays the last element either way.
   body="$(cat "$file")"
   tag="ledger_$RANDOM$RANDOM"
   while grep -qF "\$$tag\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done
+  recorded="\$$tag\$$body\$$tag\$"
+  if [ -n "${LEDGER_PROVENANCE:-}" ]; then
+    recorded="\$$tag\$$LEDGER_PROVENANCE\$$tag\$, $recorded"
+  fi
   {
     echo "begin;"
     echo "set role postgres;"
     printf '%s\n' "$executed"
     echo
-    printf '%s\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\$$tag\$$body\$$tag\$]"
+    printf '%s\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[$recorded]"
     echo "  where $LEDGER_MATCH;"
     echo "insert into supabase_migrations.schema_migrations (version, name, statements)"
-    printf '%s\n' "  select :'version', :'name', array[\$$tag\$$body\$$tag\$]"
+    printf '%s\n' "  select :'version', :'name', array[$recorded]"
     echo "  where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);"
     echo "commit;"
   } | psql -X -q --set ON_ERROR_STOP=1 \

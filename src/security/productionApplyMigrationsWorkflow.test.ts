@@ -24,6 +24,7 @@ const script = readFileSync(
   "utf8",
 );
 const gate = readFileSync(join(root, ".github/workflows/check-migrations-applied.yml"), "utf8");
+const provenance = readFileSync(join(root, "scripts/production-ref-provenance.sh"), "utf8");
 const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
 const guardPath = join(root, ".claude/hooks/guard-supabase-apply-migration.sh");
 const guard = readFileSync(guardPath, "utf8");
@@ -59,7 +60,7 @@ describe("production apply-migrations workflow", () => {
       /^ {6}postcondition:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
     );
     expect(trigger).not.toMatch(/^ {2}(?:push|pull_request|pull_request_target|schedule|repository_dispatch):/m);
-    expect(workflow).toMatch(/^permissions:\n {2}contents: read\n {2}pull-requests: read(?: #.*)?\n\n/m);
+    expect(workflow).toMatch(/^permissions:\n {2}contents: read\n {2}pull-requests: read(?: #.*)?\n {2}actions: read(?: #.*)?\n\n/m);
     expect(workflow).not.toMatch(/write-all|: write\b|id-token/);
     expect(workflow).toMatch(
       /concurrency:\n {2}group: production-apply-migrations\n {2}cancel-in-progress: false/,
@@ -110,40 +111,46 @@ describe("production apply-migrations workflow", () => {
     // provenance check and the append-only check; the dispatch-time checkout
     // (HEAD) is never the reference, and the apply code must match current main.
     expect(workflow).toContain("          git fetch --no-tags --depth=1 origin main\n          main_sha=\"$(git rev-parse FETCH_HEAD)\"\n          echo \"main_sha=$main_sha\" >> \"$GITHUB_OUTPUT\"");
-    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl; then');
-    expect(workflow).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$MIGRATION_REF" --jq \'.status\')"');
+    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh; then');
+    // Provenance (on main, or the current head of an open, non-draft pull
+    // request with no outstanding changes request) is decided by one script,
+    // run against the fetched main SHA, and run again before the write.
+    expect(workflow).toContain('          scripts/production-ref-provenance.sh "$main_sha" "$MIGRATION_REF" | tee provenance.out');
+    expect(workflow).toContain('          scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out');
     expect(workflow).not.toContain("compare/main...");
-    expect(workflow.indexOf("git fetch --no-tags --depth=1 origin main")).toBeLessThan(workflow.indexOf('compare="$(gh api'));
+    expect(workflow).not.toContain('compare="$(gh api');
+    expect(workflow.indexOf("git fetch --no-tags --depth=1 origin main")).toBeLessThan(workflow.indexOf('scripts/production-ref-provenance.sh "$main_sha"'));
+    expect(statSync(join(root, "scripts/production-ref-provenance.sh")).mode & 0o111).not.toBe(0);
+    expect(provenance).toContain('compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$ref" --jq \'.status\')"');
+    expect(provenance).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
+    expect(provenance).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref/pulls" |');
+    expect(provenance).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false)');
+    expect(provenance).toContain('reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"');
+    expect(provenance).toContain("if [ \"$(printf '%s' \"$reviews_json\" | jq 'length')\" -ge 100 ]; then");
+    expect(provenance).toContain(
+      "jq -r '[.[] | select(.state == \"APPROVED\" or .state == \"CHANGES_REQUESTED\" or .state == \"DISMISSED\")] | group_by(.user.login) | map(max_by(.submitted_at)) | map(select(.state != \"DISMISSED\")) | map(\"\\(.user.login)=\\(.state)@\\(.commit_id[0:7])\") | join(\" \")'",
+    );
+    expect(provenance).not.toContain("select(.commit_id == $sha");
+    expect(provenance).toContain("if printf '%s' \"$reviews\" | grep -q '=CHANGES_REQUESTED'; then");
+    expect(provenance).toContain('echo "provenance=current head of open pull request #$pr_number; latest review per reviewer: ${reviews:-none}"');
+    expect(provenance).toContain('echo "pr_number=$pr_number"');
     expect(workflow).toContain("          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}");
     expect(workflow).toContain('          if [[ ! "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then');
     expect(workflow).not.toMatch(/HEAD:supabase/);
-    // The pull request number confirmed in the overlay step is re-checked at
-    // the write boundary: the head must still be the dispatched commit, or
-    // nothing is applied.
+    // The pull request number confirmed in the overlay step is carried to the
+    // write boundary, where the same script runs again against the same main
+    // SHA and must reach the same verdict (same pull request, still its head,
+    // still no outstanding changes request), or nothing is applied. The run
+    // then records a provenance line in each ledger row for the merge gate.
     expect(workflow).toContain('          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"');
     expect(workflow).toContain("          PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}");
-    expect(workflow).toContain(
-      "            head_now=\"$(gh api \"repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER\" --jq 'if .state == \"open\" and .draft == false and .base.ref == \"main\" then .head.sha else \"\" end')\"",
-    );
-    expect(workflow).toMatch(/if \[ "\$head_now" != "\$MIGRATION_REF" \]; then\n {14}echo "::error::Pull request #\$PR_NUMBER no longer has \$MIGRATION_REF as its head[^\n]*\n {14}exit 1/);
-    expect(workflow.indexOf('head_now="$(gh api')).toBeLessThan(workflow.indexOf('scripts/apply-hosted-migrations.sh "$PRODUCTION_PROJECT_REF" $MIGRATIONS'));
-    expect(workflow).toContain('if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then');
-    expect(workflow).toContain('pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |');
-    // Non-draft only, with no outstanding changes-requested review on that head; approvals are recorded.
-    expect(workflow).toContain('select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false)');
-    // Reviews are judged per reviewer across the whole pull request, never
-    // filtered to the current head: a changes request on an earlier push stays
-    // outstanding until that reviewer approves or it is dismissed. A truncated
-    // list is refused rather than judged.
-    expect(workflow).toContain('reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"');
-    expect(workflow).toContain("            if [ \"$(printf '%s' \"$reviews_json\" | jq 'length')\" -ge 100 ]; then");
-    expect(workflow).toContain(
-      "jq -r '[.[] | select(.state == \"APPROVED\" or .state == \"CHANGES_REQUESTED\" or .state == \"DISMISSED\")] | group_by(.user.login) | map(max_by(.submitted_at)) | map(select(.state != \"DISMISSED\")) | map(\"\\(.user.login)=\\(.state)@\\(.commit_id[0:7])\") | join(\" \")'",
-    );
-    expect(workflow).not.toContain("select(.commit_id == $sha");
-    expect(workflow).toContain("            if printf '%s' \"$reviews\" | grep -q '=CHANGES_REQUESTED'; then");
-    expect(workflow).toContain('provenance="current head of open pull request #$pr_number; latest review per reviewer: ${reviews:-none}"');
-    expect(workflow.indexOf('compare="$(gh api')).toBeLessThan(workflow.indexOf('git fetch --no-tags --depth=1 origin "$MIGRATION_REF"'));
+    expect(workflow).toMatch(/if \[ "\$\(sed -n 's\/\^pr_number=\/\/p' provenance-now\.out\)" != "\$PR_NUMBER" \]; then\n {12}echo "::error::The commit's provenance changed since the overlay step[^\n]*\n {12}exit 1/);
+    expect(workflow.indexOf('scripts/production-ref-provenance.sh "$MAIN_SHA"')).toBeLessThan(workflow.indexOf('scripts/apply-hosted-migrations.sh "$PRODUCTION_PROJECT_REF" $MIGRATIONS'));
+    expect(workflow).toContain('            LEDGER_PROVENANCE="-- applied to production from pull request #$PR_NUMBER head $MIGRATION_REF by $GITHUB_ACTOR, run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"');
+    expect(workflow).toContain('            LEDGER_PROVENANCE="-- applied to production from main $MIGRATION_REF by $GITHUB_ACTOR, run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"');
+    expect(workflow).toContain("          export LEDGER_PROVENANCE");
+    expect(workflow).not.toContain("head_now=");
+    expect(workflow.indexOf('scripts/production-ref-provenance.sh "$main_sha"')).toBeLessThan(workflow.indexOf('git fetch --no-tags --depth=1 origin "$MIGRATION_REF"'));
     expect(workflow).toContain('          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"');
     // The directory is emptied first, so a main-only file cannot survive a wrong SHA.
     expect(workflow).toContain(
@@ -158,6 +165,10 @@ describe("production apply-migrations workflow", () => {
     // Applied history is append-only: a file already on main must be identical to main's.
     expect(workflow).toContain('            if git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null &&');
     expect(workflow).toContain('               ! git show "$MAIN_SHA:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then');
+    // A commit already on main may only apply files current main still
+    // carries; only a current pull request head may introduce a new path.
+    expect(workflow).toContain('            if [ -z "$PR_NUMBER" ] && ! git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null; then');
+    expect(workflow).toMatch(/echo "::error::supabase\/migrations\/\$migration is not on current main \(\$MAIN_SHA\)[^\n]*\n {14}exit 1/);
     expect(workflow).toContain("            echo \"::error::reapply entry '$candidate' is not in migrations, so it would never run.\"");
     expect(workflow).toContain('          if [ "$(printf \'%s\\n\' $MIGRATIONS | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     // Never the whole tree from the ref: the workflow and script stay as on main.
@@ -190,6 +201,17 @@ describe("production apply-migrations workflow", () => {
     expect(workflow).not.toMatch(/secrets\.SUPABASE_ACCESS_TOKEN\b/);
     const secretCheck = positionOf('          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then');
     expect(secretCheck).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
+    // A same-named secret at repository level must never stand in for the
+    // environment's approval: the job reads the environment itself and refuses
+    // without a required-reviewers rule and a deployment branch policy, and it
+    // only runs when dispatched from main. All before checkout.
+    expect(workflow).toContain('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then');
+    expect(workflow).toContain('          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then');
+    expect(workflow).toContain("          reviewers=\"$(printf '%s' \"$environment\" | jq '[.protection_rules[]? | select(.type == \"required_reviewers\") | .reviewers | length] | add // 0')\"");
+    expect(workflow).toMatch(/if \[ "\$reviewers" -lt 1 \]; then\n {12}echo "::error::The production environment has no required reviewers[^\n]*\n {12}exit 1/);
+    expect(workflow).toMatch(/if \[ "\$\(printf '%s' "\$environment" \| jq '\.deployment_branch_policy == null'\)" = "true" \]; then\n {12}echo "::error::The production environment has no deployment branch policy[^\n]*\n {12}exit 1/);
+    expect(positionOf('          if ! environment="$(gh api')).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
+    expect(positionOf('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then')).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
     // The ref and the postcondition are validated before checkout too.
     expect(positionOf('          if [[ ! "$MIGRATION_REF" =~ ^[0-9a-f]{40}$ ]]; then')).toBeLessThan(
       positionOf("        uses: actions/checkout@v7"),
@@ -336,13 +358,19 @@ describe("production apply-migrations workflow", () => {
     // The ledger text travels inside the psql stdin stream as a dollar-quoted
     // literal under a tag the file does not contain, never as an argument
     // (Linux caps one argument at 128 KiB) and never as a psql variable.
-    expect(script).toContain(
-      `printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\\$$tag\\$$body\\$$tag\\$]"`,
-    );
-    expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[\\$$tag\\$$body\\$$tag\\$]"`);
     expect(script).toContain('  while grep -qF "\\$$tag\\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done');
     expect(script).not.toContain("--set=body=");
     expect(script).not.toContain(":'body'");
+    // With LEDGER_PROVENANCE set (the production workflow does), one validated
+    // line is stored just ahead of the file; the file stays the last element,
+    // which is what every comparison reads. A file with no SQL is refused.
+    expect(script).toContain('  recorded="\\$$tag\\$$body\\$$tag\\$"');
+    expect(script).toContain('    recorded="\\$$tag\\$$LEDGER_PROVENANCE\\$$tag\\$, $recorded"');
+    expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[$recorded]"`);
+    expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[$recorded]"`);
+    expect(script).toMatch(/if \[\[ "\$LEDGER_PROVENANCE" == \*\$'\\n'\* \]\] \|\| \[\[ "\$LEDGER_PROVENANCE" == \*'\$'\* \]\] \|\| \[\[ ! "\$LEDGER_PROVENANCE" =~ \^--\\ {2}\]\]; then\n {4}echo "Refusing LEDGER_PROVENANCE[^\n]*\n {4}exit 1/);
+    expect(script).toMatch(/if \[ -z "\$\(perl "\$lexer" skeleton < "\$file" \| tr -d '\[:space:\]'\)" \]; then\n {4}echo "REFUSED \$migration: it contains no SQL statement[^\n]*\n {4}exit 1/);
+    expect(stagingWorkflow).not.toContain("LEDGER_PROVENANCE");
     expect(script).not.toMatch(/set statements = array\[/);
     expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
       script.indexOf("insert into supabase_migrations.schema_migrations (version, name, statements)"),
@@ -414,26 +442,50 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   // recorded on the ledger row, so the merge gate compares it with the file in
   // the pull request: a head pushed after the apply, the window the apply
   // itself cannot close, cannot merge different SQL under the applied name.
-  it("asks prod for the SQL last recorded against the rows this change could match", () => {
+  it("asks prod for the SQL last recorded against the rows this change could match, and which rows this pull request applied", () => {
     expect(gate).toContain(
-      'query="select version, name, case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end as recorded_sql from supabase_migrations.schema_migrations"',
+      '            recorded_sql="case when version in ($in_versions) or name in ($in_names) then statements[array_upper(statements, 1)] end"',
+    );
+    expect(gate).toContain(
+      "            from_this_pr=\"exists (select 1 from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')\"",
+    );
+    expect(gate).toContain(
+      'query="select version, name, $recorded_sql as recorded_sql, $from_this_pr as from_this_pr from supabase_migrations.schema_migrations"',
     );
     expect(gate).toContain(`--data "$(jq -cn --arg query "$query" '{query: $query}')")`);
     expect(gate).not.toContain('--data \'{"query":"select version, name from');
-    // Only validated names are quoted into the query.
+    // Only validated names and a numeric pull request number are quoted into the query.
     expect(gate).toContain('            if [[ ! "$base" =~ ^[0-9]{14}_[a-z0-9_]+$ ]]; then');
+    expect(gate).toContain('          if [[ -n "$PR_NUMBER" && ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then');
     expect(gate.indexOf('if [[ ! "$base" =~')).toBeLessThan(gate.indexOf('query="select version'));
+    expect(gate.indexOf('if [[ -n "$PR_NUMBER" &&')).toBeLessThan(gate.indexOf('query="select version'));
+    expect(gate).toContain("          PR_NUMBER: ${{ github.event.pull_request.number }}");
   });
 
-  it("fails a file whose content differs from the recorded SQL and still matches by name where nothing was recorded", () => {
+  it("fails a file whose content differs from the recorded SQL (empty included) and still matches by name where nothing was recorded", () => {
     expect(gate).toContain('--rawfile file "$f"');
     expect(gate).not.toMatch(/--arg \w+ "\$\(cat /);
-    expect(gate).toContain('[.[] | select(.version == $ver or .name == $name or .name == $base) | (.recorded_sql // "") | sub("\\\\s+$"; "")]');
+    expect(gate).toContain('[.[] | select(.version == $ver or .name == $name or .name == $base) | .recorded_sql | select(. != null) | sub("\\\\s+$"; "")]');
+    expect(gate).not.toContain('(.recorded_sql // "")');
     expect(gate).toContain('| if length == 0 then "unrecorded"');
     expect(gate).toContain('elif any(. == ($file | sub("\\\\s+$"; ""))) then "match"');
-    expect(gate).toMatch(/\*\)\n {18}echo "✗ CONTENT MISMATCH: \$base"\n(?: {18}.*\n)* {18}pending\+=\("\$base"\)/);
+    expect(gate).toMatch(/\*\)\n {18}echo "✗ CONTENT MISMATCH: \$base"\n(?: {18}.*\n)* {18}problems\+=\("\$base"\)/);
     expect(gate).toContain('unrecorded) echo "✓ applied: $base (matched by name; prod recorded no SQL to compare)" ;;');
     // The name matching the daily drift audit shares is unchanged.
     expect(gate).toContain('if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names" || grep -qxF "$base" <<<"$applied_names"; then');
+  });
+
+  it("refuses deleting or renaming an applied migration, and dropping one this pull request applied from an earlier head", () => {
+    expect(gate).toContain(`deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(gate).toContain(`added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(gate).toMatch(/echo "✗ REMOVED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
+    expect(gate).toContain(`            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##; s/\\.sql$//')`);
+    expect(gate).toContain(`jq -r '.[] | select(.from_this_pr == true) | "\\(.version)\\t\\(.name)"'`);
+    expect(gate).toMatch(/echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: \$rver \$rname"\n(?: {16}.*\n)* {16}problems\+=\("\$rver \$rname"\)/);
+    // Every pull request is verified (an applied file may have been dropped),
+    // while a run with neither token nor migration changes (Dependabot) skips.
+    expect(gate).toContain("        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'");
+    expect(gate).toContain('            if [ -n "$ADDED_FILES$DELETED_FILES" ]; then');
+    expect(gate).toContain('            echo "No migration file changes and no token in this run (a Dependabot pull request) — nothing to verify. ✅"');
   });
 });

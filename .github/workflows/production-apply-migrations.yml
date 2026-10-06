@@ -50,6 +50,7 @@ on:
 permissions:
   contents: read
   pull-requests: read # only to confirm `ref` is the current head of an open pull request
+  actions: read # only to confirm the production environment really gates this job
 
 concurrency:
   group: production-apply-migrations
@@ -78,6 +79,7 @@ jobs:
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           PRODUCTION_SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ "$CONFIRM_PRODUCTION_REF" != "$PRODUCTION_PROJECT_REF" ]; then
@@ -88,8 +90,31 @@ jobs:
             echo "::error::Staging and production project refs must differ."
             exit 1
           fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::This workflow runs only when dispatched from main (dispatched from $GITHUB_REF)."
+            exit 1
+          fi
+          # Running under the production environment only means a reviewer
+          # approved this run if that environment exists with a required-reviewers
+          # rule: a referenced environment that does not exist is created with no
+          # rules, and a secret of the same name at repository or organisation
+          # level would still reach this job. So the environment itself is
+          # checked, not the presence of a specially named secret.
+          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then
+            echo "::error::Could not read the production environment (it must exist, and the workflow needs actions: read); refusing to continue."
+            exit 1
+          fi
+          reviewers="$(printf '%s' "$environment" | jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers | length] | add // 0')"
+          if [ "$reviewers" -lt 1 ]; then
+            echo "::error::The production environment has no required reviewers, so no approval gated this run. Configure it before dispatching (docs/migrations.md)."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$environment" | jq '.deployment_branch_policy == null')" = "true" ]; then
+            echo "::error::The production environment has no deployment branch policy; restrict it to main before dispatching (docs/migrations.md)."
+            exit 1
+          fi
           if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then
-            echo "::error::The production environment is not configured: no PRODUCTION_SUPABASE_ACCESS_TOKEN environment secret reached this job. Create the production environment with required reviewers and that secret before dispatching (docs/migrations.md)."
+            echo "::error::No PRODUCTION_SUPABASE_ACCESS_TOKEN reached this job. Add it as a secret of the production environment before dispatching (docs/migrations.md)."
             exit 1
           fi
           if [[ ! "$MIGRATION_REF" =~ ^[0-9a-f]{40}$ ]]; then
@@ -117,6 +142,8 @@ jobs:
             echo "| Re-apply | \`${REAPPLY_MIGRATIONS:-none}\` |"
             echo "| Postcondition | \`$POSTCONDITION_SQL\` |"
             echo "| Exact-ref confirmation | passed |"
+            echo "| Dispatched from | \`$GITHUB_REF\` |"
+            echo "| Production environment | exists; required reviewers: $reviewers; deployment branch policy: set |"
             echo "| Production environment secret present | yes |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -141,45 +168,20 @@ jobs:
           if [ "$main_sha" != "$GITHUB_SHA" ]; then
             # The workflow and the apply code run as dispatched. If main has
             # since changed them, what would run is not what main now has.
-            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl; then
+            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh; then
               echo "::error::main has changed the production apply workflow or scripts since this run was dispatched ($GITHUB_SHA; main is now $main_sha). Dispatch again from current main."
               exit 1
             fi
             echo "::notice::main has moved on since this run was dispatched ($GITHUB_SHA; now $main_sha); the apply code is unchanged, and the migration checks use current main."
           fi
-          # The named commit must be current: either already on main, or the
-          # present head of an open pull request into main. A superseded head
-          # could carry older SQL under a filename the pull request still has.
-          compare="$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$MIGRATION_REF" --jq '.status')"
-          pr_number=""
-          if [ "$compare" = "identical" ] || [ "$compare" = "behind" ]; then
-            provenance="already on main ($compare)"
-          else
-            pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$MIGRATION_REF/pulls" |
-              jq -r --arg sha "$MIGRATION_REF" '[.[] | select(.state == "open" and .base.ref == "main" and .head.sha == $sha and .draft == false) | .number] | first // empty')"
-            if [ -z "$pr_number" ]; then
-              echo "::error::Commit $MIGRATION_REF is neither on main nor the current head of an open, non-draft pull request into main (compare status: $compare). Dispatch with the reviewed pull request's present head."
-              exit 1
-            fi
-            # Each reviewer's latest review anywhere on the pull request, as
-            # GitHub counts them: a changes-requested review stays outstanding
-            # across later pushes until that reviewer approves or it is
-            # dismissed, so reviews are never filtered by commit. Each is
-            # recorded with the commit it was given on, so the environment
-            # approver can see whether an approval predates this head.
-            reviews_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews?per_page=100")"
-            if [ "$(printf '%s' "$reviews_json" | jq 'length')" -ge 100 ]; then
-              echo "::error::Pull request #$pr_number has 100 or more reviews; refusing to judge a truncated list."
-              exit 1
-            fi
-            reviews="$(printf '%s' "$reviews_json" |
-              jq -r '[.[] | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")] | group_by(.user.login) | map(max_by(.submitted_at)) | map(select(.state != "DISMISSED")) | map("\(.user.login)=\(.state)@\(.commit_id[0:7])") | join(" ")')"
-            if printf '%s' "$reviews" | grep -q '=CHANGES_REQUESTED'; then
-              echo "::error::Pull request #$pr_number has an outstanding changes-requested review (latest review per reviewer: $reviews); that reviewer must approve, or the review be dismissed, before production applies this head."
-              exit 1
-            fi
-            provenance="current head of open pull request #$pr_number; latest review per reviewer: ${reviews:-none}"
-          fi
+          # The named commit must qualify now, per scripts/production-ref-provenance.sh:
+          # on main, or the current head of an open, non-draft pull request into
+          # main with no reviewer's latest review requesting changes. A superseded
+          # head could carry older SQL under a filename the pull request still has.
+          # The same script runs again immediately before the production write.
+          scripts/production-ref-provenance.sh "$main_sha" "$MIGRATION_REF" | tee provenance.out
+          provenance="$(sed -n 's/^provenance=//p' provenance.out)"
+          pr_number="$(sed -n 's/^pr_number=//p' provenance.out)"
           echo "Commit provenance: $provenance"
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           # The checkout above is main (the dispatched ref): the workflow and
@@ -202,6 +204,7 @@ jobs:
           MIGRATIONS: ${{ inputs.migrations }}
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
           MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}
+          PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}
         run: |
           set -euo pipefail
           if [[ ! "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -242,6 +245,14 @@ jobs:
             if git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null &&
                ! git show "$MAIN_SHA:supabase/migrations/$migration" | cmp -s - "supabase/migrations/$migration"; then
               echo "::error::supabase/migrations/$migration already exists on main ($MAIN_SHA) with different content; history is append-only, so add a new corrective migration instead."
+              exit 1
+            fi
+            # A commit already on main may only supply files current main still
+            # carries: a file main has since removed or renamed is history main
+            # deliberately left behind, however reviewed it once was. Only a
+            # current pull request head may introduce a path main does not have.
+            if [ -z "$PR_NUMBER" ] && ! git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null; then
+              echo "::error::supabase/migrations/$migration is not on current main ($MAIN_SHA); a commit on main may only apply files main still carries."
               exit 1
             fi
           done
@@ -298,24 +309,33 @@ jobs:
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
           POSTCONDITION_SQL: ${{ inputs.postcondition }}
           MIGRATION_REF: ${{ inputs.ref }}
+          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}
           PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Last look before the write: a pull request head confirmed in the
-          # overlay step must still be that pull request's head now, or a push
-          # made since would be applied as if reviewed. A push after this point
-          # cannot merge different SQL under the same name either, because the
-          # migrations-applied check compares each file with the SQL this run
-          # records, so the window is closed from both sides.
-          if [ -n "$PR_NUMBER" ]; then
-            head_now="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'if .state == "open" and .draft == false and .base.ref == "main" then .head.sha else "" end')"
-            if [ "$head_now" != "$MIGRATION_REF" ]; then
-              echo "::error::Pull request #$PR_NUMBER no longer has $MIGRATION_REF as its head (now: ${head_now:-not open, draft, or not into main}); nothing was applied. Dispatch again with the current head."
-              exit 1
-            fi
-            echo "Pull request #$PR_NUMBER still has $MIGRATION_REF as its head."
+          # Last look before the write: the commit must qualify now exactly as
+          # it did in the overlay step (same script, same main SHA, same pull
+          # request), so a pull request that moved on, closed, went back to
+          # draft or received a changes-requested review since is refused with
+          # nothing applied. A push after this point cannot merge different SQL
+          # under the same name either, because the migrations-applied check
+          # compares each file with the SQL this run records and looks for the
+          # provenance line below, so the window is closed from both sides.
+          scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out
+          if [ "$(sed -n 's/^pr_number=//p' provenance-now.out)" != "$PR_NUMBER" ]; then
+            echo "::error::The commit's provenance changed since the overlay step (pull request #${PR_NUMBER:-none} then, #$(sed -n 's/^pr_number=//p' provenance-now.out) now); nothing was applied. Dispatch again."
+            exit 1
           fi
+          # Recorded in each ledger row ahead of the SQL, so the
+          # migrations-applied check can find what this pull request applied
+          # even if a later push drops the file.
+          if [ -n "$PR_NUMBER" ]; then
+            LEDGER_PROVENANCE="-- applied to production from pull request #$PR_NUMBER head $MIGRATION_REF by $GITHUB_ACTOR, run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          else
+            LEDGER_PROVENANCE="-- applied to production from main $MIGRATION_REF by $GITHUB_ACTOR, run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi
+          export LEDGER_PROVENANCE
           test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
           # Word-splitting the input is intentional; the script validates each name.
           # shellcheck disable=SC2086
