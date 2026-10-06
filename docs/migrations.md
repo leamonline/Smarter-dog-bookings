@@ -405,6 +405,70 @@ already on staging for shared function, trigger and grant names, and add the
 later ones to both inputs, after the older ones. The ledger never gains a
 second row for a name.
 
-Production is refused by construction: the script hard-codes the staging ref
-and exits if asked for anything else. It is not a production migration path;
-production still follows the manual, target-verified procedure above.
+A bare call to the script reaches staging only: production is refused unless
+the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
+production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
+below does.
+
+## Applying migrations to production: the production workflow
+
+**Apply named migrations to production**
+(`.github/workflows/production-apply-migrations.yml`) is the executable form of
+the manual gate in [ADR 006](architecture/decisions/006-manual-target-verified-database-rollout.md).
+It runs the same `scripts/apply-hosted-migrations.sh` as the staging workflow,
+so there is one apply path to review, but production is deliberately harder to
+reach:
+
+| | Staging workflow | Production workflow |
+|---|---|---|
+| Trigger | Manual dispatch only | Manual dispatch only; never push, pull request or schedule |
+| Environment | `staging`, required reviewer | `production`, required reviewer: a person approves the run before it links anything |
+| Confirmation | Type the staging ref | Type the production ref; the script demands it again as `CONFIRM_PRODUCTION_REF` |
+| Target | Links staging; refuses production | Links production only after the exact-ref check; fails closed on any other ref |
+| Concurrency | One staging run at a time | One production run at a time; a second dispatch queues and never cancels the first |
+
+**When to use which.** Staging first, always: the staging workflow (or the MCP
+tool for files it accepts), then the pgTAP checks. Use the production workflow
+once the same files have run on staging and the pull request that needs them
+is reviewed, and run it **before** that pull request merges: the
+`migrations-applied` check refuses a merge whose migration is not in the
+production ledger.
+
+**How to run it.** Actions → **Apply named migrations to production** → *Run
+workflow*. `confirm_production_ref` is `nlzhllhkigmsvrzduefz`, `migrations` is
+the space-separated list of file basenames in the order they must run, and
+`reapply` is only for the out-of-order repair case described above. The run
+then waits for the `production` environment's required reviewer; nothing is
+checked out or linked until that approval is given.
+
+**What the run proves**, in order, each step failing the run if it does not
+hold:
+
+1. the typed ref equals the production ref and differs from staging, before
+   checkout, so a wrong ref never reaches the repository or the CLI;
+2. every requested name matches `<14-digit version>_<snake_case_name>.sql`
+   and exists under `supabase/migrations/` at the dispatched commit; the full
+   SQL of each file is printed in the log;
+3. the linked project-ref file equals the production ref, immediately before
+   `supabase migration list --linked` records the before-state;
+4. the script re-checks the target (opt-in, confirmation and link state),
+   prints each file's digest and length and the ledger before the run, applies
+   each file in one transaction with its ledger row, skipping names already
+   recorded, then fails unless every requested name is in the ledger;
+5. `supabase migration list --linked` records the after-state.
+
+The run's step summary names who dispatched it, the migrations requested, the
+verified ref and each step's outcome. Keep the run URL as the evidence record
+ADR 006 asks for, and add the usual dated note at the top of this file.
+
+**If a run fails part-way.** Each file is its own transaction with its ledger
+row, so files before the failure are applied and recorded, the failing file is
+rolled back, and later files were not started. Read the failing statement in
+the log and the after-state listing (it still runs whenever the link
+succeeded). Fix the cause in a reviewed change if the SQL is wrong, then
+dispatch again with the same list: recorded names are skipped by name, so only
+the remaining files run. Never recreate a migration under a new name to get
+past the ledger, and never add a ledger row by hand unless you have confirmed
+the schema change it stands for is present; the one case where the two can
+part is a file carrying its own `begin`/`commit`, which commits itself before
+its ledger row is written.

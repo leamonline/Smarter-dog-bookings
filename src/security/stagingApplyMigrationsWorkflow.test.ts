@@ -23,6 +23,8 @@ const productionRef = "nlzhllhkigmsvrzduefz";
 const stagingRef = "btjnxvgkpdbfrrqxvkfj";
 const targetAssertion =
   'test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"';
+const scriptTargetAssertion =
+  'test "$(cat supabase/.temp/project-ref)" = "$TARGET_PROJECT_REF"';
 
 function positionOf(needle: string): number {
   expect(workflow, `expected workflow to contain: ${needle}`).toContain(needle);
@@ -115,19 +117,23 @@ describe("staging apply-migrations workflow", () => {
     expect(workflow).toMatch(
       /^ {6}reapply:\n(?: {8}.+\n)* {8}required: false\n(?: {8}.+\n)* {8}type: string$/m,
     );
+    // The script's production opt-in is never set here, so this workflow can only ever reach staging.
+    expect(workflow).not.toMatch(/HOSTED_MIGRATION_TARGET|CONFIRM_PRODUCTION_REF/);
   });
 
-  it("keeps the script staging-only and transactional with its ledger row", () => {
-    expect(script).toContain(`EXPECTED_STAGING_PROJECT_REF="${stagingRef}"`);
+  it("keeps the script staging by default, production only by explicit opt-in, and transactional with its ledger row", () => {
+    expect(script).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
     expect(script).toContain(`PRODUCTION_PROJECT_REF="${productionRef}"`);
+    expect(script).toContain('TARGET="${HOSTED_MIGRATION_TARGET:-staging}"');
+    expect(script).toContain('if [ "$TARGET_PROJECT_REF" != "$EXPECTED_PROJECT_REF" ]; then');
     expect(script).toContain(
-      'test "$STAGING_PROJECT_REF" = "$EXPECTED_STAGING_PROJECT_REF"',
+      'if [ "${CONFIRM_PRODUCTION_REF:-}" != "$PRODUCTION_PROJECT_REF" ]; then',
     );
     expect(script).toContain(
       'test "$STAGING_PROJECT_REF" != "$PRODUCTION_PROJECT_REF"',
     );
     expect(script).toContain(
-      `${targetAssertion}\nsupabase db dump --linked --schema public --dry-run`,
+      `${scriptTargetAssertion}\nsupabase db dump --linked --schema public --dry-run`,
     );
     expect(script).toContain("trap cleanup EXIT");
     expect(script).toContain(

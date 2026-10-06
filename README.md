@@ -404,8 +404,10 @@ Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (plus any optional
 
 ### ⚠️ Database migrations are applied manually
 Merging to `main` deploys the frontend and Edge Functions, **but not the database**.
-Migrations in `supabase/migrations/` must be applied by hand (Supabase SQL Editor or
-CLI). The frontend can otherwise ship ahead of the schema and break production. The
+Migrations in `supabase/migrations/` must be applied by hand: the Supabase SQL Editor, the
+CLI, or the approval-gated **Apply named migrations to production** workflow (manual dispatch
+under the `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)).
+The frontend can otherwise ship ahead of the schema and break production. The
 `check-migrations-applied` and `check-migrations-drift` workflows flag any committed
 migration that hasn't been applied to prod.
 

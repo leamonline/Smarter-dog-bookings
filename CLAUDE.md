@@ -239,7 +239,9 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   (`src/engine/capacityParityFixtures.test.ts` + `supabase/tests/036_capacity_parity.test.sql`).
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
-  Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's
+  Apply a migration to prod **before** merging code that depends on it, or prod breaks. The
+  repeatable way is the manual, approval-gated **Apply named migrations to production** workflow
+  (`production-apply-migrations.yml`, `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)). CI's
   `migrations-applied` check supplies that evidence, and the `Protect main` ruleset makes it a
   **required status check** — a pull request adding a migration that is not yet live on prod is
   refused at merge with `405 Repository rule violations found`. It is a gate, not a discipline.

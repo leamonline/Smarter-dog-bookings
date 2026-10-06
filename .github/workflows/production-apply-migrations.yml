@@ -1,0 +1,188 @@
+name: Apply named migrations to production
+
+# Production only, by hand, behind the `production` GitHub environment.
+# Nothing here runs on push, pull request or schedule: an operator dispatches
+# it with the exact production ref typed as confirmation, the environment's
+# required reviewers approve the run, and only then does the job link
+# production. It runs scripts/apply-hosted-migrations.sh, the same script the
+# staging workflow uses, with that script's explicit production opt-in, so
+# there is one apply path to review. Procedure, evidence and what to do after
+# a partial failure: docs/migrations.md ("Applying migrations to production")
+# and ADR 006.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_ref:
+        description: Type the exact PRODUCTION project ref to continue
+        required: true
+        type: string
+      migrations:
+        description: Space-separated migration file names under supabase/migrations/ (applied in the order given)
+        required: true
+        type: string
+      reapply:
+        description: Optional subset of those names to run again even though they are already in the production ledger (for out-of-order repairs)
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-apply-migrations
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 30
+    env:
+      PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
+      STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
+    steps:
+      - name: Confirm exact production target
+        shell: bash
+        env:
+          # Inputs and context reach the shell through env, never by
+          # interpolating ${{ }} into run:, matching the other workflows.
+          CONFIRM_PRODUCTION_REF: ${{ inputs.confirm_production_ref }}
+          MIGRATIONS: ${{ inputs.migrations }}
+          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM_PRODUCTION_REF" != "$PRODUCTION_PROJECT_REF" ]; then
+            echo "::error::Confirmation does not match the production project ref."
+            exit 1
+          fi
+          if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then
+            echo "::error::Staging and production project refs must differ."
+            exit 1
+          fi
+          echo "Target: PRODUCTION ($PRODUCTION_PROJECT_REF); dispatched by $ACTOR (triggering actor $TRIGGERING_ACTOR), attempt $RUN_ATTEMPT"
+          echo "Migrations requested: $MIGRATIONS"
+          echo "Re-apply: ${REAPPLY_MIGRATIONS:-none}"
+          {
+            echo "## Production migration run"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Target | **production** (\`$PRODUCTION_PROJECT_REF\`) |"
+            echo "| Dispatched by | \`$ACTOR\` (triggering actor \`$TRIGGERING_ACTOR\`), attempt $RUN_ATTEMPT |"
+            echo "| Migrations requested | \`$MIGRATIONS\` |"
+            echo "| Re-apply | \`${REAPPLY_MIGRATIONS:-none}\` |"
+            echo "| Exact-ref confirmation | passed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate the requested names and show the exact SQL
+        id: preflight
+        shell: bash
+        env:
+          MIGRATIONS: ${{ inputs.migrations }}
+          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+        run: |
+          set -euo pipefail
+          # The same rule the script enforces, applied before production is
+          # linked: only committed basenames, never paths or free SQL.
+          # shellcheck disable=SC2086
+          for migration in $MIGRATIONS $REAPPLY_MIGRATIONS; do
+            if [[ ! "$migration" =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
+              echo "::error::Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql"
+              exit 1
+            fi
+            if [ ! -f "supabase/migrations/$migration" ]; then
+              echo "::error::No committed file supabase/migrations/$migration at this commit."
+              exit 1
+            fi
+          done
+          # shellcheck disable=SC2086
+          for migration in $MIGRATIONS; do
+            echo "::group::supabase/migrations/$migration (sha256 $(sha256sum "supabase/migrations/$migration" | cut -c1-16)…, $(wc -l < "supabase/migrations/$migration" | tr -d ' ') lines)"
+            cat "supabase/migrations/$migration"
+            echo "::endgroup::"
+          done
+          echo "| Names validated and SQL shown | passed |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.109.1
+
+      - name: Link production and record its migration state before applying
+        id: link
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Every linked command from here targets production.
+          supabase link --project-ref "$PRODUCTION_PROJECT_REF"
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          supabase migration list --linked
+          echo "| Linked project ref verified | \`$(cat supabase/.temp/project-ref)\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply the named migrations to production
+        id: apply
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          HOSTED_MIGRATION_TARGET: production
+          CONFIRM_PRODUCTION_REF: ${{ inputs.confirm_production_ref }}
+          MIGRATIONS: ${{ inputs.migrations }}
+          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          # Word-splitting the input is intentional; the script validates each name.
+          # shellcheck disable=SC2086
+          scripts/apply-hosted-migrations.sh "$PRODUCTION_PROJECT_REF" $MIGRATIONS 2>&1 | tee apply.log
+
+      - name: Record production migration state after applying
+        id: after
+        if: ${{ !cancelled() && steps.link.outcome == 'success' }}
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          supabase migration list --linked
+
+      - name: Summarise the outcome
+        if: ${{ always() }}
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          LINK_OUTCOME: ${{ steps.link.outcome }}
+          APPLY_OUTCOME: ${{ steps.apply.outcome }}
+          AFTER_OUTCOME: ${{ steps.after.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "### Outcome"
+            echo
+            echo "| Step | Result |"
+            echo "|---|---|"
+            echo "| Preflight: names validated, SQL shown | $PREFLIGHT_OUTCOME |"
+            echo "| Production link verified, before-state listed | $LINK_OUTCOME |"
+            echo "| Apply (one transaction per file with its ledger row, then ledger verification) | $APPLY_OUTCOME |"
+            echo "| After-state listed | $AFTER_OUTCOME |"
+            echo "| Job | **$JOB_STATUS** |"
+            if [ -f apply.log ]; then
+              echo
+              echo "### Per-migration result"
+              echo
+              echo '```text'
+              grep -E '^(file|apply|reapply|skip|done|recorded|MISSING) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
