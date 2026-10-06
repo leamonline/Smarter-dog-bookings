@@ -91,7 +91,7 @@ jobs:
         run: supabase --workdir "$RUNNER_TEMP/db-test-project" gen types typescript --local --schema public > migrated-database.types.ts
 
       - name: Save generated types for review
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: migrated-database-types
           path: migrated-database.types.ts
