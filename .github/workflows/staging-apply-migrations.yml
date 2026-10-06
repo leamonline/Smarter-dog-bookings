@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: staging
     env:
       PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
