@@ -4,10 +4,11 @@
 # scripts/run-hosted-pgtap.sh). Production is refused by construction.
 #
 # Why this exists: the MCP migration tool refuses to run any SQL text that
-# contains a destructive keyword (DROP FUNCTION, DROP TRIGGER, DELETE FROM),
-# even inside a function body or an `if exists` guard, and that confirmation
-# cannot be answered from an agent session. Several committed migrations need
-# exactly those statements, so staging drifted behind the repository.
+# contains a destructive keyword (DROP FUNCTION, DROP TRIGGER, DROP COLUMN,
+# DELETE FROM), even inside a function body or an `if exists` guard, and that
+# confirmation cannot be answered from an agent session. Several committed
+# migrations need exactly those statements, so staging drifted behind the
+# repository.
 #
 # Each file is applied inside one transaction together with its ledger row,
 # so the schema and supabase_migrations.schema_migrations can never disagree.
