@@ -39,10 +39,11 @@ interface ConfirmInput {
   caller_conversation_id: string;
 }
 
-async function sendAckText(conversation_id: string, text: string) {
-  if (!SEND_INTERNAL_SECRET) return;
+/** Returns whether whatsapp-send accepted the message (not that it was delivered). */
+async function sendAckText(conversation_id: string, text: string): Promise<boolean> {
+  if (!SEND_INTERNAL_SECRET) return false;
   try {
-    await fetch(WHATSAPP_SEND_URL, {
+    const res = await fetch(WHATSAPP_SEND_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -55,8 +56,11 @@ async function sendAckText(conversation_id: string, text: string) {
         text,
       }),
     });
+    if (!res.ok) console.warn(`sendAckText: whatsapp-send returned ${res.status}`);
+    return res.ok;
   } catch (err) {
     console.warn("sendAckText failed (non-fatal):", err);
+    return false;
   }
 }
 
@@ -237,7 +241,7 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
     }
     // A dead end: hand it to the team rather than sending the customer round
     // again, and put it on the staff to-do list so that is true.
-    await sendAckText(
+    const replied = await sendAckText(
       action.conversation_id,
       "Sorry, that confirmation timed out. I've passed it to the team and they'll sort it with you here. 🎓🐶❤️ X",
     );
@@ -246,7 +250,9 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
       .select("human_id")
       .eq("id", action.conversation_id)
       .maybeSingle();
-    await raiseFollowUpTodo(supabase, (convo as { human_id?: string | null } | null)?.human_id, "confirm_expired");
+    await raiseFollowUpTodo(supabase, (convo as { human_id?: string | null } | null)?.human_id, "confirm_expired", {
+      reply: replied ? "sent" : "unconfirmed",
+    });
     return new Response("expired", { status: 200 });
   }
 

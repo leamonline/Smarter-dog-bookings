@@ -71,8 +71,16 @@ const NOW = new Date("2026-10-07T13:00:00Z");
 describe("followUpTodoText", () => {
   it("names the customer, says what happened and where to answer", () => {
     expect(followUpTodoText("Alex Example", "manage_deadline_reschedule")).toBe(
-      `${FOLLOW_UP_TODO_PREFIX} Alex Example wants to move a groom that is within 24 hours. They've been told the team will sort it — reply in the WhatsApp inbox.`,
+      `${FOLLOW_UP_TODO_PREFIX} Alex Example wants to move a groom that is within 24 hours. We replied that the team will sort it — follow up in the WhatsApp inbox.`,
     );
+  });
+
+  // Delivery is never inferred from an attempted send (AGENTS.md). When our
+  // reply did not go out, the task must not suggest the customer knows.
+  it("tells staff to make contact when our reply may not have gone out", () => {
+    const text = followUpTodoText("Alex Example", "confirm_expired", "unconfirmed");
+    expect(text).toMatch(/Our automatic reply may not have reached them, so contact them directly\.$/);
+    expect(text).not.toMatch(/We replied/);
   });
 
   it("still reads properly without a name", () => {
@@ -102,7 +110,7 @@ describe("followUpTodoText", () => {
 describe("raiseFollowUpTodo", () => {
   it("adds an ordinary, tickable to-do linked to the customer at the bottom of the list", async () => {
     const { client, inserts } = fakeClient({ human: { name: "Alex", surname: "Example" }, maxSort: 7 });
-    await expect(raiseFollowUpTodo(client, "h1", "manage_selection_expired", NOW)).resolves.toBe("created");
+    await expect(raiseFollowUpTodo(client, "h1", "manage_selection_expired", { now: NOW })).resolves.toBe("created");
     expect(inserts).toEqual([
       expect.objectContaining({
         table: "salon_todos",
@@ -115,10 +123,16 @@ describe("raiseFollowUpTodo", () => {
     ]);
   });
 
+  it("writes the unconfirmed wording when the caller says the reply failed", async () => {
+    const { client, inserts } = fakeClient({ human: { name: "Alex" } });
+    await raiseFollowUpTodo(client, "h1", "manage_booking_gone", { now: NOW, reply: "unconfirmed" });
+    expect(String(inserts[0].text)).toMatch(/contact them directly/);
+  });
+
   // A customer who taps three expired buttons should leave one task, not three.
   it("does not add a second open follow-up for the same customer inside the window", async () => {
     const { client, inserts, filters } = fakeClient({ openFollowUps: [{ id: "t1" }] });
-    await expect(raiseFollowUpTodo(client, "h1", "confirm_expired", NOW)).resolves.toBe("duplicate");
+    await expect(raiseFollowUpTodo(client, "h1", "confirm_expired", { now: NOW })).resolves.toBe("duplicate");
     expect(inserts).toHaveLength(0);
     expect(filters).toEqual(
       expect.arrayContaining([
@@ -132,7 +146,7 @@ describe("raiseFollowUpTodo", () => {
 
   it("skips quietly when the conversation has no linked customer", async () => {
     const { client, inserts } = fakeClient({});
-    await expect(raiseFollowUpTodo(client, null, "flow_booking_changed", NOW)).resolves.toBe("skipped");
+    await expect(raiseFollowUpTodo(client, null, "flow_booking_changed", { now: NOW })).resolves.toBe("skipped");
     expect(inserts).toHaveLength(0);
   });
 
@@ -142,6 +156,6 @@ describe("raiseFollowUpTodo", () => {
     ["the duplicate check fails", { throwOnRead: true }],
   ])("never throws when %s", async (_label, opts) => {
     const { client } = fakeClient(opts);
-    await expect(raiseFollowUpTodo(client, "h1", "manage_deadline_cancel", NOW)).resolves.toBe("failed");
+    await expect(raiseFollowUpTodo(client, "h1", "manage_deadline_cancel", { now: NOW })).resolves.toBe("failed");
   });
 });

@@ -123,6 +123,9 @@ appears on the staff dashboard rather than only in the inbox thread.
 - **Duplicates:** one open follow-up per customer per 12 hours, so repeated
   taps on an expired button leave one task.
 - **Content:** the customer's name and what happened, never their message text.
+  It says "we replied" only when our reply was accepted for sending, and
+  otherwise tells staff to contact the customer directly. It never claims the
+  customer received anything.
 - **Failures:** best effort. A failed write is logged and never affects the
   reply the customer already received.
 

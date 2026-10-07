@@ -22,6 +22,10 @@
 //     already been decided; a to-do write must never break the conversation.
 //   - The text carries the customer's name and what happened, never the
 //     content of their messages.
+//   - It never claims the customer was told. Callers pass whether our reply
+//     was accepted for sending; even then that is not delivery (AGENTS.md),
+//     so the wording says what we did, and says plainly when it may not
+//     have gone through.
 // ============================================================
 
 // Minimal structural type for the calls made here, the confirmButtons.ts
@@ -71,10 +75,23 @@ const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
   flow_booking_changed: "tried to move a groom that had changed while they were in the booking form",
 };
 
+/**
+ * Whether our reply to the customer went out. "sent" means the provider
+ * accepted it (or the booking form displayed it), not that it was read.
+ */
+export type CustomerReply = "sent" | "unconfirmed";
+
 /** The to-do line staff see. Pure, so the wording is tested directly. */
-export function followUpTodoText(customerName: string | null | undefined, reason: FollowUpReason): string {
+export function followUpTodoText(
+  customerName: string | null | undefined,
+  reason: FollowUpReason,
+  reply: CustomerReply = "sent",
+): string {
   const who = customerName?.trim() || "A customer";
-  return `${FOLLOW_UP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. They've been told the team will sort it — reply in the WhatsApp inbox.`;
+  const next = reply === "sent"
+    ? "We replied that the team will sort it — follow up in the WhatsApp inbox."
+    : "Our automatic reply may not have reached them, so contact them directly.";
+  return `${FOLLOW_UP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. ${next}`;
 }
 
 /** "First Last" from a humans row, or null when neither part is set. */
@@ -89,8 +106,9 @@ export async function raiseFollowUpTodo(
   client: { from(table: string): unknown },
   humanId: string | null | undefined,
   reason: FollowUpReason,
-  now: Date = new Date(),
+  options: { reply?: CustomerReply; now?: Date } = {},
 ): Promise<FollowUpOutcome> {
+  const now = options.now ?? new Date();
   // Without a customer there is nothing to link to and no name to show; the
   // inbox thread is still there for staff.
   if (!humanId) return "skipped";
@@ -127,7 +145,11 @@ export async function raiseFollowUpTodo(
     const sortOrder = ((last as { sort_order?: number } | null)?.sort_order ?? -1) + 1;
 
     const { error: insertErr } = await supabase.from("salon_todos").insert({
-      text: followUpTodoText(customerDisplayName(human as { name?: string; surname?: string } | null), reason),
+      text: followUpTodoText(
+        customerDisplayName(human as { name?: string; surname?: string } | null),
+        reason,
+        options.reply ?? "sent",
+      ),
       done: false,
       sort_order: sortOrder,
       human_id: humanId,
