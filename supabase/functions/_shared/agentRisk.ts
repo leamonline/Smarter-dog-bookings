@@ -179,11 +179,14 @@ export const WALKIN_KEYWORDS: readonly string[] = [
 // failed them. Kept separate from the keyword lists above because these are
 // phrases, not word fragments, and because the response is different: the
 // agent must NOT answer with the portal link (that is the thing they are
-// stuck on) or the tap-to-book prompt that leads to it. Every phrasing below
-// is taken from a real customer message, Jun–Oct 2026.
+// stuck on) or the tap-to-book prompt that leads to it. The phrasings were
+// chosen from the kinds of message customers actually sent, Jun–Oct 2026.
 export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
-  // "won't let me", "wont let me", "it ont let me", "not letting me", "doesn't let me"
-  /\b(?:won'?t|wont|will not|ont|doesn'?t|does not|isn'?t|not) (?:let|letting|allow|allowing) me\b/,
+  // "won't let me book", "it ont let me book", "not letting me log in", "wont let
+  // me ... add". The booking-page word must follow closely: on its own "won't
+  // let me" is everyday speech ("he won't let me brush him", "work won't let
+  // me leave early") and must keep its normal route.
+  /\b(?:won'?t|wont|will not|ont|doesn'?t|does not|isn'?t|not) (?:let|letting|allow|allowing) me\b[^.?!]{0,30}\b(?:book|log ?in|login|sign|add|put|enter|register|app|site|website|online|portal|page|system|post ?code|address)/,
   // "can't log in", "cant login", "not letting me log in", "can't get on the app"
   /\bcan'?t (?:log ?in|sign ?in|get (?:on|in|onto|into))\b/,
   /\bcan'?t (?:seem|seam) to (?:get|log|book)\b/,

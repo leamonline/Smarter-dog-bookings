@@ -37,7 +37,7 @@ import { CheckoutChain } from "./CheckoutChain.jsx";
 import { PriceField } from "./PriceField.jsx";
 import {
   useBookingDeliveryFailure,
-  useWhatsappUnreachable,
+  useUnreachableHumans,
 } from "../../../../supabase/hooks/useDeliveryFailures";
 import { undeliveredNotice } from "./undeliveredNotice";
 
@@ -85,8 +85,12 @@ export function StackCard({
 }) {
   const { booking, timing, urgent, readyOverdue } = row;
   const deliveryFailures = useBookingDeliveryFailure(booking.id);
-  const unreachable = useWhatsappUnreachable(deliveryFailures?.[0]?.human_id);
-  const undelivered = undeliveredNotice(deliveryFailures, unreachable);
+  const unreachableHumans = useUnreachableHumans();
+  const undelivered = undeliveredNotice(
+    deliveryFailures,
+    booking._ownerId,
+    (humanId) => Boolean(humanId) && unreachableHumans.has(humanId),
+  );
   const tone = resolveDayStatus(booking.status, booking.cancelReason);
   const dogName = titleCase(display.dogMissing ? "Unnamed booking" : display.dogName);
   const ownerName = display.ownerMissing ? "" : titleCase(display.owner);
@@ -300,7 +304,7 @@ export function StackCard({
               >
                 <strong>{undelivered.chip}: </strong>
                 {undelivered.detail}
-                {display.ownerPhone ? (
+                {undelivered.callOwner && display.ownerPhone ? (
                   <>
                     {" "}
                     <a

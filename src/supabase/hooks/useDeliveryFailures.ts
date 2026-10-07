@@ -23,6 +23,7 @@ import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import type { Database } from "../database.types";
+import { META_UNDELIVERABLE, metaFailureSummary } from "../../../supabase/functions/_shared/deliveryStatus";
 
 type NotificationLogRow = Database["public"]["Tables"]["notification_log"]["Row"];
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
@@ -31,7 +32,14 @@ type DismissalRow = Database["public"]["Tables"]["notification_dismissals"]["Row
 /** The columns refresh() selects from notification_log for the supersession pass. */
 type NotificationLogSelect = Pick<
   NotificationLogRow,
-  "booking_id" | "human_id" | "trigger_type" | "channel" | "status" | "error_message" | "created_at"
+  | "booking_id"
+  | "human_id"
+  | "trigger_type"
+  | "channel"
+  | "status"
+  | "error_message"
+  | "created_at"
+  | "provider_message_id"
 >;
 
 /** Per-trigger failure the booking pill / detail card renders. */
@@ -83,29 +91,62 @@ export function triggerLabel(triggerType: string): string {
 }
 
 /**
- * The notification a row is ABOUT. The SMS safety net logs its resend of a
- * failed WhatsApp confirmation or reminder as `confirmed_sms_fallback` /
- * `reminder_sms_fallback`; for "has this customer been told?" that is the
- * same message, so a fallback that went out supersedes the WhatsApp failure
- * and a fallback that also failed keeps it live.
+ * The notification a row is ABOUT, for labels only. The SMS safety net logs
+ * its resend of a failed WhatsApp confirmation or reminder as
+ * `confirmed_sms_fallback` / `reminder_sms_fallback`. It does NOT clear the
+ * WhatsApp failure: an SMS row reading 'sent' only means the provider took the
+ * request, and delivery is never inferred from an attempted provider call
+ * (AGENTS.md). There is no SMS delivery receipt to reconcile against.
  */
 export function baseTrigger(triggerType: string): string {
   return triggerType.replace(/_sms_fallback$/, "");
 }
 
-/** How many most-recent WhatsApp sends must ALL have failed to call a number unreachable. */
+/** How many most-recent WhatsApp sends must ALL have been undeliverable to call a number unreachable. */
 export const UNREACHABLE_AFTER = 3;
+
+/**
+ * Apply Meta's verdict to log rows. notification_log says 'sent' the moment
+ * Meta accepts a message; Meta's later "failed" lands on the whatsapp_messages
+ * row with the same id. The webhook also copies it onto the log, but it can
+ * lose the race with the notify function that is still writing the id onto a
+ * pending row, and rows from before that change were never copied at all. So
+ * the read side reconciles: any WhatsApp row whose provider message Meta
+ * failed is treated as failed, with Meta's reason. Pure; returns new rows.
+ */
+export function applyMetaVerdicts<T extends Pick<NotificationLogRow, "channel" | "status" | "error_message" | "provider_message_id">>(
+  rows: readonly T[],
+  failedByMetaId: ReadonlyMap<string, string>,
+): T[] {
+  if (failedByMetaId.size === 0) return [...rows];
+  return rows.map((r) => {
+    if (r.channel !== "whatsapp" || r.status !== "sent" || !r.provider_message_id) return r;
+    const reason = failedByMetaId.get(r.provider_message_id);
+    return reason === undefined ? r : { ...r, status: "failed", error_message: reason };
+  });
+}
+
+/** Meta's raw error JSON on a whatsapp_messages row, as one readable line. */
+export function metaVerdictReason(rawError: string | null | undefined): string {
+  try {
+    const parsed = rawError ? JSON.parse(rawError) : null;
+    return metaFailureSummary(Array.isArray(parsed) ? parsed : null);
+  } catch {
+    return metaFailureSummary(null);
+  }
+}
 
 /**
  * The supersession pass. Given every notification row for a set of bookings,
  * NEWEST FIRST, keep a failure only while it is still the latest row for its
- * (booking, notification, recipient). A later 'sent' or 'pending' row — staff
- * resent, or the SMS fallback went out — means it has been dealt with.
+ * exact (booking, trigger, recipient). A later 'sent' or 'pending' row for the
+ * same trigger means staff resent it. An SMS fallback is a different trigger,
+ * so it never clears the WhatsApp failure (see baseTrigger).
  */
 export function liveFailuresByBooking(rowsNewestFirst: readonly NotificationLogSelect[]): Map<string, FailureInfo[]> {
   const latestByTuple = new Map<string, NotificationLogSelect>();
   for (const r of rowsNewestFirst) {
-    const key = `${r.booking_id}|${baseTrigger(r.trigger_type)}|${r.human_id ?? ""}`;
+    const key = `${r.booking_id}|${r.trigger_type}|${r.human_id ?? ""}`;
     if (!latestByTuple.has(key)) latestByTuple.set(key, r); // first = newest
   }
 
@@ -119,7 +160,7 @@ export function liveFailuresByBooking(rowsNewestFirst: readonly NotificationLogS
       byBooking.set(r.booking_id, infos);
     }
     infos.push({
-      trigger_type: baseTrigger(r.trigger_type),
+      trigger_type: r.trigger_type,
       channel: r.channel,
       error_message: r.error_message,
       created_at: r.created_at,
@@ -129,29 +170,39 @@ export function liveFailuresByBooking(rowsNewestFirst: readonly NotificationLogS
   return byBooking;
 }
 
+const UNDELIVERABLE_RE = new RegExp(`\\b${META_UNDELIVERABLE}\\b`);
+
 /**
- * Customers whose last UNREACHABLE_AFTER WhatsApp sends ALL failed. One failure
- * can be a blip; three in a row almost always means the number isn't on
- * WhatsApp (Meta 131026), so every future reminder will vanish too and the
- * only way to reach them is a phone call. Rows must be WhatsApp sends, NEWEST
- * FIRST. A customer with fewer than UNREACHABLE_AFTER sends is never flagged.
+ * Customers whose last UNREACHABLE_AFTER WhatsApp sends were ALL reported by
+ * Meta as undeliverable (131026), which almost always means the number isn't
+ * on WhatsApp. Any other failure — a provider outage, a credentials or
+ * template problem — says nothing about the number, so it ends the streak
+ * rather than counting towards it. One provider message covering several dogs
+ * is logged once per booking under the same provider id; it counts once.
+ * Rows must be WhatsApp sends, NEWEST FIRST.
  */
 export function unreachableHumanIds(
-  whatsappRowsNewestFirst: readonly Pick<NotificationLogRow, "human_id" | "status">[],
+  whatsappRowsNewestFirst: readonly Pick<NotificationLogRow, "human_id" | "status" | "error_message" | "provider_message_id">[],
   threshold: number = UNREACHABLE_AFTER,
 ): Set<string> {
-  const recent = new Map<string, string[]>();
+  const recent = new Map<string, { sends: boolean[]; seenIds: Set<string> }>();
   for (const r of whatsappRowsNewestFirst) {
     if (!r.human_id) continue;
-    const seen = recent.get(r.human_id) ?? [];
-    if (seen.length < threshold) {
-      seen.push(r.status);
-      recent.set(r.human_id, seen);
+    let entry = recent.get(r.human_id);
+    if (!entry) {
+      entry = { sends: [], seenIds: new Set() };
+      recent.set(r.human_id, entry);
     }
+    if (entry.sends.length >= threshold) continue;
+    if (r.provider_message_id) {
+      if (entry.seenIds.has(r.provider_message_id)) continue;
+      entry.seenIds.add(r.provider_message_id);
+    }
+    entry.sends.push(r.status === "failed" && UNDELIVERABLE_RE.test(r.error_message ?? ""));
   }
   const out = new Set<string>();
-  for (const [humanId, statuses] of recent) {
-    if (statuses.length === threshold && statuses.every((st) => st === "failed")) out.add(humanId);
+  for (const [humanId, { sends }] of recent) {
+    if (sends.length === threshold && sends.every(Boolean)) out.add(humanId);
   }
   return out;
 }
@@ -206,8 +257,22 @@ async function refresh(): Promise<void> {
   try {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
 
-    // 1. Bookings that have at least one FAILED notification in the window.
-    //    Failures are rare, so this returns a small set.
+    // 0. Messages Meta itself reported as failed (see applyMetaVerdicts).
+    //    Rare — a few dozen over the whole window — so this stays small.
+    const { data: metaFailed, error: metaErr } = await supabase
+      .from("whatsapp_messages")
+      .select("meta_message_id, error_message")
+      .eq("direction", "outbound")
+      .eq("status", "failed")
+      .gte("sent_at", since);
+    if (metaErr) throw metaErr;
+    const failedByMetaId = new Map<string, string>();
+    for (const m of metaFailed ?? []) {
+      if (m.meta_message_id) failedByMetaId.set(m.meta_message_id, metaVerdictReason(m.error_message));
+    }
+
+    // 1. Bookings with at least one FAILED notification in the window: failed
+    //    in the log itself, or logged 'sent' for a message Meta then failed.
     const { data: failedRows, error: failedErr } = await supabase
       .from("notification_log")
       .select("booking_id")
@@ -215,9 +280,20 @@ async function refresh(): Promise<void> {
       .gte("created_at", since);
     if (failedErr) throw failedErr;
 
+    let metaFailedRows: { booking_id: string | null }[] = [];
+    if (failedByMetaId.size > 0) {
+      const { data, error } = await supabase
+        .from("notification_log")
+        .select("booking_id")
+        .eq("channel", "whatsapp")
+        .in("provider_message_id", [...failedByMetaId.keys()]);
+      if (error) throw error;
+      metaFailedRows = data ?? [];
+    }
+
     const failedBookingIds = [
       ...new Set(
-        (failedRows ?? [])
+        [...(failedRows ?? []), ...metaFailedRows]
           .map((r) => r.booking_id)
           .filter((id): id is string => Boolean(id)),
       ),
@@ -234,12 +310,12 @@ async function refresh(): Promise<void> {
     //    'sent'/'pending' row means staff already resent.
     const { data: allRows, error: allErr } = await supabase
       .from("notification_log")
-      .select("booking_id, human_id, trigger_type, channel, status, error_message, created_at")
+      .select("booking_id, human_id, trigger_type, channel, status, error_message, created_at, provider_message_id")
       .in("booking_id", failedBookingIds)
       .order("created_at", { ascending: false });
     if (allErr) throw allErr;
 
-    const byBooking = liveFailuresByBooking(allRows ?? []);
+    const byBooking = liveFailuresByBooking(applyMetaVerdicts(allRows ?? [], failedByMetaId));
 
     // 2b. Is any of these customers simply unreachable on WhatsApp? Only the
     //     customers with a live failure can be, so this stays a small query.
@@ -255,13 +331,13 @@ async function refresh(): Promise<void> {
     if (failedHumanIds.length > 0) {
       const { data: waRows, error: waErr } = await supabase
         .from("notification_log")
-        .select("human_id, status")
+        .select("human_id, channel, status, error_message, provider_message_id")
         .eq("channel", "whatsapp")
         .in("human_id", failedHumanIds)
         .gte("created_at", since)
         .order("created_at", { ascending: false });
       // Advisory only: if this read fails the per-booking badges still show.
-      if (!waErr) unreachableHumans = unreachableHumanIds(waRows ?? []);
+      if (!waErr) unreachableHumans = unreachableHumanIds(applyMetaVerdicts(waRows ?? [], failedByMetaId));
     }
 
     // 3. Enrich for the dashboard list: customer + dog + date per failed
@@ -362,6 +438,13 @@ function startChannel() {
       { event: "*", schema: "public", table: "notification_dismissals" },
       () => refresh(),
     )
+    // Meta's "failed" verdict lands here first; only failures matter, so
+    // ordinary delivered/read receipts don't trigger a refetch.
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "whatsapp_messages", filter: "status=eq.failed" },
+      () => refresh(),
+    )
     .subscribe();
 }
 
@@ -428,11 +511,10 @@ export function useBookingDeliveryFailure(
 }
 
 /**
- * True when this customer's last few WhatsApp sends all failed, so messages
+ * Customers whose last few WhatsApp sends were all undeliverable, so messages
  * to them are not arriving at all. For the Today card, where it changes the
- * advice from "a reminder didn't land" to "phone them".
+ * advice from "a reminder didn't land" to "this number may not be on WhatsApp".
  */
-export function useWhatsappUnreachable(humanId: string | null | undefined): boolean {
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return humanId ? snapshot.unreachableHumans.has(humanId) : false;
+export function useUnreachableHumans(): ReadonlySet<string> {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot).unreachableHumans;
 }

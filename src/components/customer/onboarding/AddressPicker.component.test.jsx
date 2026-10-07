@@ -25,13 +25,13 @@ describe("AddressPicker — the way out when the lookup fails", () => {
   // messaged the salon instead of finishing sign-up.
   it.each([
     ["the postcode is rejected", () => rejected("invalid_postcode")],
-    ["no addresses are found", () => ({ data: { postcode: "OL6 9EJ", addresses: [] } })],
+    ["no addresses are found", () => ({ data: { postcode: "M1 1AA", addresses: [] } })],
     ["the lookup errors", () => rejected("upstream_unavailable")],
   ])("shows an 'Enter it manually instead' button when %s", async (_label, outcome) => {
     actions.lookupPostcode.mockResolvedValue(outcome());
     render(<AddressPicker onChange={() => {}} />);
 
-    searchFor("OL6 9EJ");
+    searchFor("M1 1AA");
 
     const button = await screen.findByRole("button", { name: "Enter it manually instead" });
     fireEvent.click(button);
@@ -42,7 +42,7 @@ describe("AddressPicker — the way out when the lookup fails", () => {
     actions.lookupPostcode.mockResolvedValue(rejected("invalid_postcode"));
     render(<AddressPicker onChange={() => {}} />);
 
-    searchFor("OL6");
+    searchFor("M1");
 
     expect(await screen.findByText(/enter your address manually below/i)).toBeTruthy();
   });
@@ -52,18 +52,18 @@ describe("AddressPicker — the way out when the lookup fails", () => {
     const onChange = vi.fn();
     render(<AddressPicker onChange={onChange} />);
 
-    searchFor("ol6 9ej");
+    searchFor("m1 1aa");
     fireEvent.click(await screen.findByRole("button", { name: "Enter it manually instead" }));
 
     const postcodeInputs = screen.getAllByLabelText("Postcode");
-    expect(postcodeInputs[postcodeInputs.length - 1].value).toBe("OL6 9EJ");
+    expect(postcodeInputs[postcodeInputs.length - 1].value).toBe("M1 1AA");
 
     fireEvent.change(screen.getByLabelText("Full address"), {
-      target: { value: "48 Example Crescent, Ashton-under-Lyne" },
+      target: { value: "1 Example Street, Exampletown" },
     });
     await waitFor(() =>
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ ready: true, postcode: "OL6 9EJ" }),
+        expect.objectContaining({ ready: true, postcode: "M1 1AA" }),
       ),
     );
   });

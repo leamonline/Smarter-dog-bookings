@@ -660,28 +660,30 @@ describe("explicit booking-preference corrections", () => {
   });
 });
 
-// ── isPortalTrouble ───────────────────────────────────────────
-// Every positive below is a real customer message (lightly trimmed) from the
-// Jun–Oct 2026 WhatsApp history. Before this rule each one was answered with
-// the tap-to-book prompt and then the portal link it was complaining about.
+// ── isPortalTrouble ──────────────────────────────────────────
+// Synthetic messages written to exercise each pattern. They mirror the KINDS
+// of report customers sent (login loops, address lookup, the size wall, curly
+// apostrophes from phones) without reproducing anyone's wording: no customer
+// text belongs in the repository. Before this rule each kind was answered
+// with the tap-to-book prompt and then the very portal link it reported.
 describe("isPortalTrouble", () => {
-  const realReports = [
-    "Hi, I\u2019m trying to book Lizzie in for next Monday but it\u2019s not letting me log in. X",
-    "Hi I'm trying to book Lola in for a groom but won't let me book her in on your booking page.",
-    "Hi it ont let me book hunny in on Ap can you let me know any availability",
-    "Hi have u any availability for hunny still can't seam to get on app xx",
-    "Trying to book a grooming slot online but keeps sending me to sign up.",
-    "Hi guys it keeps throwing me off and something about coopers weight? X",
-    "It\u2019s not letting me put my post code in. Can I book in for next Wednesday",
-    "Tried to book on the website but it couldn\u2019t find our address. Gave up in the end.",
-    "i\u2019ve tried booking my dog in for a grooming appointment and your website isn\u2019t working",
-    "The system isnt working. \u{1F648}",
-    "just completing the new booking and it\u2019s asking us to contact you to enter Hugo\u2019s size",
-    "Can\u2019t book molly and Marley in for groom says need to know Marley\u2019s size",
-    "Sorry for some reason I can\u2019t book in on the App",
-    "im trying to add my partners dog but wont let me could we book him in please",
+  const reports = [
+    "Hello, I\u2019m trying to get Biscuit booked but it\u2019s not letting me log in",
+    "Trying to book Max for a groom but it won't let me book him on the booking page",
+    "it ont let me book on the ap",
+    "still can't seem to get on the app, any slots next week?",
+    "Tried booking online but it keeps sending me back to sign up",
+    "the site keeps kicking me out and says something about his weight",
+    "It\u2019s not letting me put my postcode in",
+    "I tried to book on your website but it couldn\u2019t find my address",
+    "I\u2019ve tried a few times and your website isn\u2019t working",
+    "The system isnt working",
+    "the new booking form is asking me to contact you about Max\u2019s size",
+    "Can\u2019t book the two of them, it says need to know Max\u2019s size",
+    "For some reason I can\u2019t book in on the App",
+    "wanted to add my second dog but wont let me add her",
   ];
-  it.each(realReports)("flags: %s", (msg) => {
+  it.each(reports)("flags: %s", (msg) => {
     expect(isPortalTrouble(msg)).toBe(true);
   });
 
@@ -696,6 +698,10 @@ describe("isPortalTrouble", () => {
     "On my way, be 5 mins",
     "Is Charlie ready?",
     "Please don't let me forget his collar x",
+    // Everyday "won't let me" with nothing to do with the booking page.
+    "He won't let me brush him at home, can you help with mats?",
+    "Work won't let me leave early so can I collect at 1?",
+    "She doesn't let me near her paws",
     "",
   ];
   it.each(ordinary)("leaves alone: %s", (msg) => {

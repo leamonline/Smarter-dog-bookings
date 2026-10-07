@@ -12,14 +12,14 @@ const unreachable = new Set();
 vi.mock("../../../../supabase/hooks/useDeliveryFailures", async (importOriginal) => ({
   ...(await importOriginal()),
   useBookingDeliveryFailure: (id) => failures.get(id) ?? null,
-  useWhatsappUnreachable: (humanId) => unreachable.has(humanId),
+  useUnreachableHumans: () => unreachable,
 }));
 
 const NOW = new Date("2026-07-02T07:15:00Z");
 const TODAY = "2026-07-02";
 const BOOKINGS = [
   { id: "told", dogName: "Hugo", slot: "10:00", status: BOOKING_STATUS.BOOKED, service: "full-groom", payment: "Due at Pick-up", _dogId: "d1", _bookingDate: TODAY },
-  { id: "missed", dogName: "Nell", slot: "11:00", status: BOOKING_STATUS.BOOKED, service: "full-groom", payment: "Due at Pick-up", _dogId: "d2", _bookingDate: TODAY },
+  { id: "missed", dogName: "Nell", slot: "11:00", status: BOOKING_STATUS.BOOKED, service: "full-groom", payment: "Due at Pick-up", _dogId: "d2", _ownerId: "h2", _bookingDate: TODAY },
 ];
 
 function renderStack() {
@@ -64,6 +64,17 @@ describe("undelivered notifications on the Today card", () => {
     expect(card("missed").querySelector("[data-stack-head]").getAttribute("aria-label")).toMatch(/Confirmation not delivered/);
   });
 
+  // Notifications are per recipient. A trusted contact's missed reminder must
+  // not put the OWNER's number behind a "give them a ring".
+  it("does not offer the owner's number when only a trusted contact's message failed", () => {
+    failures.set("missed", [{ trigger_type: "reminder", human_id: "contact-9" }]);
+    renderStack();
+    fireEvent.click(card("missed").querySelector("[data-undelivered]"));
+    const detail = card("missed").querySelector("[data-undelivered-detail]");
+    expect(detail.textContent).toMatch(/the contact on this booking/);
+    expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
+  });
+
   it("says so plainly when the number looks like it isn't on WhatsApp", () => {
     failures.set("missed", [{ trigger_type: "reminder", human_id: "h2" }]);
     unreachable.add("h2");
@@ -74,11 +85,30 @@ describe("undelivered notifications on the Today card", () => {
 
 describe("undeliveredNotice", () => {
   it("is null when everything arrived", () => {
-    expect(undeliveredNotice(null, false)).toBeNull();
-    expect(undeliveredNotice([], true)).toBeNull();
+    expect(undeliveredNotice(null, "h1")).toBeNull();
+    expect(undeliveredNotice([], "h1")).toBeNull();
   });
 
   it("leads with the reminder when both failed, since that is the one that says turn up", () => {
-    expect(undeliveredNotice([{ trigger_type: "confirmed" }, { trigger_type: "reminder" }], false)?.chip).toBe("Reminder not delivered");
+    const notice = undeliveredNotice(
+      [{ trigger_type: "confirmed", human_id: "h1" }, { trigger_type: "reminder", human_id: "h1" }],
+      "h1",
+    );
+    expect(notice?.chip).toBe("Reminder not delivered");
+    expect(notice?.callOwner).toBe(true);
+  });
+
+  it("names a failed SMS fallback by the message it stood in for", () => {
+    expect(undeliveredNotice([{ trigger_type: "reminder_sms_fallback", human_id: "h1" }], "h1")?.chip)
+      .toBe("Reminder not delivered");
+  });
+
+  it("prefers the owner's failure when the owner and a contact both missed out", () => {
+    const notice = undeliveredNotice(
+      [{ trigger_type: "confirmed", human_id: "contact-9" }, { trigger_type: "reminder", human_id: "h1" }],
+      "h1",
+      (id) => id === "h1",
+    );
+    expect(notice).toMatchObject({ chip: "Not on WhatsApp", callOwner: true, humanId: "h1" });
   });
 });
