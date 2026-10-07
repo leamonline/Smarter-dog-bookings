@@ -18,8 +18,20 @@ export interface UndeliveredNotice {
   humanId: string | null;
 }
 
+/**
+ * How the failed message was sent, in staff words. Customers choose SMS or
+ * email as well as WhatsApp, and the log row records which; telling staff a
+ * text "didn't reach them on WhatsApp" sends them to the wrong place.
+ */
+function channelWord(channel: string | null | undefined): string {
+  if (channel === "sms") return "text";
+  if (channel === "email") return "email";
+  if (channel === "whatsapp") return "WhatsApp";
+  return "message";
+}
+
 export function undeliveredNotice(
-  failures: readonly Pick<FailureInfo, "trigger_type" | "human_id">[] | null | undefined,
+  failures: readonly Pick<FailureInfo, "trigger_type" | "human_id" | "channel">[] | null | undefined,
   ownerId: string | null | undefined,
   isUnreachable: (humanId: string | null) => boolean = () => false,
 ): UndeliveredNotice | null {
@@ -35,20 +47,22 @@ export function undeliveredNotice(
   // The reminder is the one that tells them to turn up, so name it first.
   const lead = kinds.includes("reminder") ? "reminder" : kinds[0];
   const what = triggerLabel(lead).toLowerCase();
+  const leadFailure = relevant.find((f) => baseTrigger(f.trigger_type) === lead) ?? relevant[0];
+  const via = channelWord(leadFailure.channel);
   const who = callOwner ? "them" : "the contact on this booking";
   const act = callOwner ? "Give them a ring" : "Check who that is in the booking before ringing";
 
   if (isUnreachable(humanId)) {
     return {
       chip: "Not on WhatsApp",
-      detail: `Our WhatsApp ${what} didn't reach ${who}, and nor did the messages before it, so this number may not be on WhatsApp. ${act}.`,
+      detail: `Our ${via} ${what} didn't reach ${who}, and nor did the WhatsApp messages before it, so this number may not be on WhatsApp. ${act}.`,
       callOwner,
       humanId,
     };
   }
   return {
     chip: `${triggerLabel(lead)} not delivered`,
-    detail: `Our WhatsApp ${what} didn't reach ${who}. ${act} to check they know.`,
+    detail: `Our ${via} ${what} didn't reach ${who}. ${act} to check they know.`,
     callOwner,
     humanId,
   };

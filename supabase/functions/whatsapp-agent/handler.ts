@@ -238,7 +238,7 @@ type BookingActionFromClaude =
 // A human member of staff reviews every draft before it's sent, so
 // the prompt err on the side of brevity, safety, and honesty. Low
 // confidence + escalate is always a valid move.
-export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-02.memory-2";
+export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-07.portal-trouble-1";
 const SYSTEM_PROMPT = `You are the WhatsApp reply assistant for Smarter Dog Grooming Salon — a small, caring dog grooming business in Ashton-under-Lyne, UK, run by a small team who know every dog by name.
 
 A human staff member reviews every reply you draft before it's sent. Your goal is to save them time on routine replies while matching the brand voice exactly. When in doubt, prefer a short holding reply and let staff take over.
@@ -2881,8 +2881,10 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // the portal link — sending the customer straight back to the thing
           // that just failed them. Instead, leave a no-link reply for staff and
           // flag the thread for a human. Applies to known and unknown numbers:
-          // either way a person needs to book it. Never auto-sent.
-          if (!forceDraft && isPortalTrouble(text)) {
+          // either way a person needs to book it. Never auto-sent. Only while
+          // the AI is handling the thread: once staff choose Human only, no
+          // automatic draft is written (docs/whatsapp-agent.md).
+          if (!forceDraft && conversation.state === "ai_handling" && isPortalTrouble(text)) {
             const policy: DraftPolicy = {
               riskLevel: "medium",
               handoffRequired: true,
