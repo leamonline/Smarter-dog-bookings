@@ -92,6 +92,20 @@ Medical / complaint keywords (`agentRisk.ts:MEDICAL_KEYWORDS`,
 `COMPLAINT_KEYWORDS`) override the intent-based risk — a "greeting"
 that mentions a wound is `high`, not `low`.
 
+### Booking-page trouble
+
+A customer saying the website or app has failed them ("it won't let me log
+in", "your website isn't working", "it's asking me to contact you about his
+size") is matched by `agentRisk.ts:isPortalTrouble`. Without it, such a message
+read as a booking request and got the tap-to-book prompt followed by the
+portal link, sending the customer straight back to what had just failed. Now
+the agent skips that prompt, saves a no-link `portal_trouble` reply as a
+pending draft with `handoff_required=true`, and stops. It never auto-sends.
+When staff ask for a generated reply on such a message, the prompt drops both
+portal-link instructions and tells the model to offer to book it in WhatsApp.
+The patterns are taken from real customer messages and were checked against
+the full inbound history (17 matches, no false positives) before release.
+
 ## Auto-send allowlist
 
 A draft only auto-sends when **all** of these are true:

@@ -175,6 +175,44 @@ export const WALKIN_KEYWORDS: readonly string[] = [
   "pop in",
 ];
 
+// "The booking page won't let me" — a customer telling us self-service has
+// failed them. Kept separate from the keyword lists above because these are
+// phrases, not word fragments, and because the response is different: the
+// agent must NOT answer with the portal link (that is the thing they are
+// stuck on) or the tap-to-book prompt that leads to it. Every phrasing below
+// is taken from a real customer message, Jun–Oct 2026.
+export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
+  // "won't let me", "wont let me", "it ont let me", "not letting me", "doesn't let me"
+  /\b(?:won'?t|wont|will not|ont|doesn'?t|does not|isn'?t|not) (?:let|letting|allow|allowing) me\b/,
+  // "can't log in", "cant login", "not letting me log in", "can't get on the app"
+  /\bcan'?t (?:log ?in|sign ?in|get (?:on|in|onto|into))\b/,
+  /\bcan'?t (?:seem|seam) to (?:get|log|book)\b/,
+  // "the website isn't working", "system isnt working", "app not working"
+  /\b(?:website|web site|site|app|portal|system|booking page|online booking|link)\b[^.?!]{0,20}\b(?:isn'?t|is not|not|doesn'?t|does not|won'?t) (?:working|work|load|loading)\b/,
+  // "I can't book in on the App", "can't book her online"
+  /\bcan'?t book\b[^.?!]{0,30}\b(?:app|website|web site|site|portal|online|booking page)\b/,
+  // "keeps sending me to sign up", "keeps throwing me off"
+  /\bkeeps? (?:sending|throwing|kicking|taking|bringing|logging) me\b/,
+  // "trying to book online", "tried to book on the website", "trying to book on your app"
+  /\b(?:trying|tried|try) to book\b[^.?!]{0,40}\b(?:online|on ?line|website|web site|site|app|portal|booking page|system)\b/,
+  // address and postcode lookup failures
+  /\b(?:couldn'?t|could not|can'?t|cannot|won'?t|wont) (?:find|accept|take)\b[^.?!]{0,20}\b(?:address|post ?code)\b/,
+  // the size wall: "it's asking us to contact you to enter his size"
+  /\b(?:asking|asks|says|said)\b[^.?!]{0,40}\b(?:contact|message|tell|let you know)\b[^.?!]{0,40}\b(?:size|weight)\b/,
+  /\b(?:says|said)\b[^.?!]{0,10}\bneed to (?:know|tell|enter)\b[^.?!]{0,30}\b(?:size|weight)\b/,
+];
+
+/**
+ * Detect a customer reporting that the booking website / app has failed
+ * them. Pure, deterministic; curly apostrophes are normalised first because
+ * phones send them by default.
+ */
+export function isPortalTrouble(messageText: string | null | undefined): boolean {
+  if (!messageText) return false;
+  const text = messageText.toLowerCase().replace(/[\u2018\u2019\u02bc]/g, "'");
+  return PORTAL_TROUBLE_PATTERNS.some((re) => re.test(text));
+}
+
 // Intents that may be auto-sent (subject to all the gates in
 // canAutoSend). booking_* intents are intentionally absent because
 // they touch the diary and we always want staff to sign off.
@@ -461,6 +499,7 @@ export type FallbackKind =
   | "walk_in"
   | "price_check"
   | "handoff"
+  | "portal_trouble"
   | "unknown";
 
 const FALLBACK_TEMPLATES: Readonly<Record<FallbackKind, string>> = {
@@ -474,6 +513,9 @@ const FALLBACK_TEMPLATES: Readonly<Record<FallbackKind, string>> = {
     "Guide prices depend on size and coat — full grooms start from £42 small, £46 medium, £60 large. Final price is confirmed after the groom 😊 X",
   handoff:
     "Hey, just catching up on messages now 😊 — I'll get one of the team to pick this up properly X",
+  // Deliberately no link: the customer has just told us the link failed them.
+  portal_trouble:
+    "Sorry the booking page is being awkward 🐾 No need to keep trying, we'll book this in for you here — just tell me which pup and roughly when suits 😊 X",
   unknown:
     "Could you send me your pup's name, breed, and what you're looking to book please? 😊 X",
 };

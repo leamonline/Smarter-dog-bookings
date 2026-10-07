@@ -39,6 +39,7 @@ import {
   extractMissingFields,
   fallbackReplyForIntent,
   guessIntentFromText,
+  isPortalTrouble,
   isWalkInService,
   mergeAgentState,
   requiresHandoff,
@@ -378,6 +379,7 @@ describe("fallbackReplyForIntent", () => {
       "walk_in",
       "price_check",
       "handoff",
+      "portal_trouble",
       "unknown",
       "greeting",
       "booking_propose",
@@ -392,7 +394,7 @@ describe("fallbackReplyForIntent", () => {
   });
 
   it("uses only emojis from the brand-allowed set", () => {
-    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "unknown"] as const;
+    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "portal_trouble", "unknown"] as const;
     for (const kind of inputs) {
       const reply = fallbackReplyForIntent(kind);
       const emojis = emojisIn(reply);
@@ -655,5 +657,60 @@ describe("explicit booking-preference corrections", () => {
   });
   it("an explicit corrected value takes precedence over an ordinary extracted value", () => {
     expect(mergeAgentState({preferredDay:"Monday"}, {preferredDay:"Monday",corrections:[{field:"preferredDay",value:"Tuesday",evidence:"Tuesday instead"}]}).preferredDay).toBe("Tuesday");
+  });
+});
+
+// ── isPortalTrouble ───────────────────────────────────────────
+// Every positive below is a real customer message (lightly trimmed) from the
+// Jun–Oct 2026 WhatsApp history. Before this rule each one was answered with
+// the tap-to-book prompt and then the portal link it was complaining about.
+describe("isPortalTrouble", () => {
+  const realReports = [
+    "Hi, I\u2019m trying to book Lizzie in for next Monday but it\u2019s not letting me log in. X",
+    "Hi I'm trying to book Lola in for a groom but won't let me book her in on your booking page.",
+    "Hi it ont let me book hunny in on Ap can you let me know any availability",
+    "Hi have u any availability for hunny still can't seam to get on app xx",
+    "Trying to book a grooming slot online but keeps sending me to sign up.",
+    "Hi guys it keeps throwing me off and something about coopers weight? X",
+    "It\u2019s not letting me put my post code in. Can I book in for next Wednesday",
+    "Tried to book on the website but it couldn\u2019t find our address. Gave up in the end.",
+    "i\u2019ve tried booking my dog in for a grooming appointment and your website isn\u2019t working",
+    "The system isnt working. \u{1F648}",
+    "just completing the new booking and it\u2019s asking us to contact you to enter Hugo\u2019s size",
+    "Can\u2019t book molly and Marley in for groom says need to know Marley\u2019s size",
+    "Sorry for some reason I can\u2019t book in on the App",
+    "im trying to add my partners dog but wont let me could we book him in please",
+  ];
+  it.each(realReports)("flags: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(true);
+  });
+
+  // Ordinary booking traffic must keep its normal route — a false positive
+  // costs the customer the instant tap-to-book reply.
+  const ordinary = [
+    "Hi can I book Ruby in for the 9th September please xx",
+    "Can I book online or do I need to message?",
+    "I can't do Tuesday, have you got Wednesday?",
+    "I can't make it tomorrow, can we reschedule",
+    "He's a medium size cockapoo",
+    "On my way, be 5 mins",
+    "Is Charlie ready?",
+    "Please don't let me forget his collar x",
+    "",
+  ];
+  it.each(ordinary)("leaves alone: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(false);
+  });
+
+  it("is null-safe", () => {
+    expect(isPortalTrouble(null)).toBe(false);
+    expect(isPortalTrouble(undefined)).toBe(false);
+  });
+
+  it("the reply for it never sends the customer back to the website", () => {
+    const reply = fallbackReplyForIntent("portal_trouble");
+    expect(reply).not.toMatch(/https?:\/\//);
+    expect(reply).not.toMatch(/smarterdog\./i);
+    expect(reply).toMatch(/book this in for you here/);
   });
 });
