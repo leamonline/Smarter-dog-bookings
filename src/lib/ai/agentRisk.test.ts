@@ -672,6 +672,8 @@ describe("isPortalTrouble", () => {
     "Trying to book Max for a groom but it won't let me book him on the booking page",
     "it ont let me book on the ap",
     "still can't seem to get on the app, any slots next week?",
+    "I can't get into my account to book",
+    "can't log in again",
     "Tried booking online but it keeps sending me back to sign up",
     "the site keeps kicking me out and says something about his weight",
     "It\u2019s not letting me put my postcode in",
@@ -702,6 +704,9 @@ describe("isPortalTrouble", () => {
     "He won't let me brush him at home, can you help with mats?",
     "Work won't let me leave early so can I collect at 1?",
     "She doesn't let me near her paws",
+    "I can't seem to get him to eat before a groom",
+    "I can't get in until 10, is that ok?",
+    "Can't get on the bus with him so my mum will drop off",
     "",
   ];
   it.each(ordinary)("leaves alone: %s", (msg) => {
