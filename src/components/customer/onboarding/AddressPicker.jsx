@@ -46,7 +46,12 @@ export function AddressPicker({ existingAddress = "", existingPostcode = "", ini
     selectedIndex !== "" &&
     Boolean(results[Number(selectedIndex)]);
   const manualReady = manualMode && manualAddress.trim() !== "";
-  const lookupFailed = lookupStatus === "none" || lookupStatus === "error";
+  // "invalid" counts as the lookup letting the customer down too: a postcode
+  // the checker rejects (a typo, a partial code, a brand-new estate) left them
+  // with only a small text link, and customers gave up there and messaged in
+  // ("it's not letting me put my post code in").
+  const lookupFailed =
+    lookupStatus === "none" || lookupStatus === "error" || lookupStatus === "invalid";
   const ready = keepingExisting || manualReady || pickedReady;
 
   // Report the resolved address upward whenever it changes.
@@ -267,7 +272,8 @@ export function AddressPicker({ existingAddress = "", existingPostcode = "", ini
 
       {lookupStatus === "invalid" && (
         <p className="text-[13px] text-brand-coral mt-1.5">
-          That doesn&apos;t look like a full UK postcode. Please check and try again.
+          That doesn&apos;t look like a full UK postcode. Check it and try again,
+          or enter your address manually below.
         </p>
       )}
       {lookupStatus === "none" && (

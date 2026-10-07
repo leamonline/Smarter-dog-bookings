@@ -39,6 +39,7 @@ import {
   extractMissingFields,
   fallbackReplyForIntent,
   guessIntentFromText,
+  isPortalTrouble,
   isWalkInService,
   mergeAgentState,
   requiresHandoff,
@@ -378,6 +379,7 @@ describe("fallbackReplyForIntent", () => {
       "walk_in",
       "price_check",
       "handoff",
+      "portal_trouble",
       "unknown",
       "greeting",
       "booking_propose",
@@ -392,7 +394,7 @@ describe("fallbackReplyForIntent", () => {
   });
 
   it("uses only emojis from the brand-allowed set", () => {
-    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "unknown"] as const;
+    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "portal_trouble", "unknown"] as const;
     for (const kind of inputs) {
       const reply = fallbackReplyForIntent(kind);
       const emojis = emojisIn(reply);
@@ -655,5 +657,66 @@ describe("explicit booking-preference corrections", () => {
   });
   it("an explicit corrected value takes precedence over an ordinary extracted value", () => {
     expect(mergeAgentState({preferredDay:"Monday"}, {preferredDay:"Monday",corrections:[{field:"preferredDay",value:"Tuesday",evidence:"Tuesday instead"}]}).preferredDay).toBe("Tuesday");
+  });
+});
+
+// ── isPortalTrouble ──────────────────────────────────────────
+// Synthetic messages written to exercise each pattern. They mirror the KINDS
+// of report customers sent (login loops, address lookup, the size wall, curly
+// apostrophes from phones) without reproducing anyone's wording: no customer
+// text belongs in the repository. Before this rule each kind was answered
+// with the tap-to-book prompt and then the very portal link it reported.
+describe("isPortalTrouble", () => {
+  const reports = [
+    "Hello, I\u2019m trying to get Biscuit booked but it\u2019s not letting me log in",
+    "Trying to book Max for a groom but it won't let me book him on the booking page",
+    "it ont let me book on the ap",
+    "still can't seem to get on the app, any slots next week?",
+    "Tried booking online but it keeps sending me back to sign up",
+    "the site keeps kicking me out and says something about his weight",
+    "It\u2019s not letting me put my postcode in",
+    "I tried to book on your website but it couldn\u2019t find my address",
+    "I\u2019ve tried a few times and your website isn\u2019t working",
+    "The system isnt working",
+    "the new booking form is asking me to contact you about Max\u2019s size",
+    "Can\u2019t book the two of them, it says need to know Max\u2019s size",
+    "For some reason I can\u2019t book in on the App",
+    "wanted to add my second dog but wont let me add her",
+  ];
+  it.each(reports)("flags: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(true);
+  });
+
+  // Ordinary booking traffic must keep its normal route — a false positive
+  // costs the customer the instant tap-to-book reply.
+  const ordinary = [
+    "Hi can I book Ruby in for the 9th September please xx",
+    "Can I book online or do I need to message?",
+    "I can't do Tuesday, have you got Wednesday?",
+    "I can't make it tomorrow, can we reschedule",
+    "He's a medium size cockapoo",
+    "On my way, be 5 mins",
+    "Is Charlie ready?",
+    "Please don't let me forget his collar x",
+    // Everyday "won't let me" with nothing to do with the booking page.
+    "He won't let me brush him at home, can you help with mats?",
+    "Work won't let me leave early so can I collect at 1?",
+    "She doesn't let me near her paws",
+    "",
+  ];
+  it.each(ordinary)("leaves alone: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(false);
+  });
+
+  it("is null-safe", () => {
+    expect(isPortalTrouble(null)).toBe(false);
+    expect(isPortalTrouble(undefined)).toBe(false);
+  });
+
+  it("the reply for it never sends the customer back to the website", () => {
+    const reply = fallbackReplyForIntent("portal_trouble");
+    expect(reply).not.toMatch(/https?:\/\//);
+    expect(reply).not.toMatch(/smarterdog\./i);
+    expect(reply).toMatch(/book this in for you here/);
   });
 });

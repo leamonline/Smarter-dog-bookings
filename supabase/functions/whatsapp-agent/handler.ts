@@ -82,11 +82,13 @@ import {
   fallbackReplyForIntent,
   guessIntentFromText,
   Intent,
+  isPortalTrouble,
   mergeAgentState,
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
+import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
@@ -177,7 +179,7 @@ interface MetaStatus {
   recipient_id?: string;
   status?: "sent" | "delivered" | "read" | "failed";
   timestamp?: string;
-  errors?: Array<{ code?: number; title?: string; message?: string }>;
+  errors?: Array<{ code?: number; title?: string; message?: string; error_data?: { details?: string } }>;
 }
 
 interface MetaChangeValue {
@@ -810,6 +812,7 @@ async function buildContext(
   autonomousBookingEnabled: boolean,
   reviewOnly = false,
   ownedDogIds = new Set<string>(),
+  portalTrouble = false,
 ): Promise<string> {
   // Recent message history (last 20, oldest first)
   const { data: messages } = await supabase
@@ -939,7 +942,19 @@ async function buildContext(
   // tells Claude to append a warm CTA on booking-intent turns. It's an
   // additive instruction; the rest of the system prompt still applies
   // (e.g. don't propose a booking_action for large dogs).
-  if (humanId && !autonomousBookingEnabled) {
+  // The customer has told us the booking page failed them. Sending them back
+  // to it is the loop customers complained about, so this replaces both
+  // portal blocks below rather than adding to them.
+  if (portalTrouble) {
+    parts.push(
+      [
+        `--- Booking page trouble ---`,
+        `Internal routing instruction, never customer-facing: the customer says the booking website or app is not working for them.`,
+        `Do NOT include any link to the website, account or portal, and do not suggest they try again online.`,
+        `Apologise briefly, say we'll book it in for them here on WhatsApp, and ask only for what is still missing (which dog, roughly which day or time). Do not propose booking_action; staff will make the booking.`,
+      ].join("\n"),
+    );
+  } else if (humanId && !autonomousBookingEnabled) {
     parts.push(
       [
         `--- Self-service portal ---`,
@@ -956,7 +971,7 @@ async function buildContext(
   // New-customer sign-up nudge: an unrecognised person asking to get started
   // can be pointed at the portal to set up their account ("Join the Pack"),
   // alongside the in-chat onboarding you're already running.
-  if (!humanId) {
+  if (!humanId && !portalTrouble) {
     parts.push(
       [
         `--- New customer sign-up ---`,
@@ -2178,6 +2193,24 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
     .eq("direction", "outbound");
 
   if (error) console.error("handleStatus update failed:", error);
+
+  // Tell the notification log too. It recorded 'sent' when Meta accepted the
+  // message; without this a later "undeliverable" never reaches the staff
+  // delivery-failure badge, card or list (see _shared/deliveryStatus.ts).
+  // Only a still-'sent' WhatsApp row is touched, so a resend that already
+  // superseded it, or an SMS row, is never rewritten. Behaviour of the SMS
+  // fallback job is unchanged: it already chases 'failed' rows and 'sent'
+  // rows whose Meta status is failed after the same one-hour window.
+  const logPatch = notificationLogPatchForStatus(status.status, status.errors);
+  if (logPatch) {
+    const { error: logErr } = await supabase
+      .from("notification_log")
+      .update(logPatch)
+      .eq("provider_message_id", status.id)
+      .eq("channel", "whatsapp")
+      .eq("status", "sent");
+    if (logErr) console.error("handleStatus notification_log update failed:", logErr);
+  }
 }
 
 // ── Autonomous booking helpers ───────────────────────────────
@@ -2833,6 +2866,32 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             if (handled) continue;
           }
 
+          // Booking-page trouble: "it won't let me log in", "the website isn't
+          // working". Without this the message reads as a booking request, so
+          // the fast path below answers it with the tap-to-book prompt and then
+          // the portal link — sending the customer straight back to the thing
+          // that just failed them. Instead, leave a no-link reply for staff and
+          // flag the thread for a human. Applies to known and unknown numbers:
+          // either way a person needs to book it. Never auto-sent.
+          if (!forceDraft && isPortalTrouble(text)) {
+            const policy: DraftPolicy = {
+              riskLevel: "medium",
+              handoffRequired: true,
+              autoSendEligible: false,
+              draftOnly: false,
+            };
+            const draft: DraftFromClaude = {
+              intent: "booking_propose",
+              confidence: 1,
+              proposed_text: fallbackReplyForIntent("portal_trouble"),
+              extracted_state: null,
+            };
+            await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+              reason: "portal_trouble: customer reports the booking page is not working for them",
+            });
+            continue;
+          }
+
           // Booking-entry fast path: a recognised customer asking for a NEW
           // booking gets the auto-sent identity confirm (Message 1), which
           // bypasses the staff-wait gate below. Only new-booking intent
@@ -2918,6 +2977,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             conversation.autonomous_booking_enabled === true,
             reviewDraftOnly,
             ownedDogIds,
+            isPortalTrouble(inboundText),
           );
           const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText, ownedDogIds, !!(conversation.human_id ?? humanId));
 
