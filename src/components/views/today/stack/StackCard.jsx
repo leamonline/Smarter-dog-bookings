@@ -18,10 +18,15 @@
 //   • urgency           — weight on the left rule AND the wording of the timing
 //                         line, which also changes weight. Never a new hue.
 //
+// A fourth fact joined them: a WhatsApp confirmation or reminder for this
+// booking that Meta could not deliver. It shares the safety row (the header's
+// height is fixed, so a new row would move every card below) and says it in
+// words, because the action — phone them — has to happen before they are due.
+//
 // The safety chip is a sibling button. Full notes open in the details area
 // so long warnings never change the fixed header or exposed strip height.
 import { useMemo, useState } from "react";
-import { AlertTriangle, Car, Clock } from "lucide-react";
+import { AlertTriangle, Car, Clock, PhoneOff } from "lucide-react";
 import { money } from "../../../../engine/dayStack";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { BookingStatusBadge, resolveDayStatus } from "../../../ui";
@@ -30,6 +35,11 @@ import { titleCase } from "../../../../utils/text";
 import { StackActions } from "./StackActions.jsx";
 import { CheckoutChain } from "./CheckoutChain.jsx";
 import { PriceField } from "./PriceField.jsx";
+import {
+  useBookingDeliveryFailure,
+  useWhatsappUnreachable,
+} from "../../../../supabase/hooks/useDeliveryFailures";
+import { undeliveredNotice } from "./undeliveredNotice";
 
 /** The two engine actions the check-out chain speaks for. */
 const CHAINED = new Set(["payment", "collected"]);
@@ -74,6 +84,9 @@ export function StackCard({
   onOpenInvoice,
 }) {
   const { booking, timing, urgent, readyOverdue } = row;
+  const deliveryFailures = useBookingDeliveryFailure(booking.id);
+  const unreachable = useWhatsappUnreachable(deliveryFailures?.[0]?.human_id);
+  const undelivered = undeliveredNotice(deliveryFailures, unreachable);
   const tone = resolveDayStatus(booking.status, booking.cancelReason);
   const dogName = titleCase(display.dogMissing ? "Unnamed booking" : display.dogName);
   const ownerName = display.ownerMissing ? "" : titleCase(display.owner);
@@ -147,6 +160,7 @@ export function StackCard({
     onTheWay ? "Owner on the way" : null,
     ownerName ? `owner ${ownerName}` : null,
     safetyFacts.length ? `Safety note: ${safetyFacts.join(". ")}` : null,
+    undelivered ? undelivered.chip : null,
   ]
     .filter(Boolean)
     .join(". ");
@@ -217,7 +231,7 @@ export function StackCard({
             {onTheWay && <span><Car size={12} aria-hidden="true" className="mr-1 inline" />On the way</span>}
           </span>
         </span>
-        <div className="wallet-safety">
+        <div className="wallet-safety flex items-center gap-2">
           {safetyFacts.length > 0 && (
             <button
               type="button"
@@ -225,11 +239,28 @@ export function StackCard({
               aria-expanded={expanded}
               aria-controls={drawerId}
               onClick={() => { if (!expanded) onToggle(); }}
-              className="flex h-11 max-w-full items-center gap-1 text-left text-[11px] font-semibold text-brand-coral-text"
+              className="flex h-11 min-w-0 max-w-full items-center gap-1 text-left text-[11px] font-semibold text-brand-coral-text"
             >
               <AlertTriangle size={14} className="shrink-0" aria-hidden="true" />
               <span className="truncate rounded bg-brand-coral-light px-1.5 py-1">
                 {safetyFacts[0]}{safetyFacts.length > 1 ? ` +${safetyFacts.length - 1}` : ""}
+              </span>
+            </button>
+          )}
+          {undelivered && (
+            <button
+              type="button"
+              data-undelivered
+              aria-label={`${undelivered.chip}. ${undelivered.detail}`}
+              aria-expanded={expanded}
+              aria-controls={drawerId}
+              onClick={() => { if (!expanded) onToggle(); }}
+              className="flex h-11 min-w-0 items-center gap-1 text-left text-[11px] font-semibold"
+              style={{ color: "var(--card-ink)" }}
+            >
+              <PhoneOff size={14} className="shrink-0" aria-hidden="true" />
+              <span className="truncate rounded border border-current bg-white/60 px-1.5 py-1">
+                {undelivered.chip}
               </span>
             </button>
           )}
@@ -259,6 +290,28 @@ export function StackCard({
             {safetyFacts.length > 0 && (
               <p className="mt-3 rounded bg-brand-coral-light p-3 text-[13px] text-brand-coral-text">
                 <strong>Safety note: </strong>{safetyFacts.join(", ")}
+              </p>
+            )}
+            {undelivered && (
+              <p
+                data-undelivered-detail
+                className="mt-3 rounded border border-current bg-white/60 p-3 text-[13px]"
+                style={{ color: "var(--card-ink)" }}
+              >
+                <strong>{undelivered.chip}: </strong>
+                {undelivered.detail}
+                {display.ownerPhone ? (
+                  <>
+                    {" "}
+                    <a
+                      href={`tel:${display.ownerPhone.replace(/\s/g, "")}`}
+                      className="font-semibold underline underline-offset-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Call {display.ownerPhone}
+                    </a>
+                  </>
+                ) : null}
               </p>
             )}
             <div className="my-3 text-[14px]">

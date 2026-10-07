@@ -88,6 +88,7 @@ import {
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
+import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
@@ -178,7 +179,7 @@ interface MetaStatus {
   recipient_id?: string;
   status?: "sent" | "delivered" | "read" | "failed";
   timestamp?: string;
-  errors?: Array<{ code?: number; title?: string; message?: string }>;
+  errors?: Array<{ code?: number; title?: string; message?: string; error_data?: { details?: string } }>;
 }
 
 interface MetaChangeValue {
@@ -2193,6 +2194,23 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
 
   if (error) console.error("handleStatus update failed:", error);
 
+  // Tell the notification log too. It recorded 'sent' when Meta accepted the
+  // message; without this a later "undeliverable" never reaches the staff
+  // delivery-failure badge, card or list (see _shared/deliveryStatus.ts).
+  // Only a still-'sent' WhatsApp row is touched, so a resend that already
+  // superseded it, or an SMS row, is never rewritten. Behaviour of the SMS
+  // fallback job is unchanged: it already chases 'failed' rows and 'sent'
+  // rows whose Meta status is failed after the same one-hour window.
+  const logPatch = notificationLogPatchForStatus(status.status, status.errors);
+  if (logPatch) {
+    const { error: logErr } = await supabase
+      .from("notification_log")
+      .update(logPatch)
+      .eq("provider_message_id", status.id)
+      .eq("channel", "whatsapp")
+      .eq("status", "sent");
+    if (logErr) console.error("handleStatus notification_log update failed:", logErr);
+  }
 }
 
 // ── Autonomous booking helpers ───────────────────────────────

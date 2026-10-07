@@ -59,6 +59,8 @@ export interface DeliveryFailure {
 
 interface DeliveryFailuresState {
   byBooking: Map<string, FailureInfo[]>;
+  /** Customers whose most recent WhatsApp sends ALL failed — see unreachableHumanIds. */
+  unreachableHumans: Set<string>;
   failures: DeliveryFailure[];
   loading: boolean;
   error: unknown;
@@ -77,7 +79,81 @@ const TRIGGER_LABEL: Record<string, string> = {
 };
 
 export function triggerLabel(triggerType: string): string {
-  return TRIGGER_LABEL[triggerType] || triggerType;
+  return TRIGGER_LABEL[baseTrigger(triggerType)] || triggerType;
+}
+
+/**
+ * The notification a row is ABOUT. The SMS safety net logs its resend of a
+ * failed WhatsApp confirmation or reminder as `confirmed_sms_fallback` /
+ * `reminder_sms_fallback`; for "has this customer been told?" that is the
+ * same message, so a fallback that went out supersedes the WhatsApp failure
+ * and a fallback that also failed keeps it live.
+ */
+export function baseTrigger(triggerType: string): string {
+  return triggerType.replace(/_sms_fallback$/, "");
+}
+
+/** How many most-recent WhatsApp sends must ALL have failed to call a number unreachable. */
+export const UNREACHABLE_AFTER = 3;
+
+/**
+ * The supersession pass. Given every notification row for a set of bookings,
+ * NEWEST FIRST, keep a failure only while it is still the latest row for its
+ * (booking, notification, recipient). A later 'sent' or 'pending' row — staff
+ * resent, or the SMS fallback went out — means it has been dealt with.
+ */
+export function liveFailuresByBooking(rowsNewestFirst: readonly NotificationLogSelect[]): Map<string, FailureInfo[]> {
+  const latestByTuple = new Map<string, NotificationLogSelect>();
+  for (const r of rowsNewestFirst) {
+    const key = `${r.booking_id}|${baseTrigger(r.trigger_type)}|${r.human_id ?? ""}`;
+    if (!latestByTuple.has(key)) latestByTuple.set(key, r); // first = newest
+  }
+
+  const byBooking = new Map<string, FailureInfo[]>();
+  for (const r of latestByTuple.values()) {
+    if (r.status !== "failed") continue;
+    if (!r.booking_id) continue;
+    let infos = byBooking.get(r.booking_id);
+    if (!infos) {
+      infos = [];
+      byBooking.set(r.booking_id, infos);
+    }
+    infos.push({
+      trigger_type: baseTrigger(r.trigger_type),
+      channel: r.channel,
+      error_message: r.error_message,
+      created_at: r.created_at,
+      human_id: r.human_id,
+    });
+  }
+  return byBooking;
+}
+
+/**
+ * Customers whose last UNREACHABLE_AFTER WhatsApp sends ALL failed. One failure
+ * can be a blip; three in a row almost always means the number isn't on
+ * WhatsApp (Meta 131026), so every future reminder will vanish too and the
+ * only way to reach them is a phone call. Rows must be WhatsApp sends, NEWEST
+ * FIRST. A customer with fewer than UNREACHABLE_AFTER sends is never flagged.
+ */
+export function unreachableHumanIds(
+  whatsappRowsNewestFirst: readonly Pick<NotificationLogRow, "human_id" | "status">[],
+  threshold: number = UNREACHABLE_AFTER,
+): Set<string> {
+  const recent = new Map<string, string[]>();
+  for (const r of whatsappRowsNewestFirst) {
+    if (!r.human_id) continue;
+    const seen = recent.get(r.human_id) ?? [];
+    if (seen.length < threshold) {
+      seen.push(r.status);
+      recent.set(r.human_id, seen);
+    }
+  }
+  const out = new Set<string>();
+  for (const [humanId, statuses] of recent) {
+    if (statuses.length === threshold && statuses.every((st) => st === "failed")) out.add(humanId);
+  }
+  return out;
 }
 
 // Dashboard-only dismissal filter. A booking is hidden when it has a
@@ -101,6 +177,7 @@ let state: DeliveryFailuresState = {
   // Map<booking_id, FailureInfo[]> — FailureInfo = { trigger_type, channel,
   // error_message, created_at, human_id }
   byBooking: new Map(),
+  unreachableHumans: new Set(),
   // Enriched flat list for the dashboard card (one entry per failed booking).
   failures: [],
   loading: true,
@@ -147,7 +224,7 @@ async function refresh(): Promise<void> {
     ];
 
     if (failedBookingIds.length === 0) {
-      setState({ byBooking: new Map(), failures: [], loading: false });
+      setState({ byBooking: new Map(), unreachableHumans: new Set(), failures: [], loading: false });
       return;
     }
 
@@ -162,28 +239,29 @@ async function refresh(): Promise<void> {
       .order("created_at", { ascending: false });
     if (allErr) throw allErr;
 
-    const latestByTuple = new Map<string, NotificationLogSelect>();
-    for (const r of allRows ?? []) {
-      const key = `${r.booking_id}|${r.trigger_type}|${r.human_id ?? ""}`;
-      if (!latestByTuple.has(key)) latestByTuple.set(key, r); // first = newest
-    }
+    const byBooking = liveFailuresByBooking(allRows ?? []);
 
-    const byBooking = new Map<string, FailureInfo[]>();
-    for (const r of latestByTuple.values()) {
-      if (r.status !== "failed") continue;
-      if (!r.booking_id) continue;
-      let infos = byBooking.get(r.booking_id);
-      if (!infos) {
-        infos = [];
-        byBooking.set(r.booking_id, infos);
-      }
-      infos.push({
-        trigger_type: r.trigger_type,
-        channel: r.channel,
-        error_message: r.error_message,
-        created_at: r.created_at,
-        human_id: r.human_id,
-      });
+    // 2b. Is any of these customers simply unreachable on WhatsApp? Only the
+    //     customers with a live failure can be, so this stays a small query.
+    const failedHumanIds = [
+      ...new Set(
+        [...byBooking.values()]
+          .flat()
+          .map((f) => f.human_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    let unreachableHumans = new Set<string>();
+    if (failedHumanIds.length > 0) {
+      const { data: waRows, error: waErr } = await supabase
+        .from("notification_log")
+        .select("human_id, status")
+        .eq("channel", "whatsapp")
+        .in("human_id", failedHumanIds)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false });
+      // Advisory only: if this read fails the per-booking badges still show.
+      if (!waErr) unreachableHumans = unreachableHumanIds(waRows ?? []);
     }
 
     // 3. Enrich for the dashboard list: customer + dog + date per failed
@@ -240,6 +318,7 @@ async function refresh(): Promise<void> {
 
     setState({
       byBooking,
+      unreachableHumans,
       failures: applyDismissals(failures, dismissals),
       loading: false,
     });
@@ -346,4 +425,14 @@ export function useBookingDeliveryFailure(
     if (!bookingId) return null;
     return snapshot.byBooking.get(bookingId) ?? null;
   }, [snapshot.byBooking, bookingId]);
+}
+
+/**
+ * True when this customer's last few WhatsApp sends all failed, so messages
+ * to them are not arriving at all. For the Today card, where it changes the
+ * advice from "a reminder didn't land" to "phone them".
+ */
+export function useWhatsappUnreachable(humanId: string | null | undefined): boolean {
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return humanId ? snapshot.unreachableHumans.has(humanId) : false;
 }
