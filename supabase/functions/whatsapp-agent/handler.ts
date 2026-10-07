@@ -1725,9 +1725,34 @@ async function handleManageBooking(
     const s = session as
       | { id: string; human_id: string; action: string; status: string; expires_at: string }
       | null;
-    if (!s || s.human_id !== humanId || s.status !== "pending_selection" || new Date(s.expires_at) < now) {
-      // A dead end: rather than sending the customer round again, hand it to
-      // the team and say so.
+    // Not this customer's menu, or no such menu: nothing to hand over, so the
+    // original "start again" reply stands and staff get no task.
+    if (!s || s.human_id !== humanId) {
+      await sendManageText(
+        conversation.id,
+        'That selection has expired — just send "cancel" or "reschedule" again and I\'ll pull your bookings up. 🐾',
+      );
+      return true;
+    }
+    // A second tap on a menu already used: the first tap is being handled.
+    if (s.status === "consumed") {
+      await sendManageText(
+        conversation.id,
+        "You've already picked that one — have a look at the message I sent after it. 🐾",
+      );
+      return true;
+    }
+    // An older menu tapped after a newer one was sent: the newer one works.
+    if (s.status === "superseded") {
+      await sendManageText(
+        conversation.id,
+        "That's an older list — please pick from the latest one I sent. 🐾",
+      );
+      return true;
+    }
+    if (s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+      // A genuine timeout is a dead end: rather than sending the customer
+      // round again, hand it to the team and say so.
       const replied = await sendManageText(
         conversation.id,
         "Sorry, that menu timed out. I've passed it to the team and they'll sort it with you here. 🐾",

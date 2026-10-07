@@ -239,17 +239,30 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
       console.warn(`apply-customer-confirm: action ${action.id} TTL transition skipped (raced)`);
       return new Response("already_processed", { status: 200 });
     }
-    // A dead end: hand it to the team rather than sending the customer round
-    // again, and put it on the staff to-do list so that is true.
+    // A late "No" is still a no: the action is expired above and nothing else
+    // happens, exactly as for an on-time No (no ack, no staff hand-off).
+    if (input.choice === "no") {
+      return new Response("expired", { status: 200 });
+    }
+    // A late "Yes" is a dead end: hand it to the team rather than sending the
+    // customer round again, and put it on the staff to-do list so that is true.
     const replied = await sendAckText(
       action.conversation_id,
       "Sorry, that confirmation timed out. I've passed it to the team and they'll sort it with you here. 🎓🐶❤️ X",
     );
-    const { data: convo } = await supabase
+    const { data: convo, error: convoErr } = await supabase
       .from("whatsapp_conversations")
       .select("human_id")
       .eq("id", action.conversation_id)
       .maybeSingle();
+    if (convoErr) {
+      // The customer has just been promised the team will follow up; make a
+      // missing to-do visible in the logs rather than skipping it silently.
+      console.error(
+        `apply-customer-confirm: conversation lookup failed for action ${action.id}; follow-up to-do not created:`,
+        convoErr.message,
+      );
+    }
     await raiseFollowUpTodo(supabase, (convo as { human_id?: string | null } | null)?.human_id, "confirm_expired", {
       reply: replied ? "sent" : "unconfirmed",
     });

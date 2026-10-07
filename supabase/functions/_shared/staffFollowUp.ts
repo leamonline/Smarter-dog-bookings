@@ -111,7 +111,10 @@ export async function raiseFollowUpTodo(
   const now = options.now ?? new Date();
   // Without a customer there is nothing to link to and no name to show; the
   // inbox thread is still there for staff.
-  if (!humanId) return "skipped";
+  if (!humanId) {
+    console.warn(`raiseFollowUpTodo(${reason}): no linked customer, so no to-do was created`);
+    return "skipped";
+  }
   // The parameter is deliberately shallow: checking the real supabase-js
   // client against FollowUpClient in full trips Deno's "type instantiation is
   // excessively deep" (TS2589). Narrow once here instead.
