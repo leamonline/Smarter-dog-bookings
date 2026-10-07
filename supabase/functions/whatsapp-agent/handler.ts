@@ -89,6 +89,7 @@ import {
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
@@ -1641,6 +1642,7 @@ function dispatchRescheduleFlow(
 async function manageCutoffHandoff(
   supabase: SupabaseClient,
   conversationId: string,
+  humanId: string,
   eventId: string | null,
   action: "cancel" | "reschedule",
 ): Promise<void> {
@@ -1657,6 +1659,9 @@ async function manageCutoffHandoff(
     extracted_state: null,
   };
   await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
+  // The customer has just been told the team will help. Make that true on the
+  // staff side too: a draft only shows to whoever opens the inbox.
+  await raiseFollowUpTodo(supabase, humanId, action === "cancel" ? "manage_deadline_cancel" : "manage_deadline_reschedule");
 }
 
 /** Run the chosen action against a resolved visit and its applicable deadline. */
@@ -1671,7 +1676,7 @@ async function executeManageAction(
   dogSizes: Record<string, DogSize>,
 ): Promise<void> {
   if (isManageActionBlocked(action, new Date(visit.startAt), new Date())) {
-    await manageCutoffHandoff(supabase, conversationId, eventId, action);
+    await manageCutoffHandoff(supabase, conversationId, humanId, eventId, action);
     return;
   }
   if (action === "cancel") {
@@ -1712,10 +1717,13 @@ async function handleManageBooking(
       | { id: string; human_id: string; action: string; status: string; expires_at: string }
       | null;
     if (!s || s.human_id !== humanId || s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+      // A dead end: rather than sending the customer round again, hand it to
+      // the team and say so.
       await sendManageText(
         conversation.id,
-        'That selection has expired — just send "cancel" or "reschedule" again and I\'ll pull your bookings up. 🐾',
+        "Sorry, that menu timed out. I've passed it to the team and they'll sort it with you here. 🐾",
       );
+      await raiseFollowUpTodo(supabase, humanId, "manage_selection_expired");
       return true;
     }
     // Re-resolve live, re-validate, consume the nonce (single-use).
@@ -1728,8 +1736,9 @@ async function handleManageBooking(
     if (!visit) {
       await sendManageText(
         conversation.id,
-        'That booking is no longer available to manage — send "cancel" or "reschedule" again and I\'ll show you what\'s booked. 🐾',
+        "That booking has changed since I showed it, so I've passed it to the team and they'll sort it with you here. 🐾",
       );
+      await raiseFollowUpTodo(supabase, humanId, "manage_booking_gone");
       return true;
     }
     await executeManageAction(

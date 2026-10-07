@@ -106,6 +106,23 @@ portal-link instructions and tells the model to offer to book it in WhatsApp.
 The patterns are taken from real customer messages and were checked against
 the full inbound history (17 matches, no false positives) before release.
 
+### Dead ends raise a staff to-do
+
+Some automated paths cannot finish what the customer asked: a cancel or move
+inside the 24-hour window (or after the groom has started), a manage menu or
+a tap-to-confirm that timed out, a booking that changed while the customer was
+choosing, or a reschedule the booking form had to refuse. Each one now tells
+the customer the team will sort it with them in WhatsApp. Each one also adds
+a to-do through `_shared/staffFollowUp.ts:raiseFollowUpTodo`, so that promise
+appears on the staff dashboard rather than only in the inbox thread.
+
+- **Kind:** the to-do is `general`, so staff tick it off like any other task.
+- **Duplicates:** one open follow-up per customer per 12 hours, so repeated
+  taps on an expired button leave one task.
+- **Content:** the customer's name and what happened, never their message text.
+- **Failures:** best effort. A failed write is logged and never affects the
+  reply the customer already received.
+
 ## Auto-send allowlist
 
 A draft only auto-sends when **all** of these are true:

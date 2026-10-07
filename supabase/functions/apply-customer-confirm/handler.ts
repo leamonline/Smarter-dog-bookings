@@ -21,6 +21,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { isManageActionBlocked, visitStartInstant } from "../_shared/manageBooking.ts";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -234,7 +235,18 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
       console.warn(`apply-customer-confirm: action ${action.id} TTL transition skipped (raced)`);
       return new Response("already_processed", { status: 200 });
     }
-    await sendAckText(action.conversation_id, "Sorry, that confirmation expired — want me to find a slot again? 🎓🐶❤️ X");
+    // A dead end: hand it to the team rather than sending the customer round
+    // again, and put it on the staff to-do list so that is true.
+    await sendAckText(
+      action.conversation_id,
+      "Sorry, that confirmation timed out. I've passed it to the team and they'll sort it with you here. 🎓🐶❤️ X",
+    );
+    const { data: convo } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", action.conversation_id)
+      .maybeSingle();
+    await raiseFollowUpTodo(supabase, (convo as { human_id?: string | null } | null)?.human_id, "confirm_expired");
     return new Response("expired", { status: 200 });
   }
 
