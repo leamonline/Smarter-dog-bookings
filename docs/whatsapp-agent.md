@@ -100,9 +100,12 @@ size") is matched by `agentRisk.ts:isPortalTrouble`. Without it, such a message
 read as a booking request and got the tap-to-book prompt followed by the
 portal link, sending the customer straight back to what had just failed. Now
 the agent skips that prompt, saves a no-link `portal_trouble` reply as a
-pending draft with `handoff_required=true`, and stops. It never auto-sends.
-When staff ask for a generated reply on such a message, the prompt drops both
-portal-link instructions and tells the model to offer to book it in WhatsApp.
+pending draft with `handoff_required=true`, and stops. It never auto-sends,
+and it writes nothing once staff have set the thread to Human only. When staff
+ask for a generated reply on such a message, the prompt drops both portal-link
+instructions and tells the model to offer to book it in WhatsApp. That prompt
+block is part of `WHATSAPP_REPLY_PROMPT_VERSION = 2026-10-07.portal-trouble-1`;
+see the [evaluation record](../prompts/evals/2026-10-07-whatsapp-portal-trouble.md).
 The patterns are taken from real customer messages and were checked against
 the full inbound history (17 matches, no false positives) before release.
 

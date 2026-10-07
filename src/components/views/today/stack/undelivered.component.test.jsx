@@ -98,6 +98,15 @@ describe("undeliveredNotice", () => {
     expect(notice?.callOwner).toBe(true);
   });
 
+  // Customers can choose SMS or email; the card must say which one failed.
+  it.each([
+    ["sms", "Our text reminder"],
+    ["email", "Our email reminder"],
+    ["whatsapp", "Our WhatsApp reminder"],
+  ])("names the %s channel that actually failed", (channel, phrase) => {
+    expect(undeliveredNotice([{ trigger_type: "reminder", human_id: "h1", channel }], "h1")?.detail).toContain(phrase);
+  });
+
   it("names a failed SMS fallback by the message it stood in for", () => {
     expect(undeliveredNotice([{ trigger_type: "reminder_sms_fallback", human_id: "h1" }], "h1")?.chip)
       .toBe("Reminder not delivered");

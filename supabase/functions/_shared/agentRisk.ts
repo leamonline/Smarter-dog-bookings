@@ -188,8 +188,12 @@ export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
   // me leave early") and must keep its normal route.
   /\b(?:won'?t|wont|will not|ont|doesn'?t|does not|isn'?t|not) (?:let|letting|allow|allowing) me\b[^.?!]{0,30}\b(?:book|log ?in|login|sign|add|put|enter|register|app|site|website|online|portal|page|system|post ?code|address)/,
   // "can't log in", "cant login", "not letting me log in", "can't get on the app"
-  /\bcan'?t (?:log ?in|sign ?in|get (?:on|in|onto|into))\b/,
-  /\bcan'?t (?:seem|seam) to (?:get|log|book)\b/,
+  // "can't log in" / "can't sign in" are unambiguous on their own.
+  /\bcan'?t (?:log ?in|sign ?in)\b/,
+  // "can't get on", "can't seem to get on the app": everyday on their own ("I
+  // can't get in until 10", "I can't seem to get him to eat"), so the
+  // booking-page word must follow closely.
+  /\bcan'?t (?:get (?:on|in|onto|into)|(?:seem|seam) to (?:get|log|book))\b[^.?!]{0,30}\b(?:app|site|website|online|portal|page|system|account|log ?in|login|book)/,
   // "the website isn't working", "system isnt working", "app not working"
   /\b(?:website|web site|site|app|portal|system|booking page|online booking|link)\b[^.?!]{0,20}\b(?:isn'?t|is not|not|doesn'?t|does not|won'?t) (?:working|work|load|loading)\b/,
   // "I can't book in on the App", "can't book her online"
