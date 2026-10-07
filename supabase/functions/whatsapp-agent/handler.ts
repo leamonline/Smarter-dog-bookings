@@ -89,6 +89,7 @@ import {
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
@@ -1641,13 +1642,14 @@ function dispatchRescheduleFlow(
 async function manageCutoffHandoff(
   supabase: SupabaseClient,
   conversationId: string,
+  humanId: string,
   eventId: string | null,
   action: "cancel" | "reschedule",
 ): Promise<void> {
   const msg = action === "cancel"
     ? "This appointment has already started, so I need the team to check its status before cancelling. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
     : "This appointment is within 24 hours, so I can't move it automatically here. I've flagged it for the team so they can help you properly. 🐾";
-  await sendManageText(conversationId, msg);
+  const replied = await sendManageText(conversationId, msg);
   const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false, draftOnly: false };
   const draft: DraftFromClaude = {
     intent: "escalate",
@@ -1656,7 +1658,19 @@ async function manageCutoffHandoff(
       `[Blocked ${action}] Customer asked to ${action} after its permitted deadline — needs the team. They've already been told you'll be in touch.`,
     extracted_state: null,
   };
-  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
+  try {
+    await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
+  } finally {
+    // The customer has just been told the team will help. Make that true on
+    // the staff side too: a draft only shows to whoever opens the inbox, and
+    // a failed draft save must not cost them the to-do as well.
+    await raiseFollowUpTodo(
+      supabase,
+      humanId,
+      action === "cancel" ? "manage_deadline_cancel" : "manage_deadline_reschedule",
+      { reply: replied ? "sent" : "unconfirmed" },
+    );
+  }
 }
 
 /** Run the chosen action against a resolved visit and its applicable deadline. */
@@ -1671,7 +1685,7 @@ async function executeManageAction(
   dogSizes: Record<string, DogSize>,
 ): Promise<void> {
   if (isManageActionBlocked(action, new Date(visit.startAt), new Date())) {
-    await manageCutoffHandoff(supabase, conversationId, eventId, action);
+    await manageCutoffHandoff(supabase, conversationId, humanId, eventId, action);
     return;
   }
   if (action === "cancel") {
@@ -1711,11 +1725,41 @@ async function handleManageBooking(
     const s = session as
       | { id: string; human_id: string; action: string; status: string; expires_at: string }
       | null;
-    if (!s || s.human_id !== humanId || s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+    // Not this customer's menu, or no such menu: nothing to hand over, so the
+    // original "start again" reply stands and staff get no task.
+    if (!s || s.human_id !== humanId) {
       await sendManageText(
         conversation.id,
         'That selection has expired — just send "cancel" or "reschedule" again and I\'ll pull your bookings up. 🐾',
       );
+      return true;
+    }
+    // A second tap on a menu already used: the first tap is being handled.
+    if (s.status === "consumed") {
+      await sendManageText(
+        conversation.id,
+        "You've already picked that one — have a look at the message I sent after it. 🐾",
+      );
+      return true;
+    }
+    // An older menu tapped after a newer one was sent: the newer one works.
+    if (s.status === "superseded") {
+      await sendManageText(
+        conversation.id,
+        "That's an older list — please pick from the latest one I sent. 🐾",
+      );
+      return true;
+    }
+    if (s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+      // A genuine timeout is a dead end: rather than sending the customer
+      // round again, hand it to the team and say so.
+      const replied = await sendManageText(
+        conversation.id,
+        "Sorry, that menu timed out. I've passed it to the team and they'll sort it with you here. 🐾",
+      );
+      await raiseFollowUpTodo(supabase, humanId, "manage_selection_expired", {
+        reply: replied ? "sent" : "unconfirmed",
+      });
       return true;
     }
     // Re-resolve live, re-validate, consume the nonce (single-use).
@@ -1726,10 +1770,13 @@ async function handleManageBooking(
       .eq("id", s.id);
     const visit = visits.find((v) => v.key === parsed.visitKey);
     if (!visit) {
-      await sendManageText(
+      const replied = await sendManageText(
         conversation.id,
-        'That booking is no longer available to manage — send "cancel" or "reschedule" again and I\'ll show you what\'s booked. 🐾',
+        "That booking has changed since I showed it, so I've passed it to the team and they'll sort it with you here. 🐾",
       );
+      await raiseFollowUpTodo(supabase, humanId, "manage_booking_gone", {
+        reply: replied ? "sent" : "unconfirmed",
+      });
       return true;
     }
     await executeManageAction(

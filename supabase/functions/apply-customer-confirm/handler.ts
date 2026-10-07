@@ -21,6 +21,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { isManageActionBlocked, visitStartInstant } from "../_shared/manageBooking.ts";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -38,10 +39,11 @@ interface ConfirmInput {
   caller_conversation_id: string;
 }
 
-async function sendAckText(conversation_id: string, text: string) {
-  if (!SEND_INTERNAL_SECRET) return;
+/** Returns whether whatsapp-send accepted the message (not that it was delivered). */
+async function sendAckText(conversation_id: string, text: string): Promise<boolean> {
+  if (!SEND_INTERNAL_SECRET) return false;
   try {
-    await fetch(WHATSAPP_SEND_URL, {
+    const res = await fetch(WHATSAPP_SEND_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -54,8 +56,11 @@ async function sendAckText(conversation_id: string, text: string) {
         text,
       }),
     });
+    if (!res.ok) console.warn(`sendAckText: whatsapp-send returned ${res.status}`);
+    return res.ok;
   } catch (err) {
     console.warn("sendAckText failed (non-fatal):", err);
+    return false;
   }
 }
 
@@ -234,7 +239,33 @@ export async function handleApplyCustomerConfirm(req: Request): Promise<Response
       console.warn(`apply-customer-confirm: action ${action.id} TTL transition skipped (raced)`);
       return new Response("already_processed", { status: 200 });
     }
-    await sendAckText(action.conversation_id, "Sorry, that confirmation expired — want me to find a slot again? 🎓🐶❤️ X");
+    // A late "No" is still a no: the action is expired above and nothing else
+    // happens, exactly as for an on-time No (no ack, no staff hand-off).
+    if (input.choice === "no") {
+      return new Response("expired", { status: 200 });
+    }
+    // A late "Yes" is a dead end: hand it to the team rather than sending the
+    // customer round again, and put it on the staff to-do list so that is true.
+    const replied = await sendAckText(
+      action.conversation_id,
+      "Sorry, that confirmation timed out. I've passed it to the team and they'll sort it with you here. 🎓🐶❤️ X",
+    );
+    const { data: convo, error: convoErr } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", action.conversation_id)
+      .maybeSingle();
+    if (convoErr) {
+      // The customer has just been promised the team will follow up; make a
+      // missing to-do visible in the logs rather than skipping it silently.
+      console.error(
+        `apply-customer-confirm: conversation lookup failed for action ${action.id}; follow-up to-do not created:`,
+        convoErr.message,
+      );
+    }
+    await raiseFollowUpTodo(supabase, (convo as { human_id?: string | null } | null)?.human_id, "confirm_expired", {
+      reply: replied ? "sent" : "unconfirmed",
+    });
     return new Response("expired", { status: 200 });
   }
 
