@@ -15,16 +15,22 @@
 --   1. salon_todos.dog_id, with at most one OPEN to-do per dog, so repeated
 --      triggers refresh one task instead of stacking duplicates.
 --   2. raise_dog_size_check_todo(dog) — internal. Writes or refreshes that
---      to-do for an approved customer's live dog that still has no size.
+--      to-do for an approved customer's live dog that still has no size, and
+--      says whether one is open. It locks the dog row first, so a request that
+--      races a staff size edit or archive waits for it and then sees the
+--      result, instead of reopening a task the staff write just closed.
 --   3. An AFTER trigger on dogs:
 --        - a signed-in customer adds a dog, or changes its breed or estimate,
 --          and the dog ends up with no size  → raise the to-do;
---        - anyone sets a size on a dog that had none → tick the to-do off.
+--        - the dog is renamed while its to-do is open → refresh the wording;
+--        - anyone sets a size, or archives the dog → tick the to-do off.
 --      Errors are swallowed with a warning, like the staff push triggers: a
 --      to-do must never roll back the dog write it follows.
 --   4. request_dog_size_check(dog) — customer RPC. The booking wizard calls it
 --      when it shows a dog it cannot book, which covers older dogs (mostly the
---      April 2026 import) that no customer write has touched.
+--      April 2026 import) that no customer write has touched. It returns true
+--      only when a to-do is open afterwards, so the wizard never says "we've
+--      asked the team" when nothing was recorded (an archived dog, say).
 --
 -- Kind stays 'general' so staff tick it off like any task; the workflow kinds
 -- are locked to their own completion flows. Expand-only: rollback is to drop
@@ -46,7 +52,7 @@ create unique index if not exists salon_todos_one_open_per_dog
 -- ── 2. Write or refresh the to-do (internal) ────────────────
 
 create or replace function public.raise_dog_size_check_todo(p_dog_id uuid)
-returns void
+returns boolean
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -70,12 +76,13 @@ begin
        v_archived, v_human_id, v_owner, v_approved
   from public.dogs d
   join public.humans h on h.id = d.human_id
-  where d.id = p_dog_id;
+  where d.id = p_dog_id
+  for update of d;
 
   -- Nothing to confirm, or nobody who can book yet: an unapproved signup is
   -- already covered by its signup_review task, which needs every size set.
   if not found or v_size is not null or v_archived is not null or v_approved is null then
-    return;
+    return false;
   end if;
 
   v_text := 'Confirm size: ' || coalesce(nullif(btrim(v_dog_name), ''), 'a dog')
@@ -94,11 +101,12 @@ begin
   )
   on conflict (dog_id) where dog_id is not null and done = false
   do update set text = excluded.text, updated_at = now();
+  return true;
 end;
 $$;
 
 comment on function public.raise_dog_size_check_todo(uuid) is
-  'Internal. Writes or refreshes the single open "Confirm size" to-do for an approved customer''s live dog with no dogs.size. No-op otherwise.';
+  'Internal. Writes or refreshes the single open "Confirm size" to-do for an approved customer''s live dog with no dogs.size, under a lock on the dog row. Returns true when a to-do is open afterwards, false when there was nothing to raise.';
 
 revoke all on function public.raise_dog_size_check_todo(uuid) from public;
 revoke all on function public.raise_dog_size_check_todo(uuid) from anon;
@@ -114,8 +122,10 @@ set search_path = public, pg_temp
 as $$
 begin
   begin
-    if new.size is not null then
-      if tg_op = 'UPDATE' and old.size is null then
+    -- A size, or archiving, ends the wait: tick off whatever is open.
+    if new.size is not null or new.archived_at is not null then
+      if tg_op = 'UPDATE'
+         and (old.size is null or old.archived_at is null) then
         update public.salon_todos
         set done = true, updated_at = now()
         where dog_id = new.id and done = false;
@@ -123,17 +133,26 @@ begin
       return null;
     end if;
 
-    -- Only a signed-in customer's own write. Staff are setting the size
-    -- themselves; service-role scripts and imports have no customer waiting.
-    if (select auth.uid()) is null or public.is_staff() then
+    -- Still waiting, and nothing that changes the size question: at most the
+    -- name changed, so refresh an open to-do's wording (whoever renamed it)
+    -- and never create one.
+    if tg_op = 'UPDATE'
+       and old.size is null
+       and old.archived_at is null
+       and old.reported_size is not distinct from new.reported_size
+       and old.breed is not distinct from new.breed then
+      if old.name is distinct from new.name
+         and exists (select 1 from public.salon_todos t
+                      where t.dog_id = new.id and t.done = false) then
+        perform public.raise_dog_size_check_todo(new.id);
+      end if;
       return null;
     end if;
 
-    -- An unrelated edit (notes, vet) on a dog already waiting adds nothing.
-    if tg_op = 'UPDATE'
-       and old.size is null
-       and old.reported_size is not distinct from new.reported_size
-       and old.breed is not distinct from new.breed then
+    -- Only a signed-in customer's own write raises a new one. Staff are
+    -- setting the size themselves; service-role scripts and imports have no
+    -- customer waiting.
+    if (select auth.uid()) is null or public.is_staff() then
       return null;
     end if;
 
@@ -151,13 +170,13 @@ revoke all on function public.dogs_size_check_todo() from authenticated;
 
 drop trigger if exists trg_dogs_size_check_todo on public.dogs;
 create trigger trg_dogs_size_check_todo
-  after insert or update of size, reported_size, breed on public.dogs
+  after insert or update of size, reported_size, breed, name, archived_at on public.dogs
   for each row execute function public.dogs_size_check_todo();
 
 -- ── 4. Customer asks for a size check from the booking wizard ─
 
 create or replace function public.request_dog_size_check(p_dog_id uuid)
-returns void
+returns boolean
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -179,12 +198,12 @@ begin
     raise exception 'That dog is not on your account' using errcode = '42704';
   end if;
 
-  perform public.raise_dog_size_check_todo(p_dog_id);
+  return public.raise_dog_size_check_todo(p_dog_id);
 end;
 $$;
 
 comment on function public.request_dog_size_check(uuid) is
-  'Customer RPC. Asks staff to confirm the size of one of the caller''s dogs by writing or refreshing its "Confirm size" to-do. Idempotent; never sets dogs.size.';
+  'Customer RPC. Asks staff to confirm the size of one of the caller''s dogs by writing or refreshing its "Confirm size" to-do. Returns true only when a to-do is open afterwards. Idempotent; never sets dogs.size.';
 
 revoke all on function public.request_dog_size_check(uuid) from public;
 revoke all on function public.request_dog_size_check(uuid) from anon;

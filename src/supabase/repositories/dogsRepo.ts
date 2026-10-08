@@ -122,11 +122,12 @@ export async function updateForCustomer(
 // Ask staff to confirm a dog's size. Writes or refreshes one "Confirm size"
 // to-do on the staff dashboard; it never sets dogs.size, which stays staff-only.
 // Idempotent server-side, so calling it each time the wizard shows the dog is
-// safe. Resolves true only when the request was recorded, so the caller can
-// say "we've asked the team" honestly and fall back to "message us" otherwise.
+// safe. Resolves true only when the server says a to-do is open afterwards (an
+// archived or already-sized dog gets false), so the caller can say "we've
+// asked the team" honestly and fall back to "message us" otherwise.
 export async function requestSizeCheck(client: SupabaseClient, dogId: string): Promise<boolean> {
-  const { error } = await client.rpc("request_dog_size_check", { p_dog_id: dogId });
-  return !error;
+  const { data, error } = await client.rpc("request_dog_size_check", { p_dog_id: dogId });
+  return !error && data === true;
 }
 
 export async function listForHuman(

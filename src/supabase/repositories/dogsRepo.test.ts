@@ -147,10 +147,16 @@ describe("createForHuman", () => {
 
 describe("requestSizeCheck", () => {
   it("asks the server for a size check on that dog and reports success", async () => {
-    const { client, rpc } = fakeRpcClient({ data: null, error: null });
+    const { client, rpc } = fakeRpcClient({ data: true, error: null });
 
     await expect(requestSizeCheck(client, DOG)).resolves.toBe(true);
     expect(rpc).toHaveBeenCalledWith("request_dog_size_check", { p_dog_id: DOG });
+  });
+
+  it("reports nothing recorded when the server raised no to-do (an archived dog)", async () => {
+    const { client } = fakeRpcClient({ data: false, error: null });
+
+    await expect(requestSizeCheck(client, DOG)).resolves.toBe(false);
   });
 
   it("reports failure so the wizard does not claim the team was asked", async () => {

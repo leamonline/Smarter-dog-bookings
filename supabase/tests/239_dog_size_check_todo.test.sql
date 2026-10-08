@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(20);
 
 set local session_replication_role = replica;
 
@@ -34,6 +34,11 @@ insert into public.dogs (id, name, breed, size, human_id) values
    '23900000-0000-4000-8000-000000000010'),
   ('23900000-0000-4000-8000-000000000201', 'Not Yours', 'Mystery Mix', null,
    '23900000-0000-4000-8000-000000000020');
+
+-- An archived dog that the portal can still list: nothing should be promised for it.
+insert into public.dogs (id, name, breed, size, human_id, archived_at) values
+  ('23900000-0000-4000-8000-000000000102', 'Gone', 'Mystery Mix', null,
+   '23900000-0000-4000-8000-000000000010', now());
 
 set local session_replication_role = default;
 
@@ -98,13 +103,21 @@ select lives_ok(
 );
 
 -- ── The wizard asks about an older dog, twice ───────────────
-select lives_ok(
-  $$ select public.request_dog_size_check('23900000-0000-4000-8000-000000000101') $$,
-  'the wizard can ask staff to confirm an older dog''s size'
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000101'),
+  true,
+  'the wizard can ask staff to confirm an older dog''s size, and is told it was recorded'
 );
-select lives_ok(
-  $$ select public.request_dog_size_check('23900000-0000-4000-8000-000000000101') $$,
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000101'),
+  true,
   'asking again is harmless'
+);
+
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000102'),
+  false,
+  'an archived dog gets false, so the wizard does not claim the team was asked'
 );
 
 select throws_ok(
@@ -134,6 +147,12 @@ select ok(
   'a changed estimate refreshes the one open to-do rather than adding another'
 );
 
+select is(
+  (select count(*)::int from public.salon_todos where dog_id = '23900000-0000-4000-8000-000000000102'),
+  0,
+  'and no to-do exists for it'
+);
+
 select ok(
   (select count(*) = 1 and bool_and(t.text like '%Legacy (Mystery Mix) — Approved Owner gave no estimate.%')
      from public.salon_todos t
@@ -141,18 +160,40 @@ select ok(
   'repeated wizard requests leave exactly one open to-do for the older dog'
 );
 
+-- ── A rename while waiting refreshes the wording ────────────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000011","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.update_customer_dog(
+       (select id from public.dogs where name = 'Bramble'), 'Bramble Rose', 'Pug x Labrador', 'large', null) $$,
+  'the customer can rename a dog that is waiting'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like 'Confirm size: Bramble Rose %')
+     from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble Rose' and t.done = false),
+  'the open to-do now carries the new name'
+);
+
 -- ── Staff set the size: the to-do ticks itself off ──────────
 select set_config('request.jwt.claims',
   '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
 set local role authenticated;
 
-update public.dogs set size = 'medium' where name = 'Bramble';
+update public.dogs set size = 'medium' where name = 'Bramble Rose';
+-- Archiving is the other way a wait ends.
+update public.dogs set archived_at = now() where id = '23900000-0000-4000-8000-000000000101';
 
 reset role;
 
 select is(
   (select count(*)::int from public.salon_todos t join public.dogs d on d.id = t.dog_id
-    where d.name = 'Bramble' and t.done = false),
+    where d.name = 'Bramble Rose' and t.done = false),
   0,
   'setting the size closes the open to-do'
 );
@@ -160,8 +201,8 @@ select is(
 select is(
   (select count(*)::int from public.salon_todos t
     where t.dog_id = '23900000-0000-4000-8000-000000000101' and t.done = false),
-  1,
-  'other dogs'' to-dos are untouched'
+  0,
+  'archiving a waiting dog closes its open to-do'
 );
 
 select * from finish();
