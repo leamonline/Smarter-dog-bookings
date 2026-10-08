@@ -17,7 +17,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(5);
+select plan(13);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -40,9 +40,20 @@ select extensions.dblink_exec('setup', $setup$
   set local role postgres;
   set local session_replication_role = replica;
 
-  delete from public.salon_todos where dog_id = '24000000-0000-4000-8000-000000000101';
-  delete from public.dogs where id = '24000000-0000-4000-8000-000000000101';
-  delete from public.humans where id = '24000000-0000-4000-8000-000000000010';
+  delete from public.salon_todos where dog_id in (
+    '24000000-0000-4000-8000-000000000101',
+    '24000000-0000-4000-8000-000000000102',
+    '24000000-0000-4000-8000-000000000103'
+  );
+  delete from public.dogs where id in (
+    '24000000-0000-4000-8000-000000000101',
+    '24000000-0000-4000-8000-000000000102',
+    '24000000-0000-4000-8000-000000000103'
+  );
+  delete from public.humans where id in (
+    '24000000-0000-4000-8000-000000000010',
+    '24000000-0000-4000-8000-000000000020'
+  );
   delete from public.staff_profiles where id = '24000000-0000-4000-8000-000000000040';
   delete from auth.users where id in (
     '24000000-0000-4000-8000-000000000011',
@@ -58,12 +69,19 @@ select extensions.dblink_exec('setup', $setup$
   ) values (
     '24000000-0000-4000-8000-000000000010', 'Race', 'Owner', '1 Race Street',
     '24000000-0000-4000-8000-000000000011', 'existing', now(), now(), '2026-10-test'
+  ), (
+    '24000000-0000-4000-8000-000000000020', 'Other', 'Racer', '2 Race Street',
+    null, 'existing', now(), now(), '2026-10-test'
   );
   insert into public.staff_profiles (id, user_id, role, display_name)
   values ('24000000-0000-4000-8000-000000000040', '24000000-0000-4000-8000-000000000041', 'staff', 'Race Staff');
-  insert into public.dogs (id, name, breed, size, human_id)
-  values ('24000000-0000-4000-8000-000000000101', 'Racer', 'Mystery Mix', null,
-          '24000000-0000-4000-8000-000000000010');
+  insert into public.dogs (id, name, breed, size, human_id) values
+    ('24000000-0000-4000-8000-000000000101', 'Racer', 'Mystery Mix', null,
+     '24000000-0000-4000-8000-000000000010'),
+    ('24000000-0000-4000-8000-000000000102', 'Second', 'Mystery Mix', null,
+     '24000000-0000-4000-8000-000000000010'),
+    ('24000000-0000-4000-8000-000000000103', 'Mover', 'Mystery Mix', null,
+     '24000000-0000-4000-8000-000000000010');
   commit;
 $setup$);
 
@@ -105,6 +123,9 @@ declare
   v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
 begin
   loop
+    -- pg_stat_activity is cached per transaction; this controller is one
+    -- long transaction, so refresh it on every poll.
+    perform pg_stat_clear_snapshot();
     update _pids p
        set customer_blocked = exists (
          select 1 from pg_stat_activity a
@@ -173,13 +194,215 @@ select is(
   'the staff size stands'
 );
 
+-- ── Lock order: owner row, then dog, the way merge_humans does it ─
+-- Staff hold the owner row (merge_humans' first step) while the customer asks
+-- about a second dog, then staff update that dog (merge's next step). If the
+-- request locked the dog first and then needed the owner row for the to-do's
+-- foreign key, each would wait on the other and PostgreSQL would abort one.
+select extensions.dblink_connect('merger', (select connstr from _dblink_config));
+select extensions.dblink_connect('asker', (select connstr from _dblink_config));
+select extensions.dblink_exec('merger', 'begin isolation level read committed');
+select extensions.dblink_exec('merger', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('merger',
+  'do $lock$ begin perform 1 from public.humans where id = ''24000000-0000-4000-8000-000000000010'' for update; end $lock$');
+
+select extensions.dblink_exec('asker', 'begin isolation level read committed');
+select extensions.dblink_exec('asker', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('asker',
+  'set local "request.jwt.claims" = ''{"sub":"24000000-0000-4000-8000-000000000011","role":"authenticated"}''');
+select extensions.dblink_exec('asker', 'set local role authenticated');
+
+create temp table _pids2 (merger_pid int, asker_pid int, asker_blocked boolean default false);
+insert into _pids2 (merger_pid, asker_pid)
+select m.pid, a.pid
+from extensions.dblink('merger', 'select pg_backend_pid()') as m(pid int),
+     extensions.dblink('asker', 'select pg_backend_pid()') as a(pid int);
+
+select is(
+  extensions.dblink_send_query('asker',
+    'select public.request_dog_size_check(''24000000-0000-4000-8000-000000000102'')::text'),
+  1,
+  'a size check is sent while staff hold the owner row'
+);
+
+do $poll2$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    -- pg_stat_activity is cached per transaction; this controller is one
+    -- long transaction, so refresh it on every poll.
+    perform pg_stat_clear_snapshot();
+    update _pids2 p
+       set asker_blocked = exists (
+         select 1 from pg_stat_activity a
+          where a.pid = p.asker_pid
+            and a.wait_event_type = 'Lock'
+            and p.merger_pid = any(pg_blocking_pids(a.pid)));
+    exit when (select asker_blocked from _pids2);
+    exit when clock_timestamp() >= v_deadline;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$poll2$;
+
+select ok(
+  (select asker_blocked from _pids2),
+  'the request queues behind the owner row before it touches the dog'
+);
+
+select lives_ok(
+  $$ select extensions.dblink_exec('merger',
+       'update public.dogs set name = ''Second Two'' where id = ''24000000-0000-4000-8000-000000000102''') $$,
+  'staff can still lock and update the dog: no deadlock'
+);
+
+select extensions.dblink_exec('merger', 'commit');
+
+do $asker_wait$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    exit when extensions.dblink_is_busy('asker') = 0;
+    if clock_timestamp() >= v_deadline then
+      perform extensions.dblink_cancel_query('asker');
+      raise exception 'the size-check request did not finish after the owner lock was released';
+    end if;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$asker_wait$;
+
+create temp table _result2 (recorded text);
+insert into _result2
+select recorded from extensions.dblink_get_result('asker') as r(recorded text);
+do $drain2$
+begin
+  perform recorded from extensions.dblink_get_result('asker') as r(recorded text);
+end;
+$drain2$;
+select extensions.dblink_exec('asker', 'commit');
+
+select ok(
+  (select recorded from _result2) = 'true'
+  and (select n from extensions.dblink('setup',
+         'select count(*)::int from public.salon_todos
+           where dog_id = ''24000000-0000-4000-8000-000000000102'' and done = false
+             and text like ''Confirm size: Second Two %''') as t(n int)) = 1,
+  'the request then records one to-do, naming the dog as staff left it'
+);
+
+-- ── Ownership re-checked under the dog lock ─────────────────
+-- Staff move a dog to another owner but have not committed. The customer's
+-- request passes its own ownership check on the committed row, then waits for
+-- the dog. Once the move commits, the writer must see the dog is no longer
+-- theirs and record nothing, rather than open a task on someone else's dog.
+select extensions.dblink_exec('merger', 'begin isolation level read committed');
+select extensions.dblink_exec('merger', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('merger',
+  'update public.dogs set human_id = ''24000000-0000-4000-8000-000000000020''
+    where id = ''24000000-0000-4000-8000-000000000103''');
+
+select extensions.dblink_exec('asker', 'begin isolation level read committed');
+select extensions.dblink_exec('asker', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('asker',
+  'set local "request.jwt.claims" = ''{"sub":"24000000-0000-4000-8000-000000000011","role":"authenticated"}''');
+select extensions.dblink_exec('asker', 'set local role authenticated');
+
+update _pids2 set asker_blocked = false;
+select is(
+  extensions.dblink_send_query('asker',
+    'select public.request_dog_size_check(''24000000-0000-4000-8000-000000000103'')::text'),
+  1,
+  'a size check is sent while staff are moving the dog to another owner'
+);
+
+do $poll3$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    -- pg_stat_activity is cached per transaction; this controller is one
+    -- long transaction, so refresh it on every poll.
+    perform pg_stat_clear_snapshot();
+    update _pids2 p
+       set asker_blocked = exists (
+         select 1 from pg_stat_activity a
+          where a.pid = p.asker_pid
+            and a.wait_event_type = 'Lock'
+            and p.merger_pid = any(pg_blocking_pids(a.pid)));
+    exit when (select asker_blocked from _pids2);
+    exit when clock_timestamp() >= v_deadline;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$poll3$;
+
+select extensions.dblink_exec('merger', 'commit');
+
+do $asker_wait3$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    exit when extensions.dblink_is_busy('asker') = 0;
+    if clock_timestamp() >= v_deadline then
+      perform extensions.dblink_cancel_query('asker');
+      raise exception 'the size-check request did not finish after the move committed';
+    end if;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$asker_wait3$;
+
+create temp table _result3 (recorded text);
+insert into _result3
+select recorded from extensions.dblink_get_result('asker') as r(recorded text);
+do $drain3$
+begin
+  perform recorded from extensions.dblink_get_result('asker') as r(recorded text);
+end;
+$drain3$;
+select extensions.dblink_exec('asker', 'commit');
+
+select ok(
+  (select asker_blocked from _pids2),
+  'the request waited on the dog being moved'
+);
+
+select is(
+  (select recorded from _result3),
+  'false',
+  'once the move commits, the request sees the dog is no longer theirs'
+);
+
+select is(
+  (select n from extensions.dblink('setup',
+     'select count(*)::int from public.salon_todos
+       where dog_id = ''24000000-0000-4000-8000-000000000103''') as t(n int)),
+  0,
+  'and no to-do was opened on the other owner''s dog'
+);
+
 select extensions.dblink_exec('setup', $cleanup$
   begin;
   set local role postgres;
   set local session_replication_role = replica;
-  delete from public.salon_todos where dog_id = '24000000-0000-4000-8000-000000000101';
-  delete from public.dogs where id = '24000000-0000-4000-8000-000000000101';
-  delete from public.humans where id = '24000000-0000-4000-8000-000000000010';
+  delete from public.salon_todos where dog_id in (
+    '24000000-0000-4000-8000-000000000101',
+    '24000000-0000-4000-8000-000000000102',
+    '24000000-0000-4000-8000-000000000103'
+  );
+  delete from public.dogs where id in (
+    '24000000-0000-4000-8000-000000000101',
+    '24000000-0000-4000-8000-000000000102',
+    '24000000-0000-4000-8000-000000000103'
+  );
+  delete from public.humans where id in (
+    '24000000-0000-4000-8000-000000000010',
+    '24000000-0000-4000-8000-000000000020'
+  );
   delete from public.staff_profiles where id = '24000000-0000-4000-8000-000000000040';
   delete from auth.users where id in (
     '24000000-0000-4000-8000-000000000011',
@@ -190,6 +413,8 @@ $cleanup$);
 
 do $disconnect$
 begin
+  perform extensions.dblink_disconnect('asker');
+  perform extensions.dblink_disconnect('merger');
   perform extensions.dblink_disconnect('customer');
   perform extensions.dblink_disconnect('staff');
   perform extensions.dblink_disconnect('setup');

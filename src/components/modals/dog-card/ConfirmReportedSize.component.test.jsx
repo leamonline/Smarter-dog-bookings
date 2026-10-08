@@ -14,7 +14,8 @@ describe("ConfirmReportedSize", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm Medium" }));
 
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith("medium"));
-    expect(onUpdateDog).toHaveBeenCalledWith("dog-1", { size: "medium" });
+    // Guarded: only lands if the dog is still unsized with the estimate shown.
+    expect(onUpdateDog).toHaveBeenCalledWith("dog-1", { size: "medium" }, { onlyIfUnsizedWithReported: "medium" });
   });
 
   it("reports a failed save instead of claiming success", async () => {

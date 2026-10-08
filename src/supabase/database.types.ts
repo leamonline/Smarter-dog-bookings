@@ -4660,7 +4660,7 @@ export type Database = {
       }
       prune_slack_alerts: { Args: never; Returns: number }
       raise_dog_size_check_todo: {
-        Args: { p_dog_id: string }
+        Args: { p_dog_id: string; p_expected_human_id?: string }
         Returns: boolean
       }
       recompute_legacy_booking_visit: {

@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(25);
 
 set local session_replication_role = replica;
 
@@ -237,6 +237,25 @@ select is(
   (select human_id from public.dogs where id = '23900000-0000-4000-8000-000000000201'),
   '23900000-0000-4000-8000-000000000030'::uuid,
   'the dog itself moved to the winner'
+);
+
+-- ── Owner renamed: the open to-do's wording follows ─────────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ update public.humans set surname = 'Champion' where id = '23900000-0000-4000-8000-000000000030' $$,
+  'staff can rename an owner whose dog is waiting'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like '% — Merged Champion gave no estimate.%')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'the open to-do now names the owner as they are called today'
 );
 
 select * from finish();

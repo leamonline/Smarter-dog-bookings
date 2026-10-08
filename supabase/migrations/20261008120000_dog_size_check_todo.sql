@@ -28,11 +28,16 @@
 --        - anyone sets a size, or archives the dog → tick the to-do off.
 --      Errors are swallowed with a warning, like the staff push triggers: a
 --      to-do must never roll back the dog write it follows.
---   4. request_dog_size_check(dog) — customer RPC. The booking wizard calls it
+--   4. request_dog_size_check(dog) — customer RPC. It locks the caller's own
+--      human row before the dog (the order merge_humans and the customer dog
+--      RPCs use, so the two cannot deadlock), and the writer re-checks under
+--      the dog lock that the dog is still theirs. The booking wizard calls it
 --      when it shows a dog it cannot book, which covers older dogs (mostly the
 --      April 2026 import) that no customer write has touched. It returns true
 --      only when a to-do is open afterwards, so the wizard never says "we've
 --      asked the team" when nothing was recorded (an archived dog, say).
+--   5. An AFTER trigger on humans refreshes open to-dos when the owner's name
+--      changes: the to-do list shows only the stored text.
 --
 -- Kind stays 'general' so staff tick it off like any task; the workflow kinds
 -- are locked to their own completion flows. Expand-only: rollback is to drop
@@ -53,7 +58,10 @@ create unique index if not exists salon_todos_one_open_per_dog
 
 -- ── 2. Write or refresh the to-do (internal) ────────────────
 
-create or replace function public.raise_dog_size_check_todo(p_dog_id uuid)
+create or replace function public.raise_dog_size_check_todo(
+  p_dog_id uuid,
+  p_expected_human_id uuid default null
+)
 returns boolean
 language plpgsql
 security definer
@@ -83,7 +91,10 @@ begin
 
   -- Nothing to confirm, or nobody who can book yet: an unapproved signup is
   -- already covered by its signup_review task, which needs every size set.
-  if not found or v_size is not null or v_archived is not null or v_approved is null then
+  -- With an expected owner (the customer RPC), the dog must still be theirs
+  -- now that it is locked: staff may have moved it since the caller's check.
+  if not found or v_size is not null or v_archived is not null or v_approved is null
+     or (p_expected_human_id is not null and v_human_id is distinct from p_expected_human_id) then
     return false;
   end if;
 
@@ -107,12 +118,12 @@ begin
 end;
 $$;
 
-comment on function public.raise_dog_size_check_todo(uuid) is
-  'Internal. Writes or refreshes the single open "Confirm size" to-do for an approved customer''s live dog with no dogs.size, under a lock on the dog row. Returns true when a to-do is open afterwards, false when there was nothing to raise.';
+comment on function public.raise_dog_size_check_todo(uuid, uuid) is
+  'Internal. Writes or refreshes the single open "Confirm size" to-do for an approved customer''s live dog with no dogs.size, under a lock on the dog row; with p_expected_human_id, only while the dog still belongs to that human. Returns true when a to-do is open afterwards, false when there was nothing to raise.';
 
-revoke all on function public.raise_dog_size_check_todo(uuid) from public;
-revoke all on function public.raise_dog_size_check_todo(uuid) from anon;
-revoke all on function public.raise_dog_size_check_todo(uuid) from authenticated;
+revoke all on function public.raise_dog_size_check_todo(uuid, uuid) from public;
+revoke all on function public.raise_dog_size_check_todo(uuid, uuid) from anon;
+revoke all on function public.raise_dog_size_check_todo(uuid, uuid) from authenticated;
 
 -- ── 3. Raise on customer writes, tick off once a size is set ─
 
@@ -191,22 +202,29 @@ set search_path = public, pg_temp
 as $$
 declare
   v_uid uuid := (select auth.uid());
+  v_human_id uuid;
 begin
   if v_uid is null then
     raise exception 'Not signed in' using errcode = '28000';
   end if;
 
-  if not exists (
-    select 1
-    from public.dogs d
-    join public.humans h on h.id = d.human_id
-    where d.id = p_dog_id
-      and h.customer_user_id = v_uid
+  -- The caller's own owner row first, then (inside the writer) the dog: the
+  -- order merge_humans and the customer dog RPCs take, so they cannot deadlock.
+  select h.id into v_human_id
+  from public.humans h
+  where h.customer_user_id = v_uid
+  limit 1
+  for update;
+
+  if v_human_id is null or not exists (
+    select 1 from public.dogs d
+    where d.id = p_dog_id and d.human_id = v_human_id
   ) then
     raise exception 'That dog is not on your account' using errcode = '42704';
   end if;
 
-  return public.raise_dog_size_check_todo(p_dog_id);
+  -- The writer re-checks ownership under the dog lock.
+  return public.raise_dog_size_check_todo(p_dog_id, v_human_id);
 end;
 $$;
 
@@ -216,3 +234,38 @@ comment on function public.request_dog_size_check(uuid) is
 revoke all on function public.request_dog_size_check(uuid) from public;
 revoke all on function public.request_dog_size_check(uuid) from anon;
 grant execute on function public.request_dog_size_check(uuid) to authenticated;
+
+-- ── 5. Owner renamed: refresh the wording of their open to-dos ─
+
+create or replace function public.humans_refresh_size_check_todos()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  begin
+    -- The owner row is already locked by this update, so taking each dog row
+    -- inside the writer keeps the owner-then-dog order.
+    perform public.raise_dog_size_check_todo(t.dog_id)
+    from public.salon_todos t
+    where t.human_id = new.id
+      and t.dog_id is not null
+      and t.done = false;
+  exception when others then
+    raise warning 'humans_refresh_size_check_todos failed for human % (non-fatal): %', new.id, sqlerrm;
+  end;
+  return null;
+end;
+$$;
+
+revoke all on function public.humans_refresh_size_check_todos() from public;
+revoke all on function public.humans_refresh_size_check_todos() from anon;
+revoke all on function public.humans_refresh_size_check_todos() from authenticated;
+
+drop trigger if exists trg_humans_refresh_size_check_todos on public.humans;
+create trigger trg_humans_refresh_size_check_todos
+  after update of name, surname on public.humans
+  for each row
+  when (old.name is distinct from new.name or old.surname is distinct from new.surname)
+  execute function public.humans_refresh_size_check_todos();

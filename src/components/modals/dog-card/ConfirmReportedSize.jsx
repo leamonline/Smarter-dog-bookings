@@ -8,6 +8,11 @@
 // decision: the button writes dogs.size through the ordinary staff update, the
 // same as the edit form, and the owner's estimate alone never does. Setting the
 // size ticks the to-do off in the database.
+//
+// The write is guarded: it only lands if the dog still has no size and the
+// owner's estimate is still the one on screen. If someone else set a size, or
+// the customer changed the breed or estimate since the card opened, the newer
+// value wins and staff are told to look again rather than overwriting it.
 import { useState } from "react";
 import { titleCase } from "../../../utils/text";
 
@@ -22,7 +27,7 @@ export function ConfirmReportedSize({ dog, onUpdateDog, onConfirmed, onFailed })
   const handleConfirm = async () => {
     setSaving(true);
     try {
-      const saved = await onUpdateDog(dog.id, { size: reported });
+      const saved = await onUpdateDog(dog.id, { size: reported }, { onlyIfUnsizedWithReported: reported });
       if (saved) onConfirmed?.(reported);
       else onFailed?.();
     } finally {

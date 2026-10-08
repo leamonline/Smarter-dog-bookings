@@ -9,6 +9,7 @@ import { findHumanByIdOrName } from "../../transforms";
 import { logger } from "../../../lib/logger";
 import type { Dispatch, SetStateAction } from "react";
 import type { Dog } from "../../../types/index";
+import type { DogSize } from "../../../constants/salon";
 import type {
   DogPatch,
   DogUpdate,
@@ -18,6 +19,11 @@ import type {
   NewDogInput,
   SetDogsByIdMap,
 } from "./helpers";
+
+export type UpdateDogOptions = {
+  /** Only write if dogs.size is still null and dogs.reported_size still equals this. */
+  onlyIfUnsizedWithReported?: DogSize;
+};
 
 export function useDogMutations({
   dogs,
@@ -37,7 +43,7 @@ export function useDogMutations({
   invalidateHuman: InvalidateHuman;
 }) {
   const updateDog = useCallback(
-    async (dogIdentifier: string, updates: DogPatch) => {
+    async (dogIdentifier: string, updates: DogPatch, options: UpdateDogOptions = {}) => {
       const existingDog =
         dogsById[dogIdentifier] ||
         dogs[dogIdentifier] ||
@@ -110,12 +116,21 @@ export function useDogMutations({
         return updatedDog;
       }
 
-      const { data, error: err } = await supabase
-        .from("dogs")
-        .update(dbUpdates)
-        .eq("id", existingDog.id)
-        .select("*")
-        .single();
+      // A guarded write only lands if the row still matches what the caller
+      // showed staff. Used by "Confirm <owner's estimate>": a size set by
+      // someone else, or a new estimate, since the button appeared must win.
+      const guard = options.onlyIfUnsizedWithReported;
+      let query = supabase.from("dogs").update(dbUpdates).eq("id", existingDog.id);
+      if (guard) query = query.is("size", null).eq("reported_size", guard);
+      const { data, error: err } = guard
+        ? await query.select("*").maybeSingle()
+        : await query.select("*").single();
+
+      if (!err && guard && !data) {
+        // Nothing matched: the dog changed under us. Undo the optimistic write.
+        setDogsById(prevDogsById);
+        return null;
+      }
 
       if (err) {
         logger.error("Failed to update dog", err, {
@@ -130,7 +145,7 @@ export function useDogMutations({
         ...dbUpdates,
         id: existingDog.id,
       };
-      const owner = humansById?.[savedRow.human_id];
+      const owner = humansById?.[savedRow.human_id ?? ""];
       const savedDog = {
         id: savedRow.id,
         name: savedRow.name,
