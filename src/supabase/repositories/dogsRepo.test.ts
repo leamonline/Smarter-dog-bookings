@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { listForHuman, updateForCustomer } from "./dogsRepo";
+import { createForHuman, listForHuman, requestSizeCheck, updateForCustomer } from "./dogsRepo";
+import type { Database } from "../database.types";
 
 const DOG = "42000000-0000-4000-8000-000000000001";
 const HUMAN = "41000000-0000-4000-8000-000000000001";
@@ -118,5 +119,50 @@ describe("listForHuman", () => {
         dob: "2022-05",
       },
     ]);
+  });
+});
+
+describe("createForHuman", () => {
+  it("keeps the size the server derived from the breed, so a bookable new dog isn't greyed out", async () => {
+    const { client } = fakeRpcClient({
+      data: [{ id: DOG, name: "Pip", breed: "Pug x Shih Tzu", size: "small", reported_size: "large", human_id: HUMAN }],
+      error: null,
+    });
+
+    const { dog } = await createForHuman(client, { humanId: HUMAN, name: "Pip", breed: "Pug x Shih Tzu", size: "large" });
+
+    expect(dog).toMatchObject({ size: "small", reportedSize: "large" });
+  });
+
+  it("leaves size empty when the server could not derive one", async () => {
+    const { client } = fakeRpcClient({
+      data: [{ id: DOG, name: "Bramble", breed: "Pug x Labrador", size: null, reported_size: "medium", human_id: HUMAN }],
+      error: null,
+    });
+
+    const { dog } = await createForHuman(client, { humanId: HUMAN, name: "Bramble", breed: "Pug x Labrador", size: "medium" });
+
+    expect(dog).toMatchObject({ size: null, reportedSize: "medium" });
+  });
+});
+
+describe("requestSizeCheck", () => {
+  it("asks the server for a size check on that dog and reports success", async () => {
+    const { client, rpc } = fakeRpcClient({ data: true, error: null });
+
+    await expect(requestSizeCheck(client as SupabaseClient<Database>, DOG)).resolves.toBe(true);
+    expect(rpc).toHaveBeenCalledWith("request_dog_size_check", { p_dog_id: DOG });
+  });
+
+  it("reports nothing recorded when the server raised no to-do (an archived dog)", async () => {
+    const { client } = fakeRpcClient({ data: false, error: null });
+
+    await expect(requestSizeCheck(client as SupabaseClient<Database>, DOG)).resolves.toBe(false);
+  });
+
+  it("reports failure so the wizard does not claim the team was asked", async () => {
+    const { client } = fakeRpcClient({ data: null, error: { message: "That dog is not on your account" } });
+
+    await expect(requestSizeCheck(client as SupabaseClient<Database>, DOG)).resolves.toBe(false);
   });
 });
