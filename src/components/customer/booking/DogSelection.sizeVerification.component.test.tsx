@@ -162,4 +162,33 @@ describe("DogSelection requires staff-confirmed size", () => {
 
     expect(onRequestSizeCheck).not.toHaveBeenCalled();
   });
+
+  it("keeps a recorded request when the dog list changes while it is in flight", async () => {
+    // e.g. the customer adds another pup before the first request returns.
+    let resolveFirst: (ok: boolean) => void = () => {};
+    const onRequestSizeCheck = vi.fn((dogId: string) =>
+      dogId === "reported-size"
+        ? new Promise<boolean>((resolve) => {
+            resolveFirst = resolve;
+          })
+        : Promise.resolve(true),
+    );
+    const props = {
+      selectedDogs: [],
+      onSelect: noop,
+      onNext: noop,
+      onDogAdded: noop,
+      humanId: "h1",
+      loading: false,
+      onRequestSizeCheck,
+    };
+    const { rerender } = render(<DogSelection {...props} dogs={[dogs[0]]} />);
+
+    rerender(<DogSelection {...props} dogs={dogs} />);
+    resolveFirst(true);
+
+    expect(await screen.findAllByText("We're confirming their size")).toHaveLength(2);
+    expect(onRequestSizeCheck).toHaveBeenCalledTimes(2);
+  });
 });
+

@@ -40,24 +40,30 @@ export function DogSelection({
   // Dogs whose size check the team has been asked for, this visit.
   const [sizeCheckRequested, setSizeCheckRequested] = useState<ReadonlySet<string>>(() => new Set());
   const askedRef = useRef<Set<string>>(new Set());
+  // Unmount only. A per-effect flag would be cleared whenever `dogs` changes
+  // (say the customer adds another pup mid-request), dropping a success for a
+  // dog that askedRef then never retries.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Showing a dog we can't book IS the request: the customer came here to book
   // it. Ask once per dog per visit; the server keeps one open to-do per dog, so
   // a repeat on another visit only refreshes it.
   useEffect(() => {
     if (!onRequestSizeCheck || loading) return;
-    let live = true;
     for (const dog of dogs) {
       if (hasConfirmedSize(dog) || askedRef.current.has(dog.id)) continue;
       askedRef.current.add(dog.id);
       void onRequestSizeCheck(dog.id).then((ok) => {
-        if (!ok || !live) return;
+        if (!ok || !mountedRef.current) return;
         setSizeCheckRequested((prev) => new Set(prev).add(dog.id));
       });
     }
-    return () => {
-      live = false;
-    };
   }, [dogs, loading, onRequestSizeCheck]);
 
   const isSelected = (dogId: string) => selectedDogs.some((d) => d.dogId === dogId);

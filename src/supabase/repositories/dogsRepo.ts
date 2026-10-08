@@ -4,6 +4,7 @@
 // them with SECURITY DEFINER functions.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DogSize } from "../../constants/salon";
+import type { Database } from "../database.types";
 import { createCustomerDog, updateCustomerDog } from "../rpc";
 
 export interface CustomerDog {
@@ -125,7 +126,9 @@ export async function updateForCustomer(
 // safe. Resolves true only when the server says a to-do is open afterwards (an
 // archived or already-sized dog gets false), so the caller can say "we've
 // asked the team" honestly and fall back to "message us" otherwise.
-export async function requestSizeCheck(client: SupabaseClient, dogId: string): Promise<boolean> {
+// Typed client, so the RPC name, argument and boolean result are checked
+// against the generated schema.
+export async function requestSizeCheck(client: SupabaseClient<Database>, dogId: string): Promise<boolean> {
   const { data, error } = await client.rpc("request_dog_size_check", { p_dog_id: dogId });
   return !error && data === true;
 }

@@ -23,6 +23,8 @@
 --        - a signed-in customer adds a dog, or changes its breed or estimate,
 --          and the dog ends up with no size  → raise the to-do;
 --        - the dog is renamed while its to-do is open → refresh the wording;
+--        - the dog moves to another owner (merge_humans) → the open to-do
+--          moves with it, before the old owner's delete can cascade it away;
 --        - anyone sets a size, or archives the dog → tick the to-do off.
 --      Errors are swallowed with a warning, like the staff push triggers: a
 --      to-do must never roll back the dog write it follows.
@@ -100,7 +102,7 @@ begin
     coalesce((select max(t.sort_order) from public.salon_todos t), -1) + 1
   )
   on conflict (dog_id) where dog_id is not null and done = false
-  do update set text = excluded.text, updated_at = now();
+  do update set text = excluded.text, human_id = excluded.human_id, updated_at = now();
   return true;
 end;
 $$;
@@ -134,16 +136,22 @@ begin
     end if;
 
     -- Still waiting, and nothing that changes the size question: at most the
-    -- name changed, so refresh an open to-do's wording (whoever renamed it)
-    -- and never create one.
+    -- name or the owner changed. Keep an open to-do with the dog (whoever made
+    -- the edit) and never create one. The owner move matters for
+    -- merge_humans, which reassigns dogs and then deletes the losing human:
+    -- salon_todos.human_id cascades, so a to-do left on the loser would vanish.
     if tg_op = 'UPDATE'
        and old.size is null
        and old.archived_at is null
        and old.reported_size is not distinct from new.reported_size
        and old.breed is not distinct from new.breed then
-      if old.name is distinct from new.name
+      if (old.name is distinct from new.name
+          or old.human_id is distinct from new.human_id)
          and exists (select 1 from public.salon_todos t
                       where t.dog_id = new.id and t.done = false) then
+        update public.salon_todos
+        set human_id = new.human_id, updated_at = now()
+        where dog_id = new.id and done = false;
         perform public.raise_dog_size_check_todo(new.id);
       end if;
       return null;
@@ -170,7 +178,7 @@ revoke all on function public.dogs_size_check_todo() from authenticated;
 
 drop trigger if exists trg_dogs_size_check_todo on public.dogs;
 create trigger trg_dogs_size_check_todo
-  after insert or update of size, reported_size, breed, name, archived_at on public.dogs
+  after insert or update of size, reported_size, breed, name, archived_at, human_id on public.dogs
   for each row execute function public.dogs_size_check_todo();
 
 -- ── 4. Customer asks for a size check from the booking wizard ─

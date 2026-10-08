@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(23);
 
 set local session_replication_role = replica;
 
@@ -23,7 +23,9 @@ insert into public.humans (
   ('23900000-0000-4000-8000-000000000010', 'Approved', 'Owner', '1 Test Street',
    '23900000-0000-4000-8000-000000000011', 'existing', now(), now(), '2026-10-test'),
   ('23900000-0000-4000-8000-000000000020', 'Other', 'Owner', '2 Test Street',
-   '23900000-0000-4000-8000-000000000021', 'existing', now(), now(), '2026-10-test');
+   '23900000-0000-4000-8000-000000000021', 'existing', now(), now(), '2026-10-test'),
+  ('23900000-0000-4000-8000-000000000030', 'Merged', 'Winner', '3 Test Street',
+   null, 'existing', now(), now(), '2026-10-test');
 
 insert into public.staff_profiles (id, user_id, role, display_name)
 values ('23900000-0000-4000-8000-000000000040', '23900000-0000-4000-8000-000000000041', 'staff', 'Size Staff');
@@ -203,6 +205,38 @@ select is(
     where t.dog_id = '23900000-0000-4000-8000-000000000101' and t.done = false),
   0,
   'archiving a waiting dog closes its open to-do'
+);
+
+-- ── Owner merge: the open to-do follows the dog ─────────────
+-- 'Not Yours' belongs to Other Owner; raise its to-do, then merge Other Owner
+-- into Merged Winner. merge_humans deletes the loser, and salon_todos.human_id
+-- cascades, so without the trigger the task would be deleted with them.
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000201');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select public.merge_humans('23900000-0000-4000-8000-000000000030', '23900000-0000-4000-8000-000000000020') $$,
+  'staff can merge the owner of a dog that is waiting on a size'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1
+          and bool_and(t.human_id = '23900000-0000-4000-8000-000000000030')
+          and bool_and(t.text like '% — Merged Winner gave no estimate.%')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'the open to-do survives the merge, now on the winning owner'
+);
+
+select is(
+  (select human_id from public.dogs where id = '23900000-0000-4000-8000-000000000201'),
+  '23900000-0000-4000-8000-000000000030'::uuid,
+  'the dog itself moved to the winner'
 );
 
 select * from finish();
