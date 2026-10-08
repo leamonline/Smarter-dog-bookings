@@ -38,6 +38,9 @@
 --      asked the team" when nothing was recorded (an archived dog, say).
 --   5. An AFTER trigger on humans refreshes open to-dos when the owner's name
 --      changes: the to-do list shows only the stored text.
+--   6. A BEFORE trigger on salon_todos keeps a size-check to-do ticked off if
+--      staff try to reopen it after the dog has a size or was archived: no
+--      later dog write is guaranteed to close it again.
 --
 -- Kind stays 'general' so staff tick it off like any task; the workflow kinds
 -- are locked to their own completion flows. Expand-only: rollback is to drop
@@ -170,8 +173,13 @@ begin
 
     -- Only a signed-in customer's own write raises a new one. Staff are
     -- setting the size themselves; service-role scripts and imports have no
-    -- customer waiting.
+    -- customer waiting. Their edits (a corrected breed, say) still refresh
+    -- an open to-do's wording, so the stored text never goes stale.
     if (select auth.uid()) is null or public.is_staff() then
+      if exists (select 1 from public.salon_todos t
+                  where t.dog_id = new.id and t.done = false) then
+        perform public.raise_dog_size_check_todo(new.id);
+      end if;
       return null;
     end if;
 
@@ -269,3 +277,33 @@ create trigger trg_humans_refresh_size_check_todos
   for each row
   when (old.name is distinct from new.name or old.surname is distinct from new.surname)
   execute function public.humans_refresh_size_check_todos();
+
+-- ── 6. A finished size check cannot be reopened ─────────────
+
+create or replace function public.salon_todos_keep_size_check_done()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if old.done and not new.done and new.dog_id is not null
+     and exists (select 1 from public.dogs d
+                  where d.id = new.dog_id
+                    and (d.size is not null or d.archived_at is not null)) then
+    new.done := true;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.salon_todos_keep_size_check_done() from public;
+revoke all on function public.salon_todos_keep_size_check_done() from anon;
+revoke all on function public.salon_todos_keep_size_check_done() from authenticated;
+
+drop trigger if exists trg_salon_todos_keep_size_check_done on public.salon_todos;
+create trigger trg_salon_todos_keep_size_check_done
+  before update of done on public.salon_todos
+  for each row
+  when (old.done and not new.done and new.dog_id is not null)
+  execute function public.salon_todos_keep_size_check_done();

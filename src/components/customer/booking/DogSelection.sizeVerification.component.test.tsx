@@ -190,5 +190,26 @@ describe("DogSelection requires staff-confirmed size", () => {
     expect(await screen.findAllByText("We're confirming their size")).toHaveLength(2);
     expect(onRequestSizeCheck).toHaveBeenCalledTimes(2);
   });
+
+  it("never promises online booking for a pregnant dog once its size is set", async () => {
+    render(
+      <DogSelection
+        dogs={[{ ...dogs[0], isPregnant: true }]}
+        selectedDogs={[]}
+        onSelect={noop}
+        onNext={noop}
+        onDogAdded={noop}
+        humanId="h1"
+        loading={false}
+        onRequestSizeCheck={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    // The size check is still asked for (staff need the size anyway)…
+    expect(await screen.findByText("We're confirming their size")).toBeInTheDocument();
+    // …but the size note keeps pointing them to us, not to booking online.
+    expect(screen.queryByText(/book online once/i)).toBeNull();
+    expect(screen.getAllByRole("note")[0]).toHaveTextContent(/confirm a pup.s size before booking/i);
+  });
 });
 

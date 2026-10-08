@@ -4,16 +4,22 @@ import { renderHook, act } from "@testing-library/react";
 // A chainable fake of the dogs update query that records each filter.
 const calls: Array<[string, ...unknown[]]> = [];
 let result: { data: unknown; error: unknown } = { data: null, error: null };
+// What a plain read of the dog returns (the refetch after a lost guard).
+let refetch: { data: unknown; error: unknown } = { data: null, error: null };
 function chain() {
+  // Each query chain answers for itself: an update chain returns `result`, a
+  // plain read (the refetch after a lost guard) returns `refetch`.
+  let isUpdate = false;
   const q: Record<string, (...args: unknown[]) => unknown> = {};
   for (const m of ["update", "eq", "is", "select"]) {
     q[m] = (...args: unknown[]) => {
+      if (m === "update") isUpdate = true;
       calls.push([m, ...args]);
       return q;
     };
   }
   q.single = () => Promise.resolve(result);
-  q.maybeSingle = () => Promise.resolve(result);
+  q.maybeSingle = () => Promise.resolve(isUpdate ? result : refetch);
   return q;
 }
 vi.mock("../../client", () => ({ supabase: { from: () => chain() } }));
@@ -63,8 +69,11 @@ describe("updateDog guarded size confirmation", () => {
     expect(saved).toMatchObject({ id: "dog-1", size: "medium" });
   });
 
-  it("returns null and restores the cache when the dog changed meanwhile", async () => {
+  it("returns null and caches the dog as it is now when it changed meanwhile", async () => {
     result = { data: null, error: null };
+    // Another staff member set the size while the card was open.
+    const newer = { ...row, size: "small" };
+    refetch = { data: newer, error: null };
     const { hook, getDogsById } = setup();
 
     let saved: unknown = "untouched";
@@ -73,7 +82,7 @@ describe("updateDog guarded size confirmation", () => {
     });
 
     expect(saved).toBeNull();
-    expect(getDogsById()["dog-1"]).toEqual(row);
+    expect(getDogsById()["dog-1"]).toEqual(newer);
   });
 
   it("leaves ordinary edits unguarded", async () => {

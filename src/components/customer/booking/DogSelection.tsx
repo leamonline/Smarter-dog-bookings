@@ -82,8 +82,11 @@ export function DogSelection({
   };
 
   const unsizedDogs = dogs.filter((dog) => !hasConfirmedSize(dog));
+  // "You can book online once it's set" is only true for a dog the size is
+  // the last blocker for: a pregnant dog still needs a chat first.
+  const bookableOnceSized = unsizedDogs.filter((dog) => !dog.isPregnant);
   const allSizeChecksRequested =
-    unsizedDogs.length > 0 && unsizedDogs.every((dog) => sizeCheckRequested.has(dog.id));
+    bookableOnceSized.length > 0 && bookableOnceSized.every((dog) => sizeCheckRequested.has(dog.id));
 
   if (loading) {
     return (
@@ -155,7 +158,7 @@ export function DogSelection({
               {allSizeChecksRequested ? (
                 <>
                   We&apos;ve asked the team to confirm{" "}
-                  {unsizedDogs.length === 1 ? `${titleCase(unsizedDogs[0].name)}'s size` : "their sizes"}.
+                  {bookableOnceSized.length === 1 ? `${titleCase(bookableOnceSized[0].name)}'s size` : "their sizes"}.
                   You can book online once it&apos;s set — or if you&apos;d rather not wait,{" "}
                 </>
               ) : (

@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(28);
 
 set local session_replication_role = replica;
 
@@ -256,6 +256,47 @@ select ok(
      from public.salon_todos t
     where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
   'the open to-do now names the owner as they are called today'
+);
+
+-- ── Staff correct the breed: wording follows, no new to-do ──
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.dogs set breed = 'Unknown Cross' where id = '23900000-0000-4000-8000-000000000201';
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like 'Confirm size: Not Yours (Unknown Cross) %')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'a staff breed correction refreshes the open to-do instead of leaving the old breed'
+);
+
+-- ── A finished size check stays finished ────────────────────
+-- Bramble Rose was sized earlier, which closed its to-do.
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.salon_todos t set done = false
+  from public.dogs d
+ where d.id = t.dog_id and d.name = 'Bramble Rose';
+-- An ordinary task with no dog can still be reopened.
+insert into public.salon_todos (id, text, done, kind)
+values ('23900000-0000-4000-8000-000000000901', 'Order shampoo', true, 'general');
+update public.salon_todos set done = false where id = '23900000-0000-4000-8000-000000000901';
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble Rose' and t.done = false),
+  0,
+  'reopening a size check for a dog that now has a size leaves it ticked off'
+);
+
+select is(
+  (select done from public.salon_todos where id = '23900000-0000-4000-8000-000000000901'),
+  false,
+  'ordinary to-dos can still be reopened'
 );
 
 select * from finish();

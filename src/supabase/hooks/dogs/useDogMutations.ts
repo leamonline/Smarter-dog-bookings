@@ -127,8 +127,19 @@ export function useDogMutations({
         : await query.select("*").single();
 
       if (!err && guard && !data) {
-        // Nothing matched: the dog changed under us. Undo the optimistic write.
-        setDogsById(prevDogsById);
+        // Nothing matched: the dog changed under us. Don't restore the
+        // pre-request snapshot, which may be older than a realtime update that
+        // already landed; put the current row in the cache instead.
+        const { data: current } = await supabase
+          .from("dogs")
+          .select("*")
+          .eq("id", existingDog.id)
+          .maybeSingle();
+        setDogsById((prev) => {
+          if (current) return { ...prev, [existingDog.id]: current };
+          const original = prevDogsById[existingDog.id];
+          return original ? { ...prev, [existingDog.id]: original } : prev;
+        });
         return null;
       }
 
