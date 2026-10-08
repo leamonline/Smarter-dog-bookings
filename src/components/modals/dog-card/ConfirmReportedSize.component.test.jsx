@@ -36,6 +36,7 @@ describe("ConfirmReportedSize", () => {
     ["the dog already has a size", { ...waiting, size: "small" }, vi.fn()],
     ["the owner gave no estimate", { ...waiting, reportedSize: null }, vi.fn()],
     ["the estimate is not a real size", { ...waiting, reportedSize: "huge" }, vi.fn()],
+    ["the dog is archived", { ...waiting, archivedAt: "2026-10-01T00:00:00Z" }, vi.fn()],
     ["the viewer cannot edit dogs", waiting, undefined],
   ])("shows nothing when %s", (_label, dog, onUpdateDog) => {
     const { container } = render(<ConfirmReportedSize dog={dog} onUpdateDog={onUpdateDog} />);

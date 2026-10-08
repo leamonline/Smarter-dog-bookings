@@ -286,11 +286,20 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_size text;
+  v_archived timestamptz;
 begin
-  if old.done and not new.done and new.dog_id is not null
-     and exists (select 1 from public.dogs d
-                  where d.id = new.dog_id
-                    and (d.size is not null or d.archived_at is not null)) then
+  -- Share-lock the dog so this decision serialises with a size edit or an
+  -- archive in flight: wait for it, then decide on what it committed. (Its
+  -- own trigger cannot see this reopen until we commit, so without the lock
+  -- the task could end up open on a dog that no longer needs it.)
+  select d.size, d.archived_at into v_size, v_archived
+  from public.dogs d
+  where d.id = new.dog_id
+  for share;
+
+  if v_size is not null or v_archived is not null then
     new.done := true;
   end if;
   return new;

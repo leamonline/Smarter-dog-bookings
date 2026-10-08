@@ -17,7 +17,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(13);
+select plan(16);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -43,12 +43,14 @@ select extensions.dblink_exec('setup', $setup$
   delete from public.salon_todos where dog_id in (
     '24000000-0000-4000-8000-000000000101',
     '24000000-0000-4000-8000-000000000102',
-    '24000000-0000-4000-8000-000000000103'
+    '24000000-0000-4000-8000-000000000103',
+    '24000000-0000-4000-8000-000000000104'
   );
   delete from public.dogs where id in (
     '24000000-0000-4000-8000-000000000101',
     '24000000-0000-4000-8000-000000000102',
-    '24000000-0000-4000-8000-000000000103'
+    '24000000-0000-4000-8000-000000000103',
+    '24000000-0000-4000-8000-000000000104'
   );
   delete from public.humans where id in (
     '24000000-0000-4000-8000-000000000010',
@@ -81,7 +83,14 @@ select extensions.dblink_exec('setup', $setup$
     ('24000000-0000-4000-8000-000000000102', 'Second', 'Mystery Mix', null,
      '24000000-0000-4000-8000-000000000010'),
     ('24000000-0000-4000-8000-000000000103', 'Mover', 'Mystery Mix', null,
+     '24000000-0000-4000-8000-000000000010'),
+    ('24000000-0000-4000-8000-000000000104', 'Reopened', 'Mystery Mix', null,
      '24000000-0000-4000-8000-000000000010');
+  -- A size check staff already ticked off, though the dog is still unsized.
+  insert into public.salon_todos (text, done, kind, human_id, dog_id, sort_order)
+  values ('Confirm size: Reopened', true, 'general',
+          '24000000-0000-4000-8000-000000000010',
+          '24000000-0000-4000-8000-000000000104', 0);
   commit;
 $setup$);
 
@@ -385,6 +394,86 @@ select is(
   'and no to-do was opened on the other owner''s dog'
 );
 
+-- ── Reopening a size check while staff set the size ─────────
+-- Staff hold an uncommitted size edit; another staff member reopens the dog's
+-- ticked-off size check. The reopen must wait for the size, then stay done:
+-- the size edit's own trigger ran before the reopen existed, so nothing else
+-- would ever close it again.
+select extensions.dblink_exec('merger', 'begin isolation level read committed');
+select extensions.dblink_exec('merger', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('merger',
+  'update public.dogs set size = ''small'' where id = ''24000000-0000-4000-8000-000000000104''');
+
+select extensions.dblink_exec('asker', 'begin isolation level read committed');
+select extensions.dblink_exec('asker', 'set local statement_timeout = ''10s''');
+select extensions.dblink_exec('asker', 'set local role postgres');
+
+update _pids2 set asker_blocked = false;
+select is(
+  extensions.dblink_send_query('asker',
+    'update public.salon_todos set done = false
+      where dog_id = ''24000000-0000-4000-8000-000000000104'''),
+  1,
+  'a reopen is sent while the dog''s size is being set'
+);
+
+do $poll4$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    perform pg_stat_clear_snapshot();
+    update _pids2 p
+       set asker_blocked = exists (
+         select 1 from pg_stat_activity a
+          where a.pid = p.asker_pid
+            and a.wait_event_type = 'Lock'
+            and p.merger_pid = any(pg_blocking_pids(a.pid)));
+    exit when (select asker_blocked from _pids2);
+    exit when clock_timestamp() >= v_deadline;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$poll4$;
+
+select ok(
+  (select asker_blocked from _pids2),
+  'the reopen waits for the size edit instead of reading the old row'
+);
+
+select extensions.dblink_exec('merger', 'commit');
+
+do $asker_wait4$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    exit when extensions.dblink_is_busy('asker') = 0;
+    if clock_timestamp() >= v_deadline then
+      perform extensions.dblink_cancel_query('asker');
+      raise exception 'the reopen did not finish after the size edit committed';
+    end if;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$asker_wait4$;
+
+do $drain4$
+begin
+  perform status from extensions.dblink_get_result('asker') as r(status text);
+  perform status from extensions.dblink_get_result('asker') as r(status text);
+end;
+$drain4$;
+select extensions.dblink_exec('asker', 'commit');
+
+select is(
+  (select n from extensions.dblink('setup',
+     'select count(*)::int from public.salon_todos
+       where dog_id = ''24000000-0000-4000-8000-000000000104'' and done = false') as t(n int)),
+  0,
+  'the size check stays ticked off once the size is committed'
+);
+
 select extensions.dblink_exec('setup', $cleanup$
   begin;
   set local role postgres;
@@ -392,12 +481,14 @@ select extensions.dblink_exec('setup', $cleanup$
   delete from public.salon_todos where dog_id in (
     '24000000-0000-4000-8000-000000000101',
     '24000000-0000-4000-8000-000000000102',
-    '24000000-0000-4000-8000-000000000103'
+    '24000000-0000-4000-8000-000000000103',
+    '24000000-0000-4000-8000-000000000104'
   );
   delete from public.dogs where id in (
     '24000000-0000-4000-8000-000000000101',
     '24000000-0000-4000-8000-000000000102',
-    '24000000-0000-4000-8000-000000000103'
+    '24000000-0000-4000-8000-000000000103',
+    '24000000-0000-4000-8000-000000000104'
   );
   delete from public.humans where id in (
     '24000000-0000-4000-8000-000000000010',

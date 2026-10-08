@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(33);
 
 set local session_replication_role = replica;
 
@@ -297,6 +297,67 @@ select is(
   (select done from public.salon_todos where id = '23900000-0000-4000-8000-000000000901'),
   false,
   'ordinary to-dos can still be reopened'
+);
+
+-- ── The staff one-tap confirm, as the dashboard sends it ───
+-- updateDog(…, { onlyIfUnsizedWithReported }) issues exactly this filtered
+-- UPDATE through PostgREST. Assert the rows it leaves behind.
+insert into public.dogs (id, name, breed, size, reported_size, human_id) values
+  ('23900000-0000-4000-8000-000000000301', 'Tapper', 'Mystery Mix', null, 'medium',
+   '23900000-0000-4000-8000-000000000010'),
+  ('23900000-0000-4000-8000-000000000302', 'Shelved', 'Mystery Mix', null, 'medium',
+   '23900000-0000-4000-8000-000000000010');
+update public.dogs set archived_at = now() where id = '23900000-0000-4000-8000-000000000302';
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000301');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+-- Stale: the estimate on screen was "small", the row now says "medium".
+update public.dogs set size = 'small'
+ where id = '23900000-0000-4000-8000-000000000301'
+   and size is null and archived_at is null and reported_size = 'small';
+-- Archived: never completed by a confirm.
+update public.dogs set size = 'medium'
+ where id = '23900000-0000-4000-8000-000000000302'
+   and size is null and archived_at is null and reported_size = 'medium';
+
+reset role;
+
+select ok(
+  (select size is null from public.dogs where id = '23900000-0000-4000-8000-000000000301'),
+  'a confirm for an estimate that has since changed writes nothing'
+);
+select ok(
+  (select size is null from public.dogs where id = '23900000-0000-4000-8000-000000000302'),
+  'a confirm on an archived dog writes nothing'
+);
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000301' and done = false),
+  1,
+  'the to-do stays open while the confirm was refused'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.dogs set size = 'medium'
+ where id = '23900000-0000-4000-8000-000000000301'
+   and size is null and archived_at is null and reported_size = 'medium';
+reset role;
+
+select is(
+  (select size from public.dogs where id = '23900000-0000-4000-8000-000000000301'),
+  'medium'::text,
+  'a confirm matching what staff saw sets the owner''s estimate as the size'
+);
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000301' and done = false),
+  0,
+  'and the dog''s to-do ticks itself off'
 );
 
 select * from finish();

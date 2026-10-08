@@ -19,7 +19,7 @@ import { titleCase } from "../../../utils/text";
 export function ConfirmReportedSize({ dog, onUpdateDog, onConfirmed, onFailed }) {
   const [saving, setSaving] = useState(false);
   const reported = dog?.reportedSize;
-  if (!onUpdateDog || !dog || dog.size || !["small", "medium", "large"].includes(reported)) {
+  if (!onUpdateDog || !dog || dog.size || dog.archivedAt || !["small", "medium", "large"].includes(reported)) {
     return null;
   }
 

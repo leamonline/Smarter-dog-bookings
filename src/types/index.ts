@@ -76,6 +76,8 @@ export interface Dog {
    * hint for confirming size; dogs.size stays the only authority.
    */
   reportedSize?: DogSize | null;
+  /** Soft-archive timestamp (dogs.archived_at); null for a live dog. */
+  archivedAt?: string | null;
   humanId: string;
   _humanId: string | null;
   alerts: string[];

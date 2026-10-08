@@ -65,6 +65,7 @@ describe("updateDog guarded size confirmation", () => {
     });
 
     expect(calls).toContainEqual(["is", "size", null]);
+    expect(calls).toContainEqual(["is", "archived_at", null]);
     expect(calls).toContainEqual(["eq", "reported_size", "medium"]);
     expect(saved).toMatchObject({ id: "dog-1", size: "medium" });
   });
@@ -95,4 +96,17 @@ describe("updateDog guarded size confirmation", () => {
 
     expect(calls.some(([m]) => m === "is")).toBe(false);
   });
+
+  it("drops the dog from the cache when it was deleted meanwhile", async () => {
+    result = { data: null, error: null };
+    refetch = { data: null, error: null };
+    const { hook, getDogsById } = setup();
+
+    await act(async () => {
+      await hook.current.updateDog("dog-1", { size: "medium" }, { onlyIfUnsizedWithReported: "medium" });
+    });
+
+    expect(getDogsById()["dog-1"]).toBeUndefined();
+  });
 });
+

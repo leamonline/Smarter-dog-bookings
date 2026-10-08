@@ -121,7 +121,9 @@ export function useDogMutations({
       // someone else, or a new estimate, since the button appeared must win.
       const guard = options.onlyIfUnsizedWithReported;
       let query = supabase.from("dogs").update(dbUpdates).eq("id", existingDog.id);
-      if (guard) query = query.is("size", null).eq("reported_size", guard);
+      // Archived dogs are out of the workflow: archiving ends a size check, it
+      // doesn't complete one.
+      if (guard) query = query.is("size", null).is("archived_at", null).eq("reported_size", guard);
       const { data, error: err } = guard
         ? await query.select("*").maybeSingle()
         : await query.select("*").single();
@@ -130,13 +132,19 @@ export function useDogMutations({
         // Nothing matched: the dog changed under us. Don't restore the
         // pre-request snapshot, which may be older than a realtime update that
         // already landed; put the current row in the cache instead.
-        const { data: current } = await supabase
+        const { data: current, error: readErr } = await supabase
           .from("dogs")
           .select("*")
           .eq("id", existingDog.id)
           .maybeSingle();
         setDogsById((prev) => {
           if (current) return { ...prev, [existingDog.id]: current };
+          if (!readErr) {
+            // A clean read with no row: the dog was deleted meanwhile.
+            const { [existingDog.id]: _deleted, ...rest } = prev;
+            return rest;
+          }
+          // The re-read itself failed; fall back to the row we started from.
           const original = prevDogsById[existingDog.id];
           return original ? { ...prev, [existingDog.id]: original } : prev;
         });
@@ -170,6 +178,7 @@ export function useDogMutations({
         colour: savedRow.colour || null,
         size: savedRow.size || null,
         reportedSize: savedRow.reported_size || null,
+        archivedAt: savedRow.archived_at ?? null,
         humanId: owner ? owner.fullName : savedRow.human_id,
         _humanId: savedRow.human_id || owner?.id || null,
         alerts: savedRow.alerts || [],
