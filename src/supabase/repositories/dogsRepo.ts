@@ -58,7 +58,9 @@ export async function createForHuman(
       id: row.id,
       name: row.name ?? "",
       breed: row.breed ?? "",
-      size: null,
+      // The server may already know the size from the breed (#20260727); a
+      // hard-coded null here left a bookable new dog greyed out until reload.
+      size: (row.size as DogSize | null) ?? null,
       reportedSize: (row.reported_size as DogSize | null) ?? null,
       isPregnant: false, // a freshly-added dog is never pregnant; staff set it later
       dob: (row as { dob?: string | null }).dob ?? null,
@@ -115,6 +117,16 @@ export async function updateForCustomer(
     },
     error: null,
   };
+}
+
+// Ask staff to confirm a dog's size. Writes or refreshes one "Confirm size"
+// to-do on the staff dashboard; it never sets dogs.size, which stays staff-only.
+// Idempotent server-side, so calling it each time the wizard shows the dog is
+// safe. Resolves true only when the request was recorded, so the caller can
+// say "we've asked the team" honestly and fall back to "message us" otherwise.
+export async function requestSizeCheck(client: SupabaseClient, dogId: string): Promise<boolean> {
+  const { error } = await client.rpc("request_dog_size_check", { p_dog_id: dogId });
+  return !error;
 }
 
 export async function listForHuman(

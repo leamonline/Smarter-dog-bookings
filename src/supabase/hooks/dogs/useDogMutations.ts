@@ -143,6 +143,7 @@ export function useDogMutations({
         vet: savedRow.vet || null,
         colour: savedRow.colour || null,
         size: savedRow.size || null,
+        reportedSize: savedRow.reported_size || null,
         humanId: owner ? owner.fullName : savedRow.human_id,
         _humanId: savedRow.human_id || owner?.id || null,
         alerts: savedRow.alerts || [],

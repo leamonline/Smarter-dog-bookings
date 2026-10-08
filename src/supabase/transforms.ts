@@ -59,6 +59,8 @@ export interface DbDogRow {
   vet?: string | null;
   colour?: string | null;
   size: string | null;
+  /** The owner's own estimate; never used for capacity or price. */
+  reported_size?: string | null;
   human_id: string | null;
   alerts: string[] | null;
   groom_notes: string | null;
@@ -325,6 +327,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, { fullN
       vet: row.vet || null,
       colour: row.colour || null,
       size: (row.size as Dog["size"]) || null,
+      reportedSize: (row.reported_size as Dog["size"]) || null,
       humanId: owner ? owner.fullName : (row.human_id || ""),
       _humanId: row.human_id || null,
       alerts: row.alerts || [],

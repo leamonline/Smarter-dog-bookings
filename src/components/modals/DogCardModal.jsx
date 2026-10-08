@@ -13,6 +13,7 @@ import {
   DogCardHeader,
   DogDetailsSection,
   DogCardActions,
+  ConfirmReportedSize,
   DogChainBooking,
   DogPhotoGallery,
   DogCardLoading,
@@ -236,6 +237,14 @@ export function DogCardModal({
       }
     >
       <div>
+        {!isEditing && (
+          <ConfirmReportedSize
+            dog={resolvedDog}
+            onUpdateDog={onUpdateDog}
+            onConfirmed={(size) => toast.show(`${resolvedDog.name} set to ${size}`, "success")}
+            onFailed={() => toast.show("Couldn't save the size — try again", "error")}
+          />
+        )}
         <DogDetailsSection
           isEditing={isEditing}
           resolvedDog={resolvedDog}
