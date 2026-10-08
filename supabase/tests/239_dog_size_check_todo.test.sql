@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(35);
 
 set local session_replication_role = replica;
 
@@ -358,6 +358,35 @@ select is(
     where dog_id = '23900000-0000-4000-8000-000000000301' and done = false),
   0,
   'and the dog''s to-do ticks itself off'
+);
+
+-- ── A superseded check stays closed ─────────────────────────
+-- Staff tick off a check while the dog is still unsized; the customer comes
+-- back and a new one opens. Reopening the old one must not clash with it.
+insert into public.dogs (id, name, breed, size, reported_size, human_id) values
+  ('23900000-0000-4000-8000-000000000303', 'Twice', 'Mystery Mix', null, 'small',
+   '23900000-0000-4000-8000-000000000010');
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000303');
+update public.salon_todos set done = true where dog_id = '23900000-0000-4000-8000-000000000303';
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000303');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ update public.salon_todos set done = false
+      where dog_id = '23900000-0000-4000-8000-000000000303' and done = true $$,
+  'reopening a superseded check does not fail'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000303' and done = false),
+  1,
+  'and the dog still has exactly one open check'
 );
 
 select * from finish();

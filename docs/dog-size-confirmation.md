@@ -57,7 +57,8 @@ It is an ordinary `general` task, so staff tick it off like any other.
 - **Archive the dog**: the to-do ticks itself off.
 
 A ticked-off size check cannot be reopened once the dog has a size or is
-archived, because no later dog write would close it again.
+archived, because no later dog write would close it again. Nor can an older
+check be reopened while a newer one for the same dog is open.
 
 ## What the customer is told
 

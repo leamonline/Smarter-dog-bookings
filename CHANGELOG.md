@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — staff are told when a customer waits on a dog size (#963)
+
+- A customer whose dog has no confirmed size can still not book it online, but
+  staff now get one "Confirm size" to-do per dog, naming the dog, breed, owner
+  and the owner's estimate. The booking wizard says "We're confirming their
+  size" only when that to-do exists, and never promises online booking for a
+  pregnant dog. Previously it said "message us first" and staff were not told.
+- Staff can confirm the owner's estimate in one tap from the dog card. The
+  write is guarded, so a size set by someone else, a new estimate or an
+  archive since the card opened is never overwritten.
+- Setting a size or archiving the dog ticks the to-do off; renames, breed
+  corrections and owner merges keep its wording current.
+- A newly added dog whose size the server derived from its breed is bookable
+  straight away; it used to stay greyed out until the page was reloaded.
+- `dogs.size` remains staff-only; capacity, pricing and the booking gates are
+  unchanged. Migration `20261008120000`; see
+  [`docs/dog-size-confirmation.md`](docs/dog-size-confirmation.md).
+
 ## Unreleased — customer signup validation and address recovery (#942)
 
 - Continue now identifies missing owner details and focuses the first field to

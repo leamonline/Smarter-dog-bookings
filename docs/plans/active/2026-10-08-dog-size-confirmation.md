@@ -1,7 +1,8 @@
 # Dog size confirmation: staff to-do and one-tap confirm
 
 Status: Active
-Issue: None. Item 9 of the October 2026 WhatsApp friction review, built as
+Issue: [#963](https://github.com/leamonline/Smarter-dog-bookings/issues/963)
+(item 9 of the October 2026 WhatsApp friction review), built as
 [PR #962](https://github.com/leamonline/Smarter-dog-bookings/pull/962)
 Base: `main@69be16c961d1f1c2e1262da058d15dc2d68cefc4`
 Last verified: 2026-10-08
@@ -59,7 +60,8 @@ authoritative description. In short:
   to-do is open, and never promises online booking for a pregnant dog.
 - Staff confirm the owner's estimate in one tap, guarded against a dog that
   changed or was archived meanwhile; setting a size or archiving ticks the
-  to-do off, and a finished check cannot be reopened.
+  to-do off, and a finished check cannot be reopened once the dog is sized or
+  archived, or while a newer check for it is open.
 
 ## Scope
 
@@ -182,7 +184,8 @@ and how quickly they were cleared.
 ## Documentation updates
 
 `docs/dog-size-confirmation.md` (new), `docs/README.md`,
-`docs/supabase-advisors.md` and `supabase/advisors/baseline.json`.
+`docs/supabase-advisors.md`, `supabase/advisors/baseline.json` and
+`CHANGELOG.md`.
 
 ## Definition of done
 

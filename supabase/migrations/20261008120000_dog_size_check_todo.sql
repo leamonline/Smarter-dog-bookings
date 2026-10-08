@@ -39,8 +39,9 @@
 --   5. An AFTER trigger on humans refreshes open to-dos when the owner's name
 --      changes: the to-do list shows only the stored text.
 --   6. A BEFORE trigger on salon_todos keeps a size-check to-do ticked off if
---      staff try to reopen it after the dog has a size or was archived: no
---      later dog write is guaranteed to close it again.
+--      staff try to reopen it after the dog has a size or was archived (no
+--      later dog write is guaranteed to close it again), or while a newer
+--      check for the same dog is already open.
 --
 -- Kind stays 'general' so staff tick it off like any task; the workflow kinds
 -- are locked to their own completion flows. Expand-only: rollback is to drop
@@ -299,7 +300,14 @@ begin
   where d.id = new.dog_id
   for share;
 
-  if v_size is not null or v_archived is not null then
+  -- Stay done if the dog no longer needs a size check, or if a newer check
+  -- for it is already open (this one was superseded; reopening it would
+  -- break the one-open-per-dog rule and fail the update).
+  if v_size is not null or v_archived is not null
+     or exists (select 1 from public.salon_todos t
+                 where t.dog_id = new.dog_id
+                   and t.done = false
+                   and t.id <> new.id) then
     new.done := true;
   end if;
   return new;
