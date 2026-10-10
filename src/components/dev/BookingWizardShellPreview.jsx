@@ -21,6 +21,7 @@
 // `import.meta.env.DEV` in the router so it never bundles into production.
 // ============================================================
 
+import { useState } from "react";
 import { PawPrint } from "lucide-react";
 import { BookingSummarySidebar } from "../customer/booking/BookingSummarySidebar";
 import { DateSelection } from "../customer/booking/DateSelection";
@@ -126,8 +127,16 @@ function StepPlaceholder({ label }) {
 }
 
 function ShellFrame({ title, state }) {
+  // Deliberately owned by the frame rather than the responsive shell. The
+  // browser continuity spec types here, crosses the shell's 1024px summary
+  // boundary in both directions and proves the same mounted state survives.
+  const [note, setNote] = useState("");
+  const continuityLabel = title.startsWith("Full")
+    ? "Full booking shell continuity preview"
+    : undefined;
+
   return (
-    <section className="mb-10">
+    <section className="mb-10" aria-label={continuityLabel}>
       <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">{title}</h3>
       <div className="booking-wizard" style={{ minHeight: 0, borderRadius: 16, overflow: "hidden" }}>
         <div className="booking-wizard-inner">
@@ -145,6 +154,16 @@ function ShellFrame({ title, state }) {
               </div>
             </div>
             <StepPlaceholder label={title} />
+            <label className="wizard-helper" htmlFor={`continuity-note-${title}`}>
+              In-progress booking note
+            </label>
+            <textarea
+              id={`continuity-note-${title}`}
+              aria-label="In-progress booking note"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              className="portal-input min-h-24 resize-y"
+            />
           </div>
           <BookingSummarySidebar dogs={DOGS} {...state} />
         </div>
