@@ -359,6 +359,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
 
         <div className="human-directory-card__profile">
           <ProfileArrow
+            data-profile-human-id={human.id || fullName}
             label={`View profile for ${titleCase(fullName)}`}
             onClick={open}
             visibleLabel

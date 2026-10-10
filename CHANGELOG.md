@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — booking and modal resize continuity (#964)
+
+- Customer and staff booking drafts now have browser coverage while crossing
+  the 640px, 768px, 1024px, 1280px and 1440px layout boundaries, including
+  folding-phone cover and open widths.
+- Routed dog and human profiles restore focus to the remounted directory
+  control after their sheet or modal closes, including on mobile Safari.
+- The production-build pull-request gate now runs the booking and modal
+  continuity journey on mobile WebKit as well as Chromium.
+
 ## Unreleased — customer signup validation and address recovery (#942)
 
 - Continue now identifies missing owner details and focuses the first field to

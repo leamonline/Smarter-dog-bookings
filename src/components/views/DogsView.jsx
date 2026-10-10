@@ -217,7 +217,12 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
             <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
           )}
         </div>
-        <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} visibleLabel />
+        <ProfileArrow
+          data-profile-dog-id={dog.id || dog.name}
+          label={`View profile for ${titleCase(dog.name)}`}
+          onClick={open}
+          visibleLabel
+        />
       </div>
       <OwnerLine owner={owner} skeleton={ownerSkeleton} />
       {showArchived && (
