@@ -53,7 +53,7 @@ scrolling body or corrupting focus and background isolation.
 - [x] Route and browser-history length do not change during any resize.
 - [x] The breakpoint matrix has no horizontal overflow or clipped primary action.
 - [x] Focused tests, full test suite, lint, types, docs, migrations and build pass.
-- [ ] Pull request and exact verification revision are recorded here.
+- [x] Pull request and exact verification revision are recorded here.
 
 ## Verification evidence
 
@@ -63,6 +63,8 @@ scrolling body or corrupting focus and background isolation.
 - `check:docs`, lint, typecheck, migration validation and production build
   passed on Node 24.20.0. Lint retained 66 pre-existing warnings and added no
   errors.
+- Verified implementation revision: `bb3bad6aca24329dea5cb351ede8a056846a880c`.
+- Draft pull request: [#965](https://github.com/leamonline/Smarter-dog-bookings/pull/965).
 
 ## Recovery
 
