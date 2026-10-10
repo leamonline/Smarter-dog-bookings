@@ -8,7 +8,9 @@ price (migration `20260712115759_legal_risk_tranche1`).
 
 This page covers what happens while a customer waits for that confirmation:
 who is told what, and how the request reaches staff and is cleared. Migration
-`20261008120000_dog_size_check_todo` holds the database side.
+`20261008120000_dog_size_check_todo` holds the database side;
+`20261010210000_dog_size_check_refresh` corrects its refresh paths and adds the
+index behind `salon_todos.dog_id`.
 
 ## The key point: nothing here sets a size
 
@@ -30,6 +32,15 @@ It is only raised for an **approved** customer's **live** (not archived) dog.
 An unapproved signup is already covered by its `signup_review` task, and
 approval itself needs every size set. Staff and service-role writes never
 create one, though they do refresh an open one's wording.
+
+Raising and refreshing are two different writes. Only the two routes above
+call the writer (`raise_dog_size_check_todo`), which inserts or updates. Every
+"keep the wording current" route — a dog or owner rename, a breed correction,
+a staff or service-role edit — calls `refresh_dog_size_check_todo`, which is an
+`UPDATE … WHERE done = false` and nothing else. So a refresh that lands just
+as staff tick the to-do off waits for the tick, finds nothing open, and leaves
+it done; it cannot reopen or duplicate it. Both share one text builder
+(`dog_size_check_todo_text`) so the wording cannot drift.
 
 There is at most one open to-do per dog (`salon_todos.dog_id`, partial unique
 index). Repeats refresh the text rather than stacking.
@@ -81,9 +92,13 @@ about how quickly staff will confirm.
 - Under the dog lock, the writer re-checks that the dog still belongs to the
   caller.
 
+- A refresh locks the dog row before updating, so it serialises behind a
+  tick-off or an owner move and then writes only what is still open.
+
 `supabase/tests/239_dog_size_check_todo.test.sql` covers the lifecycle;
 `supabase/tests/240_dog_size_check_race.test.sql` covers the races with two
-real database sessions.
+real database sessions, and `241_dog_size_check_refresh_race.test.sql` the
+refresh paths racing a staff tick-off.
 
 ## Not covered
 
