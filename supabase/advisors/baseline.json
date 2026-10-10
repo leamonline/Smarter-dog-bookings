@@ -430,6 +430,12 @@
       "detail": "Function `public.request_customer_override_reschedule(p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/request_customer_override_reschedule`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
+      "cache_key": "authenticated_security_definer_function_executable_public_request_dog_size_check_p_dog_id uuid",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.request_dog_size_check(p_dog_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/request_dog_size_check`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
       "cache_key": "authenticated_security_definer_function_executable_public_reschedule_customer_booking_p_booking_id uuid, p_bookings jsonb, p_booking_date date, p_reason text",
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",

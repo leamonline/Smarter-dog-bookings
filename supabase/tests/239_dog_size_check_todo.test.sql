@@ -1,0 +1,393 @@
+-- Dog size check to-dos (migration 20261008120000_dog_size_check_todo).
+--
+-- A customer waiting on a dog size gets exactly one open staff to-do; staff
+-- setting the size ticks it off; and none of it lets a customer set
+-- dogs.size. Asserts the rows that were written, not the calls made.
+-- Synthetic fixtures are rolled back.
+
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(35);
+
+set local session_replication_role = replica;
+
+insert into auth.users (id) values
+  ('23900000-0000-4000-8000-000000000011'),
+  ('23900000-0000-4000-8000-000000000021'),
+  ('23900000-0000-4000-8000-000000000041');
+
+insert into public.humans (
+  id, name, surname, address, customer_user_id, source, approved_at,
+  policies_accepted_at, policies_version
+) values
+  ('23900000-0000-4000-8000-000000000010', 'Approved', 'Owner', '1 Test Street',
+   '23900000-0000-4000-8000-000000000011', 'existing', now(), now(), '2026-10-test'),
+  ('23900000-0000-4000-8000-000000000020', 'Other', 'Owner', '2 Test Street',
+   '23900000-0000-4000-8000-000000000021', 'existing', now(), now(), '2026-10-test'),
+  ('23900000-0000-4000-8000-000000000030', 'Merged', 'Winner', '3 Test Street',
+   null, 'existing', now(), now(), '2026-10-test');
+
+insert into public.staff_profiles (id, user_id, role, display_name)
+values ('23900000-0000-4000-8000-000000000040', '23900000-0000-4000-8000-000000000041', 'staff', 'Size Staff');
+
+-- An older dog with no size that no customer write has touched (the import case).
+insert into public.dogs (id, name, breed, size, human_id) values
+  ('23900000-0000-4000-8000-000000000101', 'Legacy', 'Mystery Mix', null,
+   '23900000-0000-4000-8000-000000000010'),
+  ('23900000-0000-4000-8000-000000000201', 'Not Yours', 'Mystery Mix', null,
+   '23900000-0000-4000-8000-000000000020');
+
+-- An archived dog that the portal can still list: nothing should be promised for it.
+insert into public.dogs (id, name, breed, size, human_id, archived_at) values
+  ('23900000-0000-4000-8000-000000000102', 'Gone', 'Mystery Mix', null,
+   '23900000-0000-4000-8000-000000000010', now());
+
+set local session_replication_role = default;
+
+-- ── A customer adds a dog whose size can't be worked out ────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000011","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Bramble', 'Pug x Labrador', 'medium', '23900000-0000-4000-8000-000000000010') $$,
+  'the customer can still add a dog whose size needs confirming'
+);
+
+-- A dog whose breed gives a size needs nothing from staff.
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Pip', 'Pug x Shih Tzu', 'large', '23900000-0000-4000-8000-000000000010') $$,
+  'a dog with a derivable size is added as before'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos t
+     join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble' and t.done = false),
+  1,
+  'adding a dog with no size raises one open to-do linked to that dog'
+);
+
+select is(
+  (select t.text from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble' and t.done = false),
+  'Confirm size: Bramble (Pug x Labrador) — Approved Owner thinks medium. They can''t book online until it''s set.',
+  'the to-do names the dog, breed, owner and their estimate'
+);
+
+select ok(
+  (select t.kind = 'general' and t.human_id = '23900000-0000-4000-8000-000000000010'
+     from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble' and t.done = false),
+  'it is an ordinary task linked to the customer, so staff can tick it off'
+);
+
+select is(
+  (select count(*)::int from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Pip'),
+  0,
+  'no to-do for a dog whose size came from its breed'
+);
+
+-- ── The customer changes their estimate: same to-do, new text ─
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000011","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.update_customer_dog(
+       (select id from public.dogs where name = 'Bramble'), 'Bramble', 'Pug x Labrador', 'large', null) $$,
+  'the customer can change their estimate'
+);
+
+-- ── The wizard asks about an older dog, twice ───────────────
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000101'),
+  true,
+  'the wizard can ask staff to confirm an older dog''s size, and is told it was recorded'
+);
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000101'),
+  true,
+  'asking again is harmless'
+);
+
+select is(
+  public.request_dog_size_check('23900000-0000-4000-8000-000000000102'),
+  false,
+  'an archived dog gets false, so the wizard does not claim the team was asked'
+);
+
+select throws_ok(
+  $$ select public.request_dog_size_check('23900000-0000-4000-8000-000000000201') $$,
+  '42704', null,
+  'a customer cannot raise a to-do for someone else''s dog'
+);
+
+select throws_ok(
+  $$ select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000201') $$,
+  '42501', null,
+  'the internal writer is not callable by customers'
+);
+
+select is(
+  (select size from public.dogs where name = 'Bramble'),
+  null::text,
+  'none of this sets dogs.size'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like '%thinks large.%')
+     from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble' and t.done = false),
+  'a changed estimate refreshes the one open to-do rather than adding another'
+);
+
+select is(
+  (select count(*)::int from public.salon_todos where dog_id = '23900000-0000-4000-8000-000000000102'),
+  0,
+  'and no to-do exists for it'
+);
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like '%Legacy (Mystery Mix) — Approved Owner gave no estimate.%')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000101' and t.done = false),
+  'repeated wizard requests leave exactly one open to-do for the older dog'
+);
+
+-- ── A rename while waiting refreshes the wording ────────────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000011","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.update_customer_dog(
+       (select id from public.dogs where name = 'Bramble'), 'Bramble Rose', 'Pug x Labrador', 'large', null) $$,
+  'the customer can rename a dog that is waiting'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like 'Confirm size: Bramble Rose %')
+     from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble Rose' and t.done = false),
+  'the open to-do now carries the new name'
+);
+
+-- ── Staff set the size: the to-do ticks itself off ──────────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+update public.dogs set size = 'medium' where name = 'Bramble Rose';
+-- Archiving is the other way a wait ends.
+update public.dogs set archived_at = now() where id = '23900000-0000-4000-8000-000000000101';
+
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble Rose' and t.done = false),
+  0,
+  'setting the size closes the open to-do'
+);
+
+select is(
+  (select count(*)::int from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000101' and t.done = false),
+  0,
+  'archiving a waiting dog closes its open to-do'
+);
+
+-- ── Owner merge: the open to-do follows the dog ─────────────
+-- 'Not Yours' belongs to Other Owner; raise its to-do, then merge Other Owner
+-- into Merged Winner. merge_humans deletes the loser, and salon_todos.human_id
+-- cascades, so without the trigger the task would be deleted with them.
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000201');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ select public.merge_humans('23900000-0000-4000-8000-000000000030', '23900000-0000-4000-8000-000000000020') $$,
+  'staff can merge the owner of a dog that is waiting on a size'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1
+          and bool_and(t.human_id = '23900000-0000-4000-8000-000000000030')
+          and bool_and(t.text like '% — Merged Winner gave no estimate.%')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'the open to-do survives the merge, now on the winning owner'
+);
+
+select is(
+  (select human_id from public.dogs where id = '23900000-0000-4000-8000-000000000201'),
+  '23900000-0000-4000-8000-000000000030'::uuid,
+  'the dog itself moved to the winner'
+);
+
+-- ── Owner renamed: the open to-do's wording follows ─────────
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ update public.humans set surname = 'Champion' where id = '23900000-0000-4000-8000-000000000030' $$,
+  'staff can rename an owner whose dog is waiting'
+);
+
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like '% — Merged Champion gave no estimate.%')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'the open to-do now names the owner as they are called today'
+);
+
+-- ── Staff correct the breed: wording follows, no new to-do ──
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.dogs set breed = 'Unknown Cross' where id = '23900000-0000-4000-8000-000000000201';
+reset role;
+
+select ok(
+  (select count(*) = 1 and bool_and(t.text like 'Confirm size: Not Yours (Unknown Cross) %')
+     from public.salon_todos t
+    where t.dog_id = '23900000-0000-4000-8000-000000000201' and t.done = false),
+  'a staff breed correction refreshes the open to-do instead of leaving the old breed'
+);
+
+-- ── A finished size check stays finished ────────────────────
+-- Bramble Rose was sized earlier, which closed its to-do.
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.salon_todos t set done = false
+  from public.dogs d
+ where d.id = t.dog_id and d.name = 'Bramble Rose';
+-- An ordinary task with no dog can still be reopened.
+insert into public.salon_todos (id, text, done, kind)
+values ('23900000-0000-4000-8000-000000000901', 'Order shampoo', true, 'general');
+update public.salon_todos set done = false where id = '23900000-0000-4000-8000-000000000901';
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos t join public.dogs d on d.id = t.dog_id
+    where d.name = 'Bramble Rose' and t.done = false),
+  0,
+  'reopening a size check for a dog that now has a size leaves it ticked off'
+);
+
+select is(
+  (select done from public.salon_todos where id = '23900000-0000-4000-8000-000000000901'),
+  false,
+  'ordinary to-dos can still be reopened'
+);
+
+-- ── The staff one-tap confirm, as the dashboard sends it ───
+-- updateDog(…, { onlyIfUnsizedWithReported }) issues exactly this filtered
+-- UPDATE through PostgREST. Assert the rows it leaves behind.
+insert into public.dogs (id, name, breed, size, reported_size, human_id) values
+  ('23900000-0000-4000-8000-000000000301', 'Tapper', 'Mystery Mix', null, 'medium',
+   '23900000-0000-4000-8000-000000000010'),
+  ('23900000-0000-4000-8000-000000000302', 'Shelved', 'Mystery Mix', null, 'medium',
+   '23900000-0000-4000-8000-000000000010');
+update public.dogs set archived_at = now() where id = '23900000-0000-4000-8000-000000000302';
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000301');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+-- Stale: the estimate on screen was "small", the row now says "medium".
+update public.dogs set size = 'small'
+ where id = '23900000-0000-4000-8000-000000000301'
+   and size is null and archived_at is null and reported_size = 'small';
+-- Archived: never completed by a confirm.
+update public.dogs set size = 'medium'
+ where id = '23900000-0000-4000-8000-000000000302'
+   and size is null and archived_at is null and reported_size = 'medium';
+
+reset role;
+
+select ok(
+  (select size is null from public.dogs where id = '23900000-0000-4000-8000-000000000301'),
+  'a confirm for an estimate that has since changed writes nothing'
+);
+select ok(
+  (select size is null from public.dogs where id = '23900000-0000-4000-8000-000000000302'),
+  'a confirm on an archived dog writes nothing'
+);
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000301' and done = false),
+  1,
+  'the to-do stays open while the confirm was refused'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+update public.dogs set size = 'medium'
+ where id = '23900000-0000-4000-8000-000000000301'
+   and size is null and archived_at is null and reported_size = 'medium';
+reset role;
+
+select is(
+  (select size from public.dogs where id = '23900000-0000-4000-8000-000000000301'),
+  'medium'::text,
+  'a confirm matching what staff saw sets the owner''s estimate as the size'
+);
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000301' and done = false),
+  0,
+  'and the dog''s to-do ticks itself off'
+);
+
+-- ── A superseded check stays closed ─────────────────────────
+-- Staff tick off a check while the dog is still unsized; the customer comes
+-- back and a new one opens. Reopening the old one must not clash with it.
+insert into public.dogs (id, name, breed, size, reported_size, human_id) values
+  ('23900000-0000-4000-8000-000000000303', 'Twice', 'Mystery Mix', null, 'small',
+   '23900000-0000-4000-8000-000000000010');
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000303');
+update public.salon_todos set done = true where dog_id = '23900000-0000-4000-8000-000000000303';
+select public.raise_dog_size_check_todo('23900000-0000-4000-8000-000000000303');
+
+select set_config('request.jwt.claims',
+  '{"sub":"23900000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+set local role authenticated;
+
+select lives_ok(
+  $$ update public.salon_todos set done = false
+      where dog_id = '23900000-0000-4000-8000-000000000303' and done = true $$,
+  'reopening a superseded check does not fail'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from public.salon_todos
+    where dog_id = '23900000-0000-4000-8000-000000000303' and done = false),
+  1,
+  'and the dog still has exactly one open check'
+);
+
+select * from finish();
+rollback;

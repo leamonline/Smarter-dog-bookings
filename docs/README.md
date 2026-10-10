@@ -74,6 +74,9 @@ These files remain authoritative for their bounded topics:
 - [`partial-day-closures.md`](partial-day-closures.md) — closing part of a date
   (late starts, early finishes) and how it rides on staff seat blocks rather
   than adding a gate of its own.
+- [`dog-size-confirmation.md`](dog-size-confirmation.md) — what happens while a
+  customer waits for staff to confirm a dog's size: the to-do, its wording and
+  lifecycle, and what the booking wizard promises. Size itself stays staff-only.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication

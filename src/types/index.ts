@@ -71,6 +71,13 @@ export interface Dog {
   vet?: string | null;
   colour?: string | null;
   size: DogSize | null;
+  /**
+   * The owner's estimate from the portal (dogs.reported_size). Staff-only
+   * hint for confirming size; dogs.size stays the only authority.
+   */
+  reportedSize?: DogSize | null;
+  /** Soft-archive timestamp (dogs.archived_at); null for a live dog. */
+  archivedAt?: string | null;
   humanId: string;
   _humanId: string | null;
   alerts: string[];

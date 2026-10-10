@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { customerSupabase } from "../customerClient";
 import {
   createForHuman,
+  requestSizeCheck,
   updateForCustomer,
   type CustomerDog,
   type CustomerDogUpdate,
@@ -40,5 +41,14 @@ export function useCustomerDogActions() {
     [],
   );
 
-  return { createDog, updateDog };
+  const requestDogSizeCheck = useCallback(async (dogId: string): Promise<boolean> => {
+    if (!customerSupabase) return false;
+    try {
+      return await requestSizeCheck(customerSupabase, dogId);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  return { createDog, updateDog, requestDogSizeCheck };
 }
