@@ -8,7 +8,7 @@
  * the booking detail modal, etc.). On /today the modals open in place
  * without a URL change so the live board keeps its position.
  */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 export interface UseProfileRoutingOptions {
@@ -21,6 +21,22 @@ export interface UseProfileRoutingOptions {
 const DOG_PROFILE_PATH = /^\/dogs\/([^/]+)$/;
 const HUMAN_PROFILE_PATH = /^\/humans\/([^/]+)$/;
 
+type ProfileKind = "dog" | "human";
+
+interface PendingFocusReturn {
+  element: HTMLElement;
+  id: string;
+  kind: ProfileKind;
+}
+
+function findProfileTrigger({ element, id, kind }: PendingFocusReturn) {
+  if (element.isConnected) return element;
+  const attribute = kind === "dog" ? "data-profile-dog-id" : "data-profile-human-id";
+  return Array.from(document.querySelectorAll<HTMLElement>(`[${attribute}]`)).find(
+    (candidate) => candidate.getAttribute(attribute) === id,
+  ) ?? null;
+}
+
 export function useProfileRouting({
   selectedDogId,
   setSelectedDogId,
@@ -29,6 +45,13 @@ export function useProfileRouting({
 }: UseProfileRoutingOptions) {
   const location = useLocation();
   const navigate = useNavigate();
+  const pendingFocusReturnRef = useRef<PendingFocusReturn | null>(null);
+
+  const rememberFocusReturn = useCallback((kind: ProfileKind, id: string) => {
+    const element = document.activeElement;
+    if (!(element instanceof HTMLElement) || element === document.body) return;
+    pendingFocusReturnRef.current = { element, id, kind };
+  }, []);
 
   // URL → modal state.
   useEffect(() => {
@@ -53,6 +76,26 @@ export function useProfileRouting({
     setSelectedHumanId,
   ]);
 
+  // Profile URLs replace the directory route, so the trigger React Aria
+  // remembers may no longer exist when the modal closes. Once the directory
+  // has remounted, return focus to the matching semantic trigger. Two frames
+  // place this after both the route commit and FocusScope's own cleanup.
+  useEffect(() => {
+    const pending = pendingFocusReturnRef.current;
+    if (!pending || location.pathname !== `/${pending.kind}s`) return undefined;
+    pendingFocusReturnRef.current = null;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        findProfileTrigger(pending)?.focus({ preventScroll: true });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [location.pathname]);
+
   const openDog = useCallback(
     (id: string | null | undefined) => {
       if (!id) return;
@@ -60,12 +103,13 @@ export function useProfileRouting({
         setSelectedDogId(id);
         return;
       }
+      rememberFocusReturn("dog", id);
       // Profile pages get a URL — call sites still pass through here so
       // direct navigation (e.g. /dogs/abc123 from a Slack share) and
       // in-app clicks land on the same modal.
       navigate(`/dogs/${id}`);
     },
-    [location.pathname, navigate, setSelectedDogId],
+    [location.pathname, navigate, rememberFocusReturn, setSelectedDogId],
   );
   const openHuman = useCallback(
     (id: string | null | undefined) => {
@@ -74,9 +118,10 @@ export function useProfileRouting({
         setSelectedHumanId(id);
         return;
       }
+      rememberFocusReturn("human", id);
       navigate(`/humans/${id}`);
     },
-    [location.pathname, navigate, setSelectedHumanId],
+    [location.pathname, navigate, rememberFocusReturn, setSelectedHumanId],
   );
   const closeDogProfile = useCallback(() => {
     setSelectedDogId(null);

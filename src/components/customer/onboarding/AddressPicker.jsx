@@ -80,6 +80,12 @@ export function AddressPicker({
     selectedIndex !== "" &&
     Boolean(results[Number(selectedIndex)]);
   const manualReady = manualMode && manualAddress.trim() !== "";
+  // "invalid" counts as the lookup letting the customer down too: a postcode
+  // the checker rejects (a typo, a partial code, a brand-new estate) left them
+  // with only a small text link, and customers gave up there and messaged in
+  // ("it's not letting me put my post code in").
+  const lookupFailed =
+    lookupStatus === "none" || lookupStatus === "error" || lookupStatus === "invalid";
   const ready = keepingExisting || manualReady || pickedReady;
 
   useEffect(() => {
@@ -339,13 +345,26 @@ export function AddressPicker({
             "Couldn't search just now — please try again, or enter your address manually."}
         </p>
       )}
-      <button
-        type="button"
-        className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
-        onClick={enterManual}
-      >
-        Can&apos;t find your address? Enter it manually
-      </button>
+      {lookupFailed ? (
+        // The search has already let the customer down, so the way forward
+        // must be a real button under the message, not a text link they can
+        // miss. Customers have stalled here and messaged in to ask for help.
+        <button
+          type="button"
+          className="portal-btn portal-btn--secondary portal-btn--small mt-2"
+          onClick={enterManual}
+        >
+          Enter it manually instead
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          onClick={enterManual}
+        >
+          Can&apos;t find your address? Enter it manually
+        </button>
+      )}
       <SearchAttribution />
     </div>
   );

@@ -33,6 +33,7 @@ import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
+import { useCustomerDogActions } from "../../../supabase/hooks/useCustomerDogActions";
 import { ServiceSelection } from "./ServiceSelection";
 import { DateSelection, type DatePageAvailability } from "./DateSelection";
 import { SlotSelection } from "./SlotSelection";
@@ -199,6 +200,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     clear: clearDraft,
   } = useDraftPersistence(draftKey, { enabled: !rescheduleFrom });
   const wizard = useCustomerBookingWizard();
+  const { requestDogSizeCheck } = useCustomerDogActions();
   const draft = restored as unknown as BookingDraft | null;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => draft?.step ?? 1);
@@ -1123,6 +1125,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onDogAdded={handleDogAdded}
             humanId={humanRecord.id}
             loading={dogsLoading}
+            onRequestSizeCheck={requestDogSizeCheck}
           />
         )}
 

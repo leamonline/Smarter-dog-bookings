@@ -41,10 +41,11 @@ export function DogSizeMark({ size, decorative = false, className = "" }) {
   );
 }
 
-export function ProfileArrow({ label, onClick, visibleLabel = false }) {
+export function ProfileArrow({ label, onClick, visibleLabel = false, ...buttonProps }) {
   return (
     <button
       type="button"
+      {...buttonProps}
       aria-label={label}
       onClick={onClick}
       className={`inline-flex size-11 shrink-0 items-center justify-center rounded-control text-brand-purple hover:bg-brand-purple/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark ${visibleLabel ? "sm:w-auto sm:gap-1 sm:px-3" : ""}`}

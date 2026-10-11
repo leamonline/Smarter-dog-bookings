@@ -52,7 +52,7 @@ defaults:
 jobs:
   test:
     name: website-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -73,7 +73,7 @@ jobs:
 
   build:
     name: website-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     steps:
       - uses: actions/checkout@v7
@@ -105,7 +105,7 @@ jobs:
 
   e2e:
     name: website-e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     steps:
       - uses: actions/checkout@v7
@@ -139,7 +139,7 @@ jobs:
     #   - the repository variable WEBSITE_PUBLISHER_ENABLED == 'true', which
     #     does not exist until the cutover runbook creates it.
     # The FTP secrets are likewise absent until the runbook provisions them.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test, build, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WEBSITE_PUBLISHER_ENABLED == 'true'
     concurrency:

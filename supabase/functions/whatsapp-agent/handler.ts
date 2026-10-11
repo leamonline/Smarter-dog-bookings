@@ -82,11 +82,14 @@ import {
   fallbackReplyForIntent,
   guessIntentFromText,
   Intent,
+  isPortalTrouble,
   mergeAgentState,
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
+import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
   extractInboundMedia,
@@ -177,7 +180,7 @@ interface MetaStatus {
   recipient_id?: string;
   status?: "sent" | "delivered" | "read" | "failed";
   timestamp?: string;
-  errors?: Array<{ code?: number; title?: string; message?: string }>;
+  errors?: Array<{ code?: number; title?: string; message?: string; error_data?: { details?: string } }>;
 }
 
 interface MetaChangeValue {
@@ -235,7 +238,7 @@ type BookingActionFromClaude =
 // A human member of staff reviews every draft before it's sent, so
 // the prompt err on the side of brevity, safety, and honesty. Low
 // confidence + escalate is always a valid move.
-export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-02.memory-2";
+export const WHATSAPP_REPLY_PROMPT_VERSION = "2026-10-07.portal-trouble-1";
 const SYSTEM_PROMPT = `You are the WhatsApp reply assistant for Smarter Dog Grooming Salon — a small, caring dog grooming business in Ashton-under-Lyne, UK, run by a small team who know every dog by name.
 
 A human staff member reviews every reply you draft before it's sent. Your goal is to save them time on routine replies while matching the brand voice exactly. When in doubt, prefer a short holding reply and let staff take over.
@@ -810,6 +813,7 @@ async function buildContext(
   autonomousBookingEnabled: boolean,
   reviewOnly = false,
   ownedDogIds = new Set<string>(),
+  portalTrouble = false,
 ): Promise<string> {
   // Recent message history (last 20, oldest first)
   const { data: messages } = await supabase
@@ -939,7 +943,19 @@ async function buildContext(
   // tells Claude to append a warm CTA on booking-intent turns. It's an
   // additive instruction; the rest of the system prompt still applies
   // (e.g. don't propose a booking_action for large dogs).
-  if (humanId && !autonomousBookingEnabled) {
+  // The customer has told us the booking page failed them. Sending them back
+  // to it is the loop customers complained about, so this replaces both
+  // portal blocks below rather than adding to them.
+  if (portalTrouble) {
+    parts.push(
+      [
+        `--- Booking page trouble ---`,
+        `Internal routing instruction, never customer-facing: the customer says the booking website or app is not working for them.`,
+        `Do NOT include any link to the website, account or portal, and do not suggest they try again online.`,
+        `Apologise briefly, say we'll book it in for them here on WhatsApp, and ask only for what is still missing (which dog, roughly which day or time). Do not propose booking_action; staff will make the booking.`,
+      ].join("\n"),
+    );
+  } else if (humanId && !autonomousBookingEnabled) {
     parts.push(
       [
         `--- Self-service portal ---`,
@@ -956,7 +972,7 @@ async function buildContext(
   // New-customer sign-up nudge: an unrecognised person asking to get started
   // can be pointed at the portal to set up their account ("Join the Pack"),
   // alongside the in-chat onboarding you're already running.
-  if (!humanId) {
+  if (!humanId && !portalTrouble) {
     parts.push(
       [
         `--- New customer sign-up ---`,
@@ -1626,13 +1642,14 @@ function dispatchRescheduleFlow(
 async function manageCutoffHandoff(
   supabase: SupabaseClient,
   conversationId: string,
+  humanId: string,
   eventId: string | null,
   action: "cancel" | "reschedule",
 ): Promise<void> {
   const msg = action === "cancel"
     ? "This appointment has already started, so I need the team to check its status before cancelling. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
     : "This appointment is within 24 hours, so I can't move it automatically here. I've flagged it for the team so they can help you properly. 🐾";
-  await sendManageText(conversationId, msg);
+  const replied = await sendManageText(conversationId, msg);
   const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false, draftOnly: false };
   const draft: DraftFromClaude = {
     intent: "escalate",
@@ -1641,7 +1658,19 @@ async function manageCutoffHandoff(
       `[Blocked ${action}] Customer asked to ${action} after its permitted deadline — needs the team. They've already been told you'll be in touch.`,
     extracted_state: null,
   };
-  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
+  try {
+    await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_deadline:${action}` });
+  } finally {
+    // The customer has just been told the team will help. Make that true on
+    // the staff side too: a draft only shows to whoever opens the inbox, and
+    // a failed draft save must not cost them the to-do as well.
+    await raiseFollowUpTodo(
+      supabase,
+      humanId,
+      action === "cancel" ? "manage_deadline_cancel" : "manage_deadline_reschedule",
+      { reply: replied ? "sent" : "unconfirmed" },
+    );
+  }
 }
 
 /** Run the chosen action against a resolved visit and its applicable deadline. */
@@ -1656,7 +1685,7 @@ async function executeManageAction(
   dogSizes: Record<string, DogSize>,
 ): Promise<void> {
   if (isManageActionBlocked(action, new Date(visit.startAt), new Date())) {
-    await manageCutoffHandoff(supabase, conversationId, eventId, action);
+    await manageCutoffHandoff(supabase, conversationId, humanId, eventId, action);
     return;
   }
   if (action === "cancel") {
@@ -1696,11 +1725,41 @@ async function handleManageBooking(
     const s = session as
       | { id: string; human_id: string; action: string; status: string; expires_at: string }
       | null;
-    if (!s || s.human_id !== humanId || s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+    // Not this customer's menu, or no such menu: nothing to hand over, so the
+    // original "start again" reply stands and staff get no task.
+    if (!s || s.human_id !== humanId) {
       await sendManageText(
         conversation.id,
         'That selection has expired — just send "cancel" or "reschedule" again and I\'ll pull your bookings up. 🐾',
       );
+      return true;
+    }
+    // A second tap on a menu already used: the first tap is being handled.
+    if (s.status === "consumed") {
+      await sendManageText(
+        conversation.id,
+        "You've already picked that one — have a look at the message I sent after it. 🐾",
+      );
+      return true;
+    }
+    // An older menu tapped after a newer one was sent: the newer one works.
+    if (s.status === "superseded") {
+      await sendManageText(
+        conversation.id,
+        "That's an older list — please pick from the latest one I sent. 🐾",
+      );
+      return true;
+    }
+    if (s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+      // A genuine timeout is a dead end: rather than sending the customer
+      // round again, hand it to the team and say so.
+      const replied = await sendManageText(
+        conversation.id,
+        "Sorry, that menu timed out. I've passed it to the team and they'll sort it with you here. 🐾",
+      );
+      await raiseFollowUpTodo(supabase, humanId, "manage_selection_expired", {
+        reply: replied ? "sent" : "unconfirmed",
+      });
       return true;
     }
     // Re-resolve live, re-validate, consume the nonce (single-use).
@@ -1711,10 +1770,13 @@ async function handleManageBooking(
       .eq("id", s.id);
     const visit = visits.find((v) => v.key === parsed.visitKey);
     if (!visit) {
-      await sendManageText(
+      const replied = await sendManageText(
         conversation.id,
-        'That booking is no longer available to manage — send "cancel" or "reschedule" again and I\'ll show you what\'s booked. 🐾',
+        "That booking has changed since I showed it, so I've passed it to the team and they'll sort it with you here. 🐾",
       );
+      await raiseFollowUpTodo(supabase, humanId, "manage_booking_gone", {
+        reply: replied ? "sent" : "unconfirmed",
+      });
       return true;
     }
     await executeManageAction(
@@ -2178,6 +2240,24 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
     .eq("direction", "outbound");
 
   if (error) console.error("handleStatus update failed:", error);
+
+  // Tell the notification log too. It recorded 'sent' when Meta accepted the
+  // message; without this a later "undeliverable" never reaches the staff
+  // delivery-failure badge, card or list (see _shared/deliveryStatus.ts).
+  // Only a still-'sent' WhatsApp row is touched, so a resend that already
+  // superseded it, or an SMS row, is never rewritten. Behaviour of the SMS
+  // fallback job is unchanged: it already chases 'failed' rows and 'sent'
+  // rows whose Meta status is failed after the same one-hour window.
+  const logPatch = notificationLogPatchForStatus(status.status, status.errors);
+  if (logPatch) {
+    const { error: logErr } = await supabase
+      .from("notification_log")
+      .update(logPatch)
+      .eq("provider_message_id", status.id)
+      .eq("channel", "whatsapp")
+      .eq("status", "sent");
+    if (logErr) console.error("handleStatus notification_log update failed:", logErr);
+  }
 }
 
 // ── Autonomous booking helpers ───────────────────────────────
@@ -2833,6 +2913,34 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             if (handled) continue;
           }
 
+          // Booking-page trouble: "it won't let me log in", "the website isn't
+          // working". Without this the message reads as a booking request, so
+          // the fast path below answers it with the tap-to-book prompt and then
+          // the portal link — sending the customer straight back to the thing
+          // that just failed them. Instead, leave a no-link reply for staff and
+          // flag the thread for a human. Applies to known and unknown numbers:
+          // either way a person needs to book it. Never auto-sent. Only while
+          // the AI is handling the thread: once staff choose Human only, no
+          // automatic draft is written (docs/whatsapp-agent.md).
+          if (!forceDraft && conversation.state === "ai_handling" && isPortalTrouble(text)) {
+            const policy: DraftPolicy = {
+              riskLevel: "medium",
+              handoffRequired: true,
+              autoSendEligible: false,
+              draftOnly: false,
+            };
+            const draft: DraftFromClaude = {
+              intent: "booking_propose",
+              confidence: 1,
+              proposed_text: fallbackReplyForIntent("portal_trouble"),
+              extracted_state: null,
+            };
+            await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+              reason: "portal_trouble: customer reports the booking page is not working for them",
+            });
+            continue;
+          }
+
           // Booking-entry fast path: a recognised customer asking for a NEW
           // booking gets the auto-sent identity confirm (Message 1), which
           // bypasses the staff-wait gate below. Only new-booking intent
@@ -2918,6 +3026,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             conversation.autonomous_booking_enabled === true,
             reviewDraftOnly,
             ownedDogIds,
+            isPortalTrouble(inboundText),
           );
           const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText, ownedDogIds, !!(conversation.human_id ?? humanId));
 

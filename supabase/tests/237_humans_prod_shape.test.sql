@@ -1,7 +1,9 @@
 -- 20261004120000_reconcile_humans_with_prod: a database rebuilt from committed
--- history must carry the humans shape production has had since spring 2026.
+-- history must carry the humans shape production has had since spring 2026,
+-- minus the two unused columns 20261005190000_drop_unused_humans_columns
+-- removes again.
 begin;
-select plan(12);
+select plan(9);
 
 select col_is_null('public', 'humans', 'surname', 'surname is nullable, as on prod');
 select is(
@@ -15,28 +17,12 @@ select lives_ok(
   $$insert into public.humans (name, surname) values ('Shape', null), ('Shape', null)$$,
   'two humans may share a name with no surname');
 
-select has_column('public', 'humans', 'customer_notes', 'customer_notes exists');
-select col_not_null('public', 'humans', 'customer_notes', 'customer_notes is NOT NULL');
-select is(
-  (select column_default from information_schema.columns
-    where table_schema = 'public' and table_name = 'humans' and column_name = 'customer_notes'),
-  '''''::text',
-  'customer_notes defaults to the empty string');
-select is(
-  (select customer_notes from public.humans where phone = '+447700900237'),
-  '',
-  'a new human has empty customer_notes');
-
-select is(
-  (select is_generated from information_schema.columns
-    where table_schema = 'public' and table_name = 'humans' and column_name = 'phone_normalised'),
-  'ALWAYS',
-  'phone_normalised is a generated column');
-select is(
-  (select phone_normalised from public.humans where phone = '+447700900237'),
-  '07700900237',
-  'phone_normalised folds +44 to the 0-national form');
-select has_index('public', 'humans', 'humans_phone_normalised_idx', 'partial index on phone_normalised exists');
+-- 20261005190000_drop_unused_humans_columns: the two columns the May 2026
+-- phone-lookup RPC left behind are gone, and so is the index on the generated one.
+select hasnt_column('public', 'humans', 'customer_notes', 'customer_notes was dropped');
+select hasnt_column('public', 'humans', 'phone_normalised', 'phone_normalised was dropped');
+select hasnt_index('public', 'humans', 'humans_phone_normalised_idx', 'the partial index on phone_normalised went with the column');
+select has_index('public', 'humans', 'humans_phone_unique', 'the partial unique index on phone is kept');
 
 select throws_ok(
   $$insert into public.humans (name, surname, phone) values ('Shape', 'Twin', '+447700900237')$$,

@@ -1,5 +1,55 @@
 # Migration history
 
+## Drop unused humans columns — applied 5 October 2026
+
+`20261005190000_drop_unused_humans_columns.sql` removes `humans.customer_notes`
+and `humans.phone_normalised` (and, with the generated column, its partial
+index `humans_phone_normalised_idx`). Both reached prod through the uncommitted
+May 2026 migration `customer_self_register_phone` for the phone-lookup RPC
+`link_or_create_customer_human`, which `20260618144000` dropped; nothing has
+referenced either since. `humans_phone_unique` is kept.
+
+Pre-apply evidence, read from the prod catalog on 5 October 2026: 948 humans
+rows, every `customer_notes` value is the empty string, `phone_normalised` is a
+STORED generated column (no data of its own), no function, view, policy or
+trigger references either name, and the only dependents are the generated
+column's own expression and `humans_phone_normalised_idx`. In the repository
+only the generated types, `supabase/tests/237_humans_prod_shape.test.sql` and a
+comment in `website/src/utils/phone.js` mentioned them; all three are updated
+in the same pull request.
+
+**Applied to prod by hand on 5 October 2026** (project `Smarter-dog-grooming`,
+ref `nlzhllhkigmsvrzduefz`) in the Supabase Dashboard SQL editor, as one
+transaction together with its ledger row. The Supabase MCP tool could not apply
+it: its destructive-statement confirmation also covers `drop column`, and that
+confirmation cannot be answered from an agent session, so `apply_migration` and
+`execute_sql` both hang until their timeout (three attempts in total, nothing
+executed each time: columns, index and ledger unchanged afterwards). The script
+that was run:
+
+```sql
+alter table public.humans drop column if exists phone_normalised;
+alter table public.humans drop column if exists customer_notes;
+insert into supabase_migrations.schema_migrations (version, name, statements)
+select '20261005190000', 'drop_unused_humans_columns',
+       array['alter table public.humans drop column if exists phone_normalised;',
+             'alter table public.humans drop column if exists customer_notes;']
+where not exists (select 1 from supabase_migrations.schema_migrations
+                  where name = 'drop_unused_humans_columns');
+```
+
+Post-apply evidence, read from the prod catalog at 20:41 UTC on 5 October 2026
+through the MCP (read-only): `information_schema.columns` lists neither
+`customer_notes` nor `phone_normalised` for `public.humans` (44 columns before,
+42 after); `pg_indexes` lists `humans_phone_unique` and no longer
+`humans_phone_normalised_idx`; `pg_depend` shows no remaining dependents on
+either attribute; the ledger holds exactly one row for the name, version
+`20261005190000`, name `drop_unused_humans_columns`, two statements, which is
+now the latest ledger version; `public.humans` has 948 rows before and after.
+The ledger row is what CI's `migrations-applied` check reads. Staging follows
+after merge through **Apply named migrations to staging** with
+`20261005190000_drop_unused_humans_columns.sql`.
+
 ## WhatsApp agent-state revision (#938) — applied 4 October 2026
 
 `20261002140000_whatsapp_agent_state_revision.sql` was applied to **prod**
@@ -33,11 +83,25 @@ column comment is the new text; `public.humans` is unchanged (44 columns,
 8 indexes, 948 rows, `surname` nullable, no `humans_name_surname_key`),
 which is what a no-op reconciliation should look like.
 
-**Not applied to staging.** Staging (`btjnxvgkpdbfrrqxvkfj`) is missing
-`humans.claims_human_id`, so it has never had
-`20260902150000_signup_claims_existing_customer`; the second migration's
-`comment on column` would fail there. Bring staging up to date with that
-migration first, then apply both of these.
+**Staging (`btjnxvgkpdbfrrqxvkfj`) caught up on 5 October 2026.** Thirteen of the
+twenty-five repository migrations missing from its ledger were applied through
+the Supabase MCP on 4–5 October; the twelve the MCP tool refuses (any file
+containing `drop function`/`drop trigger`/`delete from`) went through
+**Apply named migrations to staging** run #4
+(<https://github.com/leamonline/Smarter-dog-bookings/actions/runs/37355624432>),
+which also re-applied `20260919130000_reconfirmed_from_customer_confirmation`
+after the older `staff_booking_confirmation` so staging keeps the newer
+`reset_reminder_on_reschedule()`. `expand_booking_statuses` is deliberately
+skipped: staging already carries the contracted status check. Post-apply
+evidence: every repository migration name is in the staging ledger, and the 16
+functions, 2 triggers, 4 tables and 5 cron jobs those files touch fingerprint
+identically on staging and prod, except that `mark_reminder_confirmed` and
+`reset_reminder_on_reschedule` differ in SQL comments only (prod was applied
+from a revision of that file without them; with comments and whitespace
+normalised the two bodies hash identically). Staging-only ledger names
+(`prod_baseline`, `canonical_booking_statuses`, `contract_booking_statuses_v2`,
+`preserve_reconfirmed_booking_event`, `reconfirmed_from_customer_confirmation_v2`)
+remain from earlier rehearsals.
 
 `supabase/migrations/` is a near-complete record of prod schema
 history.
@@ -320,15 +384,44 @@ to `scripts/apply-hosted-migrations.sh`, which:
   `<14-digit version>_<snake_case_name>.sql`;
 - obtains the CLI's short-lived database login (as `scripts/run-hosted-pgtap.sh`
   does; no stored database password);
-- skips any migration whose **name** is already in
-  `supabase_migrations.schema_migrations` (names are the identity CI's
-  `migrations-applied` check reads; the MCP tool records its own timestamp as
-  the version);
-- applies each file with `psql` under `ON_ERROR_STOP`, recording its ledger row
-  under the file's own version immediately afterwards in the same session: a
-  file without its own transaction is atomic with its ledger row; a file that
-  carries its own `begin`/`commit` commits itself first, so a failure between
-  the two (never seen) would need the ledger row added by hand before a re-run.
+- skips any migration already in `supabase_migrations.schema_migrations`
+  under its name after the timestamp or its full basename (the MCP tool
+  records its own timestamp as the version, and one row was once recorded
+  under the whole filename), but only when the SQL last recorded on that row
+  equals the committed file: a file edited after it was applied stops the run
+  instead, and the message says whether to drop it from the list or re-apply
+  it. A row that shares only the file's **version** under another name is a
+  conflict: the run stops and names the row, and nothing is written to it
+  (drop the file from the list if that row is this migration recorded under
+  another name; otherwise resolve the ledger by hand first);
+- applies each file with `psql` under `ON_ERROR_STOP` inside one transaction
+  with its ledger row. The one `begin;`/`commit;` pair that encloses the file
+  (its first and last statements, the repository's usual style) is removed
+  before execution so it cannot commit the schema change ahead of the ledger
+  row (the log says `strip`, and the ledger stores the file exactly as
+  committed). Which lines those are is
+  decided by `scripts/lex-migration-sql.pl`, a one-pass scan of the file's
+  strings, identifiers, comments and dollar-quoted bodies in the order psql
+  reads them, so a `begin;` or `commit;` inside a function body or a string
+  is content and stays. The same scan refuses any other top-level
+  transaction control (a second `begin;`/`commit;` pair, which the apply must
+  not merge into one, `start transaction`, `rollback`, `end`, `commit and
+  chain`, `prepare transaction`, a `commit` sharing a line), because the
+  apply must neither split nor merge what the file keeps atomic; psql
+  meta-commands (a backslash outside a string) and psql variable
+  interpolation (`:name`, `:'name'`, `:"name"`, `:{?name}`, a leftover colon
+  after any `::` casts included), because psql would act on them before
+  PostgreSQL saw the file (and a `--` comment ends at a carriage return as
+  well as a line feed, as psql ends it, so CR or CRLF line endings hide
+  nothing); a string, identifier,
+  comment or dollar-quoted body still open at the end of the file; and a
+  file that mentions `standard_conforming_strings` or `client_encoding`, the
+  two settings that would change how its quoting is read (a CI test runs the
+  scan over every committed migration, so a new file it would refuse fails
+  the pull request, not the apply). A file with no SQL statement left once
+  its own `begin;`/`commit;` lines are removed (empty, whitespace or
+  comments only, or just that pair), a migration named by more than one
+  ledger row, and symbolic links under `supabase/migrations/` are refused.
 
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
@@ -339,8 +432,208 @@ define `reset_reminder_on_reschedule()`) must be followed by the newer file
 again. Before a run, check the files in the list against every later file
 already on staging for shared function, trigger and grant names, and add the
 later ones to both inputs, after the older ones. The ledger never gains a
-second row for a name.
+second row for a migration; a re-apply **appends** the SQL it ran to the
+existing row's `statements`, so the original evidence is kept and the last
+element is what was applied most recently, which is what the next run
+verifies against the committed file.
 
-Production is refused by construction: the script hard-codes the staging ref
-and exits if asked for anything else. It is not a production migration path;
-production still follows the manual, target-verified procedure above.
+A bare call to the script reaches staging only: production is refused unless
+the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
+production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
+below does.
+
+## Applying migrations to production: the production workflow
+
+**Apply named migrations to production**
+(`.github/workflows/production-apply-migrations.yml`) is the executable form of
+the manual gate in [ADR 006](architecture/decisions/006-manual-target-verified-database-rollout.md).
+It runs the same `scripts/apply-hosted-migrations.sh` as the staging workflow,
+so there is one apply path to review, but production is deliberately harder to
+reach:
+
+| | Staging workflow | Production workflow |
+|---|---|---|
+| Trigger | Manual dispatch only | Manual dispatch only; never push, pull request or schedule |
+| Environment | `staging`, required reviewer | `production`, required reviewer: a person approves the run before it links anything |
+| Confirmation | Type the staging ref | Type the production ref; the script demands it again as `CONFIRM_PRODUCTION_REF` |
+| Target | Links staging; refuses production | Links production only after the exact-ref check; fails closed on any other ref |
+| Concurrency | One staging run at a time | One production run at a time; a second dispatch queues and never cancels the first |
+| Files applied | From the branch dispatched | From the commit named in `ref` (normally the reviewed pull request head); the workflow and script always run from `main` |
+| Postcondition | None | Required: one read-only `SELECT` that must return exactly one boolean true after the apply (ADR 006) |
+
+**When to use which.** Staging first, always: the staging workflow (or the MCP
+tool for files it accepts), then the pgTAP checks. Use the production workflow
+once the same files have run on staging and the pull request that needs them
+is reviewed, and run it **before** that pull request merges: the
+`migrations-applied` check refuses a merge whose migration is not in the
+production ledger, and, because this workflow records the whole file it
+applied as the SQL last recorded on the row, also a merge whose file differs
+from that recorded SQL (trailing whitespace aside). So a file edited after it
+was applied, or a head pushed after the apply, cannot merge under the applied
+name: re-apply the committed content (`reapply`) or restore what was applied.
+A row that recorded no SQL (applied and ledgered by hand) is still matched by
+name alone. The check also refuses a change that deletes or renames a
+migration production has applied, any edit to a migration the base branch
+carries (applied to production or not: staging may have run it, and history
+is append-only in the repository too, so add a corrective migration, or
+remove a never-applied file and add a replacement), and, on every pull
+request, a
+migration the production workflow applied from an earlier head of that pull
+request (found through the provenance line in its ledger row, which names
+the exact file) that the current head no longer carries under that very
+name: a later push cannot quietly drop, rename or rewrite what production
+already ran. A type change counts as an edit, and no migration entry may be
+anything but a regular file (a symbolic link is refused before anything
+else). When the token is missing, which GitHub arranges for a fork's or a
+bot's pull request, the check passes only if nothing touched a migration and
+the pull request is one the production workflow could never have applied
+from; a same-repository pull request by a person without the token fails,
+because what was applied from it cannot be looked up.
+
+**Before the first run (one-off GitHub setup).** Create the `production`
+environment (Settings → Environments) with a required reviewer and a
+deployment branch policy allowing `main`, the same shape as `staging`, and add
+`PRODUCTION_SUPABASE_ACCESS_TOKEN` (a Supabase Management API token) as an
+**environment** secret there, never as a repository secret. GitHub creates a
+referenced environment with no protection rules if it does not exist, so the
+environment-only secret is what makes an unconfigured environment fail closed:
+the workflow's first step refuses to continue without it.
+
+**How to run it.** Actions → **Apply named migrations to production** → *Run
+workflow* **from `main`** (the environment's branch policy allows only `main`,
+which is deliberate: the workflow and the apply script then always run as
+reviewed there). Fill in:
+
+- `confirm_production_ref`: `nlzhllhkigmsvrzduefz`;
+- `ref`: the full 40-character SHA of the reviewed pull request head (shown
+  on the pull request), which is where the migration files live before merge;
+  it must be the *current* head of an open, non-draft pull request into
+  `main` from a branch of this repository, opened by a person (a fork's or a
+  bot's pull request receives no repository secrets, so the merge gate could
+  never look up what was applied from it), with no outstanding
+  changes-requested review from any reviewer (a
+  changes request stays outstanding across later pushes until that reviewer
+  approves or it is dismissed, as GitHub counts it), or a commit already on
+  `main`; the run checks this through the GitHub API and records each
+  reviewer's latest review with the commit it was given on, so a superseded
+  or unreviewed head cannot apply SQL under a current filename; only `supabase/migrations/` is taken from that
+  commit, and a file that already exists on `main` must be byte-identical to
+  `main`'s copy (history is append-only: a fix is a new, later migration).
+  `main` here is the branch as it is when the run executes, fetched once
+  after the approval wait and recorded in the summary, never the checkout
+  the dispatch pinned; and if `main` has changed this workflow or the apply
+  scripts since the dispatch, the run refuses and must be dispatched again;
+- `migrations`: the space-separated file basenames in the order they must run,
+  each at most once;
+- `postcondition`: one `SELECT` (no semicolons) that proves the behavioural
+  outcome and returns exactly one boolean true, written against
+  `pg_catalog`, for example
+  `select exists (select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'humans' and a.attname = 'x' and not a.attisdropped)`
+  or `select exists (select 1 from pg_catalog.pg_tables where schemaname = 'public' and tablename = 'x')`,
+  with `not exists` for a drop. It runs as the `anon` role inside a
+  read-only transaction with a 30-second timeout, as `select (…) is true`:
+  it sees the catalogs in full but tables only as an anonymous API client
+  would (grants and row-level security apply), it cannot use privileged
+  functions such as `pg_terminate_backend`, it cannot end the transaction,
+  and it must be a real boolean (the text `'t'` does not pass). Do not use
+  `information_schema`, which hides objects the role cannot select;
+- `reapply`: only for the out-of-order repair case described above; every
+  name here must also be in `migrations`, or the run is refused.
+
+The run then waits for the `production` environment's required reviewer, who
+sees every input; nothing is checked out or linked until that approval is
+given.
+
+**What the run proves**, in order, each step failing the run if it does not
+hold:
+
+1. the typed ref equals the production ref and differs from staging, the run
+   was dispatched from `main`, the `production` environment exists with at
+   least one required reviewer and a deployment branch policy (read through
+   the API, so a same-named secret at repository level cannot stand in for the
+   environment's approval), the environment token is present, `ref` is a full
+   SHA and a postcondition was given, all before checkout, so a wrong ref or an
+   unconfigured environment never reaches the repository or the CLI;
+2. `main` is checked out; the current `main` tip is fetched and recorded, and
+   the run refuses if it has changed this workflow, the apply scripts or the
+   migration validator since the dispatch; the named commit is confirmed by
+   `scripts/production-ref-provenance.sh`, against that tip, to be on `main`
+   or the current head of an open, non-draft pull request into `main` with no
+   reviewer's latest review requesting changes; then `supabase/migrations/`
+   is emptied and refilled from that commit alone; every requested name
+   matches `<14-digit version>_<snake_case_name>.sql`, appears once, is a
+   regular file in that commit (never a symbolic link), is byte-identical to
+   its blob after the overlay (a file that only exists on `main` fails the
+   run) and, for a commit already on `main`, still exists on current `main`
+   (a file `main` has since removed or renamed cannot be applied from an older
+   commit; only a current pull request head may introduce a new path), every
+   `reapply` name is in the list, the commit carries every migration current
+   `main` has (a head that has fallen behind `main` must take `main` in
+   first, so the tree checked is the one its merge would produce), the
+   overlaid tree passes `scripts/check-migrations.mjs` (unique timestamps and names, no empty or
+   comment-only file, so two requested files can never fight over one ledger
+   identity), and the full SQL of each file is printed in the log;
+3. the linked project-ref file equals the production ref, immediately before
+   `supabase migration list --linked` records the before-state;
+4. immediately before the write, `main` is fetched again and must still be
+   the tip the files were checked against (a `main` that moved in between is
+   refused, nothing applied), then the same provenance script runs again
+   against that tip and must reach the same verdict (a pull request that
+   moved on, closed, went back to draft or received a changes-requested
+   review since is refused, nothing applied); then the script re-checks the
+   target (opt-in, confirmation and link state),
+   prints each file's digest and length and the ledger before the run, stops
+   on a version conflict or when more than one ledger row is named after a
+   file, applies each file in one transaction with its
+   ledger row (its own top-level `begin;`/`commit;` lines removed as the
+   quoting scan above finds them; other transaction control, psql
+   meta-commands, variable interpolation, unreadable quoting and a file with
+   no SQL statement left once those lines are removed refused; a provenance line naming the pull request or
+   `main` commit, the actor and the run is stored in the row just ahead of
+   the file, which stays the last element), skipping
+   a migration already recorded under its name or basename only when the SQL
+   last recorded on it equals the committed file, and even then appending
+   this run's provenance line and the file to that row, so the merge gate can
+   hold a later push that drops a file production holds (a mismatch stops the run:
+   drop the file, or re-apply it to install the committed content, which
+   appends it to the row's evidence), then fails unless every requested
+   migration is in the ledger with the committed content and the
+   postcondition returns true as `anon` in a read-only transaction;
+5. `supabase migration list --linked` records the after-state.
+
+The run's step summary names who dispatched it, the migrations requested, the
+verified ref and each step's outcome. Keep the run URL as the evidence record
+ADR 006 asks for, and add the usual dated note at the top of this file.
+
+**If a run fails part-way.** Each file is its own transaction with its ledger
+row (a file's own `begin;`/`commit;` cannot commit it early, because they are
+removed before execution), so files before the failure are applied and
+recorded, the failing file is rolled back, and later files were not started. Read the failing statement in
+the log and the after-state listing (it still runs whenever the link
+succeeded). Fix the cause in a reviewed change if the SQL is wrong, then
+dispatch again with the same `ref` and list: recorded migrations whose stored
+SQL matches are skipped, so only the remaining files run. Never recreate a
+migration under a new name to get past the ledger, and never add a ledger row
+by hand unless you have confirmed the schema change it stands for is present.
+A postcondition that fails after the files were applied does not undo them:
+they are applied and recorded, the run is red, and the after-state listing
+shows them. Decide from the log whether the postcondition was wrong (it ran
+as `anon`, so a query that needs more than an anonymous client can see, or
+one written against `information_schema`, returns false for a change that
+succeeded; correct it and dispatch again with the same inputs, and every
+recorded file is skipped) or the migration was (fix forward with a new,
+later migration).
+
+## The Supabase MCP tool and the Claude permission
+
+The PreToolUse hook `.claude/hooks/guard-supabase-apply-migration.sh`
+(wired in `.claude/settings.json`) reads each `mcp__Supabase__apply_migration`
+call's project ref and allows the call without a prompt for **staging** only;
+anything else (the production ref, an unknown ref, unreadable input) goes back
+to the permission prompt, so production is still confirmed by a person, per
+call, and the MCP server's own destructive-statement confirmation is
+unchanged. There is deliberately no `permissions.allow` entry for the tool: a
+hook that fails to run is non-blocking in Claude Code, and an allow rule would
+then have stood for every project, production included, whereas with the hook
+as the only grant a failure falls back to the prompt. Production migrations go
+through the workflow above, not through the MCP tool.

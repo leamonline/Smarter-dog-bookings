@@ -129,7 +129,7 @@ function assertIsolation(result: Awaited<ReturnType<typeof run>>, attempted = fa
 Deno.test("review draft writes only a held draft despite all automation opt-ins and extracted corrections", async () => {
   const result = await run({ manage: true });
   assertIsolation(result);
-  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-02.memory-2");
+  assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-07.portal-trouble-1");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
 });
@@ -334,4 +334,39 @@ for (const memoryConflict of ["overlap","twice"] as const) Deno.test(`memory con
   assertEquals(result.memoryRows.length,0);
   assertEquals(result.rows.length,0);
   assertEquals(result.memoryAttempts, memoryConflict === "overlap" ? 1 : 2);
+});
+
+// ── Booking-page trouble (isPortalTrouble) ────────────────────
+const PORTAL_TROUBLE = "Trying to book but it won't let me log in";
+
+Deno.test("booking-page trouble leaves one held, no-link handoff draft and calls no model", async () => {
+  const result = await run({ text: PORTAL_TROUBLE });
+  assertEquals(result.rows.length, 1);
+  const draft = result.rows[0];
+  assertEquals(draft.intent, "booking_propose");
+  assertEquals(draft.handoff_required, true);
+  assertEquals(draft.auto_send_eligible, false);
+  assert(!String(draft.proposed_text).includes("http"), "the reply must not send them back to the website");
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+  assertEquals(result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+});
+
+// Human only means no automatic drafts at all, this rule included.
+Deno.test("booking-page trouble writes nothing once staff have chosen Human only", async () => {
+  const result = await run({ text: PORTAL_TROUBLE, state: "human_takeover" });
+  assertEquals(result.rows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+});
+
+Deno.test("a staff-generated reply to booking-page trouble gets the no-link prompt, not the portal one", async () => {
+  const trouble = await run({ text: PORTAL_TROUBLE, force: true, selfService: true });
+  const troubleContext = ((trouble.calls.find((c) => c.path === "/v1/messages")!.body.messages) as { content: string }[])[0].content;
+  assertStringIncludes(troubleContext, "--- Booking page trouble ---");
+  assert(!troubleContext.includes("--- Self-service portal ---"));
+  assertEquals((trouble.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-07.portal-trouble-1");
+
+  const ordinary = await run({ text: "Can I book my dog?", force: true, selfService: true });
+  const ordinaryContext = ((ordinary.calls.find((c) => c.path === "/v1/messages")!.body.messages) as { content: string }[])[0].content;
+  assertStringIncludes(ordinaryContext, "--- Self-service portal ---");
+  assert(!ordinaryContext.includes("--- Booking page trouble ---"));
 });

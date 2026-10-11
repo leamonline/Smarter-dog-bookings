@@ -5,7 +5,7 @@
 // drops those fields from every Linux-only optional binary — currently 12
 // packages (@supabase/cli-linux-*, @tailwindcss/oxide-linux-*, and friends).
 //
-// That matters because CI runs `npm ci` on ubuntu-latest. The lock is the
+// That matters because CI runs `npm ci` on ubuntu-24.04. The lock is the
 // contract that tells npm which prebuilt native binary a glibc vs musl runner
 // should take; committing a darwin-stripped lock removes the only signal that
 // distinguishes them.
@@ -47,7 +47,7 @@ if (withLibc.length < MIN_EXPECTED_LIBC_PACKAGES) {
     `\ncheck-lockfile-platform: package-lock.json has only ${withLibc.length} package(s) ` +
       `carrying Linux "libc" metadata (expected at least ${MIN_EXPECTED_LIBC_PACKAGES}).\n\n` +
       `This is what a macOS \`npm install\` does to the lockfile — it drops the glibc/musl\n` +
-      `discriminator that CI's \`npm ci\` on ubuntu-latest needs to pick the right prebuilt\n` +
+      `discriminator that CI's \`npm ci\` on ubuntu-24.04 needs to pick the right prebuilt\n` +
       `native binaries.\n\n` +
       `  Fix:  git restore package-lock.json\n` +
       `  Then: use \`npm ci\` locally instead of \`npm install\`.\n\n` +

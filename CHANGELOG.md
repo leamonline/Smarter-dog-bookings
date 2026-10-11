@@ -12,6 +12,38 @@
   Its Geoapify key stays server-side, with rate limits, a bounded upstream wait
   and diagnostics that omit keys, queries, URLs and provider bodies.
 
+## Unreleased — staff are told when a customer waits on a dog size (#963)
+
+- A customer whose dog has no confirmed size can still not book it online, but
+  staff now get one "Confirm size" to-do per dog, naming the dog, breed, owner
+  and the owner's estimate. The booking wizard says "We're confirming their
+  size" only when that to-do exists, and never promises online booking for a
+  pregnant dog. Previously it said "message us first" and staff were not told.
+- Staff can confirm the owner's estimate in one tap from the dog card. The
+  write is guarded, so a size set by someone else, a new estimate or an
+  archive since the card opened is never overwritten.
+- Setting a size or archiving the dog ticks the to-do off; renames, breed
+  corrections and owner merges keep its wording current.
+- A newly added dog whose size the server derived from its breed is bookable
+  straight away; it used to stay greyed out until the page was reloaded.
+- Rewording an open to-do (a rename, a breed correction, an owner rename) now
+  only updates the row that is open; it can no longer recreate a to-do staff
+  ticked off at the same moment. `salon_todos.dog_id` also gets a full index
+  behind its foreign key. Migration `20261010210000`.
+- `dogs.size` remains staff-only; capacity, pricing and the booking gates are
+  unchanged. Migrations `20261008120000` and `20261010210000`; see
+  [`docs/dog-size-confirmation.md`](docs/dog-size-confirmation.md).
+
+## Unreleased — booking and modal resize continuity (#964)
+
+- Customer and staff booking drafts now have browser coverage while crossing
+  the 640px, 768px, 1024px, 1280px and 1440px layout boundaries, including
+  folding-phone cover and open widths.
+- Routed dog and human profiles restore focus to the remounted directory
+  control after their sheet or modal closes, including on mobile Safari.
+- The production-build pull-request gate now runs the booking and modal
+  continuity journey on mobile WebKit as well as Chromium.
+
 ## Unreleased — customer signup validation and address recovery (#942)
 
 - Continue now identifies missing owner details and focuses the first field to

@@ -198,3 +198,52 @@ describe("Geoapify suggestions and manual recovery", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("the way out when the search fails (#943)", () => {
+  beforeEach(() => actions.lookupAddress.mockReset());
+
+  /** A rejected search arrives as a FunctionsHttpError whose body says why. */
+  function rejected(error) {
+    return {
+      data: null,
+      error: { context: new Response(JSON.stringify({ error }), { status: 502 }) },
+    };
+  }
+
+  // Every outcome where the search has let the customer down must offer a real
+  // button, not only the small text link. Customers stalled at this step and
+  // messaged the salon instead of finishing sign-up.
+  it.each([
+    ["the search is rejected", () => rejected("invalid_search")],
+    ["no suggestions are found", () => ({ data: { postcode: null, addresses: [] }, error: null })],
+    ["the search errors", () => rejected("upstream_unavailable")],
+  ])("shows an 'Enter it manually instead' button when %s", async (_label, outcome) => {
+    actions.lookupAddress.mockResolvedValue(outcome());
+    render(<AddressPicker onChange={() => {}} />);
+
+    search("1 Example Road, Example Town");
+
+    const button = await screen.findByRole("button", { name: "Enter it manually instead" });
+    fireEvent.click(button);
+    expect(screen.getByLabelText("Full address")).toBeInTheDocument();
+  });
+
+  it("tells the customer about the manual route when the search is too short", async () => {
+    render(<AddressPicker onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Search for your address"), { target: { value: "M1" } });
+    fireEvent.keyDown(screen.getByLabelText("Search for your address"), { key: "Enter" });
+
+    expect(await screen.findByText(/or enter it manually/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enter it manually instead" })).toBeInTheDocument();
+    expect(actions.lookupAddress).not.toHaveBeenCalled();
+  });
+
+  it("keeps the quiet text link before any search has failed", () => {
+    render(<AddressPicker onChange={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: /can't find your address\? enter it manually/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enter it manually instead" })).toBeNull();
+  });
+});

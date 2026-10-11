@@ -28,6 +28,8 @@ const ASSERT_SCRIPT = "scripts/assert-playwright-pr-smoke-results.mjs";
 const SELECT_STEP_ID = "changed-specs";
 const NARROW_STEP_NAME =
   "Run production-build PR suite — changed specs on tablet and mobile Chromium";
+const WEBKIT_STEP_NAME =
+  "Run production-build PR suite — smoke and continuity journeys on WebKit";
 
 /** The `pr-production-smoke` job block, bounded by the next job header. */
 function smokeJob(): string {
@@ -168,13 +170,22 @@ describe("the PR gate runs changed specs on tablet and mobile", () => {
   it("keeps the narrow run after the required desktop and WebKit invocations", () => {
     const job = smokeJob();
     const desktop = job.indexOf("every spec on desktop Chromium");
-    const webkit = job.indexOf("smoke and viewport journeys on WebKit");
+    const webkit = job.indexOf(WEBKIT_STEP_NAME);
     const narrow = job.indexOf(NARROW_STEP_NAME);
     const upload = job.indexOf("Retain Playwright failure context");
     expect(desktop).toBeGreaterThan(-1);
     expect(webkit).toBeGreaterThan(desktop);
     expect(narrow).toBeGreaterThan(webkit);
     expect(upload).toBeGreaterThan(narrow);
+  });
+
+  it("keeps both resize-continuity journeys in the WebKit gate", () => {
+    const webkit = step(smokeJob(), `name: ${WEBKIT_STEP_NAME}`);
+    expect(webkit).toContain("e2e/viewport-continuity.spec.ts");
+    expect(webkit).toContain("e2e/booking-modal-continuity.spec.ts");
+    expect(playwrightConfig).toMatch(
+      /smoke\|viewport-continuity\|booking-modal-continuity/,
+    );
   });
 
   it("allows viewport-gated skips only when the narrow run asks", () => {

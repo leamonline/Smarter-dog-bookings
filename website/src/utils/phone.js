@@ -1,12 +1,13 @@
 // Phone normalisation helpers for UK numbers.
-// Mirrors the regex used by humans.phone_normalised and link_or_create_customer_human.
-// The DB always re-normalises independently — these helpers exist for UI display
-// and for building the E.164 string Supabase Auth's signInWithOtp requires.
+// Same folding the booking app's humans.phone_normalised column and
+// link_or_create_customer_human RPC once used (both dropped: the RPC in June
+// 2026, the column in October 2026). These helpers exist for UI display and for
+// building the E.164 string Supabase Auth's signInWithOtp requires.
 
 const stripNoise = (input) => String(input ?? '').replace(/[^0-9+]/g, '');
 
 /**
- * Canonical local form, e.g. "07507731487". Matches the DB's phone_normalised column.
+ * Canonical local form, e.g. "07507731487" (the +44/0044 prefix folded to 0).
  * @param {string} input
  * @returns {string}
  */
