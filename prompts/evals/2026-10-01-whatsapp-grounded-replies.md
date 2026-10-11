@@ -5,7 +5,7 @@ version: 1
 purpose: Correct incomplete factual answers and unsupported portal guidance
 related_requirements: [REQ-AI-001, REQ-CAP-002]
 related_issues: [921]
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-11
 ---
 
 # Grounded replies follow-up
@@ -88,3 +88,12 @@ Prompt `2026-10-02.memory-1` adds explicit corrections for booking day/time/serv
 # Per-dog memory candidate — 2 October 2026
 
 Prompt `2026-10-02.memory-2` uses canonical IDs for known-customer dog memory; unknown onboarding remains flat. Per-dog age/coat/service/alerts do not update canonical customer records. A future approved model-quality comparison needs two dogs with different services/ages/alerts, an ambiguous “he”, correction of only one dog, a customer-injected foreign ID and legacy unbound memory. Deterministic ownership/merge/write tests establish isolation, not semantic attribution. No provider evaluation or environment enablement is claimed.
+
+# Fifth comparison preparation — 11 October 2026
+
+The fourth run's evidence directory no longer exists on the owner's machine, so the 20-complete recovery path in `prepare-recovery.mjs` cannot be used; the next comparison must be a full 28-request run. Both source corrections for the third-run defects (explicit today/tomorrow date resolution, and no unrequested prices with one-sentence service explanations) are on `main` in prompt `2026-10-02.2` and carried unchanged through `2026-10-02.memory-1`, `2026-10-02.memory-2` and `2026-10-07.portal-trouble-1`. The deterministic handler test for the supplied calendar and date instruction passes on `main`.
+
+Requests were prepared without credentials: baseline `6bac9bbd99231bf82dc39fac027b4ec925c4b780` (the reviewed third-run candidate) against candidate `056676f518d7e04905ecbb6ae330916de570a506` (current `main`, prompt `2026-10-07.portal-trouble-1`), fixture version 2, `claude-sonnet-4-6`, 512 output tokens, no sampling overrides. A structural audit of all 28 prepared requests found a single user turn per request, no empty content, no unknown top-level keys and no consecutive same-role turns. The fourth run's HTTP 400 therefore cannot be reproduced from request shape; it was the 21st serial call, so the cause may have been provider-side, which the runner's retained error body would now show. The prepared directory stays outside Git.
+
+The candidate includes the memory and booking-page-trouble prompt revisions that the baseline lacks, so any difference on the no-repeat and multi-dog cases is not attributable to the brevity and date instructions alone. The run remains unexecuted: provider-use approval and the key supplied through the process environment are required, and this record authorises no flag change, staging write or production promotion.
+
