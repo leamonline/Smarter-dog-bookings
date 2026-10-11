@@ -27,6 +27,7 @@ A "Confirm size" to-do is written or refreshed when:
 |---|---|
 | A signed-in customer adds a dog, or changes its breed or estimate, and the dog ends up with no size | AFTER trigger on `dogs` |
 | The booking wizard shows the customer a dog it cannot book | `request_dog_size_check(dog)`, called once per dog per visit |
+| The WhatsApp booking Flow hides a dog from its pet picker because it has no size | `raise_dog_size_check_todo(dog)` through the Flow endpoint's service-role client (`FlowDb.requestSizeCheck`), on each listing |
 
 It is only raised for an **approved** customer's **live** (not archived) dog.
 An unapproved signup is already covered by its `signup_review` task, and
@@ -61,9 +62,10 @@ It is an ordinary `general` task, so staff tick it off like any other.
 - **Set the size** by any route (the dog card's edit form, a booking, an
   import). The to-do ticks itself off.
 - **Confirm the owner's estimate in one tap**: when a dog has no size but the
-  owner gave one, the dog card shows "Confirm Medium". It writes through the
-  ordinary staff dog update, guarded so it only lands while the dog is still
-  unsized with that same estimate. If the dog changed since the card opened,
+  owner gave one, the dog card shows "Confirm Medium" and names the breed it is
+  being judged against. It writes through the ordinary staff dog update,
+  guarded so it only lands while the dog is still unsized with that same
+  estimate and that same breed. If the dog changed since the card opened,
   staff are told to reopen it rather than overwriting the newer value.
 - **Archive the dog**: the to-do ticks itself off.
 
@@ -100,7 +102,20 @@ about how quickly staff will confirm.
 real database sessions, and `241_dog_size_check_refresh_race.test.sql` the
 refresh paths racing a staff tick-off.
 
-## Not covered
+## The WhatsApp booking Flow
 
-The WhatsApp booking Flow still shows an unsized dog with no services and does
-not raise a to-do. It could call the same RPC if that turns out to matter.
+The Flow's pet picker hides a dog with no size (issue #682). Since the
+`listPetOptions` change of October 2026 it also asks staff to confirm the size
+of each dog hidden for that reason, through the same internal writer the
+portal uses, so the salon learns about a waiting WhatsApp customer the same
+way it learns about a waiting portal customer. The database still decides
+whether there is anything to raise (an approved owner, a live, unsized dog)
+and keeps it to one open to-do per dog, so the call is safe to repeat on every
+listing.
+
+When every hidden dog is waiting on a size and a to-do is open for each, the
+"no bookable pets" screen says the team has been asked and will message the
+customer once it is set. If any dog is hidden for another reason (a
+pregnancy), or a request could not be recorded, the screen keeps its original
+"please reply here" wording and promises nothing. A pregnant unsized dog is
+not asked about from the Flow: that conversation needs a human first.

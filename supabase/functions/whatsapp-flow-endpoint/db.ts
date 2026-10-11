@@ -121,6 +121,18 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
       return (data as DogRow | null) ?? null;
     },
 
+    async requestSizeCheck(dogId: string): Promise<boolean> {
+      // Internal writer (revoked from the API roles; the service role may
+      // call it). It locks the dog row, re-checks that a to-do is warranted,
+      // and keeps to one open row per dog, so this is idempotent.
+      const { data, error } = await supabase.rpc("raise_dog_size_check_todo", { p_dog_id: dogId });
+      if (error) {
+        console.error("requestSizeCheck failed:", error.message);
+        return false;
+      }
+      return data === true;
+    },
+
     async getPricing(): Promise<PricingMap | null> {
       const { data } = await supabase
         .from("salon_config")

@@ -23,6 +23,10 @@ import type {
 export type UpdateDogOptions = {
   /** Only write if dogs.size is still null and dogs.reported_size still equals this. */
   onlyIfUnsizedWithReported?: DogSize;
+  // With the guard above: also require the breed to be what staff saw. A
+  // size is judged against the breed on the card, so a breed the customer
+  // corrected meanwhile must send staff back to look, not land silently.
+  expectedBreed?: string | null;
 };
 
 export function useDogMutations({
@@ -123,7 +127,13 @@ export function useDogMutations({
       let query = supabase.from("dogs").update(dbUpdates).eq("id", existingDog.id);
       // Archived dogs are out of the workflow: archiving ends a size check, it
       // doesn't complete one.
-      if (guard) query = query.is("size", null).is("archived_at", null).eq("reported_size", guard);
+      if (guard) {
+        query = query.is("size", null).is("archived_at", null).eq("reported_size", guard);
+        if ("expectedBreed" in options) {
+          const breed = options.expectedBreed;
+          query = breed == null ? query.is("breed", null) : query.eq("breed", breed);
+        }
+      }
       const { data, error: err } = guard
         ? await query.select("*").maybeSingle()
         : await query.select("*").single();

@@ -873,3 +873,53 @@ describe("unbookable dogs are hidden from the picker (#682)", () => {
     expect(allHidden.totalOnFile).toBe(2); // → the "we need to check something" message
   });
 });
+
+describe("a dog hidden for want of a size asks staff to confirm it (#963)", () => {
+  const sized = { id: "ok", name: "Bella", breed: "Cockapoo", size: "small", human_id: "h1" };
+  const unsized = { id: "nosize", name: "Pip", breed: "Terrier", size: null, human_id: "h1" };
+  const unsizedToo = { id: "nosize2", name: "Dot", breed: "Pug", size: "", human_id: "h1" };
+  const pregnant = { id: "preg", name: "Nell", breed: "Poodle", size: "medium", human_id: "h1", is_pregnant: true };
+  const pregnantUnsized = { id: "pregnosize", name: "Fern", breed: null, size: null, human_id: "h1", is_pregnant: true };
+
+  function withRequests(dogs: unknown[], answer: (id: string) => boolean | Promise<boolean>) {
+    const asked: string[] = [];
+    const { db } = makeDb({ dogs: dogs as never });
+    db.requestSizeCheck = async (id) => {
+      asked.push(id);
+      return await answer(id);
+    };
+    return { db, asked };
+  }
+
+  it("raises one request per unsized dog and none for sized or pregnant ones", async () => {
+    const { db, asked } = withRequests([sized, unsized, unsizedToo, pregnant, pregnantUnsized], () => true);
+    const listing = await listPetOptions(db, "h1");
+    // The two plain unsized dogs; not the sized one (bookable), not the pregnant
+    // sized one (hidden for its own reason), and not the pregnant unsized one
+    // (the Flow's message sends it to a human either way).
+    expect(asked.sort()).toEqual(["nosize", "nosize2"]);
+    expect(listing).toMatchObject({ hiddenCount: 4, totalOnFile: 5, sizeChecksRaised: 2 });
+  });
+
+  it("counts only the requests the database accepted", async () => {
+    // raise_dog_size_check_todo returns false when there is nothing to raise
+    // (an unapproved owner, or the dog got a size between the read and the lock).
+    const { db } = withRequests([unsized, unsizedToo], (id) => id === "nosize");
+    expect((await listPetOptions(db, "h1")).sizeChecksRaised).toBe(1);
+  });
+
+  it("still lists the dogs when a request throws", async () => {
+    const { db } = withRequests([sized, unsized], () => {
+      throw new Error("rpc down");
+    });
+    const listing = await listPetOptions(db, "h1");
+    expect(listing.options.map((o) => o.id)).toEqual(["ok"]);
+    expect(listing.sizeChecksRaised).toBe(0);
+  });
+
+  it("works unchanged for a FlowDb that cannot raise requests", async () => {
+    const { db } = makeDb({ dogs: [unsized] as never });
+    expect(db.requestSizeCheck).toBeUndefined();
+    expect(await listPetOptions(db, "h1")).toMatchObject({ hiddenCount: 1, sizeChecksRaised: 0 });
+  });
+});
