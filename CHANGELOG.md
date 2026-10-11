@@ -14,6 +14,12 @@
 
 ## Unreleased — staff are told when a customer waits on a dog size (#963)
 
+- The WhatsApp booking Flow now raises the same "Confirm size" to-do when it
+  hides a dog from its pet picker for having no size, and tells the customer
+  the team has been asked once a to-do is open for every hidden dog.
+- The one-tap "Confirm Medium" button names the breed it is judging against and
+  only lands while that breed is unchanged, as well as the estimate.
+
 - A customer whose dog has no confirmed size can still not book it online, but
   staff now get one "Confirm size" to-do per dog, naming the dog, breed, owner
   and the owner's estimate. The booking wizard says "We're confirming their

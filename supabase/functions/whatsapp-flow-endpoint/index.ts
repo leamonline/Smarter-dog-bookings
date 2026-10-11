@@ -111,6 +111,12 @@ const NO_PETS_MSG =
 // (issue #682). Both are resolved by a human, not by the Flow.
 const NO_BOOKABLE_PETS_MSG =
   "We just need to check something about your dog before booking online — please reply here and the team will sort it. 🐾";
+// Every hidden dog is waiting on a size and the salon now has a to-do for it,
+// so make the same promise the portal wizard makes: the team has been asked.
+// Not used when any dog is hidden for another reason (a pregnancy needs a
+// conversation first), so the message never promises more than is true.
+const SIZE_CHECK_RAISED_MSG =
+  "We just need to confirm your dog's size before you can book online — we've let the team know, and they'll message you here once it's set. 🐾";
 const FINE_PRINT =
   "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon.";
 
@@ -205,10 +211,14 @@ async function buildScreen(
     case "SELECT_PET": {
       const listing = session.human_id
         ? await listPetOptions(db, session.human_id)
-        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+        : { options: [], hiddenCount: 0, totalOnFile: 0, sizeChecksRaised: 0 };
       if (!listing.options.length) {
         return screenResponse("NO_PETS", {
-          message: listing.totalOnFile > 0 ? NO_BOOKABLE_PETS_MSG : NO_PETS_MSG,
+          message: listing.totalOnFile === 0
+            ? NO_PETS_MSG
+            : listing.sizeChecksRaised === listing.hiddenCount
+            ? SIZE_CHECK_RAISED_MSG
+            : NO_BOOKABLE_PETS_MSG,
         });
       }
       return screenResponse("SELECT_PET", { pets: listing.options });
@@ -637,7 +647,7 @@ async function handleDataExchange(
       }
       const listing = session.human_id
         ? await listPetOptions(db, session.human_id)
-        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+        : { options: [], hiddenCount: 0, totalOnFile: 0, sizeChecksRaised: 0 };
       target = listing.options.length ? "SELECT_PET" : "NO_PETS";
       break;
     }

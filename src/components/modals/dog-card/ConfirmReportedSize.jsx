@@ -9,10 +9,11 @@
 // same as the edit form, and the owner's estimate alone never does. Setting the
 // size ticks the to-do off in the database.
 //
-// The write is guarded: it only lands if the dog still has no size and the
-// owner's estimate is still the one on screen. If someone else set a size, or
-// the customer changed the breed or estimate since the card opened, the newer
-// value wins and staff are told to look again rather than overwriting it.
+// The write is guarded: it only lands if the dog still has no size, the
+// owner's estimate is still the one on screen, and the breed is still the one
+// on screen (a size is judged against the breed). If someone else set a size,
+// or the customer changed the breed or estimate since the card opened, the
+// newer value wins and staff are told to look again rather than overwriting it.
 import { useState } from "react";
 import { titleCase } from "../../../utils/text";
 
@@ -24,10 +25,15 @@ export function ConfirmReportedSize({ dog, onUpdateDog, onConfirmed, onFailed })
   }
 
   const label = titleCase(reported);
+  const breed = typeof dog.breed === "string" && dog.breed.trim() ? dog.breed.trim() : null;
   const handleConfirm = async () => {
     setSaving(true);
     try {
-      const saved = await onUpdateDog(dog.id, { size: reported }, { onlyIfUnsizedWithReported: reported });
+      const saved = await onUpdateDog(
+        dog.id,
+        { size: reported },
+        { onlyIfUnsizedWithReported: reported, expectedBreed: dog.breed ?? null },
+      );
       if (saved) onConfirmed?.(reported);
       else onFailed?.();
     } finally {
@@ -42,7 +48,8 @@ export function ConfirmReportedSize({ dog, onUpdateDog, onConfirmed, onFailed })
       className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-brand-paper-line bg-brand-paper/60 px-3 py-2"
     >
       <p className="m-0 min-w-0 flex-1 text-[12px] font-semibold text-slate-700">
-        No size recorded. The owner thinks <strong className="text-brand-purple">{reported}</strong>.
+        No size recorded. The owner thinks <strong className="text-brand-purple">{reported}</strong>
+        {breed ? <> for a {breed}</> : null}.
         <span className="block text-[11px] font-medium text-ink-muted">
           They can’t book online until it’s set. Use Edit to choose a different size.
         </span>

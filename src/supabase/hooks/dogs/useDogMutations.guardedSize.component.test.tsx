@@ -67,7 +67,40 @@ describe("updateDog guarded size confirmation", () => {
     expect(calls).toContainEqual(["is", "size", null]);
     expect(calls).toContainEqual(["is", "archived_at", null]);
     expect(calls).toContainEqual(["eq", "reported_size", "medium"]);
+    // No breed was named, so the breed is not part of the guard.
+    expect(calls.some(([, col]) => col === "breed")).toBe(false);
     expect(saved).toMatchObject({ id: "dog-1", size: "medium" });
+  });
+
+  it("also requires the breed staff saw, when one is named", async () => {
+    result = { data: { ...row, size: "medium" }, error: null };
+    const { hook } = setup();
+
+    await act(async () => {
+      await hook.current.updateDog(
+        "dog-1",
+        { size: "medium" },
+        { onlyIfUnsizedWithReported: "medium", expectedBreed: "Pug x Labrador" },
+      );
+    });
+
+    expect(calls).toContainEqual(["eq", "breed", "Pug x Labrador"]);
+  });
+
+  it("guards a blank breed as IS NULL rather than = null", async () => {
+    result = { data: { ...row, breed: null, size: "medium" }, error: null };
+    const { hook } = setup();
+
+    await act(async () => {
+      await hook.current.updateDog(
+        "dog-1",
+        { size: "medium" },
+        { onlyIfUnsizedWithReported: "medium", expectedBreed: null },
+      );
+    });
+
+    expect(calls).toContainEqual(["is", "breed", null]);
+    expect(calls.some(([m, col]) => m === "eq" && col === "breed")).toBe(false);
   });
 
   it("returns null and caches the dog as it is now when it changed meanwhile", async () => {

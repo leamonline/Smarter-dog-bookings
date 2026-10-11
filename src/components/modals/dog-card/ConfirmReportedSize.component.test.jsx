@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ConfirmReportedSize } from "./ConfirmReportedSize.jsx";
 
-const waiting = { id: "dog-1", name: "Bramble", size: null, reportedSize: "medium" };
+const waiting = { id: "dog-1", name: "Bramble", breed: "Pug x Labrador", size: null, reportedSize: "medium" };
 
 describe("ConfirmReportedSize", () => {
   it("confirms the owner's estimate through the ordinary staff dog update", async () => {
@@ -10,12 +10,34 @@ describe("ConfirmReportedSize", () => {
     const onConfirmed = vi.fn();
     render(<ConfirmReportedSize dog={waiting} onUpdateDog={onUpdateDog} onConfirmed={onConfirmed} />);
 
-    expect(screen.getByText(/owner thinks/i)).toHaveTextContent("The owner thinks medium");
+    // The breed is on screen because the size is judged against it.
+    expect(screen.getByText(/owner thinks/i)).toHaveTextContent("The owner thinks medium for a Pug x Labrador.");
     fireEvent.click(screen.getByRole("button", { name: "Confirm Medium" }));
 
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith("medium"));
-    // Guarded: only lands if the dog is still unsized with the estimate shown.
-    expect(onUpdateDog).toHaveBeenCalledWith("dog-1", { size: "medium" }, { onlyIfUnsizedWithReported: "medium" });
+    // Guarded: only lands if the dog is still unsized, with the estimate and
+    // the breed that were shown.
+    expect(onUpdateDog).toHaveBeenCalledWith(
+      "dog-1",
+      { size: "medium" },
+      { onlyIfUnsizedWithReported: "medium", expectedBreed: "Pug x Labrador" },
+    );
+  });
+
+  it("guards a missing breed as null and leaves it out of the wording", async () => {
+    const onUpdateDog = vi.fn().mockResolvedValue({ id: "dog-1", size: "medium" });
+    render(<ConfirmReportedSize dog={{ ...waiting, breed: null }} onUpdateDog={onUpdateDog} />);
+
+    expect(screen.getByText(/owner thinks/i)).toHaveTextContent("The owner thinks medium.");
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Medium" }));
+
+    await waitFor(() =>
+      expect(onUpdateDog).toHaveBeenCalledWith(
+        "dog-1",
+        { size: "medium" },
+        { onlyIfUnsizedWithReported: "medium", expectedBreed: null },
+      ),
+    );
   });
 
   it("reports a failed save instead of claiming success", async () => {
