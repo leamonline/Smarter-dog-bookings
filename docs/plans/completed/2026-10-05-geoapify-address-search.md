@@ -1,12 +1,12 @@
 # Geoapify address search
 
-Status: Active
+Status: Completed — #946 merged as 30f9f0b on 2026-10-11; GEOAPIFY_API_KEY configured; live search verified against the deployed function
 
 Issue: [#944](https://github.com/leamonline/Smarter-dog-bookings/issues/944)
 
 Base: main@65d611dfb68a3e74f42274be551abdac077cb9ca
 
-Last verified: 2026-10-05
+Last verified: 2026-10-11
 
 Owners: customer onboarding address picker/actions and postcode-lookup function
 
@@ -139,3 +139,33 @@ Edge Function Secrets. The connected tools do not expose secret management and
 the CLI lacks production management authentication. After release, verify the
 actual function and frontend with synthetic/public premises and record results
 here and in #944. Keep this plan active and the issue open until then.
+
+## Release evidence — 11 October 2026
+
+- **Key:** the owner saved `GEOAPIFY_API_KEY` in the production project's Edge
+  Function Secrets (`nlzhllhkigmsvrzduefz`) on 11 October 2026, then
+  authorised the merge.
+- **Merge and deploy:** #946 merged as `30f9f0b` after main was merged in
+  (conflicts with #943/#964 resolved: the search-based picker keeps main's
+  prominent "Enter it manually instead" button and its ported tests). *Deploy
+  Supabase Edge Functions* run 38144314583 succeeded at 13:44 UTC (full
+  redeploy, as the auth manifest changed). Vercel production deployment
+  `dpl_EETWzNtYnJ2umoqxG1neLXLeJT4a` of `30f9f0b` reached READY.
+- **Live function checks**, `POST /functions/v1/postcode-lookup` on the
+  production project with the publishable key, synthetic/public inputs only:
+  - `{ "text": "6 Back Lane, Mottram, Hyde" }` (the salon's published
+    address) → HTTP 200, nine suggestions, each with its own postcode and
+    `udprn: null`, including `6 Back Lane, Mottram, SK14 6JE, United Kingdom`.
+  - `{ "postcode": "SK14 6JE" }` (a cached client's legacy request) →
+    HTTP 200 `{ "postcode": "SK14 6JE", "addresses": [] }`: accepted, no
+    selectable premises for a postcode-only search, as documented.
+  - `{ "text": "ab" }` → HTTP 400 `{ "error": "invalid_search" }`, rejected
+    before any provider call.
+- **Not verified live:** a mobile-browser journey through the deployed signup
+  form, and local house/flat coverage beyond the one published address. The
+  component and synthetic checks of 5 October cover the journey; coverage is
+  whatever Geoapify's open data holds, with manual entry as the fallback.
+- **Checks on the merged head:** all nine PR checks green on `7cedb67`; Codex
+  review with no findings; locally lint, docs, typecheck, migrations, Vitest
+  (408 files / 4,312 tests), build, Edge types/auth (28 functions) and the
+  postcode-lookup Deno suite (33) all pass.
