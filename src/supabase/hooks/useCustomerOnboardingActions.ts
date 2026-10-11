@@ -1,6 +1,6 @@
 // Action hook for the customer onboarding gates (Debt #12): binds the customer
 // Supabase client to the four writes the gates need — profile completion,
-// self-signup submission, password set/change and the postcode lookup Edge
+// self-signup submission, password set/change and the address search Edge
 // Function — so ProfileGate, JoinThePackOnboarding, SetPasswordGate and
 // AddressPicker never import the client themselves. Results are returned in
 // the same `{ data, error }` shape the underlying calls produce, so each gate
@@ -34,10 +34,14 @@ export async function setPassword(password: string) {
 }
 
 /**
- * The postcode-lookup Edge Function. Returns the raw invoke result: on a
- * non-2xx response `error.context` is the Response, which AddressPicker
- * reads to distinguish an invalid postcode from a rate limit.
+ * Geoapify address search through the existing postcode-lookup Edge endpoint.
+ * Returns the raw invoke result so the picker can offer friendly recovery.
  */
+export async function lookupAddress(text: string) {
+  return requireClient().functions.invoke("postcode-lookup", { body: { text } });
+}
+
+/** Legacy postcode request, retained for callers using the previous contract. */
 export async function lookupPostcode(postcode: string) {
   return requireClient().functions.invoke("postcode-lookup", { body: { postcode } });
 }
@@ -50,6 +54,7 @@ const actions = {
   completeProfile,
   submitSignup,
   setPassword,
+  lookupAddress,
   lookupPostcode,
 };
 

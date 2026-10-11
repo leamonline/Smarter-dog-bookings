@@ -1,54 +1,22 @@
-// ============================================================
-// postcode-lookup
-//
-// Proxies a UK postcode -> address list lookup to APITier's UK
-// PostCode API, so the customer onboarding screen can offer a
-// "type postcode -> pick your address" flow that returns the real
-// Royal Mail PAF address (e.g. "6 Back Lane, Mottram, Hyde, SK14 6JE").
-//
-// This is an Edge Function rather than a browser call for two reasons:
-//   1. APITier's key is a paid credential and their docs require it
-//      stays server-side — never in frontend code.
-//   2. APITier charges per lookup, so we apply the same per-IP +
-//      global rate limiting as customer-phone-on-file to keep abuse
-//      from burning credit (the Twilio rationale, one API over).
-//
-// Request:
-//   POST /functions/v1/postcode-lookup
-//   body: { postcode: "SK14 6JE" }
-//
-// Response (200):
-//   { postcode: "SK14 6JE", addresses: [ { line, postcode, udprn }, ... ] }
-//   (empty addresses array = valid request, no premises matched)
-//
-// Coverage note: APITier's postcode product is Royal Mail PAF only. PAF does
-// NOT include the Multiple Residence dataset (flats, sub-divided houses, halls
-// of residence, multi-business premises — ~800k UK addresses) or very new
-// builds, so those legitimately won't appear here and there's no APITier
-// parameter that adds them. The onboarding UI covers this gap with a
-// manual-entry fallback. A genuine completeness upgrade would mean moving to a
-// provider that exposes Multiple Residence / AddressBase (e.g. Ideal Postcodes,
-// getAddress.io, OS Places) — intentionally out of scope for now.
-//
-// Errors:
-//   400 — invalid/garbage postcode input
-//   429 — rate-limited
-//   500 — server misconfigured (no API key)
-//   502 — upstream APITier failure
-// ============================================================
+// Geoapify UK address suggestions through the existing public-rate-limited
+// postcode-lookup route. New callers send { text }; cached callers can still
+// send { postcode }. Responses retain { postcode, addresses }, with null UDPRN.
+// The server holds GEOAPIFY_API_KEY; the browser receives only suggestions.
+// Open-data coverage is incomplete, so manual signup entry stays available.
+// 400 invalid input; 429 rate limit; 500 missing key; 502 provider failure.
 
-import { lookupAddresses } from "./provider.ts";
+import { lookupAddresses, providerErrorCode } from "./provider.ts";
+import { parseLookupInput } from "./input.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APITIER_API_KEY = Deno.env.get("APITIER_API_KEY") ?? "";
+const GEOAPIFY_API_KEY = Deno.env.get("GEOAPIFY_API_KEY") ?? "";
 
 // Per-IP rate limit. A customer onboarding only needs a couple of
-// lookups even if they fat-finger the postcode; anything beyond this
-// is abuse and we'd rather drop it than spend an APITier lookup.
+// explicit searches; limit repeated requests to protect the free quota.
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
 
@@ -97,20 +65,6 @@ async function checkAndRecordAttempt(
   return data === true;
 }
 
-// Normalise to the canonical "OUTCODE INCODE" form APITier expects.
-// Returns null for input that can't be a UK postcode so we never spend
-// a lookup (or count it toward the rate limit) on obvious garbage.
-function normalisePostcode(raw: string): string | null {
-  const compact = raw.toUpperCase().replace(/\s+/g, "");
-  // UK postcodes are 5-7 chars; allow letters + digits only.
-  if (!/^[A-Z0-9]{5,7}$/.test(compact)) return null;
-  // Inward code is always the last 3 chars: <digit><letter><letter>.
-  const outward = compact.slice(0, -3);
-  const inward = compact.slice(-3);
-  if (!/^[0-9][A-Z]{2}$/.test(inward)) return null;
-  return `${outward} ${inward}`;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsFor(req) });
@@ -123,17 +77,7 @@ serve(async (req) => {
     });
   }
 
-  if (!APITIER_API_KEY) {
-    console.error(
-      "postcode-lookup: APITIER_API_KEY is not set. Set it on the expected Supabase project with an explicit project ref.",
-    );
-    return new Response(JSON.stringify({ error: "not_configured" }), {
-      status: 500,
-      headers: { ...corsFor(req), "content-type": "application/json" },
-    });
-  }
-
-  let body: { postcode?: unknown };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -143,13 +87,19 @@ serve(async (req) => {
     });
   }
 
-  const rawPostcode = typeof body.postcode === "string" ? body.postcode : "";
-  const postcode = normalisePostcode(rawPostcode);
-  if (!postcode) {
-    // Reject before the rate-limit count so a mistyped postcode on a real
-    // customer doesn't eat into their bucket.
-    return new Response(JSON.stringify({ error: "invalid_postcode" }), {
+  const input = parseLookupInput(body);
+  if ("error" in input) {
+    // Invalid input never consumes rate-limit capacity or provider credit.
+    return new Response(JSON.stringify({ error: input.error }), {
       status: 400,
+      headers: { ...corsFor(req), "content-type": "application/json" },
+    });
+  }
+
+  if (!GEOAPIFY_API_KEY) {
+    console.error("postcode-lookup: GEOAPIFY_API_KEY is not configured");
+    return new Response(JSON.stringify({ error: "not_configured" }), {
+      status: 500,
       headers: { ...corsFor(req), "content-type": "application/json" },
     });
   }
@@ -179,7 +129,7 @@ serve(async (req) => {
   }
 
   try {
-    const payload = await lookupAddresses(postcode, APITIER_API_KEY);
+    const payload = await lookupAddresses(input.text, GEOAPIFY_API_KEY);
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { ...corsFor(req), "content-type": "application/json" },
@@ -187,9 +137,7 @@ serve(async (req) => {
   } catch (err) {
     // Fetch failures can include the URL (and its API key). Log only our own
     // bounded diagnostic codes, never the provider body, URL or raw exception.
-    const code = err instanceof Error && /^apitier_(upstream_\d{3}|invalid_response)$/.test(err.message)
-      ? err.message
-      : "apitier_request_failed";
+    const code = providerErrorCode(err);
     console.error("postcode-lookup upstream error:", code);
     return new Response(JSON.stringify({ error: "upstream" }), {
       status: 502,

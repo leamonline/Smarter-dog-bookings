@@ -5,7 +5,7 @@ import { JoinThePackOnboarding } from "./JoinThePackOnboarding.jsx";
 
 const actions = vi.hoisted(() => ({
   connected: true,
-  lookupPostcode: vi.fn(),
+  lookupAddress: vi.fn(),
   submitSignup: vi.fn(),
 }));
 vi.mock("../../../supabase/hooks/useCustomerOnboardingActions", () => ({
@@ -35,7 +35,7 @@ function attemptContinue() {
 describe("signup validation and address recovery", () => {
   beforeEach(() => {
     localStorage.clear();
-    actions.lookupPostcode.mockReset();
+    actions.lookupAddress.mockReset();
     actions.submitSignup.mockReset();
   });
 
@@ -48,7 +48,7 @@ describe("signup validation and address recovery", () => {
     expect(screen.getByLabelText("First name")).toHaveFocus();
     expect(screen.getByLabelText("Surname")).toHaveAccessibleDescription("Enter your surname.");
     expect(screen.getByLabelText("Email address")).toHaveAccessibleDescription("Enter a valid email address.");
-    expect(screen.getByLabelText("Postcode")).toHaveAccessibleDescription(/Select your address or enter it manually/);
+    expect(screen.getByLabelText("Search for your address")).toHaveAccessibleDescription(/Select your address or enter it manually/);
     expect(screen.getByRole("checkbox")).toHaveAccessibleDescription(/Please agree/);
     expect(actions.submitSignup).not.toHaveBeenCalled();
   });
@@ -100,11 +100,11 @@ describe("signup validation and address recovery", () => {
   });
 
   it("allows manual entry and progression when the postcode service fails", async () => {
-    actions.lookupPostcode.mockResolvedValue({
+    actions.lookupAddress.mockResolvedValue({
       error: { context: new Response(JSON.stringify({ error: "upstream" }), { status: 502 }) },
     });
     renderForm();
-    change("Postcode", "SK14 6JE");
+    change("Search for your address", "1 Example Road, Example Town");
     fireEvent.click(screen.getByRole("button", { name: "Find address" }));
     expect(await screen.findByText(/Couldn't search just now/)).toBeInTheDocument();
     fillOwner();
@@ -112,12 +112,12 @@ describe("signup validation and address recovery", () => {
     expect(screen.getByRole("heading", { name: "About your dog" })).toBeInTheDocument();
   });
 
-  it("offers a real manual-entry button when no addresses are found for the postcode", async () => {
-    actions.lookupPostcode.mockResolvedValue({ data: { postcode: "SK14 6JE", addresses: [] } });
+  it("offers a real manual-entry button when no suggestions are found for the search", async () => {
+    actions.lookupAddress.mockResolvedValue({ data: { postcode: "SK14 6JE", addresses: [] }, error: null });
     renderForm();
-    change("Postcode", "SK14 6JE");
+    change("Search for your address", "1 Example Road, SK14 6JE");
     fireEvent.click(screen.getByRole("button", { name: "Find address" }));
-    expect(await screen.findByText(/No addresses found/)).toBeInTheDocument();
+    expect(await screen.findByText(/No address suggestions found/)).toBeInTheDocument();
     const manual = screen.getByRole("button", { name: "Enter it manually instead" });
     expect(manual).toHaveClass("portal-btn");
     expect(screen.queryByRole("button", { name: /Can't find your address/ })).not.toBeInTheDocument();

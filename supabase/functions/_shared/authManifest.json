@@ -347,9 +347,9 @@
       "serviceRole": true,
       "originPolicy": "POSTCODE_LOOKUP_ALLOWED_ORIGINS",
       "replayDefence": "per-IP rate limit (8/60s) plus a global cap",
-      "unauthorizedResponse": "400 invalid postcode, 429 rate-limited, 500 when APITIER_API_KEY is unset, 502 on upstream failure",
-      "emptySecretBehaviour": "closed for the upstream call — returns 500 rather than calling APITier without a key. The caller check itself uses no secret.",
-      "notes": "Proxies a paid per-lookup API, so rate limiting protects spend as well as data. Returns only public Royal Mail PAF address data, never customer records."
+      "unauthorizedResponse": "400 invalid search or legacy postcode, 429 rate-limited, 500 when GEOAPIFY_API_KEY is unset, 502 on upstream failure",
+      "emptySecretBehaviour": "closed for the upstream call — returns 500 rather than calling Geoapify without a key. The caller check itself uses no secret.",
+      "notes": "Proxies UK Geoapify address suggestions; rate limits protect the free credit allowance. Returns address suggestions only, never customer records. No paid-provider fallback."
     },
     "reminder-send": {
       "authFamily": "staff-jwt-or-internal-secret",

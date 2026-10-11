@@ -90,10 +90,10 @@ The evidence and distinctions behind this table live in
 - **Supabase** — Postgres database, Auth, Row Level Security, Realtime and Storage
   (private `dog-photos` bucket).
 - **Edge Functions** — backend logic in Deno (notifications, WhatsApp, calendar
-  feeds, postcode lookup). See [Edge Functions](#edge-functions) below.
+  feeds, address search). See [Edge Functions](#edge-functions) below.
 - **External services** — Meta WhatsApp Cloud API, Anthropic Claude (AI
-  receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), APITier (UK
-  postcode lookup), Cloudflare Turnstile (login CAPTCHA — enforcement depends on
+  receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), Geoapify (UK
+  address suggestions; [setup and recovery](docs/address-search.md)), Cloudflare Turnstile (login CAPTCHA — enforcement depends on
   Supabase Authentication → Attack Protection being on; `npm run check:captcha`
   verifies it against the live project), Sentry (error reporting —
   live since 28 August 2026; `npm run check:sentry` verifies it against the
