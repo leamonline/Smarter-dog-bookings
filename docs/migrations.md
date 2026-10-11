@@ -106,6 +106,38 @@ remain from earlier rehearsals.
 `supabase/migrations/` is a near-complete record of prod schema
 history.
 
+## Late cancellation history (#931) — applied 1 October 2026, recorded 12 October 2026
+
+`20261001160000_late_cancellation_history.sql` was applied to **prod**
+(`nlzhllhkigmsvrzduefz`) on 1 October 2026 as `late_cancellation_history`
+(ledger version `20261001203326`, 20:33 UTC), three minutes before PR #931
+merged at 20:36 UTC, so the schema was live before the dependent portal,
+customer-card and WhatsApp code deployed. The apply predates the
+**Apply named migrations to production** workflow (merged 6 October), so there
+is no run URL; the ledger row holds the file as a single statement, which is
+the shape the Supabase MCP `apply_migration` writes. This note was written
+retrospectively on 12 October from read-only prod evidence, because the apply
+was not recorded here at the time.
+
+Content check, 12 October 2026: the MD5 of the ledger's stored statement equals
+the MD5 of the committed file (`1a748655e664da15b9d6fe7f40f9fd95`), so prod
+recorded exactly the SQL that `main` carries and the `migrations-applied` check
+has nothing to dispute.
+
+Post-apply evidence, read from the prod catalog on 12 October 2026 through the
+MCP (read-only): tables `smarter_dog_private.late_cancellation_history` and
+`late_cancellation_history_audit` exist; the `record_late_customer_cancellation`
+and `clear_cancellation_cause` triggers are present on `public.bookings`;
+`smarter_dog_private.record_late_cancellation()`, `cancellation_notice_hours()`,
+`public.waive_late_cancellation(uuid, text)`,
+`public.staff_customer_cancellation_history(uuid)` and
+`public.cancel_whatsapp_booking_group_for_reschedule(...)` all exist. The
+history table holds 2 incidents (0 waived) dated 5 and 11 October 2026, so the
+trigger has fired on real customer cancellations. Only aggregate counts were
+read. Staging received the same file through the schema sync recorded in the
+[#939 entry](#humans-reconciliation-and-signup-claim-fix-939--applied-4-october-2026)
+(staging ledger applied through `20261005190000`).
+
 ## Payment history migration (#879) — applied 27 September 2026
 
 `20260927160000_booking_payment_history.sql` adds atomic payment snapshots and
