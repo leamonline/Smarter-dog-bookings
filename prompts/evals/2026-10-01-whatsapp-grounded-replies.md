@@ -97,3 +97,9 @@ Requests were prepared without credentials: baseline `6bac9bbd99231bf82dc39fac02
 
 The candidate includes the memory and booking-page-trouble prompt revisions that the baseline lacks, so any difference on the no-repeat and multi-dog cases is not attributable to the brevity and date instructions alone. The run remains unexecuted: provider-use approval and the key supplied through the process environment are required, and this record authorises no flag change, staging write or production promotion.
 
+# Fifth run attempts — 11 October 2026
+
+The owner approved execution and supplied a key through a local file outside the repository. Two attempts were made, each stopped by the runner on its first call with zero completed responses and no output tokens: the first returned HTTP 401 `authentication_error` (the supplied value was not a valid key), the second returned HTTP 400 `invalid_request_error` with the provider's message that the account's credit balance is too low. Both diagnostics were saved by the runner with the key redacted. The second attempt used a freshly prepared directory with the same baseline and candidate revisions and the same fixture hash.
+
+The credit-balance refusal is a 400, which is consistent with the fourth run's unexplained HTTP 400 at the 21st call on 2 October; that remains an inference, not a confirmed cause. No comparison evidence exists for the fifth run. A further attempt needs credit on the account and a separately approved retry.
+
