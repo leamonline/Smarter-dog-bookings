@@ -5,8 +5,9 @@ Issue: [#963](https://github.com/leamonline/Smarter-dog-bookings/issues/963)
 (item 9 of the October 2026 WhatsApp friction review), built as
 [PR #962](https://github.com/leamonline/Smarter-dog-bookings/pull/962)
 Base: `main@69be16c961d1f1c2e1262da058d15dc2d68cefc4`
-Last verified: 2026-10-08
+Last verified: 2026-10-10
 Owners: `supabase/migrations/20261008120000_dog_size_check_todo.sql`,
+`supabase/migrations/20261010210000_dog_size_check_refresh.sql`,
 `src/components/customer/booking/DogSelection.tsx`,
 `src/components/modals/dog-card/ConfirmReportedSize.jsx`,
 `src/supabase/hooks/dogs/useDogMutations.ts` (guarded write),
@@ -160,8 +161,14 @@ workflow before merge (`migrations-applied` is a required check).
 
 ## Implementation sequence
 
-A single pull request, #962: the migration, tests, frontend and docs together.
-The migration lands first in production by the workflow.
+1. PR #962: the migration, tests, frontend and docs together. The migration
+   landed in production by the workflow on 10 October 2026, then the PR merged.
+2. A follow-up pull request for the two review findings left open on #962:
+   migration `20261010210000_dog_size_check_refresh.sql` makes every
+   wording-refresh path an `UPDATE` of the open row only (a refresh racing a
+   staff tick-off used to re-insert the to-do) and adds the full index behind
+   `salon_todos_dog_id_fkey`. Same route: apply through the workflow, then
+   merge.
 
 ## Testing
 
@@ -171,6 +178,9 @@ The migration lands first in production by the workflow.
 - `supabase/tests/240_dog_size_check_race.test.sql`: two-session races
   (size-edit race, lock order against a merge, owner move, reopen race). Each
   was checked to fail on the code it guards against.
+- `supabase/tests/241_dog_size_check_refresh_race.test.sql`: a dog rename, a
+  staff breed edit and an owner rename each racing a staff tick-off; the
+  to-do must stay done. Checked to fail on the `20261008120000` code.
 - Component and unit tests for `DogSelection`, `ConfirmReportedSize`, the
   guarded `updateDog` and `dogsRepo`.
 - The full CI bar: lint, docs, typecheck, migrations, test and build.
@@ -189,8 +199,8 @@ and how quickly they were cleared.
 
 ## Definition of done
 
-- The migration is applied to production and recorded under
-  `dog_size_check_todo`.
+- Both migrations are applied to production and recorded under
+  `dog_size_check_todo` and `dog_size_check_refresh`.
 - PR #962 is merged with all checks green, and the frontend is deployed.
 - In production, opening the wizard as a customer with an unsized dog shows
   "We're confirming their size", and a "Confirm size" to-do appears for staff.

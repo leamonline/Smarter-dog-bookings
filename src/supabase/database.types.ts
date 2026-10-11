@@ -4350,6 +4350,15 @@ export type Database = {
         Returns: string
       }
       derive_canonical_dog_size: { Args: { p_breed: string }; Returns: string }
+      dog_size_check_todo_text: {
+        Args: {
+          p_breed: string
+          p_dog_name: string
+          p_owner: string
+          p_reported: string
+        }
+        Returns: string
+      }
       dismiss_delivery_failure: {
         Args: { p_booking_id: string }
         Returns: undefined
@@ -4751,6 +4760,10 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      refresh_dog_size_check_todo: {
+        Args: { p_dog_id: string }
+        Returns: boolean
       }
       request_dog_size_check: {
         Args: { p_dog_id: string }

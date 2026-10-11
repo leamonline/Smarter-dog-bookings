@@ -14,8 +14,12 @@
   corrections and owner merges keep its wording current.
 - A newly added dog whose size the server derived from its breed is bookable
   straight away; it used to stay greyed out until the page was reloaded.
+- Rewording an open to-do (a rename, a breed correction, an owner rename) now
+  only updates the row that is open; it can no longer recreate a to-do staff
+  ticked off at the same moment. `salon_todos.dog_id` also gets a full index
+  behind its foreign key. Migration `20261010210000`.
 - `dogs.size` remains staff-only; capacity, pricing and the booking gates are
-  unchanged. Migration `20261008120000`; see
+  unchanged. Migrations `20261008120000` and `20261010210000`; see
   [`docs/dog-size-confirmation.md`](docs/dog-size-confirmation.md).
 
 ## Unreleased — booking and modal resize continuity (#964)

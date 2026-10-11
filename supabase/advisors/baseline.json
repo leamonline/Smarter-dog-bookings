@@ -1278,6 +1278,12 @@
       "detail": "Index \\`idx_salon_todos_open_closure_date\\` on table \\`public.salon_todos\\` has not been used"
     },
     {
+      "cache_key": "unused_index_public_salon_todos_salon_todos_dog_id_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`salon_todos_dog_id_idx\\` on table \\`public.salon_todos\\` has not been used"
+    },
+    {
       "cache_key": "unused_index_public_slack_alerts_idx_slack_alerts_queued",
       "name": "unused_index",
       "level": "INFO",
