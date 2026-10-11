@@ -4,7 +4,7 @@ Status: Active
 
 Issue: [#944](https://github.com/leamonline/Smarter-dog-bookings/issues/944)
 
-Implementation: [Geoapify plan](plans/active/2026-10-05-geoapify-address-search.md)
+Implementation: [Geoapify plan](plans/completed/2026-10-05-geoapify-address-search.md)
 
 Signup and profile completion use Geoapify address suggestions with manual
 entry. Customers type their house number/name, street and town, then choose

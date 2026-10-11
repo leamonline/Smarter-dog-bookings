@@ -233,7 +233,7 @@ policy failures ask for a stronger password without making that claim.
 Implementation and release evidence:
 [signup recovery plan](../plans/completed/2026-10-05-signup-recovery.md), issue #942.
 The provider replacement is tracked in the
-[Geoapify plan](../plans/active/2026-10-05-geoapify-address-search.md), issue #944;
+[Geoapify plan](../plans/completed/2026-10-05-geoapify-address-search.md), issue #944;
 see [address-search setup and recovery](../address-search.md).
 
 ## Staff reviews a new customer signup
