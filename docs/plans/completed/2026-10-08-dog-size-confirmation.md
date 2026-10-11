@@ -1,11 +1,12 @@
 # Dog size confirmation: staff to-do and one-tap confirm
 
-Status: Active
+Status: Completed — #962 merged as dd69db8 on 2026-10-10, #967 merged as 63d26c8 on 2026-10-11; both migrations applied to production
 Issue: [#963](https://github.com/leamonline/Smarter-dog-bookings/issues/963)
 (item 9 of the October 2026 WhatsApp friction review), built as
 [PR #962](https://github.com/leamonline/Smarter-dog-bookings/pull/962)
+and [PR #967](https://github.com/leamonline/Smarter-dog-bookings/pull/967)
 Base: `main@69be16c961d1f1c2e1262da058d15dc2d68cefc4`
-Last verified: 2026-10-10
+Last verified: 2026-10-11
 Owners: `supabase/migrations/20261008120000_dog_size_check_todo.sql`,
 `supabase/migrations/20261010210000_dog_size_check_refresh.sql`,
 `src/components/customer/booking/DogSelection.tsx`,
@@ -13,7 +14,7 @@ Owners: `supabase/migrations/20261008120000_dog_size_check_todo.sql`,
 `src/supabase/hooks/dogs/useDogMutations.ts` (guarded write),
 `src/supabase/repositories/dogsRepo.ts` (`requestSizeCheck`)
 Dependencies: the production migration workflow
-([plan](2026-10-06-production-migration-workflow.md)), whose `production`
+([plan](../active/2026-10-06-production-migration-workflow.md)), whose `production`
 environment must be configured before this migration can be applied
 Related requirements: None recorded
 Related ADRs: None
@@ -205,6 +206,41 @@ and how quickly they were cleared.
 - In production, opening the wizard as a customer with an unsized dog shows
   "We're confirming their size", and a "Confirm size" to-do appears for staff.
 - This plan is moved to `docs/plans/completed/`.
+
+## Release verification — 10 and 11 October 2026
+
+Moved to completed on 11 October 2026 at the owner's instruction.
+
+- **Migrations in production** (project `nlzhllhkigmsvrzduefz`), each through
+  *Apply named migrations to production* with the owner as required reviewer:
+  `20261008120000_dog_size_check_todo` (run 38084308765, 10 October, 20:45 UTC)
+  and `20261010210000_dog_size_check_refresh` (run 38133383008, 11 October,
+  10:53 UTC). Both recorded in the ledger; the `migrations-applied` check
+  passed on each pull request's head before merge.
+- **Post-apply checks, read directly from production:** `salon_todos.dog_id`,
+  the partial unique index and `salon_todos_dog_id_idx` all present; the five
+  functions present; the dog trigger calls `refresh_dog_size_check_todo` and
+  the owner-rename trigger calls only that; the three internal functions are
+  not executable by `anon` or `authenticated`; `request_dog_size_check` is
+  granted to `authenticated`; the wording helper renders "Confirm size: Bramble
+  (Pug) — Jane Smith thinks medium. They can't book online until it's set."
+- **Pull requests:** #962 (`276beef`, all ten checks green, merged `dd69db8`)
+  and #967 (`bfa2d02`, all ten checks green, Codex review with no findings,
+  merged `63d26c8`). Vercel production deployment of `dd69db8` reached READY.
+- **Automated evidence:** pgTAP 239 (35), 240 (16) and 241 (13) pass; 241 was
+  shown to fail on the `20261008120000` code at exactly the three refresh
+  paths. Full pgTAP suite 62 files / 1377 tests; Vitest 408 files / 4303
+  tests; lint, docs, typecheck, migrations and build all green.
+- **Advisors:** live security and performance advisors match
+  `supabase/advisors/baseline.json` on every rule after the second migration
+  (`unindexed_foreign_keys` 64, `unused_index` 49 with `salon_todos_dog_id_idx`
+  accepted; the partial index is not reported as unused).
+- **Not yet observed:** the manual journey in the definition of done. At the
+  time of closing, no customer had opened the wizard with an unsized dog since
+  the deploy (`salon_todos where dog_id is not null` was empty), so no live
+  "Confirm size" to-do has been seen yet. The first one to appear is the
+  remaining confirmation; the automated and production checks above are what
+  this plan closes on.
 
 ## Open questions
 
