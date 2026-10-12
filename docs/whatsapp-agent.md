@@ -109,6 +109,34 @@ see the [evaluation record](../prompts/evals/2026-10-07-whatsapp-portal-trouble.
 The patterns are taken from real customer messages and were checked against
 the full inbound history (17 matches, no false positives) before release.
 
+### Messages that need a person, not a script
+
+The 12 October 2026 inbox review found four kinds of message the heuristic
+answered with the wrong script, because it only knew booking words. Each now
+has a detector in `agentRisk.ts`, built from the shape of what customers sent
+(synthetic wording in the tests; no customer text in the repository):
+
+| Message | Was | Now |
+|---|---|---|
+| "I'm at the salon and it's closed" | Tap-to-book prompt (the word "appointment") | `isServiceRecovery` → escalate; no-link `service_recovery` draft while the AI handles the thread; staff to-do `arrived_salon_closed` in every state |
+| "I already messaged about moving her" | The automated 24-hour cutoff reply, a second time | `isChasing` → escalate; `handoff` draft while the AI handles the thread; staff to-do `chasing_reply` |
+| "If you have a cancellation, can you squeeze her in?" | Read as a cancel attempt: "I can't see any upcoming grooms" | `isCancellationSpaceRequest` → `booking_query`; left for staff, who see it as an unanswered request |
+| "Do you do weekends / after 5pm?" | Tap-to-book prompt | `isOutOfHoursRequest` → `faq`; a person explains the hours |
+| "Can I book him for a groom and nail trim?" | Walk-in FAQ (the word "nail"), so no draft at all | The walk-in short-circuit yields when a groom-type service word is present |
+
+`humanNeededKind` combines the first two and runs in the agent **before** the
+manage-booking and booking-entry paths, which is the point: those paths act on
+the booking words such a message contains. It sends nothing to the customer
+and never auto-sends. The to-do is raised with `reply: "none"`, so its wording
+says the customer is still waiting rather than claiming a reply went out.
+Known customers only; an unknown number still takes the onboarding pass, where
+Claude's own prompt escalates complaints.
+
+Separately, the turned-away-demand report (2F) now groups reason codes into
+capacity, account restriction and calendar/policy (`DENIAL_REASON_GROUP` in
+`src/engine/denials.ts`) and leads with the capacity count, so a customer the
+salon has deliberately blocked from a time no longer reads as lost capacity.
+
 ### Dead ends raise a staff to-do
 
 Some automated paths cannot finish what the customer asked: a cancel or move

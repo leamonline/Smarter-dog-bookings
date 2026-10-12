@@ -81,6 +81,7 @@ import {
   classifyRisk,
   fallbackReplyForIntent,
   guessIntentFromText,
+  humanNeededKind,
   Intent,
   isPortalTrouble,
   mergeAgentState,
@@ -2899,6 +2900,54 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             } catch (err) {
               console.warn("mark_reminder_confirmed (typed reply) dispatch failed:", err);
             }
+          }
+
+          // A customer who needs a person, not a script: standing at a closed
+          // salon, or chasing a message we never answered. Runs before the
+          // manage-booking and booking-entry paths because those act on the
+          // booking words such a message contains ("my 1pm appointment",
+          // "asking to reschedule") and answer the wrong question — the
+          // tap-to-book prompt to someone at a locked door, or the 24-hour
+          // cutoff script, twice, to someone asking why nobody replied (both
+          // happened, October 2026). Known customers only: an unknown number
+          // still takes the onboarding pass below, where Claude's own prompt
+          // escalates complaints. Sends nothing to the customer. While the AI
+          // is handling the thread it leaves a no-link handoff draft (the
+          // portal-trouble contract); in every state it raises a staff to-do,
+          // so the request sits on a list someone owns rather than only in an
+          // unread thread. Skipped on forceDraft so a staff re-generate stays
+          // side-effect free.
+          const humanNeeded = forceDraft ? null : humanNeededKind(text);
+          if (humanNeeded && conversation.human_id) {
+            if (conversation.state === "ai_handling") {
+              const policy: DraftPolicy = {
+                riskLevel: "high",
+                handoffRequired: true,
+                autoSendEligible: false,
+                draftOnly: false,
+              };
+              const draft: DraftFromClaude = {
+                intent: "escalate",
+                confidence: 1,
+                proposed_text: fallbackReplyForIntent(humanNeeded === "service_recovery" ? "service_recovery" : "handoff"),
+                extracted_state: null,
+              };
+              try {
+                await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+                  reason: `${humanNeeded}: the customer needs a person, not a script`,
+                });
+              } catch (err) {
+                // The to-do below is the part that must survive.
+                console.error(`${humanNeeded} draft save failed (non-fatal):`, err);
+              }
+            }
+            await raiseFollowUpTodo(
+              supabase,
+              conversation.human_id,
+              humanNeeded === "service_recovery" ? "arrived_salon_closed" : "chasing_reply",
+              { reply: "none" },
+            );
+            continue;
           }
 
           // Manage-booking (Flow C): a recognised customer cancelling or

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapDenialReason, friendlyDenialMessage, computeDenialStats, DENIAL_REASON_LABELS, type DenialRow } from "./denials";
+import { mapDenialReason, friendlyDenialMessage, computeDenialStats, DENIAL_REASON_GROUP, DENIAL_REASON_LABELS, type DenialRow } from "./denials";
 
 describe("mapDenialReason", () => {
   it("maps the real gate messages to reason codes", () => {
@@ -140,5 +140,39 @@ describe("customer_slot_blocked (per-human blocked slots)", () => {
     expect(
       friendlyDenialMessage("That time isn't available for your account — x"),
     ).toMatch(/for your account/i);
+  });
+});
+
+describe("computeDenialStats groups reasons (capacity vs restriction vs policy)", () => {
+  // A customer the salon has deliberately blocked from a time is not lost
+  // capacity, and a closed day or a past date is the calendar working as
+  // designed. The report's headline must count only true capacity refusals.
+  const rows: DenialRow[] = [
+    { created_at: "2026-07-01T10:00:00Z", reason_code: "capacity_2_2_1" },
+    { created_at: "2026-07-01T10:05:00Z", reason_code: "daily_cap" },
+    { created_at: "2026-07-01T10:10:00Z", reason_code: "unavailable" },
+    { created_at: "2026-07-02T10:00:00Z", reason_code: "customer_slot_blocked" },
+    { created_at: "2026-07-02T10:05:00Z", reason_code: "calendar_closed" },
+    { created_at: "2026-07-02T10:10:00Z", reason_code: "pregnant" },
+    { created_at: "2026-07-03T10:00:00Z", reason_code: "something_new" },
+  ];
+  const stats = computeDenialStats(rows, 30, new Date("2026-07-04T09:00:00Z"));
+
+  it("counts capacity, account-restriction and calendar/policy refusals separately", () => {
+    expect(stats.byGroup.capacity).toBe(3);
+    expect(stats.byGroup.restriction).toBe(1);
+    expect(stats.byGroup.policy).toBe(2);
+    expect(stats.byGroup.other).toBe(1);
+  });
+
+  it("every known reason code belongs to a group", () => {
+    for (const code of Object.keys(DENIAL_REASON_LABELS)) {
+      expect(DENIAL_REASON_GROUP[code], `no group for ${code}`).toBeDefined();
+    }
+  });
+
+  it("is zero across the board with no rows", () => {
+    const empty = computeDenialStats([], 30, new Date("2026-07-04T09:00:00Z"));
+    expect(empty.byGroup).toEqual({ capacity: 0, restriction: 0, policy: 0, other: 0 });
   });
 });
