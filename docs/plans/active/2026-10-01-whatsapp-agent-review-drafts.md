@@ -3,7 +3,7 @@
 Status: Draft
 Issue: [#921](https://github.com/leamonline/Smarter-dog-bookings/issues/921)
 Base: origin/main, d9ba1736959ace028f64d089ee460ea92a335761
-Last verified: 2026-10-11
+Last verified: 2026-10-12
 Owners: `supabase/functions/whatsapp-agent/`, `supabase/functions/_shared/agentRisk.ts`, staff inbox ageing UI, agent tests and this document
 Dependencies: None for steps 0–1a. Step 1c (data correction) requires separate production authorisation. Step 3 requires a separate release decision.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
@@ -367,4 +367,8 @@ Consequence for the design decision above: book-entry is live in production, so 
 **Staging (`btjnxvgkpdbfrrqxvkfj`) hosted-isolation readiness:** schema is applied through `20261005190000_drop_unused_humans_columns`, which includes `ai_whatsapp_controls` and `whatsapp_agent_state_revision`; the two later local migrations are dog-size to-do changes the agent does not depend on. The project has **no Edge Functions deployed and no secrets set**. A hosted pass therefore needs, in one approved sitting: deploy `whatsapp-agent` and `whatsapp-send` at a named `main` SHA, set `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS=true` and the internal secrets, leave every Meta and Twilio credential absent so no outbound path can exist, and supply a provider key with credit so the positive scenario (one held draft) can be produced at all. Without credit only the negative scenarios (flag off, Human only, no sends) can be evidenced.
 
 **Model-quality gate:** the fifth comparison was attempted on 11 October and stopped on the first call because the Anthropic account's credit balance is too low (recorded in the evaluation record). Both remaining gates for step 1b promotion, model quality and hosted isolation, are blocked on that credit. No flag, deployment or data change was made.
+
+## Hosted staging isolation — 12 October 2026
+
+Executed on `btjnxvgkpdbfrrqxvkfj` with owner approval and recorded in the [isolation runbook](../../runbooks/whatsapp-review-draft-isolation.md#hosted-staging-execution--12-october-2026). The eligible case produced exactly one held, review-only draft; duplicate, other-intent, Human-only and flag-off cases produced none; no memory, audit, action, booking or outbound write occurred; a provider failure left a failed event and nothing else. Staging was restored afterwards (synthetic rows deleted, secrets unset, function removed). With the fifth model comparison (same day), both step 1b gates now have hosted or provider evidence. Remaining before production enablement: the owner's decision on puppy-reply brevity and the separately approved production flag change, observed for one working week with rollback by unsetting the flag.
 
