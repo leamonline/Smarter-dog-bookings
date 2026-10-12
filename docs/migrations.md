@@ -1,5 +1,26 @@
 # Migration history
 
+## notification_log Meta-failure reconciliation (#980) — staging 12 October 2026
+
+`20261012120000_notification_log_meta_failed_reconciliation.sql` was applied to
+**staging** (`btjnxvgkpdbfrrqxvkfj`) on 12 October 2026 through the Supabase MCP
+as `notification_log_meta_failed_reconciliation` (ledger version
+`20261012053319`; ledger 67 → 68 rows). The staging workflow could not be used
+for it: the `staging` GitHub environment accepts deployments from `main` only,
+and the file lives on the pull-request branch until #980 merges. So the
+migration's two trigger definitions use `create or replace trigger` (Postgres
+14+) rather than drop-and-create, which keeps it idempotent without the `drop
+trigger` text the MCP tool refuses. Post-apply evidence, read back from the
+staging catalog through the MCP (read-only): both
+`trg_reconcile_notification_log_*` triggers present and enabled; the three
+functions present, the two trigger functions `SECURITY DEFINER`; `anon` and
+`authenticated` cannot execute any of them;
+`whatsapp_meta_failure_summary('[{"code":131026,…}]')` returns the 131026 line
+byte-for-byte as `deliveryStatus.ts` writes it; zero rows backfilled (staging
+holds no Meta-failed messages). **Production: not applied.** Use the production
+workflow with `ref` set to the #980 head before that pull request merges; on
+prod the backfill will flip 32 historical rows to `failed`.
+
 ## Drop unused humans columns — applied 5 October 2026
 
 `20261005190000_drop_unused_humans_columns.sql` removes `humans.customer_notes`
