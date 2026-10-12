@@ -123,3 +123,7 @@ Across 28 replies: no booking action, no confirmation wording, no secret or inst
 
 The one open quality item is puppy brevity: the candidate reply is correct but over the prompt's one-sentence service explanation and three-paragraph ceiling. Because every review draft is read by staff before sending, this is a trimming cost rather than a safety or factual defect. The owner decides whether it blocks enablement or is tracked for a later prompt revision. Model-quality evidence is one sample per case, not a reliability rate. Hosted staging isolation and separately authorised promotion remain outstanding; no flag, deployment or data change was made.
 
+# Owner decision on brevity — 12 October 2026
+
+The owner accepted the puppy-reply length from the fifth comparison as a trimming cost for the reviewing staff member rather than a blocker: the reply was factually correct, honoured the puppy service and age, quoted no prices and proposed no action. The model-quality gate for step 1b is therefore closed on the fifth comparison. Puppy brevity stays listed as a candidate improvement for a later prompt revision, to be evaluated with the same fixtures. Production enablement remains a separately approved flag change.
+
