@@ -2,6 +2,8 @@ import { assert, assertEquals, assertStringIncludes } from "https://deno.land/st
 import { agentCalendar, addCalendarDays } from "../../_shared/agentContext.ts";
 
 interface Scenario {
+  button?: string;
+  unknownCustomer?: boolean;
   enabled?: boolean;
   preferenceCorrection?: boolean;
   perDog?: boolean;
@@ -35,6 +37,7 @@ async function run(s: Scenario = {}) {
   for (const [key, value] of Object.entries({
     SUPABASE_URL: "http://supabase.test", SUPABASE_SERVICE_ROLE_KEY: "test-key",
     ANTHROPIC_API_KEY: "test-model", AGENT_CALLBACK_SECRET: "test-secret",
+    WHATSAPP_BOOKING_FLOW_ID: "synthetic-booking-flow",
     SEND_INTERNAL_SECRET: s.sendSecret === false ? "" : "test-send",
     AI_KNOWN_CUSTOMER_REVIEW_DRAFTS: String(s.enabled !== false),
     AI_AUTO_SEND_LOW_RISK: "true", AI_AUTONOMOUS_BOOKING_ENABLED: "true",
@@ -56,8 +59,8 @@ async function run(s: Scenario = {}) {
   const today = agentCalendar().today;
   const later = addCalendarDays(today, 42);
   const oldFetch = globalThis.fetch;
-  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state_rev: 0, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog", preferredTime: "09:00", ...(s.singleDogUpdate ? {dogAge:"12 weeks",coatCondition:"good"} : {}), ...(s.perDog ? {dogs:[{dogId, dogAge:"12 weeks"},{dogId:"00000000-0000-4000-8000-000000000002",coatCondition:"matted"}]} : {}) }, lead_status: "records_created", lead_payload: null };
-  const payload = { entry: [{ changes: [{ value: { messages: [{ id: "synthetic-inbound", from: "447700900111", type: "text", text: { body: s.text ?? "Can I book my dog?" }, timestamp: String(Math.floor(Date.now() / 1000)) }] } }] }] };
+  const conversation = { id: "conv-review", state: s.state ?? "ai_handling", human_id: s.unknownCustomer ? null : "human-review", phone_e164: "+447700900111", auto_send_enabled: true, autonomous_booking_enabled: !s.selfService, agent_state_rev: 0, agent_state: { breed: "Cockapoo", dogName: "Synthetic dog", preferredTime: "09:00", ...(s.singleDogUpdate ? {dogAge:"12 weeks",coatCondition:"good"} : {}), ...(s.perDog ? {dogs:[{dogId, dogAge:"12 weeks"},{dogId:"00000000-0000-4000-8000-000000000002",coatCondition:"matted"}]} : {}) }, lead_status: "records_created", lead_payload: null };
+  const payload = { entry: [{ changes: [{ value: { messages: [{ id: "synthetic-inbound", from: "447700900111", type: s.button ? "interactive" : "text", ...(s.button ? { interactive: { type: "button_reply", button_reply: { id: s.button, title: "Synthetic button" } } } : { text: { body: s.text ?? "Can I book my dog?" } }), timestamp: String(Math.floor(Date.now() / 1000)) }] } }] }] };
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
     const method = init?.method ?? "GET";
@@ -65,7 +68,7 @@ async function run(s: Scenario = {}) {
     calls.push({ method, path: url.pathname, query: url.searchParams, body });
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
     if (url.pathname === "/rest/v1/whatsapp_events") return method === "PATCH" ? new Response(null, { status: 204 }) : reply({ id: "event-review", processing_status: "pending", signature_valid: true, payload });
-    if (url.pathname === "/rest/v1/humans") return url.searchParams.get("select")?.startsWith("name,") ? reply({ name: "Synthetic", surname: "Person" }) : reply([{ id: "human-review", phone: "07700900111" }]);
+    if (url.pathname === "/rest/v1/humans") return url.searchParams.get("select")?.startsWith("name,") ? reply({ name: "Synthetic", surname: "Person" }) : reply(s.unknownCustomer ? [] : [{ id: "human-review", phone: "07700900111" }]);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && (method === "POST" || method === "GET")) return reply(conversation);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && s.memoryFailure) return s.memoryFailure === "error" ? reply({ message: "synthetic save failure" }, 500) : reply(null);
     if (url.pathname === "/rest/v1/whatsapp_conversations" && method === "PATCH" && (s.preferenceCorrection || s.perDog || s.singleDogUpdate)) { memoryRows.push({id: conversation.id, ...body}); return reply({id: conversation.id}); }
@@ -369,4 +372,41 @@ Deno.test("a staff-generated reply to booking-page trouble gets the no-link prom
   const ordinaryContext = ((ordinary.calls.find((c) => c.path === "/v1/messages")!.body.messages) as { content: string }[])[0].content;
   assertStringIncludes(ordinaryContext, "--- Self-service portal ---");
   assert(!ordinaryContext.includes("--- Booking page trouble ---"));
+});
+
+for (const choice of ["help", "notme", "start"] as const) {
+  Deno.test(`booking entry ${choice} persists a staff handoff without booking or sending`, async () => {
+    const result = await run({ button: `bookentry:${choice}`, unknownCustomer: choice === "start" });
+    assertEquals(result.rows.length, 1);
+    const row = result.rows[0];
+    assertEquals(row.conversation_id, "conv-review");
+    assertEquals(row.intent, "escalate");
+    assertEquals(row.state, "pending");
+    assertEquals(row.risk_level, "high");
+    assertEquals(row.handoff_required, true);
+    assertEquals(row.requires_approval, true);
+    assertEquals(row.auto_send_eligible, false);
+    assertStringIncludes(String((row.tool_calls as Record<string, unknown>).reason), choice === "help" ? "I need help" : choice === "notme" ? "Not me" : "without a recognised customer");
+    assertEquals(result.memoryRows.length, 0);
+    assertEquals(result.calls.filter((c) => c.path === "/v1/messages" || c.path.endsWith("/functions/v1/whatsapp-send") || c.path.includes("whatsapp_booking_actions") || c.path.includes("/rpc/")).length, 0);
+    assertEquals(result.calls.filter((c) => c.method !== "GET" && ["/rest/v1/bookings", "/rest/v1/humans", "/rest/v1/dogs"].includes(c.path)).length, 0);
+  });
+}
+Deno.test("booking entry start opens the existing multi-dog Flow with in-chat guidance", async () => {
+  const result = await run({ button: "bookentry:start" });
+  const sends = result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send"));
+  assertEquals(sends.length, 1);
+  assertEquals(sends[0].body.mode, "flow");
+  assertEquals(sends[0].body.human_id, "human-review");
+  assertEquals(sends[0].body.flow_id, "synthetic-booking-flow");
+  assertEquals(sends[0].body.flow_type, "appointment_booking");
+  assertEquals(sends[0].body.cta, "Choose dogs & book");
+  assertStringIncludes(String(sends[0].body.body_text), "Choose which dogs are coming");
+  assertStringIncludes(String(sends[0].body.body_text), "review everything before confirming");
+  assertEquals(result.rows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+});
+Deno.test("duplicate help tap does not create a second handoff", async () => {
+  const result = await run({ button: "bookentry:help", duplicate: true });
+  assertEquals(result.rows.length, 0);
 });

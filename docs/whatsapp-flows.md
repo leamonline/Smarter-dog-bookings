@@ -136,12 +136,19 @@ visit** (mirroring the customer portal wizard).
 
 1. `whatsapp-agent` detects new-booking intent (`guessIntentFromText` ===
    `booking_propose`) and auto-sends **Message 1** — a tap-to-confirm
-   identity message (`whatsapp-send` mode `book_entry`): "Hi [Name] 👋 …
-   shall we get you booked in?" with **Yes, book in** (`bookentry:start`)
-   and **Not me** (`bookentry:notme`). This bypasses the staff-wait gate.
-2. **Yes** → the agent sends **Message 2** — the portal sign-in link in the
-   body **plus** a **Book on WhatsApp** Flow CTA (`whatsapp-send` mode
-   `flow`). **Not me** → handed to staff (flagged draft); never auto-books.
+   identity message (`whatsapp-send` mode `book_entry`): "Hi [Name] 🐾 You
+   can book your dog or dogs here in WhatsApp. Choose an option below to
+   get started." with **Book my dogs** (`bookentry:start`), **I need help**
+   (`bookentry:help`) and **Not me** (`bookentry:notme`). This bypasses the
+   staff-wait gate, while retaining the existing send gates and debounce.
+2. **Book my dogs** → the agent sends **Message 2** explaining dog,
+   service, date and drop-off time selection, with a **Choose dogs & book**
+   Flow CTA (`whatsapp-send` mode `flow`). Customers review before confirming.
+   **I need help**, **Not me**, or a booking tap without a recognised customer
+   → a pending, high-risk staff draft with `handoff_required=true` and
+   `auto_send_eligible=false`. This does not send a reply, call the language
+   model, change conversation mode, or create a booking. Staff review the
+   request in the inbox. Existing button IDs continue to work on older messages.
 3. The Flow runs: **SELECT_PET (checkboxes, 1–4 dogs)** → one screen per dog
    **DOG_A…DOG_D** (service + add-ons together; the endpoint advances by the
    letter in the screen id and jumps to the date screen once the last
