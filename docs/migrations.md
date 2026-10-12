@@ -1,6 +1,6 @@
 # Migration history
 
-## notification_log Meta-failure reconciliation (#980) — staging 12 October 2026
+## notification_log Meta-failure reconciliation (#980) — applied 12 October 2026
 
 `20261012120000_notification_log_meta_failed_reconciliation.sql` was applied to
 **staging** (`btjnxvgkpdbfrrqxvkfj`) on 12 October 2026 through the Supabase MCP
@@ -17,9 +17,24 @@ functions present, the two trigger functions `SECURITY DEFINER`; `anon` and
 `authenticated` cannot execute any of them;
 `whatsapp_meta_failure_summary('[{"code":131026,…}]')` returns the 131026 line
 byte-for-byte as `deliveryStatus.ts` writes it; zero rows backfilled (staging
-holds no Meta-failed messages). **Production: not applied.** Use the production
-workflow with `ref` set to the #980 head before that pull request merges; on
-prod the backfill will flip 32 historical rows to `failed`.
+holds no Meta-failed messages). **Production** followed the same day through **Apply named migrations to
+production** run
+[38212966857](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38212966857)
+(dispatched from `main` at `176834ef`, files from the #980 head `d0c84a0c`,
+approved by @leamonline; a first dispatch,
+[38209672226](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38209672226),
+refused itself because `main` moved between dispatch and approval, applied
+nothing, and was cancelled). Postcondition: both triggers present and enabled,
+read from `pg_catalog` as `anon`. Post-apply evidence read from the prod
+catalog at 06:38 UTC through the MCP (read-only): ledger row version
+`20261012120000`, name `notification_log_meta_failed_reconciliation` (ledger
+242 → 243 rows); both triggers enabled; the three functions present, the two
+trigger functions `SECURITY DEFINER`, none executable by `anon` or
+`authenticated`; `notification_log` rows with `status = 'failed'` 53 → 85, the
+32 predicted by the 12 October assessment, and no WhatsApp row left reading
+`sent` for a message Meta failed; 33 rows now carry the 131026 line (the 32
+backfilled plus the one the agent wrote on 7 October); 3214 rows before and
+after.
 
 ## Drop unused humans columns — applied 5 October 2026
 
