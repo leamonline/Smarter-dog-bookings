@@ -45,8 +45,10 @@
 -- no provider_message_id (cancellation notices via Twilio, welcome texts) are
 -- out of reach here and are listed as follow-ups in the pull request.
 --
--- Idempotent: create or replace / drop if exists / the backfill matches
--- nothing on a second run. Both functions are SECURITY DEFINER so the
+-- Idempotent: create or replace throughout (including the triggers, which
+-- Postgres 14+ allows, so the file carries no drop statement and the Supabase
+-- MCP tool can apply it to staging) and a backfill that matches nothing on a
+-- second run. Both functions are SECURITY DEFINER so the
 -- reconciliation does not depend on which role happened to write the
 -- status, and both carry the revoke block docs/migrations.md requires.
 -- ============================================================
@@ -126,8 +128,7 @@ $$;
 
 revoke all on function public.reconcile_notification_log_on_meta_failure() from public, anon, authenticated;
 
-drop trigger if exists trg_reconcile_notification_log_on_meta_failure on public.whatsapp_messages;
-create trigger trg_reconcile_notification_log_on_meta_failure
+create or replace trigger trg_reconcile_notification_log_on_meta_failure
   after update of status on public.whatsapp_messages
   for each row
   when (new.status = 'failed'
@@ -166,8 +167,7 @@ $$;
 
 revoke all on function public.reconcile_notification_log_row_with_meta() from public, anon, authenticated;
 
-drop trigger if exists trg_reconcile_notification_log_row_with_meta on public.notification_log;
-create trigger trg_reconcile_notification_log_row_with_meta
+create or replace trigger trg_reconcile_notification_log_row_with_meta
   before insert or update of provider_message_id, status on public.notification_log
   for each row
   when (new.channel = 'whatsapp'
