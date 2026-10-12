@@ -5,7 +5,7 @@ version: 1
 purpose: Correct incomplete factual answers and unsupported portal guidance
 related_requirements: [REQ-AI-001, REQ-CAP-002]
 related_issues: [921]
-last_reviewed: 2026-10-11
+last_reviewed: 2026-10-12
 ---
 
 # Grounded replies follow-up
@@ -102,4 +102,24 @@ The candidate includes the memory and booking-page-trouble prompt revisions that
 The owner approved execution and supplied a key through a local file outside the repository. Two attempts were made, each stopped by the runner on its first call with zero completed responses and no output tokens: the first returned HTTP 401 `authentication_error` (the supplied value was not a valid key), the second returned HTTP 400 `invalid_request_error` with the provider's message that the account's credit balance is too low. Both diagnostics were saved by the runner with the key redacted. The second attempt used a freshly prepared directory with the same baseline and candidate revisions and the same fixture hash.
 
 The credit-balance refusal is a 400, which is consistent with the fourth run's unexplained HTTP 400 at the 21st call on 2 October; that remains an inference, not a confirmed cause. No comparison evidence exists for the fifth run. A further attempt needs credit on the account and a separately approved retry.
+
+# Fifth provider comparison — 12 October 2026
+
+Decision: **both third-run defects are corrected in this sample; automatic enablement still held pending the owner's brevity call and the hosted isolation gate.** The owner approved and locally executed 28 requests comparing baseline `6bac9bbd99231bf82dc39fac027b4ec925c4b780` (prompt `2026-10-02.1`) with candidate `056676f518d7e04905ecbb6ae330916de570a506` (`main`, prompt `2026-10-07.portal-trouble-1`), fixture version 2, `claude-sonnet-4-6`, 512 output tokens, no sampling overrides. Provider accounting: 152,205 input tokens and 4,408 output tokens. All 28 responses were recorded; every one passed the preliminary schema check, none reached `max_tokens`, and no review-mode action was proposed. The candidate took the automatic review-only route on the nine new-booking fixtures and staff-forced drafting on the rest, as designed. No retry occurred.
+
+The primary Claude agent saved criterion-by-criterion blind scores before opening the key. This is model-assisted review, not independent human sign-off. Raw responses, manifest, request hashes, scores and key remain outside Git.
+
+| Case | Candidate observation | Result |
+| --- | --- | --- |
+| London midnight | "tomorrow is Saturday 3 October", then uncertainty and one account link | **Pass; third-run defect corrected in this sample** (baseline also resolved the date) |
+| No-repeat | Restates small Cockapoo / full groom without asking; no price paragraph; two short paragraphs | **Pass; third-run defect corrected in this sample** (baseline also omitted prices this run) |
+| Puppy | Puppy groom honoured, age not re-asked, no prices, but a two-sentence service explanation and a fourth "can't wait to meet" paragraph; longest reply of the run at 288 output tokens | **Brevity fail**; baseline was shorter with a one-sentence explanation |
+| Open Thursday | Verified 10:00 only, no confirmation | Pass; baseline said "As a recognised customer", echoing the routing label |
+| Multi-dog | Both dogs, account selects both subject to allocation, no consecutive-slot invention | Pass; baseline said "The portal supports selecting multiple dogs" and added a longer closing paragraph |
+| Changed time | 09:00 unverified, 10:00 named as the only confirmed slot | Pass |
+| Closure, unverified date, later/cancelled appointment, lookup failure, ambiguous cancellation, further-ahead, injection | As required | Pass |
+
+Across 28 replies: no booking action, no confirmation wording, no secret or instruction disclosure, and no automation-setting or context-label wording in candidate customer copy. Two baseline replies carried borderline internal wording ("recognised customer", "the portal supports"); the candidate's were clean.
+
+The one open quality item is puppy brevity: the candidate reply is correct but over the prompt's one-sentence service explanation and three-paragraph ceiling. Because every review draft is read by staff before sending, this is a trimming cost rather than a safety or factual defect. The owner decides whether it blocks enablement or is tracked for a later prompt revision. Model-quality evidence is one sample per case, not a reliability rate. Hosted staging isolation and separately authorised promotion remain outstanding; no flag, deployment or data change was made.
 
