@@ -1392,8 +1392,7 @@ async function dispatchBookEntry(
   }
 }
 
-/** Message 2: portal link in the body + a "Book on WhatsApp" Flow CTA. Sent
- *  when the customer taps "Yes, book in" on Message 1. */
+/** Message 2: open the existing multi-dog Flow inside WhatsApp. */
 async function dispatchBookingFlow(
   conversationId: string,
   humanId: string,
@@ -1408,9 +1407,8 @@ async function dispatchBookingFlow(
     return;
   }
   const bodyText =
-    `Lovely 🐾 The quickest way is to manage everything yourself in your account: ` +
-    `${CUSTOMER_PORTAL_URL} — just log in with this number.\n\n` +
-    `Or tap below to book right here on WhatsApp.`;
+    `Choose which dogs are coming, select their services, then pick an available date and drop-off time—all here in WhatsApp.\n\n` +
+    `You can review everything before confirming. 🐾`;
   try {
     const res = await fetch(WHATSAPP_SEND_URL, {
       method: "POST",
@@ -1423,7 +1421,7 @@ async function dispatchBookingFlow(
         flow_id: WHATSAPP_BOOKING_FLOW_ID,
         flow_type: "appointment_booking",
         body_text: bodyText,
-        cta: "Book on WhatsApp",
+        cta: "Choose dogs & book",
         ai_initiated: true,
       }),
     });
@@ -2817,14 +2815,13 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             }
           }
 
-          // Booking-entry taps (Message 1 of the booking flow). "Yes, book in"
-          // opens the Flow (with the portal link in the body); "Not me" is the
-          // identity safety valve — hand to staff, never auto-book.
+          // Booking-entry taps: open the Flow only for a recognised customer.
+          // Help and identity problems create a held staff draft, never auto-book.
           if (buttonReply?.id?.startsWith("bookentry:")) {
             const choice = buttonReply.id.slice("bookentry:".length);
             if (choice === "start" && conversation.human_id) {
               await dispatchBookingFlow(conversation.id, conversation.human_id, phoneE164);
-            } else if (choice === "notme") {
+            } else if (choice === "help" || choice === "notme" || choice === "start") {
               const policy: DraftPolicy = {
                 riskLevel: "high",
                 handoffRequired: true,
@@ -2838,7 +2835,11 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                 extracted_state: null,
               };
               await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
-                reason: "book_entry: customer tapped 'Not me'",
+                reason: choice === "help"
+                  ? "book_entry: customer tapped 'I need help'"
+                  : choice === "notme"
+                  ? "book_entry: customer tapped 'Not me'"
+                  : "book_entry: booking requested without a recognised customer",
               });
             }
             continue; // handled — no Claude draft for a booking-entry tap
