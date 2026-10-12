@@ -57,7 +57,9 @@ export type FollowUpReason =
   | "manage_booking_gone"
   | "confirm_expired"
   | "flow_reschedule_cutoff"
-  | "flow_booking_changed";
+  | "flow_booking_changed"
+  | "arrived_salon_closed"
+  | "chasing_reply";
 
 /** Every follow-up to-do starts with this, which is also how duplicates are found. */
 export const FOLLOW_UP_TODO_PREFIX = "WhatsApp follow-up:";
@@ -73,13 +75,16 @@ const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
   confirm_expired: "didn't confirm a booking change in time",
   flow_reschedule_cutoff: "tried to move a groom within 24 hours in the booking form",
   flow_booking_changed: "tried to move a groom that had changed while they were in the booking form",
+  arrived_salon_closed: "arrived for a groom and found the salon closed",
+  chasing_reply: "is chasing a reply to an earlier message",
 };
 
 /**
  * Whether our reply to the customer went out. "sent" means the provider
  * accepted it (or the booking form displayed it), not that it was read.
+ * "none" means we deliberately sent nothing automatic — a person replies.
  */
-export type CustomerReply = "sent" | "unconfirmed";
+export type CustomerReply = "sent" | "unconfirmed" | "none";
 
 /** The to-do line staff see. Pure, so the wording is tested directly. */
 export function followUpTodoText(
@@ -90,6 +95,8 @@ export function followUpTodoText(
   const who = customerName?.trim() || "A customer";
   const next = reply === "sent"
     ? "We replied that the team will sort it — follow up in the WhatsApp inbox."
+    : reply === "none"
+    ? "No automatic reply was sent, so they are still waiting — reply in the WhatsApp inbox."
     : "Our automatic reply may not have reached them, so contact them directly.";
   return `${FOLLOW_UP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. ${next}`;
 }

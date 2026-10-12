@@ -96,8 +96,21 @@ describe("followUpTodoText", () => {
       "confirm_expired",
       "flow_reschedule_cutoff",
       "flow_booking_changed",
+      "arrived_salon_closed",
+      "chasing_reply",
     ];
     for (const r of reasons) expect(followUpTodoText("X", r)).not.toMatch(/undefined/);
+  });
+
+  it("names the two inbox dead ends found in the October 2026 review", () => {
+    // A customer at a closed salon, and a customer chasing an earlier
+    // message, both used to leave nothing on the staff side at all.
+    expect(followUpTodoText("Alex Example", "arrived_salon_closed")).toMatch(
+      /^WhatsApp follow-up: Alex Example arrived for a groom and found the salon closed\./,
+    );
+    expect(followUpTodoText("Alex Example", "chasing_reply")).toMatch(
+      /^WhatsApp follow-up: Alex Example is chasing a reply to an earlier message\./,
+    );
   });
 
   it("builds the display name from the humans row", () => {
@@ -157,5 +170,14 @@ describe("raiseFollowUpTodo", () => {
   ])("never throws when %s", async (_label, opts) => {
     const { client } = fakeClient(opts);
     await expect(raiseFollowUpTodo(client, "h1", "manage_deadline_cancel", { now: NOW })).resolves.toBe("failed");
+  });
+});
+
+describe("followUpTodoText when nothing automatic was sent", () => {
+  it("says the customer is still waiting instead of claiming a reply went out", () => {
+    const text = followUpTodoText("Alex Example", "chasing_reply", "none");
+    expect(text).toMatch(/No automatic reply was sent, so they are still waiting/);
+    expect(text).not.toMatch(/We replied/);
+    expect(text).not.toMatch(/may not have reached them/);
   });
 });

@@ -1,6 +1,9 @@
 import { Section } from "./ReportWidgets.jsx";
 import { useDenialsData } from "../../../hooks/useDenialsData.ts";
 import { fmtLabel } from "../../../hooks/useReportsData.ts";
+import { DENIAL_GROUP_LABELS } from "../../../engine/denials.ts";
+
+const GROUP_ORDER = ["capacity", "restriction", "policy", "other"];
 
 // 2F — "What demand did we have to turn away, and why?"
 // Reads booking_denials (the fire-and-forget capture from the portal + WhatsApp
@@ -33,13 +36,28 @@ export function CapacityPreventedReport({ days }) {
   const maxSlot = Math.max(...stats.bySlot.map((s) => s.n), 1);
   const takenPct = stats.alternativeShownN > 0 ? (stats.alternativeTakenN / stats.alternativeShownN) * 100 : 0;
 
-  const insight = `${stats.total} denial event${stats.total !== 1 ? "s" : ""} recorded — most often "${stats.byReason[0].label}".`;
+  // Lead with capacity only. A customer the salon has blocked from a time,
+  // or a closed day, is a rule doing its job, not demand we failed to serve.
+  const { capacity, restriction } = stats.byGroup;
+  const insight = capacity > 0
+    ? `${capacity} capacity refusal${capacity !== 1 ? "s" : ""} recorded${restriction > 0 ? `, plus ${restriction} from a customer's own booking restriction` : ""} — most often "${stats.byReason[0].label}".`
+    : `${stats.total} refusal${stats.total !== 1 ? "s" : ""} recorded, none of them for capacity — most often "${stats.byReason[0].label}".`;
+  const groups = GROUP_ORDER.filter((g) => stats.byGroup[g] > 0);
 
   return (
     <Section title="Turned-away demand" accent="var(--color-brand-coral)" insight={insight}>
-      <p className="text-caption text-ink-muted font-medium m-0 mb-3">
-        Recorded refusals{stats.firstSeen ? `, since ${fmtLabel(stats.firstSeen.slice(0, 10), true)}` : ""}. These include policy and calendar refusals as well as capacity limits. Events may repeat and are not unique failed appointments. A denial rate cannot be calculated without linked successful attempts. Dates use UTC and include today so far.
+      <p className="text-caption text-ink-muted font-medium m-0 mb-2">
+        Recorded refusals{stats.firstSeen ? `, since ${fmtLabel(stats.firstSeen.slice(0, 10), true)}` : ""}. Capacity limits are counted apart from a customer's own account restriction and from calendar or policy refusals. Events may repeat and are not unique failed appointments. A denial rate cannot be calculated without linked successful attempts. Dates use UTC and include today so far.
       </p>
+
+      {/* Kind of refusal */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3 text-caption font-semibold text-slate-600" aria-label="Refusals by kind">
+        {groups.map((g) => (
+          <span key={g}>
+            {DENIAL_GROUP_LABELS[g]} <strong className="text-slate-700 tabular-nums">{stats.byGroup[g]}</strong>
+          </span>
+        ))}
+      </div>
 
       {/* Reasons ranked */}
       <div className="flex flex-col gap-1.5 mb-4">

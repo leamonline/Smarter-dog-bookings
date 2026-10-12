@@ -216,9 +216,115 @@ export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
  */
 export function isPortalTrouble(messageText: string | null | undefined): boolean {
   if (!messageText) return false;
-  const text = messageText.toLowerCase().replace(/[\u2018\u2019\u02bc]/g, "'");
-  return PORTAL_TROUBLE_PATTERNS.some((re) => re.test(text));
+  return PORTAL_TROUBLE_PATTERNS.some((re) => re.test(normalise(messageText)));
 }
+
+/** Lower-case with straight apostrophes, the shape every phrase pattern below expects. */
+function normalise(messageText: string): string {
+  return messageText.toLowerCase().replace(/[\u2018\u2019\u02bc]/g, "'");
+}
+
+// \u2500\u2500 Messages that need a person, not a script \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Found in the October 2026 inbox review. Each of these carries a booking
+// word ("appointment", "reschedule", "cancellation") that the intent
+// heuristic used to act on, so the customer got a script that answered a
+// different question: the tap-to-book prompt sent to someone standing at a
+// locked door, the automated 24-hour cutoff reply sent twice to someone
+// asking why nobody had replied, "I can't see any upcoming grooms" sent to
+// someone asking whether a cancellation might free a space.
+//
+// Like PORTAL_TROUBLE_PATTERNS these are phrases, not word fragments, and
+// each is paired with everyday wording it must NOT catch (see the tests).
+// No customer text is reproduced here.
+
+// "I'm at the salon and it's closed": the customer has physically arrived
+// and found no one. Needs a presence phrase AND a closed phrase, so "are you
+// closed on Monday?" (hours question) and "I'll wait outside" (collection
+// chat) each keep their normal route.
+const PRESENCE_RE =
+  /\b(?:(?:i'?m|i am|we'?re|we are) (?:here|outside|at the|at your|stood|standing|waiting|parked)|(?:i|we)(?:'?ve)? (?:just )?(?:arrived|got here|got to the|turned up|came|come)\b|(?:arrived|turned up|got here|got to the (?:salon|shop)|here for (?:my|our|his|her|the)|outside (?:the|your)|waiting outside|stood outside|standing outside|at the door|at your door)\b)/;
+const CLOSED_RE =
+  /\b(?:closed|shut|locked|not open|isn'?t open|no ?one(?:'?s| is)? (?:here|there|in|about|answering)|nobody(?:'?s| is)? (?:here|there|in|about|answering)|no answer|not answering|lights (?:are )?off)\b/;
+
+/**
+ * A customer reporting that they turned up and the salon was closed. This is
+ * a service-recovery complaint even when it contains no complaint keyword.
+ */
+export function isServiceRecovery(messageText: string | null | undefined): boolean {
+  if (!messageText) return false;
+  const text = normalise(messageText);
+  return PRESENCE_RE.test(text) && CLOSED_RE.test(text);
+}
+
+// "I already messaged you about this": the customer is chasing a request we
+// did not answer. Whatever the request was, repeating the automated answer
+// is the one thing that must not happen.
+export const CHASING_PATTERNS: readonly RegExp[] = [
+  // "I already sent a message last week", "we've messaged twice", "I asked on Friday"
+  /\b(?:i|we)(?:'?ve)? (?:already |did )?(?:sent|messaged|texted|asked|emailed|wrote|rang|called|phoned)\b[^.?!]{0,40}\b(?:message|earlier|last|yesterday|ago|before|twice|again|previously|on (?:mon|tues|wednes|thurs|fri|satur|sun)day)\b/,
+  /\bstill waiting\b/,
+  /\b(?:not|haven'?t|havent|never) heard (?:back|anything|from)\b/,
+  /\b(?:did|have) you (?:get|got|see|seen|receive|received|read) my (?:message|text|email|whatsapp|last|earlier|previous)\b/,
+  /\bany (?:update|reply|response|answer)\b[^.?!]{0,30}\b(?:message|text|email|request|earlier|previous|last)\b/,
+  /\bno (?:reply|response|answer) (?:yet|to|from)\b/,
+  /\b(?:tried|trying) (?:to )?(?:ring|call|phone|calling|ringing|phoning)\b/,
+  /\bvoicemail\b/,
+  /\bchasing\b/,
+];
+
+/** A customer chasing an earlier message that got no reply. */
+export function isChasing(messageText: string | null | undefined): boolean {
+  if (!messageText) return false;
+  const text = normalise(messageText);
+  return CHASING_PATTERNS.some((re) => re.test(text));
+}
+
+export type HumanNeededKind = "service_recovery" | "chasing";
+
+/**
+ * Which "needs a person" situation a message describes, if any. Service
+ * recovery wins when both apply: someone locked out who also mentions an
+ * earlier message is still, first, locked out.
+ */
+export function humanNeededKind(messageText: string | null | undefined): HumanNeededKind | null {
+  if (isServiceRecovery(messageText)) return "service_recovery";
+  if (isChasing(messageText)) return "chasing";
+  return null;
+}
+
+// "If you have a cancellation, could you squeeze her in?" is a request for
+// space, not a request to cancel. Checked before the cancel keyword.
+export const CANCELLATION_SPACE_PATTERNS: readonly RegExp[] = [
+  /\b(?:if|in case|should|when|whenever) (?:you|there|anyone|anybody|someone|somebody|a|of)\b[^.?!]{0,25}\bcancel/,
+  /\bany cancell?ations?\b/,
+  /\bcancell?ations? (?:list|come up|comes up|coming up)\b/,
+  /\b(?:squeeze|fit) (?:me|her|him|us|them|[a-z]+) in\b/,
+  /\bwait(?:ing)? ?list\b/,
+];
+
+/** A customer asking whether someone else's cancellation might free a space. */
+export function isCancellationSpaceRequest(messageText: string | null | undefined): boolean {
+  if (!messageText) return false;
+  const text = normalise(messageText);
+  return CANCELLATION_SPACE_PATTERNS.some((re) => re.test(text));
+}
+
+// Weekends, evenings, "after work": the salon never opens then, so the
+// tap-to-book prompt can only lead to a form with nothing they asked for. A
+// person needs to say so and offer what we do have.
+const OUT_OF_HOURS_RE =
+  /\b(?:weekends?|saturdays?|sundays?|evenings?|after (?:work|school|lunch(?:time)?|(?:1[0-2]|[1-9]) ?pm|[4-9]\b|four|five|six|seven|eight)|late (?:afternoon|opening|appointments?)|out of hours|bank holidays?)\b/;
+
+/** A request for a time the salon is never open. */
+export function isOutOfHoursRequest(messageText: string | null | undefined): boolean {
+  if (!messageText) return false;
+  return OUT_OF_HOURS_RE.test(normalise(messageText));
+}
+
+// A groom that also mentions nails or glands is a booking with an add-on,
+// not a walk-in enquiry. Only groom-type service words count: "book him in
+// for a nail clip" stays a walk-in, because nail clips are never booked.
+const GROOM_SERVICE_RE = /\b(?:groom\w*|bath|de-?shed\w*|tidy|cut|wash)\b/;
 
 // Intents that may be auto-sent (subject to all the gates in
 // canAutoSend). booking_* intents are intentionally absent because
@@ -507,6 +613,7 @@ export type FallbackKind =
   | "price_check"
   | "handoff"
   | "portal_trouble"
+  | "service_recovery"
   | "unknown";
 
 const FALLBACK_TEMPLATES: Readonly<Record<FallbackKind, string>> = {
@@ -523,6 +630,10 @@ const FALLBACK_TEMPLATES: Readonly<Record<FallbackKind, string>> = {
   // Deliberately no link: the customer has just told us the link failed them.
   portal_trouble:
     "Sorry the booking page is being awkward 🐾 No need to keep trying, we'll book this in for you here — just tell me which pup and roughly when suits 😊 X",
+  // The customer turned up and found us closed. Apology first, a person
+  // second, and no booking prompt: they already had a booking.
+  service_recovery:
+    "I'm so sorry, that's not how a visit to us should go 🐾 One of the team is picking this up right now and will come back to you here as soon as they can X",
   unknown:
     "Could you send me your pup's name, breed, and what you're looking to book please? 😊 X",
 };
@@ -620,13 +731,26 @@ export function guessIntentFromText(messageText: string | null | undefined): Int
   if (containsAny(text, MEDICAL_KEYWORDS) || containsAny(text, COMPLAINT_KEYWORDS)) {
     return "escalate";
   }
-  if (isWalkInService(text)) return "faq";
+  // Someone at a closed salon, or chasing an unanswered message, needs a
+  // person. Checked before every booking word below, because those are
+  // exactly the words such a message contains ("my 1pm appointment",
+  // "asking to reschedule").
+  if (humanNeededKind(text)) return "escalate";
+  // A walk-in mention inside a groom booking ("groom and nail trim") is a
+  // booking with an add-on; only a bare walk-in enquiry is the FAQ.
+  if (isWalkInService(text) && !GROOM_SERVICE_RE.test(text)) return "faq";
   if (/\b(price|cost|how much|£)\b/.test(text)) return "faq";
+  // Weekends, evenings, after work: hours we never open, so an hours answer
+  // from a person, not a booking form that cannot offer them.
+  if (isOutOfHoursRequest(text)) return "faq";
   // Salon-info FAQs: hours/opening, address/parking, payment methods.
   // Kept narrow so it doesn't swallow the explicit booking phrases below.
   if (/\b(open|opening|close|closing|hours|when (?:are|do) you|what time|address|parking|where are you|do you take|card or cash|payment)\b/.test(text)) {
     return "faq";
   }
+  // "If you have a cancellation..." asks for space; it must not reach the
+  // cancel keyword below, which would open the customer's own bookings.
+  if (isCancellationSpaceRequest(text)) return "booking_query";
   // Order matters: cancel/reschedule must run before the broad
   // booking_propose pattern, otherwise "cancel today's appointment"
   // hits "appointment" and routes to booking_propose.

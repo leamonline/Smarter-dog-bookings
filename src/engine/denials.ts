@@ -26,6 +26,39 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
 };
 
 /**
+ * What kind of refusal a reason code records. The turned-away-demand report
+ * leads with `capacity` only: a customer the salon has deliberately blocked
+ * from a time (`restriction`) is not lost capacity, and a closed day, a past
+ * date or a pregnant dog (`policy`) is the calendar working as designed.
+ * Lumping them together made a handful of account restrictions read as
+ * missed demand in the October 2026 inbox review.
+ */
+export type DenialGroup = "capacity" | "restriction" | "policy" | "other";
+
+export const DENIAL_REASON_GROUP: Record<string, DenialGroup> = {
+  capacity_2_2_1: "capacity",
+  daily_cap: "capacity",
+  slot_full: "capacity",
+  seat_blocked: "capacity",
+  large_dog_ineligible: "capacity",
+  unavailable: "capacity",
+  customer_slot_blocked: "restriction",
+  calendar_closed: "policy",
+  past_date: "policy",
+  past_cutoff: "policy",
+  pregnant: "policy",
+  double_booked: "policy",
+  unknown: "other",
+};
+
+export const DENIAL_GROUP_LABELS: Record<DenialGroup, string> = {
+  capacity: "Capacity",
+  restriction: "Account restriction",
+  policy: "Calendar or policy",
+  other: "Other",
+};
+
+/**
  * Categorise a booking-gate rejection into a stable reason code.
  *
  * Since migration 20260826120000 the gates EMIT their code in the exception's
@@ -157,6 +190,8 @@ function slotLabel(slot: string): string {
 export interface DenialStats {
   total: number;
   byReason: Array<{ code: string; label: string; n: number; pct: number }>;
+  /** Refusals by kind — see DENIAL_REASON_GROUP. Sums to `total`. */
+  byGroup: Record<DenialGroup, number>;
   bySize: Array<{ size: string; n: number }>;
   bySlot: Array<{ slot: string; label: string; n: number }>;
   bySource: Array<{ source: string; n: number }>;
@@ -173,6 +208,7 @@ export function computeDenialStats(rows: DenialRow[], days: number, today: Date 
   });
 
   const total = inWindow.length;
+  const byGroup: Record<DenialGroup, number> = { capacity: 0, restriction: 0, policy: 0, other: 0 };
   const reasonAcc: Record<string, number> = {};
   const sizeAcc: Record<string, number> = {};
   const slotAcc: Record<string, number> = {};
@@ -184,6 +220,7 @@ export function computeDenialStats(rows: DenialRow[], days: number, today: Date 
   for (const r of inWindow) {
     const code = r.reason_code || "unknown";
     reasonAcc[code] = (reasonAcc[code] || 0) + 1;
+    byGroup[DENIAL_REASON_GROUP[code] ?? "other"]++;
     if (r.size) sizeAcc[r.size] = (sizeAcc[r.size] || 0) + 1;
     if (r.slot) slotAcc[r.slot] = (slotAcc[r.slot] || 0) + 1;
     sourceAcc[r.source || "unknown"] = (sourceAcc[r.source || "unknown"] || 0) + 1;
@@ -199,5 +236,5 @@ export function computeDenialStats(rows: DenialRow[], days: number, today: Date 
   const bySlot = Object.entries(slotAcc).map(([slot, n]) => ({ slot, label: slotLabel(slot), n })).sort((a, b) => b.n - a.n);
   const bySource = Object.entries(sourceAcc).map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
 
-  return { total, byReason, bySize, bySlot, bySource, alternativeShownN, alternativeTakenN, firstSeen };
+  return { total, byReason, byGroup, bySize, bySlot, bySource, alternativeShownN, alternativeTakenN, firstSeen };
 }
