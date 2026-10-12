@@ -108,11 +108,11 @@ export const UNREACHABLE_AFTER = 3;
 /**
  * Apply Meta's verdict to log rows. notification_log says 'sent' the moment
  * Meta accepts a message; Meta's later "failed" lands on the whatsapp_messages
- * row with the same id. The webhook also copies it onto the log, but it can
- * lose the race with the notify function that is still writing the id onto a
- * pending row, and rows from before that change were never copied at all. So
- * the read side reconciles: any WhatsApp row whose provider message Meta
- * failed is treated as failed, with Meta's reason. Pure; returns new rows.
+ * row with the same id. Since migration 20261012120000 the database copies it
+ * onto the log in either order and backfilled the older rows, so in steady
+ * state this finds nothing to change. It stays as the read side's own check:
+ * a log row the triggers have not yet reached, or a project where the
+ * migration is not yet applied, still shows the truth. Pure; returns new rows.
  */
 export function applyMetaVerdicts<T extends Pick<NotificationLogRow, "channel" | "status" | "error_message" | "provider_message_id">>(
   rows: readonly T[],

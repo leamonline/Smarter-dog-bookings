@@ -13,6 +13,13 @@
 // list — never showed it. 32 confirmations and reminders for real bookings
 // failed that way between June and October 2026, all invisible to staff.
 //
+// Since migration 20261012120000 the database does this reconciliation
+// itself (a trigger each way round the race) and backfilled the 32 rows from
+// before 7 October 2026. The agent's copy in handleStatus is kept as a
+// belt-and-braces duplicate. metaFailureSummary is mirrored by the SQL
+// function whatsapp_meta_failure_summary(text); change both together — the
+// pgTAP test 242 pins the SQL side to these exact strings.
+//
 // Pure: no Deno or Supabase imports, so Vitest can exercise it directly.
 // ============================================================
 
