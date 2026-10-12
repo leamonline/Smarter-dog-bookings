@@ -1,6 +1,6 @@
 # ADR 013: Allow late cancellations with customer history
 
-Status: Accepted policy — implementation and rollout pending
+Status: Accepted and implemented — live on prod since 1 October 2026 (migration `20261001203326`, PR #931); owner acceptance of the live UI outstanding, see the plan's 12 October evidence
 Date: 2026-10-01
 Issue: [#930](https://github.com/leamonline/Smarter-dog-bookings/issues/930)
 Plan: [Late cancellation history](../../plans/active/2026-10-01-late-cancellation-history.md)
