@@ -170,7 +170,15 @@ export function TodayView({
   const resolve = useCallback((booking) => resolveBookingDisplay(booking, dogs, humans), [dogs, humans]);
   const getWelfare = useCallback((booking) => {
     const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
-    return { alerts: dog?.alerts || [], pregnant: !!dog?.isPregnant, notes: booking.notes || "" };
+    return {
+      alerts: dog?.alerts || [],
+      pregnant: !!dog?.isPregnant,
+      notes: booking.notes || "",
+      // The dog's standing instructions ("short on the ears, hates the dryer").
+      // Edited on the dog card and by the Inbox "Update notes" action; until
+      // now they were one modal away at the moment the groomer needs them.
+      groomNotes: dog?.groomNotes || "",
+    };
   }, [dogs]);
   const paymentOf = useCallback((booking) => {
     const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);

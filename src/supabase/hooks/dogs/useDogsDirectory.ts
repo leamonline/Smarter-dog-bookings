@@ -257,6 +257,18 @@ export function useDogsDirectory({
         (payload: RealtimePostgresUpdatePayload<DogRow>) => {
           invalidateHuman(payload.old?.human_id);
           invalidateHuman(payload.new?.human_id);
+          // The page refetch below reseeds only the rows on the current
+          // directory page. A dog we already hold but that is not on that
+          // page — one on today's stack whose notes were just appended from
+          // the Inbox, or whose size was confirmed on its card — would keep
+          // its old row until a full reload. Merge the fresh row for dogs
+          // already in the cache; unknown dogs still arrive via the page.
+          const fresh = payload.new;
+          if (fresh?.id) {
+            setDogsById((prev) =>
+              prev[fresh.id] ? { ...prev, [fresh.id]: { ...prev[fresh.id], ...fresh } } : prev,
+            );
+          }
           if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },

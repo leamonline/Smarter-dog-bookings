@@ -67,7 +67,7 @@ const BOOKINGS = [
 ];
 
 const WELFARE = {
-  d2: { alerts: ["Bites / Nips"], pregnant: false, notes: "" },
+  d2: { alerts: ["Bites / Nips"], pregnant: false, notes: "", groomNotes: "Teddy bear cut, short on ears." },
 };
 
 /** The same token map TodayView builds, so actions come from the real engine. */
@@ -261,6 +261,23 @@ describe("expanding a card", () => {
     expect(open.getByText("12 June")).toBeTruthy();
     expect(open.getByText("£42")).toBeTruthy();
     expect(open.getByText("Check ears, she was sore last time.")).toBeTruthy();
+  });
+
+  it("shows the dog's usual groom notes beside the visit note", () => {
+    renderStack();
+    fireEvent.click(head("bathing"));
+    const open = within(card("bathing"));
+    expect(open.getByText("Usual groom:")).toBeTruthy();
+    const notes = open.getByText("Teddy bear cut, short on ears.");
+    expect(notes).toBeTruthy();
+    // Notes come from a textarea; line breaks between instructions must survive.
+    expect(notes.closest("p").className).toContain("whitespace-pre-wrap");
+  });
+
+  it("omits the usual-groom line when the dog has no standing notes", () => {
+    renderStack();
+    fireEvent.click(head("waiting"));
+    expect(within(card("waiting")).queryByText("Usual groom:")).toBeNull();
   });
 
   it("links the phone number so it can be dialled one-handed", () => {

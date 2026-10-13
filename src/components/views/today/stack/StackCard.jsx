@@ -359,6 +359,16 @@ export function StackCard({
               </p>
             ) : null}
 
+            {welfare?.groomNotes ? (
+              <p
+                className="m-0 whitespace-pre-wrap rounded bg-white/40 px-3 py-2.5 text-[13.5px] leading-[1.5]"
+                style={{ color: "var(--card-ink)" }}
+              >
+                <span className="mr-1.5 font-semibold">Usual groom:</span>
+                {welfare.groomNotes}
+              </p>
+            ) : null}
+
             {showChain ? (
               <CheckoutChain
                 amountDue={amountDue}
