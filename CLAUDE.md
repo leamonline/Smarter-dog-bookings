@@ -321,6 +321,9 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that deployment carries **the marketing
   site as well as the booking app**, so a bad merge takes down smarterdog.co.uk too, not just the
   salon's internal tooling. DB migrations do **not** auto-apply; apply them to prod first.
+- **Database backups:** the weekly encrypted `pg_dump` (`database-backup.yml`, `production` environment,
+  off until `DATABASE_BACKUP_ENABLED=true`), what it does and does not contain, and the restore
+  drill live in [docs/operations.md](docs/operations.md). A downloaded backup is customer data.
 - **No standing production authority.** A task that needs a production write, customer-data access,
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior
