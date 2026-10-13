@@ -63,6 +63,8 @@ architecture convergence tracked by [issue #603](https://github.com/leamonline/S
 - Evidence audit:
   [`research/2026-08-09-issue-603-plan-reality-audit.md`](research/2026-08-09-issue-603-plan-reality-audit.md)
 - Roadmap and stop/go gate: [`../ROADMAP.md`](../ROADMAP.md)
+- End-to-end audit (12 Oct 2026, research; findings and a prioritised roadmap, not a decision):
+  [`research/2026-10-12-end-to-end-audit.md`](research/2026-10-12-end-to-end-audit.md)
 - Traceability: [`traceability.md`](traceability.md)
 
 ## Existing authoritative domain references
