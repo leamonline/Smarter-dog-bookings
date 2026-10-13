@@ -3014,6 +3014,7 @@ export type Database = {
           booking_visit_id: string | null
           closure_date: string | null
           created_at: string
+          dog_id: string | null
           done: boolean
           human_id: string | null
           id: string
@@ -3027,6 +3028,7 @@ export type Database = {
           booking_visit_id?: string | null
           closure_date?: string | null
           created_at?: string
+          dog_id?: string | null
           done?: boolean
           human_id?: string | null
           id?: string
@@ -3040,6 +3042,7 @@ export type Database = {
           booking_visit_id?: string | null
           closure_date?: string | null
           created_at?: string
+          dog_id?: string | null
           done?: boolean
           human_id?: string | null
           id?: string
@@ -3068,6 +3071,13 @@ export type Database = {
             columns: ["booking_visit_id"]
             isOneToOne: false
             referencedRelation: "booking_visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_todos_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
             referencedColumns: ["id"]
           },
           {
@@ -4340,6 +4350,15 @@ export type Database = {
         Returns: string
       }
       derive_canonical_dog_size: { Args: { p_breed: string }; Returns: string }
+      dog_size_check_todo_text: {
+        Args: {
+          p_breed: string
+          p_dog_name: string
+          p_owner: string
+          p_reported: string
+        }
+        Returns: string
+      }
       dismiss_delivery_failure: {
         Args: { p_booking_id: string }
         Returns: undefined
@@ -4649,6 +4668,10 @@ export type Database = {
         }[]
       }
       prune_slack_alerts: { Args: never; Returns: number }
+      raise_dog_size_check_todo: {
+        Args: { p_dog_id: string; p_expected_human_id?: string }
+        Returns: boolean
+      }
       recompute_legacy_booking_visit: {
         Args: { p_visit_id: string }
         Returns: undefined
@@ -4737,6 +4760,14 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      refresh_dog_size_check_todo: {
+        Args: { p_dog_id: string }
+        Returns: boolean
+      }
+      request_dog_size_check: {
+        Args: { p_dog_id: string }
+        Returns: boolean
       }
       reschedule_customer_booking: {
         Args: {

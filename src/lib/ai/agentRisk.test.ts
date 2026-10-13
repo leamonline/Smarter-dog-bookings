@@ -39,6 +39,12 @@ import {
   extractMissingFields,
   fallbackReplyForIntent,
   guessIntentFromText,
+  humanNeededKind,
+  isCancellationSpaceRequest,
+  isChasing,
+  isOutOfHoursRequest,
+  isPortalTrouble,
+  isServiceRecovery,
   isWalkInService,
   mergeAgentState,
   requiresHandoff,
@@ -378,6 +384,7 @@ describe("fallbackReplyForIntent", () => {
       "walk_in",
       "price_check",
       "handoff",
+      "portal_trouble",
       "unknown",
       "greeting",
       "booking_propose",
@@ -392,7 +399,7 @@ describe("fallbackReplyForIntent", () => {
   });
 
   it("uses only emojis from the brand-allowed set", () => {
-    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "unknown"] as const;
+    const inputs = ["new_enquiry", "missing_info", "walk_in", "price_check", "handoff", "portal_trouble", "unknown"] as const;
     for (const kind of inputs) {
       const reply = fallbackReplyForIntent(kind);
       const emojis = emojisIn(reply);
@@ -655,5 +662,222 @@ describe("explicit booking-preference corrections", () => {
   });
   it("an explicit corrected value takes precedence over an ordinary extracted value", () => {
     expect(mergeAgentState({preferredDay:"Monday"}, {preferredDay:"Monday",corrections:[{field:"preferredDay",value:"Tuesday",evidence:"Tuesday instead"}]}).preferredDay).toBe("Tuesday");
+  });
+});
+
+// ── isPortalTrouble ──────────────────────────────────────────
+// Synthetic messages written to exercise each pattern. They mirror the KINDS
+// of report customers sent (login loops, address lookup, the size wall, curly
+// apostrophes from phones) without reproducing anyone's wording: no customer
+// text belongs in the repository. Before this rule each kind was answered
+// with the tap-to-book prompt and then the very portal link it reported.
+describe("isPortalTrouble", () => {
+  const reports = [
+    "Hello, I\u2019m trying to get Biscuit booked but it\u2019s not letting me log in",
+    "Trying to book Max for a groom but it won't let me book him on the booking page",
+    "it ont let me book on the ap",
+    "still can't seem to get on the app, any slots next week?",
+    "I can't get into my account to book",
+    "can't log in again",
+    "Tried booking online but it keeps sending me back to sign up",
+    "the site keeps kicking me out and says something about his weight",
+    "It\u2019s not letting me put my postcode in",
+    "I tried to book on your website but it couldn\u2019t find my address",
+    "I\u2019ve tried a few times and your website isn\u2019t working",
+    "The system isnt working",
+    "the new booking form is asking me to contact you about Max\u2019s size",
+    "Can\u2019t book the two of them, it says need to know Max\u2019s size",
+    "For some reason I can\u2019t book in on the App",
+    "wanted to add my second dog but wont let me add her",
+  ];
+  it.each(reports)("flags: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(true);
+  });
+
+  // Ordinary booking traffic must keep its normal route — a false positive
+  // costs the customer the instant tap-to-book reply.
+  const ordinary = [
+    "Hi can I book Ruby in for the 9th September please xx",
+    "Can I book online or do I need to message?",
+    "I can't do Tuesday, have you got Wednesday?",
+    "I can't make it tomorrow, can we reschedule",
+    "He's a medium size cockapoo",
+    "On my way, be 5 mins",
+    "Is Charlie ready?",
+    "Please don't let me forget his collar x",
+    // Everyday "won't let me" with nothing to do with the booking page.
+    "He won't let me brush him at home, can you help with mats?",
+    "Work won't let me leave early so can I collect at 1?",
+    "She doesn't let me near her paws",
+    "I can't seem to get him to eat before a groom",
+    "I can't get in until 10, is that ok?",
+    "Can't get on the bus with him so my mum will drop off",
+    "",
+  ];
+  it.each(ordinary)("leaves alone: %s", (msg) => {
+    expect(isPortalTrouble(msg)).toBe(false);
+  });
+
+  it("is null-safe", () => {
+    expect(isPortalTrouble(null)).toBe(false);
+    expect(isPortalTrouble(undefined)).toBe(false);
+  });
+
+  it("the reply for it never sends the customer back to the website", () => {
+    const reply = fallbackReplyForIntent("portal_trouble");
+    expect(reply).not.toMatch(/https?:\/\//);
+    expect(reply).not.toMatch(/smarterdog\./i);
+    expect(reply).toMatch(/book this in for you here/);
+  });
+});
+
+// ── Misread requests (October 2026 inbox review) ─────────────
+// Four kinds of message were being answered with the wrong script because the
+// heuristic only knew booking words: a customer standing outside a closed
+// salon got the tap-to-book prompt; a customer chasing an earlier request got
+// the same automated cutoff twice; "if you have a cancellation" was read as a
+// cancel attempt; and a groom that also mentioned nails was filed as a walk-in
+// FAQ and never drafted. Synthetic wording throughout — no customer text.
+describe("isServiceRecovery", () => {
+  const reports = [
+    "I had a 1pm appointment today, I'm at the salon and it's closed?",
+    "We've just turned up for Milo's groom and the shop is shut",
+    "I'm outside and nobody is here, is someone coming?",
+    "Got to the salon for 9:30 and the door’s locked",
+    "Been waiting outside for 20 minutes and no one is answering",
+    "Arrived for our appointment but you're not open",
+  ];
+  it.each(reports)("flags: %s", (msg) => expect(isServiceRecovery(msg)).toBe(true));
+
+  const ordinary = [
+    "Are you closed on bank holiday Monday?",
+    "What time do you close?",
+    "Is the salon open tomorrow?",
+    "Can I book Ruby in for Tuesday?",
+    "Please keep the gate shut when you let him out",
+    "I'll wait outside with him until you're ready",
+    "",
+  ];
+  it.each(ordinary)("leaves alone: %s", (msg) => expect(isServiceRecovery(msg)).toBe(false));
+
+  it("routes to escalate, never to a booking prompt", () => {
+    expect(guessIntentFromText("I had a 1pm appointment today, I'm at the salon and it's closed?")).toBe("escalate");
+  });
+
+  it("is null-safe", () => {
+    expect(isServiceRecovery(null)).toBe(false);
+    expect(isServiceRecovery(undefined)).toBe(false);
+  });
+});
+
+describe("isChasing", () => {
+  const chases = [
+    "I already sent a message last week asking to move her",
+    "Still waiting for a reply about Bella",
+    "Did you get my message yesterday?",
+    "I've messaged twice now and not heard back",
+    "Tried to ring but it went to voicemail, could you advise",
+    "Any update on my earlier message?",
+    "I asked about this on Friday and haven't heard anything",
+  ];
+  it.each(chases)("flags: %s", (msg) => expect(isChasing(msg)).toBe(true));
+
+  const ordinary = [
+    "Can I book Max in please",
+    "Thanks for getting back to me",
+    "I'll message you when I'm outside",
+    "Can we reschedule to Wednesday?",
+    "Please cancel tomorrow's appointment",
+    "",
+  ];
+  it.each(ordinary)("leaves alone: %s", (msg) => expect(isChasing(msg)).toBe(false));
+
+  it("routes to escalate even when the chase mentions a reschedule", () => {
+    // Before this rule the reschedule word won and the customer got the
+    // automated 24-hour cutoff reply a second time.
+    expect(guessIntentFromText("I already sent a message last week asking to reschedule")).toBe("escalate");
+  });
+});
+
+describe("humanNeededKind", () => {
+  it("prefers service recovery when both apply", () => {
+    expect(humanNeededKind("I'm outside and it's shut, I did message earlier too")).toBe("service_recovery");
+  });
+  it("returns chasing for a chase alone", () => {
+    expect(humanNeededKind("Still waiting for a reply about Bella")).toBe("chasing");
+  });
+  it("returns null for ordinary traffic", () => {
+    expect(humanNeededKind("Can I book Max in please")).toBeNull();
+    expect(humanNeededKind(null)).toBeNull();
+  });
+  it("has a no-link handoff reply for service recovery", () => {
+    const reply = fallbackReplyForIntent("service_recovery");
+    expect(reply).not.toMatch(/https?:\/\//);
+    expect(reply).toMatch(/sorry/i);
+    expect(reply).toMatch(/team/i);
+  });
+});
+
+describe("isCancellationSpaceRequest", () => {
+  const asks = [
+    "If you have a cancellation tomorrow could you squeeze her in?",
+    "Can you put me on the cancellation list?",
+    "Any cancellations this week?",
+    "If anyone cancels on Wednesday I'd happily take the slot",
+    "Could you add us to the waiting list please",
+    "In case of a cancellation, we're free all day Tuesday",
+  ];
+  it.each(asks)("flags: %s", (msg) => expect(isCancellationSpaceRequest(msg)).toBe(true));
+
+  const realCancels = [
+    "Please cancel Bella's appointment tomorrow",
+    "I need to cancel",
+    "Cancel Monday's groom please",
+  ];
+  it.each(realCancels)("leaves a real cancellation alone: %s", (msg) => {
+    expect(isCancellationSpaceRequest(msg)).toBe(false);
+    expect(guessIntentFromText(msg)).toBe("booking_cancel");
+  });
+
+  it("routes to booking_query, not booking_cancel and not the tap-to-book prompt", () => {
+    const intent = guessIntentFromText("If you have a cancellation tomorrow could you squeeze her in?");
+    expect(intent).toBe("booking_query");
+  });
+});
+
+describe("isOutOfHoursRequest", () => {
+  const asks = [
+    "Do you do anything at a weekend?",
+    "Any appointments after 5pm for people who work?",
+    "Do you open on Saturdays?",
+    "Are there any evening slots?",
+    "Could you fit him in on a Sunday?",
+  ];
+  it.each(asks)("flags: %s", (msg) => expect(isOutOfHoursRequest(msg)).toBe(true));
+
+  it("routes to faq so a person explains the hours instead of a booking link", () => {
+    expect(guessIntentFromText("Do you do anything at a weekend?")).toBe("faq");
+    expect(guessIntentFromText("Any appointments after 5pm for people who work?")).toBe("faq");
+  });
+
+  it("leaves an in-hours booking alone", () => {
+    expect(isOutOfHoursRequest("Can I book Monday morning?")).toBe(false);
+    expect(guessIntentFromText("Can I book Monday morning?")).toBe("booking_propose");
+  });
+});
+
+describe("walk-in words inside a groom booking", () => {
+  it("a groom that also mentions nails or glands is a booking, not a walk-in FAQ", () => {
+    expect(guessIntentFromText("Can I book Scout in for a groom and nail trim next week?")).toBe("booking_propose");
+    expect(guessIntentFromText("Can I book Daisy in for a full groom, and could you do her glands too?")).toBe("booking_propose");
+  });
+  it("a groom word alone does not invent a booking request", () => {
+    // Only the walk-in short-circuit is suppressed; the rest of the chain
+    // still decides, so an add-on asked about in passing is not a new booking.
+    expect(guessIntentFromText("Could you do her glands at her groom too?")).not.toBe("booking_propose");
+  });
+  it("a walk-in question on its own stays an FAQ", () => {
+    expect(guessIntentFromText("Do you do nail clipping?")).toBe("faq");
+    expect(guessIntentFromText("Can I pop in for his ears cleaning?")).toBe("faq");
   });
 });

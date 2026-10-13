@@ -90,10 +90,10 @@ The evidence and distinctions behind this table live in
 - **Supabase** — Postgres database, Auth, Row Level Security, Realtime and Storage
   (private `dog-photos` bucket).
 - **Edge Functions** — backend logic in Deno (notifications, WhatsApp, calendar
-  feeds, postcode lookup). See [Edge Functions](#edge-functions) below.
+  feeds, address search). See [Edge Functions](#edge-functions) below.
 - **External services** — Meta WhatsApp Cloud API, Anthropic Claude (AI
-  receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), APITier (UK
-  postcode lookup), Cloudflare Turnstile (login CAPTCHA — enforcement depends on
+  receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), Geoapify (UK
+  address suggestions; [setup and recovery](docs/address-search.md)), Cloudflare Turnstile (login CAPTCHA — enforcement depends on
   Supabase Authentication → Attack Protection being on; `npm run check:captcha`
   verifies it against the live project), Sentry (error reporting —
   live since 28 August 2026; `npm run check:sentry` verifies it against the
@@ -404,10 +404,13 @@ Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (plus any optional
 
 ### ⚠️ Database migrations are applied manually
 Merging to `main` deploys the frontend and Edge Functions, **but not the database**.
-Migrations in `supabase/migrations/` must be applied by hand (Supabase SQL Editor or
-CLI). The frontend can otherwise ship ahead of the schema and break production. The
+Migrations in `supabase/migrations/` must be applied by hand: the Supabase SQL Editor, the
+CLI, or the approval-gated **Apply named migrations to production** workflow (manual dispatch
+under the `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)).
+The frontend can otherwise ship ahead of the schema and break production. The
 `check-migrations-applied` and `check-migrations-drift` workflows flag any committed
-migration that hasn't been applied to prod.
+migration that hasn't been applied to prod (and the former also one whose committed SQL
+differs from what prod recorded applying).
 
 ### Manual build
 ```bash

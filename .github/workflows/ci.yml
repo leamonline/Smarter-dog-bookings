@@ -236,7 +236,7 @@ jobs:
 
   pr-production-smoke:
     # This is intentionally separate from `e2e`: PRs run every spec once, on
-    # desktop Chromium, plus the smoke and viewport-continuity journeys on
+    # desktop Chromium, plus the smoke and continuity journeys on
     # WebKit, plus the specs the pull request itself changes on tablet and
     # mobile Chromium — while the full desktop/tablet/mobile matrix remains
     # post-merge/manual to control cost.
@@ -379,12 +379,12 @@ jobs:
       # config, for the reason given above. Keep it in step with the
       # mobile-webkit project's testMatch in playwright.config.ts, which is
       # what reproduces this run locally.
-      - name: Run production-build PR suite — smoke and viewport journeys on WebKit
+      - name: Run production-build PR suite — smoke and continuity journeys on WebKit
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/pr-gate-results/pr-webkit-results.json
         run: |
-          npx playwright test e2e/smoke.spec.ts e2e/viewport-continuity.spec.ts \
+          npx playwright test e2e/smoke.spec.ts e2e/viewport-continuity.spec.ts e2e/booking-modal-continuity.spec.ts \
             --project=mobile-webkit \
             --reporter=line,github,html,json
           node scripts/assert-playwright-pr-smoke-results.mjs \

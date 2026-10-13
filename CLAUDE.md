@@ -239,9 +239,12 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   (`src/engine/capacityParityFixtures.test.ts` + `supabase/tests/036_capacity_parity.test.sql`).
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
-  Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's
+  Apply a migration to prod **before** merging code that depends on it, or prod breaks. The
+  repeatable way is the manual, approval-gated **Apply named migrations to production** workflow
+  (`production-apply-migrations.yml`, `production` GitHub environment; see [docs/migrations.md](docs/migrations.md)). CI's
   `migrations-applied` check supplies that evidence, and the `Protect main` ruleset makes it a
-  **required status check** — a pull request adding a migration that is not yet live on prod is
+  **required status check** — a pull request adding a migration that is not yet live on prod, or
+  whose committed SQL differs from what prod recorded applying, is
   refused at merge with `405 Repository rule violations found`. It is a gate, not a discipline.
   ⚠️ That means an **expand/contract rollout cannot live in one pull request**: the contract phase
   must not run until the new frontend is deployed, but the check demands it already be applied.
@@ -321,7 +324,10 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **No standing production authority.** A task that needs a production write, customer-data access,
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior
-  successful operation is not permission. For an authorised migration, follow
+  successful operation is not permission. `mcp__Supabase__apply_migration` runs without a
+  prompt for **staging only**, granted by a PreToolUse hook (`.claude/hooks/guard-supabase-apply-migration.sh`)
+  that sends any other project ref, and any failure of its own, back to the permission prompt;
+  there is deliberately no `permissions.allow` entry for it. For an authorised migration, follow
   [docs/migrations.md](docs/migrations.md), use an explicit verified project target, show and review
   the SQL before applying it, and record independent post-apply evidence. Never infer that merge
   applies a migration.

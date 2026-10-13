@@ -74,11 +74,14 @@ import {
 } from "./rescheduleConfirm.ts";
 
 // Reschedule fail-safe copy (the old booking is left untouched in these cases).
+// Both are dead ends, so neither asks the customer to message us: the team is
+// given a to-do (raiseFollowUpTodo) and the customer is told so.
 const RESCHEDULE_CHANGED_MSG =
-  "Looks like this booking has changed since you started — please send us a message and the team will help. 🐾";
+  "Looks like this booking has changed since you started, so I've passed it to the team. They'll message you here to sort it. 🐾";
 const RESCHEDULE_CUTOFF_MSG =
-  "This appointment is now within 24 hours, so I can't move it automatically here. Please message us and the team will sort it. 🐾";
+  "This appointment is now within 24 hours, so I can't move it automatically here. I've passed it to the team and they'll message you here to sort it. 🐾";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 
 const DATA_API_VERSION = "3.0";
 
@@ -108,6 +111,12 @@ const NO_PETS_MSG =
 // (issue #682). Both are resolved by a human, not by the Flow.
 const NO_BOOKABLE_PETS_MSG =
   "We just need to check something about your dog before booking online — please reply here and the team will sort it. 🐾";
+// Every hidden dog is waiting on a size and the salon now has a to-do for it,
+// so make the same promise the portal wizard makes: the team has been asked.
+// Not used when any dog is hidden for another reason (a pregnancy needs a
+// conversation first), so the message never promises more than is true.
+const SIZE_CHECK_RAISED_MSG =
+  "We just need to confirm your dog's size before you can book online — we've let the team know, and they'll message you here once it's set. 🐾";
 const FINE_PRINT =
   "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon.";
 
@@ -202,10 +211,14 @@ async function buildScreen(
     case "SELECT_PET": {
       const listing = session.human_id
         ? await listPetOptions(db, session.human_id)
-        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+        : { options: [], hiddenCount: 0, totalOnFile: 0, sizeChecksRaised: 0 };
       if (!listing.options.length) {
         return screenResponse("NO_PETS", {
-          message: listing.totalOnFile > 0 ? NO_BOOKABLE_PETS_MSG : NO_PETS_MSG,
+          message: listing.totalOnFile === 0
+            ? NO_PETS_MSG
+            : listing.sizeChecksRaised === listing.hiddenCount
+            ? SIZE_CHECK_RAISED_MSG
+            : NO_BOOKABLE_PETS_MSG,
         });
       }
       return screenResponse("SELECT_PET", { pets: listing.options });
@@ -483,6 +496,11 @@ async function handleConfirm(
 
     if (result.kind === "old_visit_unavailable") {
       await logFlowDenial(supabase, session, state, result.detail ?? result.message, false, result.detailCode);
+      await raiseFollowUpTodo(
+        supabase,
+        session.human_id,
+        result.message === RESCHEDULE_CUTOFF_MSG ? "flow_reschedule_cutoff" : "flow_booking_changed",
+      );
       return screenResponse("BOOKING_FAILED", {
         message: result.message === RESCHEDULE_CUTOFF_MSG
           ? RESCHEDULE_CUTOFF_MSG
@@ -553,6 +571,7 @@ async function handleConfirm(
   // this ordinary booking path.
   if (res.kind === "old_visit_unavailable") {
     await logFlowDenial(supabase, session, state, res.detail ?? res.message, false, res.detailCode);
+    await raiseFollowUpTodo(supabase, session.human_id, "flow_booking_changed");
     await failSession(supabase, session.flow_token);
     return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
@@ -628,7 +647,7 @@ async function handleDataExchange(
       }
       const listing = session.human_id
         ? await listPetOptions(db, session.human_id)
-        : { options: [], hiddenCount: 0, totalOnFile: 0 };
+        : { options: [], hiddenCount: 0, totalOnFile: 0, sizeChecksRaised: 0 };
       target = listing.options.length ? "SELECT_PET" : "NO_PETS";
       break;
     }

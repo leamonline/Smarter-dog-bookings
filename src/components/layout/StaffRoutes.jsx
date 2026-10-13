@@ -17,6 +17,9 @@
 import { lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
+const bookingWizardPreviewEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_FORCE_OFFLINE === "1";
+
 // Dev-only preview catalogue for the right-rail tones. Tree-shaken
 // out of production bundles by Vite (the route below is gated on
 // `import.meta.env.DEV`, which folds to `false` in prod).
@@ -43,8 +46,10 @@ const NewClientPreview = import.meta.env.DEV
       })),
     )
   : () => null;
-// Dev-only harness for the booking wizard shell. Same tree-shaking guarantee.
-const BookingWizardShellPreview = import.meta.env.DEV
+// The booking-wizard shell preview is also available to the deterministic
+// production-build browser suite. VITE_FORCE_OFFLINE is folded at build time,
+// so normal production builds still tree-shake this harness and its route.
+const BookingWizardShellPreview = bookingWizardPreviewEnabled
   ? lazy(() =>
       import("../dev/BookingWizardShellPreview.jsx").then((module) => ({
         default: module.BookingWizardShellPreview,
@@ -356,7 +361,7 @@ export function StaffRoutes({ data, nav, ui }) {
           element={<NewClientPreview />}
         />
       )}
-      {import.meta.env.DEV && (
+      {bookingWizardPreviewEnabled && (
         <Route
           path="/dev/booking-wizard-shell-preview"
           element={<BookingWizardShellPreview />}

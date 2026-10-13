@@ -12,6 +12,7 @@ vi.mock("../rpc", () => ({
 
 const {
   completeProfile,
+  lookupAddress,
   lookupPostcode,
   setPassword,
   submitSignup,
@@ -59,10 +60,17 @@ describe("useCustomerOnboardingActions", () => {
     expect(result).toEqual({ data: { addresses: [] }, error: null });
   });
 
+  it("searches an address through the Edge proxy without a browser provider key", async () => {
+    const result = await lookupAddress("1 Example Road, Hyde");
+    expect(invoke).toHaveBeenCalledWith("postcode-lookup", { body: { text: "1 Example Road, Hyde" } });
+    expect(result).toEqual({ data: { addresses: [] }, error: null });
+  });
+
   it("rejects rather than calling anything when there is no client", async () => {
     (globalThis as { __onboardingClient?: unknown }).__onboardingClient = null;
     await expect(setPassword("x")).rejects.toThrow("Not connected");
     await expect(lookupPostcode("x")).rejects.toThrow("Not connected");
+    await expect(lookupAddress("x")).rejects.toThrow("Not connected");
     await expect(completeProfile({} as never)).rejects.toThrow("Not connected");
     await expect(submitSignup({} as never)).rejects.toThrow("Not connected");
     expect(updateUser).not.toHaveBeenCalled();

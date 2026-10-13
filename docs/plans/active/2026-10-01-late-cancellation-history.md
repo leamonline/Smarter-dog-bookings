@@ -3,7 +3,7 @@
 Status: Active
 Issue: [#930](https://github.com/leamonline/Smarter-dog-bookings/issues/930)
 Base: origin/main, 924770f1d61f9b9b2156b6d41412de1ca14d854c
-Last verified: 2026-10-01
+Last verified: 2026-10-12
 Owners: cancellation/reschedule SQL commands, customer portal copy, customer-card booking rules and history, command/row/concurrency tests
 Dependencies: Owner approved staff review after three late cancellations within 12 months on 1 October 2026. Production migration requires separate authorisation.
 Related requirements: [PROJECT](../../../PROJECT.md) GOAL-01, GOAL-02 and GOAL-05; [booking policy baseline](../../archive/superpowers/specs/2026-07-22-booking-cancellation-rescheduling-policy-design.md)
@@ -141,3 +141,29 @@ Source prepared on `feat/late-cancellation-history`; no hosted migration or depl
 Do not merge dependent client/Edge changes before target-verified migration approval and schema evidence. Keep the PR in draft until the missing release checks are satisfied.
 
 Full-schema CI discovery: the existing capacity trigger forbids reviving a cancelled group through a raw row update. Keep that guard; the explicit audited waiver is the correction path for a mistaken grouped incident. Automatic strike removal applies only when an existing guarded restoration succeeds. Isolated partial/full undo assertions do not establish grouped revival support.
+
+## Production rollout evidence (12 October 2026)
+
+The "rollout remains pending" sentence above is historical. Read-only checks
+of prod (`nlzhllhkigmsvrzduefz`) on 12 October 2026 establish:
+
+- `20261001160000_late_cancellation_history.sql` is in the prod ledger as
+  `late_cancellation_history`, version `20261001203326`, applied 20:33 UTC on
+  1 October 2026, three minutes before PR #931 merged (20:36 UTC). The stored
+  statement's MD5 matches the committed file. Full catalog evidence is in
+  [migrations.md](../../migrations.md#late-cancellation-history-931--applied-1-october-2026-recorded-12-october-2026).
+- Both history tables, both `bookings` triggers and the waiver, history and
+  WhatsApp reschedule-safe cancellation functions exist on prod.
+- The trigger has fired in production: 2 incidents recorded (none waived),
+  dated 5 and 11 October 2026. Aggregate counts only; no customer detail read.
+
+What this does and does not close:
+
+- Closed: target-verified production migration and schema-before-merge (the
+  release gates named in the definition of done). The policy is live for
+  customers and staff.
+- Still open: browser/staging acceptance of the UI (customer portal copy,
+  customer-card history and waiver) was never recorded, and the "third
+  incident triggers deposit review" path has not yet occurred for any customer,
+  so it has only test evidence. Record owner acceptance of the live behaviour,
+  then move this plan to `completed/`.

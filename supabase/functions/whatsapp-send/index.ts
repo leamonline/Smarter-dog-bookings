@@ -61,6 +61,7 @@
 //                                       staging + localhost defaults.)
 // ============================================================
 
+import { bookingEntryInteractive } from "../_shared/bookingEntry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
@@ -917,8 +918,8 @@ async function handleFlowMode(
 // Message 1 of the WhatsApp booking entry: a tap-to-confirm identity
 // check sent automatically when a recognised customer asks to book. The
 // customer is greeted by name; the dogs are confirmed later inside the
-// Flow (server-validated multi-select). On "Yes" the agent follows up with
-// the portal link + the "Book on WhatsApp" Flow (see whatsapp-agent's
+// Flow (server-validated multi-select). On "Book my dogs" the agent opens
+// the "Choose dogs & book" Flow (see whatsapp-agent's
 // bookentry:start routing). Tagged [book_entry] so the agent can debounce.
 async function handleBookEntryMode(
   req: Request,
@@ -935,26 +936,14 @@ async function handleBookEntryMode(
     name = (data as { name?: string } | null)?.name ?? "";
   }
 
-  const greeting = name ? `Hi ${name} 🐾` : "Hi there 🐾";
-  const bodyText =
-    `${greeting} — lovely to hear from you. Shall we get you booked in for a groom?\n\n` +
-    `Tap below and I'll get you sorted — or let me know if I've got the wrong person.`;
-
+  const interactive = bookingEntryInteractive(name);
+  const bodyText = interactive.body.text;
   const metaBody = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to: toMetaTo(body.to),
     type: "interactive",
-    interactive: {
-      type: "button",
-      body: { text: bodyText },
-      action: {
-        buttons: [
-          { type: "reply", reply: { id: "bookentry:start", title: "Yes, book in" } },
-          { type: "reply", reply: { id: "bookentry:notme", title: "Not me" } },
-        ],
-      },
-    },
+    interactive,
   };
 
   let metaRes: MetaSendSuccess;

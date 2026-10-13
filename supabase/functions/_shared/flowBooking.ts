@@ -93,6 +93,11 @@ export interface PetListing {
   options: FlowOption[];
   hiddenCount: number;
   totalOnFile: number;
+  // Hidden dogs with no size for which the salon now has a "Confirm size"
+  // to-do (raised or refreshed on this listing). Lets the endpoint tell the
+  // customer the team has been asked, the same promise the portal wizard
+  // makes, rather than only "please reply here".
+  sizeChecksRaised: number;
 }
 
 export interface AvailabilitySlot {
@@ -187,6 +192,11 @@ export interface FlowDb {
     humanId: string,
     old: RescheduleSelector,
   ): Promise<GroupInsertResult>;
+  // Ask staff to confirm a dog's size: writes or refreshes the one open
+  // "Confirm size" to-do for it (raise_dog_size_check_todo, service role).
+  // Resolves true only when a to-do is open afterwards. Optional because only
+  // the Flow endpoint implements it; the listing works without it.
+  requestSizeCheck?(dogId: string): Promise<boolean>;
 }
 
 /**
@@ -341,11 +351,38 @@ export function addDays(dateStr: string, days: number): string {
 export async function listPetOptions(db: FlowDb, humanId: string): Promise<PetListing> {
   const dogs = await db.getDogsByHuman(humanId);
   const options = petOptions(dogs);
+
+  // A dog hidden for want of a size is a customer waiting on staff, exactly
+  // as in the portal wizard, so tell the salon the same way: one open
+  // "Confirm size" to-do per dog. The database decides whether there is
+  // anything to raise (approved owner, live dog, still unsized) and keeps it
+  // to one open row, so calling this on every listing is safe. A pregnant
+  // dog is hidden for its own reason and gets no to-do from here, matching
+  // the wizard, which still asks for the size but never promises online
+  // booking; the Flow's message already sends it to a human.
+  let sizeChecksRaised = 0;
+  if (db.requestSizeCheck) {
+    for (const dog of dogs) {
+      if (isBookableOnline(dog) || dog.is_pregnant || hasKnownSize(dog)) continue;
+      try {
+        if (await db.requestSizeCheck(dog.id)) sizeChecksRaised += 1;
+      } catch (err) {
+        // The listing must still render; the to-do is a courtesy to staff.
+        console.error("requestSizeCheck failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+  }
+
   return {
     options,
     hiddenCount: dogs.length - options.length,
     totalOnFile: dogs.length,
+    sizeChecksRaised,
   };
+}
+
+function hasKnownSize(dog: DogRow): boolean {
+  return dog.size === DOG_SIZE.SMALL || dog.size === DOG_SIZE.MEDIUM || dog.size === DOG_SIZE.LARGE;
 }
 
 /**

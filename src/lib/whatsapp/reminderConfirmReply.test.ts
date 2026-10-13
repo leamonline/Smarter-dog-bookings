@@ -50,7 +50,10 @@ describe("typed reminder confirmations", () => {
 
 describe("whatsapp-agent wiring", () => {
   const start = handler.indexOf("detectReplyConfirmation(text)");
-  const end = handler.indexOf("// Manage-booking (Flow C)");
+  // The stamp block ends where the next routing decision begins: the
+  // "needs a person" branch (closed salon / chasing), which sits ahead of
+  // manage-booking on purpose and does `continue` once it has owned a message.
+  const end = handler.indexOf("// A customer who needs a person, not a script");
   const block = handler.slice(start, end);
 
   it("stamps the confirmation through the same idempotent RPC as the button tap", () => {

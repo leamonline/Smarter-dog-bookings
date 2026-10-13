@@ -63,6 +63,8 @@ architecture convergence tracked by [issue #603](https://github.com/leamonline/S
 - Evidence audit:
   [`research/2026-08-09-issue-603-plan-reality-audit.md`](research/2026-08-09-issue-603-plan-reality-audit.md)
 - Roadmap and stop/go gate: [`../ROADMAP.md`](../ROADMAP.md)
+- End-to-end audit (12 Oct 2026, research; findings and a prioritised roadmap, not a decision):
+  [`research/2026-10-12-end-to-end-audit.md`](research/2026-10-12-end-to-end-audit.md)
 - Traceability: [`traceability.md`](traceability.md)
 
 ## Existing authoritative domain references
@@ -74,6 +76,9 @@ These files remain authoritative for their bounded topics:
 - [`partial-day-closures.md`](partial-day-closures.md) — closing part of a date
   (late starts, early finishes) and how it rides on staff seat blocks rather
   than adding a gate of its own.
+- [`dog-size-confirmation.md`](dog-size-confirmation.md) — what happens while a
+  customer waits for staff to confirm a dog's size: the to-do, its wording and
+  lifecycle, and what the booking wizard promises. Size itself stays staff-only.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
@@ -88,6 +93,8 @@ These files remain authoritative for their bounded topics:
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
   behaviour.
+- [`address-search.md`](address-search.md) — Geoapify free-plan address search,
+  server-held key setup, attribution and manual signup recovery.
 - [`booking-pane-actions-spec.md`](booking-pane-actions-spec.md) — current
   appointment-offer interaction; it is not the future visit notification
   authority.

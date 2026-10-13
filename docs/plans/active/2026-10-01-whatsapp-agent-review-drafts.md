@@ -3,7 +3,7 @@
 Status: Draft
 Issue: [#921](https://github.com/leamonline/Smarter-dog-bookings/issues/921)
 Base: origin/main, d9ba1736959ace028f64d089ee460ea92a335761
-Last verified: 2026-10-01
+Last verified: 2026-10-12
 Owners: `supabase/functions/whatsapp-agent/`, `supabase/functions/_shared/agentRisk.ts`, staff inbox ageing UI, agent tests and this document
 Dependencies: None for steps 0–1a. Step 1c (data correction) requires separate production authorisation. Step 3 requires a separate release decision.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
@@ -343,3 +343,40 @@ Revision database evidence update: PR #938 CI at `2f918815` replayed the full mi
 Pre-merge tidy-up, 4 October 2026: PR #938 CI at `6f04472` failed the new "Prove WhatsApp memory concurrency" step with `rg: command not found`; `ubuntu-latest` (image 20260927.320.1) ships no ripgrep and no sibling verify script uses it, so the two `rg -c` counts are now `grep -c` (shellcheck clean). `src/supabase/database.types.ts` was regenerated with the CI-pinned CLI 2.109.1 from a database rebuilt from every committed migration and committed: it adds `agent_state_rev` to `whatsapp_conversations` Row/Insert/Update and the `compare_and_set_whatsapp_agent_state` function type. The diff also showed the committed file was stale against the migration history (missing `slack_alerts`, several public/prune RPCs, five `booking_funnel_events` columns and the `humans_claims_human_id_fkey` relationship) and carried two `humans` columns no migration defines; the commit message lists them. The `__InternalSupabase` PostgREST header was kept because a `--local` generation cannot detect the hosted version. CI at `9648c7b`: db-tests green on every step, the memory race passed against the full migrated schema and the migrated-types artefact uploaded. Typecheck, lint, Edge type check and the focused Deno tests pass locally. Deploy order is unchanged: migration first, then the Edge function; there is no fallback for an unguarded write.
 
 Production migration applied, 4 October 2026: after #939 merged, the branch was rebased onto `main@72cdcfe` and the types regenerated (the `humans` reconciliation lands in the same file). `20261002140000_whatsapp_agent_state_revision.sql` was then applied to prod as `whatsapp_agent_state_revision` (ledger `20261004125800`) with catalog evidence recorded in `docs/migrations.md`: column, check, comment, enabled trigger, service-only CAS, 399 conversations at revision 0. The migration-first half of the deploy order is done; merging this PR deploys the Edge caller. Staging has not received it.
+
+## Rollout gate evidence — 11 October 2026
+
+Owner-approved reads, recorded here so open questions 2 and 1 stop blocking the sequence. No value of any secret was read or printed; boolean flags were established by comparing the Supabase secret digests against the SHA-256 of the literal strings `true` and `false`. The provider key was not inspected.
+
+**Production (`nlzhllhkigmsvrzduefz`), open question 2 resolved:**
+
+| Control | State | Basis |
+|---|---|---|
+| `WHATSAPP_BOOK_ENTRY_ENABLED` | **true** | digest equals SHA-256(`true`), set 19 June 2026 |
+| `WHATSAPP_MANAGE_BOOKING_ENABLED` | **true** | digest equals SHA-256(`true`), set 19 June 2026 |
+| `AI_AUTO_SEND_LOW_RISK` | unset, so **false** | not present; handler default `false` |
+| `AI_AUTONOMOUS_BOOKING_ENABLED` | unset, so **false** | not present; handler default `false` |
+| `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` | unset, so **false** | not present; handler default `false` |
+| `AI_ASSISTANT_ENABLED` | unset, so **true** | not present; handler default `true` |
+| `ai_whatsapp_settings.enabled` (durable master gate) | **true** | singleton row, updated 5 October 2026 |
+
+Consequence for the design decision above: book-entry is live in production, so a known customer's accepted or uncertain booking attempt keeps precedence and only a validated definite non-send falls through to a review draft. Deployed `whatsapp-agent` is version 119 from the GitHub Action, updated 7 October 2026.
+
+**Open question 1, partly answered:** commit `1646e45d` (3 June 2026) says what it did ("draft only on explicit force_draft (no auto-drafting)") and that hand-clicked drafts must never auto-send, but still records no operational reason. The owner's recollection remains the only source.
+
+**Staging (`btjnxvgkpdbfrrqxvkfj`) hosted-isolation readiness:** schema is applied through `20261005190000_drop_unused_humans_columns`, which includes `ai_whatsapp_controls` and `whatsapp_agent_state_revision`; the two later local migrations are dog-size to-do changes the agent does not depend on. The project has **no Edge Functions deployed and no secrets set**. A hosted pass therefore needs, in one approved sitting: deploy `whatsapp-agent` and `whatsapp-send` at a named `main` SHA, set `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS=true` and the internal secrets, leave every Meta and Twilio credential absent so no outbound path can exist, and supply a provider key with credit so the positive scenario (one held draft) can be produced at all. Without credit only the negative scenarios (flag off, Human only, no sends) can be evidenced.
+
+**Model-quality gate:** the fifth comparison was attempted on 11 October and stopped on the first call because the Anthropic account's credit balance is too low (recorded in the evaluation record). Both remaining gates for step 1b promotion, model quality and hosted isolation, are blocked on that credit. No flag, deployment or data change was made.
+
+## Hosted staging isolation — 12 October 2026
+
+Executed on `btjnxvgkpdbfrrqxvkfj` with owner approval and recorded in the [isolation runbook](../../runbooks/whatsapp-review-draft-isolation.md#hosted-staging-execution--12-october-2026). The eligible case produced exactly one held, review-only draft; duplicate, other-intent, Human-only and flag-off cases produced none; no memory, audit, action, booking or outbound write occurred; a provider failure left a failed event and nothing else. Staging was restored afterwards (synthetic rows deleted, secrets unset, function removed). With the fifth model comparison (same day), both step 1b gates now have hosted or provider evidence. Remaining before production enablement: the owner's decision on puppy-reply brevity and the separately approved production flag change, observed for one working week with rollback by unsetting the flag.
+
+## Production enablement — 12 October 2026
+
+Owner-approved in chat on 12 October. Rollout step 4 executed at **04:48:04 UTC**: `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS=true` set on production (`nlzhllhkigmsvrzduefz`) and verified by digest. Nothing else changed: `AI_AUTO_SEND_LOW_RISK` and `AI_AUTONOMOUS_BOOKING_ENABLED` remain unset (false), `WHATSAPP_BOOK_ENTRY_ENABLED` and `WHATSAPP_MANAGE_BOOKING_ENABLED` remain true, the durable master gate remains true, and the deployed `whatsapp-agent` is the CI build from 7 October (prompt `2026-10-07.portal-trouble-1`, the revision evaluated and isolation-tested). Gates closed beforehand: fifth model comparison with the owner's brevity acceptance, and hosted staging isolation, both recorded above.
+
+**Observation window:** one working week from Monday 13 October 2026. Success per the definition of done: zero sends or booking actions attributable to review drafts, and eligible requests reaching the review path with no draft at or near zero, with fast-path handling counted separately. Because book-entry is live, a known customer's accepted or uncertain booking attempt still takes precedence; review drafts appear only on a validated definite non-send. Review drafts are identifiable by `whatsapp_drafts.tool_calls->>'review_only' = 'true'`; any such draft must show `requires_approval = true`, `auto_send_eligible = false` and no `booking_action`.
+
+**Rollback:** `supabase secrets unset AI_KNOWN_CUSTOMER_REVIEW_DRAFTS --project-ref nlzhllhkigmsvrzduefz`; no code or data change is needed. Step 1c data correction and the step 3 booking-completion decision remain separately authorised.
+

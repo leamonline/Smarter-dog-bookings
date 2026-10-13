@@ -23,6 +23,8 @@ const productionRef = "nlzhllhkigmsvrzduefz";
 const stagingRef = "btjnxvgkpdbfrrqxvkfj";
 const targetAssertion =
   'test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"';
+const scriptTargetAssertion =
+  'test "$(cat supabase/.temp/project-ref)" = "$TARGET_PROJECT_REF"';
 
 function positionOf(needle: string): number {
   expect(workflow, `expected workflow to contain: ${needle}`).toContain(needle);
@@ -115,19 +117,23 @@ describe("staging apply-migrations workflow", () => {
     expect(workflow).toMatch(
       /^ {6}reapply:\n(?: {8}.+\n)* {8}required: false\n(?: {8}.+\n)* {8}type: string$/m,
     );
+    // The script's production opt-in is never set here, so this workflow can only ever reach staging.
+    expect(workflow).not.toMatch(/HOSTED_MIGRATION_TARGET|CONFIRM_PRODUCTION_REF/);
   });
 
-  it("keeps the script staging-only and transactional with its ledger row", () => {
-    expect(script).toContain(`EXPECTED_STAGING_PROJECT_REF="${stagingRef}"`);
+  it("keeps the script staging by default, production only by explicit opt-in, and transactional with its ledger row", () => {
+    expect(script).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
     expect(script).toContain(`PRODUCTION_PROJECT_REF="${productionRef}"`);
+    expect(script).toContain('TARGET="${HOSTED_MIGRATION_TARGET:-staging}"');
+    expect(script).toContain('if [ "$TARGET_PROJECT_REF" != "$EXPECTED_PROJECT_REF" ]; then');
     expect(script).toContain(
-      'test "$STAGING_PROJECT_REF" = "$EXPECTED_STAGING_PROJECT_REF"',
+      'if [ "${CONFIRM_PRODUCTION_REF:-}" != "$PRODUCTION_PROJECT_REF" ]; then',
     );
     expect(script).toContain(
       'test "$STAGING_PROJECT_REF" != "$PRODUCTION_PROJECT_REF"',
     );
     expect(script).toContain(
-      `${targetAssertion}\nsupabase db dump --linked --schema public --dry-run`,
+      `${scriptTargetAssertion}\nsupabase db dump --linked --schema public --dry-run`,
     );
     expect(script).toContain("trap cleanup EXIT");
     expect(script).toContain(
@@ -144,13 +150,14 @@ describe("staging apply-migrations workflow", () => {
     // Ledger identity is the NAME (what CI's migrations-applied check reads):
     // a present name is skipped unless explicitly re-applied, and even a
     // re-apply never adds a second ledger row for that name.
+    expect(script).toContain(`LEDGER_MATCH="(name = :'name' or name = :'base')"`);
     expect(script).toContain(
-      "select count(*) from supabase_migrations.schema_migrations where name = :'name';",
+      'select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;',
     );
     // The CLI's temporary login is not postgres: every psql session must adopt
     // the role before touching supabase_migrations (run #3 failed on exactly this).
     expect(script).toContain(
-      `      "set role postgres;" \\\n      "select count(*) from supabase_migrations.schema_migrations where name = :'name';" |`,
+      `    "set role postgres;" \\\n    "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |`,
     );
     expect(script).toContain('echo "set role postgres;"');
     expect(script).toContain(
@@ -159,16 +166,18 @@ describe("staging apply-migrations workflow", () => {
     expect(script).toContain('if [ "$already" != "0" ] && ! may_reapply "$migration"; then');
     expect(script).toContain('for candidate in ${REAPPLY_MIGRATIONS:-}; do');
     expect(script).toContain(
-      "where not exists (select 1 from supabase_migrations.schema_migrations where name = :'name');",
+      "where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);",
     );
 
-    // Schema change and ledger row commit together.
-    const begin = script.indexOf('echo "begin;"');
-    const body = script.indexOf('cat "$file"');
+    // Schema change and ledger row commit together, in the apply's session:
+    // the last one that begins in the loop (the skip branch's provenance
+    // session comes earlier and executes no file text).
+    const begin = script.lastIndexOf('echo "begin;"');
+    const body = script.indexOf("printf '%s\\n' \"$executed\"", begin);
     const ledger = script.indexOf(
       "insert into supabase_migrations.schema_migrations (version, name, statements)",
     );
-    const commit = script.indexOf('echo "commit;"');
+    const commit = script.indexOf('echo "commit;"', ledger);
     expect(begin).toBeGreaterThan(-1);
     expect(begin).toBeLessThan(body);
     expect(body).toBeLessThan(ledger);

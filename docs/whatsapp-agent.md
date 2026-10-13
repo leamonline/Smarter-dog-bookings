@@ -92,6 +92,71 @@ Medical / complaint keywords (`agentRisk.ts:MEDICAL_KEYWORDS`,
 `COMPLAINT_KEYWORDS`) override the intent-based risk — a "greeting"
 that mentions a wound is `high`, not `low`.
 
+### Booking-page trouble
+
+A customer saying the website or app has failed them ("it won't let me log
+in", "your website isn't working", "it's asking me to contact you about his
+size") is matched by `agentRisk.ts:isPortalTrouble`. Without it, such a message
+read as a booking request and got the tap-to-book prompt followed by the
+portal link, sending the customer straight back to what had just failed. Now
+the agent skips that prompt, saves a no-link `portal_trouble` reply as a
+pending draft with `handoff_required=true`, and stops. It never auto-sends,
+and it writes nothing once staff have set the thread to Human only. When staff
+ask for a generated reply on such a message, the prompt drops both portal-link
+instructions and tells the model to offer to book it in WhatsApp. That prompt
+block is part of `WHATSAPP_REPLY_PROMPT_VERSION = 2026-10-07.portal-trouble-1`;
+see the [evaluation record](../prompts/evals/2026-10-07-whatsapp-portal-trouble.md).
+The patterns are taken from real customer messages and were checked against
+the full inbound history (17 matches, no false positives) before release.
+
+### Messages that need a person, not a script
+
+The 12 October 2026 inbox review found four kinds of message the heuristic
+answered with the wrong script, because it only knew booking words. Each now
+has a detector in `agentRisk.ts`, built from the shape of what customers sent
+(synthetic wording in the tests; no customer text in the repository):
+
+| Message | Was | Now |
+|---|---|---|
+| "I'm at the salon and it's closed" | Tap-to-book prompt (the word "appointment") | `isServiceRecovery` → escalate; no-link `service_recovery` draft while the AI handles the thread; staff to-do `arrived_salon_closed` in every state |
+| "I already messaged about moving her" | The automated 24-hour cutoff reply, a second time | `isChasing` → escalate; `handoff` draft while the AI handles the thread; staff to-do `chasing_reply` |
+| "If you have a cancellation, can you squeeze her in?" | Read as a cancel attempt: "I can't see any upcoming grooms" | `isCancellationSpaceRequest` → `booking_query`; left for staff, who see it as an unanswered request |
+| "Do you do weekends / after 5pm?" | Tap-to-book prompt | `isOutOfHoursRequest` → `faq`; a person explains the hours |
+| "Can I book him for a groom and nail trim?" | Walk-in FAQ (the word "nail"), so no draft at all | The walk-in short-circuit yields when a groom-type service word is present |
+
+`humanNeededKind` combines the first two and runs in the agent **before** the
+manage-booking and booking-entry paths, which is the point: those paths act on
+the booking words such a message contains. It sends nothing to the customer
+and never auto-sends. The to-do is raised with `reply: "none"`, so its wording
+says the customer is still waiting rather than claiming a reply went out.
+Known customers only; an unknown number still takes the onboarding pass, where
+Claude's own prompt escalates complaints.
+
+Separately, the turned-away-demand report (2F) now groups reason codes into
+capacity, account restriction and calendar/policy (`DENIAL_REASON_GROUP` in
+`src/engine/denials.ts`) and leads with the capacity count, so a customer the
+salon has deliberately blocked from a time no longer reads as lost capacity.
+
+### Dead ends raise a staff to-do
+
+Some automated paths cannot finish what the customer asked: a cancel or move
+inside the 24-hour window (or after the groom has started), a manage menu or
+a tap-to-confirm that timed out, a booking that changed while the customer was
+choosing, or a reschedule the booking form had to refuse. Each one now tells
+the customer the team will sort it with them in WhatsApp. Each one also adds
+a to-do through `_shared/staffFollowUp.ts:raiseFollowUpTodo`, so that promise
+appears on the staff dashboard rather than only in the inbox thread.
+
+- **Kind:** the to-do is `general`, so staff tick it off like any other task.
+- **Duplicates:** one open follow-up per customer per 12 hours, so repeated
+  taps on an expired button leave one task.
+- **Content:** the customer's name and what happened, never their message text.
+  It says "we replied" only when our reply was accepted for sending, and
+  otherwise tells staff to contact the customer directly. It never claims the
+  customer received anything.
+- **Failures:** best effort. A failed write is logged and never affects the
+  reply the customer already received.
+
 ## Auto-send allowlist
 
 A draft only auto-sends when **all** of these are true:

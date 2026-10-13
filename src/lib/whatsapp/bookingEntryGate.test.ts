@@ -25,3 +25,19 @@ describe("booking-entry intent gate", () => {
     }
   });
 });
+
+describe("booking-entry intent gate: misread requests stay out of the fast path", () => {
+  // Each of these was answered with the tap-to-book prompt in October 2026.
+  it.each([
+    "I'm at the salon for my 1pm and it's closed?",
+    "Did you get my message yesterday about moving Bella?",
+    "If you have a cancellation tomorrow could you squeeze her in?",
+    "Do you do anything at a weekend?",
+  ])("does NOT fire on: %s", (t) => {
+    expect(guessIntentFromText(t)).not.toBe("booking_propose");
+  });
+
+  it("DOES fire on a groom that happens to mention nails", () => {
+    expect(guessIntentFromText("Can I book Scout in for a groom and nail trim next week?")).toBe("booking_propose");
+  });
+});

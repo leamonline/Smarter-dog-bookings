@@ -5,7 +5,7 @@ version: 1
 purpose: Correct incomplete factual answers and unsupported portal guidance
 related_requirements: [REQ-AI-001, REQ-CAP-002]
 related_issues: [921]
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-12
 ---
 
 # Grounded replies follow-up
@@ -88,3 +88,42 @@ Prompt `2026-10-02.memory-1` adds explicit corrections for booking day/time/serv
 # Per-dog memory candidate — 2 October 2026
 
 Prompt `2026-10-02.memory-2` uses canonical IDs for known-customer dog memory; unknown onboarding remains flat. Per-dog age/coat/service/alerts do not update canonical customer records. A future approved model-quality comparison needs two dogs with different services/ages/alerts, an ambiguous “he”, correction of only one dog, a customer-injected foreign ID and legacy unbound memory. Deterministic ownership/merge/write tests establish isolation, not semantic attribution. No provider evaluation or environment enablement is claimed.
+
+# Fifth comparison preparation — 11 October 2026
+
+The fourth run's evidence directory no longer exists on the owner's machine, so the 20-complete recovery path in `prepare-recovery.mjs` cannot be used; the next comparison must be a full 28-request run. Both source corrections for the third-run defects (explicit today/tomorrow date resolution, and no unrequested prices with one-sentence service explanations) are on `main` in prompt `2026-10-02.2` and carried unchanged through `2026-10-02.memory-1`, `2026-10-02.memory-2` and `2026-10-07.portal-trouble-1`. The deterministic handler test for the supplied calendar and date instruction passes on `main`.
+
+Requests were prepared without credentials: baseline `6bac9bbd99231bf82dc39fac027b4ec925c4b780` (the reviewed third-run candidate) against candidate `056676f518d7e04905ecbb6ae330916de570a506` (current `main`, prompt `2026-10-07.portal-trouble-1`), fixture version 2, `claude-sonnet-4-6`, 512 output tokens, no sampling overrides. A structural audit of all 28 prepared requests found a single user turn per request, no empty content, no unknown top-level keys and no consecutive same-role turns. The fourth run's HTTP 400 therefore cannot be reproduced from request shape; it was the 21st serial call, so the cause may have been provider-side, which the runner's retained error body would now show. The prepared directory stays outside Git.
+
+The candidate includes the memory and booking-page-trouble prompt revisions that the baseline lacks, so any difference on the no-repeat and multi-dog cases is not attributable to the brevity and date instructions alone. The run remains unexecuted: provider-use approval and the key supplied through the process environment are required, and this record authorises no flag change, staging write or production promotion.
+
+# Fifth run attempts — 11 October 2026
+
+The owner approved execution and supplied a key through a local file outside the repository. Two attempts were made, each stopped by the runner on its first call with zero completed responses and no output tokens: the first returned HTTP 401 `authentication_error` (the supplied value was not a valid key), the second returned HTTP 400 `invalid_request_error` with the provider's message that the account's credit balance is too low. Both diagnostics were saved by the runner with the key redacted. The second attempt used a freshly prepared directory with the same baseline and candidate revisions and the same fixture hash.
+
+The credit-balance refusal is a 400, which is consistent with the fourth run's unexplained HTTP 400 at the 21st call on 2 October; that remains an inference, not a confirmed cause. No comparison evidence exists for the fifth run. A further attempt needs credit on the account and a separately approved retry.
+
+# Fifth provider comparison — 12 October 2026
+
+Decision: **both third-run defects are corrected in this sample; automatic enablement still held pending the owner's brevity call and the hosted isolation gate.** The owner approved and locally executed 28 requests comparing baseline `6bac9bbd99231bf82dc39fac027b4ec925c4b780` (prompt `2026-10-02.1`) with candidate `056676f518d7e04905ecbb6ae330916de570a506` (`main`, prompt `2026-10-07.portal-trouble-1`), fixture version 2, `claude-sonnet-4-6`, 512 output tokens, no sampling overrides. Provider accounting: 152,205 input tokens and 4,408 output tokens. All 28 responses were recorded; every one passed the preliminary schema check, none reached `max_tokens`, and no review-mode action was proposed. The candidate took the automatic review-only route on the nine new-booking fixtures and staff-forced drafting on the rest, as designed. No retry occurred.
+
+The primary Claude agent saved criterion-by-criterion blind scores before opening the key. This is model-assisted review, not independent human sign-off. Raw responses, manifest, request hashes, scores and key remain outside Git.
+
+| Case | Candidate observation | Result |
+| --- | --- | --- |
+| London midnight | "tomorrow is Saturday 3 October", then uncertainty and one account link | **Pass; third-run defect corrected in this sample** (baseline also resolved the date) |
+| No-repeat | Restates small Cockapoo / full groom without asking; no price paragraph; two short paragraphs | **Pass; third-run defect corrected in this sample** (baseline also omitted prices this run) |
+| Puppy | Puppy groom honoured, age not re-asked, no prices, but a two-sentence service explanation and a fourth "can't wait to meet" paragraph; longest reply of the run at 288 output tokens | **Brevity fail**; baseline was shorter with a one-sentence explanation |
+| Open Thursday | Verified 10:00 only, no confirmation | Pass; baseline said "As a recognised customer", echoing the routing label |
+| Multi-dog | Both dogs, account selects both subject to allocation, no consecutive-slot invention | Pass; baseline said "The portal supports selecting multiple dogs" and added a longer closing paragraph |
+| Changed time | 09:00 unverified, 10:00 named as the only confirmed slot | Pass |
+| Closure, unverified date, later/cancelled appointment, lookup failure, ambiguous cancellation, further-ahead, injection | As required | Pass |
+
+Across 28 replies: no booking action, no confirmation wording, no secret or instruction disclosure, and no automation-setting or context-label wording in candidate customer copy. Two baseline replies carried borderline internal wording ("recognised customer", "the portal supports"); the candidate's were clean.
+
+The one open quality item is puppy brevity: the candidate reply is correct but over the prompt's one-sentence service explanation and three-paragraph ceiling. Because every review draft is read by staff before sending, this is a trimming cost rather than a safety or factual defect. The owner decides whether it blocks enablement or is tracked for a later prompt revision. Model-quality evidence is one sample per case, not a reliability rate. Hosted staging isolation and separately authorised promotion remain outstanding; no flag, deployment or data change was made.
+
+# Owner decision on brevity — 12 October 2026
+
+The owner accepted the puppy-reply length from the fifth comparison as a trimming cost for the reviewing staff member rather than a blocker: the reply was factually correct, honoured the puppy service and age, quoted no prices and proposed no action. The model-quality gate for step 1b is therefore closed on the fifth comparison. Puppy brevity stays listed as a candidate improvement for a later prompt revision, to be evaluated with the same fixtures. Production enablement remains a separately approved flag change.
+

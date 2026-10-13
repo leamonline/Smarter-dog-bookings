@@ -2,6 +2,7 @@ export { GroomingHistory } from "./GroomingHistory.jsx";
 export { DogCardHeader } from "./DogCardHeader.jsx";
 export { DogDetailsSection } from "./DogDetailsSection.jsx";
 export { DogCardActions } from "./DogCardActions.jsx";
+export { ConfirmReportedSize } from "./ConfirmReportedSize.jsx";
 export { DogChainBooking, findLastBooking } from "./DogChainBooking.jsx";
 export { DogPhotoGallery } from "./DogPhotoGallery.jsx";
 export { DogCardLoading, DogCardNotFound } from "./DogCardFallbacks.jsx";
