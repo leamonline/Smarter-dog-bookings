@@ -1,9 +1,10 @@
 name: Encrypted database backup
 
 # Weekly encrypted pg_dump of the PRODUCTION database (issue #986). The
-# Supabase Free plan has no automated backups, so until the owner records a
-# backup posture in docs/operations.md that says otherwise, this is the only
-# copy of the customer database that is not the live one.
+# repository describes the project as on the Supabase Free plan, which has no
+# automated backups; nothing in the repository can verify that. Until the owner
+# records the real posture in docs/operations.md, treat this as the only copy
+# of the customer database that is not the live one.
 #
 # What it does: links production through the CLI with the same environment-only
 # token the production migration workflow uses, asserts the linked ref before
