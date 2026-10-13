@@ -268,7 +268,10 @@ describe("expanding a card", () => {
     fireEvent.click(head("bathing"));
     const open = within(card("bathing"));
     expect(open.getByText("Usual groom:")).toBeTruthy();
-    expect(open.getByText("Teddy bear cut, short on ears.")).toBeTruthy();
+    const notes = open.getByText("Teddy bear cut, short on ears.");
+    expect(notes).toBeTruthy();
+    // Notes come from a textarea; line breaks between instructions must survive.
+    expect(notes.closest("p").className).toContain("whitespace-pre-wrap");
   });
 
   it("omits the usual-groom line when the dog has no standing notes", () => {

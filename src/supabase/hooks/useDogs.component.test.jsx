@@ -560,6 +560,59 @@ describe("useDogs", () => {
     await waitFor(() => expect(stub.rpc.mock.calls.length).toBeGreaterThan(callsBefore));
   });
 
+  it("realtime UPDATE merges the fresh row into the cache even when the directory page omits that dog", async () => {
+    const stub = makeSupabaseStub({
+      inResult: {
+        data: [{ id: "dog-5", name: "Rex", breed: "Lab", human_id: "human-1", alerts: [], groom_notes: "Leave tail long." }],
+        error: null,
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useDogs(HUMANS));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.ensureDogsByIds(["dog-5"]);
+    });
+    expect(result.current.dogs["dog-5"].groomNotes).toBe("Leave tail long.");
+
+    // Staff append a note from the Inbox. The directory page (empty in this
+    // stub) does not carry dog-5, so only the merge can bring the new row in.
+    act(() => {
+      stub._channel.fire("UPDATE", {
+        old: { id: "dog-5", human_id: "human-1" },
+        new: {
+          id: "dog-5",
+          name: "Rex",
+          breed: "Lab",
+          human_id: "human-1",
+          alerts: ["Nervous of dryer"],
+          groom_notes: "Leave tail long.\nShort on the ears.",
+        },
+      });
+    });
+    expect(result.current.dogs["dog-5"].groomNotes).toBe("Leave tail long.\nShort on the ears.");
+    expect(result.current.dogs["dog-5"].alerts).toEqual(["Nervous of dryer"]);
+
+    // The page refetch that follows must not evict or revert it.
+    await waitFor(() => expect(stub.rpc.mock.calls.length).toBeGreaterThan(1));
+    expect(result.current.dogs["dog-5"].groomNotes).toBe("Leave tail long.\nShort on the ears.");
+  });
+
+  it("realtime UPDATE for a dog not in the cache leaves the cache alone (the page brings it)", async () => {
+    const stub = makeSupabaseStub();
+    setSupabase(stub);
+    const { result } = renderHook(() => useDogs(HUMANS));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => {
+      stub._channel.fire("UPDATE", {
+        old: { id: "dog-9", human_id: "human-1" },
+        new: { id: "dog-9", name: "Ghost", breed: "Lab", human_id: "human-1", alerts: [] },
+      });
+    });
+    expect(result.current.dogs["dog-9"]).toBeUndefined();
+  });
+
   // ---- addDog ----
 
   it("addDog surfaces a supabase error and returns null", async () => {
