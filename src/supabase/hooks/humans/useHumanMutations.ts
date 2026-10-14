@@ -10,7 +10,12 @@ import { findHumanByIdOrName } from "../../transforms";
 import { stripFormatChars } from "../../../utils/phone.js";
 import { isRealPersonName } from "../../../utils/text";
 import { logger } from "../../../lib/logger";
-import { buildHumanMapEntry, humanEntryToRow, isRawHumanCacheRow } from "./helpers";
+import {
+  buildHumanMapEntry,
+  humanEntryToRow,
+  isRawHumanCacheRow,
+  whatsappOptOutFromRow,
+} from "./helpers";
 import { HumanPhoneTakenError, isPhoneUniqueViolation } from "./phoneTaken";
 import type { Database } from "../../database.types";
 import type {
@@ -227,6 +232,7 @@ export function useHumanMutations({
         blockedSlots: savedRow.blocked_slots || [],
         depositRequired: savedRow.deposit_required === true,
         aiWhatsappAllowed: savedRow.ai_whatsapp_allowed !== false,
+        ...whatsappOptOutFromRow(savedRow),
         archivedAt: savedRow.archived_at || null,
         trustedIds: trustedNames,
         trustedContacts: savedTrustedContacts,

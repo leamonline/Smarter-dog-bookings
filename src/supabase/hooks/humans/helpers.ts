@@ -27,6 +27,9 @@ export type HumanRowLike = Omit<{ [K in keyof DbHumanRow]?: DbHumanRow[K] | null
   approved_at?: string | null;
   signup_submitted_at?: string | null;
   claims_human_id?: string | null;
+  whatsapp_opted_out?: boolean | null;
+  whatsapp_opted_out_at?: string | null;
+  whatsapp_opted_out_reason?: string | null;
 };
 
 /** The app-shaped entry buildHumanMapEntry produces (a Human plus lifecycle fields). */
@@ -64,8 +67,17 @@ export type SetHumansMap = Dispatch<SetStateAction<HumansMap>>;
 export type HumansByIdMap = Record<string, HumanCacheEntry>;
 export type SetHumansByIdMap = Dispatch<SetStateAction<HumansByIdMap>>;
 
-/** Patch accepted by updateHuman: any subset of the app shape plus the archive marker. */
-export type HumanPatch = Partial<Omit<Human, "id" | "trustedContacts">> & {
+/**
+ * Patch accepted by updateHuman: any subset of the app shape plus the archive
+ * marker. Never the WhatsApp opt-out: only the audited re-enable switches it
+ * back on, so an ordinary save cannot even be handed an untick.
+ */
+export type HumanPatch = Partial<
+  Omit<
+    Human,
+    "id" | "trustedContacts" | "whatsappOptedOut" | "whatsappOptedOutAt" | "whatsappOptedOutReason"
+  >
+> & {
   archivedAt?: string | null;
   /** Explicit contacts, or ids / names to resolve; objects may carry a relationship label. */
   trustedContacts?: Array<TrustedContact | { id: string; relationship?: string } | string>;
@@ -113,6 +125,26 @@ export function humanEntryToRow(entry: HumanEntry): RawHumanCacheRow {
     deposit_required: entry.depositRequired ?? null,
     ai_whatsapp_allowed: entry.aiWhatsappAllowed ?? null,
     archived_at: entry.archivedAt ?? null,
+    whatsapp_opted_out: entry.whatsappOptedOut ?? null,
+    whatsapp_opted_out_at: entry.whatsappOptedOutAt ?? null,
+    whatsapp_opted_out_reason: entry.whatsappOptedOutReason ?? null,
+  };
+}
+
+/**
+ * The WhatsApp opt-out, read side only. Every path that rebuilds an entry
+ * from a row must carry it, or a save of anything else (an SMS toggle, say)
+ * would make a switched-off customer look switched on.
+ */
+export function whatsappOptOutFromRow(row: {
+  whatsapp_opted_out?: boolean | null;
+  whatsapp_opted_out_at?: string | null;
+  whatsapp_opted_out_reason?: string | null;
+}): Pick<HumanEntry, "whatsappOptedOut" | "whatsappOptedOutAt" | "whatsappOptedOutReason"> {
+  return {
+    whatsappOptedOut: row.whatsapp_opted_out === true,
+    whatsappOptedOutAt: row.whatsapp_opted_out_at ?? null,
+    whatsappOptedOutReason: row.whatsapp_opted_out_reason ?? null,
   };
 }
 
@@ -169,6 +201,7 @@ export function buildHumanMapEntry(row: HumanRowLike): HumanEntry {
     // Set by submit_customer_signup when the typed name collided with an
     // existing customer: the card offers "Link to <name>" instead of Approve.
     claimsHumanId: row.claims_human_id ?? null,
+    ...whatsappOptOutFromRow(row),
     trustedIds: [],
     trustedContacts: [],
   };

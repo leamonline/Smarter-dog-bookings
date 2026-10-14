@@ -316,3 +316,80 @@ describe("approval welcome outcome", () => {
     expect(outcome).toEqual({ ok: true, welcomeStatus });
   });
 });
+
+describe("useHumanLifecycle markWhatsappReenabled", () => {
+  const stopped = {
+    whatsappOptedOut: true,
+    whatsappOptedOutAt: "2026-10-03T13:05:00.123456+00:00",
+    whatsappOptedOutReason: "asked_on_whatsapp",
+  };
+  const stoppedRaw = {
+    whatsapp_opted_out: true,
+    whatsapp_opted_out_at: "2026-10-03T13:05:00.123456+00:00",
+    whatsapp_opted_out_reason: "asked_on_whatsapp",
+  };
+  // h1: app-shaped everywhere. h2: a raw row in humansById (as updateHuman
+  // caches it). h3: switched off too, but not in this re-enable.
+  const a1 = { id: "h1", fullName: "Sarah Jones", historyFlag: "", ...stopped };
+  const r2 = { id: "h2", name: "Dave", surname: "Smith", fullName: "Dave Smith", ...stoppedRaw };
+  const a2 = { id: "h2", fullName: "Dave Smith", historyFlag: "", ...stopped };
+  const a3 = { id: "h3", fullName: "Tom Baker", historyFlag: "", ...stopped };
+
+  function useStoppedHarness() {
+    const [humans, setHumans] = useState({ "Sarah Jones": a1, "Dave Smith": a2, "Tom Baker": a3 });
+    const [humansById, setHumansById] = useState({ h1: a1, h2: r2, h3: a3 });
+    const [directoryHumans, setDirectoryHumans] = useState([a1, a2, a3]);
+    const lifecycle = useHumanLifecycle({
+      setHumans,
+      setHumansById,
+      setTotalCount: () => {},
+      setDirectoryHumans,
+    });
+    return { humans, humansById, directoryHumans, ...lifecycle };
+  }
+
+  const cleared = { whatsappOptedOut: false, whatsappOptedOutAt: null, whatsappOptedOutReason: null };
+
+  it("clears the opt-out for the given ids in every cache, both spellings in humansById", () => {
+    setSupabase(makeStub());
+    const { result } = renderHook(() => useStoppedHarness());
+
+    act(() => result.current.markWhatsappReenabled(["h1", "h2"]));
+
+    expect(result.current.humansById.h1).toMatchObject({ ...cleared, whatsapp_opted_out: false });
+    expect(result.current.humansById.h2).toMatchObject({
+      ...cleared,
+      whatsapp_opted_out: false,
+      whatsapp_opted_out_at: null,
+      whatsapp_opted_out_reason: null,
+      name: "Dave",
+    });
+    expect(result.current.humans["Sarah Jones"]).toMatchObject(cleared);
+    expect(result.current.humans["Dave Smith"]).toMatchObject(cleared);
+    expect(result.current.directoryHumans.find((h) => h.id === "h1")).toMatchObject(cleared);
+    expect(result.current.directoryHumans.find((h) => h.id === "h2")).toMatchObject(cleared);
+    // Another switched-off record is left alone everywhere.
+    expect(result.current.humansById.h3).toMatchObject(stopped);
+    expect(result.current.humans["Tom Baker"]).toMatchObject(stopped);
+    expect(result.current.directoryHumans.find((h) => h.id === "h3")).toMatchObject(stopped);
+  });
+
+  it("makes no call of its own and is a no-op for an empty list or unknown ids", () => {
+    const stub = makeStub();
+    setSupabase(stub);
+    const { result } = renderHook(() => useStoppedHarness());
+    const before = {
+      humans: result.current.humans,
+      humansById: result.current.humansById,
+      directoryHumans: result.current.directoryHumans,
+    };
+
+    act(() => result.current.markWhatsappReenabled([]));
+    act(() => result.current.markWhatsappReenabled(["nobody"]));
+
+    expect(result.current.humans).toBe(before.humans);
+    expect(result.current.humansById).toBe(before.humansById);
+    expect(result.current.directoryHumans).toBe(before.directoryHumans);
+    expect(stub.rpc).not.toHaveBeenCalled();
+  });
+});
