@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — database backup posture and weekly encrypted dump (#986)
+
+- New `docs/operations.md` records the production database's backup posture
+  (plan tier, automated backups, PITR; a checklist the owner fills in from the
+  dashboard), the restore procedure into a scratch project and a drill log.
+- New `database-backup.yml` workflow: a weekly `pg_dump` of the production
+  schema and data under the approval-gated `production` environment, encrypted
+  on the runner with `age` to `BACKUP_AGE_PUBLIC_KEY` and kept as a 90-day
+  Actions artifact. Skipped entirely until the repository variable
+  `DATABASE_BACKUP_ENABLED` is `true`; nothing changes on merge.
+
 ## Unreleased — Geoapify address suggestions (#944)
 
 - Signup and profile completion search a typed UK address using Geoapify's free

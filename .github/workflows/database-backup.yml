@@ -1,0 +1,283 @@
+name: Encrypted database backup
+
+# Weekly encrypted pg_dump of the PRODUCTION database (issue #986). The
+# repository describes the project as on the Supabase Free plan, which has no
+# automated backups; nothing in the repository can verify that. Until the owner
+# records the real posture in docs/operations.md, treat this as the only copy
+# of the customer database that is not the live one.
+#
+# What it does: links production through the CLI with the same environment-only
+# token the production migration workflow uses, asserts the linked ref before
+# every linked command (docs/hosted-supabase-target-guard.md), dumps the
+# application schema and its data, encrypts the bundle on the runner with `age`
+# to a public key held as an environment secret, and keeps the ciphertext as a
+# GitHub Actions artifact for 90 days. Plaintext never leaves the runner.
+# Only the holder of the matching private key, kept offline by the owner, can
+# read a backup; losing that key makes every backup useless.
+#
+# What it never does: write to production, upload plaintext, or run at all
+# while the repository variable DATABASE_BACKUP_ENABLED is not `true`.
+#
+# It runs under the `production` GitHub environment, so a required reviewer
+# approves each run (scheduled runs wait for that approval too) and the
+# secrets are the environment's own:
+#   PRODUCTION_SUPABASE_ACCESS_TOKEN  Supabase Management API token (already
+#                                     used by production-apply-migrations.yml)
+#   BACKUP_AGE_PUBLIC_KEY             the `age1…` recipient; the private key is
+#                                     NEVER stored in GitHub
+# Both must exist ONLY on the `production` environment, never at repository
+# level: GitHub creates a referenced environment with no protection rules if
+# it does not exist, so an unconfigured environment would otherwise run with
+# repository-level values. Without them the first step fails closed.
+# Procedure, contents, restore and the drill log: docs/operations.md.
+on:
+  schedule:
+    # Sundays 03:23 UTC (03:23 or 04:23 in London): the salon is closed Thursday
+    # to Sunday, so this is as far as the week allows from the Mon–Wed
+    # 08:00–14:00 London booking window. Off-minute on purpose, like the other
+    # scheduled workflows. Scheduled runs only fire on the default branch.
+    - cron: "23 3 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: read # only to confirm the production environment really gates this job
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    # Merging this workflow changes nothing until the owner has answered the
+    # posture checklist in docs/operations.md and set this variable to `true`.
+    if: ${{ vars.DATABASE_BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 30
+    env:
+      PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
+      STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
+      # Application schemas, as the schema baseline in
+      # staging-tranche1-smoke.yml names them. The data dump adds auth and
+      # storage so account rows survive a restore; see docs/operations.md
+      # for exactly what is and is not in a backup.
+      SCHEMA_DUMP_SCHEMAS: public,smarter_dog_private
+      DATA_DUMP_SCHEMAS: public,smarter_dog_private,auth,storage
+    steps:
+      - name: Confirm exact production target
+        shell: bash
+        env:
+          # Secrets and context reach the shell through env, never by
+          # interpolating ${{ }} into run:, matching the other workflows.
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCTION_SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then
+            echo "::error::Staging and production project refs must differ."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::This workflow runs only from main (ran from $GITHUB_REF)."
+            exit 1
+          fi
+          # Running under the production environment only means a reviewer
+          # approved this run if that environment exists with a required-reviewers
+          # rule: a referenced environment that does not exist is created with no
+          # rules, and a secret of the same name at repository or organisation
+          # level would still reach this job. So the environment itself is
+          # checked, not the presence of a specially named secret.
+          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then
+            echo "::error::Could not read the production environment (it must exist, and the workflow needs actions: read); refusing to continue."
+            exit 1
+          fi
+          reviewers="$(printf '%s' "$environment" | jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers | length] | add // 0')"
+          if [ "$reviewers" -lt 1 ]; then
+            echo "::error::The production environment has no required reviewers, so no approval gated this run. Configure it before enabling backups (docs/operations.md)."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$environment" | jq '.deployment_branch_policy == null')" = "true" ]; then
+            echo "::error::The production environment has no deployment branch policy; restrict it to main before enabling backups (docs/operations.md)."
+            exit 1
+          fi
+          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::No PRODUCTION_SUPABASE_ACCESS_TOKEN reached this job. Add it as a secret of the production environment (docs/operations.md)."
+            exit 1
+          fi
+          if [ -z "${BACKUP_AGE_PUBLIC_KEY:-}" ]; then
+            echo "::error::No BACKUP_AGE_PUBLIC_KEY reached this job. Add the age recipient (age1…) as a secret of the production environment (docs/operations.md)."
+            exit 1
+          fi
+          # An age X25519 recipient is `age1` plus 58 bech32 characters. Anything
+          # else (a private key pasted by mistake, a truncated value) is refused
+          # before production is touched, so a dump can never be made that nobody
+          # can read, or that leaks the private key into the step log.
+          if [[ ! "$BACKUP_AGE_PUBLIC_KEY" =~ ^age1[a-z0-9]{58}$ ]]; then
+            echo "::error::BACKUP_AGE_PUBLIC_KEY is not an age recipient (expected age1 followed by 58 characters); refusing to continue."
+            exit 1
+          fi
+          echo "Target: PRODUCTION ($PRODUCTION_PROJECT_REF); $EVENT_NAME by $ACTOR, attempt $RUN_ATTEMPT"
+          {
+            echo "## Encrypted database backup"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Target | **production** (\`$PRODUCTION_PROJECT_REF\`) |"
+            echo "| Trigger | \`$EVENT_NAME\` by \`$ACTOR\`, attempt $RUN_ATTEMPT |"
+            echo "| Ran from | \`$GITHUB_REF\` at \`$GITHUB_SHA\` |"
+            echo "| Production environment | exists; required reviewers: $reviewers; deployment branch policy: set |"
+            echo "| Production environment secrets present | access token: yes; age recipient: yes (format checked) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.109.1
+
+      - name: Install age
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends age
+          age --version
+
+      - name: Link production and record its migration state
+        id: link
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Every linked command from here targets production, read-only.
+          supabase link --project-ref "$PRODUCTION_PROJECT_REF"
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          supabase migration list --linked | tee migration-list.txt
+          echo "| Linked project ref verified | \`$(cat supabase/.temp/project-ref)\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dump schema and data, then encrypt on the runner
+        id: dump
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          # Plaintext lives only in a private temporary directory outside the
+          # workspace; the upload step is pointed at backup-artifact/ alone, so
+          # nothing unencrypted can be picked up by mistake. The cleanup step
+          # removes the plaintext even when this step fails part-way.
+          plaintext_dir="$(mktemp -d)"
+          chmod 700 "$plaintext_dir"
+          echo "PLAINTEXT_DIR=$plaintext_dir" >> "$GITHUB_ENV"
+          mkdir -p backup-artifact
+
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          supabase db dump --linked \
+            --schema "$SCHEMA_DUMP_SCHEMAS" \
+            --file "$plaintext_dir/schema.sql"
+
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          supabase db dump --linked --data-only --use-copy \
+            --schema "$DATA_DUMP_SCHEMAS" \
+            --file "$plaintext_dir/data.sql"
+
+          # A dump that is missing the application's central table, or the
+          # account rows a restore needs, is not a backup. Fail here rather
+          # than keep 90 days of empty files. The patterns match pg_dump's
+          # --quote-all-identifier output exactly as the CLI emits it.
+          grep -q '^CREATE TABLE IF NOT EXISTS "public"."bookings" ' "$plaintext_dir/schema.sql" \
+            || { echo "::error::schema.sql does not define public.bookings; refusing to keep this dump."; exit 1; }
+          grep -q '^COPY "public"."bookings" ' "$plaintext_dir/data.sql" \
+            || { echo "::error::data.sql carries no public.bookings rows; refusing to keep this dump."; exit 1; }
+          grep -q '^COPY "auth"."users" ' "$plaintext_dir/data.sql" \
+            || { echo "::error::data.sql carries no auth.users rows, so the CLI no longer dumps the auth schema the way docs/operations.md says; refusing to keep this dump."; exit 1; }
+
+          stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          artifact_name="database-backup-production-$(date -u +%Y-%m-%d)-run$GITHUB_RUN_ID"
+          bundle="backup-artifact/$artifact_name.tar.gz.age"
+          {
+            echo "project_ref=$PRODUCTION_PROJECT_REF"
+            echo "dumped_at_utc=$stamp"
+            echo "workflow_run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "repository_commit=$GITHUB_SHA"
+            echo "supabase_cli=$(supabase --version)"
+            echo "schema_dump_schemas=$SCHEMA_DUMP_SCHEMAS"
+            echo "data_dump_schemas=$DATA_DUMP_SCHEMAS"
+            echo "roles_included=no"
+            echo "schema_sql_sha256=$(sha256sum "$plaintext_dir/schema.sql" | cut -d' ' -f1)"
+            echo "data_sql_sha256=$(sha256sum "$plaintext_dir/data.sql" | cut -d' ' -f1)"
+          } > "$plaintext_dir/manifest.txt"
+          cp migration-list.txt "$plaintext_dir/migration-list.txt"
+
+          tar -C "$plaintext_dir" -czf - manifest.txt migration-list.txt schema.sql data.sql \
+            | age --encrypt --recipient "$BACKUP_AGE_PUBLIC_KEY" --output "$bundle"
+          test -s "$bundle"
+
+          # Sizes and digests only: no row content reaches the log or the summary.
+          schema_bytes="$(stat -c %s "$plaintext_dir/schema.sql")"
+          data_bytes="$(stat -c %s "$plaintext_dir/data.sql")"
+          bundle_sha256="$(sha256sum "$bundle" | cut -d' ' -f1)"
+          bundle_bytes="$(stat -c %s "$bundle")"
+          copied_tables="$(grep -c '^COPY ' "$plaintext_dir/data.sql" || true)"
+          echo "Dumped schema.sql ($schema_bytes bytes) and data.sql ($data_bytes bytes, $copied_tables tables); encrypted bundle $bundle ($bundle_bytes bytes, sha256 $bundle_sha256)"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          {
+            echo "| Schema dump | \`$SCHEMA_DUMP_SCHEMAS\`, $schema_bytes bytes |"
+            echo "| Data dump | \`$DATA_DUMP_SCHEMAS\`, $data_bytes bytes, $copied_tables tables (COPY) |"
+            echo "| Encrypted bundle | \`$artifact_name.tar.gz.age\`, $bundle_bytes bytes, sha256 \`$bundle_sha256\` |"
+            echo "| Plaintext uploaded | no |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove plaintext from the runner
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${PLAINTEXT_DIR:-}" ] && [ -d "$PLAINTEXT_DIR" ]; then
+            rm -rf -- "$PLAINTEXT_DIR"
+          fi
+          rm -f migration-list.txt
+
+      - name: Keep the encrypted bundle for 90 days
+        if: ${{ steps.dump.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.dump.outputs.artifact_name }}
+          path: backup-artifact/*.tar.gz.age
+          if-no-files-found: error
+          retention-days: 90
+          # Already gzip-compressed and encrypted; recompressing gains nothing.
+          compression-level: 0
+
+      - name: Summarise the outcome
+        if: ${{ always() }}
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          LINK_OUTCOME: ${{ steps.link.outcome }}
+          DUMP_OUTCOME: ${{ steps.dump.outcome }}
+          ARTIFACT_NAME: ${{ steps.dump.outputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "### Outcome"
+            echo
+            echo "| Step | Result |"
+            echo "|---|---|"
+            echo "| Production link verified, migration state listed | $LINK_OUTCOME |"
+            echo "| Schema and data dumped, bundle encrypted on the runner | $DUMP_OUTCOME |"
+            echo "| Artifact | \`${ARTIFACT_NAME:-none}\` (90-day retention) |"
+            echo "| Job | **$JOB_STATUS** |"
+            echo
+            echo "Restore procedure and drill log: docs/operations.md."
+          } >> "$GITHUB_STEP_SUMMARY"

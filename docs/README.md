@@ -23,6 +23,7 @@ It does not duplicate those sources.
 | Which plan is active? | [`plans/active/`](plans/active/) |
 | Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; its `website.yml` `deploy` job is the live publisher since 9 September 2026 (procedure and rollback: [cutover runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md); evidence: [completed plan](plans/completed/2026-09-05-website-consolidation.md)) |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
+| Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |
@@ -81,6 +82,8 @@ These files remain authoritative for their bounded topics:
   lifecycle, and what the booking wizard promises. Size itself stays staff-only.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
+- [`operations.md`](operations.md) — database backup posture (owner-recorded),
+  the weekly encrypted dump workflow, the restore procedure and the drill log.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
   contract for every deployable Edge Function, and what it does not prove.
 - [`node-runtime.md`](node-runtime.md) — the supported Node version, where it is
