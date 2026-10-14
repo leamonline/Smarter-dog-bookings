@@ -26,7 +26,17 @@ interface LogRow {
   created_at: string;
 }
 
-async function sweep(rows: LogRow[], bookings: { id: string; status: string }[]) {
+// The customer as recipients.ts reads them: SMS switched on, not opted out.
+const SMS_CUSTOMER = {
+  id: "human-1", name: "Synthetic", phone: "+447700900777", email: null,
+  whatsapp: true, sms: true, whatsapp_opted_out: false, sms_opted_out: false, email_opted_out: false,
+};
+
+async function sweep(
+  rows: LogRow[],
+  bookings: { id: string; status: string }[],
+  customer: Record<string, unknown> = SMS_CUSTOMER,
+) {
   const calls: Call[] = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -42,7 +52,7 @@ async function sweep(rows: LogRow[], bookings: { id: string; status: string }[])
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return reply([]);
     if (url.pathname === "/rest/v1/bookings") return reply(bookings);
-    if (url.pathname === "/rest/v1/humans") return reply([{ id: "human-1", phone: "+447700900777", sms_opted_out: false }]);
+    if (url.pathname === "/rest/v1/humans") return reply([customer]);
     if (url.pathname.endsWith("/functions/v1/sms-send")) return reply({ ok: true, twilio_sid: "SM-fallback" });
     return reply([]);
   };
@@ -149,4 +159,28 @@ Deno.test("cancellation rows written before this change are never texted", async
   assertEquals(json.sms_sent, 0);
   assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0);
   assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0);
+});
+
+Deno.test("a customer who has not chosen SMS is not texted, even though they have not opted out", async () => {
+  // Not opting out is not choosing SMS. Every other SMS the salon sends needs
+  // humans.sms on (recipients.ts channelAvailableFor); the safety net is held
+  // to the same rule, for cancellations and for reminders and confirmations.
+  for (const trigger of ["cancelled", "reminder", "confirmed"]) {
+    const row: LogRow = { ...failedCancellation, id: `log-${trigger}`, trigger_type: trigger };
+    const status = trigger === "cancelled" ? "Cancelled" : "Confirmed";
+    const { json, calls } = await sweep([row], [{ id: "booking-1", status }], { ...SMS_CUSTOMER, sms: false });
+    assertEquals(json.sms_sent, 0, trigger);
+    assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0, trigger);
+    assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0, `${trigger}: nothing claimed`);
+  }
+});
+
+Deno.test("a customer who opted out of SMS is not texted", async () => {
+  const { json } = await sweep([failedCancellation], [{ id: "booking-1", status: "Cancelled" }], { ...SMS_CUSTOMER, sms_opted_out: true });
+  assertEquals(json.sms_sent, 0);
+});
+
+Deno.test("a customer with no phone is not texted", async () => {
+  const { json } = await sweep([failedCancellation], [{ id: "booking-1", status: "Cancelled" }], { ...SMS_CUSTOMER, phone: null });
+  assertEquals(json.sms_sent, 0);
 });

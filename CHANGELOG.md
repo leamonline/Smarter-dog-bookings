@@ -14,6 +14,11 @@
   cancelled). Migration `20261014100000` adds the trigger type to the
   `notification_log` CHECK and makes the reaper keep an `error_message` the
   sender already wrote instead of overwriting it with "send interrupted".
+- The safety net now texts only a customer who has SMS switched on, has a
+  phone and has not opted out of SMS: the same rule as every other SMS
+  (`recipients.ts` `channelAvailableFor`). It previously checked only the
+  phone and the SMS opt-out, so it could text a customer who never chose
+  SMS. This applies to reminders and confirmations as well as cancellations.
 - Trade-off, by design: until the cancellation moves to a Meta template, a
   customer whose Twilio WhatsApp did arrive also gets the SMS an hour later,
   and the Delivery issues card lists the WhatsApp row as failed.

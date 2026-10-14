@@ -28,6 +28,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
+import { channelAvailableFor, HUMAN_CONTACT_COLUMNS, type RecipientHuman } from "../_shared/recipients.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -226,15 +227,17 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
       byGroup.get(key)!.push(r);
     }
 
-    // Contact details + SMS opt-out (PECR — never text an opted-out number).
+    // Who may be texted: the same rule as every other SMS the salon sends
+    // (recipients.ts channelAvailableFor): the customer has SMS switched on
+    // ("SMS reminders"), has a phone, and has not opted out of SMS (PECR).
+    // Not opting out is not the same as choosing SMS.
     const humanIds = [...new Set([...byGroup.values()].flat().map((r) => r.human_id!))];
     const { data: humans } = await supabase
       .from("humans")
-      .select("id, phone, sms_opted_out")
+      .select(HUMAN_CONTACT_COLUMNS)
       .in("id", humanIds);
     const humanById = new Map(
-      ((humans ?? []) as { id: string; phone: string | null; sms_opted_out: boolean | null }[])
-        .map((h) => [h.id, h]),
+      ((humans ?? []) as RecipientHuman[]).map((h) => [h.id, h]),
     );
 
     let smsSent = 0;
@@ -244,7 +247,7 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
       const humanId = gRows[0].human_id!;
       const originalTrigger = gRows[0].trigger_type; // a key of CHASED_TRIGGERS
       const h = humanById.get(humanId);
-      if (!h?.phone || h.sms_opted_out) {
+      if (!h || !channelAvailableFor(h, "sms")) {
         skipped++;
         continue;
       }
