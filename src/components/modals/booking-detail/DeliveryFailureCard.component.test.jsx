@@ -45,3 +45,32 @@ describe("DeliveryFailureCard phone validation (#304)", () => {
     );
   });
 });
+
+// A Twilio WhatsApp accept has no delivery receipt here, so the row is reaped
+// to 'failed' only so the SMS safety net can chase it (#1017). The card must
+// not tell staff the message didn't arrive when nobody knows that.
+describe("DeliveryFailureCard: unconfirmed is not failed", () => {
+  const unconfirmed = {
+    trigger_type: "cancelled",
+    channel: "whatsapp",
+    created_at: "2026-10-14T09:00:00Z",
+    error_message:
+      "Delivery unconfirmed: Twilio accepted this WhatsApp but cannot report whether it arrived. If the customer accepts texts, the same message follows by SMS about an hour later.",
+  };
+
+  it("says 'not confirmed as delivered' when every failure is unconfirmed", () => {
+    render(<DeliveryFailureCard {...props} failures={[unconfirmed]} />);
+    expect(screen.getByText("Cancellation not confirmed as delivered")).toBeInTheDocument();
+    expect(screen.queryByText(/didn't reach the customer/i)).toBeNull();
+  });
+
+  it("still says 'didn't reach' when a reported failure is present", () => {
+    render(
+      <DeliveryFailureCard
+        {...props}
+        failures={[unconfirmed, { trigger_type: "reminder", channel: "whatsapp", error_message: "WhatsApp could not deliver this (Meta 131026)." }]}
+      />,
+    );
+    expect(screen.getByText("Some messages didn't reach the customer")).toBeInTheDocument();
+  });
+});

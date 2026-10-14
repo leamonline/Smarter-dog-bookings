@@ -85,3 +85,22 @@ describe("DeliveryFailuresCard", () => {
     expect(onSelectFailure).toHaveBeenCalledWith(data.failures[0]);
   });
 });
+
+describe("DeliveryFailuresCard: unconfirmed rows (#1017)", () => {
+  it("labels an unconfirmed row 'not confirmed', and a reported failure 'failed'", () => {
+    render(
+      <DeliveryFailuresCard
+        data={{
+          count: 2,
+          loading: false,
+          failures: [
+            { bookingId: "b1", customerName: "Ada", dogName: "Rex", triggers: ["cancelled"], unconfirmed: true, bookingDate: null },
+            { bookingId: "b2", customerName: "Bea", dogName: null, triggers: ["reminder"], unconfirmed: false, bookingDate: null },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText(/cancelled not confirmed/)).toBeInTheDocument();
+    expect(screen.getByText(/reminder failed/)).toBeInTheDocument();
+  });
+});

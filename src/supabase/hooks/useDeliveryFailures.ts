@@ -24,6 +24,7 @@ import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import type { Database } from "../database.types";
 import { META_UNDELIVERABLE, metaFailureSummary } from "../../../supabase/functions/_shared/deliveryStatus";
+import { isDeliveryUnconfirmed } from "../../../supabase/functions/_shared/twilioDelivery";
 
 type NotificationLogRow = Database["public"]["Tables"]["notification_log"]["Row"];
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
@@ -61,6 +62,12 @@ export interface DeliveryFailure {
   customerName: string;
   dogName: string;
   triggers: string[];
+  /**
+   * Every live failure on this booking is "delivery unconfirmed" (a Twilio
+   * accept with no receipt) rather than a reported failure. Staff surfaces say
+   * "not confirmed" instead of "failed" for these.
+   */
+  unconfirmed: boolean;
   latestError: string | null;
   latestAt: string | null;
 }
@@ -367,6 +374,7 @@ async function refresh(): Promise<void> {
           customerName: meta?.owner_name_snapshot || "Customer",
           dogName: meta?.dog_name_snapshot || "",
           triggers: infos.map((i) => i.trigger_type),
+          unconfirmed: infos.length > 0 && infos.every((i) => isDeliveryUnconfirmed(i.error_message)),
           latestError: newest?.error_message || null,
           latestAt: newest?.created_at || null,
         };

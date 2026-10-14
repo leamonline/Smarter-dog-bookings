@@ -21,6 +21,13 @@
 --     reaper's text, so a genuinely interrupted send reads as before.
 --
 -- Idempotent: constraint drop/add, cron unschedule/schedule by name.
+--
+-- The CHECK swap takes an ACCESS EXCLUSIVE lock on notification_log, which
+-- every notify function writes to. If a long transaction already holds the
+-- table, waiting for it would queue every notification write behind this
+-- migration, so give up after five seconds instead; the apply fails cleanly
+-- and can be run again. (Scoped to this file's transaction.)
+set local lock_timeout = '5s';
 
 -- ── 1. Extend trigger_type CHECK ────────────────────────────
 alter table public.notification_log

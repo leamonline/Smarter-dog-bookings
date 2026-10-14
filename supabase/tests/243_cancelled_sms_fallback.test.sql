@@ -42,7 +42,7 @@ select is(
 -- A Twilio-accepted cancellation: pending for 20 minutes, with the sender's note.
 insert into public.notification_log (id, human_id, channel, trigger_type, status, error_message, created_at)
 values ('24300000-0000-4000-8000-000000000040', '24300000-0000-4000-8000-000000000001', 'whatsapp', 'cancelled', 'pending',
-        'Twilio accepted this WhatsApp but gives no delivery receipt on this channel, so delivery is unconfirmed.',
+        'Delivery unconfirmed: Twilio accepted this WhatsApp but cannot report whether it arrived. If the customer accepts texts, the same message follows by SMS about an hour later.',
         now() - interval '20 minutes');
 
 -- A genuinely interrupted send: pending for 20 minutes with no message.
@@ -68,7 +68,7 @@ select is(
   'failed', 'a stale pending Twilio row is failed');
 select is(
   (select error_message from public.notification_log where id = '24300000-0000-4000-8000-000000000040'),
-  'Twilio accepted this WhatsApp but gives no delivery receipt on this channel, so delivery is unconfirmed.',
+  'Delivery unconfirmed: Twilio accepted this WhatsApp but cannot report whether it arrived. If the customer accepts texts, the same message follows by SMS about an hour later.',
   'and keeps the message the sending function wrote');
 select is(
   (select error_message from public.notification_log where id = '24300000-0000-4000-8000-000000000041'),

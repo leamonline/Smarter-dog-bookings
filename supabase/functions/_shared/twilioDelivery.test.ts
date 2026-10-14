@@ -1,8 +1,17 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
+  isDeliveryUnconfirmed,
   notificationLogPatchForTwilioWhatsApp,
   TWILIO_WHATSAPP_UNCONFIRMED,
 } from "./twilioDelivery.ts";
+
+Deno.test("an accepted-but-unreceipted send reads as unconfirmed; a rejection does not", () => {
+  assertEquals(isDeliveryUnconfirmed(TWILIO_WHATSAPP_UNCONFIRMED), true);
+  const rejected = notificationLogPatchForTwilioWhatsApp({ ok: false, status: 400, errorMessage: "bad number" });
+  assertEquals(isDeliveryUnconfirmed(rejected.error_message), false);
+  assertEquals(isDeliveryUnconfirmed("reaped: stuck pending >10min (send interrupted before finalise)"), false);
+  assertEquals(isDeliveryUnconfirmed(null), false);
+});
 
 Deno.test("a Twilio accept is 'pending' with the SID, never 'sent'", () => {
   assertEquals(

@@ -30,13 +30,27 @@ export interface TwilioSendOutcome {
 }
 
 /**
+ * Every note that means "we do not know whether it arrived" starts with this,
+ * so staff surfaces can say "not confirmed as delivered" instead of "failed"
+ * (`isDeliveryUnconfirmed`). The row's status is still 'failed' once reaped:
+ * that is what lets reminder-sms-fallback chase it, not a claim that it failed.
+ */
+export const DELIVERY_UNCONFIRMED_PREFIX = "Delivery unconfirmed:";
+
+/**
  * Stored on the row while Twilio's accept is all we know. Survives the reaper
  * (which only writes its own text over a null error_message), so the booking's
- * delivery-failure card tells staff what actually happened rather than
- * "send interrupted".
+ * delivery card tells staff what actually happened rather than "send
+ * interrupted". It promises no SMS: a customer who has opted out of texts, or
+ * has no mobile, gets none.
  */
 export const TWILIO_WHATSAPP_UNCONFIRMED =
-  "Twilio accepted this WhatsApp but gives no delivery receipt on this channel, so delivery is unconfirmed. The SMS safety net follows up after an hour.";
+  `${DELIVERY_UNCONFIRMED_PREFIX} Twilio accepted this WhatsApp but cannot report whether it arrived. If the customer accepts texts, the same message follows by SMS about an hour later.`;
+
+/** True for a log row whose note says delivery is unknown rather than failed. */
+export function isDeliveryUnconfirmed(errorMessage: string | null | undefined): boolean {
+  return typeof errorMessage === "string" && errorMessage.startsWith(DELIVERY_UNCONFIRMED_PREFIX);
+}
 
 export type TwilioWhatsAppLogPatch = {
   status: "pending" | "failed";

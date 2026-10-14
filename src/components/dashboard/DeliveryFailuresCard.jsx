@@ -44,7 +44,7 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
             <span className="font-semibold text-red-900">{f.customerName}</span>
             {f.dogName && <span className="text-red-700/70"> · {f.dogName}</span>}
             <span className="block text-[11px] text-red-600">
-              {f.triggers.map(triggerLabel).join(", ")} failed
+              {f.triggers.map(triggerLabel).join(", ")} {f.unconfirmed ? "not confirmed" : "failed"}
               {f.bookingDate ? ` · ${fmtDate(f.bookingDate)}` : ""}
             </span>
           </>
