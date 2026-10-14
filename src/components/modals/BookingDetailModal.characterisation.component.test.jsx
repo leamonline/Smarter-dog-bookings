@@ -6,7 +6,7 @@
 //   - the appointment/services/payments cards and audit footers render
 // Written against pre-refactor behaviour; async findBy* queries are used
 // for modal appearance so the same assertions hold once mounting is lazy.
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
@@ -39,6 +39,22 @@ vi.mock("../../supabase/hooks/useGroupBookings", () => ({
 }));
 
 const { BookingDetailModal } = await import("./BookingDetailModal.jsx");
+
+// The nested modals are React.lazy chunks. A cold import of one can outlast
+// findBy*'s one-second default: the reschedule modal (month bookings, day
+// settings and availability hooks) took 1.5-1.7s to import cold under
+// coverage locally, and this file failed in CI with the reschedule test
+// waiting 1.66s for text that had not mounted. Load the chunks once up front
+// so these tests pin WHEN each modal mounts, not how fast its chunk compiles.
+// A chunk that fails to import still fails here, loudly.
+beforeAll(async () => {
+  await Promise.all([
+    import("./DatePickerModal.jsx"),
+    import("./RescheduleModal.jsx"),
+    import("./RecurringBookingModal.jsx"),
+    import("./PhotoUploadModal.jsx"),
+  ]);
+});
 
 const dog = {
   id: "dog-1",
