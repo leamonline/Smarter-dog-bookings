@@ -116,6 +116,7 @@ describe("labels", () => {
   it("reads an SMS fallback as the message it stands in for", () => {
     expect(baseTrigger("confirmed_sms_fallback")).toBe("confirmed");
     expect(triggerLabel("reminder_sms_fallback")).toBe("Reminder");
+    expect(triggerLabel("cancelled_sms_fallback")).toBe("Cancellation");
   });
 
   it("turns Meta's raw error into one readable line, even when it is garbage", () => {

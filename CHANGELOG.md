@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — cancellation notices fail closed and join the SMS safety net (#989)
+
+- `notify-booking-cancelled` (and the dormant `notify-booking-ready`) no longer
+  log a Twilio WhatsApp notice as `sent` when Twilio accepts it. Twilio's 2xx
+  means queued, and the Twilio channel has no delivery receipt here, so the row
+  stays `pending` with the Twilio SID and a note saying why; the existing
+  pending reaper fails it after ten minutes. A Twilio rejection now records
+  Twilio's own reason. The cancellation wording is stored on the row.
+- `reminder-sms-fallback` chases `cancelled` notices as well as reminders and
+  confirmations, claiming a `cancelled_sms_fallback` row first, and only while
+  the booking is still Cancelled (a restored booking is not texted that it was
+  cancelled). Migration `20261014100000` adds the trigger type to the
+  `notification_log` CHECK and makes the reaper keep an `error_message` the
+  sender already wrote instead of overwriting it with "send interrupted".
+- Trade-off, by design: until the cancellation moves to a Meta template, a
+  customer whose Twilio WhatsApp did arrive also gets the SMS an hour later,
+  and the Delivery issues card lists the WhatsApp row as failed.
+
 ## Unreleased — database backup posture and weekly encrypted dump (#986)
 
 - New `docs/operations.md` records the production database's backup posture
