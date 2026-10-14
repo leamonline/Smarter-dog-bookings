@@ -10,7 +10,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(62);
 
 -- Act as a member of staff: only staff may change a customer's phone
 -- (prevent_customer_critical_column_update). The staff fixture alone is
@@ -148,12 +148,21 @@ select throws_ok(
   $$update public.whatsapp_conversations set phone_e164 = '+447700900499' where id = '24400000-0000-4000-8000-000000000001'$$,
   'P0001', null, 'and so is moving the stopped conversation to another number'
 );
-select is(
-  (select count(*)::int from public.humans
-    where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000013', '24400000-0000-4000-8000-000000000015')
-      and whatsapp_opted_out is true),
-  3, 'every refused untick left its record opted out'
+-- The same refusals for a real staff session, through RLS. Cached plans are
+-- discarded first: a plan made above, as postgres, may have inlined
+-- whatsapp_phone_key and would skip the permission check a fresh staff
+-- connection meets.
+discard plans;
+set local role authenticated;
+select throws_ok(
+  $$update public.whatsapp_conversations set phone_e164 = '+447700900499' where id = '24400000-0000-4000-8000-000000000001'$$,
+  'P0001', null, 'a staff session moving the stopped conversation gets the refusal, not a permission error'
 );
+select throws_ok(
+  $$update public.whatsapp_conversations set whatsapp_last_stop_at = null where id = '24400000-0000-4000-8000-000000000001'$$,
+  'P0001', null, 'and cannot edit when the number last said STOP'
+);
+reset role;
 
 -- ── Already opted out for another reason, then the number says STOP ─
 insert into public.humans (id, name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_at, whatsapp_opted_out_reason)
@@ -171,6 +180,36 @@ update public.humans set phone = '07700 900 481' where id = '24400000-0000-4000-
 select throws_ok(
   $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000018'$$,
   'P0001', null, 'so after a number change its STOP still cannot be unticked'
+);
+
+-- ── The STOP label never sits on a record that is not opted out ──────
+insert into public.humans (id, name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_reason)
+values ('24400000-0000-4000-8000-000000000019', 'Synthetic', 'Labelled', '07700 900480', false, 'asked_on_whatsapp');
+select is(
+  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000019'),
+  true, 'a record written with the label on a stopped number is still opted out'
+);
+select throws_ok(
+  $$insert into public.humans (id, name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_reason)
+    values ('24400000-0000-4000-8000-000000000020', 'Synthetic', 'Unstopped', '07700 900 497', false, 'asked_on_whatsapp')$$,
+  '23514', null, 'and the label without an opt-out is refused elsewhere'
+);
+insert into public.humans (id, name, surname, phone)
+values ('24400000-0000-4000-8000-000000000021', 'Synthetic', 'Mover2', '07700 900 498');
+select throws_ok(
+  $$update public.humans set phone = '07700 900 496', whatsapp_opted_out_reason = 'asked_on_whatsapp' where id = '24400000-0000-4000-8000-000000000021'$$,
+  '23514', null, 'labelling a record while moving it to an unstopped number is refused too'
+);
+update public.humans set phone = '+44 7700 900480', whatsapp_opted_out_reason = 'asked_on_whatsapp' where id = '24400000-0000-4000-8000-000000000021';
+select is(
+  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000021'),
+  true, 'and labelling it while moving it to a stopped number opts it out'
+);
+select is(
+  (select count(*)::int from public.humans
+    where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000013', '24400000-0000-4000-8000-000000000015')
+      and whatsapp_opted_out is true),
+  3, 'every refused untick left its record opted out'
 );
 
 -- ── The scope staff confirm before re-enabling ──────────────────────
@@ -329,10 +368,10 @@ select is(
      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname in ('whatsapp_conversation_apply_opt_out', 'humans_apply_number_opt_out', 'humans_guard_whatsapp_reenable',
-                        'staff_whatsapp_number_opt_out_scope', 'staff_reenable_whatsapp_number')
+                        'whatsapp_conversation_guard_stop', 'staff_whatsapp_number_opt_out_scope', 'staff_reenable_whatsapp_number')
       and p.prosecdef
       and p.proconfig @> array['search_path=public, pg_temp']),
-  5, 'the definer functions are SECURITY DEFINER with a pinned search_path'
+  6, 'the definer functions are SECURITY DEFINER with a pinned search_path'
 );
 select ok(
   not has_table_privilege('authenticated', 'public.whatsapp_opt_out_reenables', 'insert')

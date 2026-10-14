@@ -271,17 +271,21 @@ staff one acknowledgement draft for the STOP (`fallbackReplyForIntent("opt_out")
 marked `tool_calls.opt_out_acknowledgement`).
 - Only a signed-in member of staff pressing Send on that stored draft,
   **unedited**, may send it. The marker is read from the stored draft, never
-  from the request.
-- `whatsapp-send` refuses it with different text from the stored draft, or
-  from an AI or internal call, and refuses every other draft or manual reply.
-  (Staff can still change the stored draft row itself; that is no wider than
-  the staff override below.)
+  from the request, and the stored text must still be the agent's own words:
+  staff can update a draft row, so a row with the marker and other text is
+  not the acknowledgement.
+- `whatsapp-send` refuses it with different text, or from an AI or internal
+  call, and refuses every other draft or manual reply.
 - The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
   pending acknowledgement per conversation, so a repeated or concurrent STOP
   cannot queue a second. The agent treats the refusal as expected.
 - Separately, staff may pass `override_opt_out: true` for the rare operational
-  message a customer must still receive. It is ignored for AI-initiated sends
-  and internal-secret calls.
+  message a customer must still receive, but **never to a number that said
+  STOP** (the number's suppression, or a record whose reason is
+  `asked_on_whatsapp`): only the audited re-enable lifts a STOP. The override
+  is ignored for AI-initiated sends and internal-secret calls.
+- The `asked_on_whatsapp` label only ever sits on an opted-out record
+  (constraint `humans_stop_label_means_opted_out`).
 
 **Recognising a STOP.** The detector is deliberately narrow, because a false
 positive silences the number until staff re-enable it. The message is split

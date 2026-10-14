@@ -8,8 +8,8 @@
   mode and for every caller. Previously only the notify-* functions honoured
   the flag, so staff template/compose sends and the agent's own modes could
   still message an opted-out customer. Staff may pass `override_opt_out` for a
-  message the customer must still receive; AI-initiated and internal-secret
-  sends cannot. Any customer record on a shared number counts, and a
+  message the customer must still receive, except to a number that said STOP;
+  AI-initiated and internal-secret sends cannot. Any customer record on a shared number counts, and a
   failed lookup refuses the send (503) rather than sending unchecked.
 - The agent recognises a customer asking us to stop: the carrier words, and
   requests aimed at our messages such as "don't send me any more messages" or

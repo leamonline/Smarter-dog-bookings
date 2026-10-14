@@ -13,6 +13,9 @@ for (const [key, value] of Object.entries({
   SEND_INTERNAL_SECRET: "test-send",
 })) Deno.env.set(key, value);
 const { handleSendRequest } = await import("../handler.ts?opt-out");
+const { fallbackReplyForIntent } = await import("../../_shared/agentRisk.ts");
+// The acknowledgement exactly as the agent writes it.
+const ACK_TEXT = fallbackReplyForIntent("opt_out");
 
 interface Call { method: string; host: string; path: string; search: string; body: unknown }
 
@@ -131,7 +134,7 @@ interface Scenario {
   /** Rows for a lookup by phone, when it should differ from a lookup by id. */
   humansByPhone?: unknown[];
   conversation?: Record<string, unknown> | "error";
-  draft?: { tool_calls: Record<string, unknown> | null };
+  draft?: { tool_calls: Record<string, unknown> | null; proposed_text?: string };
 }
 
 async function run({ body, staff = false, auth, humans = [], humansByPhone, conversation, draft }: Scenario) {
@@ -235,7 +238,7 @@ Deno.test("staff approving the agent's STOP acknowledgement draft unedited sends
     body: { mode: "draft", draft_id: "draft-1" },
     staff: true,
     humans: OPTED_OUT,
-    draft: { tool_calls: { opt_out_acknowledgement: true } },
+    draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(status, 200, JSON.stringify(json));
   assertEquals(metaCalls(calls), 1);
@@ -247,7 +250,7 @@ Deno.test("the acknowledgement cannot carry edited text to an opted-out customer
     body: { mode: "draft", draft_id: "draft-1", edited_text: "Book now for 20% off!" },
     staff: true,
     humans: OPTED_OUT,
-    draft: { tool_calls: { opt_out_acknowledgement: true } },
+    draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(status, 409);
   assertEquals(metaCalls(calls), 0);
@@ -257,7 +260,7 @@ Deno.test("only staff can send the acknowledgement; any other draft to an opted-
   const internal = await run({
     body: { mode: "draft", draft_id: "draft-1" },
     humans: OPTED_OUT,
-    draft: { tool_calls: { opt_out_acknowledgement: true } },
+    draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(internal.status, 409);
   assertEquals(metaCalls(internal.calls), 0);
@@ -274,7 +277,7 @@ Deno.test("only staff can send the acknowledgement; any other draft to an opted-
 
 // ── #1016 boundary review: what can and cannot unlock the acknowledgement ──
 
-const ACK_DRAFT = { tool_calls: { opt_out_acknowledgement: true } };
+const ACK_DRAFT = { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT };
 
 Deno.test("the acknowledgement marker is read from the stored draft, never from the request", async () => {
   const { status, calls } = await run({
@@ -455,7 +458,7 @@ Deno.test("staff can still send the STOP acknowledgement, unedited, to a number 
     staff: true,
     humans: [],
     conversation: STOPPED_NUMBER,
-    draft: { tool_calls: { opt_out_acknowledgement: true } },
+    draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(status, 200);
   assertEquals(metaCalls(calls), 1);
@@ -483,4 +486,52 @@ Deno.test("a number that never said STOP is unaffected", async () => {
   const { status, calls } = await run({ body: TEMPLATE, staff: true, humans: [], conversation: { ...STOPPED_NUMBER, whatsapp_opted_out_at: null } });
   assertEquals(status, 200);
   assertEquals(metaCalls(calls), 1);
+});
+
+// ── #1016 final review: override_opt_out never reaches a STOP, and the
+//    acknowledgement must still be the agent's own words ────────────────
+
+Deno.test("a staff override cannot send to a number that said STOP, in any mode", async () => {
+  for (const body of [
+    { ...TEMPLATE, override_opt_out: true },
+    { mode: "manual", conversation_id: "conv-1", text: "Hello again", override_opt_out: true },
+  ]) {
+    const { status, json, calls } = await run({ body, staff: true, humans: [], conversation: STOPPED_NUMBER });
+    assertEquals(status, 409, JSON.stringify(body));
+    assertEquals(json.reason, "whatsapp_opted_out");
+    assertEquals(metaCalls(calls), 0);
+  }
+});
+
+Deno.test("nor to a customer whose opt-out came from a STOP", async () => {
+  const { status, calls } = await run({
+    body: { ...TEMPLATE, override_opt_out: true },
+    staff: true,
+    humans: [{ id: "h-stop", whatsapp_opted_out: true, whatsapp_opted_out_reason: "asked_on_whatsapp" }],
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("the override still works for an opt-out staff set for another reason", async () => {
+  const { status, calls } = await run({
+    body: { ...TEMPLATE, override_opt_out: true },
+    staff: true,
+    humans: [{ id: "h-staff", whatsapp_opted_out: true, whatsapp_opted_out_reason: "told staff by phone" }],
+  });
+  assertEquals(status, 200);
+  assertEquals(metaCalls(calls), 1);
+});
+
+Deno.test("a draft carrying the acknowledgement marker but other words is not the acknowledgement", async () => {
+  // Staff can update a draft row; the marker alone must not unlock a STOP.
+  const { status, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    staff: true,
+    humans: [],
+    conversation: STOPPED_NUMBER,
+    draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: "Big sale this weekend!" },
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
 });

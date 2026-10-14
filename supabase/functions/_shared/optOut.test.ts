@@ -142,6 +142,16 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "I don't want you to send me any more messages",
     "I don't want you to message me anymore",
     "I no longer want you to text me",
+    // Final review of 5771d2f
+    "Pls stop",
+    "Plz stop",
+    "I want to opt out",
+    "I'd like to opt out",
+    "Can I opt out",
+    "I want to stop receiving these messages",
+    "how do I stop receiving messages",
+    "Please stop messaging this number",
+    "Stop, not interested",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -214,6 +224,15 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "I don't want you to message me before 9",
     "I don't want you to text me about Bella",
     "I don't want you to send me the invoice",
+    // Final review of 5771d2f: a correction, or a stop aimed narrower
+    "Stop, I meant Tuesday",
+    "Stop! I booked the wrong dog",
+    "Stop - wrong dog",
+    "Stop, that's the wrong date",
+    "I don't want any more reminders for Max",
+    "Don't send me any more messages about the deposit",
+    "I don't want any more messages about Bella",
+    "I need to stop receiving reminders for Max",
     "",
     null,
     undefined,

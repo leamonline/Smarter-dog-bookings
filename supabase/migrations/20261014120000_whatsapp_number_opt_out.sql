@@ -128,16 +128,20 @@ revoke all on function public.whatsapp_phone_key(text) from authenticated;
 --    update conversations directly (staff_update_whatsapp_conversations), and
 --    for a number with no customer record this column is the whole STOP;
 --  - so is moving a stopped conversation to another number or channel, which
---    would carry the STOP away from the number that sent it.
+--    would carry the STOP away from the number that sent it, and editing the
+--    latest-STOP time directly.
+-- SECURITY DEFINER so a staff session (which cannot execute
+-- whatsapp_phone_key) gets these refusals rather than a permission error.
 create or replace function public.whatsapp_conversation_guard_stop()
 returns trigger
 language plpgsql
-set search_path = ''
+security definer
+set search_path = public, pg_temp
 as $$
 begin
   if tg_op = 'UPDATE' and old.whatsapp_opted_out_at is not null then
     if new.whatsapp_opted_out_at is null then
-      if coalesce(pg_catalog.current_setting('smarter_dog.whatsapp_reenable', true), '') <> 'on' then
+      if coalesce(current_setting('smarter_dog.whatsapp_reenable', true), '') <> 'on' then
         raise exception 'This number asked on WhatsApp for messages to stop. Switch WhatsApp back on with the customer''s renewed permission instead.'
           using errcode = 'P0001', detail = 'whatsapp_reenable_needs_permission';
       end if;
@@ -153,11 +157,16 @@ begin
       -- A repeat STOP: keep the first time, record the latest.
       new.whatsapp_last_stop_at := new.whatsapp_opted_out_at;
       new.whatsapp_opted_out_at := old.whatsapp_opted_out_at;
+    elsif new.whatsapp_last_stop_at is distinct from old.whatsapp_last_stop_at then
+      -- Only a STOP moves it: a re-enable must name the real latest one.
+      raise exception 'The time this number last said STOP is recorded, not edited.'
+        using errcode = 'P0001', detail = 'whatsapp_stop_record_fixed';
     end if;
     return new;
   end if;
-  if new.whatsapp_opted_out_at is not null
-     and (tg_op = 'INSERT' or old.whatsapp_opted_out_at is null) then
+  if new.whatsapp_opted_out_at is null then
+    new.whatsapp_last_stop_at := null;
+  elsif tg_op = 'INSERT' or old.whatsapp_opted_out_at is null then
     new.whatsapp_last_stop_at := new.whatsapp_opted_out_at;
   end if;
   return new;
@@ -227,7 +236,10 @@ declare
   v_at timestamptz;
   v_key text;
 begin
-  if new.whatsapp_opted_out_reason is not distinct from 'asked_on_whatsapp' then
+  -- Already a STOP: nothing to add. (The label alone is not enough: a record
+  -- labelled but not opted out must still be checked, #1016 final review.)
+  if new.whatsapp_opted_out is true
+     and new.whatsapp_opted_out_reason is not distinct from 'asked_on_whatsapp' then
     return new;
   end if;
   -- Only a new record or a changed number: a save that leaves the phone as it
@@ -269,6 +281,22 @@ create trigger trg_humans_apply_number_opt_out
   before insert or update of phone on public.humans
   for each row
   execute function public.humans_apply_number_opt_out();
+
+-- The STOP label only ever sits on an opted-out record. The label is new
+-- with this migration, so no existing row can violate it.
+do $stop_label$
+begin
+  if not exists (
+    select 1 from pg_catalog.pg_constraint
+     where conname = 'humans_stop_label_means_opted_out'
+       and conrelid = 'public.humans'::regclass
+  ) then
+    alter table public.humans
+      add constraint humans_stop_label_means_opted_out
+      check (whatsapp_opted_out_reason is distinct from 'asked_on_whatsapp' or whatsapp_opted_out is true);
+  end if;
+end;
+$stop_label$;
 
 -- ── 5. Re-enabling needs renewed permission, scoped and audited ─
 -- An earlier, never-applied draft of this migration re-enabled every record
