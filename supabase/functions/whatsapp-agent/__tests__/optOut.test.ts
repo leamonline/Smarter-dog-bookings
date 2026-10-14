@@ -18,6 +18,8 @@ const HUMAN = "human-opt-out";
 interface Faults {
   /** The humans PATCH returns an error. */
   humanWriteFails?: boolean;
+  /** The first N humans PATCHes return an error (a transient fault). */
+  humanWriteFailures?: number;
   /** The humans PATCH "succeeds" but changes no row (and the row is not opted out). */
   humanWriteMatchesNothing?: boolean;
   /** The customer had already opted out before this message. */
@@ -81,6 +83,10 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     if (url.pathname === "/rest/v1/humans") {
       if (method === "PATCH") {
         if (faults.humanWriteFails) return reply({ message: "connection reset" }, 500);
+        if ((faults.humanWriteFailures ?? 0) > 0) {
+          faults.humanWriteFailures = (faults.humanWriteFailures ?? 0) - 1;
+          return reply({ message: "connection reset" }, 500);
+        }
         const ids = idsFrom(url.searchParams.get("id"));
         const optedFilter = url.searchParams.get("whatsapp_opted_out");
         const changed = faults.humanWriteMatchesNothing ? [] : humans.filter((row) =>
@@ -339,4 +345,21 @@ Deno.test("a stale link does not carry the STOP to a customer whose number has c
   assertEquals(humanPatches.length, 0);
   assertEquals(humans[0].whatsapp_opted_out, false);
   assert(typeof conversation.whatsapp_opted_out_at === "string", "the old number is suppressed");
+});
+
+Deno.test("a transient write failure is retried and the STOP is recorded", async () => {
+  const { eventPatch, humanRow, humanPatches } = await send("STOP", "ai_handling", HUMAN, { humanWriteFailures: 1 });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  assertEquals(humanPatches.length, 2, "one failed attempt, one that landed");
+});
+
+Deno.test("a STOP that cannot be recorded leaves the event replayable: nothing half-done", async () => {
+  // Recording happens BEFORE the inbound row is stored, so the de-duplication
+  // that would make a replay "ignored" has not run (#1016 review).
+  const { eventPatch, calls, humanPatches } = await send("STOP", "ai_handling", HUMAN, { humanWriteFails: true });
+  assertEquals(eventPatch.processing_status, "failed");
+  assertStringIncludes(String(eventPatch.error_message), "STOP not recorded");
+  assertEquals(humanPatches.length, 3, "three attempts before failing");
+  assertEquals(calls.filter((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST").length, 0, "no inbound row stored");
 });

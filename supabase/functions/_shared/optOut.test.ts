@@ -109,6 +109,10 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Stop all messages to this number!",
     "No more messages please.",
     "Please, no more texts",
+    // Only filler words may sit between a negation and the verb (#1016 review)
+    "I don't know how this works, please stop messaging me",
+    "I do not need these, stop messaging me",
+    "I don't use WhatsApp much please stop messaging me",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -154,6 +158,12 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "I received the reminder but no more messages came through",
     "Can you stop the messages going to my old phone and use this one?",
     "There were no more texts after Tuesday, is that right?",
+    // Negated removal requests are the opposite request (#1016 review)
+    "Please do not unsubscribe me",
+    "Please don't opt me out",
+    "I don't want to unsubscribe, just change the time",
+    "Don't remove me from your list please",
+    "Please don't take me off your list",
     "",
     null,
     undefined,

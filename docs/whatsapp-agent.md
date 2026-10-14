@@ -185,8 +185,11 @@ AI-initiated send that passes the five above:
 A WhatsApp opt-out belongs to the **number**. The contract (#990, #1016):
 
 **Where it is stored.** A STOP is stored in two places, and both are read
-back before the agent reports the event processed. If either cannot be
-stored or confirmed, the event fails and shows as an agent failure.
+back before the agent reports the event processed. The agent records it
+**before** it stores the inbound message, and retries twice on a transient
+error. If it still cannot be stored or confirmed, the event fails and shows
+as an agent failure, with nothing half-done: the inbound message has not been
+de-duplicated yet, so resetting the event to `pending` replays it in full.
 - `whatsapp_conversations.whatsapp_opted_out_at` holds the number's own
   suppression. It is the whole suppression for a number with no customer
   record, and a repeat STOP keeps the first time.
@@ -197,6 +200,10 @@ stored or confirmed, the event fails and shows as an agent failure.
   that customer's number since, and a STOP from the old number must not
   silence the new one. The old number stays refused through its conversation
   whatever it is linked to.
+
+A customer who said STOP stays opted out if staff later change their number.
+The person asked us to stop, so only staff switching WhatsApp back on
+re-enables them; it is never automatic.
 
 Migration `20261014120000_whatsapp_number_opt_out` keeps the two in step in
 the database, always by number:
@@ -250,12 +257,15 @@ counts as a STOP:
   apostrophes count.
 
 Each of these must not count, and is tested:
+- Negated requests: "please don't stop messaging me", "please do not
+  unsubscribe me", "don't opt me out". Only filler words ("want", "you",
+  "to", "please"…) may sit between the negation and the verb, so "I don't
+  use WhatsApp much, please stop messaging me" is still a stop.
 - Salon phrases that share the words: "opt me out of the nail clip",
   "unsubscribe me from the waiting list", "don't message me before 9", "I
   don't want messages before 9".
 - Reports about messages: "I received the reminder but no more messages came
   through".
-- A negated stop: "please don't stop messaging me".
 
 **Ordering.** One webhook can carry several messages. A STOP among them is
 handled first, so no earlier message in the batch is answered after it. The

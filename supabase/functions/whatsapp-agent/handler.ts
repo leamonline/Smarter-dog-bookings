@@ -1273,6 +1273,117 @@ async function saveDraft(
   return data.id as string;
 }
 
+/**
+ * Records a customer's STOP: the number's own opt-out, auto-send off, and the
+ * opt-out on every customer record whose phone is that number. Every write is
+ * read back; any that does not land throws, so the event fails visibly rather
+ * than reading as processed (AGENTS.md: never infer an outcome from an
+ * attempted write). Idempotent, so a retry or a replayed event repeats it
+ * safely.
+ */
+async function recordOptOut(
+  supabase: SupabaseClient,
+  conversation: { id: string; phone_e164: string | null },
+): Promise<void> {
+  // 1. The number itself (migration 20261014120000). This is the whole of
+  // the suppression for a number with no customer record, and the database
+  // carries it to any record later created with, or changed to, this number.
+  // A repeat STOP keeps the first time.
+  const { error: stampErr } = await supabase
+    .from("whatsapp_conversations")
+    .update({ whatsapp_opted_out_at: new Date().toISOString() })
+    .eq("id", conversation.id)
+    .is("whatsapp_opted_out_at", null);
+  if (stampErr) {
+    throw new Error(`STOP not recorded: could not store the number's opt-out (${stampErr.message})`);
+  }
+  const { error: convErr } = await supabase
+    .from("whatsapp_conversations")
+    .update({ auto_send_enabled: false })
+    .eq("id", conversation.id);
+  if (convErr) {
+    throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
+  }
+  const { data: convStored, error: convReadErr } = await supabase
+    .from("whatsapp_conversations")
+    .select("whatsapp_opted_out_at, auto_send_enabled")
+    .eq("id", conversation.id)
+    .maybeSingle();
+  const numberRow = convStored as { whatsapp_opted_out_at: string | null; auto_send_enabled: boolean | null } | null;
+  if (convReadErr || !numberRow?.whatsapp_opted_out_at || numberRow.auto_send_enabled !== false) {
+    throw new Error("STOP not recorded: the number's opt-out could not be confirmed");
+  }
+  // 2. Every customer record whose phone IS this number, however it
+  // was typed ("07700 900123"), linked to the conversation or not.
+  // Never the linked record just because it is linked: staff may
+  // have changed that customer's number since, and this STOP must
+  // not opt their new number out (#1016 review). The notify-*
+  // functions that send WhatsApp through Twilio read only this flag.
+  const optOutIds = new Set<string>();
+  const senderPhone = conversation.phone_e164 ?? "";
+  const phonePattern = phoneMatchPattern(senderPhone);
+  if (phonePattern) {
+    const { data: onNumber, error: lookupErr } = await supabase
+      .from("humans")
+      .select("id, phone")
+      .filter("phone", "match", phonePattern);
+    if (lookupErr) {
+      throw new Error(`STOP not recorded: could not look up customers on this number (${lookupErr.message})`);
+    }
+    const senderKey = phoneMatchKey(senderPhone);
+    for (const row of (onNumber ?? []) as { id: string; phone: string | null }[]) {
+      if (phoneMatchKey(row.phone) === senderKey) optOutIds.add(row.id);
+    }
+  }
+  if (optOutIds.size > 0) {
+    const ids = [...optOutIds];
+    const { error: optOutErr } = await supabase
+      .from("humans")
+      .update({
+        whatsapp_opted_out: true,
+        whatsapp_opted_out_at: new Date().toISOString(),
+        whatsapp_opted_out_reason: "asked_on_whatsapp",
+      })
+      .in("id", ids)
+      .eq("whatsapp_opted_out", false);
+    if (optOutErr) {
+      throw new Error(`STOP not recorded: could not flag the customer as opted out (${optOutErr.message})`);
+    }
+    // Read every record back rather than infer from the write: a
+    // filter that matched nothing must not pass as recorded.
+    const { data: stored, error: readErr } = await supabase
+      .from("humans")
+      .select("id, whatsapp_opted_out")
+      .in("id", ids);
+    const rows = (stored ?? []) as { id: string; whatsapp_opted_out: boolean | null }[];
+    if (readErr || rows.length !== ids.length || rows.some((row) => row.whatsapp_opted_out !== true)) {
+      throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
+    }
+    console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
+  }
+}
+
+// A transient database error must not leave a STOP unrecorded: try the
+// idempotent writes again after a short pause before failing the event.
+const OPT_OUT_RETRY_DELAYS_MS = [200, 800];
+
+async function recordOptOutWithRetry(
+  supabase: SupabaseClient,
+  conversation: { id: string; phone_e164: string | null },
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await recordOptOut(supabase, conversation);
+      return;
+    } catch (err) {
+      const delay = OPT_OUT_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) throw err;
+      console.warn(`opt-out: attempt ${attempt + 1} failed, retrying:`, err instanceof Error ? err.message : err);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 // Persist memory before dependent draft, onboarding or booking work.
 // A failed or missing-row write stops the event rather than using unsaved facts.
 async function persistAgentState(
@@ -2741,6 +2852,16 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // so skip it. The webhook path (forceDraft=false) is unchanged —
           // there its duplicate-key throw still usefully guards against Meta
           // redelivering a message and triggering a second draft/auto-send.
+          // A STOP is recorded BEFORE the inbound row is stored. If recording
+          // fails (after its retries) the event fails with nothing half-done:
+          // the inbound de-duplication below has not run, so the event replays
+          // whole when it is reset to pending (#1016 review). The writes are
+          // idempotent, so a redelivered STOP records it again and is then
+          // ignored as a duplicate. Skipped on forceDraft so a staff
+          // re-generate stays side-effect free (#990).
+          const stopRequested = !forceDraft && isOptOutRequest(text);
+          if (stopRequested) await recordOptOutWithRetry(supabase, conversation);
+
           if (!forceDraft) {
             const { duplicate, id: insertedId } = await insertInboundMessage(
               supabase,
@@ -2886,102 +3007,17 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
           }
 
-          // "STOP" / "please stop messaging me": the customer is asking us not
-          // to message them. Honour it before anything else
-          // (the reminder-confirm stamp included) can act on the message:
-          // store the opt-out on the number and on every customer record
-          // carrying it, so whatsapp-send refuses every later WhatsApp; switch
-          // off auto-send on the thread; and leave staff one acknowledgement
-          // draft that they (not the AI) decide whether to send. whatsapp-send
-          // accepts that one draft from staff, unedited. Nothing is sent
-          // here. Skipped on forceDraft so a staff re-generate stays side-
-          // effect free (#990).
-          if (!forceDraft && isOptOutRequest(text)) {
-            // A suppression that is not stored is not honoured: every write
-            // here must land and read back, or the event fails (visible to
-            // staff as an agent failure) rather than reading as processed
-            // (AGENTS.md: never infer an outcome from an attempted write).
-            //
-            // 1. The number itself (migration 20261014120000). This is the
-            // whole of the suppression for a number with no customer record,
-            // and the database carries it to any record later linked to or
-            // created with this number. A repeat STOP keeps the first time.
-            const { error: stampErr } = await supabase
-              .from("whatsapp_conversations")
-              .update({ whatsapp_opted_out_at: new Date().toISOString() })
-              .eq("id", conversation.id)
-              .is("whatsapp_opted_out_at", null);
-            if (stampErr) {
-              throw new Error(`STOP not recorded: could not store the number's opt-out (${stampErr.message})`);
-            }
-            const { error: convErr } = await supabase
-              .from("whatsapp_conversations")
-              .update({ auto_send_enabled: false })
-              .eq("id", conversation.id);
-            if (convErr) {
-              throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
-            }
-            const { data: convStored, error: convReadErr } = await supabase
-              .from("whatsapp_conversations")
-              .select("whatsapp_opted_out_at, auto_send_enabled")
-              .eq("id", conversation.id)
-              .maybeSingle();
-            const numberRow = convStored as { whatsapp_opted_out_at: string | null; auto_send_enabled: boolean | null } | null;
-            if (convReadErr || !numberRow?.whatsapp_opted_out_at || numberRow.auto_send_enabled !== false) {
-              throw new Error("STOP not recorded: the number's opt-out could not be confirmed");
-            }
-            // 2. Every customer record whose phone IS this number, however it
-            // was typed ("07700 900123"), linked to the conversation or not.
-            // Never the linked record just because it is linked: staff may
-            // have changed that customer's number since, and this STOP must
-            // not opt their new number out (#1016 review). The notify-*
-            // functions that send WhatsApp through Twilio read only this flag.
-            const optOutIds = new Set<string>();
-            const senderPhone = conversation.phone_e164 ?? "";
-            const phonePattern = phoneMatchPattern(senderPhone);
-            if (phonePattern) {
-              const { data: onNumber, error: lookupErr } = await supabase
-                .from("humans")
-                .select("id, phone")
-                .filter("phone", "match", phonePattern);
-              if (lookupErr) {
-                throw new Error(`STOP not recorded: could not look up customers on this number (${lookupErr.message})`);
-              }
-              const senderKey = phoneMatchKey(senderPhone);
-              for (const row of (onNumber ?? []) as { id: string; phone: string | null }[]) {
-                if (phoneMatchKey(row.phone) === senderKey) optOutIds.add(row.id);
-              }
-            }
-            if (optOutIds.size > 0) {
-              const ids = [...optOutIds];
-              const { error: optOutErr } = await supabase
-                .from("humans")
-                .update({
-                  whatsapp_opted_out: true,
-                  whatsapp_opted_out_at: new Date().toISOString(),
-                  whatsapp_opted_out_reason: "asked_on_whatsapp",
-                })
-                .in("id", ids)
-                .eq("whatsapp_opted_out", false);
-              if (optOutErr) {
-                throw new Error(`STOP not recorded: could not flag the customer as opted out (${optOutErr.message})`);
-              }
-              // Read every record back rather than infer from the write: a
-              // filter that matched nothing must not pass as recorded.
-              const { data: stored, error: readErr } = await supabase
-                .from("humans")
-                .select("id, whatsapp_opted_out")
-                .in("id", ids);
-              const rows = (stored ?? []) as { id: string; whatsapp_opted_out: boolean | null }[];
-              if (readErr || rows.length !== ids.length || rows.some((row) => row.whatsapp_opted_out !== true)) {
-                throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
-              }
-              console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
-            }
-            // 3. One acknowledgement for staff. The unique index
-            // whatsapp_drafts_one_pending_opt_out_ack allows one PENDING
-            // acknowledgement per conversation, so a repeated STOP, or two
-            // processed at once, cannot queue a second (#1016 review).
+          // "STOP" / "please stop messaging me": the opt-out was recorded
+          // before the inbound row was stored (recordOptOut, above). Handle it
+          // before anything else (the reminder-confirm stamp included) can act
+          // on the message: nothing is sent, and while the AI is handling the
+          // thread staff get one acknowledgement draft that they (not the AI)
+          // decide whether to send; whatsapp-send accepts that one draft from
+          // staff, unedited. The unique index
+          // whatsapp_drafts_one_pending_opt_out_ack allows one PENDING
+          // acknowledgement per conversation, so a repeated STOP, or two
+          // processed at once, cannot queue a second (#1016 review).
+          if (stopRequested) {
             if (conversation.state === "ai_handling") {
               const policy: DraftPolicy = {
                 riskLevel: "high",
