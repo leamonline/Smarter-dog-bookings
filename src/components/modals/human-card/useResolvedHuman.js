@@ -22,6 +22,9 @@ export const EMPTY_HUMAN = {
   trustedIds: [],
   trustedContacts: [],
   historyFlag: "",
+  whatsappOptedOut: false,
+  whatsappOptedOutAt: null,
+  whatsappOptedOutReason: null,
 };
 
 /**

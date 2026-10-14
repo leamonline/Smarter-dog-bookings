@@ -4,8 +4,17 @@
 // TrustedContactsEditor / DogPillList).
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
+
+// Offline (undefined) for every test but the readback one, which hands the
+// real updateHuman a stub client.
+vi.mock("../../supabase/client", () => ({
+  get supabase() {
+    return globalThis.__supabaseMockHumanCardModal;
+  },
+}));
 
 const trustedRelationshipMocks = vi.hoisted(() => ({
   fetchTrustedContactsForHuman: vi.fn().mockResolvedValue({
@@ -24,6 +33,7 @@ vi.mock("../../supabase/hooks/humans/useTrustedContacts", async (importOriginal)
 }));
 
 const { HumanCardModal } = await import("./HumanCardModal.jsx");
+const { useHumanMutations } = await import("../../supabase/hooks/humans/useHumanMutations");
 
 // A completed booking owned by human-1, dated well in the past so it always
 // counts as a "last visit" regardless of when the suite runs.
@@ -383,5 +393,111 @@ describe("HumanCardModal", () => {
       expect(screen.getByText("Hazel Wagschal")).toBeInTheDocument();
       await waitFor(() => expect(fetchHumanById).not.toHaveBeenCalled());
     });
+  });
+});
+
+describe("HumanCardModal — WhatsApp switched off", () => {
+  const STOP = "2026-10-03T13:05:00.123456+00:00";
+  const stoppedHuman = {
+    ...human,
+    whatsappOptedOut: true,
+    whatsappOptedOutAt: STOP,
+    whatsappOptedOutReason: "asked_on_whatsapp",
+  };
+
+  afterEach(() => {
+    globalThis.__supabaseMockHumanCardModal = undefined;
+  });
+
+  it("leads with the notice, badges the header and hides the WA link", () => {
+    renderModal({ humans: { "Sarah Jones": stoppedHuman } });
+    const notice = screen.getByText("WhatsApp is off — they said STOP.").closest('[role="status"]');
+    const glance = screen.getByRole("group", { name: "At a glance" });
+    expect(notice.compareDocumentPosition(glance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notice).toHaveTextContent("On 3 Oct 2026, 14:05.");
+    expect(screen.getByRole("button", { name: "Switch WhatsApp back on…" })).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp stopped")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeNull();
+  });
+
+  it("keeps the notice through a save of something else", async () => {
+    // The real updateHuman, reading back the row the database would return.
+    // (The event timeline subscribes to realtime once a client exists.)
+    const payloads = [];
+    const channel = { on: () => channel, subscribe: () => channel };
+    globalThis.__supabaseMockHumanCardModal = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+      from: vi.fn(() => {
+        const builder = {};
+        let payload;
+        builder.update = vi.fn((value) => {
+          payload = value;
+          payloads.push(value);
+          return builder;
+        });
+        builder.eq = vi.fn(() => builder);
+        builder.select = vi.fn(() => builder);
+        builder.single = vi.fn(async () => ({
+          data: {
+            id: "human-1",
+            name: "Sarah",
+            surname: "Jones",
+            phone: "07700 900111",
+            sms: true,
+            whatsapp: true,
+            // Differs from the cached entry, so the test can tell when the
+            // readback (not just the optimistic patch) has landed.
+            email: "sarah.jones@example.com",
+            whatsapp_opted_out: true,
+            whatsapp_opted_out_at: STOP,
+            whatsapp_opted_out_reason: "asked_on_whatsapp",
+            ...payload,
+          },
+          error: null,
+        }));
+        return builder;
+      }),
+    };
+
+    function Harness() {
+      const [humans, setHumans] = useState({ "Sarah Jones": stoppedHuman });
+      const [humansById, setHumansById] = useState({ "human-1": stoppedHuman });
+      const { updateHuman } = useHumanMutations({
+        humans,
+        humansById,
+        setHumans,
+        setHumansById,
+        setError: () => {},
+        setTotalCount: () => {},
+        replaceTrustedLinks: vi.fn(),
+      });
+      return (
+        <HumanCardModal
+          humanId="human-1"
+          onClose={vi.fn()}
+          humans={humans}
+          dogs={{}}
+          bookingsByDate={{}}
+          onUpdateHuman={updateHuman}
+          fetchHumanById={vi.fn(() => Promise.resolve(null))}
+          findHumanByFullName={vi.fn(() => null)}
+          searchHumansByTerm={vi.fn(() => Promise.resolve([]))}
+        />
+      );
+    }
+
+    render(
+      <ToastProvider>
+        <Harness />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SMS reminders active" }));
+
+    expect(await screen.findByText("sarah.jones@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SMS reminders off" })).toBeInTheDocument();
+    expect(payloads).toEqual([{ sms: false }]);
+    expect(screen.getByText("WhatsApp is off — they said STOP.")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp stopped")).toBeInTheDocument();
   });
 });
