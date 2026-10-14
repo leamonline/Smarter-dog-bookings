@@ -10,7 +10,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(54);
 
 -- Act as a member of staff: only staff may change a customer's phone
 -- (prevent_customer_critical_column_update). The staff fixture alone is
@@ -136,17 +136,37 @@ select throws_ok(
   $$update public.humans set whatsapp_opted_out = false, phone = '07700 900 471' where id = '24400000-0000-4000-8000-000000000013'$$,
   'P0001', null, 'and so is an untick hidden in a save that also changes the number'
 );
--- Rewriting the stored reason first does not get round it either.
-update public.humans set whatsapp_opted_out_reason = 'staff' where id = '24400000-0000-4000-8000-000000000015';
 select throws_ok(
-  $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000015'$$,
-  'P0001', null, 'whatever the record''s reason, a number that is still stopped cannot be unticked'
+  $$update public.humans set whatsapp_opted_out_reason = 'staff' where id = '24400000-0000-4000-8000-000000000015'$$,
+  'P0001', null, 'relabelling a STOP''s reason is refused, so it cannot open the way for an untick'
+);
+select throws_ok(
+  $$update public.whatsapp_conversations set whatsapp_opted_out_at = null where id = '24400000-0000-4000-8000-000000000001'$$,
+  'P0001', null, 'clearing the number''s own STOP directly is refused'
 );
 select is(
   (select count(*)::int from public.humans
     where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000013', '24400000-0000-4000-8000-000000000015')
       and whatsapp_opted_out is true),
   3, 'every refused untick left its record opted out'
+);
+
+-- ── Already opted out for another reason, then the number says STOP ─
+insert into public.humans (id, name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_at, whatsapp_opted_out_reason)
+values ('24400000-0000-4000-8000-000000000018', 'Synthetic', 'Earlier', '07700 900 480', true, '2026-10-01 08:00:00+00', 'told staff by phone');
+insert into public.whatsapp_conversations (id, phone_e164)
+values ('24400000-0000-4000-8000-000000000004', '+447700900480');
+update public.whatsapp_conversations
+   set whatsapp_opted_out_at = '2026-10-14 11:00:00+00'
+ where id = '24400000-0000-4000-8000-000000000004';
+select is(
+  (select whatsapp_opted_out_reason || ' @ ' || whatsapp_opted_out_at::text from public.humans where id = '24400000-0000-4000-8000-000000000018'),
+  'asked_on_whatsapp @ 2026-10-01 08:00:00+00', 'a record already opted out is marked as a STOP, keeping its own time'
+);
+update public.humans set phone = '07700 900 481' where id = '24400000-0000-4000-8000-000000000018';
+select throws_ok(
+  $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000018'$$,
+  'P0001', null, 'so after a number change its STOP still cannot be unticked'
 );
 
 -- ── The scope staff confirm before re-enabling ──────────────────────
@@ -278,7 +298,7 @@ select is(
        'public.whatsapp_conversation_apply_opt_out()',
        'public.humans_apply_number_opt_out()',
        'public.humans_guard_whatsapp_reenable()',
-       'public.whatsapp_conversation_keep_first_stop()'
+       'public.whatsapp_conversation_guard_stop()'
      ]) as f(sig)
     where has_function_privilege(r.role, f.sig, 'execute')),
   0, 'no trigger function or helper is executable by anon or authenticated'

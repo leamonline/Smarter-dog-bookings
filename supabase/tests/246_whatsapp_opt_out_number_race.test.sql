@@ -10,7 +10,9 @@
 -- PostgreSQL backends prove that whichever comes second waits, then sees the
 -- first one's committed row, in either order. A STOP that lands while staff
 -- are re-enabling the number waits for the re-enable and then stops the number
--- again: the newer request wins. Fixtures are synthetic,
+-- again: the newer request wins. A re-enable that meets an opt-out in flight
+-- on the number waits for it, then refuses: its scope changed. Fixtures are
+-- synthetic,
 -- committed only because a dblink backend cannot see the pgTAP controller's
 -- transaction, and removed before the test finishes.
 
@@ -23,7 +25,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(12);
+select plan(16);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -51,8 +53,12 @@ select extensions.dblink_exec('setup', $setup$
     '24600000-0000-4000-8000-000000000001',
     '24600000-0000-4000-8000-000000000002'
   );
-  delete from public.whatsapp_opt_out_reenables where phone_key = '7700900463';
-  delete from public.humans where id = '24600000-0000-4000-8000-000000000013';
+  delete from public.whatsapp_opt_out_reenables where phone_key in ('7700900463', '7700900464');
+  delete from public.humans where id in (
+    '24600000-0000-4000-8000-000000000013',
+    '24600000-0000-4000-8000-000000000014',
+    '24600000-0000-4000-8000-000000000015'
+  );
   delete from public.whatsapp_conversations where id = '24600000-0000-4000-8000-000000000003';
   delete from public.staff_profiles where id = '24600000-0000-4000-8000-000000000040';
   delete from auth.users where id = '24600000-0000-4000-8000-000000000041';
@@ -65,6 +71,10 @@ select extensions.dblink_exec('setup', $setup$
    where id = '24600000-0000-4000-8000-000000000003';
   insert into public.humans (id, name, surname, phone)
   values ('24600000-0000-4000-8000-000000000013', 'Race', 'Reenable', '07700 900 463');
+  -- Order 4's number never said STOP: one record opted out by staff, one not.
+  insert into public.humans (id, name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_reason) values
+    ('24600000-0000-4000-8000-000000000014', 'Race', 'OptedOut', '07700 900 464', true, 'told staff by phone'),
+    ('24600000-0000-4000-8000-000000000015', 'Race', 'OptedIn', '+44 7700 900464', false, null);
   -- The member of staff who re-enables it.
   set local session_replication_role = replica;
   insert into auth.users (id) values ('24600000-0000-4000-8000-000000000041');
@@ -237,6 +247,60 @@ select is(
   'and opts the customer out again, so no send path misses it'
 );
 
+-- ── Order 4: a re-enable meets an opt-out in flight on the number ────
+select extensions.dblink_exec('customer', 'begin isolation level read committed');
+select extensions.dblink_exec('customer',
+  'update public.humans set whatsapp_opted_out = true, whatsapp_opted_out_reason = ''told staff by phone''
+    where id = ''24600000-0000-4000-8000-000000000015''');
+
+select extensions.dblink_exec('stop', 'begin isolation level read committed');
+select extensions.dblink_exec('stop', 'set local lock_timeout = ''8s''');
+select v from extensions.dblink('stop',
+  'select set_config(''request.jwt.claims'', ''{"sub":"24600000-0000-4000-8000-000000000041","role":"authenticated"}'', true)') as t(v text);
+-- Staff confirmed the scope as it was: only the record already opted out.
+select is(
+  extensions.dblink_send_query('stop',
+    'select public.staff_reenable_whatsapp_number(''07700900464'',
+       array[''24600000-0000-4000-8000-000000000014'']::uuid[], ''Customer phoned to ask for reminders again'')::text'),
+  1,
+  'a re-enable is made on an independent backend while another record on the number is being opted out'
+);
+select ok(pg_temp.wait_until_blocked('customer', 'stop'),
+  'the re-enable waits for that opt-out');
+
+select extensions.dblink_exec('customer', 'commit');
+do $wait$
+declare
+  v_deadline timestamptz := clock_timestamp() + interval '5 seconds';
+begin
+  loop
+    exit when extensions.dblink_is_busy('stop') = 0;
+    if clock_timestamp() >= v_deadline then
+      perform extensions.dblink_cancel_query('stop');
+      raise exception 'the re-enable did not finish';
+    end if;
+    perform pg_sleep(0.01);
+  end loop;
+end;
+$wait$;
+create temp table _reenable_result (v text);
+insert into _reenable_result
+select v from extensions.dblink_get_result('stop', false) as r(v text);
+select matches(
+  extensions.dblink_error_message('stop'),
+  'have changed',
+  'once it commits, the re-enable sees the new opt-out and refuses: its scope changed'
+);
+do $drain$ begin perform v from extensions.dblink_get_result('stop', false) as r(v text); end; $drain$;
+select extensions.dblink_exec('stop', 'rollback');
+
+select is(
+  (select v from extensions.dblink('setup',
+     'select whatsapp_opted_out from public.humans where id = ''24600000-0000-4000-8000-000000000014''') as t(v boolean)),
+  true,
+  'and the record staff confirmed stays opted out'
+);
+
 -- ── Clean up the committed fixtures ─────────────────────────────────
 select extensions.dblink_exec('setup', $cleanup$
   begin;
@@ -249,8 +313,12 @@ select extensions.dblink_exec('setup', $cleanup$
     '24600000-0000-4000-8000-000000000001',
     '24600000-0000-4000-8000-000000000002'
   );
-  delete from public.whatsapp_opt_out_reenables where phone_key = '7700900463';
-  delete from public.humans where id = '24600000-0000-4000-8000-000000000013';
+  delete from public.whatsapp_opt_out_reenables where phone_key in ('7700900463', '7700900464');
+  delete from public.humans where id in (
+    '24600000-0000-4000-8000-000000000013',
+    '24600000-0000-4000-8000-000000000014',
+    '24600000-0000-4000-8000-000000000015'
+  );
   delete from public.whatsapp_conversations where id = '24600000-0000-4000-8000-000000000003';
   delete from public.staff_profiles where id = '24600000-0000-4000-8000-000000000040';
   delete from auth.users where id = '24600000-0000-4000-8000-000000000041';

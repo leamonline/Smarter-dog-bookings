@@ -125,7 +125,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         if ("whatsapp_opted_out_at" in update) {
           // A stamp that "succeeds" but stores nothing.
           if (faults.numberStampMatchesNothing) return new Response(null, { status: 204 });
-          // trg_whatsapp_conversation_keep_first_stop: a repeat STOP keeps
+          // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps
           // the first time.
           if (conversation.whatsapp_opted_out_at !== null) delete update.whatsapp_opted_out_at;
         }

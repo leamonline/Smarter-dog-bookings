@@ -23,11 +23,13 @@
 --     stopped number stays refused through its conversation (whatsapp-send).
 --  4. A customer record created with, or changed to, a suppressed number is
 --     flagged as it is written.
---  5. A STOP is never undone by an ordinary edit. Unticking
---     humans.whatsapp_opted_out on a record whose opt-out came from the number
---     (or whose number is still suppressed) is refused, and so is the same
---     untick hidden in a save that also changes the number. Changing a
---     customer's number never clears their opt-out either. The one way back is
+--  5. A STOP is never undone by an ordinary edit. Refused: unticking
+--     humans.whatsapp_opted_out on a record whose opt-out came from a STOP
+--     (or whose old or new number is still suppressed), relabelling a STOP's
+--     reason, and clearing the number's own suppression. A record already
+--     opted out for another reason is marked as a STOP when its number says
+--     STOP, so a later number change cannot hide it. Changing a customer's
+--     number never clears their opt-out either. The one way back is
 --     public.staff_reenable_whatsapp_number: staff name the number, confirm
 --     EVERY record on it that is opted out (whatever the reason, so the scope
 --     is explicit and the send paths cannot disagree about the number), and
@@ -109,32 +111,43 @@ revoke all on function public.whatsapp_phone_key(text) from public;
 revoke all on function public.whatsapp_phone_key(text) from anon;
 revoke all on function public.whatsapp_phone_key(text) from authenticated;
 
--- A repeat STOP keeps the number's first time. Done here, not by the agent
--- filtering its write on "not yet stopped": that filter is checked against
--- the last committed row, so a STOP landing while staff re-enable the number
--- would match nothing and be lost. Unfiltered, it waits for the re-enable and
--- stops the number again (supabase/tests/246).
-create or replace function public.whatsapp_conversation_keep_first_stop()
+-- The number's STOP is guarded where it is stored:
+--  - a repeat STOP keeps the first time. Done here, not by the agent
+--    filtering its write on "not yet stopped": that filter is checked against
+--    the last committed row, so a STOP landing while staff re-enable the
+--    number would match nothing and be lost. Unfiltered, it waits for the
+--    re-enable and stops the number again (supabase/tests/246);
+--  - clearing it is refused outside staff_reenable_whatsapp_number. Staff can
+--    update conversations directly (staff_update_whatsapp_conversations), and
+--    for a number with no customer record this column is the whole STOP.
+create or replace function public.whatsapp_conversation_guard_stop()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
+  if new.whatsapp_opted_out_at is null then
+    if coalesce(pg_catalog.current_setting('smarter_dog.whatsapp_reenable', true), '') <> 'on' then
+      raise exception 'This number asked on WhatsApp for messages to stop. Switch WhatsApp back on with the customer''s renewed permission instead.'
+        using errcode = 'P0001', detail = 'whatsapp_reenable_needs_permission';
+    end if;
+    return new;
+  end if;
   new.whatsapp_opted_out_at := old.whatsapp_opted_out_at;
   return new;
 end;
 $$;
 
-revoke all on function public.whatsapp_conversation_keep_first_stop() from public;
-revoke all on function public.whatsapp_conversation_keep_first_stop() from anon;
-revoke all on function public.whatsapp_conversation_keep_first_stop() from authenticated;
+revoke all on function public.whatsapp_conversation_guard_stop() from public;
+revoke all on function public.whatsapp_conversation_guard_stop() from anon;
+revoke all on function public.whatsapp_conversation_guard_stop() from authenticated;
 
-drop trigger if exists trg_whatsapp_conversation_keep_first_stop on public.whatsapp_conversations;
-create trigger trg_whatsapp_conversation_keep_first_stop
+drop trigger if exists trg_whatsapp_conversation_guard_stop on public.whatsapp_conversations;
+create trigger trg_whatsapp_conversation_guard_stop
   before update of whatsapp_opted_out_at on public.whatsapp_conversations
   for each row
-  when (old.whatsapp_opted_out_at is not null and new.whatsapp_opted_out_at is not null)
-  execute function public.whatsapp_conversation_keep_first_stop();
+  when (old.whatsapp_opted_out_at is not null)
+  execute function public.whatsapp_conversation_guard_stop();
 
 -- ── 3. Suppressed number → the customer records carrying it ──
 create or replace function public.whatsapp_conversation_apply_opt_out()
@@ -150,11 +163,17 @@ begin
     return null;
   end if;
   perform pg_advisory_xact_lock(hashtextextended('whatsapp_number_opt_out:' || v_key, 0));
+  -- A record already opted out for another reason is marked as a STOP too,
+  -- keeping its own time: without that, a later number change would leave
+  -- nothing to show the STOP, and an ordinary untick would pass.
   update public.humans h
      set whatsapp_opted_out = true,
-         whatsapp_opted_out_at = new.whatsapp_opted_out_at,
+         whatsapp_opted_out_at = case when h.whatsapp_opted_out is true
+                                      then coalesce(h.whatsapp_opted_out_at, new.whatsapp_opted_out_at)
+                                      else new.whatsapp_opted_out_at end,
          whatsapp_opted_out_reason = 'asked_on_whatsapp'
-   where h.whatsapp_opted_out is not true
+   where (h.whatsapp_opted_out is not true
+          or h.whatsapp_opted_out_reason is distinct from 'asked_on_whatsapp')
      and public.whatsapp_phone_key(h.phone) = v_key;
   return null;
 end;
@@ -182,11 +201,11 @@ declare
   v_at timestamptz;
   v_key text;
 begin
-  if new.whatsapp_opted_out is true then
+  if new.whatsapp_opted_out_reason is not distinct from 'asked_on_whatsapp' then
     return new;
   end if;
-  -- Only a new record or a changed number: a staff re-opt-in that leaves the
-  -- phone as it was must not be undone here.
+  -- Only a new record or a changed number: a save that leaves the phone as it
+  -- was has nothing new to check.
   if tg_op = 'UPDATE' and new.phone is not distinct from old.phone then
     return new;
   end if;
@@ -204,8 +223,11 @@ begin
    order by c.whatsapp_opted_out_at
    limit 1;
   if v_at is not null then
+    -- Already opted out for another reason: keep its time, mark the STOP.
+    new.whatsapp_opted_out_at := case when new.whatsapp_opted_out is true
+                                      then coalesce(new.whatsapp_opted_out_at, v_at)
+                                      else v_at end;
     new.whatsapp_opted_out := true;
-    new.whatsapp_opted_out_at := v_at;
     new.whatsapp_opted_out_reason := 'asked_on_whatsapp';
   end if;
   return new;
@@ -253,8 +275,9 @@ create policy staff_read_whatsapp_opt_out_reenables
   for select to authenticated
   using (public.is_staff());
 
--- An untick that would quietly undo a STOP is refused. Opt-outs staff set for
--- other reasons, on a number that never said STOP, are untouched by this.
+-- An untick that would quietly undo a STOP is refused, and so is relabelling
+-- a STOP's reason (which would let a later untick through). Opt-outs staff
+-- set for other reasons, on a number that never said STOP, are untouched.
 create or replace function public.humans_guard_whatsapp_reenable()
 returns trigger
 language plpgsql
@@ -271,6 +294,7 @@ begin
     raise exception 'This customer asked on WhatsApp for messages to stop. Switch WhatsApp back on with their renewed permission instead.'
       using errcode = 'P0001', detail = 'whatsapp_reenable_needs_permission';
   end if;
+  -- From here on it is an untick of an opt-out with another reason.
   -- Both numbers: the one the record had, and the one it is saved with.
   foreach v_key in array array[public.whatsapp_phone_key(old.phone), public.whatsapp_phone_key(new.phone)] loop
     continue when v_key is null;
@@ -294,9 +318,11 @@ revoke all on function public.humans_guard_whatsapp_reenable() from authenticate
 
 drop trigger if exists trg_humans_guard_whatsapp_reenable on public.humans;
 create trigger trg_humans_guard_whatsapp_reenable
-  before update of whatsapp_opted_out on public.humans
+  before update of whatsapp_opted_out, whatsapp_opted_out_reason on public.humans
   for each row
-  when (old.whatsapp_opted_out is true and new.whatsapp_opted_out is not true)
+  when ((old.whatsapp_opted_out is true and new.whatsapp_opted_out is not true)
+        or (old.whatsapp_opted_out_reason is not distinct from 'asked_on_whatsapp'
+            and new.whatsapp_opted_out_reason is distinct from 'asked_on_whatsapp'))
   execute function public.humans_guard_whatsapp_reenable();
 
 -- What a re-enable of this number would switch back on, for staff to see
@@ -374,13 +400,21 @@ begin
     raise exception 'Record how the customer gave permission again'
       using errcode = 'P0001', detail = 'permission_note_required';
   end if;
-  -- The number's conversations first, then the number: the order a STOP
-  -- takes them (its row, then the lock in its trigger), so a STOP and a
-  -- re-enable wait for each other instead of deadlocking.
+  -- Lock the whole scope before reading it: the number's conversations, then
+  -- EVERY customer record on the number (opted out or not, so none can be
+  -- opted out underneath this), then the number. Conversations first is the
+  -- order a STOP takes (its row, then the lock in its trigger), and customer
+  -- rows before the number is the order a phone change takes, so each waits
+  -- for the other instead of deadlocking. A write already in flight is
+  -- waited for and then seen below (supabase/tests/246).
   perform 1 from public.whatsapp_conversations c
    where c.channel = 'whatsapp'
      and public.whatsapp_phone_key(c.phone_e164) = v_key
    order by c.id
+     for update;
+  perform 1 from public.humans h
+   where public.whatsapp_phone_key(h.phone) = v_key
+   order by h.id
      for update;
   perform pg_advisory_xact_lock(hashtextextended('whatsapp_number_opt_out:' || v_key, 0));
 
@@ -410,10 +444,10 @@ begin
          whatsapp_opted_out_at = null,
          whatsapp_opted_out_reason = null
    where id = any(v_humans);
-  perform set_config('smarter_dog.whatsapp_reenable', 'off', true);
   update public.whatsapp_conversations
      set whatsapp_opted_out_at = null
    where id = any(v_conversations);
+  perform set_config('smarter_dog.whatsapp_reenable', 'off', true);
 
   insert into public.whatsapp_opt_out_reenables
     (phone_key, human_ids, conversation_ids, permission_note, reenabled_by)

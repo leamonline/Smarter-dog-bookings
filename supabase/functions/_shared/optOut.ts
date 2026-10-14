@@ -163,10 +163,11 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   new RegExp(String.raw`\b(?:don'?t|do\s+not|never)(?:\s+ever)?\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more)\b|${TAIL})`, "i"),
   // "can you not message me any more", "could you not text me again"
   new RegExp(String.raw`\b(?:can|could|would|will)\s+(?:you|u)\s+not\s+(?:text|message|contact|whatsapp)\s+(?:me|us)\s+(?:again|any\s*more)` + TAIL, "i"),
-  // "please don't send me any more messages", "do not send me texts again",
-  // "never send us these reminders."; not "don't send me the reminder until
-  // Tuesday", which is scheduling
-  new RegExp(String.raw`\b(?:don'?t|do\s+not|never)\s+send\s+(?:me|us)\s+(?:(?:any\s*more|no\s+more|more|further)\s+${MESSAGES}\b|(?:(?:these|those|your|any|the)\s+)?${MESSAGES}(?:\s+(?:again|any\s*more)\b|${TAIL}))`, "i"),
+  // "please don't send me any more messages", "please do not send any more
+  // messages", "do not send me texts again", "never send us these
+  // reminders."; not "don't send me the reminder until Tuesday", which is
+  // scheduling
+  new RegExp(String.raw`\b(?:don'?t|do\s+not|never)\s+send\s+(?:(?:me|us)\s+)?(?:(?:any\s*more|no\s+more|more|further)\s+${MESSAGES}\b|(?:(?:these|those|your|any|the)\s+)?${MESSAGES}(?:\s+(?:again|any\s*more)\b|${TAIL}))`, "i"),
   // "I don't want any more messages", "I no longer want to receive texts",
   // "I don't want your messages."; not "I don't want the reminder moved"
   // or "I don't want messages before 9"
@@ -199,6 +200,9 @@ const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not)(?:\s+(?:you|to|ever|please
 // asking about a stop is not asking for one.
 const PAST_STOP = /\b(?:stopped|unsubscribed)\b|\b(?:did|didn'?t|have|haven'?t|has|hasn'?t|had)\s+(?:(?:you|u|they|we|it)\s+)?(?:stop|unsubscribe)\b/i;
 
+// A clause that only limits the one before it: when, until or for how long.
+const QUALIFIER = /^(?:until|till|til|before|after|while|whilst|when|unless|except|during|between|on|at|from|this|today|tonight|tomorrow|for\s+now|for\s+(?:a|the|this|that)\b|in\s+the|just|only)\b/i;
+
 const EMOJI = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu;
 
 /** True when the message is the customer asking us not to message them. */
@@ -213,6 +217,9 @@ export function isOptOutRequest(messageText: string | null | undefined): boolean
     .filter(Boolean);
   return clauses.some((clause, index) => {
     if (NEGATED_STOP.test(clause) || PAST_STOP.test(clause)) return false;
+    // "Please don't message me, until Bella is ready": the next clause
+    // qualifies this one, so it is scheduling, not a stop (#1016 review).
+    if (QUALIFIER.test(clauses[index + 1] ?? "")) return false;
     if ((index === 0 || index === clauses.length - 1) && BARE_STOP.test(clause)) return true;
     return OPT_OUT_PATTERNS.some((pattern) => pattern.test(clause));
   });

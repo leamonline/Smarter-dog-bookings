@@ -28,8 +28,9 @@
     record created with, or changed to, that number. These work by number
     only, never by a conversation's link, and are serialised per number
     against concurrent writes;
-  - refuses any ordinary untick that would undo a STOP, including after a
-    number change. Re-enabling is `staff_reenable_whatsapp_number`: staff
+  - refuses any ordinary edit that would undo a STOP (an untick, including
+    after a number change; relabelling its reason; clearing the number's
+    suppression). Re-enabling is `staff_reenable_whatsapp_number`: staff
     confirm every opted-out record on the number (shown by
     `staff_whatsapp_number_opt_out_scope`) and record the customer's renewed
     permission, audited in the new `whatsapp_opt_out_reenables`;

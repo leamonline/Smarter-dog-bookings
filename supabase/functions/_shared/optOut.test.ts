@@ -134,6 +134,10 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Leave me alone",
     "Why won't you stop messaging me?",
     "Stop texting me!!",
+    // Codex review of 6e8066c: no pronoun after "send"
+    "Please do not send any more messages",
+    "Don't send messages anymore",
+    "STOP. Thanks",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -197,6 +201,12 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Have you stopped sending reminders?",
     "He wouldn't stop barking, sorry!",
     "Is there a bus stop near you?",
+    // Codex review of 6e8066c: a comma must not cut off the qualifier
+    "Please don't message me, until Bella is ready",
+    "Don't text me, before 9 please",
+    "Stop messaging me, just for this week",
+    "Please do not send any more messages, until I'm back from holiday",
+    "Don't send messages before 9",
     "",
     null,
     undefined,

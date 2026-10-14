@@ -1305,7 +1305,7 @@ async function recordOptOut(
   // the suppression for a number with no customer record, and the database
   // carries it to any record later created with, or changed to, this number.
   // A repeat STOP keeps the first time: the database keeps it
-  // (trg_whatsapp_conversation_keep_first_stop). The write is deliberately
+  // (trg_whatsapp_conversation_guard_stop). The write is deliberately
   // NOT filtered on "not yet stopped". Such a filter is checked against the
   // last committed row, so a STOP landing while staff re-enable the number
   // would match nothing, not wait, and be lost when the re-enable commits.
