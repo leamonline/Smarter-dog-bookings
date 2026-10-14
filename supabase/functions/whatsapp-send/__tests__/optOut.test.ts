@@ -120,11 +120,16 @@ Deno.test("a number with no customer record, or a customer who has not opted out
 interface Scenario {
   body: Record<string, unknown>;
   staff?: boolean;
+  /** "nonstaff": a valid JWT whose is_staff() is false; "none": no credentials. */
+  auth?: "nonstaff" | "none";
   humans?: unknown[] | "error";
+  /** Rows for a lookup by phone, when it should differ from a lookup by id. */
+  humansByPhone?: unknown[];
+  conversation?: Record<string, unknown> | "error";
   draft?: { tool_calls: Record<string, unknown> | null };
 }
 
-async function run({ body, staff = false, humans = [], draft }: Scenario) {
+async function run({ body, staff = false, auth, humans = [], humansByPhone, conversation, draft }: Scenario) {
   const calls: Call[] = [];
   const logs: string[] = [];
   const oldFetch = globalThis.fetch;
@@ -142,9 +147,11 @@ async function run({ body, staff = false, humans = [], draft }: Scenario) {
       return reply({ messaging_product: "whatsapp", contacts: [], messages: [{ id: "wamid.review" }] });
     }
     if (url.pathname === "/auth/v1/user") return reply({ id: "staff-user-1", aud: "authenticated", role: "authenticated" });
-    if (url.pathname === "/rest/v1/rpc/is_staff") return reply(true);
+    if (url.pathname === "/rest/v1/rpc/is_staff") return reply(auth !== "nonstaff");
     if (url.pathname === "/rest/v1/humans") {
-      return humans === "error" ? reply({ message: "connection reset" }, 500) : reply(humans);
+      if (humans === "error") return reply({ message: "connection reset" }, 500);
+      const byPhone = (url.searchParams.get("phone") ?? "").startsWith("in.");
+      return reply(byPhone && humansByPhone ? humansByPhone : humans);
     }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
       if (method === "PATCH") return reply({ id: "draft-1" });
@@ -158,15 +165,17 @@ async function run({ body, staff = false, humans = [], draft }: Scenario) {
       });
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
-      return method === "GET" ? reply([{ id: "conv-1", human_id: "h-opt", phone_e164: "+447700900123" }]) : reply([], 201);
+      if (method !== "GET") return reply([], 201);
+      if (conversation === "error") return reply({ message: "connection reset" }, 500);
+      return reply([conversation ?? { id: "conv-1", human_id: "h-opt", phone_e164: "+447700900123" }]);
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return reply({ id: "msg-review" }, 201);
     return reply([]);
   };
   try {
     const headers: Record<string, string> = { "content-type": "application/json" };
-    if (staff) headers.authorization = "Bearer staff-jwt";
-    else headers["x-internal-secret"] = "test-send";
+    if (staff || auth === "nonstaff") headers.authorization = "Bearer staff-jwt";
+    else if (auth !== "none") headers["x-internal-secret"] = "test-send";
     const response = await handleSendRequest(
       new Request("http://send.test", { method: "POST", headers, body: JSON.stringify(body) }),
     );
@@ -256,4 +265,92 @@ Deno.test("only staff can send the acknowledgement; any other draft to an opted-
   });
   assertEquals(ordinary.status, 409);
   assertEquals(metaCalls(ordinary.calls), 0);
+});
+
+// ── #1016 boundary review: what can and cannot unlock the acknowledgement ──
+
+const ACK_DRAFT = { tool_calls: { opt_out_acknowledgement: true } };
+
+Deno.test("the acknowledgement marker is read from the stored draft, never from the request", async () => {
+  const { status, calls } = await run({
+    body: {
+      mode: "draft",
+      draft_id: "draft-1",
+      opt_out_acknowledgement: true,
+      tool_calls: { opt_out_acknowledgement: true },
+    },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: { tool_calls: { reason: "booking_propose" } },
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("no credentials, or a signed-in non-staff user, cannot send the acknowledgement", async () => {
+  const anonymous = await run({ body: { mode: "draft", draft_id: "draft-1" }, auth: "none", humans: OPTED_OUT, draft: ACK_DRAFT });
+  assertEquals(anonymous.status, 401);
+  assertEquals(metaCalls(anonymous.calls), 0);
+
+  const customer = await run({ body: { mode: "draft", draft_id: "draft-1" }, auth: "nonstaff", humans: OPTED_OUT, draft: ACK_DRAFT });
+  assertEquals(customer.status, 403);
+  assertEquals(metaCalls(customer.calls), 0);
+});
+
+Deno.test("an AI-initiated send of the acknowledgement never reaches Meta", async () => {
+  const { status, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1", ai_initiated: true },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: ACK_DRAFT,
+  });
+  assert(status >= 400, `refused (got ${status})`);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("the acknowledgement exception is draft-only: staff manual text to the same customer is refused", async () => {
+  const { status, calls } = await run({
+    body: { mode: "manual", to: "+447700900123", conversation_id: "conv-1", text: "Quick question about Bella" },
+    staff: true,
+    humans: OPTED_OUT,
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a whitespace-only edit counts as unedited and sends the acknowledgement's own text", async () => {
+  const { status, json, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1", edited_text: "   " },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: ACK_DRAFT,
+  });
+  assertEquals(status, 200, JSON.stringify(json));
+  assertEquals(metaCalls(calls), 1);
+  assert(String(json.sent_text).startsWith("No problem at all"), String(json.sent_text));
+});
+
+Deno.test("a conversation whose customer has not opted out is still refused when another record on its number has", async () => {
+  // Draft mode carries no `to`, so only the conversation's own phone can
+  // find the second record: this pins that lookup, not the direct one.
+  const { status, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    staff: true,
+    draft: { tool_calls: { reason: "booking_propose" } },
+    conversation: { id: "conv-1", human_id: "h-in", phone_e164: "+447700900123" },
+    humans: [{ id: "h-in", whatsapp_opted_out: false }],
+    humansByPhone: [{ id: "h-in", whatsapp_opted_out: false }, { id: "h-opt", whatsapp_opted_out: true }],
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a failed conversation lookup also fails closed", async () => {
+  const { status, json, calls } = await run({
+    body: { mode: "book_entry", to: "+447700900123", conversation_id: "conv-1", body_text: "Tap to book" },
+    conversation: "error",
+  });
+  assertEquals(status, 503);
+  assertEquals(json.reason, "opt_out_check_failed");
+  assertEquals(metaCalls(calls), 0);
 });
