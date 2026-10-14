@@ -50,6 +50,19 @@ export const CHASED_TRIGGERS: Readonly<Record<string, string>> = {
 };
 
 /**
+ * How rows share one SMS. Reminders and confirmations for a multi-dog visit
+ * carry one combined message, so one SMS per (customer, trigger) covers the
+ * group. A cancellation notice is written per booking and names that one dog,
+ * so each booking keeps its own SMS: grouping two cancelled dogs would claim
+ * both and text only the first dog's name.
+ */
+export function smsGroupKey(row: { human_id: string | null; trigger_type: string; booking_id: string | null }): string {
+  return row.trigger_type === "cancelled"
+    ? `${row.human_id}|${row.trigger_type}|${row.booking_id}`
+    : `${row.human_id}|${row.trigger_type}`;
+}
+
+/**
  * Whether a notice is still worth chasing given its booking's current state.
  * A reminder or confirmation is moot once the appointment is cancelled, over
  * or missed. A cancellation notice is the opposite: it is only worth sending
@@ -203,11 +216,12 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
 
     // 5. Group by (customer, original trigger) — one SMS per group. A customer
     //    with both an undelivered reminder AND confirmation gets one of each,
-    //    logged under the matching <trigger>_sms_fallback type.
+    //    logged under the matching <trigger>_sms_fallback type. Cancellations
+    //    stay one SMS per booking (see smsGroupKey).
     const byGroup = new Map<string, ReminderRow[]>();
     for (const r of needsSms) {
       if (!r.human_id) continue;
-      const key = `${r.human_id}|${r.trigger_type}`;
+      const key = smsGroupKey(r);
       if (!byGroup.has(key)) byGroup.set(key, []);
       byGroup.get(key)!.push(r);
     }

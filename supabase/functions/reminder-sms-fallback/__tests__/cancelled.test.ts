@@ -9,7 +9,7 @@ for (const [key, value] of Object.entries({
   WEBHOOK_SECRET: "test-webhook",
   SEND_INTERNAL_SECRET: "test-send",
 })) Deno.env.set(key, value);
-const { handleSmsFallback, noticeStillRelevant } = await import("../handler.ts?cancelled");
+const { handleSmsFallback, noticeStillRelevant, smsGroupKey } = await import("../handler.ts?cancelled");
 
 interface Call { method: string; path: string; search: string; body: unknown }
 
@@ -114,4 +114,39 @@ Deno.test("noticeStillRelevant: cancellations invert the active-booking rule", (
   assertEquals(noticeStillRelevant("reminder", "Cancelled"), false);
   assertEquals(noticeStillRelevant("confirmed", "No-show"), false);
   assertEquals(noticeStillRelevant("confirmed", undefined), false);
+});
+
+Deno.test("two dogs cancelled together get one SMS each, each naming its own dog", async () => {
+  const bella = { ...failedCancellation, id: "log-bella", booking_id: "booking-bella", message_text: "Hi Synthetic, your appointment for Bella on Mon 20 Oct has been cancelled. Rebook anytime." };
+  const max = { ...failedCancellation, id: "log-max", booking_id: "booking-max", message_text: "Hi Synthetic, your appointment for Max on Mon 20 Oct has been cancelled. Rebook anytime." };
+  const { json, calls } = await sweep([bella, max], [
+    { id: "booking-bella", status: "Cancelled" },
+    { id: "booking-max", status: "Cancelled" },
+  ]);
+  assertEquals(json.sms_sent, 2);
+  const texts = calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).map((c) => String((c.body as Record<string, unknown>).text));
+  assertEquals(texts.length, 2);
+  assert(texts.some((t) => t.includes("Bella")) && texts.some((t) => t.includes("Max")), JSON.stringify(texts));
+  // Each claim row covers exactly its own booking.
+  const claims = calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST")
+    .map((c) => (c.body as Record<string, unknown>[]).map((row) => row.booking_id));
+  assertEquals(claims, [["booking-bella"], ["booking-max"]]);
+});
+
+Deno.test("reminders and confirmations still share one SMS per customer and trigger", () => {
+  const base = { human_id: "h1", booking_id: "b1" };
+  assertEquals(smsGroupKey({ ...base, trigger_type: "reminder" }), smsGroupKey({ ...base, booking_id: "b2", trigger_type: "reminder" }));
+  assert(smsGroupKey({ ...base, trigger_type: "cancelled" }) !== smsGroupKey({ ...base, booking_id: "b2", trigger_type: "cancelled" }));
+});
+
+Deno.test("cancellation rows written before this change are never texted", async () => {
+  // The old notify-booking-cancelled wrote 'sent' on a Twilio accept with no
+  // provider id, and never stored message_text. Neither may draw an SMS once
+  // the fallback starts reading cancellations.
+  const oldSent = { ...failedCancellation, id: "old-sent", status: "sent", provider_message_id: null, message_text: null as unknown as string };
+  const oldFailed = { ...failedCancellation, id: "old-failed", status: "failed", provider_message_id: null, message_text: null as unknown as string };
+  const { json, calls } = await sweep([oldSent, oldFailed], [{ id: "booking-1", status: "Cancelled" }]);
+  assertEquals(json.sms_sent, 0);
+  assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0);
+  assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0);
 });
