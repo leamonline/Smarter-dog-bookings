@@ -442,9 +442,10 @@ async function checkAiMessagingPermission(
  * What the opt-out gate needs to know about a send.
  *
  * `recipient` folds every customer record the message could reach into one
- * answer: opted out if ANY of them is. `humans.phone` is not unique (only
- * AI-created rows are), and WhatsApp opt-out belongs to the number, so a
- * shared number one customer stopped must not slip through on another row.
+ * answer: opted out if ANY of them is. `humans.phone` is unique only as typed
+ * (humans_phone_unique), so one number can sit on several records stored
+ * differently ("07700 900123", "+447700900123"); WhatsApp opt-out belongs to
+ * the number, so one record that stopped must not slip through on another.
  * Records are found through the explicit `human_id`, the conversation (a
  * draft's or `conversation_id`'s linked customer and its phone), and the
  * destination phone `to`, matched however it was stored. The number itself

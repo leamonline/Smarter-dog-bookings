@@ -3,7 +3,7 @@
 ## Unreleased — WhatsApp opt-out enforced at the send boundary (#990)
 
 - `whatsapp-send` now looks up the recipient (by `human_id`, through the
-  conversation, or by phone in its three stored formats) and refuses with
+  conversation, or by phone however it was typed) and refuses with
   `409 whatsapp_opted_out` when `humans.whatsapp_opted_out` is set, in every
   mode and for every caller. Previously only the notify-* functions honoured
   the flag, so staff template/compose sends and the agent's own modes could
@@ -19,15 +19,20 @@
   and on every customer record with that number, reads both back, switches
   auto-send off, sends nothing, and leaves staff one acknowledgement draft.
   Send on that draft, unedited, is the only exception. A STOP in a batch is
-  handled before the batch's other messages.
+  handled before the batch's other messages; a redelivered STOP does not stop
+  the number again after staff re-enabled it.
 - Migration `20261014120000_whatsapp_number_opt_out` (apply to production
   before merge):
   - adds the number-level suppression;
   - adds `whatsapp_phone_key` and triggers that carry a STOP to any customer
-    record created with, or changed to, that number, and switch the whole
-    number back on when staff re-enable any customer on it. These work by
-    number only, never by a conversation's link, and are serialised per
-    number against concurrent writes;
+    record created with, or changed to, that number. These work by number
+    only, never by a conversation's link, and are serialised per number
+    against concurrent writes;
+  - refuses any ordinary untick that would undo a STOP, including after a
+    number change. Re-enabling is `staff_reenable_whatsapp_number`: staff
+    confirm every opted-out record on the number (shown by
+    `staff_whatsapp_number_opt_out_scope`) and record the customer's renewed
+    permission, audited in the new `whatsapp_opt_out_reenables`;
   - adds a unique index allowing one pending acknowledgement per conversation.
 - A refused send shows staff its reason in the inbox. Policy and detector live
   in `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and

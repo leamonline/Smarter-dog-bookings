@@ -2,14 +2,15 @@
 --
 -- A STOP from a number with no customer record is stored on its conversation;
 -- the database carries it to every customer record that has, or later gets,
--- that number, however the number is typed; switching WhatsApp back on for a
--- customer clears it; and at most one STOP acknowledgement can be pending per
--- conversation. The triggers under test stay ON for every write below.
+-- that number, however the number is typed; no ordinary edit undoes it, a
+-- number change included; only the audited staff re-enable, confirming every
+-- record on the number, switches it back on; and at most one STOP
+-- acknowledgement can be pending per conversation. The triggers under test stay ON for every write below.
 -- Synthetic fixtures, rolled back.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(51);
 
 -- Act as a member of staff: only staff may change a customer's phone
 -- (prevent_customer_critical_column_update). The staff fixture alone is
@@ -38,6 +39,15 @@ values ('24400000-0000-4000-8000-000000000001', '+447700900441');
 update public.whatsapp_conversations
    set whatsapp_opted_out_at = '2026-10-14 09:00:00+00'
  where id = '24400000-0000-4000-8000-000000000001';
+
+-- A repeat STOP keeps the first time.
+update public.whatsapp_conversations
+   set whatsapp_opted_out_at = '2026-10-14 10:30:00+00'
+ where id = '24400000-0000-4000-8000-000000000001';
+select is(
+  (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000001'),
+  '2026-10-14 09:00:00+00'::timestamptz, 'a repeat STOP keeps the number''s first time'
+);
 
 -- … and later becomes a customer, typed differently
 insert into public.humans (id, name, surname, phone)
@@ -81,11 +91,16 @@ select is(
   (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000014'),
   false, 'a linked customer on a DIFFERENT number is not opted out by the link'
 );
+-- An opt-out staff set for another reason, on a number that never said STOP,
+-- can still be unticked as before.
 update public.humans set whatsapp_opted_out = true where id = '24400000-0000-4000-8000-000000000014';
-update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000014';
+select lives_ok(
+  $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000014'$$,
+  'an opt-out unrelated to any STOP can be unticked'
+);
 select isnt(
   (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000002'),
-  null, 're-enabling that customer does not lift the STOP from the number they were linked to'
+  null, 'and doing so does not lift the STOP from the number that customer was linked to'
 );
 
 -- ── A customer changes their number to one that said STOP ──────────
@@ -97,20 +112,121 @@ select is(
   true, 'changing a record''s number to a stopped one opts it out'
 );
 
--- ── Staff switch WhatsApp back on ───────────────────────────────────
-update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000011';
+-- ── A customer who said STOP changes their number AWAY ──────────────
+update public.humans set phone = '07700 900 470' where id = '24400000-0000-4000-8000-000000000013';
+select is(
+  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000013'),
+  true, 'a new number does not restore permission: the STOP stays on the customer'
+);
+select is(
+  (select whatsapp_opted_out_reason from public.humans where id = '24400000-0000-4000-8000-000000000013'),
+  'asked_on_whatsapp', 'with its reason'
+);
+select isnt(
+  (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000002'),
+  null, 'and the old number stays suppressed'
+);
+
+-- ── No ordinary edit undoes a STOP ──────────────────────────────────
+select throws_ok(
+  $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000013'$$,
+  'P0001', null, 'unticking a customer who said STOP is refused, even after their number changed'
+);
+select throws_ok(
+  $$update public.humans set whatsapp_opted_out = false, phone = '07700 900 471' where id = '24400000-0000-4000-8000-000000000013'$$,
+  'P0001', null, 'and so is an untick hidden in a save that also changes the number'
+);
+-- Rewriting the stored reason first does not get round it either.
+update public.humans set whatsapp_opted_out_reason = 'staff' where id = '24400000-0000-4000-8000-000000000015';
+select throws_ok(
+  $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000015'$$,
+  'P0001', null, 'whatever the record''s reason, a number that is still stopped cannot be unticked'
+);
+select is(
+  (select count(*)::int from public.humans
+    where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000013', '24400000-0000-4000-8000-000000000015')
+      and whatsapp_opted_out is true),
+  3, 'every refused untick left its record opted out'
+);
+
+-- ── The scope staff confirm before re-enabling ──────────────────────
+select is(
+  (select jsonb_path_query_array(public.staff_whatsapp_number_opt_out_scope('07700900441'), '$.records[*].id')),
+  '["24400000-0000-4000-8000-000000000011", "24400000-0000-4000-8000-000000000015"]'::jsonb,
+  'the scope lists every opted-out record on the number'
+);
+select is(
+  (public.staff_whatsapp_number_opt_out_scope('+447700900441') ->> 'number_stopped_at')::timestamptz,
+  '2026-10-14 09:00:00+00'::timestamptz, 'and when the number said STOP'
+);
+
+-- ── Re-enabling: renewed permission, the whole scope, audited ───────
+select throws_ok(
+  $$select public.staff_reenable_whatsapp_number('07700900441', array['24400000-0000-4000-8000-000000000011']::uuid[], 'Customer phoned to ask for reminders again')$$,
+  'P0001', null, 're-enabling only part of the number is refused'
+);
+select throws_ok(
+  $$select public.staff_reenable_whatsapp_number('07700900441',
+      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], 'ok')$$,
+  'P0001', null, 'and so is a re-enable without the customer''s renewed permission recorded'
+);
 select is(
   (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000001'),
-  null, 're-enabling a customer clears the number''s STOP'
+  '2026-10-14 09:00:00+00'::timestamptz, 'a refused re-enable changes nothing'
+);
+
+-- A customer, not staff, cannot call it.
+select set_config('request.jwt.claims', '{"sub":"24400000-0000-4000-8000-000000000099","role":"authenticated"}', true);
+select throws_ok(
+  $$select public.staff_reenable_whatsapp_number('07700900441',
+      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], 'Customer phoned to ask for reminders again')$$,
+  '42501', null, 'only staff can re-enable'
+);
+select throws_ok(
+  $$select public.staff_whatsapp_number_opt_out_scope('07700900441')$$,
+  '42501', null, 'or read the scope'
+);
+select set_config('request.jwt.claims', '{"sub":"24400000-0000-4000-8000-000000000041","role":"authenticated"}', true);
+
+select lives_ok(
+  $$select public.staff_reenable_whatsapp_number('+44 7700 900441',
+      array['24400000-0000-4000-8000-000000000015', '24400000-0000-4000-8000-000000000011']::uuid[], 'Customer phoned to ask for reminders again')$$,
+  'confirming every record on the number with the renewed permission re-enables it'
+);
+select is(
+  (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000001'),
+  null, 'the number''s STOP is cleared'
+);
+select is(
+  (select count(*)::int from public.humans
+    where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015')
+      and whatsapp_opted_out is false and whatsapp_opted_out_reason is null),
+  2, 'and both confirmed records are back on'
+);
+select is(
+  (select array[phone_key, permission_note, reenabled_by::text, cardinality(human_ids)::text, cardinality(conversation_ids)::text]
+     from public.whatsapp_opt_out_reenables where phone_key = '7700900441'),
+  array['7700900441', 'Customer phoned to ask for reminders again', '24400000-0000-4000-8000-000000000041', '2', '1'],
+  'the re-enable is audited: number, who, the permission, and its scope'
+);
+select is(
+  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000013'),
+  true, 'a customer who moved off that number keeps their own STOP'
 );
 update public.humans set phone = '07700 900 441' where id = '24400000-0000-4000-8000-000000000011';
 select is(
   (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000011'),
-  false, 'a later save that keeps the same number does not undo the re-opt-in'
+  false, 'a later save of the same number does not undo the re-enable'
 );
+insert into public.humans (id, name, surname, phone)
+values ('24400000-0000-4000-8000-000000000017', 'Synthetic', 'After', '07700900441');
 select is(
-  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000015'),
-  false, 're-enabling one record re-enables every other record on the same number, so no send path disagrees'
+  (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000017'),
+  false, 'and a record created on the number afterwards is not opted out'
+);
+select throws_ok(
+  $$select public.staff_reenable_whatsapp_number('07700900441', '{}'::uuid[], 'Customer phoned to ask for reminders again')$$,
+  'P0001', null, 'a number that is not switched off has nothing to re-enable'
 );
 
 -- ── An SMS conversation is not a WhatsApp STOP ──────────────────────
@@ -153,7 +269,7 @@ select lives_ok(
   'once staff decide the pending one, a later STOP may leave a new one'
 );
 
--- ── Nothing here is callable from the API ───────────────────────────
+-- ── Nothing internal is callable from the API ───────────────────────
 select is(
   (select count(*)::int
      from unnest(array['anon', 'authenticated']) as r(role)
@@ -161,19 +277,41 @@ select is(
        'public.whatsapp_phone_key(text)',
        'public.whatsapp_conversation_apply_opt_out()',
        'public.humans_apply_number_opt_out()',
-       'public.humans_clear_number_opt_out()'
+       'public.humans_guard_whatsapp_reenable()',
+       'public.whatsapp_conversation_keep_first_stop()'
      ]) as f(sig)
     where has_function_privilege(r.role, f.sig, 'execute')),
-  0, 'no new function is executable by anon or authenticated'
+  0, 'no trigger function or helper is executable by anon or authenticated'
+);
+select is(
+  (select count(*)::int
+     from unnest(array[
+       'public.staff_whatsapp_number_opt_out_scope(text)',
+       'public.staff_reenable_whatsapp_number(text, uuid[], text)'
+     ]) as f(sig)
+    where has_function_privilege('anon', f.sig, 'execute')),
+  0, 'anon cannot reach the staff re-enable functions'
 );
 select is(
   (select count(*)::int from pg_catalog.pg_proc p
      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname in ('whatsapp_conversation_apply_opt_out', 'humans_apply_number_opt_out', 'humans_clear_number_opt_out')
+      and p.proname in ('whatsapp_conversation_apply_opt_out', 'humans_apply_number_opt_out', 'humans_guard_whatsapp_reenable',
+                        'staff_whatsapp_number_opt_out_scope', 'staff_reenable_whatsapp_number')
       and p.prosecdef
       and p.proconfig @> array['search_path=public, pg_temp']),
-  3, 'the trigger functions are SECURITY DEFINER with a pinned search_path'
+  5, 'the definer functions are SECURITY DEFINER with a pinned search_path'
+);
+select ok(
+  not has_table_privilege('authenticated', 'public.whatsapp_opt_out_reenables', 'insert')
+  and not has_table_privilege('authenticated', 'public.whatsapp_opt_out_reenables', 'update')
+  and not has_table_privilege('authenticated', 'public.whatsapp_opt_out_reenables', 'delete')
+  and not has_table_privilege('anon', 'public.whatsapp_opt_out_reenables', 'select'),
+  'the audit is written only through the re-enable'
+);
+select is(
+  (select count(*)::int from pg_catalog.pg_proc where proname = 'humans_clear_number_opt_out'),
+  0, 'the cascading re-enable trigger is gone'
 );
 
 select * from finish();

@@ -597,6 +597,22 @@ async function upsertConversation(
   };
 }
 
+// True when this Meta message is already in whatsapp_messages. A failed
+// lookup answers false, so a STOP is recorded rather than lost.
+async function inboundAlreadyStored(
+  supabase: SupabaseClient,
+  metaMsgId: string | null | undefined,
+): Promise<boolean> {
+  if (!metaMsgId) return false;
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("meta_message_id", metaMsgId)
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+}
+
 async function insertInboundMessage(
   supabase: SupabaseClient,
   conversationId: string,
@@ -1288,21 +1304,19 @@ async function recordOptOut(
   // 1. The number itself (migration 20261014120000). This is the whole of
   // the suppression for a number with no customer record, and the database
   // carries it to any record later created with, or changed to, this number.
-  // A repeat STOP keeps the first time.
+  // A repeat STOP keeps the first time: the database keeps it
+  // (trg_whatsapp_conversation_keep_first_stop). The write is deliberately
+  // NOT filtered on "not yet stopped". Such a filter is checked against the
+  // last committed row, so a STOP landing while staff re-enable the number
+  // would match nothing, not wait, and be lost when the re-enable commits.
+  // Matched by id alone, it waits for the re-enable and then stops the number
+  // again (supabase/tests/246, #1016 final review).
   const { error: stampErr } = await supabase
     .from("whatsapp_conversations")
-    .update({ whatsapp_opted_out_at: new Date().toISOString() })
-    .eq("id", conversation.id)
-    .is("whatsapp_opted_out_at", null);
+    .update({ whatsapp_opted_out_at: new Date().toISOString(), auto_send_enabled: false })
+    .eq("id", conversation.id);
   if (stampErr) {
     throw new Error(`STOP not recorded: could not store the number's opt-out (${stampErr.message})`);
-  }
-  const { error: convErr } = await supabase
-    .from("whatsapp_conversations")
-    .update({ auto_send_enabled: false })
-    .eq("id", conversation.id);
-  if (convErr) {
-    throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
   }
   const { data: convStored, error: convReadErr } = await supabase
     .from("whatsapp_conversations")
@@ -2809,6 +2823,8 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
       messages: allChanges.flatMap((change) => change.value?.messages ?? []),
       statuses: allChanges.flatMap((change) => change.value?.statuses ?? []),
     };
+    let freshInbound = 0;
+    let duplicateInbound = 0;
     for (const entry of [{ changes: [{ value: merged }] }]) {
       for (const change of entry.changes) {
         const value = change.value;
@@ -2864,12 +2880,17 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // A STOP is recorded BEFORE the inbound row is stored. If recording
           // fails (after its retries) the event fails with nothing half-done:
           // the inbound de-duplication below has not run, so the event replays
-          // whole when it is reset to pending (#1016 review). The writes are
-          // idempotent, so a redelivered STOP records it again and is then
-          // ignored as a duplicate. Skipped on forceDraft so a staff
-          // re-generate stays side-effect free (#990).
+          // whole when it is reset to pending (#1016 review). Skipped on
+          // forceDraft so a staff re-generate stays side-effect free (#990).
+          //
+          // A message already stored was already recorded: a redelivery, or
+          // an event reset to pending, must not stamp a fresh STOP over a
+          // re-enable staff made since (#1016 final review). It is then
+          // skipped as a duplicate below.
           const stopRequested = !forceDraft && isOptOutRequest(text);
-          if (stopRequested) await recordOptOutWithRetry(supabase, conversation);
+          if (stopRequested && !(await inboundAlreadyStored(supabase, msg.id))) {
+            await recordOptOutWithRetry(supabase, conversation);
+          }
 
           if (!forceDraft) {
             const { duplicate, id: insertedId } = await insertInboundMessage(
@@ -2901,23 +2922,14 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             }
             if (duplicate) {
               // The inbound row already exists (Meta redelivery, or a
-              // concurrent invocation of this same event won the insert race).
-              // Record this run as ignored — not failed, so it drops off the
-              // "AI agent issues" card — and stop before drafting a second
-              // reply. Guard on still-pending so we never downgrade the winning
-              // run's terminal status (it sets processed/failed unconditionally
-              // at the end of the try).
-              await supabase
-                .from("whatsapp_events")
-                .update({
-                  processing_status: "ignored",
-                  processed_at: new Date().toISOString(),
-                  error_message: null,
-                })
-                .eq("id", event.id)
-                .eq("processing_status", "pending");
-              return new Response("ok (duplicate inbound, ignored)", { status: 200 });
+              // concurrent invocation of this same event won the insert race):
+              // never draft a second reply to it. Move on to the rest of the
+              // batch, which now holds every message of the payload, so one
+              // stored message must not drop a newer one (#1016 final review).
+              duplicateInbound++;
+              continue;
             }
+            freshInbound++;
           }
 
           // Button-reply routing: if this inbound is a Yes/No tap on a
@@ -3448,6 +3460,23 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       );
+    }
+
+    if (duplicateInbound > 0 && freshInbound === 0) {
+      // Every message was already stored. Record this run as ignored — not
+      // failed, so it drops off the "AI agent issues" card. Guard on
+      // still-pending so we never downgrade the winning run's terminal status
+      // (it sets processed/failed unconditionally).
+      await supabase
+        .from("whatsapp_events")
+        .update({
+          processing_status: "ignored",
+          processed_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq("id", event.id)
+        .eq("processing_status", "pending");
+      return new Response("ok (duplicate inbound, ignored)", { status: 200 });
     }
 
     await supabase

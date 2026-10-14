@@ -71,7 +71,8 @@ export function ukNationalDigits(phone: string | null | undefined): string | nul
 /**
  * A PostgreSQL regular expression (for PostgREST `match`) that finds a UK
  * number however it was stored: any spaces, dashes, dots or brackets
- * between the digits, with a +44, 44, 0044 or 0 prefix, and the "(0)" form.
+ * between the digits, with a +44, 44, 0044 or 0 prefix or none, and the
+ * "(0)" form.
  * `humans.phone` has no canonical form, so an exact-string lookup misses
  * "07700 900123" (#1016 review). Callers re-check each row with
  * `ukNationalDigits`, so the pattern only has to be permissive, never exact.
@@ -81,7 +82,11 @@ export function ukPhoneMatchPattern(phone: string | null | undefined): string | 
   const national = ukNationalDigits(phone);
   if (!national) return null;
   const sep = "[^0-9]*";
-  return `^${sep}(?:(?:00)?44${sep}(?:0${sep})?|0${sep})${national.split("").join(sep)}${sep}$`;
+  // The prefix is optional and "00 44" may be spaced: whatsapp_phone_key (and
+  // phoneMatchKey) give "7700900123" and "00 44 7700 900123" the same key as
+  // "+447700900123", so the pattern must not filter them out first (#1016
+  // final review).
+  return `^${sep}(?:(?:0${sep}0${sep})?4${sep}4${sep}(?:0${sep})?|0${sep})?${national.split("").join(sep)}${sep}$`;
 }
 
 /**
@@ -111,72 +116,104 @@ export function phoneMatchPattern(phone: string | null | undefined): string | nu
   const key = phoneMatchKey(phone);
   if (!key) return null;
   const sep = "[^0-9]*";
-  return `^${sep}(?:00${sep})?${key.split("").join(sep)}${sep}$`;
+  return `^${sep}(?:0${sep}0${sep})?${key.split("").join(sep)}${sep}$`;
 }
 
 // A request to stop, in the words customers actually use. Deliberately narrow:
-// a false positive flags a customer as opted out and silences their thread,
-// so salon phrases that share the words must not match: "stop by", "can we
-// opt out of the nail clip?", "take me off the waiting list", "remove my old
-// number", "don't message me before 9". Standalone STOP / UNSUBSCRIBE /
-// OPT OUT (the carrier conventions) match on their own; longer sentences need
-// the request aimed at our messages or our list.
+// a false positive opts the number out and silences the thread, so salon
+// phrases that share the words must not match: "stop by", "can we opt out of
+// the nail clip?", "take me off the waiting list", "remove my old number",
+// "don't message me before 9". Standalone STOP / UNSUBSCRIBE / OPT OUT (the
+// carrier conventions) match on their own; longer sentences need the request
+// aimed at our messages or our list.
+//
+// Each pattern is tested against one clause at a time (the message split at
+// . ! ? , ; line breaks and dashes), and most are anchored to the END of the
+// clause: "stop texting me" is a request, "stop texting me at 6am" or "stop
+// sending me reminders for Max, he passed away" is something staff should
+// read, not an automatic opt-out (#1016 final review). A clause may end with
+// politeness ("please", "thanks", "any more"), never with more content.
+const TAIL = String.raw`(?:\s+(?:again|any\s*more|now|please|pls|plz|thanks|thank\s+you|thx|ta|asap|immediately))*\s*$`;
+const MESSAGES = String.raw`(?:messages|texts|whatsapps?|reminders)`;
+const OUR = String.raw`(?:(?:all|any|the|these|those|your)\s+)?`;
+
+// A clause that is nothing but the request: "STOP", "Stop please", "STOP ALL",
+// "Stop promotions" (Meta's marketing opt-out button), "unsubscribe", "opt
+// out", "leave me alone". Only as the first or last clause of a message: "No
+// thanks, stop" and "Stop. Wrong person." are requests.
+const BARE_STOP = new RegExp(
+  String.raw`^(?:please\s+)?(?:stop(?:\s+(?:all|it|promotions?))?|unsubscribe|opt[\s-]?out|leave\s+(?:me|us)\s+alone)` + TAIL,
+  "i",
+);
+
 export const OPT_OUT_PATTERNS: readonly RegExp[] = [
-  // "STOP", "please stop", "Unsubscribe.", "opt out!"
-  /^\s*(?:please\s+)?(?:stop|unsubscribe|opt[\s-]?out)\s*[.!]*\s*$/i,
-  // "stop messaging me", "please stop sending me these"
-  /\b(?:stop|quit|cease)\s+(?:texting|messaging|contacting|whatsapping|sending)\s+(?:me|us)\b/i,
-  // "please stop sending these messages", "stop sending the texts"
-  /\b(?:stop|quit|cease)\s+(?:sending|texting)\s+(?:(?:me|us)\s+)?(?:these|the|your|any|all)\s+(?:messages|texts|whatsapps?|reminders)\b/i,
-  // "don't text me again", "never message me any more", "do not contact me."
-  // (bare "don't message me" only at the end, so "don't message me before 9"
-  // and "don't text me until he's ready" are scheduling, not opt-out)
-  /\b(?:don'?t|do\s+not|never)\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$)/i,
+  // "stop messaging me", "please stop sending me these texts", "why won't you
+  // stop texting me"
+  new RegExp(String.raw`\b(?:stop|quit|cease)\s+(?:texting|messaging|contacting|whatsapping|sending)\s+(?:me|us)(?:\s+${OUR}${MESSAGES})?` + TAIL, "i"),
+  // "please stop sending messages", "stop sending reminders", "stop texting
+  // the reminders"; not "stop sending the reminder to my old email"
+  new RegExp(String.raw`\b(?:stop|quit|cease)\s+(?:sending|texting)\s+${OUR}${MESSAGES}` + TAIL, "i"),
+  // "Please stop all messages", "Stop messaging", "how do I stop these
+  // messages", "stop all messages to this number"; not "stop the messages
+  // going to my old phone"
+  new RegExp(String.raw`\b(?:stop|quit|cease)\s+${OUR}(?:messages|messaging|texts|texting|whatsapps?|whatsapping|reminders)(?:\s+to\s+(?:me|us|this\s+number))?` + TAIL, "i"),
+  // "don't text me again", "don't ever message me again", "do not contact
+  // me."; bare "don't message me" only at the end of its clause, so "don't
+  // message me before 9" is scheduling, not opt-out
+  new RegExp(String.raw`\b(?:don'?t|do\s+not|never)(?:\s+ever)?\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more)\b|${TAIL})`, "i"),
+  // "can you not message me any more", "could you not text me again"
+  new RegExp(String.raw`\b(?:can|could|would|will)\s+(?:you|u)\s+not\s+(?:text|message|contact|whatsapp)\s+(?:me|us)\s+(?:again|any\s*more)` + TAIL, "i"),
   // "please don't send me any more messages", "do not send me texts again",
   // "never send us these reminders."; not "don't send me the reminder until
   // Tuesday", which is scheduling
-  /\b(?:don'?t|do\s+not|never)\s+send\s+(?:me|us)\s+(?:(?:any\s*more|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:these|those|your|any|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$))/i,
+  new RegExp(String.raw`\b(?:don'?t|do\s+not|never)\s+send\s+(?:me|us)\s+(?:(?:any\s*more|no\s+more|more|further)\s+${MESSAGES}\b|(?:(?:these|those|your|any|the)\s+)?${MESSAGES}(?:\s+(?:again|any\s*more)\b|${TAIL}))`, "i"),
   // "I don't want any more messages", "I no longer want to receive texts",
   // "I don't want your messages."; not "I don't want the reminder moved"
-  // or "I don't want messages before 9" (#1016 review)
-  /\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:to\s+(?:receive|get)\s+)?(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:any|these|your|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more|from\s+(?:you|the\s+salon|smarter\s+dog))\b|\s*(?:please\s*)?[.!]*\s*$))/i,
-  // "No more messages please", "no further texts, thanks": as a request on
-  // its own, never in a report such as "I got the reminder but no more
-  // messages came through" (#1016 review)
-  /^\s*(?:please,?\s+)?no\s+(?:more|further)\s+(?:messages|texts|whatsapps?|reminders)(?:,?\s+(?:please|thanks|thank\s+you))*\s*[.!]*\s*$/i,
-  // "Please stop all messages", "Stop messaging", "stop the reminders
-  // please": a stop aimed at our messages, ending the request; not "stop the
-  // messages going to my old phone" or "stop the clippers short"
-  /\b(?:stop|quit|cease)\s+(?:(?:all|any|the|these|your)\s+)?(?:messages|messaging|texts|texting|whatsapps?|whatsapping|reminders)(?:\s+(?:to\s+(?:me|us|this\s+number)|please|now|thanks|thank\s+you))*\s*[.!]*\s*$/i,
+  // or "I don't want messages before 9"
+  new RegExp(String.raw`\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:to\s+(?:receive|get)\s+)?(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+${MESSAGES}\b|(?:(?:any|these|your|the)\s+)?${MESSAGES}(?:\s+(?:again|any\s*more|from\s+(?:you|the\s+salon|smarter\s+dog))\b|${TAIL}))`, "i"),
+  // "No more messages please", "no further texts": as the whole clause, never
+  // in a report such as "I got the reminder but no more messages came through"
+  new RegExp(String.raw`^(?:please\s+)?no\s+(?:more|further)\s+${MESSAGES}` + TAIL, "i"),
   // "take me off your list", "remove my number from this chat"; never a
   // waiting list, which is a booking request
   /\b(?:take|remove)\s+(?:me|us|my\s+number)\s+(?:off|from)\s+(?:your|the|this)\s+(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:list|chat)\b/i,
-  // "please unsubscribe me", "how do I unsubscribe?", "unsubscribe me from
-  // these messages"; never "unsubscribe me from the waiting list", which is a
-  // booking request (#1016 review)
-  /\bunsubscribe(?:\s+(?:me|us))?\s*(?:please\s*)?[.!?]*\s*$/i,
+  // "please unsubscribe me", "how do I unsubscribe", "unsubscribe me from
+  // these messages"; never "unsubscribe me from the waiting list"
+  new RegExp(String.raw`\bunsubscribe(?:\s+(?:me|us))?` + TAIL, "i"),
   /\bunsubscribe\s+(?:(?:me|us)\s+)?from\s+(?:(?:your|the|these|this|all)\s+)?(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:messages|texts|whatsapps?|reminders|marketing|updates|list|chats?)\b/i,
   // "opt me out please", "opt me out of these messages", "opted out of your
-  // list"; never "opt me out of the nail clip this time" (#1016 review)
-  /\bopt\s+(?:me|us)\s+out\s*(?:please\s*)?[.!?]*\s*$/i,
+  // list"; never "opt me out of the nail clip this time"
+  new RegExp(String.raw`\bopt\s+(?:me|us)\s+out` + TAIL, "i"),
   /\bopt(?:ed|ing)?(?:\s+(?:me|us))?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?|list)\b/i,
 ];
 
 // "Please don't stop messaging me", "I don't want you to stop sending
 // reminders", "please do not unsubscribe me", "don't opt me out": a negation
-// before the removal verb reverses the request, so it is checked before the
-// positive patterns (#1016 review). Only filler words may sit between the
-// negation and the verb: "I don't know how, please stop messaging me" is
-// still a stop.
-const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not|won'?t)(?:\s+(?:you|to|ever|please|want|wish|need|i|we|really|ask|asking|for|them|go|ahead|and))*\s+(?:stop|quit|cease|unsubscribe|opt|remove|take)\b/i;
+// before the removal verb reverses the request. Only filler words may sit
+// between the negation and the verb, and it is checked per clause: "I don't
+// know how, please stop messaging me" is still a stop. "Why won't you stop
+// messaging me?" is not a negation: it is the request, made angrily.
+const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not)(?:\s+(?:you|to|ever|please|want|wish|need|i|we|really|ask|asking|for|them|go|ahead|and))*\s+(?:stop|quit|cease|unsubscribe|opt|remove|take)\b/i;
+
+// "Why did you stop messaging me?", "Have you stopped sending reminders?":
+// asking about a stop is not asking for one.
+const PAST_STOP = /\b(?:stopped|unsubscribed)\b|\b(?:did|didn'?t|have|haven'?t|has|hasn'?t|had)\s+(?:(?:you|u|they|we|it)\s+)?(?:stop|unsubscribe)\b/i;
+
+const EMOJI = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu;
 
 /** True when the message is the customer asking us not to message them. */
 export function isOptOutRequest(messageText: string | null | undefined): boolean {
   if (!messageText) return false;
   // Phone keyboards type a curly apostrophe (don’t); the patterns use the
   // straight one, so fold every apostrophe-like character first.
-  const text = messageText.replace(/[\u2018\u2019\u02BC\u2032`´]/g, "'").trim();
-  if (!text) return false;
-  if (NEGATED_STOP.test(text)) return false;
-  return OPT_OUT_PATTERNS.some((pattern) => pattern.test(text));
+  const text = messageText.replace(/[‘’ʼ′`´]/g, "'").replace(EMOJI, " ");
+  const clauses = text
+    .split(/[.!?;,\n…]+|\s[-–—]+\s/)
+    .map((clause) => clause.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return clauses.some((clause, index) => {
+    if (NEGATED_STOP.test(clause) || PAST_STOP.test(clause)) return false;
+    if ((index === 0 || index === clauses.length - 1) && BARE_STOP.test(clause)) return true;
+    return OPT_OUT_PATTERNS.some((pattern) => pattern.test(clause));
+  });
 }

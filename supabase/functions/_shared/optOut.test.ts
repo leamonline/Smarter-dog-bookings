@@ -113,6 +113,27 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "I don't know how this works, please stop messaging me",
     "I do not need these, stop messaging me",
     "I don't use WhatsApp much please stop messaging me",
+    // Final review on #1016: missed requests, one clause at a time
+    "Stop please",
+    "Stop thanks",
+    "stop pls",
+    "stop it",
+    "STOP \u{1F6D1}",
+    "STOP ALL",
+    "Stop promotions",
+    "Please stop sending messages",
+    "stop sending reminders",
+    "Stop sending texts please",
+    "How do I stop these messages?",
+    "No thanks, stop",
+    "Not interested, stop",
+    "Stop. Wrong person.",
+    "I don't know why I'm getting these, please stop",
+    "Can you not message me anymore",
+    "Don't ever message me again",
+    "Leave me alone",
+    "Why won't you stop messaging me?",
+    "Stop texting me!!",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -164,6 +185,18 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "I don't want to unsubscribe, just change the time",
     "Don't remove me from your list please",
     "Please don't take me off your list",
+    // Final review on #1016: a stop aimed at something narrower is for
+    // staff to read, and asking about a stop is not asking for one
+    "Please stop sending me reminders for Max, he passed away last month",
+    "Can you stop sending me two reminders, I keep getting duplicates",
+    "stop texting me at 6am lol",
+    "Stop messaging me at work please, text my husband instead",
+    "Please stop contacting me about the bath",
+    "Why did you stop messaging me?",
+    "Did you stop texting me?",
+    "Have you stopped sending reminders?",
+    "He wouldn't stop barking, sorry!",
+    "Is there a bus stop near you?",
     "",
     null,
     undefined,
@@ -185,11 +218,23 @@ Deno.test("a UK number is recognised however it was stored", () => {
 
 Deno.test("the phone pattern does not match a different number", () => {
   const pattern = new RegExp(ukPhoneMatchPattern("+447700900123")!);
-  for (const other of ["07700900124", "+447700900123 0", "07700 900 1234", "7700900123", "+33 7700900123"]) {
+  for (const other of ["07700900124", "+447700900123 0", "07700 900 1234", "+33 7700900123", "17700900123"]) {
     assert(!pattern.test(other), `no match: ${other}`);
   }
   assertEquals(ukPhoneMatchPattern("+33123456789"), null);
   assertEquals(ukNationalDigits(""), null);
+});
+
+Deno.test("the pattern finds every stored form that shares the number's key", () => {
+  // whatsapp_phone_key gives these the same key as "+447700900123", so the
+  // lookup must not filter them out before the key check (#1016 final review).
+  const pattern = new RegExp(phoneMatchPattern("+447700900123")!);
+  for (const stored of ["7700900123", "7700 900 123", "00 44 7700 900123", "0 0 44 (0) 7700 900123"]) {
+    assertEquals(phoneMatchKey(stored), "7700900123", stored);
+    assert(pattern.test(stored), `pattern matches ${stored}`);
+  }
+  const intl = new RegExp(phoneMatchPattern("+33612345678")!);
+  assert(intl.test("00 33 6 12 34 56 78"), "a spaced 00 prefix");
 });
 
 Deno.test("an international number is matched however it was stored", () => {

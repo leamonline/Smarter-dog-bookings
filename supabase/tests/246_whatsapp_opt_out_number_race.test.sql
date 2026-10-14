@@ -8,7 +8,9 @@
 -- suppressed but the customer opted in, which the Twilio notify paths trust.
 -- Both triggers take an advisory lock on the number first. Two genuine
 -- PostgreSQL backends prove that whichever comes second waits, then sees the
--- first one's committed row, in either order. Fixtures are synthetic,
+-- first one's committed row, in either order. A STOP that lands while staff
+-- are re-enabling the number waits for the re-enable and then stops the number
+-- again: the newer request wins. Fixtures are synthetic,
 -- committed only because a dblink backend cannot see the pgTAP controller's
 -- transaction, and removed before the test finishes.
 
@@ -21,7 +23,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(8);
+select plan(12);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -49,9 +51,25 @@ select extensions.dblink_exec('setup', $setup$
     '24600000-0000-4000-8000-000000000001',
     '24600000-0000-4000-8000-000000000002'
   );
+  delete from public.whatsapp_opt_out_reenables where phone_key = '7700900463';
+  delete from public.humans where id = '24600000-0000-4000-8000-000000000013';
+  delete from public.whatsapp_conversations where id = '24600000-0000-4000-8000-000000000003';
+  delete from public.staff_profiles where id = '24600000-0000-4000-8000-000000000040';
+  delete from auth.users where id = '24600000-0000-4000-8000-000000000041';
   insert into public.whatsapp_conversations (id, phone_e164) values
     ('24600000-0000-4000-8000-000000000001', '+447700900461'),
-    ('24600000-0000-4000-8000-000000000002', '+447700900462');
+    ('24600000-0000-4000-8000-000000000002', '+447700900462'),
+    ('24600000-0000-4000-8000-000000000003', '+447700900463');
+  -- Order 3's number has said STOP, and its customer is flagged by it.
+  update public.whatsapp_conversations set whatsapp_opted_out_at = now()
+   where id = '24600000-0000-4000-8000-000000000003';
+  insert into public.humans (id, name, surname, phone)
+  values ('24600000-0000-4000-8000-000000000013', 'Race', 'Reenable', '07700 900 463');
+  -- The member of staff who re-enables it.
+  set local session_replication_role = replica;
+  insert into auth.users (id) values ('24600000-0000-4000-8000-000000000041');
+  insert into public.staff_profiles (id, user_id, role, display_name)
+  values ('24600000-0000-4000-8000-000000000040', '24600000-0000-4000-8000-000000000041', 'staff', 'Race Test Staff');
   commit;
 $setup$);
 
@@ -178,6 +196,47 @@ select isnt(
   'and the number itself stays suppressed'
 );
 
+-- ── Order 3: a STOP lands while staff re-enable the number ───────────
+select extensions.dblink_exec('customer', 'begin isolation level read committed');
+-- dblink, not dblink_exec: both statements return a row.
+select v from extensions.dblink('customer',
+  'select set_config(''request.jwt.claims'', ''{"sub":"24600000-0000-4000-8000-000000000041","role":"authenticated"}'', true)') as t(v text);
+select v from extensions.dblink('customer',
+  'select public.staff_reenable_whatsapp_number(''07700900463'',
+     array[''24600000-0000-4000-8000-000000000013'']::uuid[], ''Customer phoned to ask for reminders again'')::text') as t(v text);
+
+select extensions.dblink_exec('stop', 'begin isolation level read committed');
+select extensions.dblink_exec('stop', 'set local lock_timeout = ''8s''');
+-- The agent's own write: by id alone. (Filtered on "not yet stopped", it
+-- would be checked against the committed, still-stopped row, match nothing
+-- and be lost when the re-enable commits.)
+select is(
+  extensions.dblink_send_query('stop',
+    'update public.whatsapp_conversations set whatsapp_opted_out_at = now(), auto_send_enabled = false
+      where id = ''24600000-0000-4000-8000-000000000003'''),
+  1,
+  'a new STOP is recorded on an independent backend while the re-enable is in flight'
+);
+select ok(pg_temp.wait_until_blocked('customer', 'stop'),
+  'the STOP waits for the re-enable');
+
+select extensions.dblink_exec('customer', 'commit');
+select pg_temp.finish('stop');
+select extensions.dblink_exec('stop', 'commit');
+
+select isnt(
+  (select v from extensions.dblink('setup',
+     'select whatsapp_opted_out_at from public.whatsapp_conversations where id = ''24600000-0000-4000-8000-000000000003''') as t(v timestamptz)),
+  null,
+  'once the re-enable commits, the newer STOP stops the number again'
+);
+select is(
+  (select v from extensions.dblink('setup',
+     'select whatsapp_opted_out from public.humans where id = ''24600000-0000-4000-8000-000000000013''') as t(v boolean)),
+  true,
+  'and opts the customer out again, so no send path misses it'
+);
+
 -- ── Clean up the committed fixtures ─────────────────────────────────
 select extensions.dblink_exec('setup', $cleanup$
   begin;
@@ -190,6 +249,11 @@ select extensions.dblink_exec('setup', $cleanup$
     '24600000-0000-4000-8000-000000000001',
     '24600000-0000-4000-8000-000000000002'
   );
+  delete from public.whatsapp_opt_out_reenables where phone_key = '7700900463';
+  delete from public.humans where id = '24600000-0000-4000-8000-000000000013';
+  delete from public.whatsapp_conversations where id = '24600000-0000-4000-8000-000000000003';
+  delete from public.staff_profiles where id = '24600000-0000-4000-8000-000000000040';
+  delete from auth.users where id = '24600000-0000-4000-8000-000000000041';
   commit;
 $cleanup$);
 

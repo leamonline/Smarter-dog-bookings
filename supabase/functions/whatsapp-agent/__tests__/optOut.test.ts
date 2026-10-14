@@ -44,6 +44,8 @@ interface Faults {
   pendingAcknowledgement?: boolean;
   /** Put each message in its own webhook entry instead of one change. */
   separateEntries?: boolean;
+  /** Meta message ids already in whatsapp_messages (a redelivery or replay). */
+  storedMessageIds?: string[];
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -107,23 +109,41 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         return reply(humans.filter((row) => ids.includes(String(row.id))).map((row) => ({ id: row.id, whatsapp_opted_out: row.whatsapp_opted_out })));
       }
       // The phone lookups (agent's own link, and the STOP pattern match):
-      // every record on the sender's number, formatted as stored.
-      return reply(humans.map((row) => ({ id: row.id, phone: row.phone })));
+      // every record on the sender's number, formatted as stored. A `match`
+      // filter is applied as PostgREST would, so the generated pattern itself
+      // is under test (#1016 final review).
+      const match = url.searchParams.get("phone");
+      const rows = match?.startsWith("match.")
+        ? humans.filter((row) => new RegExp(match.slice(6)).test(String(row.phone)))
+        : humans;
+      return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       if (method === "PATCH") {
         if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
-        // Honour the guard that keeps the first STOP's time.
-        const guardedStamp = url.searchParams.get("whatsapp_opted_out_at") === "is.null";
-        if (guardedStamp && (faults.numberStampMatchesNothing || conversation.whatsapp_opted_out_at !== null)) {
-          return new Response(null, { status: 204 });
+        const update = { ...body };
+        if ("whatsapp_opted_out_at" in update) {
+          // A stamp that "succeeds" but stores nothing.
+          if (faults.numberStampMatchesNothing) return new Response(null, { status: 204 });
+          // trg_whatsapp_conversation_keep_first_stop: a repeat STOP keeps
+          // the first time.
+          if (conversation.whatsapp_opted_out_at !== null) delete update.whatsapp_opted_out_at;
         }
-        Object.assign(conversation, body);
+        Object.assign(conversation, update);
         return new Response(null, { status: 204 });
       }
       return reply(conversation);
     }
-    if (url.pathname === "/rest/v1/whatsapp_messages") return method === "POST" ? reply({ id: "message-opt-out" }, 201) : reply([]);
+    if (url.pathname === "/rest/v1/whatsapp_messages") {
+      const stored = faults.storedMessageIds ?? [];
+      if (method === "POST") {
+        return stored.includes(String(body.meta_message_id))
+          ? reply({ code: "23505", message: 'duplicate key value violates unique constraint "idx_whatsapp_messages_meta_msg"' }, 409)
+          : reply({ id: "message-opt-out" }, 201);
+      }
+      const asked = url.searchParams.get("meta_message_id");
+      return reply(asked && stored.includes(asked.replace(/^eq\./, "")) ? [{ id: "message-stored" }] : []);
+    }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
       const isAcknowledgement = (body.tool_calls as Record<string, unknown> | undefined)?.opt_out_acknowledgement === true;
       if (method === "POST" && isAcknowledgement && faults.pendingAcknowledgement) {
@@ -377,4 +397,29 @@ Deno.test("a STOP in a later entry of the same webhook is still recorded before 
   const numberStop = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && typeof c.body.whatsapp_opted_out_at === "string");
   const firstInbound = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST");
   assert(numberStop >= 0 && firstInbound > numberStop, "the STOP is recorded before any message of the payload is stored or answered");
+});
+
+Deno.test("a redelivered STOP that is already stored does not stop the number again", async () => {
+  // Staff re-enabled the number after the first delivery; a Meta redelivery
+  // or a replayed event must not undo that (#1016 final review).
+  const { conversation, humanPatches, humans, eventPatch, drafts } = await send("STOP", "ai_handling", HUMAN, { storedMessageIds: ["synthetic-0"] });
+  assertEquals(conversation.whatsapp_opted_out_at, null, "the number stays as staff left it");
+  assertEquals(humanPatches.length, 0);
+  assertEquals(humans[0].whatsapp_opted_out, false);
+  assertEquals(drafts.length, 0, "no second acknowledgement");
+  assertEquals(eventPatch.processing_status, "ignored");
+});
+
+Deno.test("an already-stored message in a batch does not drop the newer message after it", async () => {
+  const { calls, eventPatch } = await send(["STOP", "Can I book Max in on Tuesday?"], "ai_handling", HUMAN, { storedMessageIds: ["synthetic-0"] });
+  const inserted = calls
+    .filter((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST")
+    .map((c) => c.body.meta_message_id);
+  assert(inserted.includes("synthetic-1"), "the newer message is still stored and handled");
+  assertEquals(eventPatch.processing_status, "processed", "not ignored: one message was new");
+});
+
+Deno.test("STOP flags a record stored without its trunk 0, which shares the number's key", async () => {
+  const { humans } = await send("STOP", "ai_handling", null, { onNumber: [{ id: "bare", phone: "7700900444" }, { id: "spaced", phone: "00 44 7700 900444" }] });
+  assertEquals(humans.map((row) => row.whatsapp_opted_out), [true, true]);
 });
