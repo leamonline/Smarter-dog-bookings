@@ -68,7 +68,7 @@ function toLocalDateStr(date) {
   ].join("-");
 }
 
-export function InboxView({ onOpenHuman, onOpenDog } = {}) {
+export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) {
   const inbox = useWhatsAppInbox({ includeBookingWorkspaceData: true });
   const {
     conversations,
@@ -290,6 +290,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       onRejectBookingAction={actions.rejectBookingAction}
       autoFocusSignal={compose.composeFocusSignal}
       textareaRef={composerTextareaRef}
+      onOpenHuman={onOpenHuman}
+      onWhatsappReenabled={(result) => {
+        onWhatsappReenabled?.(result.humanIds);
+        // A re-enable that only touched customer records emits no
+        // conversation change, so refresh the list rather than wait for one.
+        void refreshList();
+      }}
     />
   );
 

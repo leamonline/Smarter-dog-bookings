@@ -268,6 +268,7 @@ export function StaffRoutes({ data, nav, ui }) {
         <InboxView
           onOpenHuman={onOpenHuman}
           onOpenDog={onOpenDog}
+          onWhatsappReenabled={humansApi.markWhatsappReenabled}
         />
       } />
       <Route path="/booking-workspace" element={
