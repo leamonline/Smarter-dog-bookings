@@ -214,4 +214,38 @@ describe("useHumanDraft", () => {
     act(press);
     expect(result.current.isEditing).toBe(true);
   });
+
+  it("the E shortcut ignores a key pressed inside another dialog over the card", () => {
+    const { result } = renderDraft();
+    // A dialog stacked over the card (re-enable, merge, add dog, reject),
+    // portalled to the body like every AccessibleModal.
+    const other = document.createElement("div");
+    other.setAttribute("role", "dialog");
+    other.setAttribute("aria-labelledby", "reenable-title");
+    const otherButton = document.createElement("button");
+    other.appendChild(otherButton);
+    // The card's own dialog.
+    const card = document.createElement("div");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-labelledby", "human-card-title");
+    const cardButton = document.createElement("button");
+    card.appendChild(cardButton);
+    document.body.append(other, card);
+    const pressOn = (target) => () =>
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "e", bubbles: true }));
+
+    try {
+      act(pressOn(otherButton));
+      expect(result.current.isEditing).toBe(false);
+      // The other dialog itself (React Aria focuses it on open) counts too.
+      act(pressOn(other));
+      expect(result.current.isEditing).toBe(false);
+
+      act(pressOn(cardButton));
+      expect(result.current.isEditing).toBe(true);
+    } finally {
+      other.remove();
+      card.remove();
+    }
+  });
 });
