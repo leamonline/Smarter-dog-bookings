@@ -20,7 +20,8 @@
 --     replaced it with something untrue. Rows with no message still get the
 --     reaper's text, so a genuinely interrupted send reads as before.
 --
--- Idempotent: constraint drop/add, cron unschedule/schedule by name.
+-- Idempotent: constraint drop (by definition) and add, cron unschedule/schedule
+-- by name.
 --
 -- The CHECK swap takes an ACCESS EXCLUSIVE lock on notification_log, which
 -- every notify function writes to. If a long transaction already holds the
@@ -30,8 +31,26 @@
 set local lock_timeout = '5s';
 
 -- ── 1. Extend trigger_type CHECK ────────────────────────────
-alter table public.notification_log
-  drop constraint if exists notification_log_trigger_type_check;
+-- Drop by definition, not only by name, exactly as 20260627170000 does:
+-- production has carried a differently named trigger_type CHECK before, and a
+-- leftover one would silently refuse 'cancelled_sms_fallback' (the fallback's
+-- claim insert would fail and no SMS would go).
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname
+    from pg_constraint c
+    join pg_class t on t.oid = c.conrelid
+    join pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'public'
+      and t.relname = 'notification_log'
+      and c.contype = 'c'
+      and pg_get_constraintdef(c.oid) ilike '%trigger_type%'
+  loop
+    execute format('alter table public.notification_log drop constraint %I', r.conname);
+  end loop;
+end $$;
 
 alter table public.notification_log
   add constraint notification_log_trigger_type_check

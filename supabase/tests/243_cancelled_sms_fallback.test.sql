@@ -8,7 +8,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(9);
 
 -- ── Fixtures (other triggers on these tables POST out; skip them) ──
 set local session_replication_role = replica;
@@ -33,6 +33,15 @@ select throws_ok(
   '23514',
   null,
   'an unlisted trigger_type is still refused');
+
+select is(
+  (select count(*)::int
+     from pg_catalog.pg_constraint c
+     join pg_catalog.pg_class t on t.oid = c.conrelid
+     join pg_catalog.pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'public' and t.relname = 'notification_log'
+      and c.contype = 'c' and pg_catalog.pg_get_constraintdef(c.oid) like '%trigger_type%'),
+  1, 'exactly one trigger_type CHECK remains, so no leftover can refuse the new value');
 
 -- ── 2. The reaper preserves a message the sender wrote ─────
 select is(
