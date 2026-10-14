@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — WhatsApp opt-out enforced at the send boundary (#990)
+
+- `whatsapp-send` now looks up the recipient (by `human_id`, through the
+  conversation, or by phone in its three stored formats) and refuses with
+  `409 whatsapp_opted_out` when `humans.whatsapp_opted_out` is set, in every
+  mode and for every caller. Previously only the notify-* functions honoured
+  the flag, so staff template/compose sends and the agent's own modes could
+  still message an opted-out customer. Staff may pass `override_opt_out` for a
+  message the customer must still receive; AI-initiated and internal-secret
+  sends cannot.
+- The agent recognises a customer asking us to stop (`STOP`, `unsubscribe`,
+  "please stop messaging me", "take me off your list"): it sets the flag,
+  switches auto-send off on the thread, sends nothing, and leaves staff one
+  acknowledgement draft to decide on. Policy and detector live in
+  `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and a
+  tested `handler.ts`, like the agent.
+
 ## Unreleased — database backup posture and weekly encrypted dump (#986)
 
 - New `docs/operations.md` records the production database's backup posture

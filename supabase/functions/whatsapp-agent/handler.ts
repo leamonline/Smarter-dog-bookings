@@ -88,6 +88,7 @@ import {
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
+import { isOptOutRequest } from "../_shared/optOut.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
 import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
@@ -2901,6 +2902,60 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             } catch (err) {
               console.warn("mark_reminder_confirmed (typed reply) dispatch failed:", err);
             }
+          }
+
+          // "STOP" / "please stop messaging me": the customer is asking us not
+          // to message them. Honour it before anything else can reply: flag
+          // the customer so whatsapp-send refuses every later WhatsApp to
+          // them, switch off auto-send on the thread, and leave staff one
+          // acknowledgement draft that they (not the AI) decide whether to
+          // send. Nothing is sent here. Unknown numbers have no record to
+          // flag, so they just get the draft. Skipped on forceDraft so a
+          // staff re-generate stays side-effect free (#990).
+          if (!forceDraft && isOptOutRequest(text)) {
+            if (conversation.human_id) {
+              const { error: optOutErr } = await supabase
+                .from("humans")
+                .update({
+                  whatsapp_opted_out: true,
+                  whatsapp_opted_out_at: new Date().toISOString(),
+                  whatsapp_opted_out_reason: "asked_on_whatsapp",
+                })
+                .eq("id", conversation.human_id)
+                .eq("whatsapp_opted_out", false);
+              if (optOutErr) {
+                console.error("opt-out: failed to flag customer:", optOutErr.message);
+              } else {
+                console.log(`opt-out: flagged human ${conversation.human_id} from conversation ${conversation.id}`);
+              }
+            }
+            const { error: convErr } = await supabase
+              .from("whatsapp_conversations")
+              .update({ auto_send_enabled: false })
+              .eq("id", conversation.id);
+            if (convErr) console.warn("opt-out: could not switch off auto-send:", convErr.message);
+            if (conversation.state === "ai_handling") {
+              const policy: DraftPolicy = {
+                riskLevel: "high",
+                handoffRequired: true,
+                autoSendEligible: false,
+                draftOnly: false,
+              };
+              const draft: DraftFromClaude = {
+                intent: "escalate",
+                confidence: 1,
+                proposed_text: fallbackReplyForIntent("opt_out"),
+                extracted_state: null,
+              };
+              try {
+                await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+                  reason: "opt_out: the customer asked us to stop messaging them",
+                });
+              } catch (err) {
+                console.error("opt-out draft save failed (non-fatal):", err);
+              }
+            }
+            continue;
           }
 
           // A customer who needs a person, not a script: standing at a closed

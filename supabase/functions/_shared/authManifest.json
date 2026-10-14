@@ -493,7 +493,7 @@
     },
     "whatsapp-send": {
       "authFamily": "staff-jwt-or-internal-secret",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "staff dashboard browser, plus every notify-* function and pg_net trigger",
       "role": "staff or service",
       "gatewayVerifyJwt": false,

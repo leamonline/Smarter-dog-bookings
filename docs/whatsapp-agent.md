@@ -173,6 +173,32 @@ Booking-touching intents (`booking_propose`,
 regardless of opt-in. The list is locked down by a unit test
 (`src/lib/ai/agentRisk.test.ts`).
 
+Two further gates sit inside `whatsapp-send` itself and apply to every
+AI-initiated send that passes the five above:
+
+6. `ai_whatsapp_settings.enabled` (Settings → AI Messaging, the durable
+   master switch for AI sends) must be `true`.
+7. `humans.ai_whatsapp_allowed` must be `true` for the customer.
+
+## Customer opt-out
+
+`humans.whatsapp_opted_out` is enforced in **one place**: `whatsapp-send`
+looks the recipient up before any mode calls Meta (by `human_id`, through the
+conversation, or by phone in the three stored formats) and refuses with
+`409 whatsapp_opted_out`. The notify-* functions' channel choice
+(`_shared/recipients.ts`) still skips opted-out customers first, but it is a
+courtesy, not the boundary. A member of staff sending from the dashboard can
+pass `override_opt_out: true` for the rare operational message a customer must
+still receive; the override is ignored on AI-initiated sends and on
+internal-secret calls. Policy and the detector live in `_shared/optOut.ts`.
+
+The agent recognises a customer asking us to stop (`STOP`, `unsubscribe`,
+"please stop messaging me", "take me off your list"): it sets the flag with
+`whatsapp_opted_out_reason = 'asked_on_whatsapp'`, switches auto-send off on the
+thread, sends nothing, and while the AI is handling the thread leaves one
+acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
+on. Sending that acknowledgement needs the staff override above.
+
 ## Kill switch
 
 Two ways to stop the AI mid-incident:
