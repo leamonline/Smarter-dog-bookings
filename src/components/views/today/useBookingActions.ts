@@ -12,7 +12,7 @@
 // than a confirmation dialog on every press: the common case costs one tap, and
 // the mistake costs two. Genuinely destructive work keeps its confirmation —
 // "Didn't show" cancels a booking, and skipping a care step still asks.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../../../constants/index";
 import { buildMarkPaidPatch } from "../../../engine/bookingRules";
 import type { BookingPricingInput } from "../../../engine/bookingRules";
@@ -26,9 +26,6 @@ import {
   type TokenActionId,
 } from "../../../engine/salonBoard";
 import type { Booking } from "../../../types/index";
-
-/** How long a token keeps its "this just landed" ring. */
-const LAND_FLASH_MS = 900;
 
 type UpdateBooking = (
   booking: Booking,
@@ -84,23 +81,13 @@ export function useBookingActions({
   amountDueFor,
 }: UseBookingActionsInput) {
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
-  const [landedId, setLandedId] = useState<string | null>(null);
   const [invoiceBooking, setInvoiceBooking] = useState<Booking | null>(null);
   const [collectionDueBooking, setCollectionDueBooking] = useState<Booking | null>(null);
   const [pendingCareSkip, setPendingCareSkip] = useState<PendingCareSkip | null>(null);
-  const landTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Zone changes this session caused itself. The view announces only the moves
   // it did NOT cause, so a colleague's check-in on the other till is spoken
   // while your own is not announced twice.
   const localMoves = useRef<Set<string>>(new Set());
-
-  useEffect(() => () => clearTimeout(landTimer.current), []);
-
-  const flashLanding = useCallback((bookingId: string) => {
-    clearTimeout(landTimer.current);
-    setLandedId(bookingId);
-    landTimer.current = setTimeout(() => setLandedId(null), LAND_FLASH_MS);
-  }, []);
 
   /**
    * The one write. Marks the booking busy, sends the change, and on failure
@@ -136,7 +123,6 @@ export function useBookingActions({
 
     if (result !== null && result !== false) {
       if (successMessage) toast.show(successMessage, "success", successAction ?? undefined);
-      if (movesZone) flashLanding(bookingId);
       return result;
     }
 
@@ -150,7 +136,7 @@ export function useBookingActions({
       });
     }
     return null;
-  }, [dateStr, flashLanding, onUpdateBooking, toast]);
+  }, [dateStr, onUpdateBooking, toast]);
 
   /** Put a dog back where it was. Same path, no collection prompt on the way back. */
   const undoStatus = useCallback((persisted: Booking, previousStatus: string, dogName: string) => {
@@ -551,7 +537,6 @@ export function useBookingActions({
 
   return {
     busyIds,
-    landedId,
     invoiceBooking,
     setInvoiceBooking,
     collectionDueBooking,
