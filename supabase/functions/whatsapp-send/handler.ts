@@ -438,19 +438,39 @@ async function checkAiMessagingPermission(
 }
 
 /**
- * The humans row a send is addressed to, for the opt-out gate. Every mode
- * knows its recipient one of three ways: an explicit human_id, a conversation
- * (draft or conversation_id) that may be linked to a customer, or a bare
- * phone number. Returns null when no customer record matches; a lookup
- * failure is logged and treated the same, because the notify-* callers still
- * run their own channel check and refusing every send on a database hiccup
- * would silence confirmations and reminders.
+ * What the opt-out gate needs to know about a send.
+ *
+ * `recipient` folds every customer record the message could reach into one
+ * answer: opted out if ANY of them is. `humans.phone` is not unique (only
+ * AI-created rows are), and WhatsApp opt-out belongs to the number, so a
+ * shared number one customer stopped must not slip through on another row.
+ * Records are found through the explicit `human_id`, the conversation (a
+ * draft's or `conversation_id`'s linked customer and its phone), and the
+ * destination phone `to` in its three stored formats. `null` means no record
+ * matched: an unknown number cannot have opted out.
+ *
+ * `optOutAcknowledgement` is true for one draft only: the acknowledgement the
+ * agent writes when a customer sends STOP (it carries
+ * `tool_calls.opt_out_acknowledgement`). A member of staff approving that
+ * draft unedited is the explicit decision the override exists for.
+ *
+ * Any lookup error makes the whole result `ok: false`, and the send is
+ * refused (AGENTS.md: an ambiguous outcome fails closed). The caller sees a
+ * retryable 503; nothing reaches Meta.
  */
-async function resolveOptOutRecipient(
+type OptOutContext =
+  | { ok: true; recipient: OptOutRecipient | null; optOutAcknowledgement: boolean }
+  | { ok: false };
+
+async function resolveOptOutContext(
   supabase: SupabaseClient,
   body: SendBody,
-): Promise<OptOutRecipient | null> {
-  const byId = async (humanId: string): Promise<OptOutRecipient | null> => {
+): Promise<OptOutContext> {
+  const found: OptOutRecipient[] = [];
+  let failed = false;
+  let optOutAcknowledgement = false;
+
+  const byId = async (humanId: string) => {
     const { data, error } = await supabase
       .from("humans")
       .select("id, whatsapp_opted_out")
@@ -458,25 +478,26 @@ async function resolveOptOutRecipient(
       .maybeSingle();
     if (error) {
       console.error("whatsapp-send: opt-out lookup by id failed:", error.message);
-      return null;
+      failed = true;
+      return;
     }
-    return (data as OptOutRecipient | null) ?? null;
+    if (data) found.push(data as OptOutRecipient);
   };
-  const byPhone = async (phone: string): Promise<OptOutRecipient | null> => {
+  const byPhone = async (phone: string) => {
     const candidates = phoneLookupCandidates(phone);
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) return;
     const { data, error } = await supabase
       .from("humans")
       .select("id, whatsapp_opted_out")
-      .in("phone", candidates)
-      .limit(1);
+      .in("phone", candidates);
     if (error) {
       console.error("whatsapp-send: opt-out lookup by phone failed:", error.message);
-      return null;
+      failed = true;
+      return;
     }
-    return ((data as OptOutRecipient[] | null)?.[0]) ?? null;
+    found.push(...((data as OptOutRecipient[] | null) ?? []));
   };
-  const byConversation = async (conversationId: string): Promise<OptOutRecipient | null> => {
+  const byConversation = async (conversationId: string) => {
     const { data, error } = await supabase
       .from("whatsapp_conversations")
       .select("human_id, phone_e164")
@@ -484,37 +505,47 @@ async function resolveOptOutRecipient(
       .maybeSingle();
     if (error) {
       console.error("whatsapp-send: opt-out conversation lookup failed:", error.message);
-      return null;
+      failed = true;
+      return;
     }
     const conv = data as { human_id: string | null; phone_e164: string | null } | null;
-    if (!conv) return null;
-    if (conv.human_id) return byId(conv.human_id);
-    return conv.phone_e164 ? byPhone(conv.phone_e164) : null;
+    if (!conv) return;
+    if (conv.human_id) await byId(conv.human_id);
+    if (conv.phone_e164) await byPhone(conv.phone_e164);
   };
 
   if ("human_id" in body && typeof body.human_id === "string" && body.human_id) {
-    return byId(body.human_id);
+    await byId(body.human_id);
   }
   if (body.mode === "draft") {
     const { data, error } = await supabase
       .from("whatsapp_drafts")
-      .select("conversation_id")
+      .select("conversation_id, tool_calls")
       .eq("id", body.draft_id)
       .maybeSingle();
     if (error) {
       console.error("whatsapp-send: opt-out draft lookup failed:", error.message);
-      return null;
+      failed = true;
+    } else if (data) {
+      const draft = data as { conversation_id: string | null; tool_calls: Record<string, unknown> | null };
+      optOutAcknowledgement = draft.tool_calls?.opt_out_acknowledgement === true;
+      if (draft.conversation_id) await byConversation(draft.conversation_id);
     }
-    const conversationId = (data as { conversation_id: string | null } | null)?.conversation_id;
-    return conversationId ? byConversation(conversationId) : null;
-  }
-  if ("conversation_id" in body && typeof body.conversation_id === "string" && body.conversation_id) {
-    return byConversation(body.conversation_id);
+  } else if ("conversation_id" in body && typeof body.conversation_id === "string" && body.conversation_id) {
+    await byConversation(body.conversation_id);
   }
   if ("to" in body && typeof body.to === "string" && body.to) {
-    return byPhone(body.to);
+    await byPhone(body.to);
   }
-  return null;
+
+  if (failed) return { ok: false };
+  return {
+    ok: true,
+    recipient: found.length > 0
+      ? { whatsapp_opted_out: found.some((row) => row.whatsapp_opted_out === true) }
+      : null,
+    optOutAcknowledgement,
+  };
 }
 
 async function handleDraftMode(
@@ -1158,9 +1189,26 @@ export async function handleSendRequest(req: Request): Promise<Response> {
 
     // Opt-out is enforced here, once, for every mode: the callers' own
     // channel choice (recipients.ts) is a courtesy, this is the boundary.
+    const optOutContext = await resolveOptOutContext(supabase, parsed);
+    if (!optOutContext.ok) {
+      return json(
+        req,
+        {
+          error: "Could not check whether this customer has opted out of WhatsApp, so nothing was sent. Try again.",
+          reason: "opt_out_check_failed",
+        },
+        503,
+      );
+    }
+    // Approving the agent's STOP acknowledgement draft unedited counts as the
+    // explicit staff override; editing it does not, so the override cannot be
+    // used to send something else to a customer who asked us to stop.
+    const approvesAcknowledgement = parsed.mode === "draft"
+      && optOutContext.optOutAcknowledgement
+      && !parsed.edited_text?.trim();
     const optOut = decideOptOutSend({
-      recipient: await resolveOptOutRecipient(supabase, parsed),
-      overrideOptOut: parsed.override_opt_out === true,
+      recipient: optOutContext.recipient,
+      overrideOptOut: parsed.override_opt_out === true || approvesAcknowledgement,
       callerIsStaff: !!auth.userId,
       aiInitiated: parsed.ai_initiated === true,
     });
@@ -1175,7 +1223,9 @@ export async function handleSendRequest(req: Request): Promise<Response> {
       );
     }
     if (optOut.reason === "staff_override") {
-      console.log(`whatsapp-send: staff override of an opt-out (${parsed.mode}) by ${auth.userId}`);
+      console.log(
+        `whatsapp-send: staff override of an opt-out (${parsed.mode}${approvesAcknowledgement ? ", STOP acknowledgement" : ""}) by ${auth.userId}`,
+      );
     }
 
     if (parsed.mode === "draft") {

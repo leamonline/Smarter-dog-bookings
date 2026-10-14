@@ -113,3 +113,147 @@ Deno.test("a number with no customer record, or a customer who has not opted out
   assertEquals(optedIn.status, 200, JSON.stringify(optedIn.json));
   assertEquals(optedIn.calls.filter((c) => c.host === "graph.facebook.com").length, 1);
 });
+
+// ── #1016 review: staff override, shared numbers, lookup failure, and the
+//    STOP acknowledgement draft ──────────────────────────────────────────
+
+interface Scenario {
+  body: Record<string, unknown>;
+  staff?: boolean;
+  humans?: unknown[] | "error";
+  draft?: { tool_calls: Record<string, unknown> | null };
+}
+
+async function run({ body, staff = false, humans = [], draft }: Scenario) {
+  const calls: Call[] = [];
+  const logs: string[] = [];
+  const oldFetch = globalThis.fetch;
+  const oldLog = console.log;
+  console.log = (...args: unknown[]) => {
+    logs.push(args.map(String).join(" "));
+  };
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    const method = init?.method ?? "GET";
+    calls.push({ method, host: url.hostname, path: url.pathname, search: url.search, body: null });
+    const reply = (value: unknown, status = 200) => Response.json(value, { status });
+    const select = url.searchParams.get("select") ?? "";
+    if (url.hostname === "graph.facebook.com") {
+      return reply({ messaging_product: "whatsapp", contacts: [], messages: [{ id: "wamid.review" }] });
+    }
+    if (url.pathname === "/auth/v1/user") return reply({ id: "staff-user-1", aud: "authenticated", role: "authenticated" });
+    if (url.pathname === "/rest/v1/rpc/is_staff") return reply(true);
+    if (url.pathname === "/rest/v1/humans") {
+      return humans === "error" ? reply({ message: "connection reset" }, 500) : reply(humans);
+    }
+    if (url.pathname === "/rest/v1/whatsapp_drafts") {
+      if (method === "PATCH") return reply({ id: "draft-1" });
+      if (select.includes("tool_calls")) return reply(draft ? [{ conversation_id: "conv-1", ...draft }] : []);
+      return reply({
+        id: "draft-1",
+        conversation_id: "conv-1",
+        proposed_text: "No problem at all — we've stopped WhatsApp messages to this number.",
+        state: "pending",
+        whatsapp_conversations: { id: "conv-1", phone_e164: "+447700900123", last_inbound_at: new Date().toISOString() },
+      });
+    }
+    if (url.pathname === "/rest/v1/whatsapp_conversations") {
+      return method === "GET" ? reply([{ id: "conv-1", human_id: "h-opt", phone_e164: "+447700900123" }]) : reply([], 201);
+    }
+    if (url.pathname === "/rest/v1/whatsapp_messages") return reply({ id: "msg-review" }, 201);
+    return reply([]);
+  };
+  try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (staff) headers.authorization = "Bearer staff-jwt";
+    else headers["x-internal-secret"] = "test-send";
+    const response = await handleSendRequest(
+      new Request("http://send.test", { method: "POST", headers, body: JSON.stringify(body) }),
+    );
+    return { status: response.status, json: await response.json(), calls, logs };
+  } finally {
+    globalThis.fetch = oldFetch;
+    console.log = oldLog;
+  }
+}
+
+const metaCalls = (calls: Call[]) => calls.filter((c) => c.host === "graph.facebook.com").length;
+const OPTED_OUT = [{ id: "h-opt", whatsapp_opted_out: true }];
+
+Deno.test("a member of staff can override an opt-out explicitly, and the override is logged", async () => {
+  const { status, json, calls, logs } = await run({
+    body: { ...TEMPLATE, override_opt_out: true },
+    staff: true,
+    humans: OPTED_OUT,
+  });
+  assertEquals(status, 200, JSON.stringify(json));
+  assertEquals(metaCalls(calls), 1);
+  assert(
+    logs.some((line) => line.includes("staff override of an opt-out (template)") && line.includes("staff-user-1")),
+    `override logged with the staff user: ${JSON.stringify(logs)}`,
+  );
+});
+
+Deno.test("a staff send without the override is still refused", async () => {
+  const { status, calls } = await run({ body: TEMPLATE, staff: true, humans: OPTED_OUT });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a number shared by two customer records is refused if either opted out", async () => {
+  const { status, calls } = await run({
+    body: TEMPLATE,
+    humans: [{ id: "h-in", whatsapp_opted_out: false }, { id: "h-opt", whatsapp_opted_out: true }],
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("an opt-out lookup that errors fails closed with a retryable 503", async () => {
+  const { status, json, calls } = await run({ body: TEMPLATE, humans: "error" });
+  assertEquals(status, 503);
+  assertEquals(json.reason, "opt_out_check_failed");
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("staff approving the agent's STOP acknowledgement draft unedited sends it", async () => {
+  const { status, json, calls, logs } = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: { tool_calls: { opt_out_acknowledgement: true } },
+  });
+  assertEquals(status, 200, JSON.stringify(json));
+  assertEquals(metaCalls(calls), 1);
+  assert(logs.some((line) => line.includes("STOP acknowledgement")), JSON.stringify(logs));
+});
+
+Deno.test("the acknowledgement cannot carry edited text to an opted-out customer", async () => {
+  const { status, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1", edited_text: "Book now for 20% off!" },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: { tool_calls: { opt_out_acknowledgement: true } },
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("only staff can send the acknowledgement; any other draft to an opted-out customer is refused", async () => {
+  const internal = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    humans: OPTED_OUT,
+    draft: { tool_calls: { opt_out_acknowledgement: true } },
+  });
+  assertEquals(internal.status, 409);
+  assertEquals(metaCalls(internal.calls), 0);
+
+  const ordinary = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    staff: true,
+    humans: OPTED_OUT,
+    draft: { tool_calls: { reason: "booking_propose" } },
+  });
+  assertEquals(ordinary.status, 409);
+  assertEquals(metaCalls(ordinary.calls), 0);
+});

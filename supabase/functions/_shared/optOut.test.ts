@@ -71,9 +71,12 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Never text me again please",
     "no more messages thanks",
     "Take me off your list",
-    "remove my number from this",
-    "I'd like to opt out of these",
+    "remove my number from your list",
+    "Please remove me from this chat",
+    "I'd like to opt out of these messages",
+    "opt me out please",
     "Can you unsubscribe me",
+    "Don't text me.",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -90,6 +93,13 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Could you contact me about Bella's groom",
     "No more than £50 please",
     "I need to stop his medication before the groom",
+    // Phrases that share the words but ask for something else (#1016 review)
+    "Can we opt out of the nail clip this time?",
+    "Please take me off the waiting list",
+    "Take me off the waitlist, we found a slot",
+    "Remove my old number and use this one",
+    "Don't message me before 9 please",
+    "Don't text me until he's ready, I'll be in a meeting",
     "",
     null,
     undefined,

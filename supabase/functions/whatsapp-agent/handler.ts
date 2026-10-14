@@ -2874,7 +2874,8 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // the customer so whatsapp-send refuses every later WhatsApp to
           // them, switch off auto-send on the thread, and leave staff one
           // acknowledgement draft that they (not the AI) decide whether to
-          // send. Nothing is sent here. Unknown numbers have no record to
+          // send; whatsapp-send accepts that one draft from staff, unedited.
+          // Nothing is sent here. Unknown numbers have no record to
           // flag, so they just get the draft. Skipped on forceDraft so a
           // staff re-generate stays side-effect free (#990).
           if (!forceDraft && isOptOutRequest(text)) {
@@ -2913,8 +2914,11 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                 extracted_state: null,
               };
               try {
+                // The marker lets whatsapp-send accept this one draft from a
+                // member of staff, unedited, despite the opt-out it records.
                 await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
                   reason: "opt_out: the customer asked us to stop messaging them",
+                  opt_out_acknowledgement: true,
                 });
               } catch (err) {
                 console.error("opt-out draft save failed (non-fatal):", err);

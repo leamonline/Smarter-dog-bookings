@@ -9,11 +9,13 @@
   the flag, so staff template/compose sends and the agent's own modes could
   still message an opted-out customer. Staff may pass `override_opt_out` for a
   message the customer must still receive; AI-initiated and internal-secret
-  sends cannot.
+  sends cannot. Any customer record on a shared number counts, and a
+  failed lookup refuses the send (503) rather than sending unchecked.
 - The agent recognises a customer asking us to stop (`STOP`, `unsubscribe`,
   "please stop messaging me", "take me off your list"): it sets the flag,
   switches auto-send off on the thread, sends nothing, and leaves staff one
-  acknowledgement draft to decide on. Policy and detector live in
+  acknowledgement draft to decide on; Send on that draft, unedited, is the
+  explicit staff override. Policy and detector live in
   `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and a
   tested `handler.ts`, like the agent.
 

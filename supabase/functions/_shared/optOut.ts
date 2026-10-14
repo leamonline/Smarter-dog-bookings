@@ -63,19 +63,31 @@ export function phoneLookupCandidates(phone: string): string[] {
 }
 
 // A request to stop, in the words customers actually use. Deliberately narrow:
-// a false positive silences someone who wanted a groom, so "stop by", "pop in"
-// and "message me when he's ready" must not match. Standalone STOP /
-// UNSUBSCRIBE / OPT OUT (the carrier conventions) match on their own; longer
-// sentences need a stop-verb aimed at us ("stop messaging me", "don't text me
-// again", "take me off your list").
+// a false positive flags a customer as opted out and silences their thread,
+// so salon phrases that share the words must not match: "stop by", "can we
+// opt out of the nail clip?", "take me off the waiting list", "remove my old
+// number", "don't message me before 9". Standalone STOP / UNSUBSCRIBE /
+// OPT OUT (the carrier conventions) match on their own; longer sentences need
+// the request aimed at our messages or our list.
 export const OPT_OUT_PATTERNS: readonly RegExp[] = [
+  // "STOP", "please stop", "Unsubscribe.", "opt out!"
   /^\s*(?:please\s+)?(?:stop|unsubscribe|opt[\s-]?out)\s*[.!]*\s*$/i,
+  // "stop messaging me", "please stop sending me these"
   /\b(?:stop|quit|cease)\s+(?:texting|messaging|contacting|whatsapping|sending)\s+(?:me|us)\b/i,
-  /\b(?:don'?t|do\s+not|never|stop)\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more))?\b/i,
+  // "don't text me again", "never message me any more", "do not contact me."
+  // (bare "don't message me" only at the end, so "don't message me before 9"
+  // and "don't text me until he's ready" are scheduling, not opt-out)
+  /\b(?:don'?t|do\s+not|never)\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$)/i,
+  // "no more messages", "no further texts"
   /\bno\s+(?:more|further)\s+(?:messages|texts|whatsapps?)\b/i,
-  /\b(?:take|remove)\s+(?:me|us|my\s+number)\s+(?:off|from)\b/i,
+  // "take me off your list", "remove my number from this chat"; never a
+  // waiting list, which is a booking request
+  /\b(?:take|remove)\s+(?:me|us|my\s+number)\s+(?:off|from)\s+(?:your|the|this)\s+(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:list|chat)\b/i,
+  // "unsubscribe me", "how do I unsubscribe"
   /\bunsubscribe\b/i,
-  /\bopt(?:ed|ing)?[\s-]?out\b/i,
+  // "opt me out", "opt out of these messages"; never "opt out of the nail clip"
+  /\bopt\s+(?:me|us)\s+out\b/i,
+  /\bopt(?:ed|ing)?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?)\b/i,
 ];
 
 /** True when the message is the customer asking us not to message them. */

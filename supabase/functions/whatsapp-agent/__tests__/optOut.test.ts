@@ -67,6 +67,8 @@ Deno.test("STOP flags the customer, switches auto-send off, sends nothing and le
   assertEquals(drafts[0].handoff_required, true);
   assertEquals(drafts[0].auto_send_eligible, false);
   assertStringIncludes(String(drafts[0].proposed_text), "stopped WhatsApp messages");
+  // The marker whatsapp-send needs before it lets staff send this one draft.
+  assertEquals((drafts[0].tool_calls as Record<string, unknown>).opt_out_acknowledgement, true);
 });
 
 Deno.test("a sentence form is recognised too", async () => {
