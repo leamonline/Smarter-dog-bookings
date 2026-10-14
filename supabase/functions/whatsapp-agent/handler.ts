@@ -88,7 +88,7 @@ import {
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
-import { isOptOutRequest, phoneLookupCandidates, ukNationalDigits, ukPhoneMatchPattern } from "../_shared/optOut.ts";
+import { isOptOutRequest, phoneMatchKey, phoneMatchPattern } from "../_shared/optOut.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
 import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
@@ -2890,19 +2890,18 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             const optOutIds = new Set<string>();
             if (conversation.human_id) optOutIds.add(conversation.human_id);
             const senderPhone = conversation.phone_e164 ?? "";
-            const phonePattern = ukPhoneMatchPattern(senderPhone);
-            const phoneCandidates = phoneLookupCandidates(senderPhone);
-            if (phonePattern || phoneCandidates.length > 0) {
-              const phoneQuery = supabase.from("humans").select("id, phone");
-              const { data: onNumber, error: lookupErr } = phonePattern
-                ? await phoneQuery.filter("phone", "match", phonePattern)
-                : await phoneQuery.in("phone", phoneCandidates);
+            const phonePattern = phoneMatchPattern(senderPhone);
+            if (phonePattern) {
+              const { data: onNumber, error: lookupErr } = await supabase
+                .from("humans")
+                .select("id, phone")
+                .filter("phone", "match", phonePattern);
               if (lookupErr) {
                 throw new Error(`STOP not recorded: could not look up customers on this number (${lookupErr.message})`);
               }
-              const senderDigits = ukNationalDigits(senderPhone);
+              const senderKey = phoneMatchKey(senderPhone);
               for (const row of (onNumber ?? []) as { id: string; phone: string | null }[]) {
-                if (!senderDigits || ukNationalDigits(row.phone) === senderDigits) optOutIds.add(row.id);
+                if (phoneMatchKey(row.phone) === senderKey) optOutIds.add(row.id);
               }
             }
             if (optOutIds.size > 0) {
@@ -2939,7 +2938,23 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               // For an unknown number this is the only suppression we have.
               throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
             }
+            // One pending acknowledgement per conversation: a customer who
+            // repeats STOP must not leave a queue of them for staff to send
+            // one after another despite the opt-out (#1016 review). If the
+            // check itself fails, add none; the opt-out is already stored.
+            let acknowledgementPending = false;
             if (conversation.state === "ai_handling") {
+              const { data: pendingAck, error: ackErr } = await supabase
+                .from("whatsapp_drafts")
+                .select("id")
+                .eq("conversation_id", conversation.id)
+                .eq("state", "pending")
+                .eq("tool_calls->>opt_out_acknowledgement", "true")
+                .limit(1);
+              if (ackErr) console.error("opt-out: pending acknowledgement check failed (non-fatal):", ackErr.message);
+              acknowledgementPending = !!ackErr || (pendingAck ?? []).length > 0;
+            }
+            if (conversation.state === "ai_handling" && !acknowledgementPending) {
               const policy: DraftPolicy = {
                 riskLevel: "high",
                 handoffRequired: true,

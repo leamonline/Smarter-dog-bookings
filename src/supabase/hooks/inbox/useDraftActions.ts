@@ -22,7 +22,7 @@ import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
-import { SEND_FUNCTION_PATH } from "./helpers";
+import { parseSupabaseFunctionError, SEND_FUNCTION_PATH } from "./helpers";
 
 /** The draft fields this hook reads; the thread holds the full whatsapp_drafts row. */
 export interface PendingDraft {
@@ -90,7 +90,9 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
       });
 
       if (error) {
-        return { ok: false, reason: error.message ?? String(error), detail: data };
+        // A non-2xx (an opt-out refusal, say) arrives as a FunctionsHttpError
+        // whose own message is generic; the reason is in the response body.
+        return { ok: false, reason: await parseSupabaseFunctionError(error, "Send failed"), detail: data };
       }
       if (data?.error) {
         return { ok: false, reason: data.error, detail: data };
@@ -165,7 +167,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
       });
 
       if (error) {
-        return { ok: false, reason: error.message ?? String(error), detail: data };
+        return { ok: false, reason: await parseSupabaseFunctionError(error, "Send failed"), detail: data };
       }
       if (data?.error) {
         return { ok: false, reason: data.error, detail: data };

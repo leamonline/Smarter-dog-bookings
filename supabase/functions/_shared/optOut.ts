@@ -51,18 +51,6 @@ export function decideOptOutSend(input: OptOutDecisionInput): OptOutDecision {
 }
 
 /**
- * The `humans.phone` values a WhatsApp E.164 number may have been stored as.
- * Mirrors the agent's lookup: "+447700900123", "447700900123", "07700900123".
- */
-export function phoneLookupCandidates(phone: string): string[] {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return [];
-  const e164 = `+${digits}`;
-  const ukLocal = digits.startsWith("44") ? `0${digits.slice(2)}` : null;
-  return [e164, digits, ukLocal].filter((value): value is string => !!value);
-}
-
-/**
  * The UK national significant number ("7700900123") for any way a UK number
  * may have been typed or stored: "+447700900123", "447700900123",
  * "07700 900123", "+44 (0)7700 900 123", "0044 7700-900123". Null for an
@@ -87,13 +75,43 @@ export function ukNationalDigits(phone: string | null | undefined): string | nul
  * `humans.phone` has no canonical form, so an exact-string lookup misses
  * "07700 900123" (#1016 review). Callers re-check each row with
  * `ukNationalDigits`, so the pattern only has to be permissive, never exact.
- * Null for a non-UK number: use `phoneLookupCandidates` instead.
+ * Null for a non-UK number: `phoneMatchPattern` covers those.
  */
 export function ukPhoneMatchPattern(phone: string | null | undefined): string | null {
   const national = ukNationalDigits(phone);
   if (!national) return null;
   const sep = "[^0-9]*";
   return `^${sep}(?:(?:00)?44${sep}(?:0${sep})?|0${sep})${national.split("").join(sep)}${sep}$`;
+}
+
+/**
+ * The digits that identify a number for opt-out matching: the UK national
+ * number for a UK number however typed, otherwise the international digits
+ * without a "00" prefix ("+33 6 12 34 56 78" and "0033612345678" both give
+ * "33612345678"). Null when there are too few digits to be a phone number.
+ */
+export function phoneMatchKey(phone: string | null | undefined): string | null {
+  const uk = ukNationalDigits(phone);
+  if (uk) return uk;
+  let digits = (phone ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  return digits.length >= 7 ? digits : null;
+}
+
+/**
+ * The formatting-tolerant PostgREST `match` pattern for any number: the UK
+ * pattern above, or for an international number its digits with anything
+ * that is not a digit allowed between them and an optional "00" prefix, so a
+ * canonical "+33612345678" finds "+33 6 12 34 56 78" (#1016 review). Callers
+ * confirm each row with `phoneMatchKey`. Null when there is nothing to match.
+ */
+export function phoneMatchPattern(phone: string | null | undefined): string | null {
+  const uk = ukPhoneMatchPattern(phone);
+  if (uk) return uk;
+  const key = phoneMatchKey(phone);
+  if (!key) return null;
+  const sep = "[^0-9]*";
+  return `^${sep}(?:00${sep})?${key.split("").join(sep)}${sep}$`;
 }
 
 // A request to stop, in the words customers actually use. Deliberately narrow:
@@ -114,13 +132,20 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   // (bare "don't message me" only at the end, so "don't message me before 9"
   // and "don't text me until he's ready" are scheduling, not opt-out)
   /\b(?:don'?t|do\s+not|never)\s+(?:text|message|contact|whatsapp)\s+(?:me|us)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$)/i,
+  // "please don't send me any more messages", "do not send me texts again",
+  // "never send us these reminders."; not "don't send me the reminder until
+  // Tuesday", which is scheduling
+  /\b(?:don'?t|do\s+not|never)\s+send\s+(?:me|us)\s+(?:(?:any\s*more|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:these|those|your|any|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$))/i,
   // "no more messages", "no further texts"
   /\bno\s+(?:more|further)\s+(?:messages|texts|whatsapps?)\b/i,
   // "take me off your list", "remove my number from this chat"; never a
   // waiting list, which is a booking request
   /\b(?:take|remove)\s+(?:me|us|my\s+number)\s+(?:off|from)\s+(?:your|the|this)\s+(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:list|chat)\b/i,
-  // "unsubscribe me", "how do I unsubscribe"
-  /\bunsubscribe\b/i,
+  // "please unsubscribe me", "how do I unsubscribe?", "unsubscribe me from
+  // these messages"; never "unsubscribe me from the waiting list", which is a
+  // booking request (#1016 review)
+  /\bunsubscribe(?:\s+(?:me|us))?\s*(?:please\s*)?[.!?]*\s*$/i,
+  /\bunsubscribe\s+(?:(?:me|us)\s+)?from\s+(?:(?:your|the|these|this|all)\s+)?(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:messages|texts|whatsapps?|reminders|marketing|updates|list|chats?)\b/i,
   // "opt me out", "opt out of these messages"; never "opt out of the nail clip"
   /\bopt\s+(?:me|us)\s+out\b/i,
   /\bopt(?:ed|ing)?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?)\b/i,

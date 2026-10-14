@@ -187,9 +187,9 @@ looks the recipient up before any mode calls Meta (by `human_id`, through the
 conversation, and by the destination phone in its three stored formats) and
 refuses with `409 whatsapp_opted_out` if **any** matching customer record has
 opted out: `humans.phone` is not unique, and opt-out belongs to the number.
-`humans.phone` has no canonical form either, so a UK number is matched however
-it was stored ("07700 900123", "+44 (0)7700 900 123") with a PostgREST `match`
-pattern, and each row's digits are re-checked in code. If
+`humans.phone` has no canonical form either, so a number is matched however
+it was stored ("07700 900123", "+44 (0)7700 900 123", "+33 6 12 34 56 78") with
+a PostgREST `match` pattern, and each row's digits are re-checked in code. If
 the lookup itself errors, the send is refused with a retryable
 `503 opt_out_check_failed` rather than sent unchecked. The notify-* functions' channel choice
 (`_shared/recipients.ts`) still skips opted-out customers first, but it is a
@@ -204,7 +204,8 @@ a negated "please don't stop messaging me" is not a stop) (`STOP`, `unsubscribe`
 `whatsapp_opted_out_reason = 'asked_on_whatsapp'`, switches auto-send off on the
 thread, sends nothing, and while the AI is handling the thread leaves one
 acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
-on. It flags **every** customer record on the sender's number, including one the
+on (never a second while one is still pending, so a repeated STOP cannot queue
+several). It flags **every** customer record on the sender's number, including one the
 conversation never linked because the number is stored formatted. A number with
 no customer record at all has nowhere to store the opt-out yet (only auto-send is
 switched off). If the flag or the auto-send switch-off cannot be stored, or the flag cannot
@@ -213,7 +214,9 @@ reading as processed. That draft carries `tool_calls.opt_out_acknowledgement`, a
 staff pressing Send on it **unedited** counts as the override; editing it, or
 any other draft, is refused like any other send. The detector is deliberately
 narrow and tested against salon phrases that share its words ("opt out of the
-nail clip", "take me off the waiting list", "don't message me before 9").
+nail clip", "take me off the waiting list", "unsubscribe me from the waiting
+list", "don't message me before 9"). In the inbox, a refused send shows its
+reason ("This customer has opted out of WhatsApp messages"), not a generic error.
 
 ## Kill switch
 

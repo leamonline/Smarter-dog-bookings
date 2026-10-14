@@ -378,3 +378,17 @@ Deno.test("a row the loose pattern returns but whose digits differ is not counte
   assertEquals(status, 200);
   assertEquals(metaCalls(calls), 1);
 });
+
+Deno.test("an opted-out customer on a formatted international number is still refused", async () => {
+  // validateContactPhone keeps a non-UK number as typed, so a canonical
+  // "+33612345678" must find "+33 6 12 34 56 78" (#1016 review).
+  const body = { ...TEMPLATE, to: "+33612345678" };
+  const refused = await run({ body, humans: [{ id: "h-fr", phone: "+33 6 12 34 56 78", whatsapp_opted_out: true }] });
+  assertEquals(refused.status, 409);
+  assertEquals(metaCalls(refused.calls), 0);
+  const lookup = refused.calls.find((c) => c.path === "/rest/v1/humans")!;
+  assert(decodeURIComponent(lookup.search).includes("phone=match."), decodeURIComponent(lookup.search));
+  // A different number the loose pattern happens to return is not counted.
+  const other = await run({ body, humans: [{ id: "h-fr2", phone: "+33 6 12 34 56 79", whatsapp_opted_out: true }] });
+  assertEquals(other.status, 200);
+});

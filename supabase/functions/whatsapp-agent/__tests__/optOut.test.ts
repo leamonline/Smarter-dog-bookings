@@ -30,6 +30,10 @@ interface Faults {
    * have a record on its number stored formatted (#1016 review).
    */
   onNumber?: { id: string; phone: string }[];
+  /** An acknowledgement draft from an earlier STOP is still pending. */
+  pendingAcknowledgement?: boolean;
+  /** The pending-acknowledgement lookup returns an error. */
+  acknowledgementLookupFails?: boolean;
 }
 
 async function send(text: string, state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -94,7 +98,14 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
       return reply(conversation);
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return method === "POST" ? reply({ id: "message-opt-out" }, 201) : reply([]);
-    if (url.pathname === "/rest/v1/whatsapp_drafts") return reply({ id: "draft-opt-out" }, 201);
+    if (url.pathname === "/rest/v1/whatsapp_drafts") {
+      if (method !== "GET") return reply({ id: "draft-opt-out" }, 201);
+      if (faults.acknowledgementLookupFails) return reply({ message: "connection reset" }, 500);
+      const isAckLookup = url.searchParams.get("tool_calls->>opt_out_acknowledgement") === "eq.true"
+        && url.searchParams.get("state") === "eq.pending"
+        && url.searchParams.get("conversation_id") === "eq.conv-opt-out";
+      return reply(isAckLookup && faults.pendingAcknowledgement ? [{ id: "draft-earlier-ack" }] : []);
+    }
     if (url.pathname === "/rest/v1/bookings") return reply([]);
     if (url.pathname === "/rest/v1/salon_todos") return method === "POST" ? reply(null, 201) : (url.searchParams.get("select") === "sort_order" ? reply({ sort_order: 3 }) : reply([]));
     if (url.pathname.endsWith("/functions/v1/whatsapp-send")) return reply({ ok: true, meta_message_id: "wamid.synthetic" });
@@ -205,4 +216,36 @@ Deno.test("every record on the number is flagged, not just the linked one", asyn
   });
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humans.map((row) => row.whatsapp_opted_out), [true, true]);
+});
+
+Deno.test("a repeated STOP does not queue a second acknowledgement while one is pending", async () => {
+  // Staff would otherwise see the newest, send or reject it, and then find the
+  // older one resurface, sendable despite the opt-out (#1016 review).
+  const { drafts, eventPatch, humanRow, conversationPatches } = await send("STOP", "ai_handling", HUMAN, {
+    alreadyOptedOut: true,
+    pendingAcknowledgement: true,
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  assertEquals(conversationPatches.length, 1, "auto-send still switched off");
+  assertEquals(drafts.length, 0);
+});
+
+Deno.test("if the pending-acknowledgement check fails, the STOP is still recorded and no draft is added", async () => {
+  const { drafts, eventPatch, humanRow } = await send("STOP", "ai_handling", HUMAN, { acknowledgementLookupFails: true });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  assertEquals(drafts.length, 0);
+});
+
+Deno.test("STOP flags only the records whose digits match the sender, not a neighbouring number", async () => {
+  const { humans, eventPatch } = await send("STOP", "ai_handling", null, {
+    onNumber: [
+      { id: "human-uk", phone: "07700 900 444" },
+      { id: "human-other", phone: "07700 900 445" },
+    ],
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humans[0].whatsapp_opted_out, true);
+  assertEquals(humans[1].whatsapp_opted_out, false, "a different number is untouched");
 });

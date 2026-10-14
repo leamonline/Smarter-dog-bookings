@@ -14,8 +14,9 @@
 - The agent recognises a customer asking us to stop (`STOP`, `unsubscribe`,
   "please stop messaging me", "take me off your list"): it sets the flag,
   switches auto-send off on the thread, sends nothing, and leaves staff one
-  acknowledgement draft to decide on; Send on that draft, unedited, is the
-  explicit staff override. Policy and detector live in
+  acknowledgement draft to decide on (one at a time); Send on that draft,
+  unedited, is the explicit staff override. A refused send shows staff its
+  reason in the inbox. Policy and detector live in
   `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and a
   tested `handler.ts`, like the agent.
 

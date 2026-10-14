@@ -1,5 +1,12 @@
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { decideOptOutSend, isOptOutRequest, phoneLookupCandidates, ukNationalDigits, ukPhoneMatchPattern } from "./optOut.ts";
+import {
+  decideOptOutSend,
+  isOptOutRequest,
+  phoneMatchKey,
+  phoneMatchPattern,
+  ukNationalDigits,
+  ukPhoneMatchPattern,
+} from "./optOut.ts";
 
 Deno.test("an opted-out customer is refused whoever is sending", () => {
   const recipient = { whatsapp_opted_out: true };
@@ -49,13 +56,6 @@ Deno.test("a customer who has not opted out, or an unknown number, is allowed", 
   );
 });
 
-Deno.test("phone candidates cover the three stored formats", () => {
-  assertEquals(phoneLookupCandidates("+447700900123"), ["+447700900123", "447700900123", "07700900123"]);
-  assertEquals(phoneLookupCandidates("447700900123"), ["+447700900123", "447700900123", "07700900123"]);
-  assertEquals(phoneLookupCandidates("+33123456789"), ["+33123456789", "33123456789"]);
-  assertEquals(phoneLookupCandidates(""), []);
-});
-
 Deno.test("recognises the ways customers ask us to stop", () => {
   for (const text of [
     "STOP",
@@ -83,6 +83,17 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Don\u2019t message me again",
     "Don\u2019t text me.",
     "Please don\u2019t contact me any more",
+    // Codex re-review on #1016: "send" wordings and unsubscribe sentences
+    "Please don't send me any more messages",
+    "Please don\u2019t send me any more messages",
+    "Do not send me texts again",
+    "never send us these reminders.",
+    "don't send me messages anymore",
+    "Don't send me messages please",
+    "How do I unsubscribe?",
+    "Please unsubscribe me.",
+    "unsubscribe me from these messages",
+    "Can you unsubscribe me from your mailing list",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -113,6 +124,12 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Please don\u2019t stop sending me reminders, they help!",
     "I don't want you to stop texting me about Bella",
     "Never stop messaging me about his grooms",
+    // Codex re-review on #1016: shares the words, means something else
+    "Can you unsubscribe me from the waiting list?",
+    "Unsubscribe me from the waitlist please, we found a slot",
+    "Don't send me the reminder until Tuesday",
+    "Don't send me the reminders until he's back",
+    "Please don't send the invoice to my old email",
     "",
     null,
     undefined,
@@ -139,4 +156,21 @@ Deno.test("the phone pattern does not match a different number", () => {
   }
   assertEquals(ukPhoneMatchPattern("+33123456789"), null);
   assertEquals(ukNationalDigits(""), null);
+});
+
+Deno.test("an international number is matched however it was stored", () => {
+  const pattern = new RegExp(phoneMatchPattern("+33612345678")!);
+  for (const stored of ["+33612345678", "33612345678", "+33 6 12 34 56 78", "0033 6 12-34-56-78", "+33 (6) 12 34 56 78"]) {
+    assert(pattern.test(stored), `pattern matches ${stored}`);
+    assertEquals(phoneMatchKey(stored), "33612345678", stored);
+  }
+  for (const other of ["+33612345679", "+33 6 12 34 56 78 9", "+44612345678", "612345678"]) {
+    assert(!pattern.test(other), `no match: ${other}`);
+  }
+  // UK numbers keep the UK rules (national digits, trunk 0, "(0)").
+  assertEquals(phoneMatchPattern("+447700900123"), ukPhoneMatchPattern("+447700900123"));
+  assertEquals(phoneMatchKey("07700 900123"), "7700900123");
+  assertEquals(phoneMatchKey(""), null);
+  assertEquals(phoneMatchKey("12345"), null);
+  assertEquals(phoneMatchPattern(null), null);
 });
