@@ -19,7 +19,7 @@ const SALON_CONSTANTS_URL = new URL(
   import.meta.url,
 );
 const WHATSAPP_SEND_URL = new URL(
-  "../../../supabase/functions/whatsapp-send/index.ts",
+  "../../../supabase/functions/whatsapp-send/handler.ts",
   import.meta.url,
 );
 
