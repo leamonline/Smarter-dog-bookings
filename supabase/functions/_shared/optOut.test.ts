@@ -138,6 +138,10 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Please do not send any more messages",
     "Don't send messages anymore",
     "STOP. Thanks",
+    // Codex review of 38a3530: a subject before the sending verb
+    "I don't want you to send me any more messages",
+    "I don't want you to message me anymore",
+    "I no longer want you to text me",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -207,6 +211,9 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Stop messaging me, just for this week",
     "Please do not send any more messages, until I'm back from holiday",
     "Don't send messages before 9",
+    "I don't want you to message me before 9",
+    "I don't want you to text me about Bella",
+    "I don't want you to send me the invoice",
     "",
     null,
     undefined,

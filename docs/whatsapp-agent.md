@@ -217,18 +217,21 @@ never automatically:
 - Refused (`P0001`, detail `whatsapp_reenable_needs_permission`):
   unticking `humans.whatsapp_opted_out` when the opt-out came from a STOP or
   the record's old or new number is still stopped (an untick hidden in a save
-  that also changes the number included); relabelling a STOP's reason; and
-  clearing `whatsapp_conversations.whatsapp_opted_out_at` directly. An opt-out
+  that also changes the number included); relabelling a STOP's reason;
+  clearing `whatsapp_conversations.whatsapp_opted_out_at` directly; and
+  moving a stopped conversation to another number or channel. An opt-out
   staff set for another reason, on a number that never said STOP, can still
   be unticked.
 - A record already opted out for another reason is marked as a STOP (keeping
   its own time) when its number says STOP, so a later number change cannot
   hide the STOP.
 - The one way back is `staff_reenable_whatsapp_number(phone, human_ids,
-  permission_note)`, staff only. Staff first read
-  `staff_whatsapp_number_opt_out_scope(phone)`: when the number said STOP and
-  every opted-out record on it, with each record's reason. The re-enable
-  must name **exactly** those records, whatever their reasons, and record how
+  last_stop_at, permission_note)`, staff only. Staff first read
+  `staff_whatsapp_number_opt_out_scope(phone)`: when the number first and
+  last said STOP (`whatsapp_last_stop_at` records repeats) and every
+  opted-out record on it, with each record's reason. The re-enable must name
+  **exactly** those records, whatever their reasons, and the latest STOP it
+  showed, so a STOP sent after staff looked is never cleared unseen; and record how
   the customer gave permission again (at least ten characters). It locks the
   number's conversations and every customer record on the number before it
   reads the scope, so an opt-out in flight is waited for. If anyone was
@@ -294,8 +297,8 @@ as a STOP:
   messaging", "please stop sending messages", "how do I stop these
   messages?", "why won't you stop messaging me?", "don't ever message me
   again", "can you not message me any more", "don't send me any more
-  messages", "please do not send any more messages", "I don't want any more
-  messages", "I no longer want to receive
+  messages", "please do not send any more messages", "I don't want you to
+  message me anymore", "I don't want any more messages", "I no longer want to receive
   messages", "no more messages please", "take me off your list". Curly
   apostrophes count.
 

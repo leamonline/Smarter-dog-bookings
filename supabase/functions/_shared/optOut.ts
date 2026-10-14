@@ -172,6 +172,10 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   // "I don't want your messages."; not "I don't want the reminder moved"
   // or "I don't want messages before 9"
   new RegExp(String.raw`\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:to\s+(?:receive|get)\s+)?(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+${MESSAGES}\b|(?:(?:any|these|your|the)\s+)?${MESSAGES}(?:\s+(?:again|any\s*more|from\s+(?:you|the\s+salon|smarter\s+dog))\b|${TAIL}))`, "i"),
+  // "I don't want you to send me any more messages", "I don't want you to
+  // message me anymore"; not "I don't want you to message me before 9" or
+  // "I don't want you to text me about Bella" (#1016 review)
+  new RegExp(String.raw`\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:you|u|the\s+salon|anyone)\s+to\s+(?:(?:text|message|contact|whatsapp)\s+(?:me|us)|send\s+(?:me|us)\s+(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+)?${OUR}${MESSAGES})(?:\s+(?:again|any\s*more)\b|${TAIL})`, "i"),
   // "No more messages please", "no further texts": as the whole clause, never
   // in a report such as "I got the reminder but no more messages came through"
   new RegExp(String.raw`^(?:please\s+)?no\s+(?:more|further)\s+${MESSAGES}` + TAIL, "i"),

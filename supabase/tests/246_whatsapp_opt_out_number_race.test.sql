@@ -213,7 +213,9 @@ select v from extensions.dblink('customer',
   'select set_config(''request.jwt.claims'', ''{"sub":"24600000-0000-4000-8000-000000000041","role":"authenticated"}'', true)') as t(v text);
 select v from extensions.dblink('customer',
   'select public.staff_reenable_whatsapp_number(''07700900463'',
-     array[''24600000-0000-4000-8000-000000000013'']::uuid[], ''Customer phoned to ask for reminders again'')::text') as t(v text);
+     array[''24600000-0000-4000-8000-000000000013'']::uuid[],
+     (select whatsapp_last_stop_at from public.whatsapp_conversations where id = ''24600000-0000-4000-8000-000000000003''),
+     ''Customer phoned to ask for reminders again'')::text') as t(v text);
 
 select extensions.dblink_exec('stop', 'begin isolation level read committed');
 select extensions.dblink_exec('stop', 'set local lock_timeout = ''8s''');
@@ -261,7 +263,7 @@ select v from extensions.dblink('stop',
 select is(
   extensions.dblink_send_query('stop',
     'select public.staff_reenable_whatsapp_number(''07700900464'',
-       array[''24600000-0000-4000-8000-000000000014'']::uuid[], ''Customer phoned to ask for reminders again'')::text'),
+       array[''24600000-0000-4000-8000-000000000014'']::uuid[], null, ''Customer phoned to ask for reminders again'')::text'),
   1,
   'a re-enable is made on an independent backend while another record on the number is being opted out'
 );

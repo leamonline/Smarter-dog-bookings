@@ -30,9 +30,10 @@
     against concurrent writes;
   - refuses any ordinary edit that would undo a STOP (an untick, including
     after a number change; relabelling its reason; clearing the number's
-    suppression). Re-enabling is `staff_reenable_whatsapp_number`: staff
+    suppression; moving its conversation to another number). Re-enabling is `staff_reenable_whatsapp_number`: staff
     confirm every opted-out record on the number (shown by
-    `staff_whatsapp_number_opt_out_scope`) and record the customer's renewed
+    `staff_whatsapp_number_opt_out_scope`) and the latest STOP it showed,
+    and record the customer's renewed
     permission, audited in the new `whatsapp_opt_out_reenables`;
   - adds a unique index allowing one pending acknowledgement per conversation.
 - A refused send shows staff its reason in the inbox. Policy and detector live

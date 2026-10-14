@@ -10,7 +10,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(56);
 
 -- Act as a member of staff: only staff may change a customer's phone
 -- (prevent_customer_critical_column_update). The staff fixture alone is
@@ -144,6 +144,10 @@ select throws_ok(
   $$update public.whatsapp_conversations set whatsapp_opted_out_at = null where id = '24400000-0000-4000-8000-000000000001'$$,
   'P0001', null, 'clearing the number''s own STOP directly is refused'
 );
+select throws_ok(
+  $$update public.whatsapp_conversations set phone_e164 = '+447700900499' where id = '24400000-0000-4000-8000-000000000001'$$,
+  'P0001', null, 'and so is moving the stopped conversation to another number'
+);
 select is(
   (select count(*)::int from public.humans
     where id in ('24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000013', '24400000-0000-4000-8000-000000000015')
@@ -176,19 +180,27 @@ select is(
   'the scope lists every opted-out record on the number'
 );
 select is(
-  (public.staff_whatsapp_number_opt_out_scope('+447700900441') ->> 'number_stopped_at')::timestamptz,
-  '2026-10-14 09:00:00+00'::timestamptz, 'and when the number said STOP'
+  array[(public.staff_whatsapp_number_opt_out_scope('+447700900441') ->> 'number_stopped_at')::timestamptz,
+        (public.staff_whatsapp_number_opt_out_scope('+447700900441') ->> 'last_stop_at')::timestamptz],
+  array['2026-10-14 09:00:00+00'::timestamptz, '2026-10-14 10:30:00+00'::timestamptz],
+  'and when the number first and last said STOP'
 );
 
 -- ── Re-enabling: renewed permission, the whole scope, audited ───────
 select throws_ok(
-  $$select public.staff_reenable_whatsapp_number('07700900441', array['24400000-0000-4000-8000-000000000011']::uuid[], 'Customer phoned to ask for reminders again')$$,
+  $$select public.staff_reenable_whatsapp_number('07700900441', array['24400000-0000-4000-8000-000000000011']::uuid[], '2026-10-14 10:30:00+00'::timestamptz, 'Customer phoned to ask for reminders again')$$,
   'P0001', null, 're-enabling only part of the number is refused'
 );
 select throws_ok(
   $$select public.staff_reenable_whatsapp_number('07700900441',
-      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], 'ok')$$,
+      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], '2026-10-14 10:30:00+00'::timestamptz, 'ok')$$,
   'P0001', null, 'and so is a re-enable without the customer''s renewed permission recorded'
+);
+select throws_ok(
+  $$select public.staff_reenable_whatsapp_number('07700900441',
+      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[],
+      '2026-10-14 09:00:00+00'::timestamptz, 'Customer phoned to ask for reminders again')$$,
+  'P0001', null, 'and so is one confirming a STOP older than the latest: the number said STOP again since'
 );
 select is(
   (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000001'),
@@ -199,7 +211,7 @@ select is(
 select set_config('request.jwt.claims', '{"sub":"24400000-0000-4000-8000-000000000099","role":"authenticated"}', true);
 select throws_ok(
   $$select public.staff_reenable_whatsapp_number('07700900441',
-      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], 'Customer phoned to ask for reminders again')$$,
+      array['24400000-0000-4000-8000-000000000011', '24400000-0000-4000-8000-000000000015']::uuid[], '2026-10-14 10:30:00+00'::timestamptz, 'Customer phoned to ask for reminders again')$$,
   '42501', null, 'only staff can re-enable'
 );
 select throws_ok(
@@ -210,7 +222,7 @@ select set_config('request.jwt.claims', '{"sub":"24400000-0000-4000-8000-0000000
 
 select lives_ok(
   $$select public.staff_reenable_whatsapp_number('+44 7700 900441',
-      array['24400000-0000-4000-8000-000000000015', '24400000-0000-4000-8000-000000000011']::uuid[], 'Customer phoned to ask for reminders again')$$,
+      array['24400000-0000-4000-8000-000000000015', '24400000-0000-4000-8000-000000000011']::uuid[], '2026-10-14 10:30:00+00'::timestamptz, 'Customer phoned to ask for reminders again')$$,
   'confirming every record on the number with the renewed permission re-enables it'
 );
 select is(
@@ -245,7 +257,7 @@ select is(
   false, 'and a record created on the number afterwards is not opted out'
 );
 select throws_ok(
-  $$select public.staff_reenable_whatsapp_number('07700900441', '{}'::uuid[], 'Customer phoned to ask for reminders again')$$,
+  $$select public.staff_reenable_whatsapp_number('07700900441', '{}'::uuid[], null, 'Customer phoned to ask for reminders again')$$,
   'P0001', null, 'a number that is not switched off has nothing to re-enable'
 );
 
@@ -307,7 +319,7 @@ select is(
   (select count(*)::int
      from unnest(array[
        'public.staff_whatsapp_number_opt_out_scope(text)',
-       'public.staff_reenable_whatsapp_number(text, uuid[], text)'
+       'public.staff_reenable_whatsapp_number(text, uuid[], timestamptz, text)'
      ]) as f(sig)
     where has_function_privilege('anon', f.sig, 'execute')),
   0, 'anon cannot reach the staff re-enable functions'
