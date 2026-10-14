@@ -182,44 +182,80 @@ AI-initiated send that passes the five above:
 
 ## Customer opt-out
 
-`humans.whatsapp_opted_out` is enforced in **one place**: `whatsapp-send`
-looks the recipient up before any mode calls Meta (by `human_id`, through the
-conversation, and by the destination phone in its three stored formats) and
-refuses with `409 whatsapp_opted_out` if **any** matching customer record has
-opted out: `humans.phone` is not unique, and opt-out belongs to the number.
-`humans.phone` has no canonical form either, so a number is matched however
-it was stored ("07700 900123", "+44 (0)7700 900 123", "+33 6 12 34 56 78") with
-a PostgREST `match` pattern, and each row's digits are re-checked in code. If
-the lookup itself errors, the send is refused with a retryable
-`503 opt_out_check_failed` rather than sent unchecked. The notify-* functions' channel choice
-(`_shared/recipients.ts`) still skips opted-out customers first, but it is a
-courtesy, not the boundary. A member of staff sending from the dashboard can
-pass `override_opt_out: true` for the rare operational message a customer must
-still receive; the override is ignored on AI-initiated sends and on
-internal-secret calls. Policy and the detector live in `_shared/optOut.ts`.
+A WhatsApp opt-out belongs to the **number**. The contract (#990, #1016):
 
-The agent recognises a customer asking us to stop (curly apostrophes included;
-a negated "please don't stop messaging me" is not a stop) (`STOP`, `unsubscribe`,
-"please stop messaging me", "take me off your list"): it sets the flag with
-`whatsapp_opted_out_reason = 'asked_on_whatsapp'`, switches auto-send off on the
-thread, sends nothing, and while the AI is handling the thread leaves one
-acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
-on (never a second while one is still pending, so a repeated STOP cannot queue
-several; if two STOPs race, the newer acknowledgement is marked `superseded`,
-which whatsapp-send will not send). When one webhook batches several messages, a STOP among them is
-handled first, so an earlier message in the batch is never answered after it;
-the inbox preview still shows the newest message. It flags **every** customer record on the sender's number, including one the
-conversation never linked because the number is stored formatted. A number with
-no customer record at all has nowhere to store the opt-out yet (only auto-send is
-switched off). If the flag or the auto-send switch-off cannot be stored, or the flag cannot
-be read back as set, the event fails (visible as an agent failure) rather than
-reading as processed. That draft carries `tool_calls.opt_out_acknowledgement`, and a member of
-staff pressing Send on it **unedited** counts as the override; editing it, or
-any other draft, is refused like any other send. The detector is deliberately
-narrow and tested against salon phrases that share its words ("opt out of the
-nail clip", "take me off the waiting list", "unsubscribe me from the waiting
-list", "opt me out of the nail clip", "don't message me before 9"). In the inbox, a refused send shows its
-reason ("This customer has opted out of WhatsApp messages"), not a generic error.
+**Where it is stored.** A STOP is stored in two places, and both are read
+back before the agent reports the event processed. If either cannot be
+stored or confirmed, the event fails and shows as an agent failure.
+- `whatsapp_conversations.whatsapp_opted_out_at` holds the number's own
+  suppression. It is the whole suppression for a number with no customer
+  record, and a repeat STOP keeps the first time.
+- `humans.whatsapp_opted_out` is set (reason `asked_on_whatsapp`) on **every**
+  customer record carrying the number, including one the conversation never
+  linked because its phone is stored formatted.
+
+Migration `20261014120000_whatsapp_number_opt_out` keeps the two in step in
+the database:
+- a record created with, or changed to, a stopped number is flagged as it is
+  written;
+- linking a stopped conversation to a customer flags that customer;
+- switching WhatsApp back on for a customer (whatsapp_opted_out true → false,
+  the one undo control) clears the number's suppression.
+
+Numbers are matched however they were typed ("07700 900123",
+`+44 (0)7700 900 123`, "+33 6 12 34 56 78"). In code this is `phoneMatchKey`
+in `_shared/optOut.ts`; in SQL it is `public.whatsapp_phone_key`, pinned to
+the same cases.
+
+**Where it is enforced.** Every WhatsApp send path checks it:
+- `whatsapp-send`, in every mode (draft, manual, template, confirm_buttons,
+  flow, book_entry, list) and for every caller (inbox, agent, reminders,
+  confirmations, broadcast, apply-customer-confirm). It refuses with
+  `409 whatsapp_opted_out` if the number's conversation is suppressed or
+  **any** customer record found by `human_id`, through the conversation, or by
+  the destination phone has opted out. A failed lookup refuses with a retryable
+  `503 opt_out_check_failed` instead of sending unchecked.
+- The notify functions that send WhatsApp through Twilio (booking ready,
+  booking cancelled) never reach `whatsapp-send`. They choose a channel with
+  `_shared/recipients.ts`, which never picks WhatsApp for an opted-out
+  customer. That is why the database keeps `humans.whatsapp_opted_out` in step
+  with the number.
+
+**The one exception.** When the AI is handling the thread, the agent leaves
+staff one acknowledgement draft for the STOP (`fallbackReplyForIntent("opt_out")`,
+marked `tool_calls.opt_out_acknowledgement`).
+- Only a signed-in member of staff pressing Send on that stored draft,
+  **unedited**, may send it. The marker is read from the stored draft, never
+  from the request.
+- Editing it, sending it from an AI or internal call, or any other draft or
+  manual reply is refused.
+- The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
+  pending acknowledgement per conversation, so a repeated or concurrent STOP
+  cannot queue a second. The agent treats the refusal as expected.
+- Separately, staff may pass `override_opt_out: true` for the rare operational
+  message a customer must still receive. It is ignored for AI-initiated sends
+  and internal-secret calls.
+
+**Recognising a STOP.** The detector is deliberately narrow. Each line below
+counts as a STOP:
+- The carrier words on their own: `STOP`, `unsubscribe`, `opt out`.
+- Requests aimed at our messages: "please stop sending these messages", "don't
+  send me any more messages", "I don't want any more messages", "I no longer
+  want to receive messages", "take me off your list". Curly apostrophes count.
+
+Each of these must not count, and is tested:
+- Salon phrases that share the words: "opt me out of the nail clip",
+  "unsubscribe me from the waiting list", "don't message me before 9", "I
+  don't want messages before 9".
+- A negated stop: "please don't stop messaging me".
+
+**Ordering.** One webhook can carry several messages. A STOP among them is
+handled first, so no earlier message in the batch is answered after it. The
+inbox preview still shows the batch's newest message. A staff re-generate
+(`force_draft`) never acts on a STOP.
+
+In the inbox, a refused send shows its reason ("This customer has opted out of
+WhatsApp messages"), not a generic error.
 
 ## Kill switch
 

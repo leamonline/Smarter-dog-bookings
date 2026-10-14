@@ -447,8 +447,11 @@ async function checkAiMessagingPermission(
  * shared number one customer stopped must not slip through on another row.
  * Records are found through the explicit `human_id`, the conversation (a
  * draft's or `conversation_id`'s linked customer and its phone), and the
- * destination phone `to` in its three stored formats. `null` means no record
- * matched: an unknown number cannot have opted out.
+ * destination phone `to`, matched however it was stored. The number itself
+ * counts too: a conversation carrying `whatsapp_opted_out_at` (a STOP from a
+ * number with no customer record, migration 20261014120000) is opted out
+ * whether or not a customer record exists or is later linked. `null` means
+ * nothing matched and nothing on the number asked us to stop.
  *
  * `optOutAcknowledgement` is true for one draft only: the acknowledgement the
  * agent writes when a customer sends STOP (it carries
@@ -502,11 +505,27 @@ async function resolveOptOutContext(
     const rows = ((data as (OptOutRecipient & { phone: string | null })[] | null) ?? [])
       .filter((row) => phoneMatchKey(row.phone) === target);
     found.push(...rows);
+    // The number's own suppression, for a STOP with no customer record.
+    const { data: convs, error: convErr } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, phone_e164, whatsapp_opted_out_at")
+      .eq("channel", "whatsapp")
+      .filter("phone_e164", "match", pattern);
+    if (convErr) {
+      console.error("whatsapp-send: opt-out number lookup failed:", convErr.message);
+      failed = true;
+      return;
+    }
+    for (const conv of (convs ?? []) as { phone_e164: string | null; whatsapp_opted_out_at: string | null }[]) {
+      if (conv.whatsapp_opted_out_at && phoneMatchKey(conv.phone_e164) === target) {
+        found.push({ whatsapp_opted_out: true });
+      }
+    }
   };
   const byConversation = async (conversationId: string) => {
     const { data, error } = await supabase
       .from("whatsapp_conversations")
-      .select("human_id, phone_e164")
+      .select("human_id, phone_e164, whatsapp_opted_out_at")
       .eq("id", conversationId)
       .maybeSingle();
     if (error) {
@@ -514,8 +533,9 @@ async function resolveOptOutContext(
       failed = true;
       return;
     }
-    const conv = data as { human_id: string | null; phone_e164: string | null } | null;
+    const conv = data as { human_id: string | null; phone_e164: string | null; whatsapp_opted_out_at: string | null } | null;
     if (!conv) return;
+    if (conv.whatsapp_opted_out_at) found.push({ whatsapp_opted_out: true });
     if (conv.human_id) await byId(conv.human_id);
     if (conv.phone_e164) await byPhone(conv.phone_e164);
   };

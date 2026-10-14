@@ -2888,23 +2888,52 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
 
           // "STOP" / "please stop messaging me": the customer is asking us not
           // to message them. Honour it before anything else
-          // (the reminder-confirm stamp included) can act on the message: flag
-          // the customer so whatsapp-send refuses every later WhatsApp to
-          // them, switch off auto-send on the thread, and leave staff one
-          // acknowledgement draft that they (not the AI) decide whether to
-          // send; whatsapp-send accepts that one draft from staff, unedited.
-          // Nothing is sent here. Unknown numbers have no record to
-          // flag, so they just get the draft. Skipped on forceDraft so a
-          // staff re-generate stays side-effect free (#990).
+          // (the reminder-confirm stamp included) can act on the message:
+          // store the opt-out on the number and on every customer record
+          // carrying it, so whatsapp-send refuses every later WhatsApp; switch
+          // off auto-send on the thread; and leave staff one acknowledgement
+          // draft that they (not the AI) decide whether to send. whatsapp-send
+          // accepts that one draft from staff, unedited. Nothing is sent
+          // here. Skipped on forceDraft so a staff re-generate stays side-
+          // effect free (#990).
           if (!forceDraft && isOptOutRequest(text)) {
             // A suppression that is not stored is not honoured: every write
-            // here must land, or the event fails (visible to staff as an
-            // agent failure) rather than reading as processed (AGENTS.md:
-            // never infer an outcome from an attempted write).
-            // Opt-out belongs to the NUMBER. Flag the linked customer and every
-            // other record on this number, including one the conversation never
-            // linked because its phone is stored formatted ("07700 900123");
-            // whatsapp-send refuses a number if any of its records opted out.
+            // here must land and read back, or the event fails (visible to
+            // staff as an agent failure) rather than reading as processed
+            // (AGENTS.md: never infer an outcome from an attempted write).
+            //
+            // 1. The number itself (migration 20261014120000). This is the
+            // whole of the suppression for a number with no customer record,
+            // and the database carries it to any record later linked to or
+            // created with this number. A repeat STOP keeps the first time.
+            const { error: stampErr } = await supabase
+              .from("whatsapp_conversations")
+              .update({ whatsapp_opted_out_at: new Date().toISOString() })
+              .eq("id", conversation.id)
+              .is("whatsapp_opted_out_at", null);
+            if (stampErr) {
+              throw new Error(`STOP not recorded: could not store the number's opt-out (${stampErr.message})`);
+            }
+            const { error: convErr } = await supabase
+              .from("whatsapp_conversations")
+              .update({ auto_send_enabled: false })
+              .eq("id", conversation.id);
+            if (convErr) {
+              throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
+            }
+            const { data: convStored, error: convReadErr } = await supabase
+              .from("whatsapp_conversations")
+              .select("whatsapp_opted_out_at, auto_send_enabled")
+              .eq("id", conversation.id)
+              .maybeSingle();
+            const numberRow = convStored as { whatsapp_opted_out_at: string | null; auto_send_enabled: boolean | null } | null;
+            if (convReadErr || !numberRow?.whatsapp_opted_out_at || numberRow.auto_send_enabled !== false) {
+              throw new Error("STOP not recorded: the number's opt-out could not be confirmed");
+            }
+            // 2. Every customer record on the number: the linked one and any
+            // the conversation never linked because its phone is stored
+            // formatted ("07700 900123"). The notify-* functions that send
+            // WhatsApp through Twilio read only this flag.
             const optOutIds = new Set<string>();
             if (conversation.human_id) optOutIds.add(conversation.human_id);
             const senderPhone = conversation.phone_e164 ?? "";
@@ -2948,31 +2977,11 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               }
               console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
             }
-            const { error: convErr } = await supabase
-              .from("whatsapp_conversations")
-              .update({ auto_send_enabled: false })
-              .eq("id", conversation.id);
-            if (convErr) {
-              // For an unknown number this is the only suppression we have.
-              throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
-            }
-            // One pending acknowledgement per conversation: a customer who
-            // repeats STOP must not leave a queue of them for staff to send
-            // one after another despite the opt-out (#1016 review). If the
-            // check itself fails, add none; the opt-out is already stored.
-            let acknowledgementPending = false;
+            // 3. One acknowledgement for staff. The unique index
+            // whatsapp_drafts_one_pending_opt_out_ack allows one PENDING
+            // acknowledgement per conversation, so a repeated STOP, or two
+            // processed at once, cannot queue a second (#1016 review).
             if (conversation.state === "ai_handling") {
-              const { data: pendingAck, error: ackErr } = await supabase
-                .from("whatsapp_drafts")
-                .select("id")
-                .eq("conversation_id", conversation.id)
-                .eq("state", "pending")
-                .eq("tool_calls->>opt_out_acknowledgement", "true")
-                .limit(1);
-              if (ackErr) console.error("opt-out: pending acknowledgement check failed (non-fatal):", ackErr.message);
-              acknowledgementPending = !!ackErr || (pendingAck ?? []).length > 0;
-            }
-            if (conversation.state === "ai_handling" && !acknowledgementPending) {
               const policy: DraftPolicy = {
                 riskLevel: "high",
                 handoffRequired: true,
@@ -2992,31 +3001,14 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                   reason: "opt_out: the customer asked us to stop messaging them",
                   opt_out_acknowledgement: true,
                 });
-                // Two STOP events for one conversation can pass the check
-                // above at the same time. Settle it after the insert: keep
-                // the oldest pending acknowledgement and supersede the rest,
-                // which whatsapp-send then refuses (not pending). Every
-                // racer picks the same survivor, so they converge on one.
-                const { data: acks, error: acksErr } = await supabase
-                  .from("whatsapp_drafts")
-                  .select("id")
-                  .eq("conversation_id", conversation.id)
-                  .eq("state", "pending")
-                  .eq("tool_calls->>opt_out_acknowledgement", "true")
-                  .order("created_at", { ascending: true })
-                  .order("id", { ascending: true });
-                if (acksErr) throw new Error(`acknowledgement reconcile lookup failed: ${acksErr.message}`);
-                const extra = ((acks ?? []) as { id: string }[]).slice(1).map((row) => row.id);
-                if (extra.length > 0) {
-                  const { error: supersedeErr } = await supabase
-                    .from("whatsapp_drafts")
-                    .update({ state: "superseded", decided_at: new Date().toISOString() })
-                    .in("id", extra)
-                    .eq("state", "pending");
-                  if (supersedeErr) throw new Error(`acknowledgement supersede failed: ${supersedeErr.message}`);
-                }
               } catch (err) {
-                console.error("opt-out draft save failed (non-fatal):", err);
+                // The opt-out itself is stored by now; the draft is a courtesy.
+                const message = err instanceof Error ? err.message : String(err);
+                if (message.includes("whatsapp_drafts_one_pending_opt_out_ack")) {
+                  console.log(`opt-out: an acknowledgement is already pending on conversation ${conversation.id}`);
+                } else {
+                  console.error("opt-out draft save failed (non-fatal):", err);
+                }
               }
             }
             continue;

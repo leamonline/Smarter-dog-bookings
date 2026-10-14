@@ -22,23 +22,24 @@ interface Faults {
   humanWriteMatchesNothing?: boolean;
   /** The customer had already opted out before this message. */
   alreadyOptedOut?: boolean;
-  /** The conversation PATCH returns an error. */
+  /** Every conversation PATCH returns an error. */
   conversationWriteFails?: boolean;
+  /** The number's opt-out PATCH "succeeds" but stores nothing. */
+  numberStampMatchesNothing?: boolean;
+  /** The number already said STOP at this time. */
+  numberStoppedAt?: string;
   /**
    * Customer records stored on the sender's number, as typed. Defaults to the
    * linked customer stored "07700900444"; an unlinked conversation can still
    * have a record on its number stored formatted (#1016 review).
    */
   onNumber?: { id: string; phone: string }[];
-  /** An acknowledgement draft from an earlier STOP is still pending. */
-  pendingAcknowledgement?: boolean;
-  /** The pending-acknowledgement lookup returns an error. */
-  acknowledgementLookupFails?: boolean;
   /**
-   * A concurrent STOP event inserted its own acknowledgement between this
-   * run's check and insert: the post-insert lookup finds two pending.
+   * A pending acknowledgement already exists for the conversation (a repeated
+   * STOP, or a concurrent one that inserted first): the insert hits the
+   * whatsapp_drafts_one_pending_opt_out_ack unique index.
    */
-  concurrentAcknowledgement?: boolean;
+  pendingAcknowledgement?: boolean;
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -57,7 +58,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const idsFrom = (filter: string | null) =>
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
-  const conversation = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null };
+  const conversation: Record<string, unknown> = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null, whatsapp_opted_out_at: faults.numberStoppedAt ?? null };
   // Several texts are one webhook batch, in the order the customer sent them.
   const messages = (Array.isArray(text) ? text : [text]).map((body, index) => ({
     id: `synthetic-${index}`, from: "447700900444", type: "text", text: { body }, timestamp: String(Math.floor(Date.now() / 1000) + index),
@@ -102,6 +103,11 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       if (method === "PATCH") {
         if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
+        // Honour the guard that keeps the first STOP's time.
+        const guardedStamp = url.searchParams.get("whatsapp_opted_out_at") === "is.null";
+        if (guardedStamp && (faults.numberStampMatchesNothing || conversation.whatsapp_opted_out_at !== null)) {
+          return new Response(null, { status: 204 });
+        }
         Object.assign(conversation, body);
         return new Response(null, { status: 204 });
       }
@@ -109,21 +115,14 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return method === "POST" ? reply({ id: "message-opt-out" }, 201) : reply([]);
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
-      if (method === "PATCH") return new Response(null, { status: 204 });
-      if (method !== "GET") return reply({ id: "draft-opt-out" }, 201);
-      if (faults.acknowledgementLookupFails) return reply({ message: "connection reset" }, 500);
-      const isAckLookup = url.searchParams.get("tool_calls->>opt_out_acknowledgement") === "eq.true"
-        && url.searchParams.get("state") === "eq.pending"
-        && url.searchParams.get("conversation_id") === "eq.conv-opt-out";
-      if (!isAckLookup) return reply([]);
-      // The post-insert reconcile orders by created_at; the pre-check does not.
-      const afterInsert = (url.searchParams.get("order") ?? "").startsWith("created_at");
-      if (afterInsert) {
-        return reply(faults.concurrentAcknowledgement
-          ? [{ id: "draft-racer-ack" }, { id: "draft-opt-out" }]
-          : [{ id: "draft-opt-out" }]);
+      const isAcknowledgement = (body.tool_calls as Record<string, unknown> | undefined)?.opt_out_acknowledgement === true;
+      if (method === "POST" && isAcknowledgement && faults.pendingAcknowledgement) {
+        return reply({
+          code: "23505",
+          message: 'duplicate key value violates unique constraint "whatsapp_drafts_one_pending_opt_out_ack"',
+        }, 409);
       }
-      return reply(faults.pendingAcknowledgement ? [{ id: "draft-earlier-ack" }] : []);
+      return method === "POST" ? reply({ id: "draft-opt-out" }, 201) : reply([]);
     }
     if (url.pathname === "/rest/v1/bookings") return reply([]);
     if (url.pathname === "/rest/v1/salon_todos") return method === "POST" ? reply(null, 201) : (url.searchParams.get("select") === "sort_order" ? reply({ sort_order: 3 }) : reply([]));
@@ -140,11 +139,11 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const drafts = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "POST").map((c) => c.body);
   const humanPatches = calls.filter((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   const conversationPatches = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH").map((c) => c.body);
-  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch, calls };
+  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch, calls, conversation };
 }
 
 Deno.test("STOP flags the customer, switches auto-send off, sends nothing and leaves one draft", async () => {
-  const { sends, drafts, humanPatches, conversationPatches, humanRow, eventPatch } = await send("STOP");
+  const { sends, drafts, humanPatches, conversationPatches, humanRow, eventPatch, conversation } = await send("STOP");
   // What was STORED, not just what was sent (#1016 review).
   assertEquals(humanRow.whatsapp_opted_out, true);
   assertEquals(humanRow.whatsapp_opted_out_reason, "asked_on_whatsapp");
@@ -156,6 +155,8 @@ Deno.test("STOP flags the customer, switches auto-send off, sends nothing and le
   assert(typeof humanPatches[0].body.whatsapp_opted_out_at === "string");
   assertStringIncludes(decodeURIComponent(humanPatches[0].search), HUMAN);
   assert(conversationPatches.some((p) => p.auto_send_enabled === false), "auto-send is switched off on the thread");
+  assertEquals(conversation.auto_send_enabled, false);
+  assert(typeof conversation.whatsapp_opted_out_at === "string", "the number's own opt-out is stored");
   assertEquals(drafts.length, 1);
   assertEquals(drafts[0].intent, "escalate");
   assertEquals(drafts[0].handoff_required, true);
@@ -208,12 +209,39 @@ Deno.test("a customer who had already opted out is confirmed, not failed", async
   assertEquals(drafts.length, 1);
 });
 
-Deno.test("for an unknown number, a failed auto-send switch-off fails the event", async () => {
-  // With no customer record, the conversation flag is the only suppression.
-  const { eventPatch, sends } = await send("STOP", "ai_handling", null, { conversationWriteFails: true });
-  assertEquals(eventPatch.processing_status, "failed");
-  assertStringIncludes(String(eventPatch.error_message), "auto-send");
+Deno.test("for an unknown number, STOP stores the number's own opt-out", async () => {
+  // No customer record anywhere: the number's suppression is the whole of it,
+  // and whatsapp-send refuses the number on it (migration 20261014120000).
+  const { conversation, humanPatches, eventPatch, sends, drafts } = await send("STOP", "ai_handling", null, { onNumber: [] });
+  assertEquals(eventPatch.processing_status, "processed");
+  assert(typeof conversation.whatsapp_opted_out_at === "string");
+  assertEquals(conversation.auto_send_enabled, false);
+  assertEquals(humanPatches.length, 0, "no customer record to flag");
   assertEquals(sends.length, 0);
+  assertEquals(drafts.length, 1);
+});
+
+Deno.test("a failed write of the number's opt-out fails the event", async () => {
+  const { eventPatch, sends, drafts } = await send("STOP", "ai_handling", null, { onNumber: [], conversationWriteFails: true });
+  assertEquals(eventPatch.processing_status, "failed");
+  assertStringIncludes(String(eventPatch.error_message), "number's opt-out");
+  assertEquals(sends.length, 0);
+  assertEquals(drafts.length, 0, "no acknowledgement for a STOP we could not record");
+});
+
+Deno.test("a number opt-out that does not land fails the event, even with no error", async () => {
+  const { eventPatch, conversation } = await send("STOP", "ai_handling", null, { onNumber: [], numberStampMatchesNothing: true });
+  assertEquals(conversation.whatsapp_opted_out_at, null);
+  assertEquals(eventPatch.processing_status, "failed");
+  assertStringIncludes(String(eventPatch.error_message), "could not be confirmed");
+});
+
+Deno.test("a repeat STOP keeps the number's first opt-out time and still switches auto-send off", async () => {
+  const first = "2026-10-01T09:00:00.000Z";
+  const { conversation, eventPatch } = await send("STOP", "ai_handling", HUMAN, { numberStoppedAt: first, alreadyOptedOut: true });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(conversation.whatsapp_opted_out_at, first);
+  assertEquals(conversation.auto_send_enabled, false);
 });
 
 Deno.test("STOP on an unlinked conversation flags the customer whose number is stored formatted", async () => {
@@ -237,24 +265,19 @@ Deno.test("every record on the number is flagged, not just the linked one", asyn
   assertEquals(humans.map((row) => row.whatsapp_opted_out), [true, true]);
 });
 
-Deno.test("a repeated STOP does not queue a second acknowledgement while one is pending", async () => {
-  // Staff would otherwise see the newest, send or reject it, and then find the
-  // older one resurface, sendable despite the opt-out (#1016 review).
-  const { drafts, eventPatch, humanRow, conversationPatches } = await send("STOP", "ai_handling", HUMAN, {
+Deno.test("a second acknowledgement refused by the one-pending index leaves the STOP recorded", async () => {
+  // A repeated STOP, or two processed at once: the database allows one
+  // pending acknowledgement per conversation (whatsapp_drafts_one_pending_
+  // opt_out_ack; the race itself is pinned in supabase/tests/244). The loser's
+  // refusal is expected, not an agent failure (#1016 review).
+  const { drafts, eventPatch, humanRow, conversation } = await send("STOP", "ai_handling", HUMAN, {
     alreadyOptedOut: true,
     pendingAcknowledgement: true,
   });
+  assertEquals(drafts.length, 1, "the insert was attempted and refused");
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humanRow.whatsapp_opted_out, true);
-  assertEquals(conversationPatches.length, 1, "auto-send still switched off");
-  assertEquals(drafts.length, 0);
-});
-
-Deno.test("if the pending-acknowledgement check fails, the STOP is still recorded and no draft is added", async () => {
-  const { drafts, eventPatch, humanRow } = await send("STOP", "ai_handling", HUMAN, { acknowledgementLookupFails: true });
-  assertEquals(eventPatch.processing_status, "processed");
-  assertEquals(humanRow.whatsapp_opted_out, true);
-  assertEquals(drafts.length, 0);
+  assert(typeof conversation.whatsapp_opted_out_at === "string");
 });
 
 Deno.test("STOP flags only the records whose digits match the sender, not a neighbouring number", async () => {
@@ -276,11 +299,13 @@ Deno.test("a STOP batched after an ordinary message is honoured before that mess
   const { calls, humanRow, eventPatch } = await send(["Can I book Bella in on Tuesday?", "STOP"]);
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humanRow.whatsapp_opted_out, true);
-  const optOutWrite = calls.findIndex((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
+  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && typeof c.body.whatsapp_opted_out_at === "string");
   const autoSendOff = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && c.body.auto_send_enabled === false);
+  const customerStop = calls.findIndex((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
+  assert(numberStop >= 0 && autoSendOff >= 0 && customerStop >= 0, "number, thread and customer suppression all stored");
+  const optOutWrite = Math.max(numberStop, autoSendOff, customerStop);
   const ordinaryInbound = calls.findIndex((c, i) => i > optOutWrite && c.path === "/rest/v1/whatsapp_messages" && c.method === "POST");
-  assert(optOutWrite >= 0 && autoSendOff > optOutWrite, "opt-out stored, then auto-send switched off");
-  assert(ordinaryInbound > autoSendOff, "the ordinary message is handled only after both");
+  assert(ordinaryInbound > optOutWrite, "the ordinary message is handled only after every suppression write");
   // Anything the agent still dispatches for it reaches whatsapp-send after the
   // opt-out is stored, AI-initiated and without an override, so the send gate
   // refuses it (whatsapp-send/__tests__/optOut.test.ts).
@@ -290,27 +315,6 @@ Deno.test("a STOP batched after an ordinary message is honoured before that mess
     assertEquals(call.body.ai_initiated, true);
     assertEquals(call.body.override_opt_out, undefined);
   }
-});
-
-Deno.test("two STOPs racing past the check converge on one pending acknowledgement", async () => {
-  // Both runs see no pending acknowledgement and both insert. After its insert
-  // each keeps the oldest and supersedes the rest, which whatsapp-send then
-  // refuses as not pending (#1016 review).
-  const { calls, drafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, { concurrentAcknowledgement: true });
-  assertEquals(eventPatch.processing_status, "processed");
-  assertEquals(drafts.length, 1);
-  const supersede = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH");
-  assertEquals(supersede.length, 1);
-  assertEquals(supersede[0].body.state, "superseded");
-  const ids = decodeURIComponent(supersede[0].search);
-  assertStringIncludes(ids, "id=in.(draft-opt-out)");
-  assertStringIncludes(ids, "state=eq.pending");
-});
-
-Deno.test("a lone acknowledgement is not superseded", async () => {
-  const { calls, drafts } = await send("STOP");
-  assertEquals(drafts.length, 1);
-  assertEquals(calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH").length, 0);
 });
 
 Deno.test("handling a batched STOP first does not move the inbox preview backwards", async () => {

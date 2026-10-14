@@ -392,3 +392,95 @@ Deno.test("an opted-out customer on a formatted international number is still re
   const other = await run({ body, humans: [{ id: "h-fr2", phone: "+33 6 12 34 56 79", whatsapp_opted_out: true }] });
   assertEquals(other.status, 200);
 });
+
+// ── A STOP from a number with no customer record (migration 20261014120000):
+//    the conversation carries whatsapp_opted_out_at, and every send mode to
+//    that number is refused, staff or not, linked or not. ─────────────────
+
+const STOPPED_NUMBER = { id: "conv-1", human_id: null, phone_e164: "+447700900123", whatsapp_opted_out_at: "2026-10-14T09:00:00Z" };
+
+const EVERY_MODE: Record<string, Record<string, unknown>> = {
+  manual: { mode: "manual", conversation_id: "conv-1", text: "Hello" },
+  template: { mode: "template", to: "+447700900123", template_name: "booking_confirmed_v1", params: ["Bella", "Mon 20 Oct", "09:00"] },
+  confirm_buttons: { mode: "confirm_buttons", conversation_id: "conv-1", booking_action_id: "00000000-0000-0000-0000-000000000001", summary_text: "Book Bella in?", action_kind: "book" },
+  flow: { mode: "flow", to: "+447700900123", flow_id: "flow-1", body_text: "Book here", cta: "Book" },
+  book_entry: { mode: "book_entry", to: "+447700900123", conversation_id: "conv-1" },
+  list: { mode: "list", to: "+447700900123", conversation_id: "conv-1", body_text: "Pick one", button_text: "Options", rows: [{ id: "a", title: "A" }] },
+};
+
+for (const [mode, body] of Object.entries(EVERY_MODE)) {
+  Deno.test(`a number that said STOP with no customer record is refused in ${mode} mode`, async () => {
+    const { status, json, calls } = await run({ body, staff: true, humans: [], conversation: STOPPED_NUMBER });
+    assertEquals(status, 409, JSON.stringify(json));
+    assertEquals(json.reason, "whatsapp_opted_out");
+    assertEquals(metaCalls(calls), 0);
+  });
+}
+
+Deno.test("a number that said STOP is refused for an ordinary draft too", async () => {
+  const { status, calls } = await run({ body: { mode: "draft", draft_id: "draft-1" }, staff: true, humans: [], conversation: STOPPED_NUMBER, draft: { tool_calls: { reason: "ordinary" } } });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a STOP outlives linking: a customer linked later who is not flagged is still refused", async () => {
+  // The database flags the linked record (supabase/tests/244); the gate does
+  // not depend on that having happened.
+  const { status, calls } = await run({
+    body: TEMPLATE,
+    staff: true,
+    humans: [{ id: "h-linked", whatsapp_opted_out: false }],
+    conversation: { ...STOPPED_NUMBER, human_id: "h-linked" },
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("the number's STOP is found from the destination phone alone, however the conversation stored it", async () => {
+  const { status, calls } = await run({
+    body: { ...TEMPLATE, to: "07700 900123" },
+    staff: true,
+    humans: [],
+    conversation: { ...STOPPED_NUMBER, phone_e164: "+447700900123" },
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+  const lookup = calls.find((c) => c.path === "/rest/v1/whatsapp_conversations" && decodeURIComponent(c.search).includes("phone_e164=match."));
+  assert(lookup, "the number is looked up by a formatting-tolerant match");
+});
+
+Deno.test("staff can still send the STOP acknowledgement, unedited, to a number with no customer record", async () => {
+  const { status, calls } = await run({
+    body: { mode: "draft", draft_id: "draft-1" },
+    staff: true,
+    humans: [],
+    conversation: STOPPED_NUMBER,
+    draft: { tool_calls: { opt_out_acknowledgement: true } },
+  });
+  assertEquals(status, 200);
+  assertEquals(metaCalls(calls), 1);
+});
+
+Deno.test("an AI-initiated send to a number that said STOP is refused even with the override flag", async () => {
+  const { status, calls } = await run({
+    body: { ...TEMPLATE, override_opt_out: true, ai_initiated: true },
+    staff: false,
+    humans: [],
+    conversation: STOPPED_NUMBER,
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a failed number lookup fails closed", async () => {
+  const { status, json, calls } = await run({ body: TEMPLATE, staff: true, humans: [], conversation: "error" });
+  assertEquals(status, 503);
+  assertEquals(json.reason, "opt_out_check_failed");
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a number that never said STOP is unaffected", async () => {
+  const { status, calls } = await run({ body: TEMPLATE, staff: true, humans: [], conversation: { ...STOPPED_NUMBER, whatsapp_opted_out_at: null } });
+  assertEquals(status, 200);
+  assertEquals(metaCalls(calls), 1);
+});

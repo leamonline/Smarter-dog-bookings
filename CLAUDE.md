@@ -291,9 +291,12 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   keys so sessions don't clobber each other. Keep them separate.
 - **WhatsApp auto-send / autonomous booking are OFF by default** behind 7 gates (5 in the agent, 2 in
   `whatsapp-send`) + a kill switch (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send
-  (unit-test-enforced). Customer opt-out (`humans.whatsapp_opted_out`) is enforced inside `whatsapp-send`
-  for every mode and caller; a `STOP` reply sets it. Don't loosen casually. See
-  [docs/whatsapp-agent.md](docs/whatsapp-agent.md).
+  (unit-test-enforced). WhatsApp opt-out belongs to the **number**: a `STOP` sets
+  `whatsapp_conversations.whatsapp_opted_out_at` and `humans.whatsapp_opted_out` on every record with
+  that number. DB triggers keep the two in step for records created, changed or linked later.
+  `whatsapp-send` refuses in every mode, for every caller; the Twilio notify paths skip opted-out
+  customers via `recipients.ts`. Don't loosen casually. See
+  [docs/whatsapp-agent.md](docs/whatsapp-agent.md#customer-opt-out).
 - **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
   Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/
   waitlist. Dark-launched behind `STAFF_PUSH_ENABLED` (default off); changes NOTHING for customers or
