@@ -65,6 +65,7 @@ SECOND_PID=""
 MEMBERSHIP_RESCHEDULE_PID=""
 MEMBERSHIP_STAFF_PID=""
 DB_SETUP_STARTED=0
+PAUSED_CRON_JOBS=""
 
 sql() {
   concurrency_sql "$@"
@@ -278,6 +279,11 @@ cleanup() {
     "$MEMBERSHIP_RESCHEDULE_OUT" "$MEMBERSHIP_STAFF_OUT"
   rmdir -- "$RUN_DIR" 2>/dev/null || true
 
+  if [ -n "$PAUSED_CRON_JOBS" ]; then
+    sql --command="select cron.alter_job(jobid, active := true) from cron.job where jobid in ($PAUSED_CRON_JOBS);" >/dev/null \
+      || cleanup_failed=1
+  fi
+
   if [ "$cleanup_failed" = "1" ]; then
     echo "FAIL: test cleanup was incomplete; inspect the local disposable database." >&2
     if [ "$result" = "0" ]; then
@@ -450,6 +456,19 @@ wait_for_pg_net_quiet() {
   echo "      the delta assertion below may report a late arrival from earlier activity." >&2
   return 0
 }
+# pg_cron makes pg_net requests of its own on a schedule: slack-alerts-sweep
+# POSTs every five minutes, 07:00-15:59 UTC, Monday to Wednesday. A run whose
+# window crosses one of those minutes sees "response N->N+1" and fails on any
+# commit (it did on 14 October 2026 at 13:40:00, on a pull request that
+# changed no database code). Waiting for quiet cannot help: the job fires
+# AFTER the baseline. So pause every active job for this local, disposable
+# run, before waiting for quiet, and restore exactly those jobs in cleanup.
+PAUSED_CRON_JOBS="$(sql --command="
+  select coalesce(string_agg(jobid::text, ',' order by jobid), '')
+    from (select jobid, cron.alter_job(jobid, active := false)
+            from cron.job
+           where active) paused;" | trim)"
+
 wait_for_pg_net_quiet
 
 # Snapshot pg_net before changing trigger state. The exact four outbound
