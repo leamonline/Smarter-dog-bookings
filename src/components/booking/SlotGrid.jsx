@@ -71,19 +71,34 @@ export function SlotGrid({
     [activeBookings, activeSlots, overrides],
   );
 
+  // `onMoveBooking` is useBookings.updateBooking, which answers null (or
+  // false, offline) when the database refused the write and never throws, so
+  // the toast must read the result: a green "Moved" over a card that snapped
+  // back was the only lie this screen told (audit H1, #987). Same contract
+  // as the Today stack's `patch()`: uncertain never reports success.
   const handleMoveBooking = useCallback(
-    async (booking, targetSlot) => {
+    async function moveBooking(booking, targetSlot) {
       if (!onMoveBooking) return;
       if (!canDropAt(booking, targetSlot)) {
         toast.show("Can't move the booking there", "error");
         return;
       }
+      const name = booking.dogName || "booking";
+      let result;
       try {
-        await onMoveBooking(booking, targetSlot);
-        toast.show(`Moved ${booking.dogName || "booking"} to ${targetSlot}`, "success");
+        result = await onMoveBooking(booking, targetSlot);
       } catch {
-        toast.show("Move didn't work", "error");
+        result = null;
       }
+      if (result === null || result === false) {
+        toast.show(
+          `Couldn't move ${name} — it's still at ${booking.slot}.`,
+          "error",
+          { label: "Retry", onClick: () => { void moveBooking(booking, targetSlot); } },
+        );
+        return;
+      }
+      toast.show(`Moved ${name} to ${targetSlot}`, "success");
     },
     [onMoveBooking, canDropAt, toast],
   );

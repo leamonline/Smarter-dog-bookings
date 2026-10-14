@@ -14,6 +14,7 @@ import {
 } from "../../engine/bookingRules";
 import { PAYMENT_METHODS } from "../../constants/salon";
 import { isAwaitingDeposit } from "../../engine/deposits";
+import { requiresCareSkipConfirmation } from "../../engine/dailyBrief";
 import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures";
@@ -172,26 +173,42 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     statusOptionRefs.current[curIdx]?.focus();
   }, [statusOpen, booking.status]);
 
-  const applyStatusChange = (nextStatus, previous) => {
-    if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
+  // Awaited, like the Today stack's `patch()`: updateBooking answers null
+  // (false offline) when a gate refused the change and never throws, so a
+  // fire-and-forget "Marked as …" could announce a status the database had
+  // just rejected (#987).
+  const applyStatusChange = async (nextStatus, previous) => {
+    if (!onUpdate) return;
+    const label = STATUS_DISPLAY[nextStatus]?.label ?? nextStatus;
+    let result;
+    try {
+      result = await onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
+    } catch {
+      result = null;
+    }
+    if (result === null || result === false) {
+      toast.show(`Couldn't mark ${displayDogName} as ${label} — nothing changed.`, "error");
+      return;
+    }
     toast.show(
-      `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
+      `Marked as ${label}`,
       "info",
-      () => onUpdate?.({ ...booking, status: previous }, currentDateStr, currentDateStr),
+      () => onUpdate({ ...booking, status: previous }, currentDateStr, currentDateStr),
     );
   };
 
   const changeStatus = (nextStatus) => {
     if (!nextStatus || nextStatus === booking.status) return;
     const previous = booking.status || BOOKING_STATUS.BOOKED;
-    const prevIdx = STATUS_PROGRESSION.indexOf(previous);
-    const nextIdx = STATUS_PROGRESSION.indexOf(nextStatus);
-    const skipped = nextIdx - prevIdx;
-    if (skipped >= 2) {
-      setPendingSkipStatus({ nextStatus, previous });
+    // One skip rule for the whole app: the engine's, which the Today stack and
+    // the detail modal already use. Reconfirmed is not a care step, so Booked →
+    // Arrived no longer asks "Skip ahead?" here when it does not elsewhere.
+    const skipped = requiresCareSkipConfirmation(previous, nextStatus);
+    if (skipped) {
+      setPendingSkipStatus({ nextStatus, previous, skipped });
       return;
     }
-    applyStatusChange(nextStatus, previous);
+    void applyStatusChange(nextStatus, previous);
   };
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
@@ -528,14 +545,14 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
       {pendingSkipStatus && (
         <ConfirmDialog
           title="Skip ahead?"
-          message={`Skip from "${STATUS_DISPLAY[pendingSkipStatus.previous]?.label || pendingSkipStatus.previous}" straight to "${STATUS_DISPLAY[pendingSkipStatus.nextStatus]?.label || pendingSkipStatus.nextStatus}"?`}
+          message={`Skip from "${STATUS_DISPLAY[pendingSkipStatus.previous]?.label || pendingSkipStatus.previous}" straight to "${STATUS_DISPLAY[pendingSkipStatus.nextStatus]?.label || pendingSkipStatus.nextStatus}"? ${displayDogName} won't have ${pendingSkipStatus.skipped}.`}
           confirmLabel="Skip and update"
           cancelLabel="Cancel"
           variant="primary"
           onConfirm={() => {
             const { nextStatus, previous } = pendingSkipStatus;
             setPendingSkipStatus(null);
-            applyStatusChange(nextStatus, previous);
+            void applyStatusChange(nextStatus, previous);
           }}
           onCancel={() => setPendingSkipStatus(null)}
         />

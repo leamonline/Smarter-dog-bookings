@@ -160,7 +160,23 @@ export function BookingDetailOverlays({
                   ? { staff_capacity_override: true }
                   : {}),
               };
-              await onUpdate(updated, oldDateStr, newDateStr);
+              // updateBooking answers null (false offline) when a gate refused
+              // the move and never throws; closing on a refusal made the modal
+              // claim a reschedule that never landed (#987). Stay open so the
+              // picker still shows the attempted slot.
+              let result;
+              try {
+                result = await onUpdate(updated, oldDateStr, newDateStr);
+              } catch {
+                result = null;
+              }
+              if (result === null || result === false) {
+                toast.show(
+                  `Couldn't move ${booking.dogName || "the booking"} — it's still on ${oldDateStr} at ${oldSlot}.`,
+                  "error",
+                );
+                return;
+              }
               setShowReschedule(false);
               toast.show("Booking rescheduled", "success", () => {
                 onUpdate({ ...booking, slot: oldSlot }, newDateStr, oldDateStr);
