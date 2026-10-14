@@ -146,9 +146,10 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   // booking request (#1016 review)
   /\bunsubscribe(?:\s+(?:me|us))?\s*(?:please\s*)?[.!?]*\s*$/i,
   /\bunsubscribe\s+(?:(?:me|us)\s+)?from\s+(?:(?:your|the|these|this|all)\s+)?(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:messages|texts|whatsapps?|reminders|marketing|updates|list|chats?)\b/i,
-  // "opt me out", "opt out of these messages"; never "opt out of the nail clip"
-  /\bopt\s+(?:me|us)\s+out\b/i,
-  /\bopt(?:ed|ing)?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?)\b/i,
+  // "opt me out please", "opt me out of these messages", "opted out of your
+  // list"; never "opt me out of the nail clip this time" (#1016 review)
+  /\bopt\s+(?:me|us)\s+out\s*(?:please\s*)?[.!?]*\s*$/i,
+  /\bopt(?:ed|ing)?(?:\s+(?:me|us))?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?|list)\b/i,
 ];
 
 // "Please don't stop messaging me", "I don't want you to stop sending

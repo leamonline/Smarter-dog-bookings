@@ -2693,8 +2693,15 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
       for (const change of entry.changes ?? []) {
         const value = change.value ?? {};
 
-        // Inbound messages
-        for (const msg of value.messages ?? []) {
+        // Inbound messages. One webhook can batch several; a STOP among them
+        // is handled first, so no earlier message in the same batch is
+        // drafted and auto-sent after the customer has already asked us to
+        // stop (#1016 review). The rest still follow, in their own order,
+        // and then see auto-send switched off and the opt-out stored. A
+        // staff re-generate (forceDraft) never acts on STOP, so keeps order.
+        const batch = value.messages ?? [];
+        const isStop = (m: (typeof batch)[number]) => !forceDraft && isOptOutRequest(extractMessageText(m));
+        for (const msg of [...batch.filter(isStop), ...batch.filter((m) => !isStop(m))]) {
           const phoneE164 = normalisePhone(msg.from);
           if (!phoneE164) continue;
 

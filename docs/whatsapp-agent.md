@@ -205,7 +205,8 @@ a negated "please don't stop messaging me" is not a stop) (`STOP`, `unsubscribe`
 thread, sends nothing, and while the AI is handling the thread leaves one
 acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
 on (never a second while one is still pending, so a repeated STOP cannot queue
-several). It flags **every** customer record on the sender's number, including one the
+several). When one webhook batches several messages, a STOP among them is
+handled first, so an earlier message in the batch is never answered after it. It flags **every** customer record on the sender's number, including one the
 conversation never linked because the number is stored formatted. A number with
 no customer record at all has nowhere to store the opt-out yet (only auto-send is
 switched off). If the flag or the auto-send switch-off cannot be stored, or the flag cannot
@@ -215,7 +216,7 @@ staff pressing Send on it **unedited** counts as the override; editing it, or
 any other draft, is refused like any other send. The detector is deliberately
 narrow and tested against salon phrases that share its words ("opt out of the
 nail clip", "take me off the waiting list", "unsubscribe me from the waiting
-list", "don't message me before 9"). In the inbox, a refused send shows its
+list", "opt me out of the nail clip", "don't message me before 9"). In the inbox, a refused send shows its
 reason ("This customer has opted out of WhatsApp messages"), not a generic error.
 
 ## Kill switch

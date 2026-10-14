@@ -36,7 +36,7 @@ interface Faults {
   acknowledgementLookupFails?: boolean;
 }
 
-async function send(text: string, state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
+async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
   const calls: { method: string; path: string; search: string; body: Record<string, unknown> }[] = [];
   // A stateful humans table: the STOP write is applied with PostgREST's
   // id=in.(…) and whatsapp_opted_out=eq. filters, so a test can assert what
@@ -53,8 +53,11 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const conversation = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null };
-  const message = { id: "synthetic-stop", from: "447700900444", type: "text", text: { body: text }, timestamp: String(Math.floor(Date.now() / 1000)) };
-  const payload = { entry: [{ changes: [{ value: { messages: [message] } }] }] };
+  // Several texts are one webhook batch, in the order the customer sent them.
+  const messages = (Array.isArray(text) ? text : [text]).map((body, index) => ({
+    id: `synthetic-${index}`, from: "447700900444", type: "text", text: { body }, timestamp: String(Math.floor(Date.now() / 1000) + index),
+  }));
+  const payload = { entry: [{ changes: [{ value: { messages } }] }] };
   const oldFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -93,7 +96,9 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       if (method === "PATCH") {
-        return faults.conversationWriteFails ? reply({ message: "connection reset" }, 500) : new Response(null, { status: 204 });
+        if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
+        Object.assign(conversation, body);
+        return new Response(null, { status: 204 });
       }
       return reply(conversation);
     }
@@ -121,7 +126,7 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
   const drafts = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "POST").map((c) => c.body);
   const humanPatches = calls.filter((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   const conversationPatches = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH").map((c) => c.body);
-  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch };
+  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch, calls };
 }
 
 Deno.test("STOP flags the customer, switches auto-send off, sends nothing and leaves one draft", async () => {
@@ -248,4 +253,27 @@ Deno.test("STOP flags only the records whose digits match the sender, not a neig
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humans[0].whatsapp_opted_out, true);
   assertEquals(humans[1].whatsapp_opted_out, false, "a different number is untouched");
+});
+
+Deno.test("a STOP batched after an ordinary message is honoured before that message is answered", async () => {
+  // Meta can deliver several messages in one webhook. Handling them in order
+  // would draft, and could auto-send, a reply to the first after the customer
+  // had already asked us to stop in the same payload (#1016 review).
+  const { calls, humanRow, eventPatch } = await send(["Can I book Bella in on Tuesday?", "STOP"]);
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  const optOutWrite = calls.findIndex((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
+  const autoSendOff = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && c.body.auto_send_enabled === false);
+  const ordinaryInbound = calls.findIndex((c, i) => i > optOutWrite && c.path === "/rest/v1/whatsapp_messages" && c.method === "POST");
+  assert(optOutWrite >= 0 && autoSendOff > optOutWrite, "opt-out stored, then auto-send switched off");
+  assert(ordinaryInbound > autoSendOff, "the ordinary message is handled only after both");
+  // Anything the agent still dispatches for it reaches whatsapp-send after the
+  // opt-out is stored, AI-initiated and without an override, so the send gate
+  // refuses it (whatsapp-send/__tests__/optOut.test.ts).
+  for (const [index, call] of calls.entries()) {
+    if (!call.path.endsWith("/functions/v1/whatsapp-send")) continue;
+    assert(index > optOutWrite, "no send before the opt-out is stored");
+    assertEquals(call.body.ai_initiated, true);
+    assertEquals(call.body.override_opt_out, undefined);
+  }
 });
