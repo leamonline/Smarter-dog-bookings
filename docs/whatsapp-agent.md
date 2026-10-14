@@ -191,16 +191,20 @@ stored or confirmed, the event fails and shows as an agent failure.
   suppression. It is the whole suppression for a number with no customer
   record, and a repeat STOP keeps the first time.
 - `humans.whatsapp_opted_out` is set (reason `asked_on_whatsapp`) on **every**
-  customer record carrying the number, including one the conversation never
-  linked because its phone is stored formatted.
+  customer record whose phone is that number, including one the conversation
+  never linked because its phone is stored formatted. It is **never** set
+  through the conversation's `human_id` link alone. Staff may have changed
+  that customer's number since, and a STOP from the old number must not
+  silence the new one. The old number stays refused through its conversation
+  whatever it is linked to.
 
 Migration `20261014120000_whatsapp_number_opt_out` keeps the two in step in
-the database:
+the database, always by number:
 - a record created with, or changed to, a stopped number is flagged as it is
   written;
-- linking a stopped conversation to a customer flags that customer;
 - switching WhatsApp back on for a customer (whatsapp_opted_out true → false,
-  the one undo control) clears the number's suppression.
+  the one undo control) clears the suppression of that customer's own number.
+  It never clears a different number they were once linked to.
 
 Numbers are matched however they were typed ("07700 900123",
 `+44 (0)7700 900 123`, "+33 6 12 34 56 78"). In code this is `phoneMatchKey`
@@ -239,14 +243,18 @@ marked `tool_calls.opt_out_acknowledgement`).
 **Recognising a STOP.** The detector is deliberately narrow. Each line below
 counts as a STOP:
 - The carrier words on their own: `STOP`, `unsubscribe`, `opt out`.
-- Requests aimed at our messages: "please stop sending these messages", "don't
-  send me any more messages", "I don't want any more messages", "I no longer
-  want to receive messages", "take me off your list". Curly apostrophes count.
+- Requests aimed at our messages: "please stop all messages", "stop
+  messaging", "please stop sending these messages", "don't send me any more
+  messages", "I don't want any more messages", "I no longer want to receive
+  messages", "no more messages please", "take me off your list". Curly
+  apostrophes count.
 
 Each of these must not count, and is tested:
 - Salon phrases that share the words: "opt me out of the nail clip",
   "unsubscribe me from the waiting list", "don't message me before 9", "I
   don't want messages before 9".
+- Reports about messages: "I received the reminder but no more messages came
+  through".
 - A negated stop: "please don't stop messaging me".
 
 **Ordering.** One webhook can carry several messages. A STOP among them is

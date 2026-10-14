@@ -9,7 +9,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(27);
 
 -- Act as a member of staff: only staff may change a customer's phone
 -- (prevent_customer_critical_column_update). The staff fixture alone is
@@ -72,12 +72,20 @@ select is(
   true, 'the STOP flags an unlinked record already on the number'
 );
 
+-- A stale link: a customer whose number is now different (staff changed it)
+-- is still linked to the stopped number's conversation.
 update public.whatsapp_conversations
    set human_id = '24400000-0000-4000-8000-000000000014'
  where id = '24400000-0000-4000-8000-000000000002';
 select is(
   (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000014'),
-  true, 'linking the conversation to a customer later carries the STOP to them'
+  false, 'a linked customer on a DIFFERENT number is not opted out by the link'
+);
+update public.humans set whatsapp_opted_out = true where id = '24400000-0000-4000-8000-000000000014';
+update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000014';
+select isnt(
+  (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000002'),
+  null, 're-enabling that customer does not lift the STOP from the number they were linked to'
 );
 
 -- ── A customer changes their number to one that said STOP ──────────

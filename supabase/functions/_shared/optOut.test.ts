@@ -102,6 +102,13 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "I no longer want to receive messages",
     "I do not wish to receive any further texts",
     "I don't want your messages.",
+    // Codex review on #1016, round five
+    "Please stop all messages",
+    "Stop messaging",
+    "stop the reminders please",
+    "Stop all messages to this number!",
+    "No more messages please.",
+    "Please, no more texts",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -144,6 +151,9 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "I don't want messages before 9 please, I'm on nights",
     "I no longer want the 10am slot",
     "I don't want you to stop sending messages",
+    "I received the reminder but no more messages came through",
+    "Can you stop the messages going to my old phone and use this one?",
+    "There were no more texts after Tuesday, is that right?",
     "",
     null,
     undefined,

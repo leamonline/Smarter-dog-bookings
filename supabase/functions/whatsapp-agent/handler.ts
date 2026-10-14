@@ -2930,12 +2930,13 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             if (convReadErr || !numberRow?.whatsapp_opted_out_at || numberRow.auto_send_enabled !== false) {
               throw new Error("STOP not recorded: the number's opt-out could not be confirmed");
             }
-            // 2. Every customer record on the number: the linked one and any
-            // the conversation never linked because its phone is stored
-            // formatted ("07700 900123"). The notify-* functions that send
-            // WhatsApp through Twilio read only this flag.
+            // 2. Every customer record whose phone IS this number, however it
+            // was typed ("07700 900123"), linked to the conversation or not.
+            // Never the linked record just because it is linked: staff may
+            // have changed that customer's number since, and this STOP must
+            // not opt their new number out (#1016 review). The notify-*
+            // functions that send WhatsApp through Twilio read only this flag.
             const optOutIds = new Set<string>();
-            if (conversation.human_id) optOutIds.add(conversation.human_id);
             const senderPhone = conversation.phone_e164 ?? "";
             const phonePattern = phoneMatchPattern(senderPhone);
             if (phonePattern) {

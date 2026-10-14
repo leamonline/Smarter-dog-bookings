@@ -293,7 +293,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `whatsapp-send`) + a kill switch (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send
   (unit-test-enforced). WhatsApp opt-out belongs to the **number**: a `STOP` sets
   `whatsapp_conversations.whatsapp_opted_out_at` and `humans.whatsapp_opted_out` on every record with
-  that number. DB triggers keep the two in step for records created, changed or linked later.
+  that number. DB triggers keep the two in step, always by number, never by a conversation link.
   `whatsapp-send` refuses in every mode, for every caller; the Twilio notify paths skip opted-out
   customers via `recipients.ts`. Don't loosen casually. See
   [docs/whatsapp-agent.md](docs/whatsapp-agent.md#customer-opt-out).

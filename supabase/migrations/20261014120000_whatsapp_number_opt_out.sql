@@ -14,15 +14,20 @@
 --     however it was typed. SQL mirror of phoneMatchKey in
 --     supabase/functions/_shared/optOut.ts; supabase/tests/244 pins the same
 --     cases as optOut.test.ts.
---  3. A suppressed conversation flags its linked customer and every customer
---     record on the same number, when it is suppressed and whenever it is
---     later linked. The notify-* functions that send WhatsApp through Twilio
---     check only humans.whatsapp_opted_out, so the flag has to reach them.
+--  3. A suppressed conversation flags every customer record on the same
+--     number. The notify-* functions that send WhatsApp through Twilio check
+--     only humans.whatsapp_opted_out, so the flag has to reach them. It
+--     follows the NUMBER, never the conversation's human_id link: a customer
+--     whose number staff have since changed keeps a stale link, and the old
+--     number's STOP must not opt their new number out. Whatever the link, the
+--     stopped number stays refused through its conversation (whatsapp-send).
 --  4. A customer record created with, or changed to, a suppressed number is
 --     flagged as it is written.
 --  5. Switching WhatsApp back on for a customer (whatsapp_opted_out true ->
---     false, by staff or by the customer) clears the number's suppression,
---     so that one control stays the way to undo a STOP.
+--     false, by staff or by the customer) clears the suppression of THAT
+--     customer's number, so that one control stays the way to undo a STOP.
+--     Again by number only: re-enabling a customer never lifts a STOP from a
+--     different number they were once linked to.
 --  6. At most one pending STOP acknowledgement draft per conversation, as a
 --     unique index, so two STOP events processed at once cannot both leave
 --     one for staff to send.
@@ -91,7 +96,7 @@ revoke all on function public.whatsapp_phone_key(text) from public;
 revoke all on function public.whatsapp_phone_key(text) from anon;
 revoke all on function public.whatsapp_phone_key(text) from authenticated;
 
--- ── 3. Suppressed conversation → its customer records ───────
+-- ── 3. Suppressed number → the customer records carrying it ──
 create or replace function public.whatsapp_conversation_apply_opt_out()
 returns trigger
 language plpgsql
@@ -104,10 +109,7 @@ begin
          whatsapp_opted_out_at = new.whatsapp_opted_out_at,
          whatsapp_opted_out_reason = 'asked_on_whatsapp'
    where h.whatsapp_opted_out is not true
-     and (
-       h.id = new.human_id
-       or public.whatsapp_phone_key(h.phone) = public.whatsapp_phone_key(new.phone_e164)
-     );
+     and public.whatsapp_phone_key(h.phone) = public.whatsapp_phone_key(new.phone_e164);
   return null;
 end;
 $$;
@@ -118,7 +120,7 @@ revoke all on function public.whatsapp_conversation_apply_opt_out() from authent
 
 drop trigger if exists trg_whatsapp_conversation_apply_opt_out on public.whatsapp_conversations;
 create trigger trg_whatsapp_conversation_apply_opt_out
-  after insert or update of human_id, whatsapp_opted_out_at on public.whatsapp_conversations
+  after insert or update of whatsapp_opted_out_at on public.whatsapp_conversations
   for each row
   when (new.whatsapp_opted_out_at is not null and new.channel = 'whatsapp')
   execute function public.whatsapp_conversation_apply_opt_out();
@@ -179,10 +181,7 @@ begin
      set whatsapp_opted_out_at = null
    where c.channel = 'whatsapp'
      and c.whatsapp_opted_out_at is not null
-     and (
-       c.human_id = new.id
-       or public.whatsapp_phone_key(c.phone_e164) = public.whatsapp_phone_key(new.phone)
-     );
+     and public.whatsapp_phone_key(c.phone_e164) = public.whatsapp_phone_key(new.phone);
   return null;
 end;
 $$;

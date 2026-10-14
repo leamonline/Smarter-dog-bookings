@@ -327,3 +327,16 @@ Deno.test("handling a batched STOP first does not move the inbox preview backwar
     assertEquals(upsert.body.last_inbound_at, newest);
   }
 });
+
+Deno.test("a stale link does not carry the STOP to a customer whose number has changed", async () => {
+  // Staff changed this customer's number; the old conversation still links to
+  // them. The old number's STOP stops the old number, not their new one
+  // (#1016 review). whatsapp-send still refuses the old number itself.
+  const { humans, humanPatches, conversation, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+    onNumber: [{ id: HUMAN, phone: "07700 900 999" }],
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanPatches.length, 0);
+  assertEquals(humans[0].whatsapp_opted_out, false);
+  assert(typeof conversation.whatsapp_opted_out_at === "string", "the old number is suppressed");
+});

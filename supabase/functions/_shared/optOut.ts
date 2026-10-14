@@ -140,8 +140,14 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   // "I don't want your messages."; not "I don't want the reminder moved"
   // or "I don't want messages before 9" (#1016 review)
   /\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:to\s+(?:receive|get)\s+)?(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:any|these|your|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more|from\s+(?:you|the\s+salon|smarter\s+dog))\b|\s*(?:please\s*)?[.!]*\s*$))/i,
-  // "no more messages", "no further texts"
-  /\bno\s+(?:more|further)\s+(?:messages|texts|whatsapps?)\b/i,
+  // "No more messages please", "no further texts, thanks": as a request on
+  // its own, never in a report such as "I got the reminder but no more
+  // messages came through" (#1016 review)
+  /^\s*(?:please,?\s+)?no\s+(?:more|further)\s+(?:messages|texts|whatsapps?|reminders)(?:,?\s+(?:please|thanks|thank\s+you))*\s*[.!]*\s*$/i,
+  // "Please stop all messages", "Stop messaging", "stop the reminders
+  // please": a stop aimed at our messages, ending the request; not "stop the
+  // messages going to my old phone" or "stop the clippers short"
+  /\b(?:stop|quit|cease)\s+(?:(?:all|any|the|these|your)\s+)?(?:messages|messaging|texts|texting|whatsapps?|whatsapping|reminders)(?:\s+(?:to\s+(?:me|us|this\s+number)|please|now|thanks|thank\s+you))*\s*[.!]*\s*$/i,
   // "take me off your list", "remove my number from this chat"; never a
   // waiting list, which is a booking request
   /\b(?:take|remove)\s+(?:me|us|my\s+number)\s+(?:off|from)\s+(?:your|the|this)\s+(?:(?:mailing|contact|contacts|messaging|message|text|texting|whatsapp|marketing)\s+)?(?:list|chat)\b/i,
