@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — Staff can switch WhatsApp back on (#1016 follow-up)
+
+- The customer profile now leads with a notice when WhatsApp is switched off
+  (rose when they said STOP, slate for any other reason) and the header
+  carries a "WhatsApp stopped" / "WhatsApp off" badge. In the inbox, a thread
+  whose sends are refused shows a banner in place of the 24-hour banner; it
+  works on the chat’s own number, so it covers a number with no customer
+  record, and points to the profile of a linked customer saved with another
+  number.
+- "Switch WhatsApp back on…" opens a dialog that lists everything the
+  re-enable covers (the number’s first and latest STOP, and every
+  switched-off record on it with its reason) before staff record how the
+  customer gave permission again (at least 10 characters, sent as written).
+  It sends exactly that scope; if anything changed, the number said STOP
+  again, or the connection dropped, it reads the scope again and shows the
+  result instead of retrying. A new STOP clears the note.
+- The profile header’s "WA" wa.me link is hidden while WhatsApp is switched
+  off, so staff cannot message a stopped number from their own phone.
+- The "E" shortcuts (profile edit mode, inbox "Mark complete") no longer fire
+  through a dialog stacked over them.
+- Depends on migration `20261014120000_whatsapp_number_opt_out` being live in
+  production (#1016); adds no migration of its own.
+
 ## Unreleased — WhatsApp opt-out enforced at the send boundary (#990)
 
 - `whatsapp-send` now looks up the recipient (by `human_id`, through the

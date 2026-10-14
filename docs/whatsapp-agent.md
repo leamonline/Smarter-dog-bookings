@@ -244,8 +244,47 @@ never automatically:
 - A redelivered STOP, or an event replayed after it was stored, does not stop
   the number again over a re-enable made since.
 
-There is no staff screen for this yet. Until there is, the functions are
-called with a member of staff's session; they refuse every other caller.
+**Switching it back on in the app.** Staff reach the re-enable from two
+places, and nowhere else: there is no ordinary untick.
+- The customer profile leads with a notice when WhatsApp is switched off
+  (rose for a STOP, slate for any other reason), with **Switch WhatsApp back
+  on…**. The header carries a "WhatsApp stopped" / "WhatsApp off" badge, and
+  the "WA" wa.me link is hidden while it is off.
+- The inbox thread shows a banner in place of the 24-hour banner when sends
+  in the chat are refused, with the same button. It is keyed on the chat’s
+  own number, so it also covers a number with no customer record. A linked
+  customer switched off under a different number gets "Open {name}’s
+  profile" instead, since this number’s re-enable cannot reach them. The
+  Booking Desk shows the banner without buttons.
+
+The dialog (`ReenableWhatsAppDialog`, state in `useWhatsappNumberReenable`)
+reads the scope when it opens and lists the number’s first and latest STOP
+and every switched-off record on it, with each record’s reason, before the
+form. Staff write how and when the customer gave permission again (at least
+10 characters); the note is sent trimmed, verbatim, never prefixed or
+composed. The request carries exactly the scope’s records and the scope’s
+latest STOP as the server’s own string (`whatsappOptOutRepo` takes the scope
+object, so a subset or a reformatted time cannot be sent). Nothing is ever
+retried automatically:
+- If the scope changed since staff looked (`reenable_scope_changed`), or
+  another write held the number’s lock (`40P01`, `55P03`, `40001`,
+  `57014`), the dialog reads the scope again, shows what changed, and waits
+  for staff to confirm again.
+- If the number said STOP again since, the note is cleared too: the
+  permission it recorded predates that STOP. In the inbox, a newer STOP on
+  the live conversation row holds the button until staff reload.
+- If the connection drops, the outcome is unknown, so the dialog reads the
+  scope to find out whether it went through, and says so either way.
+
+On sample data (`npm run dev`) the notice, badge and banner render from the
+fixtures, but the dialog only explains that switching back on needs the live
+database. Try the live flow on staging, never production: a test re-enable
+changes a real customer’s consent and writes a permanent audit row.
+
+Switching back on does not switch auto-send back on: the assistant stays on
+drafts for staff to approve. A pending STOP acknowledgement draft is left in
+the chat for staff to reject, since it tells the customer messages have
+stopped; the dialog says so.
 
 Numbers are matched however they were typed ("07700 900123",
 `+44 (0)7700 900 123`, "+33 6 12 34 56 78"). In code this is `phoneMatchKey`
