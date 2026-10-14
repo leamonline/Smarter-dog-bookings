@@ -24,19 +24,29 @@ interface Faults {
   alreadyOptedOut?: boolean;
   /** The conversation PATCH returns an error. */
   conversationWriteFails?: boolean;
+  /**
+   * Customer records stored on the sender's number, as typed. Defaults to the
+   * linked customer stored "07700900444"; an unlinked conversation can still
+   * have a record on its number stored formatted (#1016 review).
+   */
+  onNumber?: { id: string; phone: string }[];
 }
 
 async function send(text: string, state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
   const calls: { method: string; path: string; search: string; body: Record<string, unknown> }[] = [];
-  // A stateful humans row: the STOP write is applied with PostgREST's eq
-  // filters, so a test can assert what was STORED, not only what was sent.
-  const humanRow: Record<string, unknown> = {
-    id: humanId,
-    phone: "07700900444",
+  // A stateful humans table: the STOP write is applied with PostgREST's
+  // id=in.(…) and whatsapp_opted_out=eq. filters, so a test can assert what
+  // was STORED, not only what was sent.
+  const seed = faults.onNumber ?? (humanId ? [{ id: humanId, phone: "07700900444" }] : []);
+  const humans: Record<string, unknown>[] = seed.map((row) => ({
+    ...row,
     whatsapp_opted_out: faults.alreadyOptedOut === true,
     whatsapp_opted_out_at: null,
     whatsapp_opted_out_reason: null,
-  };
+  }));
+  const humanRow = humans[0] ?? {};
+  const idsFrom = (filter: string | null) =>
+    filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const conversation = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null };
   const message = { id: "synthetic-stop", from: "447700900444", type: "text", text: { body: text }, timestamp: String(Math.floor(Date.now() / 1000)) };
@@ -58,18 +68,24 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
     if (url.pathname === "/rest/v1/humans") {
       if (method === "PATCH") {
         if (faults.humanWriteFails) return reply({ message: "connection reset" }, 500);
-        const idFilter = url.searchParams.get("id");
+        const ids = idsFrom(url.searchParams.get("id"));
         const optedFilter = url.searchParams.get("whatsapp_opted_out");
-        const matches = !faults.humanWriteMatchesNothing
-          && idFilter === `eq.${humanRow.id}`
-          && (optedFilter === null || optedFilter === `eq.${humanRow.whatsapp_opted_out}`);
-        if (matches) Object.assign(humanRow, body);
-        return reply(matches ? [{ id: humanRow.id }] : []);
+        const changed = faults.humanWriteMatchesNothing ? [] : humans.filter((row) =>
+          ids.includes(String(row.id))
+          && (optedFilter === null || optedFilter === `eq.${row.whatsapp_opted_out}`));
+        for (const row of changed) Object.assign(row, body);
+        return new Response(null, { status: 204 });
       }
-      const select = url.searchParams.get("select") ?? "";
+      // supabase-js strips whitespace from select lists.
+      const select = (url.searchParams.get("select") ?? "").replace(/\s/g, "");
       if (select.startsWith("name")) return reply({ name: "Synthetic", surname: "Person" });
-      if (select === "whatsapp_opted_out") return reply([{ whatsapp_opted_out: humanRow.whatsapp_opted_out }]);
-      return reply(humanId ? [{ id: humanId, phone: "07700900444" }] : []);
+      if (select === "id,whatsapp_opted_out") {
+        const ids = idsFrom(url.searchParams.get("id"));
+        return reply(humans.filter((row) => ids.includes(String(row.id))).map((row) => ({ id: row.id, whatsapp_opted_out: row.whatsapp_opted_out })));
+      }
+      // The phone lookups (agent's own link, and the STOP pattern match):
+      // every record on the sender's number, formatted as stored.
+      return reply(humans.map((row) => ({ id: row.id, phone: row.phone })));
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       if (method === "PATCH") {
@@ -94,7 +110,7 @@ async function send(text: string, state = "ai_handling", humanId: string | null 
   const drafts = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "POST").map((c) => c.body);
   const humanPatches = calls.filter((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   const conversationPatches = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH").map((c) => c.body);
-  return { sends, drafts, humanPatches, conversationPatches, humanRow, eventPatch };
+  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch };
 }
 
 Deno.test("STOP flags the customer, switches auto-send off, sends nothing and leaves one draft", async () => {
@@ -108,7 +124,7 @@ Deno.test("STOP flags the customer, switches auto-send off, sends nothing and le
   assertEquals(humanPatches[0].body.whatsapp_opted_out, true);
   assertEquals(humanPatches[0].body.whatsapp_opted_out_reason, "asked_on_whatsapp");
   assert(typeof humanPatches[0].body.whatsapp_opted_out_at === "string");
-  assertStringIncludes(decodeURIComponent(humanPatches[0].search), `id=eq.${HUMAN}`);
+  assertStringIncludes(decodeURIComponent(humanPatches[0].search), HUMAN);
   assert(conversationPatches.some((p) => p.auto_send_enabled === false), "auto-send is switched off on the thread");
   assertEquals(drafts.length, 1);
   assertEquals(drafts[0].intent, "escalate");
@@ -168,4 +184,25 @@ Deno.test("for an unknown number, a failed auto-send switch-off fails the event"
   assertEquals(eventPatch.processing_status, "failed");
   assertStringIncludes(String(eventPatch.error_message), "auto-send");
   assertEquals(sends.length, 0);
+});
+
+Deno.test("STOP on an unlinked conversation flags the customer whose number is stored formatted", async () => {
+  // The agent links conversations by exact phone string, so a customer stored
+  // as "07700 900 444" leaves the conversation unlinked. Their STOP must still
+  // flag that record, or a later staff send would pass the gate (#1016 review).
+  const { humans, eventPatch, sends } = await send("STOP", "ai_handling", null, {
+    onNumber: [{ id: "human-formatted", phone: "07700 900 444" }],
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humans[0].whatsapp_opted_out, true);
+  assertEquals(humans[0].whatsapp_opted_out_reason, "asked_on_whatsapp");
+  assertEquals(sends.length, 0);
+});
+
+Deno.test("every record on the number is flagged, not just the linked one", async () => {
+  const { humans, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+    onNumber: [{ id: HUMAN, phone: "07700900444" }, { id: "human-partner", phone: "+44 7700 900444" }],
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humans.map((row) => row.whatsapp_opted_out), [true, true]);
 });

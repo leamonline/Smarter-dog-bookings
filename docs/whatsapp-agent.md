@@ -198,12 +198,16 @@ pass `override_opt_out: true` for the rare operational message a customer must
 still receive; the override is ignored on AI-initiated sends and on
 internal-secret calls. Policy and the detector live in `_shared/optOut.ts`.
 
-The agent recognises a customer asking us to stop (curly apostrophes included) (`STOP`, `unsubscribe`,
+The agent recognises a customer asking us to stop (curly apostrophes included;
+a negated "please don't stop messaging me" is not a stop) (`STOP`, `unsubscribe`,
 "please stop messaging me", "take me off your list"): it sets the flag with
 `whatsapp_opted_out_reason = 'asked_on_whatsapp'`, switches auto-send off on the
 thread, sends nothing, and while the AI is handling the thread leaves one
 acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
-on. If the flag or the auto-send switch-off cannot be stored, or the flag cannot
+on. It flags **every** customer record on the sender's number, including one the
+conversation never linked because the number is stored formatted. A number with
+no customer record at all has nowhere to store the opt-out yet (only auto-send is
+switched off). If the flag or the auto-send switch-off cannot be stored, or the flag cannot
 be read back as set, the event fails (visible as an agent failure) rather than
 reading as processed. That draft carries `tool_calls.opt_out_acknowledgement`, and a member of
 staff pressing Send on it **unedited** counts as the override; editing it, or

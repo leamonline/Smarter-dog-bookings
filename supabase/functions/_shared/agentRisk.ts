@@ -636,10 +636,12 @@ const FALLBACK_TEMPLATES: Readonly<Record<FallbackKind, string>> = {
   service_recovery:
     "I'm so sorry, that's not how a visit to us should go 🐾 One of the team is picking this up right now and will come back to you here as soon as they can X",
   // The customer asked us to stop messaging them. Acknowledge once, promise
-  // nothing else, and leave the door open. Staff-sent only: whatsapp-send
-  // refuses an AI-initiated message to an opted-out number.
+  // nothing else, and leave the door open the way it really opens: nothing
+  // re-enables messages automatically; a member of staff unticks the opt-out
+  // when the customer asks. Staff-sent only: whatsapp-send refuses an
+  // AI-initiated message to an opted-out number.
   opt_out:
-    "No problem at all — we've stopped WhatsApp messages to this number. If you ever want to hear from us again, just send us a message 🐾 X",
+    "No problem at all — we've stopped WhatsApp messages to this number. If you change your mind, just let us know and the team will switch them back on 🐾 X",
   unknown:
     "Could you send me your pup's name, breed, and what you're looking to book please? 😊 X",
 };

@@ -108,6 +108,11 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Don't text me until he's ready, I'll be in a meeting",
     "Don\u2019t message me before 9 please",
     "Please stop sending the reminder to my old email",
+    // A negated stop is the opposite request (#1016 review)
+    "Please don't stop messaging me",
+    "Please don\u2019t stop sending me reminders, they help!",
+    "I don't want you to stop texting me about Bella",
+    "Never stop messaging me about his grooms",
     "",
     null,
     undefined,

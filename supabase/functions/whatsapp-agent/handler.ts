@@ -88,7 +88,7 @@ import {
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
-import { isOptOutRequest } from "../_shared/optOut.ts";
+import { isOptOutRequest, phoneLookupCandidates, ukNationalDigits, ukPhoneMatchPattern } from "../_shared/optOut.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
 import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
@@ -2883,33 +2883,53 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             // here must land, or the event fails (visible to staff as an
             // agent failure) rather than reading as processed (AGENTS.md:
             // never infer an outcome from an attempted write).
-            if (conversation.human_id) {
-              const { data: flagged, error: optOutErr } = await supabase
+            // Opt-out belongs to the NUMBER. Flag the linked customer and every
+            // other record on this number, including one the conversation never
+            // linked because its phone is stored formatted ("07700 900123");
+            // whatsapp-send refuses a number if any of its records opted out.
+            const optOutIds = new Set<string>();
+            if (conversation.human_id) optOutIds.add(conversation.human_id);
+            const senderPhone = conversation.phone_e164 ?? "";
+            const phonePattern = ukPhoneMatchPattern(senderPhone);
+            const phoneCandidates = phoneLookupCandidates(senderPhone);
+            if (phonePattern || phoneCandidates.length > 0) {
+              const phoneQuery = supabase.from("humans").select("id, phone");
+              const { data: onNumber, error: lookupErr } = phonePattern
+                ? await phoneQuery.filter("phone", "match", phonePattern)
+                : await phoneQuery.in("phone", phoneCandidates);
+              if (lookupErr) {
+                throw new Error(`STOP not recorded: could not look up customers on this number (${lookupErr.message})`);
+              }
+              const senderDigits = ukNationalDigits(senderPhone);
+              for (const row of (onNumber ?? []) as { id: string; phone: string | null }[]) {
+                if (!senderDigits || ukNationalDigits(row.phone) === senderDigits) optOutIds.add(row.id);
+              }
+            }
+            if (optOutIds.size > 0) {
+              const ids = [...optOutIds];
+              const { error: optOutErr } = await supabase
                 .from("humans")
                 .update({
                   whatsapp_opted_out: true,
                   whatsapp_opted_out_at: new Date().toISOString(),
                   whatsapp_opted_out_reason: "asked_on_whatsapp",
                 })
-                .eq("id", conversation.human_id)
-                .eq("whatsapp_opted_out", false)
-                .select("id");
+                .in("id", ids)
+                .eq("whatsapp_opted_out", false);
               if (optOutErr) {
                 throw new Error(`STOP not recorded: could not flag the customer as opted out (${optOutErr.message})`);
               }
-              if (!flagged || flagged.length === 0) {
-                // No row changed: either they had already opted out (fine),
-                // or the row is missing. Read it back rather than assume.
-                const { data: current, error: readErr } = await supabase
-                  .from("humans")
-                  .select("whatsapp_opted_out")
-                  .eq("id", conversation.human_id)
-                  .maybeSingle();
-                if (readErr || current?.whatsapp_opted_out !== true) {
-                  throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
-                }
+              // Read every record back rather than infer from the write: a
+              // filter that matched nothing must not pass as recorded.
+              const { data: stored, error: readErr } = await supabase
+                .from("humans")
+                .select("id, whatsapp_opted_out")
+                .in("id", ids);
+              const rows = (stored ?? []) as { id: string; whatsapp_opted_out: boolean | null }[];
+              if (readErr || rows.length !== ids.length || rows.some((row) => row.whatsapp_opted_out !== true)) {
+                throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
               }
-              console.log(`opt-out: flagged human ${conversation.human_id} from conversation ${conversation.id}`);
+              console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
             }
             const { error: convErr } = await supabase
               .from("whatsapp_conversations")

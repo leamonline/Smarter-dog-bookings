@@ -126,6 +126,12 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   /\bopt(?:ed|ing)?[\s-]?out\s+of\s+(?:(?:your|the|these|this|all)\s+)?(?:messages|texts|whatsapps?|marketing|updates|reminders|chats?)\b/i,
 ];
 
+// "Please don't stop messaging me", "I don't want you to stop sending
+// reminders": a negation within a few words before the stop-verb reverses the
+// request. Checked before the positive patterns (#1016 review), because a
+// false positive silences a customer who asked for the opposite.
+const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not|won'?t)\b(?:\s+\w+){0,4}\s+(?:stop|quit|cease)\b/i;
+
 /** True when the message is the customer asking us not to message them. */
 export function isOptOutRequest(messageText: string | null | undefined): boolean {
   if (!messageText) return false;
@@ -133,5 +139,6 @@ export function isOptOutRequest(messageText: string | null | undefined): boolean
   // straight one, so fold every apostrophe-like character first.
   const text = messageText.replace(/[\u2018\u2019\u02BC\u2032`´]/g, "'").trim();
   if (!text) return false;
+  if (NEGATED_STOP.test(text)) return false;
   return OPT_OUT_PATTERNS.some((pattern) => pattern.test(text));
 }
