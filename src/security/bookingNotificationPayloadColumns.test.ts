@@ -39,7 +39,7 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 const RECORD_CONSUMERS = [
   "supabase/functions/notify-booking-confirmed/index.ts",
   "supabase/functions/notify-booking-ready/index.ts",
-  "supabase/functions/notify-booking-cancelled/index.ts",
+  "supabase/functions/notify-booking-cancelled/handler.ts",
   "supabase/functions/_shared/recipients.ts",
 ];
 
