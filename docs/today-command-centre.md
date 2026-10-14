@@ -24,7 +24,7 @@ logic stays out of components and can't drift between surfaces:
 |---|---|
 | `engine/today.ts` | London-time "now", the late/unconfirmed/wait/payment selectors and the ranked `entryOpStatus` mapping every surface reads |
 | `engine/dailyBrief.ts` | the four zones (`buildDailyBriefBoard`) and the care-step rules |
-| `engine/salonBoard.ts` | zone mapping, priority gravity, visual tiers, **the per-state action list (`tokenActions`, still the single source of legal transitions, read by the stack)**, drag legality and undo |
+| `engine/salonBoard.ts` | zone mapping, priority gravity, visual tiers, **the per-state action list (`tokenActions`, still the single source of legal transitions, read by the stack)** and undo. The four-zone board that first read it is gone (October 2026, #995); the stack, the header and `useBookingActions` still do |
 | `engine/dayStack.ts` | the stack: strict time ordering, the one timing line per row, and the check-out chain |
 | `engine/lifecycleStamps.ts` | the offline mirror of the two `checked_in_at` / `ready_at` / `completed_at` database triggers |
 | `engine/reportsAnalytics.ts` | reports 2A–2E |
@@ -43,10 +43,11 @@ correct year-round, BST included.
 
 ## September 2026: the zone decision was reversed
 
-`/today` is a **time-ordered status stack**. It is not the four-zone board, and
-the reasoning recorded below for that board is **superseded** — it is kept
-because the board still ships as a fallback, not because it describes what staff
-see.
+`/today` is a **time-ordered status stack**. It replaced the four-zone board,
+which was then **deleted in October 2026** (#995) once the stack had run
+through its first trading weeks. The reasoning recorded below is history —
+why the zones were tried and why they were reversed — not a description of a
+fallback that still ships.
 
 **What the board decided.** Position carries the status: a dog sits in the zone
 that says where it physically is, and therefore wears no status badge, because
@@ -233,258 +234,27 @@ On a closed day the database's closed-day guard refuses the revival (`SCL03`)
 unless the visit has an open closure-rearrangement task, exactly as it does
 for a revived cancellation (migration `20260927204500`).
 
-### The old board, behind a flag
+### The old board
 
-`FEATURE_FLAGS.legacy_salon_board_enabled` (`VITE_LEGACY_SALON_BOARD=1`), **off by
-default**, renders the four-zone board instead. It is expected to be removed once
-the stack has run through a few trading days.
+The four-zone board that the stack replaced was **deleted in October 2026**
+(#995) once the stack had run through its first trading weeks. Its component
+directory under `views/today/`, the build-time rollback flag in
+`constants/features.ts` (and the `VITE_` variable that set it) and the drag
+helpers in `engine/salonBoard.ts` went with it. What stayed is what the stack
+still reads: the zone vocabulary (`BOARD_ZONES`, `zoneForStatus`,
+`BOARD_ZONE_META`), `buildBoardTokens` and `buildAttentionSummary` behind the
+attention strip, `buildZoneCounts` behind the header's shape of the day, and
+`tokenActions` / `reverseStatusFor` behind every card action and its undo.
+`NeedsAttentionSummary`, `UnknownStatusRecovery` and `EndOfDayFacts` moved up
+a directory rather than going, because the page still renders them.
 
-**It is a build-time flag, not a runtime one.** Vite inlines every
-`import.meta.env.VITE_*` constant into the bundle, so the value is fixed when the
-bundle is built. Setting the variable in Vercel does nothing on its own.
-
-Flipping it, end to end:
-
-1. Set `VITE_LEGACY_SALON_BOARD=1` on the Vercel project, Production scope.
-2. **Redeploy.** Vercel does not rebuild on an environment change, so this step
-   is required and is the one people forget. Redeploying the current production
-   deployment is enough; there is no commit to make.
-3. Wait for the build. Recent builds of this project have taken roughly half a
-   minute, but that figure is observed rather than guaranteed.
-4. Staff reload. The app is a PWA with a precached bundle, so an already-open
-   tab keeps the old one until the service worker updates.
-
-So the realistic cost is **a few minutes and someone with Vercel access**, not
-seconds. That matters if the reason for flipping is that the salon is mid-service
-and the screen is wrong.
-
-**If that is too slow**, the flag would have to move to something read at
-runtime — `salon_config.settings` is the obvious candidate, since it is already
-fetched on boot and already drives other behaviour. That would make a flip
-immediate on the next poll, at the cost of a database round trip on a screen that
-currently needs none. It was not done here because it is a bigger change than the
-rollback it protects, but it is the answer if a build-time flip proves too slow in
-practice.
-
-Its component tests still exercise it through that flag. Its browser coverage
-does not survive: `e2e/daily-brief.spec.ts` was replaced by
+Its browser coverage had already gone: `e2e/daily-brief.spec.ts` was replaced by
 [`e2e/day-stack.spec.ts`](../e2e/day-stack.spec.ts), which follows the surface
 staff actually get and adds the end-to-end status-transition coverage the board
-never had.
+never had. The design reasoning the board recorded lives in the repository
+history of its deleted directory, not here.
 
-Everything from here to the end of this section describes **that fallback**, not
-the shipping screen.
-
-## The salon board — SUPERSEDED, behind `legacy_salon_board_enabled` (`views/today/board/`)
-
-> **Superseded September 2026.** This described `/today` between August and
-> September 2026. It is now the fallback behind
-> `FEATURE_FLAGS.legacy_salon_board_enabled`, kept so the reasoning is available
-> if the flag is ever turned back on. Read it as history, not as guidance.
-
-The board is a **live salon board**, not a list of cards (August 2026 redesign).
-Every dog on the day is one **token** — a face, a name, and one number — placed
-in the zone that says where that dog physically is:
-
-    Arriving  →  With us  →  Ready  →  Gone home
-
-**Position carries the status.** A token in the Ready zone does not also wear a
-"READY" badge, and the zone heading is the only place the noun appears. The
-question staff actually ask — *"where is Teddy?"* — is answered by looking, and
-the answer to *"does anything need me?"* is one sentence at the top of the page.
-
-The zones are the existing Daily Brief lanes under new labels
-(`due | withUs | ready | home` in `buildDailyBriefBoard`) — **no new statuses, no
-new transitions, no mapping layer**. `engine/salonBoard.ts` adds three pure
-decisions on top and nothing else:
-
-| Decision | Function | Rule |
-|---|---|---|
-| Zone | `zoneForStatus` | Booked→Arriving · Checked in / In bath→With us · Ready for pick-up→Ready · Completed→Gone home. Cancelled and unknown statuses map to **null** and surface in the recovery line instead of vanishing |
-| Priority | `buildBoardTokens` | Per-zone ranking + a three-step visual tier (below) |
-| Actions | `tokenActions` | The legal operations for this dog right now — read by the desktop menu, the phone sheet **and** the drag layer, so the three input methods cannot diverge |
-
-### Priority gravity (the sort rules)
-
-Order only changes on a real state change or the 60-second tick — the board must
-not shuffle under a finger, because spatial memory is the point. Every rule ends
-in the booking id, so the order is total and two identical bookings never swap.
-
-| Zone | Order |
-|---|---|
-| Arriving | late first (most overdue leading), then soonest slot |
-| With us | welfare-flagged first, then longest on site; a dog with no `checked_in_at` stamp has no claim and sorts last |
-| Ready | longest wait first. A dog with **no `ready_at`** (legacy rows, pre-2026-07-02) sorts **first** — unknown must surface, never hide |
-| Gone home | most recently collected first |
-
-**Tiers** (`urgent` / `watch` / `calm`) come from the same `entryOpStatus`
-mapping the cards used, so the board can never disagree with the header counts:
-
-- **urgent** — late arrival, collected-but-owing, or a collection wait ≥ 60 min
-  (`READY_URGENT_MINUTES`). Coral ring **and** coral words. Past 2 hours
-  (`NO_ARRIVAL_MINUTES`) the wording flips from "N hrs late" — which reads as
-  "still expected any moment" — to **"No arrival"**, with the slot heading
-  still carrying when it was due. The tier stays urgent; only the story told
-  changes.
-- **watch** — anything on the needs-attention list, an arrival due within 15 min
-  (`DUE_SOON_MINUTES`), or a dog on site ≥ 3 h (`IN_SALON_LONG_MINUTES`).
-- **calm** — everything else. A **browsed past or future date is always calm**
-  (money still owed excepted): nothing on it is happening now, so nothing on it
-  may glow.
-
-Urgency is never carried by colour alone — the ring, the meta text's colour and
-weight, and the token's accessible name all say the same thing.
-
-### What a token shows, and what it deliberately does not
-
-A 64px avatar (72px on a tablet) with deterministic initials — **there are no dog
-photos in this data model**; `groom_photos` is a separate staff-only gallery, not
-a profile picture, and none is fabricated. Then the dog's name and **at most one**
-piece of context.
-
-Which piece depends on whether the fact belongs to the dog or to its appointment:
-
-- **Once a dog is here**, the number is its own — elapsed time on site, or how
-  long it has been waiting to be collected — so it prints on the token.
-- **While a dog is still arriving**, the time belongs to the *slot*, not to the
-  dog standing in it. Four dogs booked into 09:00 are all "20 min late"
-  together, so printing it under each of them would repeat one fact four times.
-  It is stated once, on the slot heading (see below), and an arriving token
-  prints only what that heading cannot know: **To confirm**, when this
-  particular booking is still unconfirmed.
-
-Three facts earn extra ink, because each costs money or welfare if missed:
-
-- **A welfare note stays on the board at every width.** The existing safety rule
-  (a welfare fact is never hidden behind a tap or a breakpoint) survives the
-  redesign: a flagged dog gets a coral mark on the token **and** its first note
-  printed beneath it, with the full text in the panel.
-- **A balance appears only from Ready onward** — where it actually blocks the
-  handover. A dog mid-groom that will settle at pick-up is routine and must not
-  look like a problem. Its settled counterpart: a **paid Ready dog carries a
-  small ✓** in the same seat, so "just hand over" is visible without a press.
-- **"Owner on the way"** — the read-only WhatsApp signal, as a teal mark.
-
-Everything else — service, owner, payment sentence, who confirmed and when, the
-full safety text — lives in the action panel, one press away.
-
-### Arriving is a schedule, so it groups by slot
-
-Arriving is the one zone with an inherent order that is not "how long has this
-been going on" — it is the diary. `groupTokensBySlot` splits it into one group
-per appointment time, each headed by the time, the dog count when there is more
-than one, and the countdown or lateness the whole group shares
-(`08:30 · 4 dogs · 45 min late`). The other zones stay a flat grid, because
-their numbers genuinely differ per dog.
-
-Grouping can never reorder the board: a group takes the position of its first
-dog in the already-ranked token list, and since lateness is a property of the
-slot, ranking by "late first, then soonest" and ordering groups by first
-appearance produce the same sequence. A booking with **no usable slot** must
-never disappear, so those collect in a trailing **Unscheduled** group.
-
-**The time sits in a left gutter beside its dogs from `xl` up**, so a slot costs
-no row of its own; below `xl` the heading goes back above its row. That
-breakpoint is measured, not guessed. The gutter takes 80px off the token grid,
-which is free at 1280 (the zone is ~458px and still fits four tokens) and
-expensive below it — at 1024 and 768 the zone is ~350px, the grid drops from
-three columns to two, and the "saving" makes the zone **11-12% taller** than
-the heading it replaced. Measured on a 13-dog Arriving zone:
-
-| Width | Heading above | Gutter beside |
-|---|---|---|
-| 1280 | 716px | **588px** (−18%) |
-| 1024 | 826px | 919px (+11%) — so: heading |
-| 768 | 874px | 983px (+12%) — so: heading |
-| 390 | 826px | — zones stack, height costs nothing beside anything |
-
-For the same reason the gutter is 80px and not 88px: the wider gutter fits
-`in 1 hr 45 min` on one line but drops 1280 from four token columns to three
-and pushes the zone back to 698px. The long strings wrap balanced instead.
-`e2e/daily-brief.spec.ts` asserted the flip geometrically — the time left of its
-first token at 1280 and above it at 768. That spec was removed with the
-reversal, so this breakpoint now has no browser-level guard; its component tests
-remain.
-
-### One panel, two presentations
-
-Press a dog, get that dog's actions. The mental model is identical everywhere;
-only the physical presentation changes.
-
-- **≥ 768px** — `DogActionMenu`, a portalled `role="menu"` anchored beside the
-  token, growing out of its edge, in **three tiers of weight** matching how
-  often each action is needed mid-groom: the workflow transition dominates as
-  one large filled button, contact and payment sit in a compact row beneath
-  it, and reference material (booking details, files, reversals) is a quiet
-  list at the bottom. All items keep `role="menuitem"` in DOM order, so arrow
-  traversal is unchanged by the visual grouping. Deliberately **not** a radial
-  menu: a dog offers 3–9 actions and several labels are long ("Take £52
-  payment"), so arc placement would collide or shrink below a comfortable
-  target and the screen reader order would stop matching the visual one.
-- **< 768px** — `DogActionSheet`, a bottom sheet on `ModalShell`, sized for a
-  thumb at 320px.
-
-Both render the same `tokenActions` list. Actions are state-derived and never
-symmetrical: a collected dog has no "Mark collected", an on-time booking has no
-"Confirm", a booking with no number on file has no "Call".
-
-### Movement, drag and undo
-
-A state change **moves** the token, via FLIP (measure, invert, play — 220 ms,
-one ease-out), because a token that teleports leaves the user asking whether it
-worked. Reduced motion is honoured by doing nothing: the toast and the aria-live
-announcement carry the change instead.
-
-**Drag is an accelerator, never a requirement** (`useTokenDrag`). Forward,
-one zone at a time only — skipping a care step is a decision that deserves the
-confirm dialog, and going backwards is a correction that belongs in the panel
-where the words can be read first. Mouse activates at 6px; **touch needs a
-200 ms hold**, so a busy board can still be scrolled. A drop runs the same
-handler the menu item does, so the unpaid-collection safeguard and the
-staff-reviewed collection notice still fire. Drag is off below 768px, where the
-sheet is faster and there is no room to drag across.
-
-**Undo replaces confirmation** for ordinary reversible moves (check in, start
-groom, ready, collected): the common case costs one tap and the mistake costs
-two. `reverseStatusFor` decides what is reversible; a cancellation ("Didn't
-show") is confirmed, never quietly undone, and the undo write carries
-`_skipCollectionPrompt` so going back never re-opens the owner notice.
-
-### Needs attention
-
-`buildAttentionSummary` — zero reads *"Everything's on track"*; non-zero renders
-an **itemised strip, one segment per reason**: `2 late · 1 to confirm · 3
-waiting · £88 due`. An opaque "11 things need you" sounded urgent but forced a
-second round of interpretation; the segments make the number define itself.
-Pressing a segment **dims the calm dogs (to 55%, never lower — highlighting
-raises the important dogs, it must not make the application look disabled) and
-rings exactly the dogs that segment names, where they already are**. It never
-filters them into a separate list: moving a dog to prove it needs attention
-would destroy the spatial memory the board exists to build. Membership is
-exactly the existing `needsAction` union — the segments name reasons, they do
-not invent a second definition. The `£` segment carries the **due-now** amount
-(dogs from Ready onward, where taking it unblocks the door); the whole-day
-total lives in the end-of-day facts, and the header's money says only what is
-in the till — one financial voice per surface. Selecting a segment also scrolls
-to its first dog **only if that dog is off screen**; that press is the one
-place the viewport is allowed to move.
-
-### The phone shows one lane at a time
-
-Below 768px the three zones do not stack. Stacking buried Ready several screens
-beneath Arriving exactly when its dogs mattered most — mid-afternoon, with
-owners at the door. Instead a **segmented switcher** (`Arriving 6 · With us 2 ·
-Ready 3`) shows one lane at a time: every lane's count stays readable from one
-row, a coral dot marks a lane holding an urgent dog so nothing hides behind the
-tab you are not on, and a deliberate horizontal swipe (≥56px, and clearly more
-horizontal than vertical, so a drifting scroll never changes lane) moves
-between neighbours. The switcher resets to Arriving when the browsed date
-changes. Wider screens keep all three zones in place at once — the switcher
-never renders there. Each zone also sits on a **2% tinted surface** at every
-width, so the emptiness has structure: a lane reads as a place dogs stand, not
-leftover page.
-
-## Shared by both surfaces
+## Around the stack
 
 ### The header
 
@@ -492,13 +262,31 @@ One anatomy at every width. The date **is** the date-picker control and never
 leaves the screen — it is the only guard against doing today's work on
 Thursday's bookings. Beside it the salon open/closed pill and the
 Manage-availability button carrying its own state. Beneath: the attention
-sentence, the shape of the day (`3 arriving · 6 with us · 2 ready` — still
-phrased in the board's zones, because the counts themselves are unchanged), and
-money
-kept secondary (`£286 collected · £152 to collect`), with an over-cap day in
-coral. Deliberately not a KPI row.
+sentence, the shape of the day (`3 arriving · 6 with us · 2 ready` — phrased in
+the zone vocabulary `salonBoard.ts` still owns, because the counts are the same
+selectors), and money kept secondary (`£286 collected · £152 to collect`), with
+an over-cap day in coral. Deliberately not a KPI row.
 
-### Everything the board did not replace
+### Needs attention
+
+`buildAttentionSummary` — zero reads *"Everything's on track"*; non-zero renders
+an **itemised strip, one segment per reason**: `2 late · 1 to confirm · 3
+waiting · £88 due`. An opaque "11 things need you" sounded urgent but forced a
+second round of interpretation; the segments make the number define itself.
+Pressing a segment **dims the other cards (to 50%, never lower — highlighting
+raises the important dogs, it must not make the application look disabled) and
+leaves exactly the dogs that segment names at full strength, where they already
+are**. It never filters them into a separate list: moving a dog to prove it
+needs attention would break the time order the stack exists to keep. Membership
+is exactly the existing `needsAction` union — the segments name reasons, they do
+not invent a second definition. The `£` segment carries the **due-now** amount
+(dogs from Ready onward, where taking it unblocks the door); the whole-day
+total lives in the end-of-day facts, and the header's money says only what is
+in the till — one financial voice per surface. Selecting a segment also scrolls
+to its first dog **only if that dog is off screen**; that press is the one
+place the viewport is allowed to move.
+
+### Everything neither redesign replaced
 
 `AwaitingDepositsCard`, `MissingSizeNotice`, `TodayBriefNotes`, the
 Manage-availability modal (still `buildSlotOpportunities` → `buildAvailabilityView`,
@@ -579,20 +367,6 @@ Status changes do not re-sort appointments. Selection changes only presentation:
 stable booking keys and DOM order preserve focus, and keyboard focus brings a
 header out of the future stack. Browser scroll anchoring is disabled within this
 view so it cannot counteract intentional card transitions.
-
-### The board's contract (superseded, behind the flag)
-
-Every token is a focusable button whose accessible name is a sentence ("Teddy.
-Ready, waiting 18 min. £52 due. owner Rik Patel."). The menu keeps the full
-`role="menu"` contract — first item focused on open, arrows/Home/End traverse,
-Escape closes and returns focus to the dog, outside click and scroll dismiss.
-**A token that changes zone is a different DOM node in a different list**, so
-focus would otherwise drop to `<body>`; `SalonBoard` remembers the focused
-booking id and restores it after any rearrangement — but only when focus was
-genuinely orphaned, so a modal is never interrupted. Drag has no keyboard
-equivalent because it needs none: every move it performs is a labelled menu
-item. Touch targets are ≥ 44px, urgency is never colour-alone, and there is no
-hover-only information.
 
 ## The reports (`views/ReportsView.jsx`, bands 7–10)
 

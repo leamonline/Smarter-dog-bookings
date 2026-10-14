@@ -5,7 +5,7 @@
 // "2 late · 1 to confirm · £88 due" — so the number defines itself, and
 // pressing one segment highlights exactly the dogs it names, in place. It
 // never filters dogs away: moving a dog to prove it needs attention would
-// destroy the spatial memory the board exists to build.
+// break the time order the stack exists to keep.
 //
 // Zero is a sentence, not an empty warning panel; a browsed date gets nothing
 // at all, because nothing on it is happening now.

@@ -121,8 +121,8 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   carries one elapsed-time line, and expands in place for details and that dog's actions. No new
   statuses, no new transitions — `tokenActions` in `salonBoard.ts` is still the single source of
   legal moves. Replaced the four-zone salon board in September 2026, because a zone says where a dog
-  is but cannot say how long it has been there; the board survives behind
-  `FEATURE_FLAGS.legacy_salon_board_enabled` (off by default). Plus six decision reports (2A–2F) on
+  is but cannot say how long it has been there; the board itself was deleted in October 2026 (#995),
+  leaving only the zone vocabulary in `salonBoard.ts`. Plus six decision reports (2A–2F) on
   `/reports`. Pure engines drive both; deep dive:
   [docs/today-command-centre.md](docs/today-command-centre.md).
 - `src/engine/` — **pure TS business logic, zero React**: `capacity.ts` (the 2-2-1 engine),

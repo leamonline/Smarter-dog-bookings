@@ -398,7 +398,7 @@ export function StackCard({
               The inline chain covers the common case. The moment there is an
               add-on to add, a split to record or a discount to give, staff need
               the real thing — and the old board, which was the other way to
-              reach it, is going behind a flag.
+              reach it, is gone.
             */}
             {onOpenInvoice && payment?.kind !== "other" && !noShow ? (
               <button

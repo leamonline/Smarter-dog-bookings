@@ -1,7 +1,8 @@
 // Component tests for the "Later" notes disclosure, the one shared Daily Brief
-// part the salon board did not replace. The wait-tone scale, the per-card More
-// menu and the welfare chip row moved onto the token and its action panel, and
-// are covered by src/engine/salonBoard.test.ts and salonBoard.component.test.jsx.
+// part that neither redesign replaced. The wait-tone scale, the per-card More
+// menu and the welfare chip row became the stack card's status word, timing
+// line and safety row, covered by src/engine/salonBoard.test.ts (action
+// legality) and stack/dayStack.component.test.jsx (rendering).
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TodayBriefNotes } from "./TodayBriefNotes.jsx";

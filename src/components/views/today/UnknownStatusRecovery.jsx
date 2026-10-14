@@ -1,10 +1,10 @@
-// A booking whose status maps to no zone has nowhere to stand on the board —
+// A booking whose status maps to no zone has no place in the day's stack —
 // so it must not silently vanish. This names each one and offers a way to fix
 // it. A dog that disappears from the day because of a bad status value is a
 // welfare problem, not a rendering one.
 //
 // Deliberately one quiet line per booking rather than a panel: it has to be
-// impossible to miss, but it must not out-shout the board it is warning
+// impossible to miss, but it must not out-shout the stack it is warning
 // about. Exceptions expand — they do not take the stage.
 import { AlertTriangle } from "lucide-react";
 
@@ -32,7 +32,7 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
         {bookings.length === 1
           ? "1 booking needs its status fixed"
           : `${bookings.length} bookings need their status fixed`}
-        <span className="font-medium text-slate-500">— it has no place on the board</span>
+        <span className="font-medium text-slate-500">— it has no place in the day</span>
       </h2>
       <ul className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
         {bookings.map((booking) => {
