@@ -2879,8 +2879,12 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // flag, so they just get the draft. Skipped on forceDraft so a
           // staff re-generate stays side-effect free (#990).
           if (!forceDraft && isOptOutRequest(text)) {
+            // A suppression that is not stored is not honoured: every write
+            // here must land, or the event fails (visible to staff as an
+            // agent failure) rather than reading as processed (AGENTS.md:
+            // never infer an outcome from an attempted write).
             if (conversation.human_id) {
-              const { error: optOutErr } = await supabase
+              const { data: flagged, error: optOutErr } = await supabase
                 .from("humans")
                 .update({
                   whatsapp_opted_out: true,
@@ -2888,18 +2892,33 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                   whatsapp_opted_out_reason: "asked_on_whatsapp",
                 })
                 .eq("id", conversation.human_id)
-                .eq("whatsapp_opted_out", false);
+                .eq("whatsapp_opted_out", false)
+                .select("id");
               if (optOutErr) {
-                console.error("opt-out: failed to flag customer:", optOutErr.message);
-              } else {
-                console.log(`opt-out: flagged human ${conversation.human_id} from conversation ${conversation.id}`);
+                throw new Error(`STOP not recorded: could not flag the customer as opted out (${optOutErr.message})`);
               }
+              if (!flagged || flagged.length === 0) {
+                // No row changed: either they had already opted out (fine),
+                // or the row is missing. Read it back rather than assume.
+                const { data: current, error: readErr } = await supabase
+                  .from("humans")
+                  .select("whatsapp_opted_out")
+                  .eq("id", conversation.human_id)
+                  .maybeSingle();
+                if (readErr || current?.whatsapp_opted_out !== true) {
+                  throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
+                }
+              }
+              console.log(`opt-out: flagged human ${conversation.human_id} from conversation ${conversation.id}`);
             }
             const { error: convErr } = await supabase
               .from("whatsapp_conversations")
               .update({ auto_send_enabled: false })
               .eq("id", conversation.id);
-            if (convErr) console.warn("opt-out: could not switch off auto-send:", convErr.message);
+            if (convErr) {
+              // For an unknown number this is the only suppression we have.
+              throw new Error(`STOP not recorded: could not switch off auto-send (${convErr.message})`);
+            }
             if (conversation.state === "ai_handling") {
               const policy: DraftPolicy = {
                 riskLevel: "high",

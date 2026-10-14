@@ -81,6 +81,8 @@ import {
 import {
   decideOptOutSend,
   phoneLookupCandidates,
+  ukNationalDigits,
+  ukPhoneMatchPattern,
   type OptOutRecipient,
 } from "../_shared/optOut.ts";
 
@@ -484,18 +486,24 @@ async function resolveOptOutContext(
     if (data) found.push(data as OptOutRecipient);
   };
   const byPhone = async (phone: string) => {
+    // UK numbers: match however the number was stored ("07700 900123"),
+    // then confirm each row's digits in code. Others: exact candidates.
+    const pattern = ukPhoneMatchPattern(phone);
     const candidates = phoneLookupCandidates(phone);
-    if (candidates.length === 0) return;
-    const { data, error } = await supabase
-      .from("humans")
-      .select("id, whatsapp_opted_out")
-      .in("phone", candidates);
+    if (!pattern && candidates.length === 0) return;
+    const query = supabase.from("humans").select("id, phone, whatsapp_opted_out");
+    const { data, error } = pattern
+      ? await query.filter("phone", "match", pattern)
+      : await query.in("phone", candidates);
     if (error) {
       console.error("whatsapp-send: opt-out lookup by phone failed:", error.message);
       failed = true;
       return;
     }
-    found.push(...((data as OptOutRecipient[] | null) ?? []));
+    const target = ukNationalDigits(phone);
+    const rows = ((data as (OptOutRecipient & { phone: string | null })[] | null) ?? [])
+      .filter((row) => !target || ukNationalDigits(row.phone) === target);
+    found.push(...rows);
   };
   const byConversation = async (conversationId: string) => {
     const { data, error } = await supabase

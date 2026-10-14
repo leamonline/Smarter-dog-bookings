@@ -62,6 +62,40 @@ export function phoneLookupCandidates(phone: string): string[] {
   return [e164, digits, ukLocal].filter((value): value is string => !!value);
 }
 
+/**
+ * The UK national significant number ("7700900123") for any way a UK number
+ * may have been typed or stored: "+447700900123", "447700900123",
+ * "07700 900123", "+44 (0)7700 900 123", "0044 7700-900123". Null for an
+ * empty or non-UK number.
+ */
+export function ukNationalDigits(phone: string | null | undefined): string | null {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  let national: string | null = null;
+  if (digits.startsWith("0044")) national = digits.slice(4);
+  else if (digits.startsWith("44")) national = digits.slice(2);
+  else if (digits.startsWith("0")) national = digits.slice(1);
+  if (!national) return null;
+  // "+44 (0)7700…" carries the trunk 0 after the country code.
+  if (national.startsWith("0")) national = national.slice(1);
+  return /^\d{9,10}$/.test(national) ? national : null;
+}
+
+/**
+ * A PostgreSQL regular expression (for PostgREST `match`) that finds a UK
+ * number however it was stored: any spaces, dashes, dots or brackets
+ * between the digits, with a +44, 44, 0044 or 0 prefix, and the "(0)" form.
+ * `humans.phone` has no canonical form, so an exact-string lookup misses
+ * "07700 900123" (#1016 review). Callers re-check each row with
+ * `ukNationalDigits`, so the pattern only has to be permissive, never exact.
+ * Null for a non-UK number: use `phoneLookupCandidates` instead.
+ */
+export function ukPhoneMatchPattern(phone: string | null | undefined): string | null {
+  const national = ukNationalDigits(phone);
+  if (!national) return null;
+  const sep = "[^0-9]*";
+  return `^${sep}(?:(?:00)?44${sep}(?:0${sep})?|0${sep})${national.split("").join(sep)}${sep}$`;
+}
+
 // A request to stop, in the words customers actually use. Deliberately narrow:
 // a false positive flags a customer as opted out and silences their thread,
 // so salon phrases that share the words must not match: "stop by", "can we
@@ -74,6 +108,8 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   /^\s*(?:please\s+)?(?:stop|unsubscribe|opt[\s-]?out)\s*[.!]*\s*$/i,
   // "stop messaging me", "please stop sending me these"
   /\b(?:stop|quit|cease)\s+(?:texting|messaging|contacting|whatsapping|sending)\s+(?:me|us)\b/i,
+  // "please stop sending these messages", "stop sending the texts"
+  /\b(?:stop|quit|cease)\s+(?:sending|texting)\s+(?:(?:me|us)\s+)?(?:these|the|your|any|all)\s+(?:messages|texts|whatsapps?|reminders)\b/i,
   // "don't text me again", "never message me any more", "do not contact me."
   // (bare "don't message me" only at the end, so "don't message me before 9"
   // and "don't text me until he's ready" are scheduling, not opt-out)
@@ -93,7 +129,9 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
 /** True when the message is the customer asking us not to message them. */
 export function isOptOutRequest(messageText: string | null | undefined): boolean {
   if (!messageText) return false;
-  const text = messageText.trim();
+  // Phone keyboards type a curly apostrophe (don’t); the patterns use the
+  // straight one, so fold every apostrophe-like character first.
+  const text = messageText.replace(/[\u2018\u2019\u02BC\u2032`´]/g, "'").trim();
   if (!text) return false;
   return OPT_OUT_PATTERNS.some((pattern) => pattern.test(text));
 }

@@ -186,7 +186,10 @@ AI-initiated send that passes the five above:
 looks the recipient up before any mode calls Meta (by `human_id`, through the
 conversation, and by the destination phone in its three stored formats) and
 refuses with `409 whatsapp_opted_out` if **any** matching customer record has
-opted out: `humans.phone` is not unique, and opt-out belongs to the number. If
+opted out: `humans.phone` is not unique, and opt-out belongs to the number.
+`humans.phone` has no canonical form either, so a UK number is matched however
+it was stored ("07700 900123", "+44 (0)7700 900 123") with a PostgREST `match`
+pattern, and each row's digits are re-checked in code. If
 the lookup itself errors, the send is refused with a retryable
 `503 opt_out_check_failed` rather than sent unchecked. The notify-* functions' channel choice
 (`_shared/recipients.ts`) still skips opted-out customers first, but it is a
@@ -195,12 +198,14 @@ pass `override_opt_out: true` for the rare operational message a customer must
 still receive; the override is ignored on AI-initiated sends and on
 internal-secret calls. Policy and the detector live in `_shared/optOut.ts`.
 
-The agent recognises a customer asking us to stop (`STOP`, `unsubscribe`,
+The agent recognises a customer asking us to stop (curly apostrophes included) (`STOP`, `unsubscribe`,
 "please stop messaging me", "take me off your list"): it sets the flag with
 `whatsapp_opted_out_reason = 'asked_on_whatsapp'`, switches auto-send off on the
 thread, sends nothing, and while the AI is handling the thread leaves one
 acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
-on. That draft carries `tool_calls.opt_out_acknowledgement`, and a member of
+on. If the flag or the auto-send switch-off cannot be stored, or the flag cannot
+be read back as set, the event fails (visible as an agent failure) rather than
+reading as processed. That draft carries `tool_calls.opt_out_acknowledgement`, and a member of
 staff pressing Send on it **unedited** counts as the override; editing it, or
 any other draft, is refused like any other send. The detector is deliberately
 narrow and tested against salon phrases that share its words ("opt out of the

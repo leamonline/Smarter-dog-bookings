@@ -16,6 +16,11 @@ const { handleSendRequest } = await import("../handler.ts?opt-out");
 
 interface Call { method: string; host: string; path: string; search: string; body: unknown }
 
+// humans.phone has no canonical form; store it the way a person typed it so
+// every test exercises the formatting-tolerant lookup (#1016 review).
+const withStoredPhone = (rows: unknown[]) =>
+  rows.map((row) => ({ phone: "07700 900123", ...(row as Record<string, unknown>) }));
+
 async function send(body: Record<string, unknown>, humans: unknown[]) {
   const calls: Call[] = [];
   const oldFetch = globalThis.fetch;
@@ -33,7 +38,7 @@ async function send(body: Record<string, unknown>, humans: unknown[]) {
     if (url.hostname === "graph.facebook.com") {
       return reply({ messaging_product: "whatsapp", contacts: [{ input: "447700900123", wa_id: "447700900123" }], messages: [{ id: "wamid.test" }] });
     }
-    if (url.pathname === "/rest/v1/humans") return reply(humans);
+    if (url.pathname === "/rest/v1/humans") return reply(withStoredPhone(humans));
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       return method === "POST" ? reply([], 201) : reply([{ id: "conv-opt", human_id: null }]);
     }
@@ -63,10 +68,10 @@ Deno.test("an opted-out customer is refused with 409 and Meta is never called", 
   assertEquals(json.reason, "whatsapp_opted_out");
   assert(String(json.error).includes("opted out"), "the error is a sentence staff can read");
   assertEquals(calls.filter((c) => c.host === "graph.facebook.com").length, 0, "nothing reached Meta");
-  // The lookup tried every stored format of the number.
+  // The lookup matches the number however it was stored, not one exact string.
   const lookup = calls.find((c) => c.path === "/rest/v1/humans");
   assert(lookup, "the humans row was looked up");
-  assert(decodeURIComponent(lookup.search).includes("07700900123"), "UK-local format included");
+  assert(decodeURIComponent(lookup.search).includes("phone=match."), decodeURIComponent(lookup.search));
 });
 
 Deno.test("override_opt_out does not help an internal-secret caller: only a member of staff may override", async () => {
@@ -85,7 +90,7 @@ Deno.test("an opted-out customer is refused in conversation-addressed modes too"
     calls.push({ method: init?.method ?? "GET", host: url.hostname, path: url.pathname, search: url.search, body: null });
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
     if (url.pathname === "/rest/v1/whatsapp_conversations") return reply([{ human_id: "h-opt", phone_e164: "+447700900123" }]);
-    if (url.pathname === "/rest/v1/humans") return reply([{ id: "h-opt", whatsapp_opted_out: true }]);
+    if (url.pathname === "/rest/v1/humans") return reply(withStoredPhone([{ id: "h-opt", whatsapp_opted_out: true }]));
     if (url.hostname === "graph.facebook.com") return reply({ messaging_product: "whatsapp", contacts: [], messages: [{ id: "wamid.no" }] });
     return reply([]);
   };
@@ -150,8 +155,8 @@ async function run({ body, staff = false, auth, humans = [], humansByPhone, conv
     if (url.pathname === "/rest/v1/rpc/is_staff") return reply(auth !== "nonstaff");
     if (url.pathname === "/rest/v1/humans") {
       if (humans === "error") return reply({ message: "connection reset" }, 500);
-      const byPhone = (url.searchParams.get("phone") ?? "").startsWith("in.");
-      return reply(byPhone && humansByPhone ? humansByPhone : humans);
+      const byPhone = /^(in|match)\./.test(url.searchParams.get("phone") ?? "");
+      return reply(withStoredPhone(byPhone && humansByPhone ? humansByPhone : humans));
     }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
       if (method === "PATCH") return reply({ id: "draft-1" });
@@ -353,4 +358,23 @@ Deno.test("a failed conversation lookup also fails closed", async () => {
   assertEquals(status, 503);
   assertEquals(json.reason, "opt_out_check_failed");
   assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("an opted-out customer stored as '+44 (0)7700 900 123' is still refused", async () => {
+  const { status, calls } = await run({
+    body: TEMPLATE,
+    humans: [{ id: "h-opt", phone: "+44 (0)7700 900 123", whatsapp_opted_out: true }],
+  });
+  assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a row the loose pattern returns but whose digits differ is not counted", async () => {
+  // The database pattern is permissive by design; the digits are re-checked.
+  const { status, calls } = await run({
+    body: TEMPLATE,
+    humans: [{ id: "h-other", phone: "07700 900124", whatsapp_opted_out: true }],
+  });
+  assertEquals(status, 200);
+  assertEquals(metaCalls(calls), 1);
 });

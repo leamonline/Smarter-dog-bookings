@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { decideOptOutSend, isOptOutRequest, phoneLookupCandidates } from "./optOut.ts";
+import { decideOptOutSend, isOptOutRequest, phoneLookupCandidates, ukNationalDigits, ukPhoneMatchPattern } from "./optOut.ts";
 
 Deno.test("an opted-out customer is refused whoever is sending", () => {
   const recipient = { whatsapp_opted_out: true };
@@ -77,6 +77,12 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "opt me out please",
     "Can you unsubscribe me",
     "Don't text me.",
+    // Codex review on #1016: common wordings the first patterns missed
+    "Please stop sending these messages",
+    "stop sending me these texts",
+    "Don\u2019t message me again",
+    "Don\u2019t text me.",
+    "Please don\u2019t contact me any more",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -100,10 +106,32 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Remove my old number and use this one",
     "Don't message me before 9 please",
     "Don't text me until he's ready, I'll be in a meeting",
+    "Don\u2019t message me before 9 please",
+    "Please stop sending the reminder to my old email",
     "",
     null,
     undefined,
   ]) {
     assert(!isOptOutRequest(text), `unexpected opt-out: ${text}`);
   }
+});
+
+Deno.test("a UK number is recognised however it was stored", () => {
+  for (const stored of [
+    "+447700900123", "447700900123", "07700900123", "07700 900123", "07700 900 123",
+    "+44 7700 900123", "+44 (0)7700 900123", "0044 7700-900123", "(07700) 900.123",
+  ]) {
+    assertEquals(ukNationalDigits(stored), "7700900123", stored);
+    const pattern = new RegExp(ukPhoneMatchPattern("+447700900123")!);
+    assert(pattern.test(stored), `pattern matches ${stored}`);
+  }
+});
+
+Deno.test("the phone pattern does not match a different number", () => {
+  const pattern = new RegExp(ukPhoneMatchPattern("+447700900123")!);
+  for (const other of ["07700900124", "+447700900123 0", "07700 900 1234", "7700900123", "+33 7700900123"]) {
+    assert(!pattern.test(other), `no match: ${other}`);
+  }
+  assertEquals(ukPhoneMatchPattern("+33123456789"), null);
+  assertEquals(ukNationalDigits(""), null);
 });
