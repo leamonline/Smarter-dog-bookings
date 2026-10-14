@@ -33,9 +33,9 @@
 --     public.staff_reenable_whatsapp_number: staff name the number, confirm
 --     EVERY record on it that is opted out (whatever the reason, so the scope
 --     is explicit and the send paths cannot disagree about the number) and
---     the latest STOP they saw, and record the customer's renewed permission. Each re-enable is audited in
---     whatsapp_opt_out_reenables. public.staff_whatsapp_number_opt_out_scope
---     shows staff that scope first.
+--     the latest STOP they saw, and record the customer's renewed permission.
+--     Each re-enable is audited in whatsapp_opt_out_reenables.
+--     public.staff_whatsapp_number_opt_out_scope shows staff that scope first.
 --
 --  3, 4 and the re-enable take a transaction-scoped advisory lock on the
 --  number before they read the other table. A STOP and a customer write, or a
@@ -46,10 +46,12 @@
 --     unique index, so two STOP events processed at once cannot both leave
 --     one for staff to send.
 --
--- Additive and idempotent: if not exists, create or replace, drop/create
--- trigger and policy by name. Nothing is backfilled: no conversation is
--- suppressed yet, and the acknowledgement marker is new with this change, so
--- no existing row can violate the index.
+-- Additive and idempotent: if not exists, create or replace (functions and
+-- triggers), and the one policy and constraint created once by name. No drop
+-- statement anywhere, so the staging apply can go through the Supabase MCP
+-- tool, which cannot take one (docs/migrations.md). Nothing is backfilled: no
+-- conversation is suppressed yet, and the acknowledgement marker is new with
+-- this change, so no existing row can violate the index.
 --
 -- humans and whatsapp_conversations are written by every booking and inbound
 -- message; give up after five seconds rather than queue those writes behind a
@@ -177,8 +179,7 @@ revoke all on function public.whatsapp_conversation_guard_stop() from public;
 revoke all on function public.whatsapp_conversation_guard_stop() from anon;
 revoke all on function public.whatsapp_conversation_guard_stop() from authenticated;
 
-drop trigger if exists trg_whatsapp_conversation_guard_stop on public.whatsapp_conversations;
-create trigger trg_whatsapp_conversation_guard_stop
+create or replace trigger trg_whatsapp_conversation_guard_stop
   before insert or update of whatsapp_opted_out_at, whatsapp_last_stop_at, phone_e164, channel
   on public.whatsapp_conversations
   for each row
@@ -218,8 +219,7 @@ revoke all on function public.whatsapp_conversation_apply_opt_out() from public;
 revoke all on function public.whatsapp_conversation_apply_opt_out() from anon;
 revoke all on function public.whatsapp_conversation_apply_opt_out() from authenticated;
 
-drop trigger if exists trg_whatsapp_conversation_apply_opt_out on public.whatsapp_conversations;
-create trigger trg_whatsapp_conversation_apply_opt_out
+create or replace trigger trg_whatsapp_conversation_apply_opt_out
   after insert or update of whatsapp_opted_out_at on public.whatsapp_conversations
   for each row
   when (new.whatsapp_opted_out_at is not null and new.channel = 'whatsapp')
@@ -276,8 +276,7 @@ revoke all on function public.humans_apply_number_opt_out() from public;
 revoke all on function public.humans_apply_number_opt_out() from anon;
 revoke all on function public.humans_apply_number_opt_out() from authenticated;
 
-drop trigger if exists trg_humans_apply_number_opt_out on public.humans;
-create trigger trg_humans_apply_number_opt_out
+create or replace trigger trg_humans_apply_number_opt_out
   before insert or update of phone on public.humans
   for each row
   execute function public.humans_apply_number_opt_out();
@@ -299,11 +298,8 @@ end;
 $stop_label$;
 
 -- ── 5. Re-enabling needs renewed permission, scoped and audited ─
--- An earlier, never-applied draft of this migration re-enabled every record
--- on the number when one was unticked (#1016 final review). Drop it from any
--- disposable database that ran that draft.
-drop trigger if exists trg_humans_clear_number_opt_out on public.humans;
-drop function if exists public.humans_clear_number_opt_out();
+-- (An earlier, never-applied draft of this migration re-enabled every record
+-- on the number when one was unticked. It is gone: #1016 final review.)
 
 create table if not exists public.whatsapp_opt_out_reenables (
   id uuid primary key default gen_random_uuid(),
@@ -323,11 +319,23 @@ revoke all on table public.whatsapp_opt_out_reenables from public;
 revoke all on table public.whatsapp_opt_out_reenables from anon;
 revoke all on table public.whatsapp_opt_out_reenables from authenticated;
 grant select on table public.whatsapp_opt_out_reenables to authenticated;
-drop policy if exists staff_read_whatsapp_opt_out_reenables on public.whatsapp_opt_out_reenables;
-create policy staff_read_whatsapp_opt_out_reenables
-  on public.whatsapp_opt_out_reenables
-  for select to authenticated
-  using (public.is_staff());
+-- Created once by name (no drop-and-create: the Supabase MCP tool used for
+-- the staging apply cannot take a drop statement).
+do $reenable_policy$
+begin
+  if not exists (
+    select 1 from pg_catalog.pg_policies
+     where schemaname = 'public'
+       and tablename = 'whatsapp_opt_out_reenables'
+       and policyname = 'staff_read_whatsapp_opt_out_reenables'
+  ) then
+    create policy staff_read_whatsapp_opt_out_reenables
+      on public.whatsapp_opt_out_reenables
+      for select to authenticated
+      using (public.is_staff());
+  end if;
+end;
+$reenable_policy$;
 
 -- An untick that would quietly undo a STOP is refused, and so is relabelling
 -- a STOP's reason (which would let a later untick through). Opt-outs staff
@@ -370,8 +378,7 @@ revoke all on function public.humans_guard_whatsapp_reenable() from public;
 revoke all on function public.humans_guard_whatsapp_reenable() from anon;
 revoke all on function public.humans_guard_whatsapp_reenable() from authenticated;
 
-drop trigger if exists trg_humans_guard_whatsapp_reenable on public.humans;
-create trigger trg_humans_guard_whatsapp_reenable
+create or replace trigger trg_humans_guard_whatsapp_reenable
   before update of whatsapp_opted_out, whatsapp_opted_out_reason on public.humans
   for each row
   when ((old.whatsapp_opted_out is true and new.whatsapp_opted_out is not true)
