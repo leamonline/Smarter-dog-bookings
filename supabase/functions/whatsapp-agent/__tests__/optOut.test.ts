@@ -42,6 +42,8 @@ interface Faults {
    * whatsapp_drafts_one_pending_opt_out_ack unique index.
    */
   pendingAcknowledgement?: boolean;
+  /** Put each message in its own webhook entry instead of one change. */
+  separateEntries?: boolean;
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -65,7 +67,9 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const messages = (Array.isArray(text) ? text : [text]).map((body, index) => ({
     id: `synthetic-${index}`, from: "447700900444", type: "text", text: { body }, timestamp: String(Math.floor(Date.now() / 1000) + index),
   }));
-  const payload = { entry: [{ changes: [{ value: { messages } }] }] };
+  const payload = faults.separateEntries
+    ? { entry: messages.map((message) => ({ changes: [{ value: { messages: [message] } }] })) }
+    : { entry: [{ changes: [{ value: { messages } }] }] };
   const oldFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -362,4 +366,15 @@ Deno.test("a STOP that cannot be recorded leaves the event replayable: nothing h
   assertStringIncludes(String(eventPatch.error_message), "STOP not recorded");
   assertEquals(humanPatches.length, 3, "three attempts before failing");
   assertEquals(calls.filter((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST").length, 0, "no inbound row stored");
+});
+
+Deno.test("a STOP in a later entry of the same webhook is still recorded before an earlier message is answered", async () => {
+  // Meta can split one webhook across entries or changes; the STOP-first
+  // ordering spans the whole payload, not one change (#1016 review).
+  const { calls, humanRow, eventPatch } = await send(["Can I book Bella in on Tuesday?", "STOP"], "ai_handling", HUMAN, { separateEntries: true });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && typeof c.body.whatsapp_opted_out_at === "string");
+  const firstInbound = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST");
+  assert(numberStop >= 0 && firstInbound > numberStop, "the STOP is recorded before any message of the payload is stored or answered");
 });

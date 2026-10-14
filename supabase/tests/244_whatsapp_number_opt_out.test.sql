@@ -110,7 +110,7 @@ select is(
 );
 select is(
   (select whatsapp_opted_out from public.humans where id = '24400000-0000-4000-8000-000000000015'),
-  true, 'another record on the number stays opted out until staff switch it back on too'
+  false, 're-enabling one record re-enables every other record on the same number, so no send path disagrees'
 );
 
 -- ── An SMS conversation is not a WhatsApp STOP ──────────────────────

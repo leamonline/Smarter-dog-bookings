@@ -24,9 +24,10 @@
   before merge):
   - adds the number-level suppression;
   - adds `whatsapp_phone_key` and triggers that carry a STOP to any customer
-    record created with, or changed to, that number, and clear it when staff
-    switch WhatsApp back on for a customer on that number. These work by
-    number only, never by a conversation's link;
+    record created with, or changed to, that number, and switch the whole
+    number back on when staff re-enable any customer on it. These work by
+    number only, never by a conversation's link, and are serialised per
+    number against concurrent writes;
   - adds a unique index allowing one pending acknowledgement per conversation.
 - A refused send shows staff its reason in the inbox. Policy and detector live
   in `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and

@@ -210,8 +210,13 @@ the database, always by number:
 - a record created with, or changed to, a stopped number is flagged as it is
   written;
 - switching WhatsApp back on for a customer (whatsapp_opted_out true → false,
-  the one undo control) clears the suppression of that customer's own number.
-  It never clears a different number they were once linked to.
+  the one undo control) switches it back on for that customer's own number:
+  the number's suppression is cleared, and every other record on the number
+  is re-enabled with it, so `whatsapp-send` (which folds every record) and the
+  Twilio paths (which read one record) never disagree. It never clears a
+  different number they were once linked to;
+- a STOP and a customer write on the same number in flight together are
+  serialised by an advisory lock on the number, so neither misses the other.
 
 Numbers are matched however they were typed ("07700 900123",
 `+44 (0)7700 900 123`, "+33 6 12 34 56 78"). In code this is `phoneMatchKey`
@@ -267,8 +272,9 @@ Each of these must not count, and is tested:
 - Reports about messages: "I received the reminder but no more messages came
   through".
 
-**Ordering.** One webhook can carry several messages. A STOP among them is
-handled first, so no earlier message in the batch is answered after it. The
+**Ordering.** One webhook can carry several messages, across several entries
+or changes. They are handled as one batch, and a STOP anywhere in it is
+handled first, so no earlier message is answered after it. The
 inbox preview still shows the batch's newest message. A staff re-generate
 (`force_draft`) never acts on a STOP.
 

@@ -24,10 +24,17 @@
 --  4. A customer record created with, or changed to, a suppressed number is
 --     flagged as it is written.
 --  5. Switching WhatsApp back on for a customer (whatsapp_opted_out true ->
---     false, by staff or by the customer) clears the suppression of THAT
---     customer's number, so that one control stays the way to undo a STOP.
---     Again by number only: re-enabling a customer never lifts a STOP from a
---     different number they were once linked to.
+--     false, by staff or by the customer) switches it back on for THAT
+--     customer's number: the number's suppression is cleared and every other
+--     record on the number is re-enabled with it, so that one control undoes
+--     a STOP and the send paths can never disagree about the number. Again by
+--     number only: re-enabling a customer never lifts a STOP from a different
+--     number they were once linked to.
+--
+--  3, 4 and 5 take a transaction-scoped advisory lock on the number before
+--  they read the other table. A STOP and a customer write on the same number
+--  in flight together are therefore serialised: whichever comes second waits,
+--  then sees the first one's committed row (supabase/tests/246).
 --  6. At most one pending STOP acknowledgement draft per conversation, as a
 --     unique index, so two STOP events processed at once cannot both leave
 --     one for staff to send.
@@ -103,13 +110,19 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_key text := public.whatsapp_phone_key(new.phone_e164);
 begin
+  if v_key is null then
+    return null;
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('whatsapp_number_opt_out:' || v_key, 0));
   update public.humans h
      set whatsapp_opted_out = true,
          whatsapp_opted_out_at = new.whatsapp_opted_out_at,
          whatsapp_opted_out_reason = 'asked_on_whatsapp'
    where h.whatsapp_opted_out is not true
-     and public.whatsapp_phone_key(h.phone) = public.whatsapp_phone_key(new.phone_e164);
+     and public.whatsapp_phone_key(h.phone) = v_key;
   return null;
 end;
 $$;
@@ -134,6 +147,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_at timestamptz;
+  v_key text;
 begin
   if new.whatsapp_opted_out is true then
     return new;
@@ -143,11 +157,17 @@ begin
   if tg_op = 'UPDATE' and new.phone is not distinct from old.phone then
     return new;
   end if;
+  v_key := public.whatsapp_phone_key(new.phone);
+  if v_key is null then
+    return new;
+  end if;
+  -- Wait for a STOP on this number that is still in flight, then read it.
+  perform pg_advisory_xact_lock(hashtextextended('whatsapp_number_opt_out:' || v_key, 0));
   select c.whatsapp_opted_out_at into v_at
     from public.whatsapp_conversations c
    where c.channel = 'whatsapp'
      and c.whatsapp_opted_out_at is not null
-     and public.whatsapp_phone_key(c.phone_e164) = public.whatsapp_phone_key(new.phone)
+     and public.whatsapp_phone_key(c.phone_e164) = v_key
    order by c.whatsapp_opted_out_at
    limit 1;
   if v_at is not null then
@@ -169,19 +189,34 @@ create trigger trg_humans_apply_number_opt_out
   for each row
   execute function public.humans_apply_number_opt_out();
 
--- ── 5. WhatsApp switched back on → clear the number's suppression ─
+-- ── 5. WhatsApp switched back on → the whole number comes back on ─
 create or replace function public.humans_clear_number_opt_out()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_key text := public.whatsapp_phone_key(new.phone);
 begin
+  if v_key is null then
+    return null;
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('whatsapp_number_opt_out:' || v_key, 0));
   update public.whatsapp_conversations c
      set whatsapp_opted_out_at = null
    where c.channel = 'whatsapp'
      and c.whatsapp_opted_out_at is not null
-     and public.whatsapp_phone_key(c.phone_e164) = public.whatsapp_phone_key(new.phone);
+     and public.whatsapp_phone_key(c.phone_e164) = v_key;
+  -- The number is one subject: every other record on it comes back on too,
+  -- or whatsapp-send (which folds every record) and the Twilio notify paths
+  -- (which read one record) would disagree about it. Each of these updates
+  -- fires this trigger again, which finds nothing left to change.
+  update public.humans h
+     set whatsapp_opted_out = false
+   where h.id <> new.id
+     and h.whatsapp_opted_out is true
+     and public.whatsapp_phone_key(h.phone) = v_key;
   return null;
 end;
 $$;

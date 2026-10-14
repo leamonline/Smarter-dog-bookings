@@ -2800,16 +2800,25 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
       entry?: Array<{ changes?: Array<{ value?: MetaChangeValue }> }>;
     };
 
-    for (const entry of payload.entry ?? []) {
-      for (const change of entry.changes ?? []) {
-        const value = change.value ?? {};
+    // Every message of the payload is handled as ONE batch, whichever entry
+    // or change Meta put it in, so a STOP anywhere in the event is recorded
+    // before any other message is answered (#1016 review). Nothing below
+    // reads the change itself; delivery receipts are merged the same way.
+    const allChanges = (payload.entry ?? []).flatMap((entry) => entry.changes ?? []);
+    const merged: MetaChangeValue = {
+      messages: allChanges.flatMap((change) => change.value?.messages ?? []),
+      statuses: allChanges.flatMap((change) => change.value?.statuses ?? []),
+    };
+    for (const entry of [{ changes: [{ value: merged }] }]) {
+      for (const change of entry.changes) {
+        const value = change.value;
 
-        // Inbound messages. One webhook can batch several; a STOP among them
-        // is handled first, so no earlier message in the same batch is
-        // drafted and auto-sent after the customer has already asked us to
-        // stop (#1016 review). The rest still follow, in their own order,
-        // and then see auto-send switched off and the opt-out stored. A
-        // staff re-generate (forceDraft) never acts on STOP, so keeps order.
+        // Inbound messages. A STOP among them is handled first, so no
+        // earlier message in the batch is drafted and auto-sent after the
+        // customer has already asked us to stop (#1016 review). The rest
+        // still follow, in their own order, and then see auto-send switched
+        // off and the opt-out stored. A staff re-generate (forceDraft) never
+        // acts on STOP, so keeps order.
         const batch = value.messages ?? [];
         const isStop = (m: (typeof batch)[number]) => !forceDraft && isOptOutRequest(extractMessageText(m));
         const sentAtOf = (m: (typeof batch)[number]) =>
