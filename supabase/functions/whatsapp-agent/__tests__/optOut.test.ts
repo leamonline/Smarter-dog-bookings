@@ -34,6 +34,11 @@ interface Faults {
   pendingAcknowledgement?: boolean;
   /** The pending-acknowledgement lookup returns an error. */
   acknowledgementLookupFails?: boolean;
+  /**
+   * A concurrent STOP event inserted its own acknowledgement between this
+   * run's check and insert: the post-insert lookup finds two pending.
+   */
+  concurrentAcknowledgement?: boolean;
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -104,12 +109,21 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return method === "POST" ? reply({ id: "message-opt-out" }, 201) : reply([]);
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
+      if (method === "PATCH") return new Response(null, { status: 204 });
       if (method !== "GET") return reply({ id: "draft-opt-out" }, 201);
       if (faults.acknowledgementLookupFails) return reply({ message: "connection reset" }, 500);
       const isAckLookup = url.searchParams.get("tool_calls->>opt_out_acknowledgement") === "eq.true"
         && url.searchParams.get("state") === "eq.pending"
         && url.searchParams.get("conversation_id") === "eq.conv-opt-out";
-      return reply(isAckLookup && faults.pendingAcknowledgement ? [{ id: "draft-earlier-ack" }] : []);
+      if (!isAckLookup) return reply([]);
+      // The post-insert reconcile orders by created_at; the pre-check does not.
+      const afterInsert = (url.searchParams.get("order") ?? "").startsWith("created_at");
+      if (afterInsert) {
+        return reply(faults.concurrentAcknowledgement
+          ? [{ id: "draft-racer-ack" }, { id: "draft-opt-out" }]
+          : [{ id: "draft-opt-out" }]);
+      }
+      return reply(faults.pendingAcknowledgement ? [{ id: "draft-earlier-ack" }] : []);
     }
     if (url.pathname === "/rest/v1/bookings") return reply([]);
     if (url.pathname === "/rest/v1/salon_todos") return method === "POST" ? reply(null, 201) : (url.searchParams.get("select") === "sort_order" ? reply({ sort_order: 3 }) : reply([]));
@@ -275,5 +289,37 @@ Deno.test("a STOP batched after an ordinary message is honoured before that mess
     assert(index > optOutWrite, "no send before the opt-out is stored");
     assertEquals(call.body.ai_initiated, true);
     assertEquals(call.body.override_opt_out, undefined);
+  }
+});
+
+Deno.test("two STOPs racing past the check converge on one pending acknowledgement", async () => {
+  // Both runs see no pending acknowledgement and both insert. After its insert
+  // each keeps the oldest and supersedes the rest, which whatsapp-send then
+  // refuses as not pending (#1016 review).
+  const { calls, drafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, { concurrentAcknowledgement: true });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(drafts.length, 1);
+  const supersede = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH");
+  assertEquals(supersede.length, 1);
+  assertEquals(supersede[0].body.state, "superseded");
+  const ids = decodeURIComponent(supersede[0].search);
+  assertStringIncludes(ids, "id=in.(draft-opt-out)");
+  assertStringIncludes(ids, "state=eq.pending");
+});
+
+Deno.test("a lone acknowledgement is not superseded", async () => {
+  const { calls, drafts } = await send("STOP");
+  assertEquals(drafts.length, 1);
+  assertEquals(calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH").length, 0);
+});
+
+Deno.test("handling a batched STOP first does not move the inbox preview backwards", async () => {
+  const { calls } = await send(["Can I book Bella in on Tuesday?", "STOP"]);
+  const upserts = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "POST");
+  assert(upserts.length >= 2, "one upsert per message");
+  const newest = upserts.map((c) => c.body.last_inbound_at as string).sort().at(-1);
+  for (const upsert of upserts) {
+    assertEquals(upsert.body.last_customer_text, "STOP");
+    assertEquals(upsert.body.last_inbound_at, newest);
   }
 });

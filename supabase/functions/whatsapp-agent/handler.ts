@@ -2701,23 +2701,34 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
         // staff re-generate (forceDraft) never acts on STOP, so keeps order.
         const batch = value.messages ?? [];
         const isStop = (m: (typeof batch)[number]) => !forceDraft && isOptOutRequest(extractMessageText(m));
+        const sentAtOf = (m: (typeof batch)[number]) =>
+          m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : new Date().toISOString();
+        // Handling out of order must not move the inbox preview backwards:
+        // every upsert for a sender writes that sender's NEWEST message in
+        // the batch, so the last write is the latest whatever the order
+        // (#1016 review).
+        const newestBySender = new Map<string, { sentAt: string; text: string | null }>();
+        for (const m of batch) {
+          const at = sentAtOf(m);
+          const current = newestBySender.get(m.from ?? "");
+          if (!current || at >= current.sentAt) newestBySender.set(m.from ?? "", { sentAt: at, text: extractMessageText(m) });
+        }
         for (const msg of [...batch.filter(isStop), ...batch.filter((m) => !isStop(m))]) {
           const phoneE164 = normalisePhone(msg.from);
           if (!phoneE164) continue;
 
           const humanId = await findHumanIdByPhone(supabase, phoneE164);
-          const sentAt = msg.timestamp
-            ? new Date(Number(msg.timestamp) * 1000).toISOString()
-            : new Date().toISOString();
+          const sentAt = sentAtOf(msg);
 
           const text = extractMessageText(msg);
+          const preview = newestBySender.get(msg.from ?? "") ?? { sentAt, text };
 
           const conversation = await upsertConversation(
             supabase,
             phoneE164,
             humanId,
-            sentAt,
-            text,
+            preview.sentAt,
+            preview.text,
           );
 
           // On a re-draft (forceDraft — the staff "Generate reply" /
@@ -2981,6 +2992,29 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                   reason: "opt_out: the customer asked us to stop messaging them",
                   opt_out_acknowledgement: true,
                 });
+                // Two STOP events for one conversation can pass the check
+                // above at the same time. Settle it after the insert: keep
+                // the oldest pending acknowledgement and supersede the rest,
+                // which whatsapp-send then refuses (not pending). Every
+                // racer picks the same survivor, so they converge on one.
+                const { data: acks, error: acksErr } = await supabase
+                  .from("whatsapp_drafts")
+                  .select("id")
+                  .eq("conversation_id", conversation.id)
+                  .eq("state", "pending")
+                  .eq("tool_calls->>opt_out_acknowledgement", "true")
+                  .order("created_at", { ascending: true })
+                  .order("id", { ascending: true });
+                if (acksErr) throw new Error(`acknowledgement reconcile lookup failed: ${acksErr.message}`);
+                const extra = ((acks ?? []) as { id: string }[]).slice(1).map((row) => row.id);
+                if (extra.length > 0) {
+                  const { error: supersedeErr } = await supabase
+                    .from("whatsapp_drafts")
+                    .update({ state: "superseded", decided_at: new Date().toISOString() })
+                    .in("id", extra)
+                    .eq("state", "pending");
+                  if (supersedeErr) throw new Error(`acknowledgement supersede failed: ${supersedeErr.message}`);
+                }
               } catch (err) {
                 console.error("opt-out draft save failed (non-fatal):", err);
               }

@@ -205,8 +205,10 @@ a negated "please don't stop messaging me" is not a stop) (`STOP`, `unsubscribe`
 thread, sends nothing, and while the AI is handling the thread leaves one
 acknowledgement draft (`fallbackReplyForIntent("opt_out")`) for staff to decide
 on (never a second while one is still pending, so a repeated STOP cannot queue
-several). When one webhook batches several messages, a STOP among them is
-handled first, so an earlier message in the batch is never answered after it. It flags **every** customer record on the sender's number, including one the
+several; if two STOPs race, the newer acknowledgement is marked `superseded`,
+which whatsapp-send will not send). When one webhook batches several messages, a STOP among them is
+handled first, so an earlier message in the batch is never answered after it;
+the inbox preview still shows the newest message. It flags **every** customer record on the sender's number, including one the
 conversation never linked because the number is stored formatted. A number with
 no customer record at all has nowhere to store the opt-out yet (only auto-send is
 switched off). If the flag or the auto-send switch-off cannot be stored, or the flag cannot

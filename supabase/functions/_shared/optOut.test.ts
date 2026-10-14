@@ -97,6 +97,11 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "Opt me out.",
     "please opt me out of these messages",
     "Opt us out of your mailing list",
+    "I don't want any more messages",
+    "I don\u2019t want any more messages from you",
+    "I no longer want to receive messages",
+    "I do not wish to receive any further texts",
+    "I don't want your messages.",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -135,6 +140,10 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Please don't send the invoice to my old email",
     "Please opt me out of the nail clip this time",
     "Can you opt us out of the waiting list?",
+    "I don't want the reminder moved, Tuesday is fine",
+    "I don't want messages before 9 please, I'm on nights",
+    "I no longer want the 10am slot",
+    "I don't want you to stop sending messages",
     "",
     null,
     undefined,

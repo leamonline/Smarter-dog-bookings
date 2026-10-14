@@ -136,6 +136,10 @@ export const OPT_OUT_PATTERNS: readonly RegExp[] = [
   // "never send us these reminders."; not "don't send me the reminder until
   // Tuesday", which is scheduling
   /\b(?:don'?t|do\s+not|never)\s+send\s+(?:me|us)\s+(?:(?:any\s*more|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:these|those|your|any|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more)\b|\s*(?:please\s*)?[.!]*\s*$))/i,
+  // "I don't want any more messages", "I no longer want to receive texts",
+  // "I don't want your messages."; not "I don't want the reminder moved"
+  // or "I don't want messages before 9" (#1016 review)
+  /\b(?:don'?t|do\s+not|no\s+longer)\s+(?:want|wish)\s+(?:to\s+(?:receive|get)\s+)?(?:(?:any\s*more|any\s+further|no\s+more|more|further)\s+(?:messages|texts|whatsapps?|reminders)\b|(?:(?:any|these|your|the)\s+)?(?:messages|texts|whatsapps?|reminders)(?:\s+(?:again|any\s*more|from\s+(?:you|the\s+salon|smarter\s+dog))\b|\s*(?:please\s*)?[.!]*\s*$))/i,
   // "no more messages", "no further texts"
   /\bno\s+(?:more|further)\s+(?:messages|texts|whatsapps?)\b/i,
   // "take me off your list", "remove my number from this chat"; never a
