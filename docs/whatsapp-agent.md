@@ -279,6 +279,15 @@ marked `tool_calls.opt_out_acknowledgement`).
 - The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
   pending acknowledgement per conversation, so a repeated or concurrent STOP
   cannot queue a second. The agent treats the refusal as expected.
+- One STOP gets one acknowledgement. The index cannot stop a second draft
+  queued after the first was claimed or sent (a repeated STOP, or one racing
+  staff's Send), so `whatsapp-send` refuses an acknowledgement with
+  `409 stop_acknowledgement_already_sent` once another on the same
+  conversation has been sent since the number's current STOP
+  (`decided_at >= whatsapp_opted_out_at`; with no STOP time on the
+  conversation, any sent before counts). Nothing is claimed or sent, and
+  staff reject the draft. A failed lookup is the retryable
+  `503 opt_out_check_failed`.
 - Separately, staff may pass `override_opt_out: true` for the rare operational
   message a customer must still receive, but **never to a number that said
   STOP** (the number's suppression, or a record whose reason is

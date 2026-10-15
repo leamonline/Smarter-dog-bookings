@@ -460,12 +460,16 @@ async function checkAiMessagingPermission(
  * `tool_calls.opt_out_acknowledgement`). A member of staff approving that
  * draft unedited is the explicit decision the override exists for.
  *
+ * `acknowledgementAlreadySent` is true when another acknowledgement on the
+ * draft's conversation was sent since the number's current STOP: one STOP
+ * gets one acknowledgement (#1016 review).
+ *
  * Any lookup error makes the whole result `ok: false`, and the send is
  * refused (AGENTS.md: an ambiguous outcome fails closed). The caller sees a
  * retryable 503; nothing reaches Meta.
  */
 type OptOutContext =
-  | { ok: true; recipient: OptOutRecipient | null; optOutAcknowledgement: boolean }
+  | { ok: true; recipient: OptOutRecipient | null; optOutAcknowledgement: boolean; acknowledgementAlreadySent: boolean }
   | { ok: false };
 
 interface HumanOptOutRow {
@@ -488,6 +492,10 @@ async function resolveOptOutContext(
   const found: OptOutRecipient[] = [];
   let failed = false;
   let optOutAcknowledgement = false;
+  let draftConversationId: string | null = null;
+  // When the draft's conversation said STOP (kept at the first STOP on repeats,
+  // cleared by a re-enable).
+  let stoppedAt: string | null = null;
 
   const byId = async (humanId: string) => {
     const { data, error } = await supabase
@@ -537,7 +545,8 @@ async function resolveOptOutContext(
       }
     }
   };
-  const byConversation = async (conversationId: string) => {
+  // Returns the conversation's STOP time, if it has one.
+  const byConversation = async (conversationId: string): Promise<string | null> => {
     const { data, error } = await supabase
       .from("whatsapp_conversations")
       .select("human_id, phone_e164, whatsapp_opted_out_at")
@@ -546,13 +555,14 @@ async function resolveOptOutContext(
     if (error) {
       console.error("whatsapp-send: opt-out conversation lookup failed:", error.message);
       failed = true;
-      return;
+      return null;
     }
     const conv = data as { human_id: string | null; phone_e164: string | null; whatsapp_opted_out_at: string | null } | null;
-    if (!conv) return;
+    if (!conv) return null;
     if (conv.whatsapp_opted_out_at) found.push({ whatsapp_opted_out: true, stopped: true });
     if (conv.human_id) await byId(conv.human_id);
     if (conv.phone_e164) await byPhone(conv.phone_e164);
+    return conv.whatsapp_opted_out_at;
   };
 
   if ("human_id" in body && typeof body.human_id === "string" && body.human_id) {
@@ -574,7 +584,10 @@ async function resolveOptOutContext(
       // acknowledgement (#1016 final review).
       optOutAcknowledgement = draft.tool_calls?.opt_out_acknowledgement === true
         && draft.proposed_text === fallbackReplyForIntent("opt_out");
-      if (draft.conversation_id) await byConversation(draft.conversation_id);
+      if (draft.conversation_id) {
+        draftConversationId = draft.conversation_id;
+        stoppedAt = await byConversation(draft.conversation_id);
+      }
     }
   } else if ("conversation_id" in body && typeof body.conversation_id === "string" && body.conversation_id) {
     await byConversation(body.conversation_id);
@@ -584,16 +597,41 @@ async function resolveOptOutContext(
   }
 
   if (failed) return { ok: false };
-  return {
-    ok: true,
-    recipient: found.length > 0
-      ? {
-        whatsapp_opted_out: found.some((row) => row.whatsapp_opted_out === true),
-        stopped: found.some((row) => row.stopped === true),
-      }
-      : null,
-    optOutAcknowledgement,
-  };
+  const recipient = found.length > 0
+    ? {
+      whatsapp_opted_out: found.some((row) => row.whatsapp_opted_out === true),
+      stopped: found.some((row) => row.stopped === true),
+    }
+    : null;
+
+  // One acknowledgement per STOP. The unique index stops a second PENDING
+  // acknowledgement only: a repeated STOP after staff sent the first, or one
+  // racing staff's Send, can still queue another (#1016 review). Refuse it
+  // once an acknowledgement on this conversation has been sent since the
+  // current STOP. With no STOP time on the conversation there is no lower
+  // bound, so any acknowledgement sent before counts.
+  let acknowledgementAlreadySent = false;
+  if (optOutAcknowledgement && recipient?.stopped && draftConversationId && body.mode === "draft") {
+    let sent = supabase
+      .from("whatsapp_drafts")
+      .select("id")
+      .eq("conversation_id", draftConversationId)
+      .neq("id", body.draft_id)
+      .eq("tool_calls->>opt_out_acknowledgement", "true")
+      .in("state", ["approved", "sent_after_edit", "auto_sent"]);
+    if (stoppedAt) sent = sent.gte("decided_at", stoppedAt);
+    const { data, error } = await sent.limit(1);
+    if (error) {
+      console.error("whatsapp-send: opt-out acknowledgement lookup failed:", error.message);
+      return { ok: false };
+    }
+    if ((data ?? []).length > 0) {
+      optOutAcknowledgement = false;
+      acknowledgementAlreadySent = true;
+    }
+  }
+
+  return { ok: true, recipient, optOutAcknowledgement, acknowledgementAlreadySent };
 }
 
 async function handleDraftMode(
@@ -1246,6 +1284,16 @@ export async function handleSendRequest(req: Request): Promise<Response> {
           reason: "opt_out_check_failed",
         },
         503,
+      );
+    }
+    if (optOutContext.acknowledgementAlreadySent) {
+      return json(
+        req,
+        {
+          error: "The STOP acknowledgement has already been sent to this number",
+          reason: "stop_acknowledgement_already_sent",
+        },
+        409,
       );
     }
     // Approving the agent's STOP acknowledgement draft unedited is the one

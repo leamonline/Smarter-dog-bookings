@@ -18,7 +18,9 @@
   opt-out on the number (`whatsapp_conversations.whatsapp_opted_out_at`, new)
   and on every customer record with that number, reads both back, switches
   auto-send off, sends nothing, and leaves staff one acknowledgement draft.
-  Send on that draft, unedited, is the only exception. A STOP in a batch is
+  Send on that draft, unedited, is the only exception, once per STOP: a
+  second acknowledgement is refused (`409 stop_acknowledgement_already_sent`)
+  once one has been sent since the number's current STOP. A STOP in a batch is
   handled before the batch's other messages; a redelivered STOP does not stop
   the number again after staff re-enabled it.
 - Migration `20261014120000_whatsapp_number_opt_out` (apply to production

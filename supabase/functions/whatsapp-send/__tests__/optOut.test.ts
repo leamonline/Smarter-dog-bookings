@@ -135,9 +135,11 @@ interface Scenario {
   humansByPhone?: unknown[];
   conversation?: Record<string, unknown> | "error";
   draft?: { tool_calls: Record<string, unknown> | null; proposed_text?: string };
+  /** Rows for the lookup of acknowledgements already sent on the conversation. */
+  sentAcknowledgements?: unknown[] | "error";
 }
 
-async function run({ body, staff = false, auth, humans = [], humansByPhone, conversation, draft }: Scenario) {
+async function run({ body, staff = false, auth, humans = [], humansByPhone, conversation, draft, sentAcknowledgements = [] }: Scenario) {
   const calls: Call[] = [];
   const logs: string[] = [];
   const oldFetch = globalThis.fetch;
@@ -163,6 +165,10 @@ async function run({ body, staff = false, auth, humans = [], humansByPhone, conv
     }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
       if (method === "PATCH") return reply({ id: "draft-1" });
+      if (url.searchParams.has("tool_calls->>opt_out_acknowledgement")) {
+        if (sentAcknowledgements === "error") return reply({ message: "connection reset" }, 500);
+        return reply(sentAcknowledgements);
+      }
       if (select.includes("tool_calls")) return reply(draft ? [{ conversation_id: "conv-1", ...draft }] : []);
       return reply({
         id: "draft-1",
@@ -533,5 +539,81 @@ Deno.test("a draft carrying the acknowledgement marker but other words is not th
     draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: "Big sale this weekend!" },
   });
   assertEquals(status, 409);
+  assertEquals(metaCalls(calls), 0);
+});
+
+// ── #1016 review: one acknowledgement per STOP. The unique index stops a
+//    second PENDING acknowledgement, not a second one queued after the first
+//    was claimed or sent (a repeated STOP, or one racing staff's Send). ─────
+
+const ACK_SEND = { mode: "draft", draft_id: "draft-1" };
+const sentAckLookup = (calls: Call[]) =>
+  calls.find((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "GET" && c.search.includes("opt_out_acknowledgement"));
+
+Deno.test("a second STOP acknowledgement is refused once one has been sent since the number's STOP", async () => {
+  const { status, json, calls } = await run({
+    body: ACK_SEND,
+    staff: true,
+    humans: [],
+    conversation: STOPPED_NUMBER,
+    draft: ACK_DRAFT,
+    sentAcknowledgements: [{ id: "draft-0" }],
+  });
+  assertEquals(status, 409, JSON.stringify(json));
+  assertEquals(json.reason, "stop_acknowledgement_already_sent");
+  assert(String(json.error).includes("already been sent"), String(json.error));
+  assertEquals(metaCalls(calls), 0, "nothing reached Meta");
+  assertEquals(
+    calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH").length,
+    0,
+    "the draft was not claimed",
+  );
+});
+
+Deno.test("the lookup counts only acknowledgements sent on this conversation since its current STOP", async () => {
+  const { status, calls } = await run({ body: ACK_SEND, staff: true, humans: [], conversation: STOPPED_NUMBER, draft: ACK_DRAFT });
+  assertEquals(status, 200);
+  assertEquals(metaCalls(calls), 1);
+  const lookup = sentAckLookup(calls);
+  assert(lookup, "acknowledgements already sent were looked up");
+  const search = decodeURIComponent(lookup.search);
+  for (const filter of [
+    "conversation_id=eq.conv-1",
+    "id=neq.draft-1",
+    "tool_calls->>opt_out_acknowledgement=eq.true",
+    "state=in.(approved,sent_after_edit,auto_sent)",
+    `decided_at=gte.${STOPPED_NUMBER.whatsapp_opted_out_at}`,
+  ]) {
+    assert(search.includes(filter), `${filter} missing from ${search}`);
+  }
+});
+
+Deno.test("a STOP with no time on the conversation puts no lower bound on the lookup, so it fails closed", async () => {
+  // The STOP is held on the customer record only: any acknowledgement sent on
+  // this conversation before counts.
+  const stoppedRecord = [{ id: "h-opt", whatsapp_opted_out: true, whatsapp_opted_out_reason: "asked_on_whatsapp" }];
+  const allowed = await run({ body: ACK_SEND, staff: true, humans: stoppedRecord, draft: ACK_DRAFT });
+  assertEquals(allowed.status, 200, JSON.stringify(allowed.json));
+  const lookup = sentAckLookup(allowed.calls);
+  assert(lookup, "acknowledgements already sent were looked up");
+  assert(!decodeURIComponent(lookup.search).includes("decided_at"), decodeURIComponent(lookup.search));
+
+  const refused = await run({ body: ACK_SEND, staff: true, humans: stoppedRecord, draft: ACK_DRAFT, sentAcknowledgements: [{ id: "draft-0" }] });
+  assertEquals(refused.status, 409);
+  assertEquals(refused.json.reason, "stop_acknowledgement_already_sent");
+  assertEquals(metaCalls(refused.calls), 0);
+});
+
+Deno.test("a failed lookup of acknowledgements already sent fails closed with a retryable 503", async () => {
+  const { status, json, calls } = await run({
+    body: ACK_SEND,
+    staff: true,
+    humans: [],
+    conversation: STOPPED_NUMBER,
+    draft: ACK_DRAFT,
+    sentAcknowledgements: "error",
+  });
+  assertEquals(status, 503);
+  assertEquals(json.reason, "opt_out_check_failed");
   assertEquals(metaCalls(calls), 0);
 });
