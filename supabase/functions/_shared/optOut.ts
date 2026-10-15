@@ -23,7 +23,7 @@ export interface OptOutRecipient {
 
 export type OptOutDecision =
   | { allowed: true; reason: "not_opted_out" | "unknown_recipient" | "staff_override" | "stop_acknowledgement" }
-  | { allowed: false; reason: "whatsapp_opted_out" };
+  | { allowed: false; reason: "whatsapp_opted_out" | "stop_acknowledgement_stale" };
 
 export interface OptOutDecisionInput {
   /** The humans row the message is going to, or null when no record matched. */
@@ -35,6 +35,11 @@ export interface OptOutDecisionInput {
    * agent wrote it. The one message a number that said STOP may still get.
    */
   approvesAcknowledgement?: boolean;
+  /**
+   * The text going out is the stored acknowledgement draft's own words,
+   * whether or not staff opened the editor.
+   */
+  sendsAcknowledgement?: boolean;
   /** The request carried a staff JWT (not the internal secret). */
   callerIsStaff: boolean;
   /** The caller marked the send as AI-initiated. */
@@ -53,8 +58,15 @@ export interface OptOutDecisionInput {
  *   implied by the internal secret alone.
  * - Opted out because the number said STOP: refused even with the override.
  *   The only exception is staff sending the agent's acknowledgement draft.
+ * - The acknowledgement itself ("we've stopped WhatsApp messages to this
+ *   number") only while a STOP stands: once the re-enable lifts it, or when
+ *   the opt-out was never a STOP, it is out of date and refused for every
+ *   caller (#1016 review).
  */
 export function decideOptOutSend(input: OptOutDecisionInput): OptOutDecision {
+  if ((input.approvesAcknowledgement || input.sendsAcknowledgement) && !input.recipient?.stopped) {
+    return { allowed: false, reason: "stop_acknowledgement_stale" };
+  }
   if (!input.recipient) return { allowed: true, reason: "unknown_recipient" };
   if (!input.recipient.whatsapp_opted_out) return { allowed: true, reason: "not_opted_out" };
   if (input.callerIsStaff && !input.aiInitiated) {

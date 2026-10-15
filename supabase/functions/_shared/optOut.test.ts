@@ -56,6 +56,34 @@ Deno.test("a customer who has not opted out, or an unknown number, is allowed", 
   );
 });
 
+Deno.test("the STOP acknowledgement may be sent only while the number's STOP stands", () => {
+  const stopped = { whatsapp_opted_out: true, stopped: true };
+  const staff = { callerIsStaff: true, aiInitiated: false };
+  assertEquals(
+    decideOptOutSend({ recipient: stopped, overrideOptOut: false, approvesAcknowledgement: true, sendsAcknowledgement: true, ...staff }),
+    { allowed: true, reason: "stop_acknowledgement" },
+  );
+  // Its own words sent through the editor are not "unedited": still refused.
+  assertEquals(
+    decideOptOutSend({ recipient: stopped, overrideOptOut: false, sendsAcknowledgement: true, ...staff }),
+    { allowed: false, reason: "whatsapp_opted_out" },
+  );
+  // "We've stopped WhatsApp messages to this number" is untrue once the STOP
+  // is lifted, or when the opt-out was never a STOP: refused for every caller,
+  // override or not (#1016 review).
+  for (const recipient of [null, { whatsapp_opted_out: false }, { whatsapp_opted_out: true, stopped: false }]) {
+    for (const acknowledgement of [{ approvesAcknowledgement: true }, { sendsAcknowledgement: true }]) {
+      for (const caller of [staff, { callerIsStaff: false, aiInitiated: true }]) {
+        assertEquals(
+          decideOptOutSend({ recipient, overrideOptOut: true, ...acknowledgement, ...caller }),
+          { allowed: false, reason: "stop_acknowledgement_stale" },
+          JSON.stringify({ recipient, acknowledgement, caller }),
+        );
+      }
+    }
+  }
+});
+
 Deno.test("recognises the ways customers ask us to stop", () => {
   for (const text of [
     "STOP",

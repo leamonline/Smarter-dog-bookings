@@ -202,6 +202,9 @@ async function run({ body, staff = false, auth, humans = [], humansByPhone, conv
 
 const metaCalls = (calls: Call[]) => calls.filter((c) => c.host === "graph.facebook.com").length;
 const OPTED_OUT = [{ id: "h-opt", whatsapp_opted_out: true }];
+// A customer record opted out by a STOP, as the agent leaves it: the only
+// state an acknowledgement draft exists for (#1016 review).
+const STOPPED_RECORD = [{ id: "h-opt", whatsapp_opted_out: true, whatsapp_opted_out_reason: "asked_on_whatsapp" }];
 
 Deno.test("a member of staff can override an opt-out explicitly, and the override is logged", async () => {
   const { status, json, calls, logs } = await run({
@@ -243,7 +246,7 @@ Deno.test("staff approving the agent's STOP acknowledgement draft unedited sends
   const { status, json, calls, logs } = await run({
     body: { mode: "draft", draft_id: "draft-1" },
     staff: true,
-    humans: OPTED_OUT,
+    humans: STOPPED_RECORD,
     draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(status, 200, JSON.stringify(json));
@@ -255,7 +258,7 @@ Deno.test("the acknowledgement cannot carry edited text to an opted-out customer
   const { status, calls } = await run({
     body: { mode: "draft", draft_id: "draft-1", edited_text: "Book now for 20% off!" },
     staff: true,
-    humans: OPTED_OUT,
+    humans: STOPPED_RECORD,
     draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(status, 409);
@@ -265,7 +268,7 @@ Deno.test("the acknowledgement cannot carry edited text to an opted-out customer
 Deno.test("only staff can send the acknowledgement; any other draft to an opted-out customer is refused", async () => {
   const internal = await run({
     body: { mode: "draft", draft_id: "draft-1" },
-    humans: OPTED_OUT,
+    humans: STOPPED_RECORD,
     draft: { tool_calls: { opt_out_acknowledgement: true }, proposed_text: ACK_TEXT },
   });
   assertEquals(internal.status, 409);
@@ -315,7 +318,7 @@ Deno.test("an AI-initiated send of the acknowledgement never reaches Meta", asyn
   const { status, calls } = await run({
     body: { mode: "draft", draft_id: "draft-1", ai_initiated: true },
     staff: true,
-    humans: OPTED_OUT,
+    humans: STOPPED_RECORD,
     draft: ACK_DRAFT,
   });
   assert(status >= 400, `refused (got ${status})`);
@@ -336,7 +339,7 @@ Deno.test("a whitespace-only edit counts as unedited and sends the acknowledgeme
   const { status, json, calls } = await run({
     body: { mode: "draft", draft_id: "draft-1", edited_text: "   " },
     staff: true,
-    humans: OPTED_OUT,
+    humans: STOPPED_RECORD,
     draft: ACK_DRAFT,
   });
   assertEquals(status, 200, JSON.stringify(json));
@@ -616,4 +619,66 @@ Deno.test("a failed lookup of acknowledgements already sent fails closed with a 
   assertEquals(status, 503);
   assertEquals(json.reason, "opt_out_check_failed");
   assertEquals(metaCalls(calls), 0);
+});
+
+// ── #1016 review: the acknowledgement says "we've stopped WhatsApp messages
+//    to this number", so it may go only while a STOP stands. After the
+//    audited re-enable lifts it, a leftover acknowledgement draft is refused,
+//    edited to its own words or not. ─────────────────────────────────────
+
+const REENABLED = { ...STOPPED_NUMBER, human_id: "h-in", whatsapp_opted_out_at: null };
+const OPTED_IN = [{ id: "h-in", whatsapp_opted_out: false }];
+
+Deno.test("a leftover acknowledgement is refused once the number's STOP has been lifted", async () => {
+  const { status, json, calls } = await run({ body: ACK_SEND, staff: true, humans: OPTED_IN, conversation: REENABLED, draft: ACK_DRAFT });
+  assertEquals(status, 409, JSON.stringify(json));
+  assertEquals(json.reason, "stop_acknowledgement_stale");
+  assert(String(json.error).includes("out of date"), String(json.error));
+  assertEquals(metaCalls(calls), 0);
+  assertEquals(calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH").length, 0, "the draft was not claimed");
+});
+
+Deno.test("opening the editor and sending the acknowledgement's own words does not get round it", async () => {
+  const { status, json, calls } = await run({
+    body: { ...ACK_SEND, edited_text: `  ${ACK_TEXT}  ` },
+    staff: true,
+    humans: OPTED_IN,
+    conversation: REENABLED,
+    draft: ACK_DRAFT,
+  });
+  assertEquals(status, 409, JSON.stringify(json));
+  assertEquals(json.reason, "stop_acknowledgement_stale");
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("an acknowledgement is refused to a number with no STOP and no customer record", async () => {
+  const { status, json, calls } = await run({ body: ACK_SEND, staff: true, humans: [], conversation: { ...REENABLED, human_id: null }, draft: ACK_DRAFT });
+  assertEquals(status, 409, JSON.stringify(json));
+  assertEquals(json.reason, "stop_acknowledgement_stale");
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("the exception is not a way past an opt-out staff set for another reason", async () => {
+  const { status, json, calls } = await run({
+    body: ACK_SEND,
+    staff: true,
+    humans: [{ id: "h-in", whatsapp_opted_out: true, whatsapp_opted_out_reason: "told staff by phone" }],
+    conversation: REENABLED,
+    draft: ACK_DRAFT,
+  });
+  assertEquals(status, 409, JSON.stringify(json));
+  assertEquals(json.reason, "stop_acknowledgement_stale");
+  assertEquals(metaCalls(calls), 0);
+});
+
+Deno.test("a genuinely edited reply on that draft is an ordinary message, sent once the number is opted in", async () => {
+  const { status, json, calls } = await run({
+    body: { ...ACK_SEND, edited_text: "Welcome back! Bella is booked for Tuesday at 9." },
+    staff: true,
+    humans: OPTED_IN,
+    conversation: REENABLED,
+    draft: ACK_DRAFT,
+  });
+  assertEquals(status, 200, JSON.stringify(json));
+  assertEquals(metaCalls(calls), 1);
 });

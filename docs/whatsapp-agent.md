@@ -276,6 +276,13 @@ marked `tool_calls.opt_out_acknowledgement`).
   not the acknowledgement.
 - `whatsapp-send` refuses it with different text, or from an AI or internal
   call, and refuses every other draft or manual reply.
+- It may go only while a STOP stands, because it tells the customer their
+  messages have stopped. Once the re-enable lifts the STOP, or when the
+  number's opt-out was never a STOP, sending the acknowledgement's own words
+  (unedited, or retyped in the editor) is refused for every caller with
+  `409 stop_acknowledgement_stale`; staff reject the leftover draft. A
+  genuinely edited reply is an ordinary message: refused while the number
+  is stopped, sent once it is opted in.
 - The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
   pending acknowledgement per conversation, so a repeated or concurrent STOP
   cannot queue a second. The agent treats the refusal as expected.

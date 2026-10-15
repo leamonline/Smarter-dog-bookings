@@ -1302,13 +1302,31 @@ export async function handleSendRequest(req: Request): Promise<Response> {
     const approvesAcknowledgement = parsed.mode === "draft"
       && optOutContext.optOutAcknowledgement
       && !parsed.edited_text?.trim();
+    // The acknowledgement's own words are going out, edited or not: refused
+    // once the STOP no longer stands, since it would tell an opted-in
+    // number that its messages have stopped (#1016 review).
+    const ackText = fallbackReplyForIntent("opt_out");
+    const sendsAcknowledgement = parsed.mode === "draft"
+      && optOutContext.optOutAcknowledgement
+      && (parsed.edited_text?.trim() || ackText) === ackText;
     const optOut = decideOptOutSend({
       recipient: optOutContext.recipient,
       overrideOptOut: parsed.override_opt_out === true,
       approvesAcknowledgement,
+      sendsAcknowledgement,
       callerIsStaff: !!auth.userId,
       aiInitiated: parsed.ai_initiated === true,
     });
+    if (!optOut.allowed && optOut.reason === "stop_acknowledgement_stale") {
+      return json(
+        req,
+        {
+          error: "This STOP acknowledgement is out of date because the number's STOP has been lifted, so it was not sent. Reject it, or write a new reply",
+          reason: optOut.reason,
+        },
+        409,
+      );
+    }
     if (!optOut.allowed) {
       return json(
         req,
