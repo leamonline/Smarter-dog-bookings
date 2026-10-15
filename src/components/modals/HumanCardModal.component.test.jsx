@@ -3,7 +3,7 @@
 // the planned extraction (HumanForm / HumanBookingHistorySection /
 // TrustedContactsEditor / DogPillList).
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
@@ -606,5 +606,113 @@ describe("HumanCardModal — WhatsApp switched off", () => {
     expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
     expect(screen.queryByText("WhatsApp stopped")).toBeNull();
     expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
+  });
+
+  it("keeps a record that moved off the number shown as switched off", async () => {
+    // The record's number changed while the dialog was open, so the re-read
+    // no longer lists it; but nothing switched it back on (no audit row), so
+    // it is still opted out. Absence is never read as "back on": the notice,
+    // the badge and the hidden WA link all stay.
+    const SARAH_ID = "11111111-1111-4111-8111-111111111111";
+    const scopeAnswers = [
+      {
+        phone_key: "7700900111",
+        number_stopped_at: STOP,
+        last_stop_at: STOP,
+        records: [{ id: SARAH_ID, name: "Sarah Jones", phone: "07700 900111", reason: "asked_on_whatsapp", opted_out_at: STOP }],
+      },
+      { phone_key: "7700900111", number_stopped_at: STOP, last_stop_at: STOP, records: [] },
+    ];
+    const auditReads = [];
+    const channel = { on: () => channel, subscribe: () => channel };
+    const anyQuery = (table) => {
+      const builder = {};
+      for (const method of ["select", "eq", "in", "is", "order", "limit", "gt", "gte", "lte", "neq", "or"]) {
+        builder[method] = () => builder;
+      }
+      builder.single = async () => ({ data: null, error: null });
+      builder.maybeSingle = async () => ({ data: null, error: null });
+      builder.then = (onResolve, onReject) => {
+        if (table === "whatsapp_opt_out_reenables") auditReads.push(table);
+        return Promise.resolve({ data: [], error: null }).then(onResolve, onReject);
+      };
+      return builder;
+    };
+    globalThis.__supabaseMockHumanCardModal = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+      from: vi.fn(anyQuery),
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "99999999-9999-4999-8999-999999999999" } } },
+          error: null,
+        })),
+      },
+      rpc: vi.fn(async (fn) => {
+        if (fn === "staff_whatsapp_number_opt_out_scope") {
+          return { data: scopeAnswers.length > 1 ? scopeAnswers.shift() : scopeAnswers[0], error: null };
+        }
+        if (fn === "staff_reenable_whatsapp_number") {
+          return { data: null, error: { code: "P0001", message: "changed", details: "reenable_scope_changed" } };
+        }
+        return { data: null, error: null };
+      }),
+    };
+    const sarah = { ...stoppedHuman, id: SARAH_ID };
+    const reenabled = [];
+
+    function Harness() {
+      const [humans, setHumans] = useState({ "Sarah Jones": sarah });
+      const [, setHumansById] = useState({ [sarah.id]: sarah });
+      const [, setDirectoryHumans] = useState([sarah]);
+      const { markWhatsappReenabled } = useHumanLifecycle({
+        setHumans,
+        setHumansById,
+        setTotalCount: () => {},
+        setDirectoryHumans,
+      });
+      return (
+        <HumanCardModal
+          humanId={sarah.id}
+          onClose={vi.fn()}
+          humans={humans}
+          dogs={{}}
+          bookingsByDate={{}}
+          onUpdateHuman={vi.fn()}
+          fetchHumanById={vi.fn(() => Promise.resolve(null))}
+          findHumanByFullName={vi.fn(() => null)}
+          searchHumansByTerm={vi.fn(() => Promise.resolve([]))}
+          onWhatsappReenabled={(ids) => {
+            reenabled.push(ids);
+            markWhatsappReenabled(ids);
+          }}
+        />
+      );
+    }
+
+    render(
+      <ToastProvider>
+        <Harness />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Switch WhatsApp back on…" }));
+    fireEvent.change(await screen.findByLabelText("How and when did they give permission again?"), {
+      target: { value: "Rang the salon on 14 Oct and asked for reminders again." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Switch WhatsApp back on" }));
+
+    expect(
+      await screen.findByText(
+        /Sarah Jones isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them\./,
+      ),
+    ).toBeInTheDocument();
+    expect(auditReads.length).toBeGreaterThan(0);
+    expect(reenabled).toEqual([]);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Switch WhatsApp back on?" })).getAllByRole("button", { name: "Close" })[0]);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Switch WhatsApp back on?" })).toBeNull());
+
+    expect(screen.getByText("WhatsApp is off — they said STOP.")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp stopped")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeNull();
   });
 });

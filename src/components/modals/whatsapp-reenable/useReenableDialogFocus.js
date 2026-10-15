@@ -18,10 +18,21 @@ function dialogFor(titleId) {
 /**
  * outcomeRef: the element stating the latest outcome (a notice, the verifying
  * line, or the message that replaces the form). liveAlertRef: the alert for
- * a STOP seen on the live list, which takes focus only when focus was lost,
- * never from the note while staff are typing.
+ * a STOP seen on the live list. staleRef: the line saying the profile (or
+ * chat) is out of date. Those two hold confirm when they appear, so they take
+ * focus only when it was lost (on Confirm as it is disabled), never from the
+ * note while staff are typing.
  */
-export function useReenableDialogFocus({ titleId, outcomeRef, liveAlertRef, status, notice, liveNewStop }) {
+export function useReenableDialogFocus({
+  titleId,
+  outcomeRef,
+  liveAlertRef,
+  staleRef,
+  status,
+  notice,
+  liveNewStop,
+  stale,
+}) {
   useEffect(() => {
     const dialog = dialogFor(titleId);
     if (!dialog) return;
@@ -33,4 +44,9 @@ export function useReenableDialogFocus({ titleId, outcomeRef, liveAlertRef, stat
     const dialog = dialogFor(titleId);
     if (liveNewStop && liveAlertRef.current && dialog && focusLost(dialog)) liveAlertRef.current.focus();
   }, [titleId, liveAlertRef, liveNewStop]);
+
+  useEffect(() => {
+    const dialog = dialogFor(titleId);
+    if (stale && staleRef.current && dialog && focusLost(dialog)) staleRef.current.focus();
+  }, [titleId, staleRef, stale]);
 }

@@ -1,7 +1,9 @@
 // The rose alerts inside "Switch WhatsApp back on?": what happened when staff
 // confirmed or reloaded, and a new STOP seen on the live list. Each can take
 // focus (tabIndex -1), so the dialog can move focus to the outcome when the
-// control staff used is disabled or removed.
+// control staff used is disabled or removed. A notice can also name records
+// that left the number without being switched back on (`leftNumber`, the
+// line from leftNumberMessage); they are still switched off.
 import { forwardRef } from "react";
 import { Button } from "../../ui/index.js";
 import { optOutTimeLabel } from "../../../engine/whatsappReenable";
@@ -10,6 +12,7 @@ const NOTICE_COPY = {
   scope_changed: "Something changed on this number while you were looking, so nothing was switched on. Check the list again, then confirm.",
   busy: "Something else was changing this number at the same moment, so nothing was switched on. Here’s the latest — check it, then confirm.",
   unconfirmed: "We couldn’t confirm whether WhatsApp was switched back on. Check again before doing anything else.",
+  changed_since: "Your change went through, but this number has changed since. Here’s the latest — check it before switching anything else back on.",
   not_applied: "Nothing was switched on — we couldn’t reach the database. Check your connection and try again.",
   note_required: "Add how they gave permission again — at least 10 characters.",
   unknown: "Couldn’t switch WhatsApp back on. Nothing was changed — give it another go?",
@@ -29,18 +32,25 @@ export const ReenableAlert = forwardRef(function ReenableAlert({ children, actio
   );
 });
 
-export const ReenableNotice = forwardRef(function ReenableNotice({ notice, onReload }, ref) {
-  if (!notice) return null;
-  const body =
-    notice.kind === "new_stop"
-      ? `This number said STOP again on ${optOutTimeLabel(notice.at)}, after you opened this. Nothing was switched on. Only switch it back on if they’ve given permission since then.`
-      : NOTICE_COPY[notice.kind === "submit_error" ? notice.error : notice.kind];
-  const { added = [], removed = [] } = notice.diff ?? {};
+function noticeBody(notice) {
+  if (notice.kind === "new_stop") {
+    return `This number said STOP again on ${optOutTimeLabel(notice.at)}, after you opened this. Nothing was switched on. Only switch it back on if they’ve given permission since then.`;
+  }
+  if (notice.kind === "stopped_again") {
+    return `Your change went through, but this number said STOP again on ${optOutTimeLabel(notice.at)}. WhatsApp is off again.`;
+  }
+  return NOTICE_COPY[notice.kind === "submit_error" ? notice.error : notice.kind];
+}
+
+export const ReenableNotice = forwardRef(function ReenableNotice({ notice, leftNumber = null, onReload }, ref) {
+  if (!notice && !leftNumber) return null;
+  const { added = [], removed = [] } = notice?.diff ?? {};
   return (
-    <ReenableAlert ref={ref} action={notice.kind === "unconfirmed" ? "Check again" : null} onAction={onReload}>
-      <p className="m-0">{body}</p>
+    <ReenableAlert ref={ref} action={notice?.kind === "unconfirmed" ? "Check again" : null} onAction={onReload}>
+      {notice && <p className="m-0">{noticeBody(notice)}</p>}
       {added.length > 0 && <p className="m-0 mt-1">Now also switched off: {added.join(", ")}.</p>}
       {removed.length > 0 && <p className="m-0 mt-1">No longer switched off: {removed.join(", ")}.</p>}
+      {leftNumber && <p className={notice ? "m-0 mt-1" : "m-0"}>{leftNumber}</p>}
     </ReenableAlert>
   );
 });

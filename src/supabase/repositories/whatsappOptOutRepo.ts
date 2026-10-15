@@ -1,21 +1,28 @@
 /**
- * whatsappOptOutRepo — reading a number's WhatsApp opt-out scope, and
- * switching WhatsApp back on for it with the customer's renewed permission.
+ * whatsappOptOutRepo — reading a number's WhatsApp opt-out scope, switching
+ * WhatsApp back on for it with the customer's renewed permission, and
+ * reading the audit of re-enables that settles what happened to a scope.
  *
- * The scope read is narrowed field by field; an unexpected shape is an
- * error, never a partial scope. The re-enable takes the scope OBJECT, not
- * ids and a time: it sends exactly the records the scope listed and the
- * latest STOP as the server's own string, so no caller can send a subset or
- * a reformatted timestamp. Neither function logs or throws: every outcome,
- * a transport failure included, comes back as { value, error }.
+ * Every read is narrowed field by field; an unexpected shape is an error,
+ * never a partial scope or a partial audit. The re-enable takes the scope
+ * OBJECT, not ids and a time: it sends exactly the records the scope listed
+ * and the latest STOP as the server's own string, so no caller can send a
+ * subset or a reformatted timestamp. No function here logs or throws: every
+ * outcome, a transport failure included, comes back as { value, error }.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { NumberOptOutScope, OptOutRecord } from "../../engine/whatsappReenable";
+import type { AuditRow, NumberOptOutScope, OptOutRecord } from "../../engine/whatsappReenable";
 import { isScopeEmpty } from "../../engine/whatsappReenable";
 import { getWhatsappNumberOptOutScope, reenableWhatsappNumber } from "../rpc";
 import { isNonEmptyString, isRecord, isUuid } from "./bookingPolicyProjectionGuards";
 
-export type { NumberOptOutScope, OptOutRecord };
+export type { AuditRow, NumberOptOutScope, OptOutRecord };
+
+/** The audit table the re-enable function writes, one row per re-enable (and nothing else writes it). */
+const REENABLE_AUDIT_TABLE = "whatsapp_opt_out_reenables";
+const REENABLE_AUDIT_COLUMNS = "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at";
+/** More re-enables than this for one number since staff looked is not credible. */
+const REENABLE_AUDIT_LIMIT = 50;
 
 export interface ReenableResult {
   phoneKey: string;
@@ -158,6 +165,64 @@ export async function reenableNumber(
     // unreadable answer is an unknown outcome (code ""), never a failure.
     if (!result) return { value: null, error: invalidResponse("") };
     return { value: result, error: null };
+  } catch (cause) {
+    return { value: null, error: thrownError(cause) };
+  }
+}
+
+function isTimestamp(value: unknown): value is string {
+  return isNonEmptyString(value) && !Number.isNaN(Date.parse(value));
+}
+
+function toAuditRow(value: unknown): AuditRow | null {
+  if (!isRecord(value)) return null;
+  const {
+    id,
+    human_ids: humanIds,
+    conversation_ids: conversationIds,
+    permission_note: permissionNote,
+    reenabled_by: reenabledBy,
+    reenabled_at: reenabledAt,
+  } = value;
+  if (!isUuid(id) || !isUuid(reenabledBy) || typeof permissionNote !== "string") return null;
+  if (!isUuidArray(humanIds) || !isUuidArray(conversationIds) || !isTimestamp(reenabledAt)) return null;
+  return { id, humanIds, conversationIds, permissionNote, reenabledBy, reenabledAt };
+}
+
+/**
+ * The re-enables recorded for a number, newest first: the only proof that a
+ * record which left the scope was switched back on (a record also leaves it
+ * when its phone changes, and stays opted out). `phoneKey` is the scope's
+ * own, computed by the server; never one worked out here. With `sinceIso`,
+ * only rows strictly after it.
+ */
+export async function listNumberReenables(
+  client: SupabaseClient,
+  phoneKey: string,
+  sinceIso: string | null,
+): Promise<RepoResult<AuditRow[]>> {
+  try {
+    let query = client.from(REENABLE_AUDIT_TABLE).select(REENABLE_AUDIT_COLUMNS).eq("phone_key", phoneKey);
+    if (sinceIso !== null) query = query.gt("reenabled_at", sinceIso);
+    const { data, error } = await query.order("reenabled_at", { ascending: false }).limit(REENABLE_AUDIT_LIMIT);
+    if (error) return { value: null, error: rpcError(error) };
+    if (!Array.isArray(data)) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
+    const rows = data.map(toAuditRow);
+    if (rows.some((row) => row === null)) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
+    return { value: rows as AuditRow[], error: null };
+  } catch (cause) {
+    return { value: null, error: thrownError(cause) };
+  }
+}
+
+/** The signed-in member of staff, as the audit records them (auth.uid()). */
+export async function getSignedInUserId(client: SupabaseClient): Promise<RepoResult<string>> {
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) return { value: null, error: rpcError(error) };
+    const id: unknown = data?.session?.user?.id;
+    if (!isUuid(id)) return { value: null, error: invalidResponse("NO_SIGNED_IN_USER") };
+    return { value: id, error: null };
   } catch (cause) {
     return { value: null, error: thrownError(cause) };
   }

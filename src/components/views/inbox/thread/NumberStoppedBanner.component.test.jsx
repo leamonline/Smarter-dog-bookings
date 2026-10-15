@@ -123,6 +123,33 @@ describe("NumberStoppedBanner", () => {
     expect(onOpenHuman).toHaveBeenCalledWith("human-1");
   });
 
+  it("treats a name and surname of only spaces as no name at all", () => {
+    const onOpenHuman = vi.fn();
+    const blank = { ...linked, humans: { ...linked.humans, name: " ", surname: "  " } };
+    const { unmount } = renderBanner(blank, { onReenabled: vi.fn() });
+    expect(screen.getByRole("status")).toHaveTextContent("WhatsApp is switched off for the linked customer.");
+    unmount();
+
+    renderBanner({ ...blank, humans: { ...blank.humans, phone: "07700 900555" } }, { onOpenHuman });
+    expect(screen.getByRole("status")).toHaveTextContent("WhatsApp is switched off for the linked customer.");
+    fireEvent.click(screen.getByRole("button", { name: "Open their profile" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("human-1");
+  });
+
+  it("hands the dialog no name for a blank-named linked customer saved elsewhere", () => {
+    renderBanner(
+      {
+        ...linked,
+        whatsapp_opted_out_at: FIRST,
+        whatsapp_last_stop_at: FIRST,
+        humans: { ...linked.humans, name: " ", surname: "  ", phone: "07700 900999" },
+      },
+      { onReenabled: vi.fn() },
+    );
+    fireEvent.click(reenableButton());
+    expect(dialogSpy.props.at(-1).linkedElsewhere).toEqual({ id: "human-1", name: null });
+  });
+
   it("names a linked customer from their record, title-cased, surname only if that is all there is", () => {
     renderBanner({ ...linked, humans: { ...linked.humans, name: "", surname: "jones" } }, { onReenabled: vi.fn() });
     expect(screen.getByRole("status")).toHaveTextContent("WhatsApp is switched off for Jones.");

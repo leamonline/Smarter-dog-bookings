@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DATE_NOT_RECORDED,
   REENABLE_NOTE_MIN_LENGTH,
+  attributeCleared,
+  auditReadSince,
   classifyReenableError,
   conversationWhatsappStop,
   diffScopes,
@@ -11,10 +13,15 @@ import {
   isPermissionNoteLongEnough,
   isSameNumber,
   isScopeEmpty,
+  isStrictlyLater,
+  joinNames,
+  leftNumberMessage,
   optOutReasonLabel,
   optOutTimeLabel,
   recordDisplayName,
+  type AuditRow,
   type NumberOptOutScope,
+  type OptOutRecord,
 } from "./whatsappReenable";
 
 const SARAH = "11111111-1111-4111-8111-111111111111";
@@ -210,6 +217,15 @@ describe("diffScopes", () => {
   });
 });
 
+describe("diffScopes with records that left the number", () => {
+  it("leaves them out of removed, so they are named once", () => {
+    const tom = { id: TOM, name: "Tom Jones", phone: null, reason: null, optedOutAt: null };
+    const prev = scope({ records: [...scope().records, tom] });
+    expect(diffScopes(prev, scope({ records: [] }), [TOM]).removed).toEqual(["Sarah Jones"]);
+    expect(diffScopes(prev, scope({ records: [] })).removed).toEqual(["Sarah Jones", "Tom Jones"]);
+  });
+});
+
 describe("isNewerStop", () => {
   it("is false with nothing observed", () => {
     expect(isNewerStop(null, "2026-10-03T13:05:00.123456+00:00")).toBe(false);
@@ -359,5 +375,266 @@ describe("conversationWhatsappStop", () => {
       humans: { ...base.humans, whatsapp_opted_out: true },
     });
     expect(stop.kind).toBe("none");
+  });
+});
+
+describe("whitespace-only names", () => {
+  it("are no name at all, never a blank one", () => {
+    const stop = conversationWhatsappStop({
+      channel: "whatsapp",
+      phone_e164: "+447700900123",
+      human_id: "human-1",
+      whatsapp_opted_out_at: null,
+      whatsapp_last_stop_at: null,
+      humans: {
+        name: " ",
+        surname: "  ",
+        phone: "07700 900999",
+        whatsapp_opted_out: true,
+      },
+    });
+    expect(stop.kind).toBe("record_other_number");
+    expect(stop.name).toBeNull();
+    expect(recordDisplayName({ name: "  " })).toBe("Unnamed record");
+  });
+});
+
+describe("isStrictlyLater", () => {
+  it("compares to the microsecond, past the millisecond Date.parse keeps", () => {
+    expect(isStrictlyLater("2026-10-14T13:32:00.000002+00:00", "2026-10-14T13:32:00.000001+00:00")).toBe(true);
+    expect(isStrictlyLater("2026-10-14T13:32:00.000001+00:00", "2026-10-14T13:32:00.000002+00:00")).toBe(false);
+    expect(Date.parse("2026-10-14T13:32:00.000002+00:00")).toBe(Date.parse("2026-10-14T13:32:00.000001+00:00"));
+  });
+
+  it("is false for the same instant, however it is spelled", () => {
+    expect(isStrictlyLater("2026-10-14T13:32:00.5+00:00", "2026-10-14T14:32:00.500000+01:00")).toBe(false);
+    expect(isStrictlyLater("2026-10-14T13:32:00Z", "2026-10-14T13:32:00.000000+00:00")).toBe(false);
+  });
+
+  it("compares milliseconds first", () => {
+    expect(isStrictlyLater("2026-10-14T13:32:00.002+00:00", "2026-10-14T13:32:00.001999+00:00")).toBe(true);
+    expect(isStrictlyLater("2026-10-14T13:31:59.999999+00:00", "2026-10-14T13:32:00+00:00")).toBe(false);
+  });
+
+  it("is false when either time is missing or unreadable", () => {
+    expect(isStrictlyLater(null, "2026-10-14T13:32:00Z")).toBe(false);
+    expect(isStrictlyLater("2026-10-14T13:32:00Z", undefined)).toBe(false);
+    expect(isStrictlyLater("not a time", "2026-10-14T13:32:00Z")).toBe(false);
+    expect(isStrictlyLater("2026-10-14T13:32:00Z", "")).toBe(false);
+  });
+});
+
+describe("auditReadSince", () => {
+  const record = (optedOutAt: string | null): OptOutRecord => ({
+    id: SARAH,
+    name: "Sarah Jones",
+    phone: null,
+    reason: null,
+    optedOutAt,
+  });
+
+  it("is the earliest switch-off or STOP, as the server's string", () => {
+    expect(
+      auditReadSince({
+        lastStopAt: "2026-10-10T08:12:00.654321+00:00",
+        records: [record("2026-10-03T13:05:00.123457+00:00"), record("2026-10-03T13:05:00.123456+00:00")],
+      }),
+    ).toBe("2026-10-03T13:05:00.123456+00:00");
+  });
+
+  it("is the latest STOP when it came first, or is all there is", () => {
+    expect(auditReadSince({ lastStopAt: "2026-10-01T00:00:00Z", records: [record("2026-10-03T00:00:00Z")] })).toBe(
+      "2026-10-01T00:00:00Z",
+    );
+    expect(auditReadSince({ lastStopAt: "2026-10-01T00:00:00Z", records: [] })).toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("skips missing and unreadable times, and is null with none", () => {
+    expect(auditReadSince({ lastStopAt: null, records: [record(null), record("garbage"), record("2026-10-03T00:00:00Z")] })).toBe(
+      "2026-10-03T00:00:00Z",
+    );
+    expect(auditReadSince({ lastStopAt: null, records: [record(null)] })).toBeNull();
+  });
+});
+
+describe("attributeCleared", () => {
+  const ME = "99999999-9999-4999-8999-999999999999";
+  const COLLEAGUE = "88888888-8888-4888-8888-888888888888";
+  const STOP = "2026-10-03T13:05:00.123456+00:00";
+  const NOTE = "Rang the salon on 14 Oct and asked for reminders again.";
+  const sarah: OptOutRecord = { id: SARAH, name: "Sarah Jones", phone: null, reason: "asked_on_whatsapp", optedOutAt: STOP };
+  const tom: OptOutRecord = { id: TOM, name: "Tom Jones", phone: null, reason: "asked_on_whatsapp", optedOutAt: STOP };
+  const previous = scope({ lastStopAt: STOP, records: [sarah, tom] });
+  const empty = scope({ numberStoppedAt: null, lastStopAt: null, records: [] });
+
+  function row(overrides: Partial<AuditRow> = {}): AuditRow {
+    return {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      humanIds: [SARAH, TOM],
+      conversationIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
+      permissionNote: NOTE,
+      reenabledBy: ME,
+      reenabledAt: "2026-10-14T13:00:00.000001+00:00",
+      ...overrides,
+    };
+  }
+
+  const attribute = (input: Partial<Parameters<typeof attributeCleared>[0]> = {}) =>
+    attributeCleared({ previous, next: empty, rows: [], me: ME, submittedNote: NOTE, ...input });
+
+  it("treats absence alone as leaving the number, never as switched on", () => {
+    expect(attribute()).toEqual({ byUs: [], byOthers: [], leftNumber: [SARAH, TOM], ourRow: null });
+    expect(attribute({ next: null }).leftNumber).toEqual([SARAH, TOM]);
+  });
+
+  it("only considers records the re-read no longer lists", () => {
+    const result = attribute({ next: scope({ records: [sarah] }), rows: [row({ reenabledBy: COLLEAGUE })] });
+    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [], ourRow: null });
+  });
+
+  it("recognises our own row by who sent it and the note, trimmed", () => {
+    const ours = row();
+    expect(attribute({ rows: [ours], submittedNote: `  ${NOTE}\n` })).toEqual({
+      byUs: [SARAH, TOM],
+      byOthers: [],
+      leftNumber: [],
+      ourRow: ours,
+    });
+    // Any of my rows, when the note does not matter.
+    expect(attribute({ rows: [ours], submittedNote: null }).ourRow).toBe(ours);
+  });
+
+  it("does not take a colleague's row, my row with another note, or any row with no one signed in", () => {
+    for (const input of [
+      { rows: [row({ reenabledBy: COLLEAGUE })] },
+      { rows: [row({ permissionNote: "Another conversation." })] },
+      { rows: [row()], me: null },
+    ]) {
+      expect(attribute(input)).toMatchObject({ byUs: [], byOthers: [SARAH, TOM], leftNumber: [], ourRow: null });
+    }
+  });
+
+  it("needs the record in the row", () => {
+    const result = attribute({ rows: [row({ reenabledBy: COLLEAGUE, humanIds: [SARAH] })] });
+    expect(result).toMatchObject({ byOthers: [SARAH], leftNumber: [TOM] });
+  });
+
+  it("needs the row strictly after the record's switch-off, to the microsecond", () => {
+    const at = (reenabledAt: string) =>
+      attributeCleared({
+        previous: scope({ lastStopAt: null, records: [sarah] }),
+        next: empty,
+        rows: [row({ reenabledBy: COLLEAGUE, reenabledAt })],
+        me: ME,
+        submittedNote: NOTE,
+      });
+    expect(at("2026-10-03T13:05:00.123457+00:00").byOthers).toEqual([SARAH]);
+    expect(at(STOP).leftNumber).toEqual([SARAH]);
+    expect(at("2026-10-03T13:05:00.123455+00:00").leftNumber).toEqual([SARAH]);
+  });
+
+  it("needs the row strictly after the latest STOP staff saw", () => {
+    const LAST = "2026-10-10T08:12:00.654321+00:00";
+    const result = attribute({
+      previous: scope({ lastStopAt: LAST, records: [sarah] }),
+      rows: [row({ reenabledBy: COLLEAGUE, reenabledAt: LAST })],
+    });
+    expect(result.leftNumber).toEqual([SARAH]);
+    const later = attribute({
+      previous: scope({ lastStopAt: LAST, records: [sarah] }),
+      rows: [row({ reenabledBy: COLLEAGUE, reenabledAt: "2026-10-10T08:12:00.654322+00:00" })],
+    });
+    expect(later.byOthers).toEqual([SARAH]);
+  });
+
+  it("never proves a record with no switch-off time, not even with our own row", () => {
+    const legacy = { ...tom, optedOutAt: null };
+    const result = attribute({ previous: scope({ lastStopAt: STOP, records: [sarah, legacy] }), rows: [row()] });
+    expect(result).toEqual({ byUs: [SARAH], byOthers: [], leftNumber: [TOM], ourRow: row() });
+    // Alone, it cannot even identify our row.
+    expect(attribute({ previous: scope({ lastStopAt: null, records: [legacy] }), rows: [row()] })).toEqual({
+      byUs: [],
+      byOthers: [],
+      leftNumber: [TOM],
+      ourRow: null,
+    });
+  });
+
+  it("splits ours from a colleague's when both are on record", () => {
+    const colleague = row({ id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", reenabledBy: COLLEAGUE, humanIds: [TOM] });
+    const ours = row({ humanIds: [SARAH] });
+    expect(attribute({ rows: [colleague, ours] })).toEqual({
+      byUs: [SARAH],
+      byOthers: [TOM],
+      leftNumber: [],
+      ourRow: ours,
+    });
+  });
+
+  it("takes our latest row when there are several", () => {
+    const first = row({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", reenabledAt: "2026-10-14T13:00:00.000001+00:00" });
+    const second = row({ reenabledAt: "2026-10-14T13:00:00.000002+00:00" });
+    expect(attribute({ rows: [first, second] }).ourRow).toBe(second);
+    expect(attribute({ rows: [second, first] }).ourRow).toBe(second);
+  });
+
+  it("still reports our row when the records are back on the number", () => {
+    const ours = row();
+    const LATER = "2026-10-14T13:32:00.000001+00:00";
+    const result = attribute({
+      next: scope({ lastStopAt: LATER, records: [{ ...sarah, optedOutAt: LATER }, { ...tom, optedOutAt: LATER }] }),
+      rows: [ours],
+    });
+    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], ourRow: ours });
+  });
+
+  describe("a number with no customer record", () => {
+    const numberOnly = scope({ lastStopAt: STOP, records: [] });
+
+    it("our row clearing a conversation after its STOP is ours", () => {
+      const ours = row({ humanIds: [] });
+      expect(attribute({ previous: numberOnly, rows: [ours] })).toEqual({
+        byUs: [],
+        byOthers: [],
+        leftNumber: [],
+        ourRow: ours,
+      });
+    });
+
+    it("needs a conversation, a STOP, and a later row", () => {
+      expect(attribute({ previous: numberOnly, rows: [row({ humanIds: [], conversationIds: [] })] }).ourRow).toBeNull();
+      expect(attribute({ previous: numberOnly, rows: [row({ humanIds: [], reenabledAt: STOP })] }).ourRow).toBeNull();
+      expect(
+        attribute({ previous: scope({ numberStoppedAt: null, lastStopAt: null, records: [] }), rows: [row()] }).ourRow,
+      ).toBeNull();
+    });
+  });
+});
+
+describe("joinNames", () => {
+  it("joins names as a sentence would", () => {
+    expect(joinNames([])).toBe("");
+    expect(joinNames(["Sarah"])).toBe("Sarah");
+    expect(joinNames(["Sarah", "Tom"])).toBe("Sarah and Tom");
+    expect(joinNames(["Sarah", "Tom", "Bea"])).toBe("Sarah, Tom and Bea");
+  });
+});
+
+describe("leftNumberMessage", () => {
+  it("is null with nobody to name", () => {
+    expect(leftNumberMessage([])).toBeNull();
+  });
+
+  it("names one record, unnamed ones included", () => {
+    expect(leftNumberMessage([{ name: "Sarah Jones" }])).toBe(
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their number may have changed — open their profile to check.",
+    );
+    expect(leftNumberMessage([{ name: "  " }])).toMatch(/^Unnamed record isn’t switched off/);
+  });
+
+  it("names several", () => {
+    expect(leftNumberMessage([{ name: "Sarah Jones" }, { name: "Tom Jones" }])).toBe(
+      "Sarah Jones and Tom Jones aren’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their numbers may have changed — open their profiles to check.",
+    );
   });
 });

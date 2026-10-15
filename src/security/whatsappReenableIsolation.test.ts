@@ -64,6 +64,12 @@ describe("WhatsApp re-enable isolation", () => {
     expect(callers).toEqual([REPOSITORY]);
   });
 
+  it("reads the re-enable audit only through the repository", () => {
+    // The audit is what settles an outcome (a record leaving the scope is not
+    // proof it was switched back on), so one narrowed read owns it.
+    expect(filesMatching(/["'`]whatsapp_opt_out_reenables["'`]/)).toEqual([REPOSITORY]);
+  });
+
   it("never writes the opt-out through an ordinary update", () => {
     expect(filesMatching(/dbUpdates\.whatsapp_opted_out/)).toEqual([]);
     expect(filesMatching(/\.update\(\s*\{[^)]*whatsapp_opted_out/s)).toEqual([]);

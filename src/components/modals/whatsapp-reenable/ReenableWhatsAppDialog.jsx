@@ -10,7 +10,7 @@ import { HeaderIconButton, ModalShell, PanelShell } from "../shell/index.js";
 import { Button, InlineError } from "../../ui/index.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { useWhatsappNumberReenable } from "../../../supabase/hooks/useWhatsappNumberReenable";
-import { isPermissionNoteLongEnough, optOutTimeLabel } from "../../../engine/whatsappReenable";
+import { isPermissionNoteLongEnough, leftNumberMessage, optOutTimeLabel } from "../../../engine/whatsappReenable";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { ReenableScopeList } from "./ReenableScopeList.jsx";
 import { ReenableAlert, ReenableNotice } from "./ReenableNotices.jsx";
@@ -31,6 +31,21 @@ function blockedCopy(errorKind, context) {
       : "This number doesn’t look right, so it can’t be checked. Fix the number on the customer’s record first.";
   }
   return BLOCKED_COPY[errorKind] ?? BLOCKED_COPY.not_deployed;
+}
+
+function alreadyOnCopy(reason, anyLeft) {
+  switch (reason) {
+    case "switched_on":
+      // Neutral: the audit row says it was switched back on, not by this
+      // request; who did it is in the audit log, never guessed here.
+      return `WhatsApp has already been switched back on for this number.${anyLeft ? "" : " There’s nothing left to do."}`;
+    case "ours":
+      return "Your change went through — WhatsApp is back on for this number.";
+    case "left_number":
+      return "Nothing is switched off on this number any more.";
+    default:
+      return "WhatsApp is already on for this number — there’s nothing to switch back on.";
+  }
 }
 
 function againSuffix(scope) {
@@ -58,6 +73,7 @@ export function ReenableWhatsAppDialog({
   const hintId = useId();
   const outcomeRef = useRef(null);
   const liveAlertRef = useRef(null);
+  const staleRef = useRef(null);
   // The number this dialog is for, fixed when it opens (as the hook fixes it).
   const [openedPhone] = useState(phone);
   const shownPhone = formatPhoneForDisplay(openedPhone) || openedPhone;
@@ -73,6 +89,11 @@ export function ReenableWhatsAppDialog({
     },
   });
   const { status, scope, note, notice, liveNewStop } = reenable;
+  const customerName = (currentHumanName || "").trim();
+  const leftLine = leftNumberMessage(reenable.leftNumber);
+  // The profile is out of date (its record left the number, or its number
+  // changed), or the chat's number changed: confirm is held either way.
+  const stale = reenable.staleProfile || reenable.numberMoved;
   const busy = status === "submitting" || status === "verifying";
   const close = () => (busy ? undefined : onClose());
   // Leaving mid-request would hide its outcome, so these wait like Close does.
@@ -89,22 +110,21 @@ export function ReenableWhatsAppDialog({
   const hint =
     status !== "ready"
       ? null
-      : reenable.staleProfile
-        ? "Refresh to see this customer’s current number first."
+      : stale
+        ? context === "inbox"
+          ? "Open this chat again to see its current number first."
+          : "Refresh to see this customer’s current number first."
         : noteShort
           ? "Write how they gave permission again to switch WhatsApp back on."
           : null;
 
-  useReenableDialogFocus({ titleId, outcomeRef, liveAlertRef, status, notice, liveNewStop });
+  useReenableDialogFocus({ titleId, outcomeRef, liveAlertRef, staleRef, status, notice, liveNewStop, stale });
 
   const message = {
     unavailable: "Switching WhatsApp back on needs the live database — you’re on sample data. Nothing has been changed.",
     load_error: "Couldn’t check this number — give it another go?",
     blocked: blockedCopy(reenable.errorKind, context),
-    already_on:
-      reenable.alreadyOnReason === "someone_else"
-        ? "Someone has already switched WhatsApp back on for this number. There’s nothing left to do."
-        : "WhatsApp is already on for this number — there’s nothing to switch back on.",
+    already_on: alreadyOnCopy(reenable.alreadyOnReason, Boolean(leftLine)),
   }[status];
 
   return (
@@ -121,7 +141,8 @@ export function ReenableWhatsAppDialog({
       header={
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
-            <span className="text-label text-ink-muted">WhatsApp</span>
+            {/* slate-600, not ink-muted: ink-muted is 4.18:1 on the paper header. */}
+            <span className="text-label text-slate-600">WhatsApp</span>
             <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1">
               Switch WhatsApp back on?
             </h2>
@@ -162,6 +183,7 @@ export function ReenableWhatsAppDialog({
       {message && (
         <p ref={outcomeRef} tabIndex={-1} role={status === "load_error" ? "alert" : "status"} className="m-0 focus:outline-none">
           {message}
+          {status === "already_on" && leftLine && <span className="block mt-1.5">{leftLine}</span>}
         </p>
       )}
       {isForm && (
@@ -171,7 +193,12 @@ export function ReenableWhatsAppDialog({
               <p className="m-0">This number has just said STOP again. Reload to see the latest before switching it back on.</p>
             </ReenableAlert>
           )}
-          <ReenableNotice ref={status === "verifying" ? undefined : outcomeRef} notice={notice} onReload={() => void reenable.reload()} />
+          <ReenableNotice
+            ref={status === "verifying" ? undefined : outcomeRef}
+            notice={notice}
+            leftNumber={leftLine}
+            onReload={() => void reenable.reload()}
+          />
           {status === "verifying" && (
             <p ref={outcomeRef} tabIndex={-1} role="status" className="m-0 font-semibold focus:outline-none">
               We couldn’t reach the database. Checking whether it went through…
@@ -210,10 +237,11 @@ export function ReenableWhatsAppDialog({
               )}
             </div>
           )}
-          {reenable.staleProfile && (
-            <p className="m-0">
-              {currentHumanName || "This customer"} isn’t switched off on this number any more — their record may
-              have changed. Refresh the page to see the latest before switching anything back on.
+          {stale && (
+            <p ref={staleRef} tabIndex={-1} role="status" className="m-0 focus:outline-none">
+              {context === "inbox"
+                ? "This chat’s number has changed since you opened this. Close it and open the chat again to see the latest before switching anything back on."
+                : `${customerName || "This customer"} isn’t switched off on this number any more — their record may have changed. Refresh the page to see the latest before switching anything back on.`}
             </p>
           )}
           <p className="m-0">

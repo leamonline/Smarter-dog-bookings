@@ -16,6 +16,16 @@
   It sends exactly that scope; if anything changed, the number said STOP
   again, or the connection dropped, it reads the scope again and shows the
   result instead of retrying. A new STOP clears the note.
+- What happened is taken from the re-enable audit log, never from a record
+  no longer being listed: a record also leaves a number when its phone
+  changes, and stays switched off. Only records an audit row proves are
+  shown as back on; one that left with no row is named as still switched off
+  ("their number may have changed"). After a dropped connection the dialog
+  finds its own row (who sent it, and its note), so a request that lands late
+  is reported as this one, never as someone else’s, and one followed by a new
+  STOP says it went through and is off again. Another re-enable is described
+  neutrally ("has already been switched back on"). If the audit cannot be
+  read, nothing is changed on screen and staff check again.
 - The profile header’s "WA" wa.me link is hidden while WhatsApp is switched
   off, so staff cannot message a stopped number from their own phone.
 - The "E" shortcuts (profile edit mode, inbox "Mark complete") no longer fire

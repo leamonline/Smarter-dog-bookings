@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getNumberOptOutScope,
+  getSignedInUserId,
+  listNumberReenables,
   reenableNumber,
   type NumberOptOutScope,
 } from "./whatsappOptOutRepo";
@@ -236,5 +238,140 @@ describe("reenableNumber", () => {
   it("reports a thrown transport error as thrown", async () => {
     const result = await reenableNumber(throwing(new Error("socket hang up")).client, scope(), "Asked in person today");
     expect(result.error).toEqual({ code: "", message: "socket hang up", details: null, thrown: true });
+  });
+});
+
+describe("listNumberReenables", () => {
+  const ME = "99999999-9999-4999-8999-999999999999";
+  const auditRow = {
+    id: AUDIT,
+    human_ids: [SARAH, TOM],
+    conversation_ids: [CONVERSATION],
+    permission_note: "Rang the salon and asked for reminders again.",
+    reenabled_by: ME,
+    reenabled_at: "2026-10-14T13:00:00.000001+00:00",
+  };
+
+  /** A query-builder stub that records every call and answers `result`. */
+  function query(result: unknown | (() => Promise<unknown>)) {
+    const calls: unknown[][] = [];
+    const builder: Record<string, unknown> = {};
+    for (const method of ["select", "eq", "gt", "order", "limit"]) {
+      builder[method] = (...args: unknown[]) => {
+        calls.push([method, ...args]);
+        return builder;
+      };
+    }
+    builder.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+      (typeof result === "function" ? (result as () => Promise<unknown>)() : Promise.resolve(result)).then(resolve, reject);
+    const from = vi.fn(() => builder);
+    return { client: { from } as unknown as SupabaseClient, from, calls };
+  }
+
+  it("reads the number's rows newest first, after the given time, and maps them to camelCase", async () => {
+    const { client, from, calls } = query({ data: [auditRow], error: null });
+    const result = await listNumberReenables(client, "7700900123", "2026-10-03T13:05:00.123456+00:00");
+    expect(from).toHaveBeenCalledWith("whatsapp_opt_out_reenables");
+    expect(calls).toEqual([
+      ["select", "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at"],
+      ["eq", "phone_key", "7700900123"],
+      ["gt", "reenabled_at", "2026-10-03T13:05:00.123456+00:00"],
+      ["order", "reenabled_at", { ascending: false }],
+      ["limit", 50],
+    ]);
+    expect(result).toEqual({
+      value: [
+        {
+          id: AUDIT,
+          humanIds: [SARAH, TOM],
+          conversationIds: [CONVERSATION],
+          permissionNote: "Rang the salon and asked for reminders again.",
+          reenabledBy: ME,
+          reenabledAt: "2026-10-14T13:00:00.000001+00:00",
+        },
+      ],
+      error: null,
+    });
+  });
+
+  it("reads every row for the number when there is no time to start from", async () => {
+    const { client, calls } = query({ data: [], error: null });
+    const result = await listNumberReenables(client, "7700900123", null);
+    expect(calls.map(([method]) => method)).toEqual(["select", "eq", "order", "limit"]);
+    expect(result).toEqual({ value: [], error: null });
+  });
+
+  it.each([
+    ["no list at all", null],
+    ["a list that is an object", { 0: auditRow }],
+    ["a row that is not an object", ["x"]],
+    ["an id that is not a uuid", [{ ...auditRow, id: "a1" }]],
+    ["a record id that is not a uuid", [{ ...auditRow, human_ids: [SARAH, "h1"] }]],
+    ["conversation ids that are not a list", [{ ...auditRow, conversation_ids: null }]],
+    ["a note that is not a string", [{ ...auditRow, permission_note: null }]],
+    ["no member of staff", [{ ...auditRow, reenabled_by: null }]],
+    ["an unreadable time", [{ ...auditRow, reenabled_at: "yesterday" }]],
+    ["a missing time", [{ ...auditRow, reenabled_at: "" }]],
+    ["one bad row among good ones", [auditRow, { ...auditRow, reenabled_at: 3 }]],
+  ])("refuses %s rather than settle anything on a partial audit", async (_label, data) => {
+    const { client } = query({ data, error: null });
+    const result = await listNumberReenables(client, "7700900123", null);
+    expect(result).toEqual({
+      value: null,
+      error: { code: "INVALID_REENABLE_AUDIT", message: "The response could not be verified.", details: null, thrown: false },
+    });
+  });
+
+  it("keeps the code and details of a refusal", async () => {
+    const { client } = query({ data: null, error: { code: "42501", message: "permission denied", details: "rls" } });
+    const result = await listNumberReenables(client, "7700900123", null);
+    expect(result.error).toEqual({ code: "42501", message: "permission denied", details: "rls", thrown: false });
+  });
+
+  it("reports a thrown transport error as thrown", async () => {
+    const { client } = query(() => Promise.reject(new TypeError("Failed to fetch")));
+    const result = await listNumberReenables(client, "7700900123", null);
+    expect(result).toEqual({ value: null, error: { code: "", message: "Failed to fetch", details: null, thrown: true } });
+  });
+});
+
+describe("getSignedInUserId", () => {
+  const ME = "99999999-9999-4999-8999-999999999999";
+  const session = (result: unknown) => {
+    const getSession = vi.fn(async () => result);
+    return { client: { auth: { getSession } } as unknown as SupabaseClient, getSession };
+  };
+
+  it("is the session's user id", async () => {
+    const { client, getSession } = session({ data: { session: { user: { id: ME } } }, error: null });
+    expect(await getSignedInUserId(client)).toEqual({ value: ME, error: null });
+    expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["no session", { data: { session: null }, error: null }],
+    ["no data", { data: null, error: null }],
+    ["an id that is not a uuid", { data: { session: { user: { id: "staff-1" } } }, error: null }],
+  ])("is an error with %s", async (_label, result) => {
+    const outcome = await getSignedInUserId(session(result).client);
+    expect(outcome).toEqual({
+      value: null,
+      error: { code: "NO_SIGNED_IN_USER", message: "The response could not be verified.", details: null, thrown: false },
+    });
+  });
+
+  it("keeps an auth error's code", async () => {
+    const outcome = await getSignedInUserId(
+      session({ data: { session: null }, error: { code: "session_expired", message: "Session expired" } }).client,
+    );
+    expect(outcome.error).toEqual({ code: "session_expired", message: "Session expired", details: null, thrown: false });
+  });
+
+  it("reports a thrown error as thrown", async () => {
+    const getSession = vi.fn(async () => {
+      throw new Error("storage unavailable");
+    });
+    const outcome = await getSignedInUserId({ auth: { getSession } } as unknown as SupabaseClient);
+    expect(outcome.error).toEqual({ code: "", message: "storage unavailable", details: null, thrown: true });
   });
 });

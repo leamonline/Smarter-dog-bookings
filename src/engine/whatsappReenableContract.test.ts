@@ -22,6 +22,7 @@ const read = (relative: string) =>
 
 const MIGRATION = read("../../supabase/migrations/20261014120000_whatsapp_number_opt_out.sql");
 const RPC_WRAPPERS = read("../supabase/rpc.ts");
+const REPOSITORY = read("../supabase/repositories/whatsappOptOutRepo.ts");
 
 /** The `create or replace function` statement for `name`, through its closing `$$;`. */
 function functionDefinition(name: string): string {
@@ -103,5 +104,23 @@ describe("WhatsApp re-enable: the migration and the app agree", () => {
     const body = wrapper("getWhatsappNumberOptOutScope");
     expect(body).toContain('"staff_whatsapp_number_opt_out_scope"');
     expect([...body.matchAll(/\b(p_[a-z_]+):/g)].map((match) => match[1])).toEqual(["p_phone"]);
+  });
+
+  it("reads only columns the audit table has, and staff may read it", () => {
+    const start = MIGRATION.indexOf("create table if not exists public.whatsapp_opt_out_reenables (");
+    expect(start).toBeGreaterThan(-1);
+    const body = MIGRATION.slice(MIGRATION.indexOf("(", start) + 1, MIGRATION.indexOf("\n);", start));
+    const columns = body
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/)[0])
+      .filter(Boolean);
+    const selected = /REENABLE_AUDIT_COLUMNS = "([^"]+)"/.exec(REPOSITORY)?.[1].split(/,\s*/) ?? [];
+    expect(selected).toEqual(["id", "human_ids", "conversation_ids", "permission_note", "reenabled_by", "reenabled_at"]);
+    for (const column of [...selected, "phone_key"]) expect(columns).toContain(column);
+    expect(REPOSITORY).toContain('.eq("phone_key", phoneKey)');
+    expect(MIGRATION).toMatch(/grant select on table public\.whatsapp_opt_out_reenables to authenticated;/);
+    expect(MIGRATION).toMatch(/on public\.whatsapp_opt_out_reenables\s+for select to authenticated\s+using \(public\.is_staff\(\)\);/);
+    // reenabled_by is auth.uid(), the id the hook compares the session with.
+    expect(MIGRATION).toMatch(/values \(v_key, v_humans, v_conversations, v_note, auth\.uid\(\)\)/);
   });
 });
