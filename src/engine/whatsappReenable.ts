@@ -259,9 +259,9 @@ export interface ClearedAttributionInput {
   sent?: NumberOptOutScope;
   /**
    * Each record's whatsapp_opted_out as read after the audit, by id (a record
-   * the read did not return is missing). A row shows a re-enable that
-   * happened, not that the record is still on: it can have been switched off
-   * again since, and moved away.
+   * the read did not return, because it was deleted or merged away, is
+   * missing). A row shows a re-enable that happened, not that the record is
+   * still on: it can have been switched off again since, and moved away.
    */
   optedOutNow: Readonly<Record<string, boolean>>;
 }
@@ -275,6 +275,8 @@ export interface ClearedAttribution {
   leftNumber: string[];
   /** Records no longer in scope that no row proves are back on (and do not read as off). */
   unconfirmed: string[];
+  /** Records no longer in scope that the state read did not return: deleted, or merged into another. */
+  gone: string[];
   /** The row recording our own request, when it went through. */
   ourRow: AuditRow | null;
 }
@@ -345,7 +347,8 @@ export function findOurRow({ rows, me, submittedNote, sent }: OurRowInput): Audi
  * record also leaves the scope when its phone changes while it stays opted
  * out (nothing but the audited re-enable clears an opt-out), so absence
  * alone never means "switched back on": a record is reported back on only
- * when an audit row proves it was switched on and it reads as on now.
+ * when an audit row proves it was switched on and it reads as on now. One
+ * the state read does not return no longer exists (gone).
  *
  * Candidates are the records in `previous` that `next` no longer lists (all
  * of them when `next` is empty or missing). Our row is the one our request
@@ -364,13 +367,13 @@ export function attributeCleared({
   const { lastStopAt } = previous;
   const ourRow = findOurRow({ rows, me, submittedNote, sent });
   const stillListed = new Set((next?.records ?? []).map((record) => record.id));
-  const result: ClearedAttribution = { byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], ourRow };
+  const result: ClearedAttribution = { byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], gone: [], ourRow };
   for (const record of previous.records) {
     if (stillListed.has(record.id)) continue;
-    const offNow = Object.hasOwn(optedOutNow, record.id) ? optedOutNow[record.id] : null;
-    if (offNow === true) result.leftNumber.push(record.id);
-    else if (offNow === false && ourRow && proves(ourRow, record, lastStopAt)) result.byUs.push(record.id);
-    else if (offNow === false && rows.some((row) => proves(row, record, lastStopAt))) result.byOthers.push(record.id);
+    if (!Object.hasOwn(optedOutNow, record.id)) result.gone.push(record.id);
+    else if (optedOutNow[record.id]) result.leftNumber.push(record.id);
+    else if (ourRow && proves(ourRow, record, lastStopAt)) result.byUs.push(record.id);
+    else if (rows.some((row) => proves(row, record, lastStopAt))) result.byOthers.push(record.id);
     else result.unconfirmed.push(record.id);
   }
   return result;
@@ -430,14 +433,16 @@ function movedRecordsLine(
 }
 
 /**
- * The line for records that left the number and read as switched off now:
- * still switched off, wherever their number is now. Null when there are none.
+ * The line for records that left the number and read as switched off now,
+ * wherever their number is now. Says how they are now, never "still": a row
+ * can show one was switched back on (even by this request) and off again
+ * since. Null when there are none.
  */
 export function leftNumberMessage(
   records: readonly Pick<OptOutRecord, "name">[],
   options: MovedRecordsOptions = {},
 ): string | null {
-  return movedRecordsLine(records, "WhatsApp is still switched off for them.", options);
+  return movedRecordsLine(records, "WhatsApp is switched off for them now.", options);
 }
 
 /**
@@ -450,6 +455,16 @@ export function unconfirmedRecordsMessage(
   options: MovedRecordsOptions = {},
 ): string | null {
   return movedRecordsLine(records, "we can’t confirm WhatsApp was switched back on for them.", options);
+}
+
+/**
+ * The line for records that left the number because they no longer exist
+ * (merged into another record, or deleted): there is no profile to open.
+ * Null when there are none.
+ */
+export function goneRecordsMessage(records: readonly Pick<OptOutRecord, "name">[]): string | null {
+  if (records.length === 0) return null;
+  return `${recordsPhrase(records)} ${records.length === 1 ? "isn’t" : "aren’t"} on file any more — merged into another record, or deleted.`;
 }
 
 /** The button that opens a record's profile, named for it. */

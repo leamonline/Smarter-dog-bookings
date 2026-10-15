@@ -9,6 +9,7 @@ import {
   diffScopes,
   findOurRow,
   formatOptOutTime,
+  goneRecordsMessage,
   hasScopeChanges,
   isNewerStop,
   isPermissionNoteLongEnough,
@@ -489,15 +490,15 @@ describe("attributeCleared", () => {
     attributeCleared({ previous, next: empty, rows: [], me: ME, submittedNote: NOTE, optedOutNow: bothOn, ...input });
 
   it("treats absence alone as unconfirmed, never as switched on", () => {
-    expect(attribute()).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH, TOM], ourRow: null });
+    expect(attribute()).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH, TOM], gone: [], ourRow: null });
     expect(attribute({ next: null }).unconfirmed).toEqual([SARAH, TOM]);
   });
 
-  it("names a record read as switched off now as still switched off, whatever the audit says", () => {
+  it("names a record read as switched off now as switched off, whatever the audit says", () => {
     // A colleague switched Sarah back on, the number said STOP again, and her
     // phone changed: the row shows a re-enable that happened, not her state now.
     const result = attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: { [SARAH]: true, [TOM]: false } });
-    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [SARAH], unconfirmed: [], ourRow: null });
+    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [SARAH], unconfirmed: [], gone: [], ourRow: null });
     // And with our own row too.
     expect(attribute({ rows: [row()], optedOutNow: { [SARAH]: true, [TOM]: false } })).toMatchObject({
       byUs: [TOM],
@@ -505,17 +506,32 @@ describe("attributeCleared", () => {
     });
   });
 
-  it("never reports a record the state read did not return", () => {
+  it("names a record the state read did not return as gone (merged or deleted), never as back on", () => {
     expect(attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: { [TOM]: false } })).toMatchObject({
       byOthers: [TOM],
-      unconfirmed: [SARAH],
+      unconfirmed: [],
+      gone: [SARAH],
     });
-    expect(attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: {} }).unconfirmed).toEqual([SARAH, TOM]);
+    expect(attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: {} }).gone).toEqual([SARAH, TOM]);
+    expect(attribute({ optedOutNow: {} })).toMatchObject({ unconfirmed: [], gone: [SARAH, TOM] });
+  });
+
+  it("does not count a record our own row lists as ours once it is merged away", () => {
+    // Our late commit switched both back on; Tom was then merged into another record.
+    const ours = row();
+    expect(attribute({ rows: [ours], optedOutNow: { [SARAH]: false } })).toEqual({
+      byUs: [SARAH],
+      byOthers: [],
+      leftNumber: [],
+      unconfirmed: [],
+      gone: [TOM],
+      ourRow: ours,
+    });
   });
 
   it("only considers records the re-read no longer lists", () => {
     const result = attribute({ next: scope({ records: [sarah] }), rows: [row({ reenabledBy: COLLEAGUE })] });
-    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [], unconfirmed: [], ourRow: null });
+    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [], unconfirmed: [], gone: [], ourRow: null });
   });
 
   it("recognises our own row by who sent it and the note, trimmed", () => {
@@ -525,6 +541,7 @@ describe("attributeCleared", () => {
       byOthers: [],
       leftNumber: [],
       unconfirmed: [],
+      gone: [],
       ourRow: ours,
     });
     // Any of my rows, when the note does not matter.
@@ -560,6 +577,7 @@ describe("attributeCleared", () => {
       byOthers: [],
       leftNumber: [],
       unconfirmed: [TOM],
+      gone: [],
       ourRow: ours,
     });
   });
@@ -608,7 +626,7 @@ describe("attributeCleared", () => {
   it("never takes an unreadable switch-off time as proof", () => {
     const garbled = { ...sarah, optedOutAt: "yesterday" };
     const result = attribute({ previous: scope({ lastStopAt: null, records: [garbled] }), rows: [row({ humanIds: [SARAH] })] });
-    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH], ourRow: null });
+    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH], gone: [], ourRow: null });
   });
 
   describe("a record with no switch-off time", () => {
@@ -621,6 +639,7 @@ describe("attributeCleared", () => {
         byOthers: [],
         leftNumber: [],
         unconfirmed: [],
+        gone: [],
         ourRow: ours,
       });
     });
@@ -632,6 +651,7 @@ describe("attributeCleared", () => {
         byOthers: [],
         leftNumber: [],
         unconfirmed: [],
+        gone: [],
         ourRow: ours,
       });
     });
@@ -659,6 +679,7 @@ describe("attributeCleared", () => {
       byOthers: [],
       leftNumber: [],
       unconfirmed: [],
+      gone: [],
       ourRow: ours,
     });
     // Without ours, the colleague's row proves only what it lists.
@@ -679,7 +700,7 @@ describe("attributeCleared", () => {
       next: scope({ lastStopAt: LATER, records: [{ ...sarah, optedOutAt: LATER }, { ...tom, optedOutAt: LATER }] }),
       rows: [ours],
     });
-    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], ourRow: ours });
+    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], gone: [], ourRow: ours });
   });
 
   describe("a number with no customer record", () => {
@@ -692,6 +713,7 @@ describe("attributeCleared", () => {
         byOthers: [],
         leftNumber: [],
         unconfirmed: [],
+        gone: [],
         ourRow: ours,
       });
     });
@@ -786,10 +808,12 @@ describe("leftNumberMessage", () => {
     expect(leftNumberMessage([])).toBeNull();
   });
 
-  it("says, from the record as read now, that one is still switched off", () => {
+  it("says, from the record as read now, that one is switched off now, never that it is still off", () => {
+    // A row can show it was switched back on (even by this request) and off again since.
     expect(leftNumberMessage([{ name: "Sarah Jones" }])).toBe(
-      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — open their profile to check.",
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is switched off for them now. Their number may have changed — open their profile to check.",
     );
+    expect(leftNumberMessage([{ name: "Sarah Jones" }])).not.toMatch(/still/);
   });
 
   it("gives an unnamed record an article, and counts several", () => {
@@ -802,14 +826,30 @@ describe("leftNumberMessage", () => {
 
   it("names several", () => {
     expect(leftNumberMessage([{ name: "Sarah Jones" }, { name: "Tom Jones" }])).toBe(
-      "Sarah Jones and Tom Jones aren’t switched off on this number any more, but WhatsApp is still switched off for them. Their numbers may have changed — open their profiles to check.",
+      "Sarah Jones and Tom Jones aren’t switched off on this number any more, but WhatsApp is switched off for them now. Their numbers may have changed — open their profiles to check.",
     );
   });
 
   it("on the record's own profile, says to refresh rather than to open it", () => {
     expect(leftNumberMessage([{ name: "Sarah Jones" }], { ownProfile: true })).toBe(
-      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — refresh the page to see the latest.",
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is switched off for them now. Their number may have changed — refresh the page to see the latest.",
     );
+  });
+});
+
+describe("goneRecordsMessage", () => {
+  it("is null with nobody to name", () => {
+    expect(goneRecordsMessage([])).toBeNull();
+  });
+
+  it("says the record no longer exists, and sends nobody to a profile", () => {
+    expect(goneRecordsMessage([{ name: "Sarah J" }])).toBe(
+      "Sarah J isn’t on file any more — merged into another record, or deleted.",
+    );
+    expect(goneRecordsMessage([{ name: "" }, { name: "Sarah J" }])).toBe(
+      "Sarah J and an unnamed record aren’t on file any more — merged into another record, or deleted.",
+    );
+    expect(goneRecordsMessage([{ name: "Sarah J" }])).not.toMatch(/profile|number may have changed/);
   });
 });
 

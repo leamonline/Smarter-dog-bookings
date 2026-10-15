@@ -15,10 +15,12 @@
 // state now (it can have been switched off again since, and moved): so a
 // record is reported to the host only when an audit row proves it was
 // switched back on AND it reads as on now. Our own request is recognised by
-// its row (who sent it, its note, exactly the scope it sent). A record that
-// left and reads as off is named as still switched off; one that left with
-// nothing to prove it either way is named as unconfirmed. If the audit or
-// the records cannot be read, nothing is reported and staff check again.
+// its row (who sent it, its note, exactly the scope it sent), and is "done"
+// only when the re-read is empty too. A record that left and reads as off is
+// named as switched off now; one the read no longer returns, as gone
+// (merged or deleted); one that left with nothing to prove it either way, as
+// unconfirmed. If the audit or the records cannot be read, nothing is
+// reported and staff check again.
 //
 // Standalone on purpose: the dialog mounts it, so nothing is read until staff
 // open the dialog, and never on a timer. The number is fixed when the dialog
@@ -83,7 +85,7 @@ export type ReenableNotice =
  *  - empty: nothing was switched off when staff looked;
  *  - switched_on: a re-enable that was not this request switched it back on;
  *  - ours: this request went through, but not everything it covered is
- *    back on now (see leftNumber and unconfirmedRecords);
+ *    back on now (see leftNumber, unconfirmedRecords and goneRecords);
  *  - left_number: what staff saw left the number, and is not proven back on.
  */
 export type AlreadyOnReason = "empty" | "switched_on" | "ours" | "left_number";
@@ -200,11 +202,13 @@ export function useWhatsappNumberReenable({
   const [scope, setScope] = useState<NumberOptOutScope | null>(null);
   const [notice, setNotice] = useState<ReenableNotice | null>(null);
   // Records staff were shown that left the number and read as switched off
-  // now: still switched off, wherever they are (whatever the audit says).
+  // now, wherever they are (whatever the audit says).
   const [leftNumber, setLeftNumber] = useState<OptOutRecord[]>([]);
   // Records staff were shown that left the number with nothing to prove
   // either way: no row shows them switched back on, and they do not read as off.
   const [unconfirmedRecords, setUnconfirmedRecords] = useState<OptOutRecord[]>([]);
+  // Records staff were shown that no longer exist (merged away, or deleted).
+  const [goneRecords, setGoneRecords] = useState<OptOutRecord[]>([]);
   const [note, setNoteValue] = useState("");
   const [noteTouched, setNoteTouched] = useState(false);
 
@@ -375,18 +379,21 @@ export function useWhatsappNumberReenable({
       const proven = attribution ? [...attribution.byUs, ...attribution.byOthers] : [];
       const leftIds = attribution?.leftNumber ?? [];
       const unconfirmedIds = attribution?.unconfirmed ?? [];
-      const movedIds = [...leftIds, ...unconfirmedIds];
+      const goneIds = attribution?.gone ?? [];
+      const movedIds = [...leftIds, ...unconfirmedIds, ...goneIds];
       const pick = (ids: readonly string[]) => previous.records.filter((record) => ids.includes(record.id));
       const newStop = diffScopes(previous, next).newStop;
       // Our request is accounted for: no later read should look for it.
       if (ours) inDoubt.current = [];
 
-      if (ours && !newStop && previous.records.every((record) => attribution?.byUs.includes(record.id))) {
-        // It went through, exactly as if the request had answered.
+      if (ours && isScopeEmpty(next) && previous.records.every((record) => attribution?.byUs.includes(record.id))) {
+        // It went through, exactly as if the request had answered: everything
+        // it covered is on now, and nothing on the number is off since.
         adopt(next);
         setNotice(null);
         setLeftNumber([]);
         setUnconfirmedRecords([]);
+        setGoneRecords([]);
         setStatus("done");
         onReenabledRef.current?.(
           { humanIds: proven, conversationIds: ours.conversationIds, auditId: ours.id },
@@ -397,6 +404,7 @@ export function useWhatsappNumberReenable({
       if (proven.length > 0) onReenabledRef.current?.({ humanIds: proven, conversationIds: [] }, "already_on");
       setLeftNumber(pick(leftIds));
       setUnconfirmedRecords(pick(unconfirmedIds));
+      setGoneRecords(pick(goneIds));
 
       if (isScopeEmpty(next)) {
         adopt(next);
@@ -409,7 +417,8 @@ export function useWhatsappNumberReenable({
       }
       if (ours) {
         // It went through, but the number has changed since: the records
-        // shown now are switched off again, so nothing is reported for them.
+        // shown now are switched off (again, or newly on this number), so
+        // nothing is reported for them.
         adopt(next);
         if (newStop) {
           clearNote();
@@ -473,6 +482,7 @@ export function useWhatsappNumberReenable({
         if (attributed === "failed") {
           setLeftNumber([]);
           setUnconfirmedRecords([]);
+          setGoneRecords([]);
           setNotice({ kind: "unconfirmed" });
           setStatus("ready");
           return;
@@ -554,6 +564,7 @@ export function useWhatsappNumberReenable({
     setNotice(null);
     setLeftNumber([]);
     setUnconfirmedRecords([]);
+    setGoneRecords([]);
     try {
       const result = await reenableNumber(client, current, note);
       if (!result.error) {
@@ -615,6 +626,7 @@ export function useWhatsappNumberReenable({
     notice,
     leftNumber,
     unconfirmedRecords,
+    goneRecords,
     liveNewStop,
     numberMoved,
     staleProfile,

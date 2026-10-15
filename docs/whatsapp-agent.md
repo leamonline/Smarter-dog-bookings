@@ -308,12 +308,16 @@ the dialog reads, through `whatsappOptOutRepo`:
   (the function refuses any other set) and later than every switch-off and
   STOP in it. That holds for a legacy record with no switch-off time too.
   Found after a dropped connection, it is treated exactly as a successful
-  submit. A dropped request can land late, even after the dialog said it did
-  not: a later refusal that finds our row reports it as ours, never as
-  someone else’s. If our row is there but the number has said STOP again
-  since, the dialog says “Your change went through, but this number said
-  STOP again on {time}. WhatsApp is off again.” rather than “nothing was
-  switched on”.
+  submit, but only when the re-read finds nothing switched off on the
+  number: if anything is switched off there now (another record moved onto
+  it, still opted out, say), the dialog says “Your change went through, but
+  this number has changed since…” and shows the latest, and only the records
+  proven back on reach the cache. A dropped request can land late, even
+  after the dialog said it did not: a later refusal that finds our row
+  reports it as ours, never as someone else’s. If our row is there but the
+  number has said STOP again since, the dialog says “Your change went
+  through, but this number said STOP again on {time}. WhatsApp is off
+  again.” rather than “nothing was switched on”.
 - A plain scope read does not wait for a re-enable still holding its locks,
   so it can be served just before our request commits while the audit read
   after it sees our row. When the scope still shows, no later than our row,
@@ -321,15 +325,23 @@ the dialog reads, through `whatsappOptOutRepo`:
   is said (`scopePredatesRow`).
 - Proven by any other row: “WhatsApp has already been switched back on for
   this number.” Neutral on purpose; who did it is in the audit, never guessed.
-- **A record that left and reads as switched off now** is still switched off
+- **A record that left and reads as switched off now** is switched off
   wherever it is. The dialog names it (“Sarah Jones isn’t switched off on
-  this number any more, but WhatsApp is still switched off for them. Their
+  this number any more, but WhatsApp is switched off for them now. Their
   number may have changed — open their profile to check.”, with an **Open …
   profile** button; an unnamed one is “An unnamed record”), reports nothing
-  for it, and the profile keeps its notice, badge and hidden WA link. On
-  that record’s own profile the out-of-date line says it instead, and the
-  notice drops its “then confirm” while confirm is held. Any records still on
+  for it, and the profile keeps its notice, badge and hidden WA link. It
+  never says “still”: a row can show the record was switched back on (even
+  by this request) and off again since. On that record’s own profile the
+  out-of-date line says it instead, and the notice drops its “then confirm”
+  while confirm is held (or while a newer STOP on the live list holds it).
+  In the inbox, a linked customer the chat shows saved with another number
+  is named only on its own “linked to this chat” line. Any records still on
   the number are shown as the new scope.
+- **A record the state read does not return** no longer exists (merged into
+  another record, or deleted). It is named as such (“Sarah J isn’t on file
+  any more — merged into another record, or deleted.”), with no profile
+  button, and reported nothing for.
 - A record that left with no row proving it back on, and that does not read
   as switched off either, is named as unconfirmed (“…but we can’t confirm
   WhatsApp was switched back on for them…”) and reported nothing for.

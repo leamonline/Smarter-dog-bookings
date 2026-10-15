@@ -98,12 +98,15 @@ export function ReenableWhatsAppDialog({
   const busy = status === "submitting" || status === "verifying";
   const isForm = FORM_STATES.has(status) && scope;
   // Records that left the number, not proven back on. The profile's own
-  // record is left to the out-of-date line when that line is showing.
+  // record is left to the out-of-date line, and the chat's linked customer
+  // saved elsewhere to its own line, when that line is showing.
+  const ownId = context === "profile" ? currentHumanId : null;
   const moved = movedRecords({
     stillOff: reenable.leftNumber,
     unconfirmed: reenable.unconfirmedRecords,
-    ownId: context === "profile" ? currentHumanId : null,
-    hideOwn: Boolean(isForm) && stale,
+    gone: reenable.goneRecords,
+    ownId,
+    hidden: isForm ? [stale && ownId, linkedElsewhere?.id].filter(Boolean) : [],
   });
   const close = () => (busy ? undefined : onClose());
   // Leaving mid-request would hide its outcome, so these wait like Close does.

@@ -977,6 +977,46 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
       expect(onReenabled).not.toHaveBeenCalled();
     });
 
+    it("went through, but another record is switched off on the number since: not 'done', here is the latest", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      // Tom's phone changed to this number; the STOP he said from his old one came with him.
+      const tomArrived = { ...EMPTY, records: [{ ...tom, reason: "asked_on_whatsapp", optedOutAt: "2025-06-01T09:00:00+00:00" }] };
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(tomArrived));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+
+      await act(async () => result.current.reload());
+
+      expect(result.current.status).toBe("ready");
+      expect(result.current.notice).toEqual({ kind: "changed_since" });
+      expect(result.current.scope).toBe(tomArrived);
+      // Sarah is proven back on, so she is patched; nothing toasts or closes.
+      expect(onReenabled).toHaveBeenCalledTimes(1);
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "already_on");
+    });
+
+    it("once our row is found, a later refused confirm never finds it again", async () => {
+      // Tom has been off since 2025 and moves onto the number, so every audit
+      // read from here on reaches back past our row and returns it again.
+      const tomSince2025 = { ...tom, reason: "asked_on_whatsapp", optedOutAt: "2025-06-01T09:00:00+00:00" };
+      const THIRD_STOP = "2026-10-15T09:00:00.000001+00:00";
+      const restopped = (at) => scope({ lastStopAt: at, records: [{ ...scope().records[0], optedOutAt: at }, tomSince2025] });
+      mocks.listNumberReenables.mockResolvedValue(ok([auditRow()]));
+      const { result } = await renderReady();
+      mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(restopped(LATER_STOP)));
+      await act(async () => result.current.submit());
+      expect(result.current.notice).toEqual({ kind: "stopped_again", at: LATER_STOP });
+
+      // New permission, and a confirm refused because the number said STOP once more.
+      act(() => result.current.setNote("Asked again at the desk on 15 Oct."));
+      mocks.reenableNumber.mockResolvedValueOnce(fail("P0001", "reenable_scope_changed"));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(restopped(THIRD_STOP)));
+      await act(async () => result.current.submit());
+
+      expect(mocks.reenableNumber).toHaveBeenCalledTimes(2);
+      expect(result.current.notice).toEqual({ kind: "new_stop", at: THIRD_STOP });
+    });
+
     it("went through, with a legacy record: our row covers it too, so it is done", async () => {
       const legacy = { ...tom, optedOutAt: null };
       const { result, onReenabled } = await renderUnconfirmed({}, scope({ records: [...scope().records, legacy] }));

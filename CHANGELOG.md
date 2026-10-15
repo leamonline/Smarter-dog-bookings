@@ -20,15 +20,18 @@
   no longer being listed: a record also leaves a number when its phone
   changes, and stays switched off. A record is shown as back on only when an
   audit row proves it (rows for the number, or listing the record under any
-  number) and it reads as switched on now; one that left and is still off is
-  named as such, with a button to open its profile ("their number may have
-  changed"). After a dropped connection the dialog finds its own row (who
-  sent it, its note, exactly the records it sent), so a request that lands
-  late is reported as this one, never as someone else’s, a scope read served
-  just before it committed is read again, and one followed by a new STOP says
-  it went through and is off again. Another re-enable is described neutrally
-  ("has already been switched back on"). If the audit or the records cannot
-  be read, nothing is changed on screen and staff check again.
+  number) and it reads as switched on now; one that left and is switched off
+  now is named as such, with a button to open its profile ("their number may
+  have changed"), and one merged away or deleted is named as no longer on
+  file, with no button. After a dropped connection the dialog finds its own
+  row (who sent it, its note, exactly the records it sent), so a request that
+  lands late is reported as this one, never as someone else’s, a scope read
+  served just before it committed is read again, and one followed by a new
+  STOP says it went through and is off again; it is reported as done only
+  when nothing on the number is switched off now. Another re-enable is
+  described neutrally ("has already been switched back on"). If the audit or
+  the records cannot be read, nothing is changed on screen and staff check
+  again.
 - The profile header’s "WA" wa.me link is hidden while WhatsApp is switched
   off, so staff cannot message a stopped number from their own phone.
 - The "E" shortcuts (profile edit mode, inbox "Mark complete") no longer fire
