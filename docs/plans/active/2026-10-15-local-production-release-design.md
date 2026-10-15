@@ -1,6 +1,6 @@
 # Proposed alternative: human-operated production database releases
 
-Status: proposal for review; no workflow, credential, database or release setting has been changed by this proposal.
+Status: accepted for implementation on 15 October 2026. Production execution, credential provisioning and workflow retirement remain outside this implementation approval.
 
 Prepared 15 October 2026 against `main@1cbbce518fc4c8cd6e90649d724802e615b88534`.
 
