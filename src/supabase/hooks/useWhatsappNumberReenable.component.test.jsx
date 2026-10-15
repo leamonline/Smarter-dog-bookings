@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   reenableNumber: vi.fn(),
   listNumberReenables: vi.fn(),
   getSignedInUserId: vi.fn(),
+  getWhatsappOptOutNow: vi.fn(),
   loggerError: vi.fn(),
 }));
 
@@ -21,6 +22,7 @@ vi.mock("../repositories/whatsappOptOutRepo", () => ({
   reenableNumber: mocks.reenableNumber,
   listNumberReenables: mocks.listNumberReenables,
   getSignedInUserId: mocks.getSignedInUserId,
+  getWhatsappOptOutNow: mocks.getWhatsappOptOutNow,
 }));
 
 vi.mock("../../lib/logger", () => ({
@@ -105,6 +107,15 @@ beforeEach(() => {
   mocks.listNumberReenables.mockResolvedValue(ok([]));
   mocks.getSignedInUserId.mockReset();
   mocks.getSignedInUserId.mockResolvedValue(ok(ME));
+  // Each record as it reads now: back on if the last audit answer lists it
+  // (only a re-enable switches a record back on), otherwise still off.
+  mocks.getWhatsappOptOutNow.mockReset();
+  mocks.getWhatsappOptOutNow.mockImplementation(async (_client, ids) => {
+    const last = mocks.listNumberReenables.mock.results.at(-1)?.value;
+    const answer = last ? await last : null;
+    const listed = new Set((answer?.value ?? []).flatMap((row) => row.humanIds));
+    return ok(Object.fromEntries(ids.map((id) => [id, !listed.has(id)])));
+  });
   mocks.loggerError.mockReset();
 });
 
@@ -605,7 +616,7 @@ describe("useWhatsappNumberReenable: submitting", () => {
         ok([auditRow({ reenabledBy: COLLEAGUE, reenabledAt: "2026-10-15T09:00:00.000001+00:00" })]),
       );
       await act(async () => result.current.reload());
-      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", STOP);
+      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", STOP, [SARAH]);
       expect(result.current.alreadyOnReason).toBe("switched_on");
       expect(onReenabled).toHaveBeenCalledWith(
         { humanIds: [SARAH], conversationIds: [] },
@@ -685,12 +696,14 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
       expect(result.current.canSubmit).toBe(false);
     });
 
-    it("reads the audit for the server's phone key, since the earliest switch-off", async () => {
+    it("reads the audit for the server's phone key and the records' ids, since the earliest switch-off", async () => {
       const { result } = await renderUnconfirmed({}, scope({ phoneKey: "server-key" }));
       mocks.getNumberOptOutScope.mockResolvedValueOnce(ok({ ...EMPTY, phoneKey: "server-key" }));
       await act(async () => result.current.reload());
-      expect(mocks.listNumberReenables).toHaveBeenCalledWith(mocks.client, "server-key", STOP);
+      expect(mocks.listNumberReenables).toHaveBeenCalledWith(mocks.client, "server-key", STOP, [SARAH]);
       expect(mocks.getSignedInUserId).toHaveBeenCalledWith(mocks.client);
+      // Then each record that left, as it is now.
+      expect(mocks.getWhatsappOptOutNow).toHaveBeenCalledWith(mocks.client, [SARAH]);
     });
 
     it("our own audit row: it went through, reported with the row's ids", async () => {
@@ -789,14 +802,30 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
       expect(rendered.onReenabled).not.toHaveBeenCalled();
     });
 
-    it("a legacy record with no switch-off time is never patched", async () => {
+    it("a legacy record with no switch-off time is patched only when a row lists it and it reads as on now", async () => {
       const legacy = { ...tom, optedOutAt: null };
       const rendered = await renderReady({ currentHumanId: TOM }, scope({ records: [legacy] }));
       mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE, humanIds: [TOM] })]));
       await submitRefused(rendered, EMPTY);
+      expect(rendered.onReenabled).toHaveBeenCalledWith({ humanIds: [TOM], conversationIds: [] }, "already_on");
+      expect(rendered.result.current.alreadyOnReason).toBe("switched_on");
 
-      expect(rendered.onReenabled).not.toHaveBeenCalled();
-      expect(rendered.result.current.leftNumber.map((record) => record.id)).toEqual([TOM]);
+      // Listed, but switched off again since: not patched.
+      const again = await renderReady({ currentHumanId: TOM }, scope({ records: [legacy] }));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE, humanIds: [TOM] })]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [TOM]: true }));
+      await submitRefused(again, EMPTY);
+      expect(again.onReenabled).not.toHaveBeenCalled();
+      expect(again.result.current.leftNumber.map((record) => record.id)).toEqual([TOM]);
+
+      // Not listed by any row, and on now: not patched, and not said to be off.
+      const unlisted = await renderReady({ currentHumanId: TOM }, scope({ records: [legacy] }));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [TOM]: false }));
+      await submitRefused(unlisted, EMPTY);
+      expect(unlisted.onReenabled).not.toHaveBeenCalled();
+      expect(unlisted.result.current.leftNumber).toEqual([]);
+      expect(unlisted.result.current.unconfirmedRecords.map((record) => record.id)).toEqual([TOM]);
+      expect(unlisted.result.current.alreadyOnReason).toBe("left_number");
     });
 
     it("an audit read that fails patches nothing and holds confirm until Check again", async () => {
@@ -948,11 +977,27 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
       expect(onReenabled).not.toHaveBeenCalled();
     });
 
-    it("went through, with a legacy record it cannot prove: reports the rest, names that one", async () => {
+    it("went through, with a legacy record: our row covers it too, so it is done", async () => {
       const legacy = { ...tom, optedOutAt: null };
       const { result, onReenabled } = await renderUnconfirmed({}, scope({ records: [...scope().records, legacy] }));
       mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
       mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ humanIds: [SARAH, TOM] })]));
+
+      await act(async () => result.current.reload());
+
+      expect(result.current.status).toBe("done");
+      expect(result.current.leftNumber).toEqual([]);
+      expect(onReenabled).toHaveBeenCalledWith(
+        { humanIds: [SARAH, TOM], conversationIds: [CONVERSATION], auditId: AUDIT_ID },
+        "done",
+      );
+    });
+
+    it("went through, then one record moved to a number that said STOP: ours, and that one is still off", async () => {
+      const { result, onReenabled } = await renderUnconfirmed({}, sarahAndTom());
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ humanIds: [SARAH, TOM] })]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [SARAH]: false, [TOM]: true }));
 
       await act(async () => result.current.reload());
 
@@ -969,7 +1014,7 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
 
       await act(async () => result.current.reload());
 
-      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", STOP);
+      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", STOP, []);
       expect(result.current.status).toBe("done");
       expect(onReenabled).toHaveBeenCalledWith({ humanIds: [], conversationIds: [CONVERSATION], auditId: AUDIT_ID }, "done");
     });
@@ -1042,5 +1087,240 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
     rendered.unmount();
     await act(async () => audit.resolve(ok([auditRow({ reenabledBy: COLLEAGUE })])));
     expect(rendered.onReenabled).not.toHaveBeenCalled();
+  });
+
+  // Review of d0f33bf: each test below failed there (or, for a guard that
+  // was already right, fails under the mutation it names).
+  describe("a row is a past re-enable, not the record's state now", () => {
+    it("a record a colleague's row proves, switched off again and moved away, is not reported", async () => {
+      // A colleague switched Sarah back on (row), the number said STOP again
+      // (Sarah off again), then her phone changed: she left the scope still off.
+      const rendered = await renderReady();
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE })]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [SARAH]: true }));
+      await submitRefused(rendered, scope({ records: [], lastStopAt: LATER_STOP }));
+
+      expect(mocks.getWhatsappOptOutNow).toHaveBeenCalledWith(mocks.client, [SARAH]);
+      expect(rendered.onReenabled).not.toHaveBeenCalled();
+      expect(rendered.result.current.notice).toEqual({ kind: "new_stop", at: LATER_STOP });
+      expect(rendered.result.current.leftNumber.map((record) => record.id)).toEqual([SARAH]);
+    });
+
+    it("the same on a reload that finds the number cleared", async () => {
+      const { result, onReenabled } = await renderReady({ context: "inbox", currentHumanId: null });
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE })]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [SARAH]: true }));
+      await act(async () => result.current.reload());
+      expect(onReenabled).not.toHaveBeenCalled();
+      expect(result.current.alreadyOnReason).toBe("left_number");
+      expect(result.current.leftNumber.map((record) => record.id)).toEqual([SARAH]);
+    });
+
+    it("our own row is not enough either: a record off again now is not part of 'done'", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(ok({ [SARAH]: true }));
+      await act(async () => result.current.reload());
+      expect(result.current.status).toBe("already_on");
+      expect(result.current.alreadyOnReason).toBe("ours");
+      expect(onReenabled).not.toHaveBeenCalled();
+      expect(result.current.leftNumber.map((record) => record.id)).toEqual([SARAH]);
+    });
+
+    it("a state read that fails patches nothing and holds confirm behind Check again", async () => {
+      const rendered = await renderReady();
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE })]));
+      mocks.getWhatsappOptOutNow.mockResolvedValueOnce(fail("", null, true));
+      await submitRefused(rendered, EMPTY);
+
+      expect(rendered.onReenabled).not.toHaveBeenCalled();
+      expect(rendered.result.current.status).toBe("ready");
+      expect(rendered.result.current.notice).toEqual({ kind: "unconfirmed" });
+      expect(rendered.result.current.canSubmit).toBe(false);
+      const state = mocks.loggerError.mock.calls.filter((args) => args[2].tags.op === "state");
+      expect(state.map((args) => [args[0], args[1].message])).toEqual([
+        ["WhatsApp opt-out state read failed", "code=none details=none thrown=true"],
+      ]);
+    });
+
+    it("drops a state read that finishes after the dialog closed", async () => {
+      const rendered = await renderReady();
+      const states = deferred();
+      mocks.getWhatsappOptOutNow.mockReturnValueOnce(states.promise);
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ reenabledBy: COLLEAGUE })]));
+      mocks.reenableNumber.mockResolvedValueOnce(fail("P0001", "reenable_scope_changed"));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      act(() => {
+        void rendered.result.current.submit();
+      });
+      await waitFor(() => expect(mocks.getWhatsappOptOutNow).toHaveBeenCalled());
+      rendered.unmount();
+      await act(async () => states.resolve(ok({ [SARAH]: false })));
+      expect(rendered.onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("finds a record switched back on under its new number, by its id", async () => {
+      // Sarah's phone changed, staying off; she was then switched back on
+      // under the new number, so the row is under that number's key.
+      const { result, onReenabled } = await renderReady({ context: "inbox", currentHumanId: null });
+      const underNewNumber = auditRow({ reenabledBy: COLLEAGUE, conversationIds: [] });
+      mocks.listNumberReenables.mockImplementationOnce(async (_client, _key, _since, ids = []) =>
+        ok(ids.includes(SARAH) ? [underNewNumber] : []),
+      );
+      // This number still has its STOP, so its scope is not empty.
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope({ records: [] })));
+
+      await act(async () => result.current.reload());
+
+      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", STOP, [SARAH]);
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "already_on");
+      expect(result.current.leftNumber).toEqual([]);
+      expect(result.current.notice).toEqual({
+        kind: "scope_changed",
+        diff: { newStop: false, added: [], removed: ["Sarah Jones"], cleared: false },
+      });
+    });
+  });
+
+  describe("a scope read served before our request committed", () => {
+    it("is read again, and the late commit settles as done", async () => {
+      const { result, onReenabled } = await renderReady();
+      mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+      // The verify's scope read is served while the request still waits on
+      // its locks; it commits before the audit read.
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope())).mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+
+      await act(async () => result.current.submit());
+
+      expect(mocks.getNumberOptOutScope).toHaveBeenCalledTimes(3);
+      expect(result.current.notice).toBeNull();
+      expect(result.current.status).toBe("done");
+      expect(onReenabled).toHaveBeenCalledWith(
+        { humanIds: [SARAH], conversationIds: [CONVERSATION], auditId: AUDIT_ID },
+        "done",
+      );
+    });
+
+    it("the same for a number with no customer record", async () => {
+      const { result, onReenabled } = await renderReady({ context: "inbox", currentHumanId: null }, scope({ records: [] }));
+      mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope({ records: [] }))).mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ humanIds: [] })]));
+      await act(async () => result.current.submit());
+      expect(result.current.status).toBe("done");
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [], conversationIds: [CONVERSATION], auditId: AUDIT_ID }, "done");
+    });
+
+    it("is read again only once, and a failed second read is unconfirmed", async () => {
+      const { result, onReenabled } = await renderReady();
+      mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope())).mockResolvedValueOnce(fail("", null, true));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+      await act(async () => result.current.submit());
+      expect(mocks.getNumberOptOutScope).toHaveBeenCalledTimes(3);
+      expect(result.current.notice).toEqual({ kind: "unconfirmed" });
+      expect(result.current.canSubmit).toBe(false);
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("a read after the row is not read again", async () => {
+      const { result } = await renderUnconfirmed();
+      const restopped = scope({ lastStopAt: LATER_STOP, records: [{ ...scope().records[0], optedOutAt: LATER_STOP }] });
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(restopped));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+      await act(async () => result.current.reload());
+      expect(mocks.getNumberOptOutScope).toHaveBeenCalledTimes(3);
+      expect(result.current.notice).toEqual({ kind: "stopped_again", at: LATER_STOP });
+    });
+  });
+
+  describe("a record with no switch-off time", () => {
+    const legacy = { ...tom, optedOutAt: null };
+    const recordsOnly = () => scope({ numberStoppedAt: null, lastStopAt: null, records: [legacy] });
+    const ourLegacyRow = () => auditRow({ humanIds: [TOM], conversationIds: [] });
+
+    it("our own late request switching it back on is done", async () => {
+      const { result, onReenabled } = await renderUnconfirmed({ currentHumanId: TOM }, recordsOnly());
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([ourLegacyRow()]));
+      await act(async () => result.current.reload());
+      expect(mocks.listNumberReenables).toHaveBeenLastCalledWith(mocks.client, "7700900123", null, [TOM]);
+      expect(result.current.status).toBe("done");
+      expect(result.current.leftNumber).toEqual([]);
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [TOM], conversationIds: [], auditId: AUDIT_ID }, "done");
+    });
+
+    it("our own late request, then a STOP: it went through and is off again", async () => {
+      const { result, onReenabled } = await renderUnconfirmed({ currentHumanId: TOM }, recordsOnly());
+      const restopped = scope({
+        numberStoppedAt: LATER_STOP,
+        lastStopAt: LATER_STOP,
+        records: [{ ...legacy, reason: "asked_on_whatsapp", optedOutAt: LATER_STOP }],
+      });
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(restopped));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([ourLegacyRow()]));
+      await act(async () => result.current.reload());
+      expect(result.current.notice).toEqual({ kind: "stopped_again", at: LATER_STOP });
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+  });
+
+  it("a number with no customer record that says STOP again after our late commit is not 'done'", async () => {
+    // Guards `!newStop` in the done test: with no records, "every record is
+    // ours" is vacuously true, so only the new STOP stops a false "done".
+    const { result, onReenabled } = await renderUnconfirmed({ context: "inbox", currentHumanId: null }, scope({ records: [] }));
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(
+      ok(scope({ records: [], numberStoppedAt: LATER_STOP, lastStopAt: LATER_STOP })),
+    );
+    mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ humanIds: [] })]));
+    await act(async () => result.current.reload());
+    expect(result.current.status).toBe("ready");
+    expect(result.current.notice).toEqual({ kind: "stopped_again", at: LATER_STOP });
+    expect(onReenabled).not.toHaveBeenCalled();
+  });
+
+  it("with two requests in doubt, finds the later one's row by its own note", async () => {
+    // Guards the newest-first search: the first dropped request was settled
+    // as not applied, the note was edited, and the second dropped request landed.
+    const NOTE2 = "Asked again in the salon on 15 Oct.";
+    const { result, onReenabled } = await renderUnconfirmed();
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope()));
+    await act(async () => result.current.reload());
+    expect(result.current.notice).toEqual({ kind: "not_applied" });
+
+    act(() => result.current.setNote(NOTE2));
+    mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+    mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow({ permissionNote: NOTE2 })]));
+    await act(async () => result.current.submit());
+
+    expect(mocks.reenableNumber.mock.calls.map((call) => call[2])).toEqual([NOTE, NOTE2]);
+    expect(result.current.status).toBe("done");
+    expect(result.current.alreadyOnReason).toBeNull();
+    expect(onReenabled).toHaveBeenCalledWith(
+      { humanIds: [SARAH], conversationIds: [CONVERSATION], auditId: AUDIT_ID },
+      "done",
+    );
+  });
+
+  it("once a verify is settled, a reload is a plain load, never another verify", async () => {
+    // Guards clearing `unsettled` after a settled re-read.
+    const { result } = await renderUnconfirmed();
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope()));
+    await act(async () => result.current.reload());
+    expect(result.current.notice).toEqual({ kind: "not_applied" });
+
+    const check = deferred();
+    mocks.getNumberOptOutScope.mockReturnValueOnce(check.promise);
+    act(() => {
+      void result.current.reload();
+    });
+    expect(result.current.status).toBe("loading");
+    await act(async () => check.resolve(ok(scope())));
+    expect(result.current.status).toBe("ready");
+    expect(result.current.notice).toBeNull();
   });
 });

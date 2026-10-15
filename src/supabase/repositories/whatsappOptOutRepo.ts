@@ -1,7 +1,8 @@
 /**
  * whatsappOptOutRepo — reading a number's WhatsApp opt-out scope, switching
  * WhatsApp back on for it with the customer's renewed permission, and
- * reading the audit of re-enables that settles what happened to a scope.
+ * reading what settles what happened to a scope: the audit of re-enables,
+ * and each record's opt-out as it is now.
  *
  * Every read is narrowed field by field; an unexpected shape is an error,
  * never a partial scope or a partial audit. The re-enable takes the scope
@@ -12,7 +13,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuditRow, NumberOptOutScope, OptOutRecord } from "../../engine/whatsappReenable";
-import { isScopeEmpty } from "../../engine/whatsappReenable";
+import { isScopeEmpty, isStrictlyLater } from "../../engine/whatsappReenable";
 import { getWhatsappNumberOptOutScope, reenableWhatsappNumber } from "../rpc";
 import { isNonEmptyString, isRecord, isUuid } from "./bookingPolicyProjectionGuards";
 
@@ -21,8 +22,10 @@ export type { AuditRow, NumberOptOutScope, OptOutRecord };
 /** The audit table the re-enable function writes, one row per re-enable (and nothing else writes it). */
 const REENABLE_AUDIT_TABLE = "whatsapp_opt_out_reenables";
 const REENABLE_AUDIT_COLUMNS = "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at";
-/** More re-enables than this for one number since staff looked is not credible. */
+/** More re-enables than this for one number (or its records) since staff looked is not credible. */
 const REENABLE_AUDIT_LIMIT = 50;
+const HUMANS_TABLE = "humans";
+const OPT_OUT_STATE_COLUMNS = "id, whatsapp_opted_out";
 
 export interface ReenableResult {
   phoneKey: string;
@@ -193,23 +196,73 @@ function toAuditRow(value: unknown): AuditRow | null {
  * The re-enables recorded for a number, newest first: the only proof that a
  * record which left the scope was switched back on (a record also leaves it
  * when its phone changes, and stays opted out). `phoneKey` is the scope's
- * own, computed by the server; never one worked out here. With `sinceIso`,
- * only rows strictly after it.
+ * own, computed by the server; never one worked out here. With `humanIds`,
+ * also every re-enable that listed any of those records, whatever number it
+ * was for: a record whose phone changed can be switched back on under its
+ * new number. With `sinceIso`, only rows strictly after it. Each row once.
  */
 export async function listNumberReenables(
   client: SupabaseClient,
   phoneKey: string,
   sinceIso: string | null,
+  humanIds: readonly string[] = [],
 ): Promise<RepoResult<AuditRow[]>> {
   try {
-    let query = client.from(REENABLE_AUDIT_TABLE).select(REENABLE_AUDIT_COLUMNS).eq("phone_key", phoneKey);
-    if (sinceIso !== null) query = query.gt("reenabled_at", sinceIso);
-    const { data, error } = await query.order("reenabled_at", { ascending: false }).limit(REENABLE_AUDIT_LIMIT);
+    let byNumber = client.from(REENABLE_AUDIT_TABLE).select(REENABLE_AUDIT_COLUMNS).eq("phone_key", phoneKey);
+    if (sinceIso !== null) byNumber = byNumber.gt("reenabled_at", sinceIso);
+    const reads = [byNumber.order("reenabled_at", { ascending: false }).limit(REENABLE_AUDIT_LIMIT)];
+    if (humanIds.length > 0) {
+      let byRecord = client
+        .from(REENABLE_AUDIT_TABLE)
+        .select(REENABLE_AUDIT_COLUMNS)
+        .overlaps("human_ids", [...humanIds]);
+      if (sinceIso !== null) byRecord = byRecord.gt("reenabled_at", sinceIso);
+      reads.push(byRecord.order("reenabled_at", { ascending: false }).limit(REENABLE_AUDIT_LIMIT));
+    }
+    const answers = await Promise.all(reads);
+    const byId = new Map<string, AuditRow>();
+    for (const { data, error } of answers) {
+      if (error) return { value: null, error: rpcError(error) };
+      if (!Array.isArray(data)) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
+      for (const value of data) {
+        const row = toAuditRow(value);
+        if (!row) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
+        byId.set(row.id, row);
+      }
+    }
+    const rows = [...byId.values()].sort((a, b) =>
+      isStrictlyLater(a.reenabledAt, b.reenabledAt) ? -1 : isStrictlyLater(b.reenabledAt, a.reenabledAt) ? 1 : 0,
+    );
+    return { value: rows, error: null };
+  } catch (cause) {
+    return { value: null, error: thrownError(cause) };
+  }
+}
+
+/**
+ * Whether each record is switched off for WhatsApp now, wherever its number
+ * is: true when it is. An audit row shows a re-enable that happened; the
+ * record can have been switched off again since. A record the read does not
+ * return (deleted, or not visible) is left out. No records, no request.
+ */
+export async function getWhatsappOptOutNow(
+  client: SupabaseClient,
+  humanIds: readonly string[],
+): Promise<RepoResult<Record<string, boolean>>> {
+  if (humanIds.length === 0) return { value: {}, error: null };
+  try {
+    const { data, error } = await client.from(HUMANS_TABLE).select(OPT_OUT_STATE_COLUMNS).in("id", [...humanIds]);
     if (error) return { value: null, error: rpcError(error) };
-    if (!Array.isArray(data)) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
-    const rows = data.map(toAuditRow);
-    if (rows.some((row) => row === null)) return { value: null, error: invalidResponse("INVALID_REENABLE_AUDIT") };
-    return { value: rows as AuditRow[], error: null };
+    if (!Array.isArray(data)) return { value: null, error: invalidResponse("INVALID_OPT_OUT_STATE") };
+    const asked = new Set(humanIds);
+    const state: Record<string, boolean> = {};
+    for (const row of data as unknown[]) {
+      if (!isRecord(row) || !isUuid(row.id) || !asked.has(row.id) || typeof row.whatsapp_opted_out !== "boolean") {
+        return { value: null, error: invalidResponse("INVALID_OPT_OUT_STATE") };
+      }
+      state[row.id] = row.whatsapp_opted_out;
+    }
+    return { value: state, error: null };
   } catch (cause) {
     return { value: null, error: thrownError(cause) };
   }

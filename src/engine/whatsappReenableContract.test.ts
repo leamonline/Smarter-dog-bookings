@@ -118,9 +118,22 @@ describe("WhatsApp re-enable: the migration and the app agree", () => {
     expect(selected).toEqual(["id", "human_ids", "conversation_ids", "permission_note", "reenabled_by", "reenabled_at"]);
     for (const column of [...selected, "phone_key"]) expect(columns).toContain(column);
     expect(REPOSITORY).toContain('.eq("phone_key", phoneKey)');
+    // A record switched back on under a new number: found by its id.
+    expect(columns).toContain("human_ids");
+    expect(body).toMatch(/^\s*human_ids uuid\[\] not null,$/m);
+    expect(REPOSITORY).toContain('.overlaps("human_ids", [...humanIds])');
     expect(MIGRATION).toMatch(/grant select on table public\.whatsapp_opt_out_reenables to authenticated;/);
     expect(MIGRATION).toMatch(/on public\.whatsapp_opt_out_reenables\s+for select to authenticated\s+using \(public\.is_staff\(\)\);/);
     // reenabled_by is auth.uid(), the id the hook compares the session with.
     expect(MIGRATION).toMatch(/values \(v_key, v_humans, v_conversations, v_note, auth\.uid\(\)\)/);
+  });
+
+  it("reads each record's opt-out as it is now only from columns humans has", () => {
+    // A row is a past re-enable; the outcome also needs the record's state now.
+    const humansColumns = read("../../supabase/migrations/20260505210721_humans_opt_out_columns.sql");
+    expect(humansColumns).toMatch(/ADD COLUMN IF NOT EXISTS whatsapp_opted_out BOOLEAN NOT NULL DEFAULT false/);
+    expect(REPOSITORY).toContain('const HUMANS_TABLE = "humans";');
+    expect(REPOSITORY).toContain('const OPT_OUT_STATE_COLUMNS = "id, whatsapp_opted_out";');
+    expect(REPOSITORY).toContain('.select(OPT_OUT_STATE_COLUMNS).in("id", [...humanIds])');
   });
 });

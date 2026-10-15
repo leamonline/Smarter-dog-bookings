@@ -10,10 +10,11 @@ import { HeaderIconButton, ModalShell, PanelShell } from "../shell/index.js";
 import { Button, InlineError } from "../../ui/index.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { useWhatsappNumberReenable } from "../../../supabase/hooks/useWhatsappNumberReenable";
-import { isPermissionNoteLongEnough, leftNumberMessage, optOutTimeLabel } from "../../../engine/whatsappReenable";
+import { isPermissionNoteLongEnough, optOutTimeLabel } from "../../../engine/whatsappReenable";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { ReenableScopeList } from "./ReenableScopeList.jsx";
 import { ReenableAlert, ReenableNotice } from "./ReenableNotices.jsx";
+import { ReenableMovedRecords, movedRecords } from "./ReenableMovedRecords.jsx";
 import { useReenableDialogFocus } from "./useReenableDialogFocus.js";
 
 const FORM_STATES = new Set(["ready", "submitting", "verifying", "done"]);
@@ -40,6 +41,7 @@ function alreadyOnCopy(reason, anyLeft) {
       // request; who did it is in the audit log, never guessed here.
       return `WhatsApp has already been switched back on for this number.${anyLeft ? "" : " There’s nothing left to do."}`;
     case "ours":
+      // Only with a line naming what it switched on that is not on now.
       return "Your change went through — WhatsApp is back on for this number.";
     case "left_number":
       return "Nothing is switched off on this number any more.";
@@ -90,11 +92,19 @@ export function ReenableWhatsAppDialog({
   });
   const { status, scope, note, notice, liveNewStop } = reenable;
   const customerName = (currentHumanName || "").trim();
-  const leftLine = leftNumberMessage(reenable.leftNumber);
   // The profile is out of date (its record left the number, or its number
   // changed), or the chat's number changed: confirm is held either way.
   const stale = reenable.staleProfile || reenable.numberMoved;
   const busy = status === "submitting" || status === "verifying";
+  const isForm = FORM_STATES.has(status) && scope;
+  // Records that left the number, not proven back on. The profile's own
+  // record is left to the out-of-date line when that line is showing.
+  const moved = movedRecords({
+    stillOff: reenable.leftNumber,
+    unconfirmed: reenable.unconfirmedRecords,
+    ownId: context === "profile" ? currentHumanId : null,
+    hideOwn: Boolean(isForm) && stale,
+  });
   const close = () => (busy ? undefined : onClose());
   // Leaving mid-request would hide its outcome, so these wait like Close does.
   const openProfile = onOpenHuman
@@ -104,7 +114,6 @@ export function ReenableWhatsAppDialog({
         onOpenHuman(id);
       }
     : undefined;
-  const isForm = FORM_STATES.has(status) && scope;
   const noteShort = !isPermissionNoteLongEnough(note);
   const showNoteError = reenable.noteTouched && noteShort;
   const hint =
@@ -124,7 +133,7 @@ export function ReenableWhatsAppDialog({
     unavailable: "Switching WhatsApp back on needs the live database — you’re on sample data. Nothing has been changed.",
     load_error: "Couldn’t check this number — give it another go?",
     blocked: blockedCopy(reenable.errorKind, context),
-    already_on: alreadyOnCopy(reenable.alreadyOnReason, Boolean(leftLine)),
+    already_on: alreadyOnCopy(reenable.alreadyOnReason, Boolean(moved)),
   }[status];
 
   return (
@@ -183,7 +192,9 @@ export function ReenableWhatsAppDialog({
       {message && (
         <p ref={outcomeRef} tabIndex={-1} role={status === "load_error" ? "alert" : "status"} className="m-0 focus:outline-none">
           {message}
-          {status === "already_on" && leftLine && <span className="block mt-1.5">{leftLine}</span>}
+          {status === "already_on" && (
+            <ReenableMovedRecords moved={moved} afterText onOpenProfile={openProfile} />
+          )}
         </p>
       )}
       {isForm && (
@@ -196,7 +207,8 @@ export function ReenableWhatsAppDialog({
           <ReenableNotice
             ref={status === "verifying" ? undefined : outcomeRef}
             notice={notice}
-            leftNumber={leftLine}
+            held={stale || liveNewStop}
+            moved={moved && <ReenableMovedRecords moved={moved} onOpenProfile={openProfile} disabled={busy} />}
             onReload={() => void reenable.reload()}
           />
           {status === "verifying" && (

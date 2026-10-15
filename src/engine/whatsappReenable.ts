@@ -249,57 +249,107 @@ export interface ClearedAttributionInput {
   previous: NumberOptOutScope;
   /** The scope as just read again; null when it could not be. */
   next: NumberOptOutScope | null;
-  /** whatsapp_opt_out_reenables rows for the number. */
+  /** whatsapp_opt_out_reenables rows for the number and its records. */
   rows: readonly AuditRow[];
   /** The signed-in member of staff; null when no row can be this dialog's. */
   me: string | null;
   /** The note this dialog sent; null to accept any of `me`'s rows. */
   submittedNote: string | null;
+  /** The scope that note was sent with, when not `previous`. */
+  sent?: NumberOptOutScope;
+  /**
+   * Each record's whatsapp_opted_out as read after the audit, by id (a record
+   * the read did not return is missing). A row shows a re-enable that
+   * happened, not that the record is still on: it can have been switched off
+   * again since, and moved away.
+   */
+  optedOutNow: Readonly<Record<string, boolean>>;
 }
 
 export interface ClearedAttribution {
-  /** Records no longer in scope that our own request switched back on. */
+  /** Records no longer in scope that our own request switched back on, and are on now. */
   byUs: string[];
-  /** Records no longer in scope that another re-enable switched back on. */
+  /** Records no longer in scope that another re-enable switched back on, and are on now. */
   byOthers: string[];
-  /** Records no longer in scope that no audit row proves were switched on. */
+  /** Records no longer in scope that read as switched off now: still off, wherever they are. */
   leftNumber: string[];
+  /** Records no longer in scope that no row proves are back on (and do not read as off). */
+  unconfirmed: string[];
   /** The row recording our own request, when it went through. */
   ourRow: AuditRow | null;
 }
 
 /**
- * `row` switched `record` back on after the switch-off staff were shown,
- * and after the latest STOP they were shown. A record with no switch-off
- * time cannot be proven: an old row would match it as well as a new one.
+ * `row` switched `record` back on after what staff were shown: it lists the
+ * record, and is strictly later than the record's switch-off and the latest
+ * STOP staff saw. A record with no switch-off time can only be held to the
+ * STOP, so an older row could match it too; that is why nothing is reported
+ * without the record also reading as switched on now.
  */
 function proves(row: AuditRow, record: OptOutRecord, lastStopAt: string | null): boolean {
   return (
     row.humanIds.includes(record.id) &&
-    record.optedOutAt !== null &&
-    isStrictlyLater(row.reenabledAt, record.optedOutAt) &&
+    (record.optedOutAt === null || isStrictlyLater(row.reenabledAt, record.optedOutAt)) &&
     (lastStopAt === null || isStrictlyLater(row.reenabledAt, lastStopAt))
   );
 }
 
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every((id) => right.has(id));
+}
+
 /**
- * A number with no customer record: only a re-enable clears its STOP (a
- * stopped conversation cannot be moved to another number), so a row after
- * that STOP, clearing a conversation, cleared it.
+ * Could `row` be the server's record of a re-enable sent with `sent`? The
+ * function switches back on exactly the ids it was sent (it refuses any
+ * other set) after checking the latest STOP is the one sent, and writes its
+ * row after every switch-off and STOP staff were shown. A number with no
+ * customer record: the row cleared a conversation's STOP.
  */
-function provesNumber(row: AuditRow, lastStopAt: string | null): boolean {
-  return lastStopAt !== null && row.conversationIds.length > 0 && isStrictlyLater(row.reenabledAt, lastStopAt);
+function matchesRequest(row: AuditRow, sent: NumberOptOutScope): boolean {
+  if (!sameIds(row.humanIds, sent.records.map((record) => record.id))) return false;
+  if (sent.records.length === 0 && (sent.lastStopAt === null || row.conversationIds.length === 0)) return false;
+  if (sent.lastStopAt !== null && !isStrictlyLater(row.reenabledAt, sent.lastStopAt)) return false;
+  return sent.records.every(
+    (record) => record.optedOutAt === null || isStrictlyLater(row.reenabledAt, record.optedOutAt),
+  );
+}
+
+export interface OurRowInput {
+  rows: readonly AuditRow[];
+  /** The signed-in member of staff; null when no row can be ours. */
+  me: string | null;
+  /** The note the request carried; null to accept any of `me`'s rows. */
+  submittedNote: string | null;
+  /** The scope the request was sent with. */
+  sent: NumberOptOutScope;
+}
+
+/** The row our own request wrote, if it went through: by `me`, with its note, for exactly `sent`. The latest such row. */
+export function findOurRow({ rows, me, submittedNote, sent }: OurRowInput): AuditRow | null {
+  if (me === null) return null;
+  const note = submittedNote === null ? null : submittedNote.trim();
+  let ours: AuditRow | null = null;
+  for (const row of rows) {
+    if (row.reenabledBy !== me) continue;
+    if (note !== null && row.permissionNote !== note) continue;
+    if (!matchesRequest(row, sent)) continue;
+    if (ours === null || isStrictlyLater(row.reenabledAt, ours.reenabledAt)) ours = row;
+  }
+  return ours;
 }
 
 /**
  * Why records staff were shown are no longer switched off on the number. A
  * record also leaves the scope when its phone changes while it stays opted
  * out (nothing but the audited re-enable clears an opt-out), so absence
- * alone never means "switched back on": only an audit row proves it.
+ * alone never means "switched back on": a record is reported back on only
+ * when an audit row proves it was switched on and it reads as on now.
  *
  * Candidates are the records in `previous` that `next` no longer lists (all
- * of them when `next` is empty or missing). Our row is a proving row by `me`
- * with the note we sent; it is reported even when the records are back in
+ * of them when `next` is empty or missing). Our row is the one our request
+ * wrote (findOurRow); it is reported even when the records are back in
  * `next` (it went through, and the number has said STOP again since).
  */
 export function attributeCleared({
@@ -308,31 +358,38 @@ export function attributeCleared({
   rows,
   me,
   submittedNote,
+  sent = previous,
+  optedOutNow,
 }: ClearedAttributionInput): ClearedAttribution {
   const { lastStopAt } = previous;
-  const note = submittedNote === null ? null : submittedNote.trim();
-  const provesAny = (row: AuditRow) =>
-    previous.records.length > 0
-      ? previous.records.some((record) => proves(row, record, lastStopAt))
-      : provesNumber(row, lastStopAt);
-
-  let ourRow: AuditRow | null = null;
-  for (const row of rows) {
-    if (me === null || row.reenabledBy !== me) continue;
-    if (note !== null && row.permissionNote !== note) continue;
-    if (!provesAny(row)) continue;
-    if (ourRow === null || isStrictlyLater(row.reenabledAt, ourRow.reenabledAt)) ourRow = row;
-  }
-
-  const stillOff = new Set((next?.records ?? []).map((record) => record.id));
-  const result: ClearedAttribution = { byUs: [], byOthers: [], leftNumber: [], ourRow };
+  const ourRow = findOurRow({ rows, me, submittedNote, sent });
+  const stillListed = new Set((next?.records ?? []).map((record) => record.id));
+  const result: ClearedAttribution = { byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], ourRow };
   for (const record of previous.records) {
-    if (stillOff.has(record.id)) continue;
-    if (ourRow && proves(ourRow, record, lastStopAt)) result.byUs.push(record.id);
-    else if (rows.some((row) => proves(row, record, lastStopAt))) result.byOthers.push(record.id);
-    else result.leftNumber.push(record.id);
+    if (stillListed.has(record.id)) continue;
+    const offNow = Object.hasOwn(optedOutNow, record.id) ? optedOutNow[record.id] : null;
+    if (offNow === true) result.leftNumber.push(record.id);
+    else if (offNow === false && ourRow && proves(ourRow, record, lastStopAt)) result.byUs.push(record.id);
+    else if (offNow === false && rows.some((row) => proves(row, record, lastStopAt))) result.byOthers.push(record.id);
+    else result.unconfirmed.push(record.id);
   }
   return result;
+}
+
+/**
+ * The scope read was served before `row` was written: a plain read does not
+ * wait for a re-enable still holding its locks, so it can land just before
+ * the commit that the audit read then sees. It still lists, switched off no
+ * later than the row, a record the row switched back on, or still shows a
+ * STOP the row cleared; read after the row, either would be gone or later.
+ */
+export function scopePredatesRow(next: NumberOptOutScope, row: AuditRow): boolean {
+  const staleRecord = next.records.some(
+    (record) => row.humanIds.includes(record.id) && !isStrictlyLater(record.optedOutAt, row.reenabledAt),
+  );
+  const staleStop =
+    row.conversationIds.length > 0 && next.lastStopAt !== null && !isStrictlyLater(next.lastStopAt, row.reenabledAt);
+  return staleRecord || staleStop;
 }
 
 /** "Sarah", "Sarah and Tom", "Sarah, Tom and Bea". */
@@ -341,21 +398,64 @@ export function joinNames(names: readonly string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-/**
- * The line for records that left the number without an audit row proving
- * they were switched back on: they are still switched off, wherever their
- * number is now. Null when there are none.
- */
-export function leftNumberMessage(records: readonly Pick<OptOutRecord, "name">[]): string | null {
+const UNNAMED_PHRASE = "an unnamed record";
+
+/** "Sarah Jones", "An unnamed record", "Sarah Jones and 2 unnamed records": named records first. */
+function recordsPhrase(records: readonly Pick<OptOutRecord, "name">[]): string {
+  const named = records.map((record) => record.name.trim()).filter(Boolean);
+  const unnamed = records.length - named.length;
+  if (unnamed === 0) return joinNames(named);
+  const phrase = joinNames([...named, unnamed === 1 ? UNNAMED_PHRASE : `${unnamed} unnamed records`]);
+  return named.length === 0 ? phrase.charAt(0).toUpperCase() + phrase.slice(1) : phrase;
+}
+
+export interface MovedRecordsOptions {
+  /** The records are the profile's own: staff are already on it. */
+  ownProfile?: boolean;
+}
+
+function movedRecordsLine(
+  records: readonly Pick<OptOutRecord, "name">[],
+  state: string,
+  { ownProfile = false }: MovedRecordsOptions,
+): string | null {
   if (records.length === 0) return null;
   const one = records.length === 1;
-  return (
-    `${joinNames(records.map(recordDisplayName))} ${one ? "isn’t" : "aren’t"} switched off on this number any ` +
-    "more, but WhatsApp hasn’t been switched back on for them. " +
-    (one
+  const next = ownProfile
+    ? "Their number may have changed — refresh the page to see the latest."
+    : one
       ? "Their number may have changed — open their profile to check."
-      : "Their numbers may have changed — open their profiles to check.")
-  );
+      : "Their numbers may have changed — open their profiles to check.";
+  return `${recordsPhrase(records)} ${one ? "isn’t" : "aren’t"} switched off on this number any more, but ${state} ${next}`;
+}
+
+/**
+ * The line for records that left the number and read as switched off now:
+ * still switched off, wherever their number is now. Null when there are none.
+ */
+export function leftNumberMessage(
+  records: readonly Pick<OptOutRecord, "name">[],
+  options: MovedRecordsOptions = {},
+): string | null {
+  return movedRecordsLine(records, "WhatsApp is still switched off for them.", options);
+}
+
+/**
+ * The line for records that left the number with no audit row proving they
+ * were switched back on, and that do not read as switched off either: it
+ * cannot be said either way. Null when there are none.
+ */
+export function unconfirmedRecordsMessage(
+  records: readonly Pick<OptOutRecord, "name">[],
+  options: MovedRecordsOptions = {},
+): string | null {
+  return movedRecordsLine(records, "we can’t confirm WhatsApp was switched back on for them.", options);
+}
+
+/** The button that opens a record's profile, named for it. */
+export function profileButtonLabel(record: Pick<OptOutRecord, "name">): string {
+  const name = record.name.trim();
+  return name ? `Open ${name}’s profile` : "Open the unnamed record’s profile";
 }
 
 export type ConversationStopKind = "none" | "number_stop" | "record_off" | "record_other_number";

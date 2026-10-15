@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getNumberOptOutScope,
   getSignedInUserId,
+  getWhatsappOptOutNow,
   listNumberReenables,
   reenableNumber,
   type NumberOptOutScope,
@@ -252,27 +253,37 @@ describe("listNumberReenables", () => {
     reenabled_at: "2026-10-14T13:00:00.000001+00:00",
   };
 
-  /** A query-builder stub that records every call and answers `result`. */
-  function query(result: unknown | (() => Promise<unknown>)) {
-    const calls: unknown[][] = [];
-    const builder: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "gt", "order", "limit"]) {
-      builder[method] = (...args: unknown[]) => {
-        calls.push([method, ...args]);
-        return builder;
-      };
-    }
-    builder.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
-      (typeof result === "function" ? (result as () => Promise<unknown>)() : Promise.resolve(result)).then(resolve, reject);
-    const from = vi.fn(() => builder);
-    return { client: { from } as unknown as SupabaseClient, from, calls };
+  /**
+   * A query-builder stub that records every call and answers `result` (or,
+   * one per query, each of `results` in turn).
+   */
+  function query(result: unknown | (() => Promise<unknown>), ...results: unknown[]) {
+    const answers = [result, ...results];
+    const reads: unknown[][][] = [];
+    const from = vi.fn(() => {
+      const calls: unknown[][] = [];
+      reads.push(calls);
+      const answer = answers.length > 1 ? answers.shift() : answers[0];
+      const builder: Record<string, unknown> = {};
+      for (const method of ["select", "eq", "overlaps", "gt", "order", "limit"]) {
+        builder[method] = (...args: unknown[]) => {
+          calls.push([method, ...args]);
+          return builder;
+        };
+      }
+      builder.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+        (typeof answer === "function" ? (answer as () => Promise<unknown>)() : Promise.resolve(answer)).then(resolve, reject);
+      return builder;
+    });
+    return { client: { from } as unknown as SupabaseClient, from, reads };
   }
 
   it("reads the number's rows newest first, after the given time, and maps them to camelCase", async () => {
-    const { client, from, calls } = query({ data: [auditRow], error: null });
+    const { client, from, reads } = query({ data: [auditRow], error: null });
     const result = await listNumberReenables(client, "7700900123", "2026-10-03T13:05:00.123456+00:00");
     expect(from).toHaveBeenCalledWith("whatsapp_opt_out_reenables");
-    expect(calls).toEqual([
+    expect(reads).toHaveLength(1);
+    expect(reads[0]).toEqual([
       ["select", "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at"],
       ["eq", "phone_key", "7700900123"],
       ["gt", "reenabled_at", "2026-10-03T13:05:00.123456+00:00"],
@@ -295,10 +306,62 @@ describe("listNumberReenables", () => {
   });
 
   it("reads every row for the number when there is no time to start from", async () => {
-    const { client, calls } = query({ data: [], error: null });
+    const { client, reads } = query({ data: [], error: null });
     const result = await listNumberReenables(client, "7700900123", null);
-    expect(calls.map(([method]) => method)).toEqual(["select", "eq", "order", "limit"]);
+    expect(reads[0].map(([method]) => method)).toEqual(["select", "eq", "order", "limit"]);
     expect(result).toEqual({ value: [], error: null });
+  });
+
+  it("also reads the rows that switched any of the records back on, under whatever number they have now", async () => {
+    // A record whose phone changed, switched back on under its new number,
+    // has its row under that number's key: only its id finds it.
+    const OTHER = "55555555-5555-4555-8555-555555555555";
+    const newer = { ...auditRow, id: OTHER, reenabled_at: "2026-10-14T13:00:00.000002+00:00" };
+    const older = { ...auditRow, reenabled_at: "2026-10-13T13:00:00+00:00", id: "66666666-6666-4666-8666-666666666666" };
+    const { client, reads } = query({ data: [auditRow, older], error: null }, { data: [newer, auditRow], error: null });
+    const result = await listNumberReenables(client, "7700900123", "2026-10-03T13:05:00.123456+00:00", [SARAH, TOM]);
+    expect(reads).toEqual([
+      [
+        ["select", "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at"],
+        ["eq", "phone_key", "7700900123"],
+        ["gt", "reenabled_at", "2026-10-03T13:05:00.123456+00:00"],
+        ["order", "reenabled_at", { ascending: false }],
+        ["limit", 50],
+      ],
+      [
+        ["select", "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at"],
+        ["overlaps", "human_ids", [SARAH, TOM]],
+        ["gt", "reenabled_at", "2026-10-03T13:05:00.123456+00:00"],
+        ["order", "reenabled_at", { ascending: false }],
+        ["limit", 50],
+      ],
+    ]);
+    // Each row once, newest first to the microsecond.
+    expect(result.value?.map((row) => row.id)).toEqual([OTHER, AUDIT, "66666666-6666-4666-8666-666666666666"]);
+  });
+
+  it("keeps rows recorded at the same instant", async () => {
+    const twin = { ...auditRow, id: "77777777-7777-4777-8777-777777777777" };
+    const { client } = query({ data: [auditRow, twin], error: null }, { data: [twin], error: null });
+    const result = await listNumberReenables(client, "7700900123", null, [SARAH]);
+    expect(result.value?.map((row) => row.id).sort()).toEqual([AUDIT, "77777777-7777-4777-8777-777777777777"].sort());
+  });
+
+  it("refuses the whole audit when the read by record fails or is unreadable", async () => {
+    const refused = await listNumberReenables(
+      query({ data: [auditRow], error: null }, { data: null, error: { code: "42501", message: "no", details: null } }).client,
+      "7700900123",
+      null,
+      [SARAH],
+    );
+    expect(refused).toEqual({ value: null, error: { code: "42501", message: "no", details: null, thrown: false } });
+    const garbled = await listNumberReenables(
+      query({ data: [auditRow], error: null }, { data: [{ ...auditRow, id: "x" }], error: null }).client,
+      "7700900123",
+      null,
+      [SARAH],
+    );
+    expect(garbled.error?.code).toBe("INVALID_REENABLE_AUDIT");
   });
 
   it.each([
@@ -332,6 +395,72 @@ describe("listNumberReenables", () => {
     const { client } = query(() => Promise.reject(new TypeError("Failed to fetch")));
     const result = await listNumberReenables(client, "7700900123", null);
     expect(result).toEqual({ value: null, error: { code: "", message: "Failed to fetch", details: null, thrown: true } });
+  });
+});
+
+describe("getWhatsappOptOutNow", () => {
+  /** A query-builder stub that records every call and answers `result`. */
+  function query(result: unknown | (() => Promise<unknown>)) {
+    const calls: unknown[][] = [];
+    const builder: Record<string, unknown> = {};
+    for (const method of ["select", "in"]) {
+      builder[method] = (...args: unknown[]) => {
+        calls.push([method, ...args]);
+        return builder;
+      };
+    }
+    builder.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+      (typeof result === "function" ? (result as () => Promise<unknown>)() : Promise.resolve(result)).then(resolve, reject);
+    const from = vi.fn(() => builder);
+    return { client: { from } as unknown as SupabaseClient, from, calls };
+  }
+
+  it("reads each record's switched-off flag as it is now, by id", async () => {
+    const { client, from, calls } = query({
+      data: [
+        { id: SARAH, whatsapp_opted_out: true },
+        { id: TOM, whatsapp_opted_out: false },
+      ],
+      error: null,
+    });
+    const result = await getWhatsappOptOutNow(client, [SARAH, TOM]);
+    expect(from).toHaveBeenCalledWith("humans");
+    expect(calls).toEqual([
+      ["select", "id, whatsapp_opted_out"],
+      ["in", "id", [SARAH, TOM]],
+    ]);
+    expect(result).toEqual({ value: { [SARAH]: true, [TOM]: false }, error: null });
+  });
+
+  it("leaves out a record it cannot see, and asks nothing for no records", async () => {
+    expect(await getWhatsappOptOutNow(query({ data: [], error: null }).client, [SARAH])).toEqual({ value: {}, error: null });
+    const { client, from } = query({ data: [], error: null });
+    expect(await getWhatsappOptOutNow(client, [])).toEqual({ value: {}, error: null });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no list at all", null],
+    ["a row that is not an object", ["x"]],
+    ["an id that is not a uuid", [{ id: "h1", whatsapp_opted_out: true }]],
+    ["a record it did not ask for", [{ id: CONVERSATION, whatsapp_opted_out: true }]],
+    ["a flag that is not a boolean", [{ id: SARAH, whatsapp_opted_out: null }]],
+  ])("refuses %s", async (_label, data) => {
+    const result = await getWhatsappOptOutNow(query({ data, error: null }).client, [SARAH]);
+    expect(result).toEqual({
+      value: null,
+      error: { code: "INVALID_OPT_OUT_STATE", message: "The response could not be verified.", details: null, thrown: false },
+    });
+  });
+
+  it("keeps a refusal's code, and reports a thrown error as thrown", async () => {
+    const refused = await getWhatsappOptOutNow(
+      query({ data: null, error: { code: "42501", message: "permission denied", details: null } }).client,
+      [SARAH],
+    );
+    expect(refused.error).toEqual({ code: "42501", message: "permission denied", details: null, thrown: false });
+    const thrown = await getWhatsappOptOutNow(query(() => Promise.reject(new TypeError("Failed to fetch"))).client, [SARAH]);
+    expect(thrown.error).toEqual({ code: "", message: "Failed to fetch", details: null, thrown: true });
   });
 });
 

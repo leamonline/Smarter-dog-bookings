@@ -7,6 +7,7 @@ import {
   classifyReenableError,
   conversationWhatsappStop,
   diffScopes,
+  findOurRow,
   formatOptOutTime,
   hasScopeChanges,
   isNewerStop,
@@ -18,7 +19,10 @@ import {
   leftNumberMessage,
   optOutReasonLabel,
   optOutTimeLabel,
+  profileButtonLabel,
   recordDisplayName,
+  scopePredatesRow,
+  unconfirmedRecordsMessage,
   type AuditRow,
   type NumberOptOutScope,
   type OptOutRecord,
@@ -466,6 +470,8 @@ describe("attributeCleared", () => {
   const tom: OptOutRecord = { id: TOM, name: "Tom Jones", phone: null, reason: "asked_on_whatsapp", optedOutAt: STOP };
   const previous = scope({ lastStopAt: STOP, records: [sarah, tom] });
   const empty = scope({ numberStoppedAt: null, lastStopAt: null, records: [] });
+  // As read after the audit: both switched back on, wherever they are now.
+  const bothOn = { [SARAH]: false, [TOM]: false };
 
   function row(overrides: Partial<AuditRow> = {}): AuditRow {
     return {
@@ -480,16 +486,36 @@ describe("attributeCleared", () => {
   }
 
   const attribute = (input: Partial<Parameters<typeof attributeCleared>[0]> = {}) =>
-    attributeCleared({ previous, next: empty, rows: [], me: ME, submittedNote: NOTE, ...input });
+    attributeCleared({ previous, next: empty, rows: [], me: ME, submittedNote: NOTE, optedOutNow: bothOn, ...input });
 
-  it("treats absence alone as leaving the number, never as switched on", () => {
-    expect(attribute()).toEqual({ byUs: [], byOthers: [], leftNumber: [SARAH, TOM], ourRow: null });
-    expect(attribute({ next: null }).leftNumber).toEqual([SARAH, TOM]);
+  it("treats absence alone as unconfirmed, never as switched on", () => {
+    expect(attribute()).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH, TOM], ourRow: null });
+    expect(attribute({ next: null }).unconfirmed).toEqual([SARAH, TOM]);
+  });
+
+  it("names a record read as switched off now as still switched off, whatever the audit says", () => {
+    // A colleague switched Sarah back on, the number said STOP again, and her
+    // phone changed: the row shows a re-enable that happened, not her state now.
+    const result = attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: { [SARAH]: true, [TOM]: false } });
+    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [SARAH], unconfirmed: [], ourRow: null });
+    // And with our own row too.
+    expect(attribute({ rows: [row()], optedOutNow: { [SARAH]: true, [TOM]: false } })).toMatchObject({
+      byUs: [TOM],
+      leftNumber: [SARAH],
+    });
+  });
+
+  it("never reports a record the state read did not return", () => {
+    expect(attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: { [TOM]: false } })).toMatchObject({
+      byOthers: [TOM],
+      unconfirmed: [SARAH],
+    });
+    expect(attribute({ rows: [row({ reenabledBy: COLLEAGUE })], optedOutNow: {} }).unconfirmed).toEqual([SARAH, TOM]);
   });
 
   it("only considers records the re-read no longer lists", () => {
     const result = attribute({ next: scope({ records: [sarah] }), rows: [row({ reenabledBy: COLLEAGUE })] });
-    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [], ourRow: null });
+    expect(result).toEqual({ byUs: [], byOthers: [TOM], leftNumber: [], unconfirmed: [], ourRow: null });
   });
 
   it("recognises our own row by who sent it and the note, trimmed", () => {
@@ -498,6 +524,7 @@ describe("attributeCleared", () => {
       byUs: [SARAH, TOM],
       byOthers: [],
       leftNumber: [],
+      unconfirmed: [],
       ourRow: ours,
     });
     // Any of my rows, when the note does not matter.
@@ -514,23 +541,50 @@ describe("attributeCleared", () => {
     }
   });
 
+  it("takes as ours only a row listing exactly the records the request sent", () => {
+    // The re-enable refuses unless the ids are exactly the scope it was sent,
+    // so a row of mine for any other set of records is not this request.
+    expect(attribute({ rows: [row({ humanIds: [SARAH] })] })).toMatchObject({
+      ourRow: null,
+      byOthers: [SARAH],
+      unconfirmed: [TOM],
+    });
+    expect(attribute({ rows: [row({ humanIds: [TOM, SARAH, SARAH] })] }).ourRow).not.toBeNull();
+  });
+
+  it("checks our row against the scope that request sent, which may not be the one shown now", () => {
+    const sent = scope({ lastStopAt: STOP, records: [sarah] });
+    const ours = row({ humanIds: [SARAH] });
+    expect(attribute({ rows: [ours], sent })).toEqual({
+      byUs: [SARAH],
+      byOthers: [],
+      leftNumber: [],
+      unconfirmed: [TOM],
+      ourRow: ours,
+    });
+  });
+
   it("needs the record in the row", () => {
     const result = attribute({ rows: [row({ reenabledBy: COLLEAGUE, humanIds: [SARAH] })] });
-    expect(result).toMatchObject({ byOthers: [SARAH], leftNumber: [TOM] });
+    expect(result).toMatchObject({ byOthers: [SARAH], unconfirmed: [TOM] });
   });
 
   it("needs the row strictly after the record's switch-off, to the microsecond", () => {
-    const at = (reenabledAt: string) =>
+    const at = (reenabledAt: string, reenabledBy = COLLEAGUE) =>
       attributeCleared({
         previous: scope({ lastStopAt: null, records: [sarah] }),
         next: empty,
-        rows: [row({ reenabledBy: COLLEAGUE, reenabledAt })],
+        rows: [row({ reenabledBy, reenabledAt, humanIds: [SARAH] })],
         me: ME,
         submittedNote: NOTE,
+        optedOutNow: { [SARAH]: false },
       });
     expect(at("2026-10-03T13:05:00.123457+00:00").byOthers).toEqual([SARAH]);
-    expect(at(STOP).leftNumber).toEqual([SARAH]);
-    expect(at("2026-10-03T13:05:00.123455+00:00").leftNumber).toEqual([SARAH]);
+    expect(at(STOP).unconfirmed).toEqual([SARAH]);
+    expect(at("2026-10-03T13:05:00.123455+00:00").unconfirmed).toEqual([SARAH]);
+    // Ours too: a row from before the switch-off staff were shown is not this request.
+    expect(at("2026-10-03T13:05:00.123457+00:00", ME).ourRow).not.toBeNull();
+    expect(at(STOP, ME).ourRow).toBeNull();
   });
 
   it("needs the row strictly after the latest STOP staff saw", () => {
@@ -539,36 +593,76 @@ describe("attributeCleared", () => {
       previous: scope({ lastStopAt: LAST, records: [sarah] }),
       rows: [row({ reenabledBy: COLLEAGUE, reenabledAt: LAST })],
     });
-    expect(result.leftNumber).toEqual([SARAH]);
+    expect(result.unconfirmed).toEqual([SARAH]);
     const later = attribute({
       previous: scope({ lastStopAt: LAST, records: [sarah] }),
       rows: [row({ reenabledBy: COLLEAGUE, reenabledAt: "2026-10-10T08:12:00.654322+00:00" })],
     });
     expect(later.byOthers).toEqual([SARAH]);
+    expect(
+      attribute({ previous: scope({ lastStopAt: LAST, records: [sarah] }), rows: [row({ humanIds: [SARAH], reenabledAt: LAST })] })
+        .ourRow,
+    ).toBeNull();
   });
 
-  it("never proves a record with no switch-off time, not even with our own row", () => {
+  it("never takes an unreadable switch-off time as proof", () => {
+    const garbled = { ...sarah, optedOutAt: "yesterday" };
+    const result = attribute({ previous: scope({ lastStopAt: null, records: [garbled] }), rows: [row({ humanIds: [SARAH] })] });
+    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [SARAH], ourRow: null });
+  });
+
+  describe("a record with no switch-off time", () => {
     const legacy = { ...tom, optedOutAt: null };
-    const result = attribute({ previous: scope({ lastStopAt: STOP, records: [sarah, legacy] }), rows: [row()] });
-    expect(result).toEqual({ byUs: [SARAH], byOthers: [], leftNumber: [TOM], ourRow: row() });
-    // Alone, it cannot even identify our row.
-    expect(attribute({ previous: scope({ lastStopAt: null, records: [legacy] }), rows: [row()] })).toEqual({
-      byUs: [],
-      byOthers: [],
-      leftNumber: [TOM],
-      ourRow: null,
+
+    it("is ours when our row lists it, alongside a record with a time", () => {
+      const ours = row();
+      expect(attribute({ previous: scope({ lastStopAt: STOP, records: [sarah, legacy] }), rows: [ours] })).toEqual({
+        byUs: [SARAH, TOM],
+        byOthers: [],
+        leftNumber: [],
+        unconfirmed: [],
+        ourRow: ours,
+      });
+    });
+
+    it("is ours when it is all the request sent, on a number that never said STOP", () => {
+      const ours = row({ humanIds: [TOM], conversationIds: [] });
+      expect(attribute({ previous: scope({ numberStoppedAt: null, lastStopAt: null, records: [legacy] }), rows: [ours] })).toEqual({
+        byUs: [TOM],
+        byOthers: [],
+        leftNumber: [],
+        unconfirmed: [],
+        ourRow: ours,
+      });
+    });
+
+    it("is proven by another row only while it reads as switched on now", () => {
+      const only = scope({ numberStoppedAt: null, lastStopAt: null, records: [legacy] });
+      const colleague = row({ reenabledBy: COLLEAGUE, humanIds: [TOM] });
+      expect(attribute({ previous: only, rows: [colleague], optedOutNow: { [TOM]: false } }).byOthers).toEqual([TOM]);
+      expect(attribute({ previous: only, rows: [colleague], optedOutNow: { [TOM]: true } }).leftNumber).toEqual([TOM]);
+      expect(attribute({ previous: only, rows: [], optedOutNow: { [TOM]: false } }).unconfirmed).toEqual([TOM]);
     });
   });
 
   it("splits ours from a colleague's when both are on record", () => {
-    const colleague = row({ id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", reenabledBy: COLLEAGUE, humanIds: [TOM] });
-    const ours = row({ humanIds: [SARAH] });
+    // Ours switched both back on; the colleague's later row covers Tom too.
+    const colleague = row({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      reenabledBy: COLLEAGUE,
+      humanIds: [TOM],
+      reenabledAt: "2026-10-14T14:00:00.000001+00:00",
+    });
+    const ours = row();
     expect(attribute({ rows: [colleague, ours] })).toEqual({
-      byUs: [SARAH],
-      byOthers: [TOM],
+      byUs: [SARAH, TOM],
+      byOthers: [],
       leftNumber: [],
+      unconfirmed: [],
       ourRow: ours,
     });
+    // Without ours, the colleague's row proves only what it lists.
+    expect(attribute({ rows: [colleague] })).toMatchObject({ byOthers: [TOM], unconfirmed: [SARAH] });
   });
 
   it("takes our latest row when there are several", () => {
@@ -585,7 +679,7 @@ describe("attributeCleared", () => {
       next: scope({ lastStopAt: LATER, records: [{ ...sarah, optedOutAt: LATER }, { ...tom, optedOutAt: LATER }] }),
       rows: [ours],
     });
-    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], ourRow: ours });
+    expect(result).toEqual({ byUs: [], byOthers: [], leftNumber: [], unconfirmed: [], ourRow: ours });
   });
 
   describe("a number with no customer record", () => {
@@ -597,17 +691,84 @@ describe("attributeCleared", () => {
         byUs: [],
         byOthers: [],
         leftNumber: [],
+        unconfirmed: [],
         ourRow: ours,
       });
     });
 
-    it("needs a conversation, a STOP, and a later row", () => {
+    it("needs a conversation, a STOP, a later row, and no records", () => {
       expect(attribute({ previous: numberOnly, rows: [row({ humanIds: [], conversationIds: [] })] }).ourRow).toBeNull();
       expect(attribute({ previous: numberOnly, rows: [row({ humanIds: [], reenabledAt: STOP })] }).ourRow).toBeNull();
+      expect(attribute({ previous: numberOnly, rows: [row()] }).ourRow).toBeNull();
       expect(
-        attribute({ previous: scope({ numberStoppedAt: null, lastStopAt: null, records: [] }), rows: [row()] }).ourRow,
+        attribute({ previous: scope({ numberStoppedAt: null, lastStopAt: null, records: [] }), rows: [row({ humanIds: [] })] })
+          .ourRow,
       ).toBeNull();
     });
+  });
+});
+
+describe("findOurRow", () => {
+  const ME = "99999999-9999-4999-8999-999999999999";
+  const STOP = "2026-10-03T13:05:00.123456+00:00";
+  const sent = scope({
+    lastStopAt: STOP,
+    records: [{ id: SARAH, name: "Sarah Jones", phone: null, reason: "asked_on_whatsapp", optedOutAt: STOP }],
+  });
+  const row: AuditRow = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    humanIds: [SARAH],
+    conversationIds: [],
+    permissionNote: "Asked again in the salon.",
+    reenabledBy: ME,
+    reenabledAt: "2026-10-14T13:00:00.000001+00:00",
+  };
+
+  it("finds the row the request wrote, by who sent it, the note and the scope", () => {
+    expect(findOurRow({ rows: [row], me: ME, submittedNote: " Asked again in the salon. ", sent })).toBe(row);
+    expect(findOurRow({ rows: [row], me: null, submittedNote: null, sent })).toBeNull();
+    expect(findOurRow({ rows: [], me: ME, submittedNote: null, sent })).toBeNull();
+  });
+});
+
+describe("scopePredatesRow", () => {
+  const ROW_AT = "2026-10-14T13:00:00.000002+00:00";
+  const row: AuditRow = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    humanIds: [SARAH],
+    conversationIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
+    permissionNote: "Asked again in the salon.",
+    reenabledBy: "99999999-9999-4999-8999-999999999999",
+    reenabledAt: ROW_AT,
+  };
+  const sarahAt = (optedOutAt: string | null): OptOutRecord => ({
+    id: SARAH,
+    name: "Sarah Jones",
+    phone: null,
+    reason: "asked_on_whatsapp",
+    optedOutAt,
+  });
+
+  it("is true when the read still lists, as switched off no later than the row, a record the row switched on", () => {
+    expect(scopePredatesRow(scope({ lastStopAt: null, records: [sarahAt("2026-10-03T13:05:00Z")] }), row)).toBe(true);
+    expect(scopePredatesRow(scope({ lastStopAt: null, records: [sarahAt(ROW_AT)] }), row)).toBe(true);
+    // No time: after the row it would be gone, or switched off again with one.
+    expect(scopePredatesRow(scope({ lastStopAt: null, records: [sarahAt(null)] }), row)).toBe(true);
+  });
+
+  it("is true when the read still shows, no later than the row, a STOP the row cleared", () => {
+    expect(scopePredatesRow(scope({ lastStopAt: "2026-10-03T13:05:00Z", records: [] }), row)).toBe(true);
+    expect(scopePredatesRow(scope({ lastStopAt: "2026-10-03T13:05:00Z", records: [] }), { ...row, conversationIds: [] })).toBe(
+      false,
+    );
+  });
+
+  it("is false for a read taken after the row", () => {
+    const LATER = "2026-10-14T13:00:00.000003+00:00";
+    expect(scopePredatesRow(scope({ numberStoppedAt: null, lastStopAt: null, records: [] }), row)).toBe(false);
+    expect(scopePredatesRow(scope({ lastStopAt: LATER, records: [sarahAt(LATER)] }), row)).toBe(false);
+    // A record the row did not switch on says nothing about it.
+    expect(scopePredatesRow(scope({ lastStopAt: null, records: [{ ...sarahAt(null), id: TOM }] }), row)).toBe(false);
   });
 });
 
@@ -625,16 +786,52 @@ describe("leftNumberMessage", () => {
     expect(leftNumberMessage([])).toBeNull();
   });
 
-  it("names one record, unnamed ones included", () => {
+  it("says, from the record as read now, that one is still switched off", () => {
     expect(leftNumberMessage([{ name: "Sarah Jones" }])).toBe(
-      "Sarah Jones isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their number may have changed — open their profile to check.",
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — open their profile to check.",
     );
-    expect(leftNumberMessage([{ name: "  " }])).toMatch(/^Unnamed record isn’t switched off/);
+  });
+
+  it("gives an unnamed record an article, and counts several", () => {
+    expect(leftNumberMessage([{ name: "  " }])).toMatch(/^An unnamed record isn’t switched off on this number any more,/);
+    expect(leftNumberMessage([{ name: "" }, { name: "Sarah Jones" }, { name: " " }])).toMatch(
+      /^Sarah Jones and 2 unnamed records aren’t switched off/,
+    );
+    expect(leftNumberMessage([{ name: "de Souza" }])).toMatch(/^de Souza isn’t/);
   });
 
   it("names several", () => {
     expect(leftNumberMessage([{ name: "Sarah Jones" }, { name: "Tom Jones" }])).toBe(
-      "Sarah Jones and Tom Jones aren’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their numbers may have changed — open their profiles to check.",
+      "Sarah Jones and Tom Jones aren’t switched off on this number any more, but WhatsApp is still switched off for them. Their numbers may have changed — open their profiles to check.",
     );
+  });
+
+  it("on the record's own profile, says to refresh rather than to open it", () => {
+    expect(leftNumberMessage([{ name: "Sarah Jones" }], { ownProfile: true })).toBe(
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — refresh the page to see the latest.",
+    );
+  });
+});
+
+describe("unconfirmedRecordsMessage", () => {
+  it("is null with nobody to name", () => {
+    expect(unconfirmedRecordsMessage([])).toBeNull();
+  });
+
+  it("hedges: nothing on record shows them switched back on", () => {
+    expect(unconfirmedRecordsMessage([{ name: "Tom Jones" }])).toBe(
+      "Tom Jones isn’t switched off on this number any more, but we can’t confirm WhatsApp was switched back on for them. Their number may have changed — open their profile to check.",
+    );
+    expect(unconfirmedRecordsMessage([{ name: "" }, { name: "" }], { ownProfile: false })).toBe(
+      "2 unnamed records aren’t switched off on this number any more, but we can’t confirm WhatsApp was switched back on for them. Their numbers may have changed — open their profiles to check.",
+    );
+    expect(unconfirmedRecordsMessage([{ name: "Tom Jones" }], { ownProfile: true })).toMatch(/refresh the page to see the latest\.$/);
+  });
+});
+
+describe("profileButtonLabel", () => {
+  it("names the record, or says which one has no name", () => {
+    expect(profileButtonLabel({ name: " Sarah Jones " })).toBe("Open Sarah Jones’s profile");
+    expect(profileButtonLabel({ name: "  " })).toBe("Open the unnamed record’s profile");
   });
 });

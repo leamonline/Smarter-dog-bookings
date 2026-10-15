@@ -285,36 +285,57 @@ retried automatically:
 
 **Outcomes come from the audit log, never from absence.** A record also
 leaves a number’s scope when its phone changes while it stays opted out:
-nothing but the re-enable ever clears an opt-out. So whenever a re-read has
-lost records (or a request’s outcome is in doubt), the dialog reads
-`whatsapp_opt_out_reenables` for the scope’s own `phone_key` (the server’s,
-never one worked out in the browser) and the signed-in user, through
-`whatsappOptOutRepo`, and `attributeCleared` (`src/engine/whatsappReenable.ts`)
-decides:
-- A row proves a record was switched back on only if it lists the record, the
-  record has a switch-off time (`humans.whatsapp_opted_out_at`), and the row
-  is strictly later, to the microsecond, than that time and than the latest
-  STOP staff were shown. A legacy record with no switch-off time is never
-  proven. Only proven records are reported to the host’s cache.
-- **Our own request** is the proving row written by the signed-in member of
-  staff with the note this dialog sent. Found after a dropped connection, it
-  is treated exactly as a successful submit. A dropped request can land
-  late, even after the dialog said it did not: a later refusal that finds
-  our row reports it as ours, never as someone else’s. If our row is there
-  but the number has said STOP again since, the dialog says “Your change went
-  through, but this number said STOP again on {time}. WhatsApp is off again.”
-  rather than “nothing was switched on”.
+nothing but the re-enable ever clears an opt-out. And an audit row shows a
+re-enable that happened, not the record’s state now: it can have been
+switched off again since (the number said STOP again) and then moved. So
+whenever a re-read has lost records (or a request’s outcome is in doubt),
+the dialog reads, through `whatsappOptOutRepo`:
+1. `whatsapp_opt_out_reenables` for the scope’s own `phone_key` (the
+   server’s, never one worked out in the browser) **and** for any row whose
+   `human_ids` overlap the scope’s records, whatever number it was for (a
+   record whose phone changed can be switched back on under its new number),
+   with the signed-in user;
+2. then `humans.whatsapp_opted_out` for each record that left, as it is now.
+
+`attributeCleared` (`src/engine/whatsappReenable.ts`) then decides:
+- A record is reported back on only if a row proves it was switched back on
+  **and** it reads as on now. A row proves it if it lists the record and is
+  strictly later, to the microsecond, than the record’s switch-off time
+  (`humans.whatsapp_opted_out_at`, when recorded) and the latest STOP staff
+  were shown. Only those records reach the host’s cache.
+- **Our own request** is the row written by the signed-in member of staff,
+  with the note this dialog sent, for exactly the records that request sent
+  (the function refuses any other set) and later than every switch-off and
+  STOP in it. That holds for a legacy record with no switch-off time too.
+  Found after a dropped connection, it is treated exactly as a successful
+  submit. A dropped request can land late, even after the dialog said it did
+  not: a later refusal that finds our row reports it as ours, never as
+  someone else’s. If our row is there but the number has said STOP again
+  since, the dialog says “Your change went through, but this number said
+  STOP again on {time}. WhatsApp is off again.” rather than “nothing was
+  switched on”.
+- A plain scope read does not wait for a re-enable still holding its locks,
+  so it can be served just before our request commits while the audit read
+  after it sees our row. When the scope still shows, no later than our row,
+  something our row switched back on, it is read once more before anything
+  is said (`scopePredatesRow`).
 - Proven by any other row: “WhatsApp has already been switched back on for
   this number.” Neutral on purpose; who did it is in the audit, never guessed.
-- **A record that left with no row** is still switched off wherever it is
-  now. The dialog names it (“Sarah Jones isn’t switched off on this number
-  any more, but WhatsApp hasn’t been switched back on for them. Their number
-  may have changed — open their profile to check.”), reports nothing for it,
-  and the profile keeps its notice, badge and hidden WA link. Any records
-  still on the number are shown as the new scope.
-- If the audit or the signed-in user cannot be read, nothing is reported:
-  the dialog keeps what staff were shown and holds confirm behind **Check
-  again**.
+- **A record that left and reads as switched off now** is still switched off
+  wherever it is. The dialog names it (“Sarah Jones isn’t switched off on
+  this number any more, but WhatsApp is still switched off for them. Their
+  number may have changed — open their profile to check.”, with an **Open …
+  profile** button; an unnamed one is “An unnamed record”), reports nothing
+  for it, and the profile keeps its notice, badge and hidden WA link. On
+  that record’s own profile the out-of-date line says it instead, and the
+  notice drops its “then confirm” while confirm is held. Any records still on
+  the number are shown as the new scope.
+- A record that left with no row proving it back on, and that does not read
+  as switched off either, is named as unconfirmed (“…but we can’t confirm
+  WhatsApp was switched back on for them…”) and reported nothing for.
+- If the audit, the signed-in user or the records cannot be read, nothing is
+  reported: the dialog keeps what staff were shown and holds confirm behind
+  **Check again**.
 
 On sample data (`npm run dev`) the notice, badge and banner render from the
 fixtures, but the dialog only explains that switching back on needs the live

@@ -11,10 +11,14 @@
 // What happened is taken from the audit log (whatsapp_opt_out_reenables),
 // never from absence. A record also leaves a number's scope when its phone
 // changes while it stays opted out, so "no longer listed" is not "switched
-// back on": only records an audit row proves are reported to the host, our
-// own request is recognised by its row (who sent it, and its note), and a
-// record that left without a row is named as still switched off. If the
-// audit cannot be read, nothing is reported and staff check again.
+// back on". And a row shows a re-enable that happened, not the record's
+// state now (it can have been switched off again since, and moved): so a
+// record is reported to the host only when an audit row proves it was
+// switched back on AND it reads as on now. Our own request is recognised by
+// its row (who sent it, its note, exactly the scope it sent). A record that
+// left and reads as off is named as still switched off; one that left with
+// nothing to prove it either way is named as unconfirmed. If the audit or
+// the records cannot be read, nothing is reported and staff check again.
 //
 // Standalone on purpose: the dialog mounts it, so nothing is read until staff
 // open the dialog, and never on a timer. The number is fixed when the dialog
@@ -28,11 +32,13 @@ import {
   auditReadSince,
   classifyReenableError,
   diffScopes,
+  findOurRow,
   hasScopeChanges,
   isNewerStop,
   isPermissionNoteLongEnough,
   isSameNumber,
   isScopeEmpty,
+  scopePredatesRow,
   type AuditRow,
   type ClearedAttribution,
   type NumberOptOutScope,
@@ -43,6 +49,7 @@ import {
 import {
   getNumberOptOutScope,
   getSignedInUserId,
+  getWhatsappOptOutNow,
   listNumberReenables,
   reenableNumber,
   type RepoError,
@@ -76,8 +83,8 @@ export type ReenableNotice =
  *  - empty: nothing was switched off when staff looked;
  *  - switched_on: a re-enable that was not this request switched it back on;
  *  - ours: this request went through, but not everything it covered is
- *    proven back on (see leftNumber);
- *  - left_number: what staff saw left the number, and no re-enable did it.
+ *    back on now (see leftNumber and unconfirmedRecords);
+ *  - left_number: what staff saw left the number, and is not proven back on.
  */
 export type AlreadyOnReason = "empty" | "switched_on" | "ours" | "left_number";
 
@@ -113,12 +120,13 @@ const BLOCKING: ReadonlySet<ReenableErrorKind> = new Set([
 const MACHINE_CODE = /^[a-z][a-z0-9_]*$/;
 
 type ScopeRead = Awaited<ReturnType<typeof getNumberOptOutScope>>;
-type LogOp = "scope" | "reenable" | "audit";
+type LogOp = "scope" | "reenable" | "audit" | "state";
 
 const LOG_MESSAGES: Record<LogOp, string> = {
   scope: "WhatsApp opt-out scope read failed",
   reenable: "WhatsApp re-enable failed",
   audit: "WhatsApp re-enable audit read failed",
+  state: "WhatsApp opt-out state read failed",
 };
 
 function logFailure(op: LogOp, error: RepoError) {
@@ -144,23 +152,32 @@ interface SettleJob {
   changedKind: "scope_changed" | "busy" | null;
 }
 
-type AuditRead = { rows: AuditRow[]; me: string } | "failed";
+type AuditRead = { rows: AuditRow[]; me: string };
+
+/** A request of ours whose outcome went unknown: the note it carried and the scope it sent. */
+interface InDoubtRequest {
+  note: string;
+  sent: NumberOptOutScope;
+}
 
 /**
- * Attribute against every note this dialog sent whose outcome went unknown,
- * newest first: a dropped request can land after staff were told it did
- * not, or after they edited the note. With none, no row can be ours.
+ * Our row for any request whose outcome went unknown, newest first: a
+ * dropped request can land after staff were told it did not, or after they
+ * edited the note. With none in doubt, no row can be ours.
  */
-function attributeForNotes(
-  previous: NumberOptOutScope,
-  next: NumberOptOutScope,
-  audit: { rows: AuditRow[]; me: string },
-  notes: readonly string[],
-): ClearedAttribution {
-  const input = { previous, next, rows: audit.rows };
-  const tries = [...notes].reverse().map((submittedNote) => attributeCleared({ ...input, me: audit.me, submittedNote }));
-  return tries.find((attribution) => attribution.ourRow) ?? tries[0] ?? attributeCleared({ ...input, me: null, submittedNote: null });
+function findOurRequest(
+  audit: AuditRead,
+  requests: readonly InDoubtRequest[],
+): { row: AuditRow; request: InDoubtRequest } | null {
+  for (const request of [...requests].reverse()) {
+    const row = findOurRow({ rows: audit.rows, me: audit.me, submittedNote: request.note, sent: request.sent });
+    if (row) return { row, request };
+  }
+  return null;
 }
+
+/** A settled re-read: the scope as read (again, if the first read predated our row) and what happened. */
+type Attributed = { next: NumberOptOutScope; attribution: ClearedAttribution };
 
 function classify(error: RepoError, op: "scope" | "reenable"): ReenableErrorKind {
   const kind = classifyReenableError(error, { thrown: error.thrown });
@@ -182,9 +199,12 @@ export function useWhatsappNumberReenable({
   const [alreadyOnReason, setAlreadyOnReason] = useState<AlreadyOnReason | null>(null);
   const [scope, setScope] = useState<NumberOptOutScope | null>(null);
   const [notice, setNotice] = useState<ReenableNotice | null>(null);
-  // Records staff were shown that left the number with no audit row proving
-  // they were switched back on: still switched off, wherever they are now.
+  // Records staff were shown that left the number and read as switched off
+  // now: still switched off, wherever they are (whatever the audit says).
   const [leftNumber, setLeftNumber] = useState<OptOutRecord[]>([]);
+  // Records staff were shown that left the number with nothing to prove
+  // either way: no row shows them switched back on, and they do not read as off.
+  const [unconfirmedRecords, setUnconfirmedRecords] = useState<OptOutRecord[]>([]);
   const [note, setNoteValue] = useState("");
   const [noteTouched, setNoteTouched] = useState(false);
 
@@ -195,9 +215,9 @@ export function useWhatsappNumberReenable({
   // A re-read that could not be settled ("Check again"): any reload repeats
   // it, against the same scope, rather than reading afresh.
   const unsettled = useRef<SettleJob | null>(null);
-  // The trimmed notes of requests whose outcome went unknown. Our own audit
-  // row is recognised by one of them (and by who sent it).
-  const ourNotes = useRef<string[]>([]);
+  // Requests whose outcome went unknown. Our own audit row is recognised by
+  // one of them (its note and the scope it sent, and by who sent it).
+  const inDoubt = useRef<InDoubtRequest[]>([]);
   const onReenabledRef = useRef(onReenabled);
   useEffect(() => {
     onReenabledRef.current = onReenabled;
@@ -213,16 +233,21 @@ export function useWhatsappNumberReenable({
   }, [pinnedPhone]);
 
   /**
-   * The audit rows that could settle `previous`, and who is signed in. Part
-   * of the read that just finished: null when a newer read (or an unmount)
-   * superseded it.
+   * The audit rows that could settle `previous` (for its number, and for its
+   * records under any number), and who is signed in. Part of the read that
+   * just finished: null when a newer read (or an unmount) superseded it.
    */
-  const readAudit = useCallback(async (previous: NumberOptOutScope): Promise<AuditRead | null> => {
+  const readAudit = useCallback(async (previous: NumberOptOutScope): Promise<AuditRead | "failed" | null> => {
     const client = supabase;
     if (!client) return null;
     const id = generation.current;
     const [rows, me] = await Promise.all([
-      listNumberReenables(client, previous.phoneKey, auditReadSince(previous)),
+      listNumberReenables(
+        client,
+        previous.phoneKey,
+        auditReadSince(previous),
+        previous.records.map((record) => record.id),
+      ),
       getSignedInUserId(client),
     ]);
     if (id !== generation.current) return null;
@@ -230,6 +255,64 @@ export function useWhatsappNumberReenable({
     if (me.error) logFailure("audit", me.error);
     return rows.error || me.error ? "failed" : { rows: rows.value, me: me.value };
   }, []);
+
+  /** Each record's opt-out as it is now; null when superseded. */
+  const readOptOutNow = useCallback(
+    async (humanIds: string[]): Promise<Record<string, boolean> | "failed" | null> => {
+      const client = supabase;
+      if (!client) return null;
+      const id = generation.current;
+      const result = await getWhatsappOptOutNow(client, humanIds);
+      if (id !== generation.current) return null;
+      if (result.error) {
+        logFailure("state", result.error);
+        return "failed";
+      }
+      return result.value;
+    },
+    [],
+  );
+
+  /**
+   * What happened to `previous`, given the scope as just read: the audit,
+   * then each record that left as it is now. A scope read can be served
+   * before our request commits and the audit read after it; then the scope
+   * still shows what our row switched back on, so it is read once more.
+   */
+  const attribute = useCallback(
+    async (previous: NumberOptOutScope, first: NumberOptOutScope): Promise<Attributed | "failed" | null> => {
+      const audit = await readAudit(previous);
+      if (audit === null || audit === "failed") return audit;
+      const ours = findOurRequest(audit, inDoubt.current);
+      let next = first;
+      if (ours && scopePredatesRow(next, ours.row)) {
+        const again = await readScope();
+        if (!again) return null;
+        if (again.error) {
+          classify(again.error, "scope");
+          return "failed";
+        }
+        next = again.value;
+      }
+      const listed = new Set(next.records.map((record) => record.id));
+      const left = previous.records.filter((record) => !listed.has(record.id)).map((record) => record.id);
+      const optedOutNow = await readOptOutNow(left);
+      if (optedOutNow === null || optedOutNow === "failed") return optedOutNow;
+      return {
+        next,
+        attribution: attributeCleared({
+          previous,
+          next,
+          rows: audit.rows,
+          me: ours ? audit.me : null,
+          submittedNote: ours?.request.note ?? null,
+          sent: ours?.request.sent,
+          optedOutNow,
+        }),
+      };
+    },
+    [readAudit, readScope, readOptOutNow],
+  );
 
   const failRead = useCallback((error: RepoError) => {
     const kind = classify(error, "scope");
@@ -291,16 +374,19 @@ export function useWhatsappNumberReenable({
       const ours = attribution?.ourRow ?? null;
       const proven = attribution ? [...attribution.byUs, ...attribution.byOthers] : [];
       const leftIds = attribution?.leftNumber ?? [];
-      const left = previous.records.filter((record) => leftIds.includes(record.id));
+      const unconfirmedIds = attribution?.unconfirmed ?? [];
+      const movedIds = [...leftIds, ...unconfirmedIds];
+      const pick = (ids: readonly string[]) => previous.records.filter((record) => ids.includes(record.id));
       const newStop = diffScopes(previous, next).newStop;
       // Our request is accounted for: no later read should look for it.
-      if (ours) ourNotes.current = [];
+      if (ours) inDoubt.current = [];
 
       if (ours && !newStop && previous.records.every((record) => attribution?.byUs.includes(record.id))) {
         // It went through, exactly as if the request had answered.
         adopt(next);
         setNotice(null);
         setLeftNumber([]);
+        setUnconfirmedRecords([]);
         setStatus("done");
         onReenabledRef.current?.(
           { humanIds: proven, conversationIds: ours.conversationIds, auditId: ours.id },
@@ -309,12 +395,15 @@ export function useWhatsappNumberReenable({
         return;
       }
       if (proven.length > 0) onReenabledRef.current?.({ humanIds: proven, conversationIds: [] }, "already_on");
-      setLeftNumber(left);
+      setLeftNumber(pick(leftIds));
+      setUnconfirmedRecords(pick(unconfirmedIds));
 
       if (isScopeEmpty(next)) {
         adopt(next);
         setNotice(null);
-        setAlreadyOnReason(ours ? "ours" : proven.length > 0 ? "switched_on" : left.length > 0 ? "left_number" : "empty");
+        setAlreadyOnReason(
+          ours ? "ours" : proven.length > 0 ? "switched_on" : movedIds.length > 0 ? "left_number" : "empty",
+        );
         setStatus("already_on");
         return;
       }
@@ -337,7 +426,7 @@ export function useWhatsappNumberReenable({
         setStatus("ready");
         return;
       }
-      showScope(next, previous, job.mode === "verify" ? "scope_changed" : job.changedKind, leftIds);
+      showScope(next, previous, job.mode === "verify" ? "scope_changed" : job.changedKind, movedIds);
     },
     [adopt, clearNote, showScope],
   );
@@ -368,31 +457,32 @@ export function useWhatsappNumberReenable({
         failRead(read.error);
         return;
       }
-      const next = read.value;
+      let next = read.value;
       const { previous } = job;
       const stillOff = new Set(next.records.map((record) => record.id));
       const needsAudit =
         job.mode === "verify" ||
         (!isScopeEmpty(previous) &&
-          (ourNotes.current.length > 0 ||
+          (inDoubt.current.length > 0 ||
             isScopeEmpty(next) ||
             previous.records.some((record) => !stillOff.has(record.id))));
       let attribution: ClearedAttribution | null = null;
       if (needsAudit) {
-        const audit = await readAudit(previous);
-        if (!audit) return;
-        if (audit === "failed") {
+        const attributed = await attribute(previous, next);
+        if (!attributed) return;
+        if (attributed === "failed") {
           setLeftNumber([]);
+          setUnconfirmedRecords([]);
           setNotice({ kind: "unconfirmed" });
           setStatus("ready");
           return;
         }
-        attribution = attributeForNotes(previous, next, audit, ourNotes.current);
+        ({ next, attribution } = attributed);
       }
       unsettled.current = null;
       applyOutcome(job, next, attribution);
     },
-    [readScope, readAudit, failRead, applyOutcome],
+    [readScope, attribute, failRead, applyOutcome],
   );
 
   const load = useCallback(
@@ -463,6 +553,7 @@ export function useWhatsappNumberReenable({
     setStatus("submitting");
     setNotice(null);
     setLeftNumber([]);
+    setUnconfirmedRecords([]);
     try {
       const result = await reenableNumber(client, current, note);
       if (!result.error) {
@@ -498,7 +589,7 @@ export function useWhatsappNumberReenable({
           return;
         case "network":
           // The request may still land, even after a check says it did not.
-          ourNotes.current.push(note.trim());
+          inDoubt.current.push({ note: note.trim(), sent: current });
           await settle({ previous: current, mode: "verify", changedKind: null });
           return;
         default:
@@ -523,6 +614,7 @@ export function useWhatsappNumberReenable({
     scope,
     notice,
     leftNumber,
+    unconfirmedRecords,
     liveNewStop,
     numberMoved,
     staleProfile,

@@ -624,17 +624,26 @@ describe("HumanCardModal — WhatsApp switched off", () => {
       { phone_key: "7700900111", number_stopped_at: STOP, last_stop_at: STOP, records: [] },
     ];
     const auditReads = [];
+    const stateReads = [];
     const channel = { on: () => channel, subscribe: () => channel };
     const anyQuery = (table) => {
+      const calls = [];
       const builder = {};
-      for (const method of ["select", "eq", "in", "is", "order", "limit", "gt", "gte", "lte", "neq", "or"]) {
-        builder[method] = () => builder;
+      for (const method of ["select", "eq", "in", "is", "order", "limit", "gt", "gte", "lte", "neq", "or", "overlaps"]) {
+        builder[method] = (...args) => {
+          calls.push([method, ...args]);
+          return builder;
+        };
       }
       builder.single = async () => ({ data: null, error: null });
       builder.maybeSingle = async () => ({ data: null, error: null });
       builder.then = (onResolve, onReject) => {
         if (table === "whatsapp_opt_out_reenables") auditReads.push(table);
-        return Promise.resolve({ data: [], error: null }).then(onResolve, onReject);
+        // Sarah as she is now: still switched off, under her new number.
+        const stateRead = table === "humans" && calls.some(([method, columns]) => method === "select" && columns === "id, whatsapp_opted_out");
+        if (stateRead) stateReads.push(calls);
+        const data = stateRead ? [{ id: SARAH_ID, whatsapp_opted_out: true }] : [];
+        return Promise.resolve({ data, error: null }).then(onResolve, onReject);
       };
       return builder;
     };
@@ -701,12 +710,16 @@ describe("HumanCardModal — WhatsApp switched off", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Switch WhatsApp back on" }));
 
+    // One line about Sarah, with one instruction (she is this profile's record,
+    // so "refresh", never "open their profile"); the notice holds back "then confirm".
     expect(
-      await screen.findByText(
-        /Sarah Jones isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them\./,
-      ),
+      await screen.findByText(/Sarah Jones isn’t switched off on this number any more — their record may have changed\. Refresh the page/),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/Sarah Jones isn’t switched off on this number any more/)).toHaveLength(1);
+    expect(screen.queryByText(/open their profile/)).toBeNull();
+    expect(screen.getByText(/Something changed on this number while you were looking/)).not.toHaveTextContent(/confirm/);
     expect(auditReads.length).toBeGreaterThan(0);
+    expect(stateReads.length).toBe(1);
     expect(reenabled).toEqual([]);
     fireEvent.click(within(screen.getByRole("dialog", { name: "Switch WhatsApp back on?" })).getAllByRole("button", { name: "Close" })[0]);
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Switch WhatsApp back on?" })).toBeNull());

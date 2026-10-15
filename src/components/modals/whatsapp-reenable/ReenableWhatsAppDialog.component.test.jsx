@@ -46,6 +46,9 @@ const REENABLED = {
 const SCOPE_FN = "staff_whatsapp_number_opt_out_scope";
 const REENABLE_FN = "staff_reenable_whatsapp_number";
 const AUDIT_TABLE = "whatsapp_opt_out_reenables";
+const HUMANS_TABLE = "humans";
+const REFUSED = { data: null, error: { code: "P0001", message: "changed", details: "reenable_scope_changed" } };
+const DROPPED = { data: null, error: { code: "", message: "Failed to fetch", details: null } };
 
 // The signed-in member of staff, and a colleague.
 const ME = "99999999-9999-4999-8999-999999999999";
@@ -69,31 +72,52 @@ const audit = (...rows) => ({ data: rows, error: null });
 
 /**
  * Client stub: each rpc function and the audit read answer from their own
- * queue (the last answer repeats); the session is ME's.
+ * queue (the last answer repeats); the session is ME's. One audit read is
+ * two queries (by the number's key, and by record id): both get the same
+ * answer. Each record reads as switched on now if the last audit answer
+ * lists it (only a re-enable switches one back on), unless `states` says.
  */
 function makeClient({
   scopes = [{ data: SCOPE, error: null }],
   reenables = [{ data: REENABLED, error: null }],
   audits = [audit()],
+  states = [],
 } = {}) {
-  const queues = { [SCOPE_FN]: [...scopes], [REENABLE_FN]: [...reenables], [AUDIT_TABLE]: [...audits] };
+  const queues = { [SCOPE_FN]: [...scopes], [REENABLE_FN]: [...reenables], [AUDIT_TABLE]: [...audits], [HUMANS_TABLE]: [...states] };
   const answer = (queue) => {
     const next = queue.length > 1 ? queue.shift() : queue[0];
     return typeof next === "function" ? next() : Promise.resolve(next);
   };
   const rpc = vi.fn((fn) => answer(queues[fn]));
   const reads = [];
+  let lastAudit = Promise.resolve(audit());
+  const stateFromAudit = async (ids) => {
+    const { data } = await lastAudit;
+    const listed = new Set((data ?? []).flatMap((row) => row.human_ids));
+    return { data: ids.map((id) => ({ id, whatsapp_opted_out: !listed.has(id) })), error: null };
+  };
   const from = vi.fn((table) => {
     const read = { table, calls: [] };
     reads.push(read);
     const builder = {};
-    for (const method of ["select", "eq", "gt", "order", "limit"]) {
+    for (const method of ["select", "eq", "overlaps", "in", "gt", "order", "limit"]) {
       builder[method] = (...args) => {
         read.calls.push([method, ...args]);
         return builder;
       };
     }
-    builder.then = (onResolve, onReject) => answer(queues[table]).then(onResolve, onReject);
+    builder.then = (onResolve, onReject) => {
+      let result;
+      if (table === AUDIT_TABLE) {
+        const byRecord = read.calls.some(([method]) => method === "overlaps");
+        result = byRecord ? lastAudit : (lastAudit = answer(queues[AUDIT_TABLE]));
+      } else if (table === HUMANS_TABLE && queues[HUMANS_TABLE].length === 0) {
+        result = stateFromAudit(read.calls.find(([method]) => method === "in")[2]);
+      } else {
+        result = answer(queues[table]);
+      }
+      return result.then(onResolve, onReject);
+    };
     return builder;
   });
   const auth = { getSession: vi.fn(async () => ({ data: { session: { user: { id: ME } } }, error: null })) };
@@ -470,7 +494,7 @@ describe("ReenableWhatsAppDialog", () => {
     await ready({}, client);
     type(NOTE);
     await act(async () => fireEvent.click(confirm()));
-    await screen.findByText(/hasn’t been switched back on/);
+    expect(await screen.findAllByText(/is still switched off for them/)).toHaveLength(2);
     expect(client.reads).toEqual([
       {
         table: AUDIT_TABLE,
@@ -482,6 +506,18 @@ describe("ReenableWhatsAppDialog", () => {
           ["limit", 50],
         ],
       },
+      {
+        table: AUDIT_TABLE,
+        calls: [
+          ["select", "id, human_ids, conversation_ids, permission_note, reenabled_by, reenabled_at"],
+          ["overlaps", "human_ids", [SARAH, TOM]],
+          ["gt", "reenabled_at", FIRST_STOP],
+          ["order", "reenabled_at", { ascending: false }],
+          ["limit", 50],
+        ],
+      },
+      // Then each record that left, as it is now.
+      { table: HUMANS_TABLE, calls: [["select", "id, whatsapp_opted_out"], ["in", "id", [SARAH, TOM]]] },
     ]);
     expect(client.auth.getSession).toHaveBeenCalled();
   });
@@ -497,8 +533,9 @@ describe("ReenableWhatsAppDialog", () => {
     await act(async () => fireEvent.click(confirm()));
 
     const message = await screen.findByText("WhatsApp has already been switched back on for this number.");
+    // Sarah is this profile's own record: refresh, rather than open it.
     expect(message).toHaveTextContent(
-      "Sarah Jones isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their number may have changed — open their profile to check.",
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — refresh the page to see the latest.",
     );
     expect(document.activeElement).toBe(message);
     expect(onReenabled).toHaveBeenCalledWith({ humanIds: [TOM], conversationIds: [] });
@@ -515,7 +552,10 @@ describe("ReenableWhatsAppDialog", () => {
     await act(async () => fireEvent.click(confirm()));
     const message = await screen.findByText("Nothing is switched off on this number any more.");
     expect(message).toHaveTextContent(
-      "Sarah Jones and Unnamed record aren’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them. Their numbers may have changed — open their profiles to check.",
+      "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — refresh the page to see the latest.",
+    );
+    expect(message).toHaveTextContent(
+      "An unnamed record isn’t switched off on this number any more, but WhatsApp is still switched off for them. Their number may have changed — open their profile to check.",
     );
     expect(onReenabled).not.toHaveBeenCalled();
   });
@@ -531,7 +571,7 @@ describe("ReenableWhatsAppDialog", () => {
 
     const alert = (await screen.findByText(/Something changed on this number while you were looking/)).closest('[role="alert"]');
     expect(alert).toHaveTextContent(
-      "Unnamed record isn’t switched off on this number any more, but WhatsApp hasn’t been switched back on for them.",
+      "An unnamed record isn’t switched off on this number any more, but WhatsApp is still switched off for them.",
     );
     expect(alert).not.toHaveTextContent("No longer switched off");
     expect(document.activeElement).toBe(alert);
@@ -567,29 +607,158 @@ describe("ReenableWhatsAppDialog", () => {
   });
 
   it("says a dropped request went through and the number said STOP again since", async () => {
+    // After REENABLED_AT, which is after LAST_STOP and every switch-off.
+    const RESTOP = "2026-12-03T10:00:00.000001+00:00";
     const restopped = {
       ...SCOPE,
-      last_stop_at: NEW_STOP,
-      records: SCOPE.records.map((record) => ({ ...record, opted_out_at: NEW_STOP })),
+      last_stop_at: RESTOP,
+      records: SCOPE.records.map((record) => ({ ...record, opted_out_at: RESTOP })),
     };
     const client = makeClient({
       scopes: [{ data: SCOPE, error: null }, { data: restopped, error: null }],
       reenables: [{ data: null, error: { code: "", message: "Failed to fetch", details: null } }],
-      // Committed after LAST_STOP and every switch-off, before NEW_STOP.
-      audits: [audit(auditRow({ reenabled_at: "2026-10-12T10:00:00.000001+00:00" }))],
+      audits: [audit(auditRow())],
     });
     const { onReenabled, onClose } = await ready({}, client);
     type(NOTE);
     await act(async () => fireEvent.click(confirm()));
 
     const body = await screen.findByText(
-      "Your change went through, but this number said STOP again on 14 Oct 2026, 14:32. WhatsApp is off again.",
+      "Your change went through, but this number said STOP again on 3 Dec 2026, 10:00. WhatsApp is off again.",
     );
     expect(screen.queryByText(/Nothing was switched on/)).toBeNull();
     expect(document.activeElement).toBe(body.closest('[role="alert"]'));
     expect(note()).toHaveValue("");
     expect(onReenabled).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  describe("records that left the number, and late commits", () => {
+    it("says our request went through, and names a record it switched on that is off again elsewhere", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [DROPPED],
+        audits: [audit(auditRow())],
+        // Tom has moved to a number that said STOP since.
+        states: [{ data: [{ id: SARAH, whatsapp_opted_out: false }, { id: TOM, whatsapp_opted_out: true }], error: null }],
+      });
+      const { onReenabled, onClose } = await ready({ context: "inbox", currentHumanId: null }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const message = await screen.findByText(/^Your change went through — WhatsApp is back on for this number\.$/);
+      expect(message).toHaveTextContent(
+        "An unnamed record isn’t switched off on this number any more, but WhatsApp is still switched off for them.",
+      );
+      expect(screen.queryByText(/already been switched back on/)).toBeNull();
+      expect(screen.queryByText(/hasn’t been switched back on/)).toBeNull();
+      expect(document.activeElement).toBe(message);
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("recognises our own late request for a record with no switch-off time", async () => {
+      const legacy = {
+        phone_key: "7700900123",
+        number_stopped_at: null,
+        last_stop_at: null,
+        records: [{ id: TOM, name: "Tom Jones", phone: "+447700900123", reason: "Asked by phone", opted_out_at: null }],
+      };
+      const client = makeClient({
+        scopes: [{ data: legacy, error: null }, { data: EMPTY, error: null }],
+        reenables: [DROPPED],
+        audits: [audit(auditRow({ human_ids: [TOM], conversation_ids: [] }))],
+      });
+      const { onReenabled, onClose } = await ready({ currentHumanId: TOM, currentHumanName: "Tom Jones" }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      expect(await screen.findByText("WhatsApp is back on for 07700 900123.")).toBeInTheDocument();
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [TOM], conversationIds: [], auditId: AUDIT });
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it("on the profile, names its own moved record once, with one instruction", async () => {
+      // Sarah's number changed elsewhere while this was open; she is still off.
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: { ...SCOPE, records: [SCOPE.records[1]] }, error: null }],
+        reenables: [REFUSED],
+      });
+      await ready({ onOpenHuman: vi.fn() }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const alert = (await screen.findByText(/Something changed on this number while you were looking/)).closest('[role="alert"]');
+      expect(alert).toHaveTextContent("Something changed on this number while you were looking, so nothing was switched on.");
+      // Confirm is held, so the notice gives no "then confirm"; the line below says what to do.
+      expect(alert).not.toHaveTextContent(/confirm/);
+      expect(alert).not.toHaveTextContent(/Sarah Jones/);
+      expect(screen.getAllByText(/Sarah Jones isn’t switched off on this number any more/)).toHaveLength(1);
+      expect(
+        screen.getByText(/Sarah Jones isn’t switched off on this number any more — their record may have changed\. Refresh the page/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/open their profile/)).toBeNull();
+      expect(confirm()).toBeDisabled();
+    });
+
+    it("offers each moved record's profile, and gives an unnamed one an article", async () => {
+      const onOpenHuman = vi.fn();
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: { ...SCOPE, records: [SCOPE.records[0]] }, error: null }],
+        reenables: [REFUSED],
+      });
+      const { onClose } = await ready({ context: "inbox", currentHumanId: null, onOpenHuman }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const alert = (await screen.findByText(/^An unnamed record isn’t switched off on this number any more/)).closest(
+        '[role="alert"]',
+      );
+      // The notice keeps its instruction here: confirm is not held.
+      expect(alert).toHaveTextContent("Check the list again, then confirm.");
+      fireEvent.click(within(alert).getByRole("button", { name: "Open the unnamed record’s profile" }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onOpenHuman).toHaveBeenCalledWith(TOM);
+    });
+
+    it("names a moved record with no other change to report (Try again after a failed re-read)", async () => {
+      const client = makeClient({
+        scopes: [
+          { data: SCOPE, error: null },
+          { data: null, error: { code: "57014", message: "timeout", details: null } },
+          { data: { ...SCOPE, records: [SCOPE.records[0]] }, error: null },
+        ],
+        reenables: [REFUSED],
+      });
+      const { onReenabled } = await ready({}, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+      await act(async () => fireEvent.click(await screen.findByRole("button", { name: "Try again" })));
+
+      const line = await screen.findByText(/^An unnamed record isn’t switched off on this number any more/);
+      const alert = line.closest('[role="alert"]');
+      expect(alert).not.toHaveTextContent(/Something changed/);
+      expect(screen.getByRole("region", { name: "Switched off on this number (1)" })).toBeInTheDocument();
+      expect(document.activeElement).toBe(alert);
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("never says a record listed by a colleague's row is on when it reads as off now", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [REFUSED],
+        audits: [audit(auditRow({ reenabled_by: COLLEAGUE }))],
+        states: [{ data: [{ id: SARAH, whatsapp_opted_out: true }, { id: TOM, whatsapp_opted_out: false }], error: null }],
+      });
+      const { onReenabled } = await ready({ context: "inbox", currentHumanId: null }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+      const message = await screen.findByText("WhatsApp has already been switched back on for this number.");
+      expect(message).toHaveTextContent(
+        "Sarah Jones isn’t switched off on this number any more, but WhatsApp is still switched off for them.",
+      );
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [TOM], conversationIds: [] });
+    });
   });
 
   it("names a profile record that is no longer in scope, and holds confirm", async () => {
