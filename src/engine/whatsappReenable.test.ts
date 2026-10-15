@@ -9,6 +9,7 @@ import {
   hasScopeChanges,
   isNewerStop,
   isPermissionNoteLongEnough,
+  isSameNumber,
   isScopeEmpty,
   optOutReasonLabel,
   optOutTimeLabel,
@@ -98,6 +99,27 @@ describe("recordDisplayName", () => {
     expect(recordDisplayName({ name: "" })).toBe("Unnamed record");
     expect(recordDisplayName({ name: "  " })).toBe("Unnamed record");
     expect(recordDisplayName({ name: "Sarah Jones" })).toBe("Sarah Jones");
+  });
+});
+
+describe("isSameNumber", () => {
+  it("matches one number however it is typed", () => {
+    expect(isSameNumber("07700 900123", "+447700900123")).toBe(true);
+    expect(isSameNumber("07700900123", "0044 7700 900123")).toBe(true);
+    expect(isSameNumber("+33 6 12 34 56 78", "0033612345678")).toBe(true);
+  });
+
+  it("tells different numbers apart, and a cleared number from a real one", () => {
+    expect(isSameNumber("07700 900123", "07700 900456")).toBe(false);
+    expect(isSameNumber("07700 900123", "")).toBe(false);
+    expect(isSameNumber(null, "07700 900123")).toBe(false);
+  });
+
+  it("compares strings that are not phone numbers as typed", () => {
+    expect(isSameNumber("", "  ")).toBe(true);
+    expect(isSameNumber(null, undefined)).toBe(true);
+    expect(isSameNumber("12", "12")).toBe(true);
+    expect(isSameNumber("12", "34")).toBe(false);
   });
 });
 

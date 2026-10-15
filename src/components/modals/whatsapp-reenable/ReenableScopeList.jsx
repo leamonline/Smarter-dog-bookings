@@ -10,7 +10,7 @@ import {
 } from "../../../engine/whatsappReenable";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 
-function ScopeRow({ record, isCurrent, onOpenProfile }) {
+function ScopeRow({ record, isCurrent, onOpenProfile, disabled }) {
   const nameId = useId();
   const savedAs = formatPhoneForDisplay(record.phone);
   return (
@@ -36,6 +36,7 @@ function ScopeRow({ record, isCurrent, onOpenProfile }) {
           variant="ghost"
           size="sm"
           className="shrink-0"
+          disabled={disabled}
           aria-describedby={nameId}
           onClick={() => onOpenProfile(record.id)}
         >
@@ -46,7 +47,7 @@ function ScopeRow({ record, isCurrent, onOpenProfile }) {
   );
 }
 
-export function ReenableScopeList({ scope, currentHumanId, onOpenProfile }) {
+export function ReenableScopeList({ scope, currentHumanId, onOpenProfile, disabled = false }) {
   const records = scope?.records ?? [];
   return (
     <div className="text-[12px] leading-snug">
@@ -58,6 +59,7 @@ export function ReenableScopeList({ scope, currentHumanId, onOpenProfile }) {
               record={record}
               isCurrent={Boolean(currentHumanId) && record.id === currentHumanId}
               onOpenProfile={onOpenProfile}
+              disabled={disabled}
             />
           ))}
         </ul>

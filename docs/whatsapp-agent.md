@@ -274,7 +274,13 @@ retried automatically:
   permission it recorded predates that STOP. In the inbox, a newer STOP on
   the live conversation row holds the button until staff reload.
 - If the connection drops, the outcome is unknown, so the dialog reads the
-  scope to find out whether it went through, and says so either way.
+  scope to find out whether it went through, and says so either way. If that
+  read fails too, confirm stays held, and **Check again** repeats the same
+  check: an empty number then means this request went through.
+- The dialog stays on the number it opened with. If the profile’s number
+  changes underneath it, or the profile’s own record is no longer switched
+  off on the number, it says the profile is out of date and holds confirm
+  until staff refresh.
 
 On sample data (`npm run dev`) the notice, badge and banner render from the
 fixtures, but the dialog only explains that switching back on needs the live

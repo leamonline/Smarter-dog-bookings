@@ -4,7 +4,7 @@
 // permission again, and confirm. useWhatsappNumberReenable owns the state;
 // this is the shell, the copy and the field. Shared by the customer profile
 // and the inbox thread (context "profile" | "inbox").
-import { useId } from "react";
+import { useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { HeaderIconButton, ModalShell, PanelShell } from "../shell/index.js";
 import { Button, InlineError } from "../../ui/index.js";
@@ -13,6 +13,8 @@ import { useWhatsappNumberReenable } from "../../../supabase/hooks/useWhatsappNu
 import { isPermissionNoteLongEnough, optOutTimeLabel } from "../../../engine/whatsappReenable";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { ReenableScopeList } from "./ReenableScopeList.jsx";
+import { ReenableAlert, ReenableNotice } from "./ReenableNotices.jsx";
+import { useReenableDialogFocus } from "./useReenableDialogFocus.js";
 
 const FORM_STATES = new Set(["ready", "submitting", "verifying", "done"]);
 
@@ -37,40 +39,6 @@ function againSuffix(scope) {
     : "";
 }
 
-const NOTICE_COPY = {
-  scope_changed: "Something changed on this number while you were looking, so nothing was switched on. Check the list again, then confirm.",
-  busy: "Something else was changing this number at the same moment, so nothing was switched on. Here’s the latest — check it, then confirm.",
-  unconfirmed: "We couldn’t confirm whether WhatsApp was switched back on. Check again before doing anything else.",
-  not_applied: "Nothing was switched on — we couldn’t reach the database. Check your connection and try again.",
-  note_required: "Add how they gave permission again — at least 10 characters.",
-  unknown: "Couldn’t switch WhatsApp back on. Nothing was changed — give it another go?",
-};
-
-function Alert({ children, action, onAction }) {
-  return (
-    <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-[13px] leading-snug text-rose-800">
-      {children}
-      {action && <Button variant="ghost" size="sm" className="mt-2" onClick={onAction}>{action}</Button>}
-    </div>
-  );
-}
-
-function Notice({ notice, onReload }) {
-  if (!notice) return null;
-  const body =
-    notice.kind === "new_stop"
-      ? `This number said STOP again on ${optOutTimeLabel(notice.at)}, after you opened this. Nothing was switched on. Only switch it back on if they’ve given permission since then.`
-      : NOTICE_COPY[notice.kind === "submit_error" ? notice.error : notice.kind];
-  const { added = [], removed = [] } = notice.diff ?? {};
-  return (
-    <Alert action={notice.kind === "unconfirmed" ? "Check again" : null} onAction={onReload}>
-      <p className="m-0">{body}</p>
-      {added.length > 0 && <p className="m-0 mt-1">Now also switched off: {added.join(", ")}.</p>}
-      {removed.length > 0 && <p className="m-0 mt-1">No longer switched off: {removed.join(", ")}.</p>}
-    </Alert>
-  );
-}
-
 export function ReenableWhatsAppDialog({
   phone,
   context,
@@ -88,7 +56,11 @@ export function ReenableWhatsAppDialog({
   const helperId = useId();
   const errorId = useId();
   const hintId = useId();
-  const shownPhone = formatPhoneForDisplay(phone) || phone;
+  const outcomeRef = useRef(null);
+  const liveAlertRef = useRef(null);
+  // The number this dialog is for, fixed when it opens (as the hook fixes it).
+  const [openedPhone] = useState(phone);
+  const shownPhone = formatPhoneForDisplay(openedPhone) || openedPhone;
   const reenable = useWhatsappNumberReenable({
     phone,
     context,
@@ -100,11 +72,13 @@ export function ReenableWhatsAppDialog({
       if (outcome === "done") onClose();
     },
   });
-  const { status, scope, note } = reenable;
+  const { status, scope, note, notice, liveNewStop } = reenable;
   const busy = status === "submitting" || status === "verifying";
   const close = () => (busy ? undefined : onClose());
+  // Leaving mid-request would hide its outcome, so these wait like Close does.
   const openProfile = onOpenHuman
     ? (id) => {
+        if (busy) return;
         onClose();
         onOpenHuman(id);
       }
@@ -112,7 +86,16 @@ export function ReenableWhatsAppDialog({
   const isForm = FORM_STATES.has(status) && scope;
   const noteShort = !isPermissionNoteLongEnough(note);
   const showNoteError = reenable.noteTouched && noteShort;
-  const showHint = status === "ready" && noteShort;
+  const hint =
+    status !== "ready"
+      ? null
+      : reenable.staleProfile
+        ? "Refresh to see this customer’s current number first."
+        : noteShort
+          ? "Write how they gave permission again to switch WhatsApp back on."
+          : null;
+
+  useReenableDialogFocus({ titleId, outcomeRef, liveAlertRef, status, notice, liveNewStop });
 
   const message = {
     unavailable: "Switching WhatsApp back on needs the live database — you’re on sample data. Nothing has been changed.",
@@ -142,7 +125,7 @@ export function ReenableWhatsAppDialog({
             <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1">
               Switch WhatsApp back on?
             </h2>
-            <p className="m-0 mt-1 text-[13px] font-semibold text-slate-500">{shownPhone}</p>
+            <p className="m-0 mt-1 text-[13px] font-semibold text-slate-600">{shownPhone}</p>
           </div>
           <HeaderIconButton label="Close" onClick={close}>
             <X size={16} strokeWidth={2.2} aria-hidden="true" />
@@ -158,7 +141,7 @@ export function ReenableWhatsAppDialog({
                 variant="primary"
                 loading={status === "submitting"}
                 disabled={!reenable.canSubmit}
-                aria-describedby={showHint ? hintId : undefined}
+                aria-describedby={hint ? hintId : undefined}
                 onClick={() => void reenable.submit()}
               >
                 {status === "submitting" ? "Switching back on…" : "Switch WhatsApp back on"}
@@ -176,25 +159,37 @@ export function ReenableWhatsAppDialog({
       }
     >
       {status === "loading" && <p role="status" className="m-0">Checking everything on this number…</p>}
-      {message && <p role={status === "load_error" ? "alert" : "status"} className="m-0">{message}</p>}
+      {message && (
+        <p ref={outcomeRef} tabIndex={-1} role={status === "load_error" ? "alert" : "status"} className="m-0 focus:outline-none">
+          {message}
+        </p>
+      )}
       {isForm && (
         <>
-          {reenable.liveNewStop && (
-            <Alert action="Reload" onAction={() => void reenable.reload()}>
+          {liveNewStop && (
+            <ReenableAlert ref={liveAlertRef} action="Reload" onAction={() => void reenable.reload()}>
               <p className="m-0">This number has just said STOP again. Reload to see the latest before switching it back on.</p>
-            </Alert>
+            </ReenableAlert>
           )}
-          <Notice notice={reenable.notice} onReload={() => void reenable.reload()} />
+          <ReenableNotice ref={status === "verifying" ? undefined : outcomeRef} notice={notice} onReload={() => void reenable.reload()} />
           {status === "verifying" && (
-            <p role="status" className="m-0 font-semibold">We couldn’t reach the database. Checking whether it went through…</p>
+            <p ref={outcomeRef} tabIndex={-1} role="status" className="m-0 font-semibold focus:outline-none">
+              We couldn’t reach the database. Checking whether it went through…
+            </p>
           )}
           <p className="m-0 font-semibold text-brand-purple">
             {scope.numberStoppedAt
               ? `This number said STOP on ${optOutTimeLabel(scope.numberStoppedAt)}.${againSuffix(scope)}`
               : "This number hasn’t said STOP, but WhatsApp is switched off on the records below."}
           </p>
-          <PanelShell eyebrow={`Switched off on this number (${scope.records.length})`} accent="amber">
-            <ReenableScopeList scope={scope} currentHumanId={currentHumanId} onOpenProfile={openProfile} />
+          {/* shrink-0: the body scrolls; the list must never be squeezed under the text below it. */}
+          <PanelShell eyebrow={`Switched off on this number (${scope.records.length})`} accent="amber" className="shrink-0">
+            <ReenableScopeList
+              scope={scope}
+              currentHumanId={currentHumanId}
+              onOpenProfile={openProfile}
+              disabled={busy}
+            />
           </PanelShell>
           {linkedElsewhere && (
             <div className="m-0">
@@ -203,7 +198,13 @@ export function ReenableWhatsAppDialog({
                 number, so this won’t switch them back on. Review it on their profile.
               </p>
               {openProfile && (
-                <Button variant="ghost" size="sm" className="mt-1.5" onClick={() => openProfile(linkedElsewhere.id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1.5"
+                  disabled={busy}
+                  onClick={() => openProfile(linkedElsewhere.id)}
+                >
                   {linkedElsewhere.name ? `Open ${linkedElsewhere.name}’s profile` : "Open their profile"}
                 </Button>
               )}
@@ -246,14 +247,14 @@ export function ReenableWhatsAppDialog({
               aria-describedby={showNoteError ? `${helperId} ${errorId}` : helperId}
               className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 bg-white outline-none resize-y focus:border-brand-teal"
             />
-            <p id={helperId} className="m-0 mt-1 text-[12px] text-slate-500">
+            <p id={helperId} className="m-0 mt-1 text-[12px] text-slate-600">
               For example: “Rang the salon on 14 Oct and asked for WhatsApp reminders again.” At least 10 characters.
               It’s kept in the audit log and other staff can see it, so leave out health or payment details.
             </p>
             <InlineError id={errorId} message={showNoteError ? "Add a little more — at least 10 characters." : ""} />
-            {showHint && (
-              <p id={hintId} className="m-0 mt-1.5 text-[12px] text-slate-400">
-                Write how they gave permission again to switch WhatsApp back on.
+            {hint && (
+              <p id={hintId} className="m-0 mt-1.5 text-[12px] text-slate-600">
+                {hint}
               </p>
             )}
           </div>

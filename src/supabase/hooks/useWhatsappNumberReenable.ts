@@ -9,7 +9,9 @@
 // again to find out what happened.
 //
 // Standalone on purpose: the dialog mounts it, so nothing is read until staff
-// open the dialog, and never on a timer.
+// open the dialog, and never on a timer. The number is fixed when the dialog
+// opens: if the record's number changes underneath it, the dialog says so
+// and holds confirm, rather than quietly reading a different number.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../../lib/logger";
 import { supabase } from "../client";
@@ -19,6 +21,7 @@ import {
   hasScopeChanges,
   isNewerStop,
   isPermissionNoteLongEnough,
+  isSameNumber,
   isScopeEmpty,
   type NumberOptOutScope,
   type ReenableErrorKind,
@@ -59,6 +62,7 @@ export interface ReenabledInfo {
 export type ReenableOutcome = "done" | "already_on";
 
 export interface UseWhatsappNumberReenableOptions {
+  /** The number to switch back on. Only its value when the dialog opens is used. */
   phone: string;
   context: "profile" | "inbox";
   /** The profile's own record, to spot one that is no longer in scope. */
@@ -103,6 +107,7 @@ export function useWhatsappNumberReenable({
   onReenabled,
 }: UseWhatsappNumberReenableOptions) {
   const available = Boolean(supabase);
+  const [pinnedPhone] = useState(phone);
   const [status, setStatus] = useState<ReenableStatus>(available ? "loading" : "unavailable");
   const [errorKind, setErrorKind] = useState<ReenableErrorKind | null>(null);
   const [alreadyOnReason, setAlreadyOnReason] = useState<"empty" | "someone_else" | null>(null);
@@ -116,6 +121,9 @@ export function useWhatsappNumberReenable({
   const submitLock = useRef(false);
   const scopeRef = useRef<NumberOptOutScope | null>(null);
   const loadedOnce = useRef(false);
+  // A submit's outcome is unknown until a read settles it: "Check again"
+  // (and any reload) verifies that submit rather than reading afresh.
+  const outcomeUnknown = useRef(false);
   const onReenabledRef = useRef(onReenabled);
   useEffect(() => {
     onReenabledRef.current = onReenabled;
@@ -126,9 +134,9 @@ export function useWhatsappNumberReenable({
     const client = supabase;
     if (!client) return null;
     const id = ++generation.current;
-    const result = await getNumberOptOutScope(client, phone);
+    const result = await getNumberOptOutScope(client, pinnedPhone);
     return id === generation.current ? result : null;
-  }, [phone]);
+  }, [pinnedPhone]);
 
   const failRead = useCallback((error: RepoError) => {
     const kind = classify(error, "scope");
@@ -175,6 +183,14 @@ export function useWhatsappNumberReenable({
     [],
   );
 
+  /** Tell the host which records were switched back on, from what staff saw. */
+  const reportCleared = useCallback((previous: NumberOptOutScope, outcome: ReenableOutcome) => {
+    onReenabledRef.current?.(
+      { humanIds: previous.records.map((record) => record.id), conversationIds: [] },
+      outcome,
+    );
+  }, []);
+
   const load = useCallback(
     async (diffAgainstPrevious: boolean) => {
       const previous = diffAgainstPrevious ? scopeRef.current : null;
@@ -186,8 +202,13 @@ export function useWhatsappNumberReenable({
         return;
       }
       showScope(read.value, previous);
+      // Cleared since staff last looked: someone else switched it back on,
+      // and the host's caches still show it off.
+      if (previous && !isScopeEmpty(previous) && isScopeEmpty(read.value)) {
+        reportCleared(previous, "already_on");
+      }
     },
-    [readScope, failRead, showScope],
+    [readScope, failRead, showScope, reportCleared],
   );
 
   useEffect(() => {
@@ -197,8 +218,6 @@ export function useWhatsappNumberReenable({
       generation.current += 1;
     };
   }, [load]);
-
-  const reload = useCallback(() => load(true), [load]);
 
   /** After a refused submit: read again and show what changed. Never resubmits. */
   const recheck = useCallback(
@@ -210,20 +229,20 @@ export function useWhatsappNumberReenable({
         return;
       }
       showScope(read.value, previous, changedKind);
-      if (isScopeEmpty(read.value)) {
-        onReenabledRef.current?.(
-          { humanIds: previous.records.map((record) => record.id), conversationIds: [] },
-          "already_on",
-        );
-      }
+      if (isScopeEmpty(read.value)) reportCleared(previous, "already_on");
     },
-    [readScope, failRead, showScope],
+    [readScope, failRead, showScope, reportCleared],
   );
 
-  /** The request's outcome is unknown: read the scope to find out. */
+  /**
+   * The request's outcome is unknown: read the scope to find out. `previous`
+   * is the scope that was submitted, so an empty read means it went through.
+   */
   const verify = useCallback(
     async (previous: NumberOptOutScope) => {
+      outcomeUnknown.current = true;
       setStatus("verifying");
+      setNotice(null);
       const read = await readScope();
       if (!read) return;
       if (read.error) {
@@ -232,15 +251,13 @@ export function useWhatsappNumberReenable({
         setStatus("ready");
         return;
       }
+      outcomeUnknown.current = false;
       const next = read.value;
       if (isScopeEmpty(next)) {
         scopeRef.current = next;
         setScope(next);
         setStatus("done");
-        onReenabledRef.current?.(
-          { humanIds: previous.records.map((record) => record.id), conversationIds: [] },
-          "done",
-        );
+        reportCleared(previous, "done");
         return;
       }
       if (!hasScopeChanges(diffScopes(previous, next))) {
@@ -250,22 +267,39 @@ export function useWhatsappNumberReenable({
       }
       showScope(next, previous, "scope_changed");
     },
-    [readScope, showScope],
+    [readScope, showScope, reportCleared],
   );
+
+  /**
+   * Read the scope again and show what changed. While a submit's outcome is
+   * still unknown ("Check again"), this verifies that submit instead, so a
+   * cleared number reads as this request going through, not someone else's.
+   */
+  const reload = useCallback(() => {
+    const submitted = scopeRef.current;
+    return outcomeUnknown.current && submitted ? verify(submitted) : load(true);
+  }, [load, verify]);
 
   const liveNewStop =
     status === "ready" && scope !== null && isNewerStop(observedLastStopAt, scope.lastStopAt);
+  // The record's number moved after the dialog opened (another member of
+  // staff, or the customer in the portal, changed it).
+  const numberMoved = !isSameNumber(pinnedPhone, phone);
+  const staleProfile =
+    context === "profile" &&
+    (numberMoved ||
+      (Boolean(currentHumanId) &&
+        scope !== null &&
+        !isScopeEmpty(scope) &&
+        !scope.records.some((record) => record.id === currentHumanId)));
   const canSubmit =
     status === "ready" &&
     !isScopeEmpty(scope) &&
     isPermissionNoteLongEnough(note) &&
-    !liveNewStop;
-  const staleProfile =
-    context === "profile" &&
-    Boolean(currentHumanId) &&
-    scope !== null &&
-    !isScopeEmpty(scope) &&
-    !scope.records.some((record) => record.id === currentHumanId);
+    !liveNewStop &&
+    !staleProfile &&
+    !numberMoved &&
+    notice?.kind !== "unconfirmed";
 
   const submit = useCallback(async () => {
     const client = supabase;

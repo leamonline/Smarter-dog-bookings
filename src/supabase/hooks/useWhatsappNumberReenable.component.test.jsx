@@ -164,12 +164,66 @@ describe("useWhatsappNumberReenable: reading the scope", () => {
     expect(result.current.noteTouched).toBe(false);
   });
 
-  it("flags a profile whose own record is no longer in scope", async () => {
+  it("flags a profile whose own record is no longer in scope, and holds confirm", async () => {
     const { result } = await renderReady({ currentHumanId: TOM });
     expect(result.current.staleProfile).toBe(true);
+    // The note is long enough; the stale profile alone holds confirm.
+    expect(result.current.canSubmit).toBe(false);
+    await act(async () => result.current.submit());
+    expect(mocks.reenableNumber).not.toHaveBeenCalled();
 
     const inbox = await renderReady({ context: "inbox", currentHumanId: TOM });
     expect(inbox.result.current.staleProfile).toBe(false);
+    expect(inbox.result.current.canSubmit).toBe(true);
+  });
+
+  it("stays on the number it opened with when the record's number changes", async () => {
+    const { result, rerender, initialProps } = await renderReady();
+    expect(result.current.canSubmit).toBe(true);
+
+    // The same number, saved in another format: nothing to warn about.
+    rerender({ ...initialProps, phone: "+447700900123" });
+    expect(result.current.staleProfile).toBe(false);
+    expect(result.current.canSubmit).toBe(true);
+
+    // A different number: never read it, say the profile is out of date, hold confirm.
+    rerender({ ...initialProps, phone: "07700 900456" });
+    expect(mocks.getNumberOptOutScope).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("ready");
+    expect(result.current.note).toBe(NOTE);
+    expect(result.current.staleProfile).toBe(true);
+    expect(result.current.canSubmit).toBe(false);
+
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope()));
+    await act(async () => result.current.reload());
+    expect(mocks.getNumberOptOutScope).toHaveBeenLastCalledWith(mocks.client, PHONE);
+
+    rerender({ ...initialProps, phone: "" });
+    expect(result.current.staleProfile).toBe(true);
+    expect(result.current.canSubmit).toBe(false);
+  });
+
+  it("holds confirm in the inbox too if the chat's number ever changed", async () => {
+    const { result, rerender, initialProps } = await renderReady({ context: "inbox", currentHumanId: null });
+    rerender({ ...initialProps, phone: "07700 900456" });
+    expect(result.current.staleProfile).toBe(false);
+    expect(result.current.canSubmit).toBe(false);
+  });
+
+  it("a reload that finds the number cleared reports the records staff were shown", async () => {
+    const { result, onReenabled } = await renderReady();
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+    await act(async () => result.current.reload());
+    expect(result.current.status).toBe("already_on");
+    expect(result.current.alreadyOnReason).toBe("someone_else");
+    expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "already_on");
+  });
+
+  it("a first read that is empty reports nothing", async () => {
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+    const { result, onReenabled } = renderReenable();
+    await waitFor(() => expect(result.current.status).toBe("already_on"));
+    expect(onReenabled).not.toHaveBeenCalled();
   });
 
   it("holds confirm while the live list shows a newer STOP", async () => {
@@ -328,6 +382,22 @@ describe("useWhatsappNumberReenable: submitting", () => {
     expect(result.current.errorKind).toBe("busy");
   });
 
+  it("Try again after a failed re-read that finds the number cleared reports it", async () => {
+    const { result, onReenabled } = await renderReady();
+    mocks.reenableNumber.mockResolvedValueOnce(fail("P0001", "reenable_scope_changed"));
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(fail("57014"));
+    await act(async () => result.current.submit());
+    expect(result.current.status).toBe("load_error");
+
+    mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+    await act(async () => result.current.reload());
+
+    expect(result.current.status).toBe("already_on");
+    expect(result.current.alreadyOnReason).toBe("someone_else");
+    expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "already_on");
+    expect(mocks.reenableNumber).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the note when the server wants a longer one", async () => {
     const { result } = await renderReady();
     mocks.reenableNumber.mockResolvedValueOnce(fail("P0001", "permission_note_required"));
@@ -405,7 +475,7 @@ describe("useWhatsappNumberReenable: submitting", () => {
       expect(result.current.note).toBe("");
     });
 
-    it("cannot confirm either way when the check fails too", async () => {
+    it("cannot confirm either way when the check fails too, and holds confirm until it can", async () => {
       const { result, onReenabled } = await renderReady();
       mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
       mocks.getNumberOptOutScope.mockResolvedValueOnce(fail("", null, true));
@@ -415,6 +485,83 @@ describe("useWhatsappNumberReenable: submitting", () => {
       expect(result.current.status).toBe("ready");
       expect(result.current.notice).toEqual({ kind: "unconfirmed" });
       expect(onReenabled).not.toHaveBeenCalled();
+      // "Check again before doing anything else": confirm waits for the outcome.
+      expect(result.current.note).toBe(NOTE);
+      expect(result.current.canSubmit).toBe(false);
+      await act(async () => result.current.submit());
+      expect(mocks.reenableNumber).toHaveBeenCalledTimes(1);
+    });
+
+    async function renderUnconfirmed() {
+      const rendered = await renderReady();
+      mocks.reenableNumber.mockResolvedValueOnce(fail("", null, true));
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(fail("", null, true));
+      await act(async () => rendered.result.current.submit());
+      expect(rendered.result.current.notice).toEqual({ kind: "unconfirmed" });
+      return rendered;
+    }
+
+    it("Check again that finds the number cleared: this request went through", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      const check = deferred();
+      mocks.getNumberOptOutScope.mockReturnValueOnce(check.promise);
+
+      act(() => {
+        void result.current.reload();
+      });
+      expect(result.current.status).toBe("verifying");
+      expect(result.current.notice).toBeNull();
+      await act(async () => check.resolve(ok(EMPTY)));
+
+      expect(result.current.status).toBe("done");
+      expect(result.current.alreadyOnReason).toBeNull();
+      expect(onReenabled).toHaveBeenCalledTimes(1);
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "done");
+      expect(mocks.reenableNumber).toHaveBeenCalledTimes(1);
+    });
+
+    it("Check again that finds nothing changed: it was not applied, and confirm is back", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope()));
+
+      await act(async () => result.current.reload());
+
+      expect(result.current.status).toBe("ready");
+      expect(result.current.notice).toEqual({ kind: "not_applied" });
+      expect(result.current.canSubmit).toBe(true);
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("Check again that fails again is still unconfirmed, and so is the one after", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(fail("", null, true));
+      await act(async () => result.current.reload());
+      expect(result.current.notice).toEqual({ kind: "unconfirmed" });
+      expect(result.current.canSubmit).toBe(false);
+
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      await act(async () => result.current.reload());
+      expect(result.current.status).toBe("done");
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "done");
+    });
+
+    it("Check again that finds a new STOP shows it and clears the note", async () => {
+      const { result, onReenabled } = await renderUnconfirmed();
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(scope({ lastStopAt: LATER_STOP })));
+      await act(async () => result.current.reload());
+
+      expect(result.current.notice).toEqual({ kind: "new_stop", at: LATER_STOP });
+      expect(result.current.note).toBe("");
+      expect(onReenabled).not.toHaveBeenCalled();
+
+      // Settled: a later reload reads afresh rather than verifying again.
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(EMPTY));
+      await act(async () => result.current.reload());
+      expect(result.current.alreadyOnReason).toBe("someone_else");
+      expect(onReenabled).toHaveBeenCalledWith(
+        { humanIds: [SARAH], conversationIds: [] },
+        "already_on",
+      );
     });
   });
 });

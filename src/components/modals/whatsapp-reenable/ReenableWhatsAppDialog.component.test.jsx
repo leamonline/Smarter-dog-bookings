@@ -160,6 +160,31 @@ describe("ReenableWhatsAppDialog", () => {
     expect(order).toEqual([["close"], ["open", TOM]]);
   });
 
+  it("keeps the profile buttons from closing it mid-request", async () => {
+    const pending = deferred();
+    const onOpenHuman = vi.fn();
+    const { onClose } = await ready(
+      { context: "inbox", linkedElsewhere: { id: "77777777-7777-4777-8777-777777777777", name: "Bea Smith" }, onOpenHuman },
+      makeClient({ reenables: [() => pending.promise] }),
+    );
+    type(NOTE);
+    act(() => fireEvent.click(confirm()));
+    await screen.findByRole("button", { name: /Switching back on…$/ });
+
+    const openProfile = screen.getByRole("button", { name: "Open profile" });
+    const openLinked = screen.getByRole("button", { name: "Open Bea Smith’s profile" });
+    expect(openProfile).toBeDisabled();
+    expect(openLinked).toBeDisabled();
+    fireEvent.click(openProfile);
+    fireEvent.click(openLinked);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onOpenHuman).not.toHaveBeenCalled();
+
+    await act(async () => pending.resolve({ data: REENABLED, error: null }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+  });
+
   it("offers no profile button without onOpenHuman", async () => {
     await ready();
     expect(screen.queryByRole("button", { name: "Open profile" })).toBeNull();
@@ -388,9 +413,40 @@ describe("ReenableWhatsAppDialog", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("names a profile record that is no longer in scope", async () => {
-    await ready({ currentHumanId: "66666666-6666-4666-8666-666666666666", currentHumanName: "Bea Smith" });
+  it("names a profile record that is no longer in scope, and holds confirm", async () => {
+    const { client } = await ready({ currentHumanId: "66666666-6666-4666-8666-666666666666", currentHumanName: "Bea Smith" });
     expect(screen.getByText(/Bea Smith isn’t switched off on this number any more/)).toBeInTheDocument();
+    type(NOTE);
+    expect(confirm()).toBeDisabled();
+    expect(confirm()).toHaveAccessibleDescription("Refresh to see this customer’s current number first.");
+    fireEvent.click(confirm());
+    expect(callsTo(client, REENABLE_FN)).toHaveLength(0);
+  });
+
+  it("stays on the number it opened with when the profile's number changes", async () => {
+    const view = await ready();
+    type(NOTE);
+    expect(confirm()).toBeEnabled();
+
+    view.rerender(
+      <ToastProvider>
+        <ReenableWhatsAppDialog
+          phone="07700 900456"
+          context="profile"
+          currentHumanId={SARAH}
+          currentHumanName="Sarah Jones"
+          onClose={view.onClose}
+          onReenabled={view.onReenabled}
+        />
+      </ToastProvider>,
+    );
+
+    // Never a quiet read of another number: one scope call, for the first one.
+    expect(callsTo(view.client, SCOPE_FN)).toEqual([[SCOPE_FN, { p_phone: "+447700900123" }]]);
+    expect(within(screen.getByRole("dialog")).getByText("07700 900123")).toBeInTheDocument();
+    expect(screen.getByText(/Sarah Jones isn’t switched off on this number any more/)).toBeInTheDocument();
+    expect(confirm()).toBeDisabled();
+    expect(confirm()).toHaveAccessibleDescription("Refresh to see this customer’s current number first.");
   });
 
   it("in the inbox, mentions waiting drafts and a linked customer saved elsewhere", async () => {
@@ -445,7 +501,7 @@ describe("ReenableWhatsAppDialog", () => {
     expect(confirm()).toBeEnabled();
   });
 
-  it("verifies after a dropped connection, and offers to check again", async () => {
+  it("verifies after a dropped connection, holds confirm, and Check again finds it went through", async () => {
     const client = makeClient({
       scopes: [
         { data: SCOPE, error: null },
@@ -454,18 +510,163 @@ describe("ReenableWhatsAppDialog", () => {
       ],
       reenables: [{ data: null, error: { code: "", message: "Failed to fetch", details: null } }],
     });
-    const { onClose } = await ready({}, client);
+    const order = [];
+    const { onClose, onReenabled } = await ready({}, client);
+    onReenabled.mockImplementation(() => order.push("reenabled"));
+    onClose.mockImplementation(() => order.push("close"));
     type(NOTE);
     await act(async () => fireEvent.click(confirm()));
 
     expect(
       await screen.findByText("We couldn’t confirm whether WhatsApp was switched back on. Check again before doing anything else."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    // The outcome is unknown, so confirm waits for Check again.
+    expect(confirm()).toBeDisabled();
+    expect(note()).toHaveValue(NOTE);
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Check again" })));
+
+    // An empty number now means this request went through, not someone else's.
+    expect(await screen.findByText("WhatsApp is back on for 07700 900123.")).toBeInTheDocument();
+    expect(screen.queryByText(/Someone has already switched WhatsApp back on/)).toBeNull();
+    expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH, TOM], conversationIds: [] });
+    expect(order).toEqual(["reenabled", "close"]);
+    expect(callsTo(client, SCOPE_FN)).toHaveLength(3);
+    expect(callsTo(client, REENABLE_FN)).toHaveLength(1);
+  });
+
+  it("Check again that finds nothing changed says so, and gives confirm back", async () => {
+    const client = makeClient({
+      scopes: [
+        { data: SCOPE, error: null },
+        { data: null, error: { code: "", message: "Failed to fetch", details: null } },
+        { data: SCOPE, error: null },
+      ],
+      reenables: [{ data: null, error: { code: "", message: "Failed to fetch", details: null } }],
+    });
+    const { onReenabled } = await ready({}, client);
+    type(NOTE);
+    await act(async () => fireEvent.click(confirm()));
+    await act(async () => fireEvent.click(await screen.findByRole("button", { name: "Check again" })));
+
+    expect(
+      await screen.findByText("Nothing was switched on — we couldn’t reach the database. Check your connection and try again."),
+    ).toBeInTheDocument();
+    expect(confirm()).toBeEnabled();
+    expect(onReenabled).not.toHaveBeenCalled();
+  });
+
+  it("Try again after a failed re-read that finds the number cleared tells the host", async () => {
+    const client = makeClient({
+      scopes: [
+        { data: SCOPE, error: null },
+        { data: null, error: { code: "57014", message: "timeout", details: null } },
+        { data: EMPTY, error: null },
+      ],
+      reenables: [{ data: null, error: { code: "P0001", message: "changed", details: "reenable_scope_changed" } }],
+    });
+    const { onReenabled, onClose } = await ready({}, client);
+    type(NOTE);
+    await act(async () => fireEvent.click(confirm()));
+    await act(async () => fireEvent.click(await screen.findByRole("button", { name: "Try again" })));
+
     expect(
       await screen.findByText("Someone has already switched WhatsApp back on for this number. There’s nothing left to do."),
     ).toBeInTheDocument();
+    expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH, TOM], conversationIds: [] });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("lets the body scroll rather than squeezing the record list", async () => {
+    // jsdom has no layout: this pins the class that stops the flex body
+    // shrinking the panel (PanelShell carries min-h-0) under the text below.
+    await ready();
+    const panel = screen.getByRole("region", { name: "Switched off on this number (2)" });
+    expect(panel).toHaveClass("shrink-0");
+    expect(panel.parentElement).toHaveClass("overflow-y-auto");
+  });
+
+  it("keeps small text on the paper surface at AA contrast", async () => {
+    // slate-400 (2.3:1) and slate-500 (4.2:1) fail on #F7EFE6; slate-600 passes.
+    await ready();
+    const hint = screen.getByText("Write how they gave permission again to switch WhatsApp back on.");
+    const helper = screen.getByText(/At least 10 characters\. It’s kept in the audit log/);
+    const subtitle = within(screen.getByRole("dialog")).getByText("07700 900123");
+    for (const element of [hint, helper, subtitle]) {
+      expect(element).toHaveClass("text-slate-600");
+      expect(element.className).not.toMatch(/text-slate-(300|400|500)\b/);
+    }
+  });
+
+  describe("focus", () => {
+    const dialog = () => screen.getByRole("dialog", { name: "Switch WhatsApp back on?" });
+
+    it("stays in the dialog while it switches back on", async () => {
+      const pending = deferred();
+      await ready({}, makeClient({ reenables: [() => pending.promise] }));
+      type(NOTE);
+      confirm().focus();
+      act(() => fireEvent.click(confirm()));
+      await screen.findByRole("button", { name: /Switching back on…$/ });
+      expect(document.activeElement).toBe(dialog());
+      await act(async () => pending.resolve({ data: REENABLED, error: null }));
+    });
+
+    it("moves to the message when a submit ends without the form", async () => {
+      await ready({}, makeClient({ reenables: [{ data: null, error: { code: "42501", message: "no", details: null } }] }));
+      type(NOTE);
+      confirm().focus();
+      await act(async () => fireEvent.click(confirm()));
+
+      const message = screen.getByText("Only signed-in staff can switch WhatsApp back on. Sign out and back in, then try again.");
+      expect(document.activeElement).toBe(message);
+      expect(dialog()).toContainElement(document.activeElement);
+      await userEvent.tab();
+      expect(dialog()).toContainElement(document.activeElement);
+    });
+
+    it("moves to the message when someone else switched it back on first", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [{ data: null, error: { code: "P0001", message: "changed", details: "reenable_scope_changed" } }],
+      });
+      await ready({}, client);
+      type(NOTE);
+      confirm().focus();
+      await act(async () => fireEvent.click(confirm()));
+      expect(document.activeElement).toHaveTextContent("Someone has already switched WhatsApp back on for this number.");
+    });
+
+    it("moves to the notice when a submit is refused", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: { ...SCOPE, last_stop_at: NEW_STOP }, error: null }],
+        reenables: [{ data: null, error: { code: "P0001", message: "changed", details: "reenable_scope_changed" } }],
+      });
+      await ready({}, client);
+      type(NOTE);
+      confirm().focus();
+      await act(async () => fireEvent.click(confirm()));
+      expect(document.activeElement).toHaveAttribute("role", "alert");
+      expect(document.activeElement).toHaveTextContent(/said STOP again on 14 Oct 2026, 14:32, after you opened this/);
+    });
+
+    it("does not pull focus from the note when a STOP shows up on the live list", async () => {
+      const view = await ready({ context: "inbox", observedLastStopAt: LAST_STOP });
+      note().focus();
+      view.rerender(
+        <ToastProvider>
+          <ReenableWhatsAppDialog
+            phone="+447700900123"
+            context="inbox"
+            observedLastStopAt={NEW_STOP}
+            onClose={view.onClose}
+            onReenabled={view.onReenabled}
+          />
+        </ToastProvider>,
+      );
+      expect(screen.getByText(/has just said STOP again/)).toBeInTheDocument();
+      expect(document.activeElement).toBe(note());
+    });
   });
 
   it("explains a refusal that rolled back, and a note the server wanted longer", async () => {

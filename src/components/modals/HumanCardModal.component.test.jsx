@@ -34,6 +34,7 @@ vi.mock("../../supabase/hooks/humans/useTrustedContacts", async (importOriginal)
 
 const { HumanCardModal } = await import("./HumanCardModal.jsx");
 const { useHumanMutations } = await import("../../supabase/hooks/humans/useHumanMutations");
+const { useHumanLifecycle } = await import("../../supabase/hooks/humans/useHumanLifecycle");
 
 // A completed booking owned by human-1, dated well in the past so it always
 // counts as a "last visit" regardless of when the suite runs.
@@ -499,5 +500,111 @@ describe("HumanCardModal — WhatsApp switched off", () => {
     expect(payloads).toEqual([{ sms: false }]);
     expect(screen.getByText("WhatsApp is off — they said STOP.")).toBeInTheDocument();
     expect(screen.getByText("WhatsApp stopped")).toBeInTheDocument();
+  });
+
+  it("clears the notice, the badge and the hidden WA link once WhatsApp is back on", async () => {
+    // The real dialog, hook and repository against a stub client, and the
+    // real cache patch (useHumanLifecycle.markWhatsappReenabled) the app
+    // wires in through StaffModals: nothing but the RPC answers is faked.
+    const rpcCalls = [];
+    const channel = { on: () => channel, subscribe: () => channel };
+    const anyQuery = () => {
+      const builder = {};
+      for (const method of ["select", "eq", "in", "is", "order", "limit", "gte", "lte", "neq", "or"]) {
+        builder[method] = () => builder;
+      }
+      builder.single = async () => ({ data: null, error: null });
+      builder.maybeSingle = async () => ({ data: null, error: null });
+      builder.then = (onResolve, onReject) => Promise.resolve({ data: [], error: null }).then(onResolve, onReject);
+      return builder;
+    };
+    globalThis.__supabaseMockHumanCardModal = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+      from: vi.fn(anyQuery),
+      rpc: vi.fn(async (fn, params) => {
+        rpcCalls.push([fn, params]);
+        if (fn === "staff_whatsapp_number_opt_out_scope") {
+          return {
+            data: {
+              phone_key: "7700900111",
+              number_stopped_at: STOP,
+              last_stop_at: STOP,
+              records: [
+                { id: "11111111-1111-4111-8111-111111111111", name: "Sarah Jones", phone: "07700 900111", reason: "asked_on_whatsapp", opted_out_at: STOP },
+              ],
+            },
+            error: null,
+          };
+        }
+        if (fn === "staff_reenable_whatsapp_number") {
+          return {
+            data: {
+              phone_key: "7700900111",
+              human_ids: ["11111111-1111-4111-8111-111111111111"],
+              conversation_ids: [],
+              audit_id: "44444444-4444-4444-8444-444444444444",
+            },
+            error: null,
+          };
+        }
+        return { data: null, error: null };
+      }),
+    };
+    const sarah = { ...stoppedHuman, id: "11111111-1111-4111-8111-111111111111" };
+    const reenabled = [];
+
+    function Harness() {
+      const [humans, setHumans] = useState({ "Sarah Jones": sarah });
+      const [, setHumansById] = useState({ [sarah.id]: sarah });
+      const [, setDirectoryHumans] = useState([sarah]);
+      const { markWhatsappReenabled } = useHumanLifecycle({
+        setHumans,
+        setHumansById,
+        setTotalCount: () => {},
+        setDirectoryHumans,
+      });
+      return (
+        <HumanCardModal
+          humanId={sarah.id}
+          onClose={vi.fn()}
+          humans={humans}
+          dogs={{}}
+          bookingsByDate={{}}
+          onUpdateHuman={vi.fn()}
+          fetchHumanById={vi.fn(() => Promise.resolve(null))}
+          findHumanByFullName={vi.fn(() => null)}
+          searchHumansByTerm={vi.fn(() => Promise.resolve([]))}
+          onWhatsappReenabled={(ids) => {
+            reenabled.push(ids);
+            markWhatsappReenabled(ids);
+          }}
+        />
+      );
+    }
+
+    render(
+      <ToastProvider>
+        <Harness />
+      </ToastProvider>,
+    );
+    expect(screen.queryByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Switch WhatsApp back on…" }));
+    fireEvent.change(await screen.findByLabelText("How and when did they give permission again?"), {
+      target: { value: "Rang the salon on 14 Oct and asked for reminders again." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Switch WhatsApp back on" }));
+
+    expect(await screen.findByText("WhatsApp is back on for 07700 900111.")).toBeInTheDocument();
+    expect(reenabled).toEqual([["11111111-1111-4111-8111-111111111111"]]);
+    // (The cancellation history panel makes its own read once a client exists.)
+    expect(rpcCalls.map(([fn]) => fn).filter((fn) => fn.includes("whatsapp"))).toEqual([
+      "staff_whatsapp_number_opt_out_scope",
+      "staff_reenable_whatsapp_number",
+    ]);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Switch WhatsApp back on?" })).toBeNull());
+    expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
+    expect(screen.queryByText("WhatsApp stopped")).toBeNull();
+    expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
   });
 });

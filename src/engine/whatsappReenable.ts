@@ -76,6 +76,18 @@ export function recordDisplayName(record: Pick<OptOutRecord, "name">): string {
   return record.name.trim() || UNNAMED_RECORD;
 }
 
+/**
+ * The same number however it is typed ("07700 900123", "+447700900123").
+ * Two strings that are not phone numbers at all match only when they are
+ * the same after trimming, so a cleared number never matches a real one.
+ */
+export function isSameNumber(a: string | null | undefined, b: string | null | undefined): boolean {
+  const keyA = phoneMatchKey(a);
+  const keyB = phoneMatchKey(b);
+  if (keyA !== null || keyB !== null) return keyA === keyB;
+  return (a ?? "").trim() === (b ?? "").trim();
+}
+
 export type ReenableErrorKind =
   | "scope_changed"
   | "nothing_to_reenable"

@@ -107,6 +107,39 @@ describe("NumberStoppedBanner", () => {
     expect(onOpenHuman).toHaveBeenCalledWith("human-1");
   });
 
+  it("calls an unnamed linked customer 'the linked customer', never the chat's number", () => {
+    const onOpenHuman = vi.fn();
+    const unnamed = { ...linked, humans: { ...linked.humans, name: "", surname: "" } };
+    const { unmount } = renderBanner(unnamed, { onReenabled: vi.fn() });
+    expect(screen.getByRole("status")).toHaveTextContent("WhatsApp is switched off for the linked customer.");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/07700|900123/);
+    unmount();
+
+    renderBanner({ ...unnamed, humans: { ...unnamed.humans, phone: "07700 900555" } }, { onOpenHuman });
+    const banner = screen.getByRole("status");
+    expect(banner).toHaveTextContent("WhatsApp is switched off for the linked customer.");
+    expect(banner).not.toHaveTextContent(/07700|900123/);
+    fireEvent.click(screen.getByRole("button", { name: "Open their profile" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("human-1");
+  });
+
+  it("names a linked customer from their record, title-cased, surname only if that is all there is", () => {
+    renderBanner({ ...linked, humans: { ...linked.humans, name: "", surname: "jones" } }, { onReenabled: vi.fn() });
+    expect(screen.getByRole("status")).toHaveTextContent("WhatsApp is switched off for Jones.");
+  });
+
+  it("hands the dialog no name for an unnamed linked customer saved elsewhere", () => {
+    const stoppedAndUnnamedElsewhere = {
+      ...linked,
+      whatsapp_opted_out_at: FIRST,
+      whatsapp_last_stop_at: FIRST,
+      humans: { ...linked.humans, name: "", surname: "", phone: "07700 900999" },
+    };
+    renderBanner(stoppedAndUnnamedElsewhere, { onReenabled: vi.fn() });
+    fireEvent.click(reenableButton());
+    expect(dialogSpy.props.at(-1).linkedElsewhere).toEqual({ id: "human-1", name: null });
+  });
+
   it("shows the status with no buttons when no handlers are passed (Booking Desk)", () => {
     renderBanner(unknownNumber);
     expect(screen.getByRole("status")).toBeInTheDocument();

@@ -11,7 +11,8 @@
 //     profile instead.
 // Each button renders only when its handler is passed, so the read-only
 // Booking Desk shows the status alone. The dialog stays mounted while it is
-// open, even once a refresh clears the status it was opened from.
+// open, even once a refresh clears the status it was opened from. A linked
+// record with no name is "the linked customer", never the chat's own number.
 // ============================================================
 
 import { useState } from "react";
@@ -22,7 +23,7 @@ import {
   optOutTimeLabel,
 } from "../../../../engine/whatsappReenable";
 import { ReenableWhatsAppDialog } from "../../../modals/whatsapp-reenable/ReenableWhatsAppDialog.jsx";
-import { displayName } from "../helpers.js";
+import { titleCase } from "../../../../utils/text";
 
 /** WhatsApp sends in this chat are refused because of an opt-out. */
 export function isThreadWhatsappStopped(conversation) {
@@ -32,7 +33,7 @@ export function isThreadWhatsappStopped(conversation) {
 export function NumberStoppedBanner({ conversation, onReenabled, onOpenHuman }) {
   const [open, setOpen] = useState(false);
   const stop = conversationWhatsappStop(conversation);
-  const name = stop.humanId ? displayName(conversation) : "";
+  const name = stop.name ? titleCase(stop.name) : null;
   const numberStopped = stop.kind === "number_stop";
 
   let lead = null;
@@ -46,7 +47,7 @@ export function NumberStoppedBanner({ conversation, onReenabled, onOpenHuman }) 
     followOn =
       "Nothing can be sent to it on WhatsApp — replies, templates and reminders are all blocked — until the customer gives permission again.";
   } else if (stop.kind !== "none") {
-    lead = `WhatsApp is switched off for ${name}.`;
+    lead = `WhatsApp is switched off for ${name ?? "the linked customer"}.`;
     followOn =
       stop.kind === "record_off"
         ? `${optOutReasonLabel(stop.reason)} · since ${optOutTimeLabel(stop.since)}. Nothing can be sent in this chat until it’s switched back on.`
@@ -76,7 +77,7 @@ export function NumberStoppedBanner({ conversation, onReenabled, onOpenHuman }) 
             )}
             {canOpenProfile && (
               <Button variant="ghost" size="sm" className="mt-1.5" onClick={() => onOpenHuman(stop.humanId)}>
-                {`Open ${name}’s profile`}
+                {name ? `Open ${name}’s profile` : "Open their profile"}
               </Button>
             )}
           </div>
