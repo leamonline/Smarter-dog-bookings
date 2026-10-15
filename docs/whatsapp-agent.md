@@ -272,7 +272,9 @@ retried automatically:
   for staff to confirm again.
 - If the number said STOP again since, the note is cleared too: the
   permission it recorded predates that STOP. In the inbox, a newer STOP on
-  the live conversation row holds the button until staff reload.
+  the live conversation row holds the button until staff reload. A STOP no
+  later than one the dialog has shown is not newer, even once a re-enable
+  has cleared it and the row has not caught up.
 - If the connection drops, the outcome is unknown, so the dialog reads the
   scope and the audit to find out whether it went through, and says so
   either way. If either read fails, confirm stays held, and **Check again**
@@ -282,6 +284,8 @@ retried automatically:
   off on the number, it says the profile is out of date and holds confirm
   until staff refresh (in the inbox, if the chat’s number changes, it says
   so and holds confirm too). If Confirm had focus, focus moves to that line.
+  Not when an outcome has found that record proven back on, or no longer on
+  file: the dialog has said so already, so nothing is held for it.
 
 **Outcomes come from the audit log, never from absence.** A record also
 leaves a number’s scope when its phone changes while it stays opted out:
@@ -336,12 +340,15 @@ the dialog reads, through `whatsappOptOutRepo`:
   out-of-date line says it instead, and the notice drops its “then confirm”
   while confirm is held (or while a newer STOP on the live list holds it).
   In the inbox, a linked customer the chat shows saved with another number
-  is named only on its own “linked to this chat” line. Any records still on
-  the number are shown as the new scope.
+  is named only on its own “linked to this chat” line, which stays in an
+  already-on outcome too (sends in the chat are still refused for them, so
+  it never says there is nothing left to do). Any records still on the
+  number are shown as the new scope.
 - **A record the state read does not return** no longer exists (merged into
   another record, or deleted). It is named as such (“Sarah J isn’t on file
   any more — merged into another record, or deleted.”), with no profile
-  button, and reported nothing for.
+  button, and reported nothing for; on its own profile too, where it is
+  never called out of date.
 - A record that left with no row proving it back on, and that does not read
   as switched off either, is named as unconfirmed (“…but we can’t confirm
   WhatsApp was switched back on for them…”) and reported nothing for.

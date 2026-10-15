@@ -511,7 +511,9 @@ export interface ConversationStop {
  *  - record_other_number: the linked customer is switched off, but their
  *    record has another number, so this number's re-enable cannot reach them.
  * whatsapp-send refuses for the linked customer as well as for the number, so
- * a number_stop names a linked customer saved elsewhere too.
+ * a number_stop names a linked customer saved elsewhere too, and so does a
+ * record_other_number: a dialog opened on the STOP stays open once a
+ * re-enable clears it, and must still say the chat is blocked for them.
  */
 export function conversationWhatsappStop(conv: ConversationStopInput | null | undefined): ConversationStop {
   const none: ConversationStop = {
@@ -544,14 +546,9 @@ export function conversationWhatsappStop(conv: ConversationStopInput | null | un
     name,
     reason: humanOff ? human?.whatsapp_opted_out_reason ?? null : null,
     since: humanOff ? human?.whatsapp_opted_out_at ?? null : null,
+    linkedElsewhere: humanOff && !onThisNumber && humanId ? { id: humanId, name } : null,
   };
-  if (firstStopAt) {
-    return {
-      ...stop,
-      kind: "number_stop",
-      linkedElsewhere: humanOff && !onThisNumber && humanId ? { id: humanId, name } : null,
-    };
-  }
+  if (firstStopAt) return { ...stop, kind: "number_stop" };
   if (humanOff) return { ...stop, kind: onThisNumber ? "record_off" : "record_other_number" };
   return { ...stop, kind: "none" };
 }

@@ -92,21 +92,22 @@ export function ReenableWhatsAppDialog({
   });
   const { status, scope, note, notice, liveNewStop } = reenable;
   const customerName = (currentHumanName || "").trim();
-  // The profile is out of date (its record left the number, or its number
-  // changed), or the chat's number changed: confirm is held either way.
+  // The profile is out of date (its record left the number, and no outcome
+  // found it back on or gone, or its number changed), or the chat's number
+  // changed: confirm is held either way.
   const stale = reenable.staleProfile || reenable.numberMoved;
   const busy = status === "submitting" || status === "verifying";
   const isForm = FORM_STATES.has(status) && scope;
   // Records that left the number, not proven back on. The profile's own
-  // record is left to the out-of-date line, and the chat's linked customer
-  // saved elsewhere to its own line, when that line is showing.
+  // record is left to the out-of-date line when that line is showing, and
+  // the chat's linked customer saved elsewhere always to its own line.
   const ownId = context === "profile" ? currentHumanId : null;
   const moved = movedRecords({
     stillOff: reenable.leftNumber,
     unconfirmed: reenable.unconfirmedRecords,
     gone: reenable.goneRecords,
     ownId,
-    hidden: isForm ? [stale && ownId, linkedElsewhere?.id].filter(Boolean) : [],
+    hidden: [isForm && stale && ownId, linkedElsewhere?.id].filter(Boolean),
   });
   const close = () => (busy ? undefined : onClose());
   // Leaving mid-request would hide its outcome, so these wait like Close does.
@@ -136,8 +137,28 @@ export function ReenableWhatsAppDialog({
     unavailable: "Switching WhatsApp back on needs the live database — you’re on sample data. Nothing has been changed.",
     load_error: "Couldn’t check this number — give it another go?",
     blocked: blockedCopy(reenable.errorKind, context),
-    already_on: alreadyOnCopy(reenable.alreadyOnReason, Boolean(moved)),
+    // Sends in the chat are still refused for a linked customer saved elsewhere.
+    already_on: alreadyOnCopy(reenable.alreadyOnReason, Boolean(moved) || Boolean(linkedElsewhere)),
   }[status];
+  const linkedLine = linkedElsewhere && (
+    <div className="m-0">
+      <p className="m-0">
+        {linkedElsewhere.name || "The linked customer"} is linked to this chat but saved with a different
+        number, so this won’t switch them back on. Review it on their profile.
+      </p>
+      {openProfile && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-1.5"
+          disabled={busy}
+          onClick={() => openProfile(linkedElsewhere.id)}
+        >
+          {linkedElsewhere.name ? `Open ${linkedElsewhere.name}’s profile` : "Open their profile"}
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <ModalShell
@@ -200,6 +221,7 @@ export function ReenableWhatsAppDialog({
           )}
         </p>
       )}
+      {status === "already_on" && linkedLine}
       {isForm && (
         <>
           {liveNewStop && (
@@ -233,25 +255,7 @@ export function ReenableWhatsAppDialog({
               disabled={busy}
             />
           </PanelShell>
-          {linkedElsewhere && (
-            <div className="m-0">
-              <p className="m-0">
-                {linkedElsewhere.name || "The linked customer"} is linked to this chat but saved with a different
-                number, so this won’t switch them back on. Review it on their profile.
-              </p>
-              {openProfile && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1.5"
-                  disabled={busy}
-                  onClick={() => openProfile(linkedElsewhere.id)}
-                >
-                  {linkedElsewhere.name ? `Open ${linkedElsewhere.name}’s profile` : "Open their profile"}
-                </Button>
-              )}
-            </div>
-          )}
+          {linkedLine}
           {stale && (
             <p ref={staleRef} tabIndex={-1} role="status" className="m-0 focus:outline-none">
               {context === "inbox"

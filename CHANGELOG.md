@@ -15,7 +15,10 @@
   customer gave permission again (at least 10 characters, sent as written).
   It sends exactly that scope; if anything changed, the number said STOP
   again, or the connection dropped, it reads the scope again and shows the
-  result instead of retrying. A new STOP clears the note.
+  result instead of retrying. A new STOP clears the note; a STOP it has
+  already shown is never taken for a new one once a re-enable clears it. In
+  the inbox, a linked customer saved with another number is named in every
+  outcome, since sends in the chat stay refused for them.
 - What happened is taken from the re-enable audit log, never from a record
   no longer being listed: a record also leaves a number when its phone
   changes, and stays switched off. A record is shown as back on only when an
@@ -23,15 +26,16 @@
   number) and it reads as switched on now; one that left and is switched off
   now is named as such, with a button to open its profile ("their number may
   have changed"), and one merged away or deleted is named as no longer on
-  file, with no button. After a dropped connection the dialog finds its own
-  row (who sent it, its note, exactly the records it sent), so a request that
-  lands late is reported as this one, never as someone else’s, a scope read
-  served just before it committed is read again, and one followed by a new
-  STOP says it went through and is off again; it is reported as done only
-  when nothing on the number is switched off now. Another re-enable is
-  described neutrally ("has already been switched back on"). If the audit or
-  the records cannot be read, nothing is changed on screen and staff check
-  again.
+  file, with no button. A profile whose own record is found back on, or no
+  longer on file, is not called out of date. After a dropped connection the
+  dialog finds its own row (who sent it, its note, exactly the records it
+  sent), so a request that lands late is reported as this one, never as
+  someone else’s, a scope read served just before it committed is read
+  again, and one followed by a new STOP says it went through and is off
+  again; it is reported as done only when nothing on the number is switched
+  off now. Another re-enable is described neutrally ("has already been
+  switched back on"). If the audit or the records cannot be read, nothing is
+  changed on screen and staff check again.
 - The profile header’s "WA" wa.me link is hidden while WhatsApp is switched
   off, so staff cannot message a stopped number from their own phone.
 - The "E" shortcuts (profile edit mode, inbox "Mark complete") no longer fire

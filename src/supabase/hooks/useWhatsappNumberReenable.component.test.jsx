@@ -994,6 +994,58 @@ describe("useWhatsappNumberReenable: outcomes come from the audit log", () => {
       expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] }, "already_on");
     });
 
+    it("in the inbox, the STOP our request cleared is not a new one, though the live list still shows it", async () => {
+      const { result, rerender, initialProps } = await renderUnconfirmed({
+        context: "inbox",
+        currentHumanId: null,
+        observedLastStopAt: STOP,
+      });
+      const tomArrived = { ...EMPTY, records: [{ ...tom, reason: "asked_on_whatsapp", optedOutAt: "2025-06-01T09:00:00+00:00" }] };
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(tomArrived));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+
+      await act(async () => result.current.reload());
+
+      expect(result.current.notice).toEqual({ kind: "changed_since" });
+      expect(result.current.scope.lastStopAt).toBeNull();
+      // The list row keeps the STOP staff were shown until it refreshes.
+      expect(result.current.liveNewStop).toBe(false);
+      expect(result.current.canSubmit).toBe(true);
+
+      // A STOP later than any shown here is still new.
+      rerender({ ...initialProps, observedLastStopAt: LATER_STOP });
+      expect(result.current.liveNewStop).toBe(true);
+      expect(result.current.canSubmit).toBe(false);
+    });
+
+    it("on the profile, its own record proven back on is not out of date, until a later read finds it off elsewhere", async () => {
+      const { result } = await renderUnconfirmed();
+      const tomArrived = { ...EMPTY, records: [{ ...tom, reason: "asked_on_whatsapp", optedOutAt: "2025-06-01T09:00:00+00:00" }] };
+      mocks.getNumberOptOutScope.mockResolvedValueOnce(ok(tomArrived));
+      mocks.listNumberReenables.mockResolvedValueOnce(ok([auditRow()]));
+      await act(async () => result.current.reload());
+
+      expect(result.current.notice).toEqual({ kind: "changed_since" });
+      expect(result.current.staleProfile).toBe(false);
+      expect(result.current.canSubmit).toBe(true);
+
+      // A later read that does not cover her keeps it so.
+      const bea = { id: "66666666-6666-4666-8666-666666666666", name: "Bea Smith", phone: PHONE, reason: "Asked by phone", optedOutAt: LATER_STOP };
+      const withBea = { ...tomArrived, records: [...tomArrived.records, bea] };
+      await submitRefused({ result }, withBea);
+      expect(result.current.notice?.kind).toBe("scope_changed");
+      expect(result.current.staleProfile).toBe(false);
+
+      // Switched off again here, then off this number: the profile is out of date now.
+      const sarahAgain = { ...scope().records[0], reason: "Asked by phone", optedOutAt: LATER_STOP };
+      await submitRefused({ result }, { ...withBea, records: [...withBea.records, sarahAgain] });
+      expect(result.current.staleProfile).toBe(false);
+      await submitRefused({ result }, withBea);
+      expect(result.current.leftNumber.map((record) => record.id)).toEqual([SARAH]);
+      expect(result.current.staleProfile).toBe(true);
+      expect(result.current.canSubmit).toBe(false);
+    });
+
     it("once our row is found, a later refused confirm never finds it again", async () => {
       // Tom has been off since 2025 and moves onto the number, so every audit
       // read from here on reaches back past our row and returns it again.

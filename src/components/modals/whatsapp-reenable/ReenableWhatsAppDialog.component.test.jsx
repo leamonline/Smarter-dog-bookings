@@ -763,9 +763,143 @@ describe("ReenableWhatsAppDialog", () => {
       const alert = (await screen.findByText(/Something changed on this number while you were looking/)).closest('[role="alert"]');
       expect(alert).toHaveTextContent("Sarah Jones isn’t on file any more — merged into another record, or deleted.");
       expect(alert).not.toHaveTextContent(/may have changed|can’t confirm/);
+      // Gone is not "switched back on".
+      expect(alert).not.toHaveTextContent("No longer switched off");
       expect(within(alert).queryByRole("button", { name: /profile/ })).toBeNull();
       expect(screen.getByRole("region", { name: "Switched off on this number (1)" })).toBeInTheDocument();
       expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("on the profile of a record merged away while it was open, names it as no longer on file, never out of date", async () => {
+      // Staff are on the duplicate's profile when a colleague merges it into the other Sarah Jones.
+      const duplicate = { ...SCOPE.records[1], name: "Sarah Jones" };
+      const client = makeClient({
+        scopes: [
+          { data: { ...SCOPE, records: [SCOPE.records[0], duplicate] }, error: null },
+          { data: { ...SCOPE, records: [SCOPE.records[0]] }, error: null },
+        ],
+        reenables: [REFUSED],
+        states: [{ data: [], error: null }],
+      });
+      const { onReenabled } = await ready({ currentHumanId: TOM, onOpenHuman: vi.fn() }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const alert = (await screen.findByText(/Something changed on this number while you were looking/)).closest('[role="alert"]');
+      expect(alert).toHaveTextContent("Sarah Jones isn’t on file any more — merged into another record, or deleted.");
+      expect(screen.queryAllByText(/may have changed|current number|Refresh/)).toHaveLength(0);
+      // Nothing a refresh would show: confirm is not held for it.
+      expect(alert).toHaveTextContent("Check the list again, then confirm.");
+      expect(confirm()).toBeEnabled();
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("on the profile, a dropped request that went through, with the number changed since, never calls its record out of date", async () => {
+      const CAT = "55555555-5555-4555-8555-555555555555";
+      const catOnly = {
+        ...EMPTY,
+        records: [{ id: CAT, name: "Cat Lee", phone: "07700 900123", reason: "Asked by phone", opted_out_at: "2026-12-02T11:00:00+00:00" }],
+      };
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: catOnly, error: null }],
+        reenables: [DROPPED],
+        audits: [audit(auditRow())],
+      });
+      const { onReenabled, onClose } = await ready({ onOpenHuman: vi.fn() }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      expect(await screen.findByText(/^Your change went through, but this number has changed since/)).toBeInTheDocument();
+      expect(screen.queryAllByText(/may have changed|current number|Refresh/)).toHaveLength(0);
+      expect(screen.getByRole("region", { name: "Switched off on this number (1)" })).toHaveTextContent("Cat Lee");
+      expect(confirm()).toBeEnabled();
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH, TOM], conversationIds: [] });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("says our request went through and names a record merged away before the check, never 'done'", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [DROPPED],
+        audits: [audit(auditRow())],
+        // Tom was merged into another record after our request committed.
+        states: [{ data: [{ id: SARAH, whatsapp_opted_out: false }], error: null }],
+      });
+      const { onReenabled, onClose } = await ready({ context: "inbox", currentHumanId: null }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const message = await screen.findByText(/^Your change went through — WhatsApp is back on for this number\.$/);
+      expect(message).toHaveTextContent("An unnamed record isn’t on file any more — merged into another record, or deleted.");
+      expect(onReenabled).toHaveBeenCalledWith({ humanIds: [SARAH], conversationIds: [] });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("on the profile, says nothing is switched off any more when every record it showed is gone, its own included", async () => {
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [REFUSED],
+        states: [{ data: [], error: null }],
+      });
+      const { onReenabled } = await ready({ onOpenHuman: vi.fn() }, client);
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      const message = await screen.findByText("Nothing is switched off on this number any more.");
+      expect(message).toHaveTextContent(
+        "Sarah Jones and an unnamed record aren’t on file any more — merged into another record, or deleted.",
+      );
+      expect(within(message).queryAllByRole("button")).toHaveLength(0);
+      expect(onReenabled).not.toHaveBeenCalled();
+    });
+
+    it("in the inbox, an already-on outcome still names the linked customer saved elsewhere", async () => {
+      const BEA = "66666666-6666-4666-8666-666666666666";
+      const onOpenHuman = vi.fn();
+      const client = makeClient({
+        scopes: [{ data: SCOPE, error: null }, { data: EMPTY, error: null }],
+        reenables: [REFUSED],
+        audits: [audit(auditRow({ reenabled_by: COLLEAGUE }))],
+      });
+      const { onClose } = await ready(
+        { context: "inbox", currentHumanId: BEA, linkedElsewhere: { id: BEA, name: "Bea Smith" }, onOpenHuman },
+        client,
+      );
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      // Sends in the chat are still refused for her, so there is something left to do.
+      expect(await screen.findByText("WhatsApp has already been switched back on for this number.")).toBeInTheDocument();
+      expect(screen.queryByText(/nothing left to do/)).toBeNull();
+      expect(screen.getByText(/^Bea Smith is linked to this chat but saved with a different number/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Open Bea Smith’s profile" }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onOpenHuman).toHaveBeenCalledWith(BEA);
+    });
+
+    it("in the inbox, an already-on outcome names the linked customer who moved once, on the linked-customer line", async () => {
+      const client = makeClient({
+        scopes: [{ data: { ...SCOPE, records: [SCOPE.records[0]] }, error: null }, { data: EMPTY, error: null }],
+        reenables: [REFUSED],
+      });
+      const props = { phone: "+447700900123", context: "inbox", currentHumanId: SARAH, onOpenHuman: vi.fn() };
+      const view = await ready(props, client);
+      view.rerender(
+        <ToastProvider>
+          <ReenableWhatsAppDialog
+            {...props}
+            linkedElsewhere={{ id: SARAH, name: "Sarah Jones" }}
+            onClose={view.onClose}
+            onReenabled={view.onReenabled}
+          />
+        </ToastProvider>,
+      );
+      type(NOTE);
+      await act(async () => fireEvent.click(confirm()));
+
+      expect(await screen.findByText("Nothing is switched off on this number any more.")).toBeInTheDocument();
+      expect(screen.queryByText(/isn’t switched off on this number any more/)).toBeNull();
+      expect(screen.getAllByRole("button", { name: "Open Sarah Jones’s profile" })).toHaveLength(1);
     });
 
     it("in the inbox, sends staff to the chat's own customer's profile when they moved, never to refresh", async () => {

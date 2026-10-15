@@ -363,6 +363,8 @@ describe("conversationWhatsappStop", () => {
     });
     expect(stop.kind).toBe("record_other_number");
     expect(stop.name).toBe("Sarah Jones");
+    // Still named once the number's STOP is cleared: sends here stay refused for them.
+    expect(stop.linkedElsewhere).toEqual({ id: "human-1", name: "Sarah Jones" });
   });
 
   it("is record_other_number when the linked customer has no number", () => {

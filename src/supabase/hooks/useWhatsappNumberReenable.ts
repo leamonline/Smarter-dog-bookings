@@ -107,7 +107,10 @@ export interface UseWhatsappNumberReenableOptions {
   /** The number to switch back on. Only its value when the dialog opens is used. */
   phone: string;
   context: "profile" | "inbox";
-  /** The profile's own record, to spot one that is no longer in scope. */
+  /**
+   * The profile's own record, to spot one that is no longer in scope (and
+   * that no outcome has found back on, or gone).
+   */
   currentHumanId?: string | null;
   /** Inbox only: the realtime list row's latest STOP, to spot a newer one. */
   observedLastStopAt?: string | null;
@@ -209,6 +212,13 @@ export function useWhatsappNumberReenable({
   const [unconfirmedRecords, setUnconfirmedRecords] = useState<OptOutRecord[]>([]);
   // Records staff were shown that no longer exist (merged away, or deleted).
   const [goneRecords, setGoneRecords] = useState<OptOutRecord[]>([]);
+  // Records an outcome found back on (proven) or gone, until a later one
+  // finds otherwise. On the profile of one the dialog has already said what
+  // a refresh would show, so it is not out of date and holds nothing.
+  const [settledIds, setSettledIds] = useState<string[]>([]);
+  // The latest STOP any scope shown here carried. A re-enable since clears
+  // the scope's, but the live list can still show that STOP until it refreshes.
+  const [shownStopAt, setShownStopAt] = useState<string | null>(null);
   const [note, setNoteValue] = useState("");
   const [noteTouched, setNoteTouched] = useState(false);
 
@@ -327,6 +337,7 @@ export function useWhatsappNumberReenable({
   const adopt = useCallback((next: NumberOptOutScope) => {
     scopeRef.current = next;
     setScope(next);
+    setShownStopAt((shown) => (isNewerStop(next.lastStopAt, shown) ? next.lastStopAt : shown));
     setErrorKind(null);
   }, []);
 
@@ -402,6 +413,8 @@ export function useWhatsappNumberReenable({
         return;
       }
       if (proven.length > 0) onReenabledRef.current?.({ humanIds: proven, conversationIds: [] }, "already_on");
+      const shownIds = new Set(previous.records.map((record) => record.id));
+      setSettledIds((ids) => [...ids.filter((id) => !shownIds.has(id)), ...proven, ...goneIds]);
       setLeftNumber(pick(leftIds));
       setUnconfirmedRecords(pick(unconfirmedIds));
       setGoneRecords(pick(goneIds));
@@ -534,8 +547,10 @@ export function useWhatsappNumberReenable({
     return settle(job);
   }, [load, settle]);
 
+  // Against the scope's own STOP, or, once a re-enable has cleared it, the
+  // latest one shown: a STOP no later than that is one staff already saw.
   const liveNewStop =
-    status === "ready" && scope !== null && isNewerStop(observedLastStopAt, scope.lastStopAt);
+    status === "ready" && scope !== null && isNewerStop(observedLastStopAt, scope.lastStopAt ?? shownStopAt);
   // The record's number moved after the dialog opened (another member of
   // staff, or the customer in the portal, changed it).
   const numberMoved = !isSameNumber(pinnedPhone, phone);
@@ -545,7 +560,8 @@ export function useWhatsappNumberReenable({
       (Boolean(currentHumanId) &&
         scope !== null &&
         !isScopeEmpty(scope) &&
-        !scope.records.some((record) => record.id === currentHumanId)));
+        !scope.records.some((record) => record.id === currentHumanId) &&
+        !settledIds.includes(currentHumanId as string)));
   const canSubmit =
     status === "ready" &&
     !isScopeEmpty(scope) &&

@@ -207,6 +207,27 @@ describe("NumberStoppedBanner", () => {
     });
   });
 
+  it("keeps telling an open dialog about the linked customer once the number's STOP is cleared", () => {
+    const stoppedAndLinkedElsewhere = {
+      ...linked,
+      whatsapp_opted_out_at: FIRST,
+      whatsapp_last_stop_at: FIRST,
+      humans: { ...linked.humans, phone: "07700 900999" },
+    };
+    const view = renderBanner(stoppedAndLinkedElsewhere, { onReenabled: vi.fn() });
+    fireEvent.click(reenableButton());
+    // A re-enable clears the STOP, and the list refreshes with the dialog still open.
+    view.rerender(
+      <ToastProvider>
+        <NumberStoppedBanner
+          conversation={{ ...stoppedAndLinkedElsewhere, whatsapp_opted_out_at: null, whatsapp_last_stop_at: null }}
+          onReenabled={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+    expect(dialogSpy.props.at(-1).linkedElsewhere).toEqual({ id: "human-1", name: "Sarah Jones" });
+  });
+
   it("renders nothing for an SMS thread or a chat with nothing switched off", () => {
     const { container } = renderBanner({ ...unknownNumber, channel: "sms" });
     expect(container).toBeEmptyDOMElement();
