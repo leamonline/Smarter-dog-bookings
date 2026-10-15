@@ -158,8 +158,9 @@ const FROM_US = String.raw`(?:\s+from\s+(?:you|the\s+salon|smarter\s+dog))?`;
 
 // A clause that is nothing but the request: "STOP", "Stop please", "STOP ALL",
 // "Stop promotions" (Meta's marketing opt-out button), "unsubscribe", "opt
-// out", "leave me alone". Only as the first or last clause of a message: "No
-// thanks, stop" and "Stop. Wrong person." are requests.
+// out", "leave me alone". Only as a whole clause followed by nothing but
+// sign-offs: "No thanks, stop", "Stop. Wrong person." and "Hi, STOP, thanks"
+// are requests.
 const BARE_STOP = new RegExp(
   String.raw`^(?:(?:please|pls|plz)\s+)?(?:stop(?:\s+(?:all|it|promotions?))?|unsubscribe|opt[\s-]?out|leave\s+(?:me|us)\s+alone)` + TAIL,
   "i",
@@ -228,7 +229,7 @@ const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not)(?:\s+(?:you|to|ever|please
 // asking about a stop is not asking for one.
 const PAST_STOP = /\b(?:stopped|unsubscribed)\b|\b(?:did|didn'?t|have|haven'?t|has|hasn'?t|had)\s+(?:(?:you|u|they|we|it)\s+)?(?:stop|unsubscribe)\b/i;
 
-// What may follow a leading bare STOP: thanks, a goodbye, or why.
+// What may follow a bare STOP: thanks, a goodbye, or why.
 const SIGN_OFF = /^(?:(?:thanks?|thank\s+you|thx|ta|cheers|please|pls|bye|goodbye|no\s+thanks|not\s+interested)(?:\s+(?:you|very\s+much))?|wrong\s+(?:person|number))$/i;
 
 // A clause that only limits the one before it: when, until or for how long.
@@ -251,13 +252,10 @@ export function isOptOutRequest(messageText: string | null | undefined): boolean
     // "Please don't message me, until Bella is ready": the next clause
     // qualifies this one, so it is scheduling, not a stop (#1016 review).
     if (QUALIFIER.test(clauses[index + 1] ?? "")) return false;
-    // A bare STOP counts as the last clause ("No thanks, stop"), or as the
-    // first when nothing but a sign-off follows it ("Stop. Wrong person.");
-    // "Stop, I meant Tuesday" is a correction, not a stop (#1016 review).
-    if (BARE_STOP.test(clause)) {
-      if (index === clauses.length - 1) return true;
-      if (index === 0 && clauses.slice(1).every((rest) => SIGN_OFF.test(rest))) return true;
-    }
+    // A bare STOP counts as a whole clause followed by nothing but sign-offs:
+    // "No thanks, stop", "Stop. Wrong person.", "Hi, STOP, thanks". "Stop, I
+    // meant Tuesday" is a correction, not a stop (#1016 review).
+    if (BARE_STOP.test(clause) && clauses.slice(index + 1).every((rest) => SIGN_OFF.test(rest))) return true;
     return OPT_OUT_PATTERNS.some((pattern) => pattern.test(clause));
   });
 }

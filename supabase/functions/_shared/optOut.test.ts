@@ -152,6 +152,16 @@ Deno.test("recognises the ways customers ask us to stop", () => {
     "how do I stop receiving messages",
     "Please stop messaging this number",
     "Stop, not interested",
+    // #1016 review: a bare STOP between a greeting and a sign-off
+    "Please, STOP, thanks",
+    "Hi, STOP, thanks",
+    "Ok, STOP, cheers",
+    "Hi. Stop. Thanks",
+    "Hello, please stop, thank you",
+    "Not interested, STOP, thanks",
+    "Hi, opt out, thanks",
+    "Hi, leave me alone, thanks",
+    "Hi, stop, wrong person",
   ]) {
     assert(isOptOutRequest(text), `expected opt-out: ${text}`);
   }
@@ -233,6 +243,17 @@ Deno.test("does not mistake ordinary salon chat for an opt-out", () => {
     "Don't send me any more messages about the deposit",
     "I don't want any more messages about Bella",
     "I need to stop receiving reminders for Max",
+    // #1016 review: a bare STOP in the middle still counts only when nothing
+    // but sign-offs follows it
+    "Please, stop, I meant Tuesday",
+    "Hi, stop, I booked the wrong dog",
+    "Ok, stop, that's the wrong date",
+    "Hi, stop, wrong dog",
+    "Please, stop, thanks, I meant Tuesday",
+    "Ok, stop, until Tuesday",
+    "Hi, stop, thanks, until Tuesday",
+    "Hi, stop, just for this week, thanks",
+    "Ok, stop, he's fine",
     "",
     null,
     undefined,

@@ -302,10 +302,11 @@ into clauses (at `. ! ? , ;`, line breaks and dashes) and each clause is tested
 on its own. Most patterns must reach the **end** of the clause, allowing only
 politeness after them ("please", "thanks", "any more"). Each line below counts
 as a STOP:
-- The carrier words as a whole first or last clause: `STOP`, `STOP ALL`,
-  "Stop promotions" (Meta's marketing button), `unsubscribe`, `opt out`,
-  "stop please", "leave me alone". So "No thanks, stop" and "Stop. Wrong
-  person." count, and emoji are ignored.
+- The carrier words as a whole clause followed only by sign-offs (thanks,
+  bye, wrong person): `STOP`, `STOP ALL`, "Stop promotions" (Meta's
+  marketing button), `unsubscribe`, `opt out`, "stop please", "leave me
+  alone". So "No thanks, stop", "Stop. Wrong person." and "Hi, STOP,
+  thanks" count, and emoji are ignored.
 - Requests aimed at our messages: "please stop all messages", "stop
   messaging", "please stop sending messages", "how do I stop these
   messages?", "why won't you stop messaging me?", "don't ever message me
