@@ -390,6 +390,9 @@ describe("local release evidence in the migration merge gate", () => {
     expect(gate).toContain("order by position desc limit 1");
     expect(gate).toContain("printf '%s' \"$rows\" | node scripts/release/merge-gate.mjs");
     expect(gate).toContain("node-version: 24");
+    expect(gate).toContain("s like '-- applied to production % verification-actions-v1 %'");
+    expect(gate).toContain("  actions: read");
+    expect(gate).toContain("GH_TOKEN: ${{ github.token }}");
   });
 });
 

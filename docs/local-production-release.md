@@ -169,8 +169,15 @@ prefix/suffix that the merge gate parses; no fake Actions URL is invented.
 For ledger rows carrying local-release provenance, `migrations-applied` also
 requires the matching durable attempt to be `succeeded` with a finish timestamp.
 Missing bootstrap, unknown attempts or failed final postconditions block the
-merge even where the SQL ledger already matches. Legacy Actions provenance
-continues through its existing checks.
+merge even where the SQL ledger already matches. New production Actions applies also record `verification-actions-v1` with the
+exact Actions run ID and attempt number. For the latest governed provenance on
+each relevant row, the merge gate reads that exact attempt from GitHub and
+requires this repository, the production apply workflow, `workflow_dispatch`,
+and a completed successful outcome. Missing, unreadable, cancelled, failed or
+in-progress run evidence blocks merging even when SQL committed. A later rerun
+cannot replace the recorded attempt. The workflow token has read-only Actions
+access for this verification. Historical unmarked Actions provenance continues
+through its existing checks; staging requires no new bootstrap.
 
 ## Failure and reconciliation
 

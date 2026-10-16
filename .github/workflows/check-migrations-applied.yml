@@ -59,6 +59,10 @@ on:
 # Same reasoning as ci.yml: one in-flight run per branch, superseded pull-request
 # runs cancelled, main runs always allowed to finish. This check runs on every
 # pull-request push too, so it was multiplying alongside CI.
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: migrations-applied-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -139,6 +143,7 @@ jobs:
         if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ADDED_FILES: ${{ steps.added.outputs.files }}
           DELETED_FILES: ${{ steps.added.outputs.deleted }}
@@ -215,7 +220,7 @@ jobs:
           if [ -n "$PR_NUMBER" ]; then
             provenance="(select string_agg(s, E'\n') from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')"
           fi
-          local_release="(select s from unnest(coalesce(statements, '{}')) with ordinality as entry(s, position) where s like '-- applied to production % local release %' order by position desc limit 1)"
+          local_release="(select s from unnest(coalesce(statements, '{}')) with ordinality as entry(s, position) where s like '-- applied to production % local release %' or s like '-- applied to production % verification-actions-v1 %' order by position desc limit 1)"
           query="select version, name, $recorded_sql as recorded_sql, $provenance as provenance, $local_release as local_release from supabase_migrations.schema_migrations"
           resp=$(curl -sS -X POST \
             "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
@@ -231,9 +236,9 @@ jobs:
             exit 1
           fi
 
-          # A populated ledger cannot make a failed local postcondition green.
-          # The helper reads only the explicit production target and refuses
-          # absent/unknown attempt records; legacy Actions rows remain compatible.
+          # A populated ledger cannot make a failed release postcondition green.
+          # Check the latest local attempt or exact new Actions run attempt;
+          # missing/unknown evidence refuses merge. Historical rows remain compatible.
           printf '%s' "$rows" | node scripts/release/merge-gate.mjs
 
           applied_versions=$(echo "$rows" | jq -r '.[].version // empty')

@@ -7,7 +7,9 @@
 - Shared migration engine now holds one PostgreSQL session lock across per-file
   atomic writes and final verification. Proposed separately installed attempt
   records prevent local approval replay, including reapply; the merge gate refuses
-  failed/unknown local postconditions even when SQL is recorded.
+  failed/unknown local postconditions even when SQL is recorded. New production
+  Actions releases additionally require successful verification of their exact run
+  attempt before the migration gate passes; historical provenance stays compatible.
 - Added disposable PostgreSQL failure/concurrency tests and operator setup/recovery
   documentation. Human unlock, signing/enrolment, bootstrap installation and staging
   acceptance remain outstanding; production execution and workflow retirement are

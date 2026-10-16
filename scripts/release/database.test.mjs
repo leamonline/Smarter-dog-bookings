@@ -2,10 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { apply, LOCK_KEY } from './engine.mjs';
+import { verifyLocalReleases } from './merge-gate.mjs';
 
 test('real PostgreSQL: atomic files, exact ledger, replay, partial apply, lock contention and lost lock-holder', {timeout:120000}, async () => {
   const root = mkdtempSync('/tmp/release-pg-');
@@ -42,6 +43,29 @@ test('real PostgreSQL: atomic files, exact ledger, replay, partial apply, lock c
     const four=migration(4,'create table public.release_test_four(id int);');
     r=await apply({migrations:[four],query:'select false',digest:'3'.repeat(64)},env); assert.notEqual(r.status,'succeeded'); assert.equal(r.files[0].outcome,'applied');
     assert.equal(query("select to_regclass('public.release_test_four') is not null"),'t');
+    // Newly executed Actions releases commit SQL before final verification too.
+    // Exercise the actual merge-gate verifier with rows read from this real ledger.
+    for (const [suffix, postcondition, conclusion] of [[10,'select false','failure'],[11,'select pg_terminate_backend(pg_backend_pid())',null],[12,'select true','success']]) {
+      const actionsFile={name:`202610160000${suffix}_actions_${suffix}.sql`,sql:`create table public.actions_${suffix}(id int);`};
+      const actionsProvenance=`-- applied to production from pull request #1016 head ${'a'.repeat(40)} by operator, run https://github.com/leamonline/Smarter-dog-bookings/actions/runs/${suffix} verification-actions-v1 attempt 1`;
+      mkdirSync(join(root,'supabase/migrations'),{recursive:true});
+      writeFileSync(join(root,'supabase/migrations',actionsFile.name),actionsFile.sql);
+      if (suffix === 10) {
+        assert.throws(() => execFileSync(process.execPath,[new URL('./engine.mjs',import.meta.url).pathname,actionsFile.name],{cwd:root,env:{...env,LEDGER_PROVENANCE:actionsProvenance.replace(' verification-actions-v1 attempt 1',''),POSTCONDITION_SQL:postcondition},stdio:['ignore','pipe','pipe']}), error => /Missing Actions attempt identity/.test(error.stderr.toString()));
+        assert.equal(query(`select to_regclass('public.actions_${suffix}') is null`),'t');
+      }
+      let output;
+      try { output=execFileSync(process.execPath,[new URL('./engine.mjs',import.meta.url).pathname,actionsFile.name],{cwd:root,env:{...env,LEDGER_PROVENANCE:actionsProvenance.replace(' verification-actions-v1 attempt 1',''),GITHUB_RUN_ATTEMPT:'1',POSTCONDITION_SQL:postcondition},encoding:'utf8',stdio:['ignore','pipe','pipe']}); }
+      catch(error) { assert.equal(error.status,1); output=error.stdout; }
+      const applied=JSON.parse(output);
+      assert.match(query(`select statements[1] from supabase_migrations.schema_migrations where version='202610160000${suffix}'`), /verification-actions-v1 attempt 1/);
+      assert.equal(query(`select to_regclass('public.actions_${suffix}') is not null`),'t','SQL committed despite later verification outcome');
+      const ledger=JSON.parse(query(`select json_agg(r) from (select statements[array_upper(statements,1)] as recorded_sql, statements[1] as provenance, (select s from unnest(coalesce(statements, '{}')) with ordinality as entry(s, position) where s like '-- applied to production % local release %' or s like '-- applied to production % verification-actions-v1 %' order by position desc limit 1) as local_release from supabase_migrations.schema_migrations where version='202610160000${suffix}') r`));
+      const request=async()=>({ok:true,json:async()=>({id:suffix,run_attempt:1,repository:{full_name:'leamonline/Smarter-dog-bookings'},path:'.github/workflows/production-apply-migrations.yml',event:'workflow_dispatch',status:conclusion?'completed':'in_progress',conclusion})});
+      assert.equal(applied.status==='succeeded', conclusion==='success');
+      if(conclusion==='success') await verifyLocalReleases(ledger,{GH_TOKEN:'synthetic'},request);
+      else await assert.rejects(verifyLocalReleases(ledger,{GH_TOKEN:'synthetic'},request));
+    }
     const slow=migration(5,'select pg_sleep(20); create table public.release_never(id int);');
     const later=migration(6,'create table public.release_later_never(id int);');
     const holder=apply({migrations:[slow,later],digest:'4'.repeat(64)},env);
@@ -75,7 +99,7 @@ test('real PostgreSQL: atomic files, exact ledger, replay, partial apply, lock c
     // Provenance format stays compatible with the existing gate's prefix/suffix.
     const provenance='-- applied to production from pull request #1016 head '+ 'a'.repeat(40)+' by operator, local release synthetic';
     r=await apply({migrations:[one],provenance},env); assert.equal(r.status,'succeeded');
-    const marker=query("select s from supabase_migrations.schema_migrations,unnest(statements) s where s like '-- applied to production from pull request #1016 head %'");
+    const marker=query("select s from supabase_migrations.schema_migrations,unnest(statements) s where name='test_1' and s like '-- applied to production from pull request #1016 head %'");
     assert.match(marker,/ \(file 20261015000001_test_1.sql\)$/);
     assert.equal(query("select (select s from unnest(coalesce(statements, '{}')) with ordinality as entry(s, position) where s like '-- applied to production % local release %' order by position desc limit 1) from supabase_migrations.schema_migrations where name='test_1'"),marker);
     // Version-only aliases must never be overwritten or treated as a skip.

@@ -1,5 +1,5 @@
 // Read-only extension of migrations-applied. SQL presence alone cannot attest
-// that the local release's final postcondition succeeded.
+// that a release's final postcondition succeeded.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -9,6 +9,7 @@ export function releaseDigests(rows) {
   for (const row of rows) {
     if (row.recorded_sql == null && row.provenance == null) continue;
     if (row.local_release == null) continue; // Legacy Actions provenance.
+    if (row.local_release.includes(' verification-actions-v1 ')) continue;
     const match = /^-- applied to production from pull request #[1-9][0-9]* head [a-f0-9]{40} by [A-Za-z0-9-]+, local release [a-f0-9-]{36} release-sha256 ([a-f0-9]{64}) \(file [0-9]{14}_[a-z0-9_]+\.sql\)$/.exec(row.local_release);
     if (!match) throw Error('Unreadable local release provenance');
     digests.add(match[1]);
@@ -22,7 +23,26 @@ export function assertSucceeded(digests, attempts) {
     if (rows.length !== 1 || rows[0].outcome !== 'succeeded' || !rows[0].finished_at) throw Error('Local release has not passed its postcondition; reconcile before merge');
   }
 }
+export async function verifyActionsReleases(rows, env = process.env, request = fetch) {
+  if (!Array.isArray(rows)) throw Error('Invalid ledger response');
+  const evidence = new Map();
+  for (const row of rows) {
+    if (row.recorded_sql == null && row.provenance == null) continue;
+    if (!row.local_release?.includes(' verification-actions-v1 ')) continue;
+    const match = /^-- applied to production from (?:pull request #[1-9][0-9]* head|main) [a-f0-9]{40} by [A-Za-z0-9-]+, run https:\/\/github\.com\/leamonline\/Smarter-dog-bookings\/actions\/runs\/([1-9][0-9]*) verification-actions-v1 attempt ([1-9][0-9]*) \(file [0-9]{14}_[a-z0-9_]+\.sql\)$/.exec(row.local_release);
+    if (!match) throw Error('Unreadable Actions verification provenance');
+    evidence.set(`${match[1]}/${match[2]}`, {id: Number(match[1]), attempt: Number(match[2])});
+  }
+  for (const [key, expected] of evidence) {
+    if (!env.GH_TOKEN) throw Error('Missing Actions read credential');
+    const response = await request(`https://api.github.com/repos/leamonline/Smarter-dog-bookings/actions/runs/${key.replace('/', '/attempts/')}`, {headers:{Authorization:`Bearer ${env.GH_TOKEN}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
+    if (!response.ok) throw Error('Cannot read Actions release evidence');
+    const run = await response.json();
+    if (run.id !== expected.id || run.run_attempt !== expected.attempt || run.repository?.full_name !== 'leamonline/Smarter-dog-bookings' || run.path !== '.github/workflows/production-apply-migrations.yml' || run.event !== 'workflow_dispatch' || run.status !== 'completed' || run.conclusion !== 'success') throw Error('Actions release has not completed successfully');
+  }
+}
 export async function verifyLocalReleases(rows, env = process.env, request = fetch) {
+  await verifyActionsReleases(rows, env, request);
   const digests = releaseDigests(rows);
   if (!digests.length) return;
   // The Management API target is explicit, never inferred from a local link.
@@ -34,6 +54,6 @@ export async function verifyLocalReleases(rows, env = process.env, request = fet
   assertSucceeded(digests, Array.isArray(body) ? body : body.result);
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  try { await verifyLocalReleases(JSON.parse(readFileSync(0,'utf8'))); console.log('Local release postcondition evidence verified (or legacy workflow only).'); }
-  catch { console.error('Local release evidence missing, unknown or unsuccessful; migrations-applied refuses merge.'); process.exitCode=1; }
+  try { await verifyLocalReleases(JSON.parse(readFileSync(0,'utf8'))); console.log('Release postcondition evidence verified (or historical provenance only).'); }
+  catch { console.error('Release evidence missing, unknown or unsuccessful; migrations-applied refuses merge.'); process.exitCode=1; }
 }

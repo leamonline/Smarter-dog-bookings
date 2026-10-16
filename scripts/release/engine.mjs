@@ -109,7 +109,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) throw Error('Migration must be a regular file');
     return { name, sql: readFileSync(path, 'utf8') };
   });
-  const result = await apply({ migrations, reapply: (process.env.REAPPLY_MIGRATIONS || '').split(/\s+/).filter(Boolean), provenance: process.env.LEDGER_PROVENANCE || '', query: process.env.POSTCONDITION_SQL });
+  let provenance = process.env.LEDGER_PROVENANCE || '';
+  if (/^-- applied to production .*?, run /.test(provenance)) {
+    if (!/^[1-9][0-9]*$/.test(process.env.GITHUB_RUN_ATTEMPT || '')) throw Error('Missing Actions attempt identity');
+    provenance += ` verification-actions-v1 attempt ${process.env.GITHUB_RUN_ATTEMPT}`;
+  }
+  const result = await apply({ migrations, reapply: (process.env.REAPPLY_MIGRATIONS || '').split(/\s+/).filter(Boolean), provenance, query: process.env.POSTCONDITION_SQL });
   console.log(JSON.stringify(result));
   process.exitCode = result.status === 'succeeded' ? 0 : 1;
 }

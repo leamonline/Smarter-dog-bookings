@@ -137,3 +137,19 @@ test('merge gate requires successful final postcondition evidence and preserves 
     return {ok:true,json:async()=>[{digest,outcome:'succeeded',finished_at:'now'}]};
   });
 });
+
+test('new Actions evidence binds exact run attempt, repository, workflow and completed success', async () => {
+  const row={recorded_sql:'select 1;',provenance:'present',local_release:`-- applied to production from pull request #1 head ${source} by operator, run https://github.com/leamonline/Smarter-dog-bookings/actions/runs/123 verification-actions-v1 attempt 2 (file 20261015000000_test.sql)`};
+  const env={GH_TOKEN:'synthetic'};
+  const good={id:123,run_attempt:2,repository:{full_name:'leamonline/Smarter-dog-bookings'},path:'.github/workflows/production-apply-migrations.yml',event:'workflow_dispatch',status:'completed',conclusion:'success'};
+  const response=run=>async url=>{assert.equal(url,'https://api.github.com/repos/leamonline/Smarter-dog-bookings/actions/runs/123/attempts/2');return {ok:true,json:async()=>run};};
+  await verifyLocalReleases([row],env,response(good));
+  for (const patch of [{id:124},{run_attempt:3},{repository:{full_name:'foreign/repo'}},{path:'.github/workflows/staging-apply-migrations.yml'},{event:'push'},{status:'in_progress'},{conclusion:'failure'},{conclusion:'cancelled'},{conclusion:null},{}]) {
+    if (!Object.keys(patch).length) await assert.rejects(verifyLocalReleases([row],env,response({})));
+    else await assert.rejects(verifyLocalReleases([row],env,response({...good,...patch})));
+  }
+  await assert.rejects(verifyLocalReleases([row],{},response(good)));
+  await assert.rejects(verifyLocalReleases([row],env,async()=>({ok:false})));
+  await assert.rejects(verifyLocalReleases([row],env,async()=>{throw Error('unreadable');}));
+  await assert.rejects(verifyLocalReleases([{...row,local_release:row.local_release.replace('attempt 2','attempt unknown')}],env,response(good)));
+});
