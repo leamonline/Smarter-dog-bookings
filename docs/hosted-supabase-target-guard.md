@@ -72,3 +72,23 @@ link-state file exists and is non-empty, and its value equals that expected
 ref. The staging and production workflows and the hosted pgTAP adapter are the
 executable examples; do not substitute a local link or a ref from another
 environment.
+
+## Local release wrapper (operator acceptance pending)
+
+The [local release runbook](local-production-release.md) governs
+`scripts/release/local-release.mjs`. Preparation and validation use only Git/GitHub.
+Execution fixes the target to `nlzhllhkigmsvrzduefz`, requires a signed interactive
+Keychain helper, links a clean temporary Supabase project and asserts its ref
+immediately before obtaining a short-lived database login. The Node wrapper passes
+argument arrays rather than shell fragments; its target assertion is exercised by
+release tests rather than the shell-line scanner. It refuses transaction-pooling
+ports and uses certificate verification for PostgreSQL. Its shared engine is also
+used by the existing staging and production workflows and holds one database-wide
+advisory lock across their complete apply sequences.
+
+`scripts/release/merge-gate.mjs` is a read-only Management API consumer. It refuses
+any project other than the explicit production ref and checks local attempt status
+before the migration gate can pass. Old workflow provenance requires no new table;
+local provenance with an absent or unknown attempt fails closed. The proposed
+bootstrap SQL is never automatically applied. Human unlock, installation, bootstrap
+and staging acceptance remain separate requirements, not grants from this guard.

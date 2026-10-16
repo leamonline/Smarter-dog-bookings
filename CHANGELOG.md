@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — exact local database release packages (#1024)
+
+- Added strict hashed release packages, read-only GitHub/source validation and a
+  signed macOS user-presence credential helper with no unattended fallback.
+- Shared migration engine now holds one PostgreSQL session lock across per-file
+  atomic writes and final verification. Proposed separately installed attempt
+  records prevent local approval replay, including reapply; the merge gate refuses
+  failed/unknown local postconditions even when SQL is recorded.
+- Added disposable PostgreSQL failure/concurrency tests and operator setup/recovery
+  documentation. Human unlock, signing/enrolment, bootstrap installation and staging
+  acceptance remain outstanding; production execution and workflow retirement are
+  not authorised by this implementation.
+
 ## Unreleased — database backup posture and weekly encrypted dump (#986)
 
 - New `docs/operations.md` records the production database's backup posture

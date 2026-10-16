@@ -55,6 +55,20 @@ jobs:
         run: node scripts/check-migrations.mjs
       - run: npm run build
 
+  release-tool-tests:
+    # Credential-free tests use synthetic fixtures and an isolated socket-only DB.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm run test:release
+      - name: Exercise the shared engine on disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          RELEASE_TEST_PG_BIN="$(pg_config --bindir)" npm run test:release:db
+
   coverage:
     # The Vitest suite AND the coverage ratchet on src/engine and
     # src/supabase/repositories (thresholds in vitest.config.ts).

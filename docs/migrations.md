@@ -510,6 +510,23 @@ the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
 production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
 below does.
 
+## Local production release tool: operator acceptance pending
+
+The [local release runbook](local-production-release.md) documents credential-free
+package preparation/validation and the human-operated execution path implemented
+for issue #1024. Production acceptance still requires signed Keychain enrolment,
+proven per-release user presence, the separately approved private attempt-table
+bootstrap and synthetic staging rehearsal. No production operation is authorised
+by merging the tooling. The existing workflow below retains its required-reviewer
+check and must remain blocked where that feature is unavailable.
+
+Both named-file workflow paths now use the shared single-session migration engine.
+Its database advisory lock spans all file transactions and final verification.
+Local releases also consume approval digests durably before writing; a failed or
+unknown local postcondition blocks `migrations-applied` despite populated SQL rows.
+Preserve the package and sanitised receipt, reconcile unknown writes and prepare a
+new approval for any subsequent attempt. Never delete an attempt to force a retry.
+
 ## Applying migrations to production: the production workflow
 
 **Apply named migrations to production**
