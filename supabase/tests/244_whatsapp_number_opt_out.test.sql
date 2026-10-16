@@ -92,15 +92,17 @@ select is(
   false, 'a linked customer on a DIFFERENT number is not opted out by the link'
 );
 -- An opt-out staff set for another reason, on a number that never said STOP,
--- can still be unticked as before.
+-- is still refused an ordinary untick while the record is linked to a
+-- stopped conversation (20261016120000, G2: refusal only, never a flag).
+-- Staff re-enable that conversation's number instead.
 update public.humans set whatsapp_opted_out = true where id = '24400000-0000-4000-8000-000000000014';
-select lives_ok(
+select throws_ok(
   $$update public.humans set whatsapp_opted_out = false where id = '24400000-0000-4000-8000-000000000014'$$,
-  'an opt-out unrelated to any STOP can be unticked'
+  'P0001', null, 'an untick of a record linked to a stopped conversation is refused, even on another number'
 );
 select isnt(
   (select whatsapp_opted_out_at from public.whatsapp_conversations where id = '24400000-0000-4000-8000-000000000002'),
-  null, 'and doing so does not lift the STOP from the number that customer was linked to'
+  null, 'and the STOP stays on the number that customer was linked to'
 );
 
 -- ── A customer changes their number to one that said STOP ──────────
