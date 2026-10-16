@@ -395,9 +395,25 @@ marked `tool_calls.opt_out_acknowledgement`).
   not the acknowledgement.
 - `whatsapp-send` refuses it with different text, or from an AI or internal
   call, and refuses every other draft or manual reply.
+- It may go only while a STOP stands, because it tells the customer their
+  messages have stopped. Once the re-enable lifts the STOP, or when the
+  number's opt-out was never a STOP, sending the acknowledgement's own words
+  (unedited, or retyped in the editor) is refused for every caller with
+  `409 stop_acknowledgement_stale`; staff reject the leftover draft. A
+  genuinely edited reply is an ordinary message: refused while the number
+  is stopped, sent once it is opted in.
 - The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
   pending acknowledgement per conversation, so a repeated or concurrent STOP
   cannot queue a second. The agent treats the refusal as expected.
+- One STOP gets one acknowledgement. The index cannot stop a second draft
+  queued after the first was claimed or sent (a repeated STOP, or one racing
+  staff's Send), so `whatsapp-send` refuses an acknowledgement with
+  `409 stop_acknowledgement_already_sent` once another on the same
+  conversation has been sent since the number's current STOP
+  (`decided_at >= whatsapp_opted_out_at`; with no STOP time on the
+  conversation, any sent before counts). Nothing is claimed or sent, and
+  staff reject the draft. A failed lookup is the retryable
+  `503 opt_out_check_failed`.
 - Separately, staff may pass `override_opt_out: true` for the rare operational
   message a customer must still receive, but **never to a number that said
   STOP** (the number's suppression, or a record whose reason is
@@ -412,10 +428,11 @@ into clauses (at `. ! ? , ;`, line breaks and dashes) and each clause is tested
 on its own. Most patterns must reach the **end** of the clause, allowing only
 politeness after them ("please", "thanks", "any more"). Each line below counts
 as a STOP:
-- The carrier words as a whole first or last clause: `STOP`, `STOP ALL`,
-  "Stop promotions" (Meta's marketing button), `unsubscribe`, `opt out`,
-  "stop please", "leave me alone". So "No thanks, stop" and "Stop. Wrong
-  person." count, and emoji are ignored.
+- The carrier words as a whole clause followed only by sign-offs (thanks,
+  bye, wrong person): `STOP`, `STOP ALL`, "Stop promotions" (Meta's
+  marketing button), `unsubscribe`, `opt out`, "stop please", "leave me
+  alone". So "No thanks, stop", "Stop. Wrong person." and "Hi, STOP,
+  thanks" count, and emoji are ignored.
 - Requests aimed at our messages: "please stop all messages", "stop
   messaging", "please stop sending messages", "how do I stop these
   messages?", "why won't you stop messaging me?", "don't ever message me

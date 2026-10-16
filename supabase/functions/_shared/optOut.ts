@@ -23,7 +23,7 @@ export interface OptOutRecipient {
 
 export type OptOutDecision =
   | { allowed: true; reason: "not_opted_out" | "unknown_recipient" | "staff_override" | "stop_acknowledgement" }
-  | { allowed: false; reason: "whatsapp_opted_out" };
+  | { allowed: false; reason: "whatsapp_opted_out" | "stop_acknowledgement_stale" };
 
 export interface OptOutDecisionInput {
   /** The humans row the message is going to, or null when no record matched. */
@@ -35,6 +35,11 @@ export interface OptOutDecisionInput {
    * agent wrote it. The one message a number that said STOP may still get.
    */
   approvesAcknowledgement?: boolean;
+  /**
+   * The text going out is the stored acknowledgement draft's own words,
+   * whether or not staff opened the editor.
+   */
+  sendsAcknowledgement?: boolean;
   /** The request carried a staff JWT (not the internal secret). */
   callerIsStaff: boolean;
   /** The caller marked the send as AI-initiated. */
@@ -53,8 +58,15 @@ export interface OptOutDecisionInput {
  *   implied by the internal secret alone.
  * - Opted out because the number said STOP: refused even with the override.
  *   The only exception is staff sending the agent's acknowledgement draft.
+ * - The acknowledgement itself ("we've stopped WhatsApp messages to this
+ *   number") only while a STOP stands: once the re-enable lifts it, or when
+ *   the opt-out was never a STOP, it is out of date and refused for every
+ *   caller (#1016 review).
  */
 export function decideOptOutSend(input: OptOutDecisionInput): OptOutDecision {
+  if ((input.approvesAcknowledgement || input.sendsAcknowledgement) && !input.recipient?.stopped) {
+    return { allowed: false, reason: "stop_acknowledgement_stale" };
+  }
   if (!input.recipient) return { allowed: true, reason: "unknown_recipient" };
   if (!input.recipient.whatsapp_opted_out) return { allowed: true, reason: "not_opted_out" };
   if (input.callerIsStaff && !input.aiInitiated) {
@@ -158,8 +170,9 @@ const FROM_US = String.raw`(?:\s+from\s+(?:you|the\s+salon|smarter\s+dog))?`;
 
 // A clause that is nothing but the request: "STOP", "Stop please", "STOP ALL",
 // "Stop promotions" (Meta's marketing opt-out button), "unsubscribe", "opt
-// out", "leave me alone". Only as the first or last clause of a message: "No
-// thanks, stop" and "Stop. Wrong person." are requests.
+// out", "leave me alone". Only as a whole clause followed by nothing but
+// sign-offs: "No thanks, stop", "Stop. Wrong person." and "Hi, STOP, thanks"
+// are requests.
 const BARE_STOP = new RegExp(
   String.raw`^(?:(?:please|pls|plz)\s+)?(?:stop(?:\s+(?:all|it|promotions?))?|unsubscribe|opt[\s-]?out|leave\s+(?:me|us)\s+alone)` + TAIL,
   "i",
@@ -228,7 +241,7 @@ const NEGATED_STOP = /\b(?:don'?t|do\s+not|never|not)(?:\s+(?:you|to|ever|please
 // asking about a stop is not asking for one.
 const PAST_STOP = /\b(?:stopped|unsubscribed)\b|\b(?:did|didn'?t|have|haven'?t|has|hasn'?t|had)\s+(?:(?:you|u|they|we|it)\s+)?(?:stop|unsubscribe)\b/i;
 
-// What may follow a leading bare STOP: thanks, a goodbye, or why.
+// What may follow a bare STOP: thanks, a goodbye, or why.
 const SIGN_OFF = /^(?:(?:thanks?|thank\s+you|thx|ta|cheers|please|pls|bye|goodbye|no\s+thanks|not\s+interested)(?:\s+(?:you|very\s+much))?|wrong\s+(?:person|number))$/i;
 
 // A clause that only limits the one before it: when, until or for how long.
@@ -251,13 +264,10 @@ export function isOptOutRequest(messageText: string | null | undefined): boolean
     // "Please don't message me, until Bella is ready": the next clause
     // qualifies this one, so it is scheduling, not a stop (#1016 review).
     if (QUALIFIER.test(clauses[index + 1] ?? "")) return false;
-    // A bare STOP counts as the last clause ("No thanks, stop"), or as the
-    // first when nothing but a sign-off follows it ("Stop. Wrong person.");
-    // "Stop, I meant Tuesday" is a correction, not a stop (#1016 review).
-    if (BARE_STOP.test(clause)) {
-      if (index === clauses.length - 1) return true;
-      if (index === 0 && clauses.slice(1).every((rest) => SIGN_OFF.test(rest))) return true;
-    }
+    // A bare STOP counts as a whole clause followed by nothing but sign-offs:
+    // "No thanks, stop", "Stop. Wrong person.", "Hi, STOP, thanks". "Stop, I
+    // meant Tuesday" is a correction, not a stop (#1016 review).
+    if (BARE_STOP.test(clause) && clauses.slice(index + 1).every((rest) => SIGN_OFF.test(rest))) return true;
     return OPT_OUT_PATTERNS.some((pattern) => pattern.test(clause));
   });
 }
