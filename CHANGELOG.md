@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — WhatsApp opt-out follow-ups (#1016)
+
+- Merging two customer records no longer loses a STOP: if either record
+  asked on WhatsApp for messages to stop, the kept record does too, with the
+  earliest STOP time.
+- Staff can no longer untick WhatsApp on a record linked to a conversation
+  that said STOP, even when the record's own number is different. Switch the
+  number back on through the audited re-enable instead. A link still never
+  switches anyone off on its own.
+- A STOP is applied once per WhatsApp message. If processing a STOP fails
+  part-way and is replayed later, it no longer switches WhatsApp off again
+  after staff have switched it back on with the customer's permission.
+- Switching a number back on clears its leftover STOP acknowledgement draft
+  from the queue.
+
 ## Unreleased — Staff can switch WhatsApp back on (#1016 follow-up)
 
 - The customer profile now leads with a notice when WhatsApp is switched off

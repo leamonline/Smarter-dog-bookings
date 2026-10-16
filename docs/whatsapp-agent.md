@@ -221,7 +221,15 @@ never automatically:
   clearing `whatsapp_conversations.whatsapp_opted_out_at` directly; and
   moving a stopped conversation to another number or channel. An opt-out
   staff set for another reason, on a number that never said STOP, can still
-  be unticked.
+  be unticked, unless the record is linked (`whatsapp_conversations.human_id`)
+  to a WhatsApp conversation that is stopped now.
+- That link refusal (migration `20261016120000`) is refusal only: a link
+  never flags a record. A stale link (staff changed the customer's number
+  since) still holds the untick back; staff re-enable that conversation's
+  number through the audited flow below, after which the record's own opt-out
+  can be unticked.
+- A merge (`merge_humans`) keeps a STOP label from either record: the winner
+  ends opted out, reason `asked_on_whatsapp`, with the earliest STOP time.
 - A record already opted out for another reason is marked as a STOP (keeping
   its own time) when its number says STOP, so a later number change cannot
   hide the STOP.
@@ -242,7 +250,17 @@ never automatically:
   records and conversations it switched back on, who did it and the
   permission note. Staff can read it; only the function writes it.
 - A redelivered STOP, or an event replayed after it was stored, does not stop
-  the number again over a re-enable made since.
+  the number again over a re-enable made since. The agent applies a STOP
+  through `apply_whatsapp_stop` (service role only), which records the Meta
+  message id in `whatsapp_stop_applications` in the same transaction as the
+  stamp, so a replay never applies the same message's STOP twice, even when
+  the inbound row failed to store. A message with no Meta id applies every
+  time. `inboundAlreadyStored` still guards messages stored before that
+  migration, which have no marker. A replayed STOP queues no new
+  acknowledgement.
+- A re-enable supersedes any pending STOP acknowledgement draft on the
+  re-enabled conversations, in the same transaction (a trigger on the
+  conversation's update), so no stale acknowledgement is left in the queue.
 
 **Switching it back on in the app.** Staff reach the re-enable from two
 places, and nowhere else: there is no ordinary untick.
