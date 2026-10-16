@@ -174,7 +174,7 @@ jobs:
             # The workflow, the apply code and the migration validator run as
             # dispatched. If main has since changed any of them, what would
             # run is not what main now has.
-            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then
+            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/release/engine.mjs scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then
               echo "::error::main has changed the production apply workflow, its scripts or the migration validator since this run was dispatched ($GITHUB_SHA; main is now $main_sha). Dispatch again from current main."
               exit 1
             fi
@@ -420,7 +420,7 @@ jobs:
               echo "### Per-migration result"
               echo
               echo '```text'
-              grep -E '^(file|strip|apply|reapply|skip|done|recorded|MISSING|MISMATCH|CONFLICT|REFUSED|postcondition|POSTCONDITION) ' apply.log || echo "(the script produced no per-migration lines; read the job log)"
+              grep -E '^(\{"status":|file |strip |apply |reapply |skip |done |recorded |MISSING |MISMATCH |CONFLICT |REFUSED |postcondition |POSTCONDITION )' apply.log || echo "(the script produced no per-migration lines; read the job log)"
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"

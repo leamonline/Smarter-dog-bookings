@@ -28,6 +28,41 @@
   booking's status is read again after the claim and just before the send, so
   a restore in between releases the claim and sends nothing.
 
+## Unreleased — legacy four-zone salon board deleted (#995)
+
+- `src/components/views/today/board/` (eleven files, about 2,300 lines plus
+  its 543-line test), the build-time legacy-board feature flag and its
+  `VITE_` switch are gone. The stack has been the only
+  `/today` surface since September; the flag could never be flipped in an
+  incident anyway (inlined at build), so a Vercel rollback was already the
+  real escape hatch. The `TodayView` chunk shrinks from 107.6 kB to 76.4 kB.
+- `salonBoard.ts` keeps only what the stack still reads (zone vocabulary,
+  `buildBoardTokens`, attention summary, zone counts, `tokenActions`, the
+  reversal map); the drag and slot-grouping helpers went with the board.
+  `NeedsAttentionSummary`, `UnknownStatusRecovery` and `EndOfDayFacts` moved
+  up a level because the stack uses them.
+- The page tests, which still drove the board, now exercise the stack.
+  Loading state is a card-shaped skeleton instead of token ghosts.
+
+## Unreleased — draft local database release alternative (#1024)
+
+- Retain the working hosted production reviewer gate; this draft alternative
+  is not adopted and does not recommend replacing it. The 15 October reviewer
+  limitation is historical; the gate was available and used successfully by
+  16 October.
+- Added strict hashed release packages, read-only GitHub/source validation and a
+  signed macOS user-presence credential helper with no unattended fallback.
+- Shared migration engine now holds one PostgreSQL session lock across per-file
+  atomic writes and final verification. Proposed separately installed attempt
+  records prevent local approval replay, including reapply; the merge gate refuses
+  failed/unknown local postconditions even when SQL is recorded. New production
+  Actions releases additionally require successful verification of their exact run
+  attempt before the migration gate passes; historical provenance stays compatible.
+- Added disposable PostgreSQL failure/concurrency tests and operator setup/recovery
+  documentation. Human unlock, signing/enrolment, bootstrap installation and staging
+  acceptance remain outstanding; production execution and workflow retirement are
+  not authorised by this implementation.
+
 ## Unreleased — Staff can switch WhatsApp back on (#1016 follow-up)
 
 - The customer profile now leads with a notice when WhatsApp is switched off
