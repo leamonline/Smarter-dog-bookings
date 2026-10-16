@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased — exact local database release packages (#1024)
+## Unreleased — draft local database release alternative (#1024)
 
+- Retain the working hosted production reviewer gate; this draft alternative
+  is not adopted and does not recommend replacing it. The 15 October reviewer
+  limitation is historical; the gate was available and used successfully by
+  16 October.
 - Added strict hashed release packages, read-only GitHub/source validation and a
   signed macOS user-presence credential helper with no unattended fallback.
 - Shared migration engine now holds one PostgreSQL session lock across per-file
@@ -14,6 +18,92 @@
   documentation. Human unlock, signing/enrolment, bootstrap installation and staging
   acceptance remain outstanding; production execution and workflow retirement are
   not authorised by this implementation.
+
+## Unreleased — Staff can switch WhatsApp back on (#1016 follow-up)
+
+- The customer profile now leads with a notice when WhatsApp is switched off
+  (rose when they said STOP, slate for any other reason) and the header
+  carries a "WhatsApp stopped" / "WhatsApp off" badge. In the inbox, a thread
+  whose sends are refused shows a banner in place of the 24-hour banner; it
+  works on the chat’s own number, so it covers a number with no customer
+  record, and points to the profile of a linked customer saved with another
+  number.
+- "Switch WhatsApp back on…" opens a dialog that lists everything the
+  re-enable covers (the number’s first and latest STOP, and every
+  switched-off record on it with its reason) before staff record how the
+  customer gave permission again (at least 10 characters, sent as written).
+  It sends exactly that scope; if anything changed, the number said STOP
+  again, or the connection dropped, it reads the scope again and shows the
+  result instead of retrying. A new STOP clears the note; a STOP it has
+  already shown is never taken for a new one once a re-enable clears it. In
+  the inbox, a linked customer saved with another number is named in every
+  outcome, since sends in the chat stay refused for them.
+- What happened is taken from the re-enable audit log, never from a record
+  no longer being listed: a record also leaves a number when its phone
+  changes, and stays switched off. A record is shown as back on only when an
+  audit row proves it (rows for the number, or listing the record under any
+  number) and it reads as switched on now; one that left and is switched off
+  now is named as such, with a button to open its profile ("their number may
+  have changed"), and one merged away or deleted is named as no longer on
+  file, with no button. A profile whose own record is found back on, or no
+  longer on file, is not called out of date. After a dropped connection the
+  dialog finds its own row (who sent it, its note, exactly the records it
+  sent), so a request that lands late is reported as this one, never as
+  someone else’s, a scope read served just before it committed is read
+  again, and one followed by a new STOP says it went through and is off
+  again; it is reported as done only when nothing on the number is switched
+  off now. Another re-enable is described neutrally ("has already been
+  switched back on"). If the audit or the records cannot be read, nothing is
+  changed on screen and staff check again.
+- The profile header’s "WA" wa.me link is hidden while WhatsApp is switched
+  off, so staff cannot message a stopped number from their own phone.
+- The "E" shortcuts (profile edit mode, inbox "Mark complete") no longer fire
+  through a dialog stacked over them.
+- Depends on migration `20261014120000_whatsapp_number_opt_out` being live in
+  production (#1016); adds no migration of its own.
+
+## Unreleased — WhatsApp opt-out enforced at the send boundary (#990)
+
+- `whatsapp-send` now looks up the recipient (by `human_id`, through the
+  conversation, or by phone however it was typed) and refuses with
+  `409 whatsapp_opted_out` when `humans.whatsapp_opted_out` is set, in every
+  mode and for every caller. Previously only the notify-* functions honoured
+  the flag, so staff template/compose sends and the agent's own modes could
+  still message an opted-out customer. Staff may pass `override_opt_out` for a
+  message the customer must still receive, except to a number that said STOP;
+  AI-initiated and internal-secret sends cannot. Any customer record on a shared number counts, and a
+  failed lookup refuses the send (503) rather than sending unchecked.
+- The agent recognises a customer asking us to stop: the carrier words, and
+  requests aimed at our messages such as "don't send me any more messages" or
+  "I no longer want to receive messages". Salon phrases such as "unsubscribe
+  me from the waiting list" are not stops. On a STOP the agent stores the
+  opt-out on the number (`whatsapp_conversations.whatsapp_opted_out_at`, new)
+  and on every customer record with that number, reads both back, switches
+  auto-send off, sends nothing, and leaves staff one acknowledgement draft.
+  Send on that draft, unedited, is the only exception, once per STOP: a
+  second acknowledgement is refused (`409 stop_acknowledgement_already_sent`)
+  once one has been sent since the number's current STOP, and it is refused
+  (`409 stop_acknowledgement_stale`) once the STOP has been lifted. A STOP in a batch is
+  handled before the batch's other messages; a redelivered STOP does not stop
+  the number again after staff re-enabled it.
+- Migration `20261014120000_whatsapp_number_opt_out` (apply to production
+  before merge):
+  - adds the number-level suppression;
+  - adds `whatsapp_phone_key` and triggers that carry a STOP to any customer
+    record created with, or changed to, that number. These work by number
+    only, never by a conversation's link, and are serialised per number
+    against concurrent writes;
+  - refuses any ordinary edit that would undo a STOP (an untick, including
+    after a number change; relabelling its reason; clearing the number's
+    suppression; moving its conversation to another number). Re-enabling is `staff_reenable_whatsapp_number`: staff
+    confirm every opted-out record on the number (shown by
+    `staff_whatsapp_number_opt_out_scope`) and the latest STOP it showed,
+    and record the customer's renewed
+    permission, audited in the new `whatsapp_opt_out_reenables`;
+  - adds a unique index allowing one pending acknowledgement per conversation.
+- A refused send shows staff its reason in the inbox. Policy and detector live
+  in `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and
+  a tested `handler.ts`, like the agent.
 
 ## Unreleased — database backup posture and weekly encrypted dump (#986)
 

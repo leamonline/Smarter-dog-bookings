@@ -26,6 +26,7 @@ import {
   useHumanRemoval,
   HumanCardConfirmDialogs,
   MobileNewBookingBar,
+  WhatsAppStopNotice,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 
@@ -63,6 +64,7 @@ export function HumanCardModal({
   // A number save that collides with an unapproved portal signup's shell:
   // link_pending_signup moves the verified number + login here instead.
   onLinkPendingSignup,
+  onWhatsappReenabled,
 }) {
   const [pendingExit, setPendingExit] = useState(false);
 
@@ -259,6 +261,12 @@ export function HumanCardModal({
         {/* At-a-glance leads the card full-width: the numbers staff
             check first, directly under the name. */}
         <div className="mb-3 md:mb-4">
+          <WhatsAppStopNotice
+            key={human.id}
+            human={human}
+            onOpenHuman={onOpenHuman}
+            onReenabled={onWhatsappReenabled}
+          />
           <AtAGlanceStrip
             human={human}
             dogs={dogs}

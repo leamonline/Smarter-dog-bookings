@@ -97,13 +97,21 @@ manual gate. Faster execution alone is not sufficient.
 Related: [migration history](../../migrations.md),
 [ADR 004](004-serial-schema-convergence-and-runtime-capabilities.md).
 
-## Local operator implementation (16 October 2026)
+## Draft local operator alternative (16 October 2026)
 
 Issue [#1024](https://github.com/leamonline/Smarter-dog-bookings/issues/1024)
 implements the [accepted local-release design](../../plans/active/2026-10-15-local-production-release-design.md).
 The [operator runbook](../../local-production-release.md) distinguishes code from
 production acceptance. The existing workflow's environment-reviewer guard stays
 in place; workflow/credential retirement is separate authorised work.
+
+Current state on 16 October: the production environment has required reviewer
+`leamonline`, and production run
+[38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741)
+succeeded from main `1cbbce51`. The design's 15 October HTTP 422 limitation is
+historical. Retain the working hosted gate; this draft implementation neither
+adopts the alternative nor recommends replacing the current route. Adoption and
+operator setup require a separate decision.
 
 The alternative binds a strict canonical 60-minute package to exact reviewed SQL,
 source/main, staging hashes, current checks/reviews, target, postcondition and

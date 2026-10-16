@@ -25,3 +25,4 @@ export { useHumanRemoval } from "./useHumanRemoval.js";
 export { SignupLinkDialogs } from "./SignupLinkDialogs.jsx";
 export { HumanCardConfirmDialogs } from "./HumanCardConfirmDialogs.jsx";
 export { MobileNewBookingBar } from "./MobileNewBookingBar.jsx";
+export { WhatsAppStopNotice } from "./WhatsAppStopNotice.jsx";

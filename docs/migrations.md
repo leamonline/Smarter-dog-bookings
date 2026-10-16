@@ -1,5 +1,65 @@
 # Migration history
 
+## WhatsApp opt-out by number (#1016) — applied 15 October 2026
+
+`20261014120000_whatsapp_number_opt_out.sql` was applied to **staging**
+(`btjnxvgkpdbfrrqxvkfj`) on 14 October 2026 through the Supabase MCP as
+`whatsapp_number_opt_out` (ledger version `20261014203730`; ledger 68 → 69
+rows). The staging workflow could not be used for it: the `staging`
+environment accepts `main` only, and the file lived on the #1016 branch. The
+MCP tool refuses `drop` statements, so `f3d2bed` rewrote the migration
+without them (`create or replace trigger`, and the audit table's policy
+created once by name in a `do` block); its behaviour did not change.
+Post-apply evidence was read back from the staging catalog through the MCP
+(read-only):
+
+- the four triggers are present and enabled;
+- the definer functions are `SECURITY DEFINER` with a pinned `search_path`,
+  and none is executable by `anon`;
+- `humans_stop_label_means_opted_out` is validated;
+- the audit table has RLS and one policy;
+- the postcondition is true as `anon`;
+- a smoke test inside a forced rollback flagged a record on STOP and refused
+  both a direct clear and a relabel (`whatsapp_reenable_needs_permission`),
+  persisting nothing.
+
+**Production** followed on 15 October 2026 through **Apply named migrations
+to production** run
+[38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741).
+It was dispatched from `main` at `1cbbce51`, took the files from the #1016
+head `f3d2bedf`, and was approved by @leamonline. A first dispatch on
+14 October,
+[38634713581](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38634713581),
+refused itself because the `production` environment had no required reviewer,
+and applied nothing. In the run:
+
+- the file's sha256 `9d873857…` matched the committed file;
+- ledger row `20261014120000 whatsapp_number_opt_out` was recorded with stored
+  SQL matching the file (ledger 243 → 244 rows);
+- the postcondition passed, read from `pg_catalog` as `anon`: both new
+  `whatsapp_conversations` columns, the four triggers enabled, the retired
+  `trg_humans_clear_number_opt_out` absent,
+  `whatsapp_drafts_one_pending_opt_out_ack` unique and valid, the constraint
+  validated, both staff functions present, and the audit table under RLS.
+
+Post-apply evidence was read from the prod catalog at 20:56 UTC through the
+MCP (read-only):
+
+- the ledger holds 244 rows, and version `20261014120000` is named
+  `whatsapp_number_opt_out`;
+- the four triggers are enabled (`O`);
+- the six trigger and staff functions are `SECURITY DEFINER`, none is
+  executable by `anon`, and only `staff_whatsapp_number_opt_out_scope` and
+  `staff_reenable_whatsapp_number` are executable by `authenticated`;
+- `whatsapp_phone_key` is not a definer function and is executable by
+  neither role;
+- the constraint is validated, and `whatsapp_opt_out_reenables` has RLS with
+  one policy and 0 rows.
+
+At apply time there was nothing for the new rules to act on: 0 conversations
+carried a STOP, 0 records were labelled `asked_on_whatsapp`, and 0 of 951
+customer records were opted out of WhatsApp.
+
 ## notification_log Meta-failure reconciliation (#980) — applied 12 October 2026
 
 `20261012120000_notification_log_meta_failed_reconciliation.sql` was applied to
@@ -510,7 +570,7 @@ the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
 production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
 below does.
 
-## Local production release tool: operator acceptance pending
+## Draft local production release alternative: adoption pending
 
 The [local release runbook](local-production-release.md) documents credential-free
 package preparation/validation and the human-operated execution path implemented
@@ -518,7 +578,10 @@ for issue #1024. Production acceptance still requires signed Keychain enrolment,
 proven per-release user presence, the separately approved private attempt-table
 bootstrap and synthetic staging rehearsal. No production operation is authorised
 by merging the tooling. The existing workflow below retains its required-reviewer
-check and must remain blocked where that feature is unavailable.
+check. As of 16 October it has required reviewer `leamonline`, and successful
+production run 38805066741 is recorded above. Retain that working hosted gate;
+the draft alternative is not adopted or recommended as its replacement. The
+15 October reviewer limitation is historical, not a current blocker.
 
 Both named-file workflow paths now use the shared single-session migration engine.
 Its database advisory lock spans all file transactions and final verification.

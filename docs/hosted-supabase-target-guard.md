@@ -73,7 +73,10 @@ ref. The staging and production workflows and the hosted pgTAP adapter are the
 executable examples; do not substitute a local link or a ref from another
 environment.
 
-## Local release wrapper (operator acceptance pending)
+## Draft local release wrapper (adoption and operator acceptance pending)
+
+The working hosted production reviewer gate remains the current route; this
+draft alternative does not adopt or recommend replacing it.
 
 The [local release runbook](local-production-release.md) governs
 `scripts/release/local-release.mjs`. Preparation and validation use only Git/GitHub.

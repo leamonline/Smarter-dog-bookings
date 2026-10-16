@@ -897,6 +897,37 @@ describe("useHumans signup approval", () => {
   });
 });
 
+describe("useHumans WhatsApp re-enable", () => {
+  it("exposes markWhatsappReenabled, which clears the opt-out in every cache with no request", async () => {
+    const stopped = {
+      ...h1,
+      whatsapp_opted_out: true,
+      whatsapp_opted_out_at: "2026-10-03T13:05:00.123456+00:00",
+      whatsapp_opted_out_reason: "asked_on_whatsapp",
+    };
+    const stub = makeSupabaseStub((fn) =>
+      fn === "search_humans_directory"
+        ? { data: { rows: [stopped, h2], total: 2, letters: ["D", "S"] }, error: null }
+        : { data: null, error: null },
+    );
+    const { result } = await renderLoadedHumans(stub);
+    expect(typeof result.current.markWhatsappReenabled).toBe("function");
+    expect(result.current.humans["Sarah Jones"].whatsappOptedOut).toBe(true);
+    const callsBefore = stub.rpc.mock.calls.length + stub.from.mock.calls.length;
+
+    act(() => result.current.markWhatsappReenabled(["h1"]));
+
+    expect(result.current.humans["Sarah Jones"]).toMatchObject({
+      whatsappOptedOut: false,
+      whatsappOptedOutAt: null,
+      whatsappOptedOutReason: null,
+    });
+    expect(result.current.humansById.h1.whatsappOptedOut).toBe(false);
+    expect(result.current.directoryHumans.find((h) => h.id === "h1").whatsappOptedOut).toBe(false);
+    expect(stub.rpc.mock.calls.length + stub.from.mock.calls.length).toBe(callsBefore);
+  });
+});
+
 describe("useHumans archived & on-demand lookups", () => {
   it("fetchArchivedHumans returns mapped rows without merging them into the maps", async () => {
     const archivedRow = {

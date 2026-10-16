@@ -1,6 +1,6 @@
 # Local production database release
 
-Status: implemented for review and operator acceptance; not accepted for production use.
+Status: draft alternative implemented for review; no adoption decision or production acceptance.
 Governing decision: [ADR 006](architecture/decisions/006-manual-target-verified-database-rollout.md).
 Design: [local release contract](plans/active/2026-10-15-local-production-release-design.md).
 
@@ -10,6 +10,18 @@ presence, then a single PostgreSQL session for the complete apply sequence. The
 existing production workflow retains its environment-reviewer guard. This change
 does not configure an account, enrol a credential, install database objects or
 authorise any production run.
+
+## Current release route (16 October 2026)
+
+The hosted production gate is available: the `production` environment now has
+required reviewer `leamonline`, and production apply run
+[38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741)
+completed successfully from main `1cbbce51`, as recorded in
+[migration history](migrations.md). The 15 October HTTP 422/reviewer limitation in
+the design is historical evidence, not the current blocker. Retain the working
+hosted gate. This implementation is a draft alternative; it makes no recommendation
+to adopt it or replace the existing release route. Any adoption, setup or retirement
+requires a separate decision and explicit authority.
 
 ## Acceptance prerequisites
 
@@ -57,7 +69,14 @@ An operator must first approve and demonstrate all of these on synthetic staging
    no public grants and no customer data. The engine never runs this DDL. It refuses
    a local release if the table is absent. Test its grants with the actual CLI login
    and review the schema/privilege requirement before any hosted installation.
-7. Rehearse the complete flow on staging, including denied unlock, lock contention
+7. Establish a separately reviewed staging evidence route before adoption. The
+   current staging environment permits `main` only and its workflow has no PR-source
+   overlay, while package validation requires a successful staging workflow run
+   whose `head_sha` is the exact unmerged PR source. Today's route therefore cannot
+   produce the required evidence for new PR SQL. A trusted-main source overlay or
+   narrowly authorised source-branch policy would need its own review and decision;
+   this implementation changes neither the live policy nor that workflow behaviour.
+8. Rehearse the complete flow on staging, including denied unlock, lock contention
    from two machines, connection loss, partial apply and receipt reconciliation.
    The production CLI intentionally has no target override; equivalent staging
    credential enrolment and the exact staging harness require a separately reviewed
@@ -71,6 +90,15 @@ helper/Node process and child-process environments required by the Supabase CLI 
 libpq. The wrapper does not persist the token. Its private temporary directory is
 removed on ordinary completion/failure; a hard kill requires operator inspection
 and cleanup of the abandoned `local-release-*` directory before another release.
+
+## Candidate freshness
+
+The design's first-candidate references were recorded on 15 October 2026. By the
+16 October integration with main at `fffda165`, #1016 and #1023 had merged; #1016's
+migration is recorded as applied in [migration history](migrations.md). Those
+historical references are not a pending release queue or authority to reapply.
+Choose a current open PR and refresh all source, staging and check evidence when
+preparing any future package.
 
 ## Prepare and review
 

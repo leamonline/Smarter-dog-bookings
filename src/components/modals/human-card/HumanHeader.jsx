@@ -1,5 +1,6 @@
 import { Check, Clock, Copy, Link2, PiggyBank, Pencil, Phone, X } from "lucide-react";
 import { titleCase } from "../../../utils/text";
+import { STOP_REASON, optOutReasonLabel, optOutTimeLabel } from "../../../engine/whatsappReenable";
 import { telLink, waLink } from "../dog-card/helpers.js";
 import { HeaderIconButton, OverflowMenu } from "../shell/index.js";
 
@@ -66,7 +67,7 @@ export function HumanHeader({
           {getInitials(human, humanFullName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-label text-ink-muted">
               Human profile
             </span>
@@ -93,6 +94,22 @@ export function HumanHeader({
                 {human.blockedSlots.length} blocked {human.blockedSlots.length === 1 ? "time" : "times"}
               </span>
             )}
+            {human?.whatsappOptedOut === true &&
+              (human.whatsappOptedOutReason === STOP_REASON ? (
+                <span
+                  title={`Said STOP on WhatsApp · ${optOutTimeLabel(human.whatsappOptedOutAt)}`}
+                  className="inline-flex items-center text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                >
+                  WhatsApp stopped
+                </span>
+              ) : (
+                <span
+                  title={`WhatsApp switched off · ${optOutReasonLabel(human.whatsappOptedOutReason)} · since ${optOutTimeLabel(human.whatsappOptedOutAt)}`}
+                  className="inline-flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                >
+                  WhatsApp off
+                </span>
+              ))}
           </div>
           {isEditing ? (
             <>
@@ -161,7 +178,9 @@ export function HumanHeader({
                     >
                       <Phone size={12} strokeWidth={2.4} aria-hidden="true" />
                     </a>
-                    {human.whatsapp && (
+                    {/* Hidden while WhatsApp is switched off: a wa.me chat from a
+                        staff phone would go round every send-time check. */}
+                    {human.whatsapp && !human.whatsappOptedOut && (
                       <a
                         href={waLink(human.phone)}
                         target="_blank"
