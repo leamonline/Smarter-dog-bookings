@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased — WhatsApp opt-out enforced at the send boundary (#990)
+
+- `whatsapp-send` now looks up the recipient (by `human_id`, through the
+  conversation, or by phone however it was typed) and refuses with
+  `409 whatsapp_opted_out` when `humans.whatsapp_opted_out` is set, in every
+  mode and for every caller. Previously only the notify-* functions honoured
+  the flag, so staff template/compose sends and the agent's own modes could
+  still message an opted-out customer. Staff may pass `override_opt_out` for a
+  message the customer must still receive, except to a number that said STOP;
+  AI-initiated and internal-secret sends cannot. Any customer record on a shared number counts, and a
+  failed lookup refuses the send (503) rather than sending unchecked.
+- The agent recognises a customer asking us to stop: the carrier words, and
+  requests aimed at our messages such as "don't send me any more messages" or
+  "I no longer want to receive messages". Salon phrases such as "unsubscribe
+  me from the waiting list" are not stops. On a STOP the agent stores the
+  opt-out on the number (`whatsapp_conversations.whatsapp_opted_out_at`, new)
+  and on every customer record with that number, reads both back, switches
+  auto-send off, sends nothing, and leaves staff one acknowledgement draft.
+  Send on that draft, unedited, is the only exception, once per STOP: a
+  second acknowledgement is refused (`409 stop_acknowledgement_already_sent`)
+  once one has been sent since the number's current STOP, and it is refused
+  (`409 stop_acknowledgement_stale`) once the STOP has been lifted. A STOP in a batch is
+  handled before the batch's other messages; a redelivered STOP does not stop
+  the number again after staff re-enabled it.
+- Migration `20261014120000_whatsapp_number_opt_out` (apply to production
+  before merge):
+  - adds the number-level suppression;
+  - adds `whatsapp_phone_key` and triggers that carry a STOP to any customer
+    record created with, or changed to, that number. These work by number
+    only, never by a conversation's link, and are serialised per number
+    against concurrent writes;
+  - refuses any ordinary edit that would undo a STOP (an untick, including
+    after a number change; relabelling its reason; clearing the number's
+    suppression; moving its conversation to another number). Re-enabling is `staff_reenable_whatsapp_number`: staff
+    confirm every opted-out record on the number (shown by
+    `staff_whatsapp_number_opt_out_scope`) and the latest STOP it showed,
+    and record the customer's renewed
+    permission, audited in the new `whatsapp_opt_out_reenables`;
+  - adds a unique index allowing one pending acknowledgement per conversation.
+- A refused send shows staff its reason in the inbox. Policy and detector live
+  in `_shared/optOut.ts`; `whatsapp-send` is split into an `index.ts` shim and
+  a tested `handler.ts`, like the agent.
+
 ## Unreleased — database backup posture and weekly encrypted dump (#986)
 
 - New `docs/operations.md` records the production database's backup posture

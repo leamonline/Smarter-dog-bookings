@@ -289,9 +289,15 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   Edge Function, future path) inherits all three automatically — don't re-implement them per-RPC.
 - **Two Supabase clients** (`client.js` staff, `customerClient.js` customer) use separate auth storage
   keys so sessions don't clobber each other. Keep them separate.
-- **WhatsApp auto-send / autonomous booking are OFF by default** behind 5 gates + a kill switch
-  (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send (unit-test-enforced). Don't loosen
-  casually. See [docs/whatsapp-agent.md](docs/whatsapp-agent.md).
+- **WhatsApp auto-send / autonomous booking are OFF by default** behind 7 gates (5 in the agent, 2 in
+  `whatsapp-send`) + a kill switch (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send
+  (unit-test-enforced). WhatsApp opt-out belongs to the **number**: a `STOP` sets
+  `whatsapp_conversations.whatsapp_opted_out_at` and `humans.whatsapp_opted_out` on every record with
+  that number. DB triggers keep the two in step, always by number, never by a conversation link.
+  Nothing undoes a STOP but the audited, staff-only `staff_reenable_whatsapp_number`.
+  `whatsapp-send` refuses in every mode, for every caller; the Twilio notify paths skip opted-out
+  customers via `recipients.ts`. Don't loosen casually. See
+  [docs/whatsapp-agent.md](docs/whatsapp-agent.md#customer-opt-out).
 - **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
   Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/
   waitlist. Dark-launched behind `STAFF_PUSH_ENABLED` (default off); changes NOTHING for customers or

@@ -3444,6 +3444,8 @@ export type Database = {
           state: string
           unread_count: number
           updated_at: string
+          whatsapp_last_stop_at: string | null
+          whatsapp_opted_out_at: string | null
         }
         Insert: {
           agent_state?: Json
@@ -3474,6 +3476,8 @@ export type Database = {
           state?: string
           unread_count?: number
           updated_at?: string
+          whatsapp_last_stop_at?: string | null
+          whatsapp_opted_out_at?: string | null
         }
         Update: {
           agent_state?: Json
@@ -3504,6 +3508,8 @@ export type Database = {
           state?: string
           unread_count?: number
           updated_at?: string
+          whatsapp_last_stop_at?: string | null
+          whatsapp_opted_out_at?: string | null
         }
         Relationships: [
           {
@@ -3814,6 +3820,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_opt_out_reenables: {
+        Row: {
+          conversation_ids: string[]
+          human_ids: string[]
+          id: string
+          permission_note: string
+          phone_key: string
+          reenabled_at: string
+          reenabled_by: string
+        }
+        Insert: {
+          conversation_ids: string[]
+          human_ids: string[]
+          id?: string
+          permission_note: string
+          phone_key: string
+          reenabled_at?: string
+          reenabled_by: string
+        }
+        Update: {
+          conversation_ids?: string[]
+          human_ids?: string[]
+          id?: string
+          permission_note?: string
+          phone_key?: string
+          reenabled_at?: string
+          reenabled_by?: string
+        }
+        Relationships: []
       }
       whatsapp_reschedule_receipts: {
         Row: {
@@ -4350,6 +4386,10 @@ export type Database = {
         Returns: string
       }
       derive_canonical_dog_size: { Args: { p_breed: string }; Returns: string }
+      dismiss_delivery_failure: {
+        Args: { p_booking_id: string }
+        Returns: undefined
+      }
       dog_size_check_todo_text: {
         Args: {
           p_breed: string
@@ -4358,10 +4398,6 @@ export type Database = {
           p_reported: string
         }
         Returns: string
-      }
-      dismiss_delivery_failure: {
-        Args: { p_booking_id: string }
-        Returns: undefined
       }
       emit_booking_visit_event: {
         Args: {
@@ -4720,6 +4756,10 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_dog_size_check_todo: {
+        Args: { p_dog_id: string }
+        Returns: boolean
+      }
       refund_calendar_coverage_for: {
         Args: { p_from: string }
         Returns: string
@@ -4761,14 +4801,7 @@ export type Database = {
         }
         Returns: Json
       }
-      refresh_dog_size_check_todo: {
-        Args: { p_dog_id: string }
-        Returns: boolean
-      }
-      request_dog_size_check: {
-        Args: { p_dog_id: string }
-        Returns: boolean
-      }
+      request_dog_size_check: { Args: { p_dog_id: string }; Returns: boolean }
       reschedule_customer_booking: {
         Args: {
           p_booking_date: string
@@ -4949,6 +4982,19 @@ export type Database = {
         Args: { p_human_id: string }
         Returns: Json
       }
+      staff_reenable_whatsapp_number: {
+        Args: {
+          p_human_ids: string[]
+          p_last_stop_at: string
+          p_permission_note: string
+          p_phone: string
+        }
+        Returns: Json
+      }
+      staff_whatsapp_number_opt_out_scope: {
+        Args: { p_phone: string }
+        Returns: Json
+      }
       submit_customer_signup: {
         Args: { p_dogs: Json; p_owner: Json }
         Returns: Json
@@ -5099,6 +5145,11 @@ export type Database = {
         }
         Returns: Json
       }
+      whatsapp_meta_failure_summary: {
+        Args: { p_errors: string }
+        Returns: string
+      }
+      whatsapp_phone_key: { Args: { p_phone: string }; Returns: string }
       withdraw_customer_booking_change_request: {
         Args: { p_idempotency_key: string; p_request_id: string }
         Returns: Json
