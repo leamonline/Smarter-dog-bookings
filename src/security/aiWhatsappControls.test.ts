@@ -24,7 +24,7 @@ describe("AI WhatsApp operational controls", () => {
   });
 
   it("gates AI-labelled sends before dispatch while leaving manual sends outside the gate", () => {
-    const send = read("supabase/functions/whatsapp-send/index.ts");
+    const send = read("supabase/functions/whatsapp-send/handler.ts");
 
     const gate = send.indexOf("checkAiMessagingPermission");
     const dispatch = send.indexOf('if (parsed.mode === "draft")');

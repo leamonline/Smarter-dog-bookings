@@ -47,7 +47,12 @@
     "website:coverage": "npm --prefix website run test:coverage",
     "website:build": "npm --prefix website run build",
     "website:preview": "npm --prefix website run preview",
-    "website:e2e": "npm --prefix website run test:e2e"
+    "website:e2e": "npm --prefix website run test:e2e",
+    "release:prepare": "node scripts/release/local-release.mjs prepare",
+    "release:validate": "node scripts/release/local-release.mjs validate",
+    "release:execute": "node scripts/release/local-release.mjs execute",
+    "test:release": "node --test scripts/release/release.test.mjs scripts/release/source.test.mjs",
+    "test:release:db": "node --test scripts/release/database.test.mjs"
   },
   "repository": {
     "type": "git",

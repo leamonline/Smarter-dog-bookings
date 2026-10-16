@@ -30,7 +30,9 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
   const buttonRef = useRef(null);
 
   // Keyboard shortcut "E" — only fires when no input/textarea/select
-  // has focus, so it doesn't hijack typing in the compose box.
+  // has focus, so it doesn't hijack typing in the compose box, and never
+  // from inside a modal dialog: E on a dialog's button must not resolve the
+  // conversation behind it.
   useEffect(() => {
     function handler(e) {
       if (e.key !== "e" && e.key !== "E") return;
@@ -38,6 +40,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
       if (active && active.isContentEditable) return;
+      if (active?.closest?.('[aria-modal="true"]')) return;
       if (disabled || !conversation) return;
       e.preventDefault();
       buttonRef.current?.click();

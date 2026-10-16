@@ -279,11 +279,11 @@ describe("Supabase security review regressions", () => {
     expect(helper).toMatch(/export\s+function\s+timingSafeEqualHeader\b/);
 
     const wsFns = [
-      "supabase/functions/whatsapp-send/index.ts",
+      // whatsapp-send and whatsapp-agent keep their implementation in
+      // handler.ts; index.ts is a serve() shim kept importable for deno tests.
+      "supabase/functions/whatsapp-send/handler.ts",
       "supabase/functions/whatsapp-admin/index.ts",
       "supabase/functions/whatsapp-register/index.ts",
-      // The agent's implementation lives in handler.ts; index.ts is a
-      // serve() shim kept importable for the deno dispatch tests.
       "supabase/functions/whatsapp-agent/handler.ts",
     ];
 
@@ -469,7 +469,7 @@ describe("Supabase security review regressions", () => {
   });
 
   it("whatsapp-send confirm_buttons mode posts Meta interactive buttons and writes message id", () => {
-    const fn = readProjectFile("supabase/functions/whatsapp-send/index.ts");
+    const fn = readProjectFile("supabase/functions/whatsapp-send/handler.ts");
     // The interactive-button payload and state-transition logic live in the
     // shared confirmButtons.ts helper (imported by whatsapp-send at runtime).
     const helper = readProjectFile("supabase/functions/_shared/confirmButtons.ts");

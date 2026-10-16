@@ -4,7 +4,7 @@
 // (register item #10) can be validated as a no-op rather than a
 // rewrite.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
@@ -57,6 +57,20 @@ vi.mock("./hooks/useInboxMessageSearch.js", () => ({
       searching: false,
     },
 }));
+
+// Pass-through: records the props ThreadPane gets, renders the real one.
+const threadPaneSpy = vi.hoisted(() => ({ props: [] }));
+vi.mock("./workspace/ThreadPane.jsx", async (importOriginal) => {
+  const actual = await importOriginal();
+  const Real = actual.ThreadPane;
+  return {
+    ...actual,
+    ThreadPane: (props) => {
+      threadPaneSpy.props.push(props);
+      return <Real {...props} />;
+    },
+  };
+});
 
 const { InboxView } = await import("./InboxView.jsx");
 
@@ -734,6 +748,45 @@ describe("InboxView", () => {
       expect(within(contextRegion()).getByRole("checkbox", { name: /Bella/ })).not.toBeChecked();
       // With nothing selected, offering a time has nothing to attach to.
       expect(within(contextRegion()).getByRole("button", { name: /Add to reply/i })).toBeDisabled();
+    });
+  });
+
+  describe("after WhatsApp is switched back on", () => {
+    const stopped = {
+      id: "conv-stopped",
+      channel: "whatsapp",
+      phone_e164: "+447700900199",
+      human_id: null,
+      humans: null,
+      whatsapp_opted_out_at: "2026-10-03T13:05:00.000000+00:00",
+      whatsapp_last_stop_at: "2026-10-03T13:05:00.000000+00:00",
+    };
+
+    it("patches the customer records and refreshes the list", () => {
+      const refreshList = vi.fn(() => Promise.resolve());
+      const onWhatsappReenabled = vi.fn();
+      threadPaneSpy.props = [];
+      setInboxState(baseState({
+        conversations: [stopped],
+        selectedId: stopped.id,
+        selectedConversation: stopped,
+        refreshList,
+      }));
+      render(
+        <MemoryRouter>
+          <ToastProvider>
+            <InboxView onWhatsappReenabled={onWhatsappReenabled} />
+          </ToastProvider>
+        </MemoryRouter>,
+      );
+      // The banner offers the re-enable because the thread pane was handed a handler.
+      expect(screen.getByRole("button", { name: "Switch WhatsApp back on…" })).toBeInTheDocument();
+
+      const { onWhatsappReenabled: fromThread } = threadPaneSpy.props.at(-1);
+      act(() => fromThread({ humanIds: ["h1", "h2"], conversationIds: [], auditId: "a1" }));
+      expect(onWhatsappReenabled).toHaveBeenCalledWith(["h1", "h2"]);
+      // A clear that only touched customer records emits no conversation change.
+      expect(refreshList).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -198,7 +198,9 @@ export function useHumanDraft({
   };
 
   // "E" toggles edit mode when no input is focused. Skipped while the
-  // overflow / confirm dialogs are open so it doesn't clash.
+  // overflow / confirm dialogs are open so it doesn't clash, and whenever
+  // the key lands in any other dialog stacked over the card (re-enable,
+  // merge, add dog, reject): the listener is on the document.
   useEffect(() => {
     if (!onUpdateHuman) return;
     const handler = (e) => {
@@ -214,6 +216,8 @@ export function useHumanDraft({
       ) {
         return;
       }
+      const dlg = t instanceof Element ? t.closest('[role="dialog"]') : null;
+      if (dlg && dlg.getAttribute("aria-labelledby") !== "human-card-title") return;
       if (shortcutPaused) return;
       e.preventDefault();
       if (mode === "view") startEdit("name");

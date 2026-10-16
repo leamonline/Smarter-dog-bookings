@@ -189,3 +189,48 @@ describe("ThreadPane", () => {
     }
   });
 });
+
+describe("ThreadPane — a number that said STOP", () => {
+  const TWO_DAYS_AGO = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const stopped = {
+    id: "conv-stopped",
+    channel: "whatsapp",
+    human_id: null,
+    humans: null,
+    phone_e164: "+447700900199",
+    // The 24-hour window is closed too: the STOP banner replaces it.
+    last_inbound_at: TWO_DAYS_AGO,
+    whatsapp_opted_out_at: "2026-10-03T13:05:00+00:00",
+    whatsapp_last_stop_at: "2026-10-03T13:05:00+00:00",
+  };
+
+  it("shows the STOP banner with its button instead of the 24-hour banner", () => {
+    render(
+      <ThreadPane
+        {...defaultProps({ selectedId: stopped.id, conversation: stopped, onWhatsappReenabled: vi.fn() })}
+      />,
+    );
+    expect(screen.getByText(/This number said STOP on 3 Oct 2026, 14:05\./)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch WhatsApp back on…" })).toBeInTheDocument();
+    expect(screen.queryByText("24-hour reply window closed.")).toBeNull();
+  });
+
+  it("shows the banner with no button where nothing can be changed (Booking Desk)", () => {
+    render(<ThreadPane {...defaultProps({ selectedId: stopped.id, conversation: stopped })} />);
+    expect(screen.getByText(/This number said STOP on 3 Oct 2026, 14:05\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Switch WhatsApp back on…" })).toBeNull();
+  });
+
+  it("still shows the 24-hour banner on a thread that did not say STOP", () => {
+    render(
+      <ThreadPane
+        {...defaultProps({
+          conversation: { ...defaultProps().conversation, last_inbound_at: TWO_DAYS_AGO },
+          onWhatsappReenabled: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.getByText("24-hour reply window closed.")).toBeInTheDocument();
+    expect(screen.queryByText(/said STOP/)).toBeNull();
+  });
+});

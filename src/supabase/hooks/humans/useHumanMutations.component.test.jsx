@@ -71,9 +71,9 @@ const h1 = {
 // Host harness: the composer owns the maps via useState in useHumansData;
 // here a tiny stand-in owns them so optimistic updates and rollbacks are
 // observable through real state.
-function useHarness({ replaceTrustedLinks }) {
-  const [humans, setHumans] = useState({ "Sarah Jones": h1 });
-  const [humansById, setHumansById] = useState({ h1 });
+function useHarness({ replaceTrustedLinks, initial = h1 }) {
+  const [humans, setHumans] = useState({ [initial.fullName]: initial });
+  const [humansById, setHumansById] = useState({ [initial.id]: initial });
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(1);
   const mutations = useHumanMutations({
@@ -88,10 +88,10 @@ function useHarness({ replaceTrustedLinks }) {
   return { humans, humansById, error, totalCount, ...mutations };
 }
 
-function renderMutations({ stub, replaceTrustedLinks } = {}) {
+function renderMutations({ stub, replaceTrustedLinks, initial } = {}) {
   setSupabase(stub ?? makeStub());
   return renderHook(() =>
-    useHarness({ replaceTrustedLinks: replaceTrustedLinks ?? vi.fn() }),
+    useHarness({ replaceTrustedLinks: replaceTrustedLinks ?? vi.fn(), initial }),
   );
 }
 
@@ -277,6 +277,75 @@ describe("useHumanMutations updateHuman", () => {
     expect(saved).toBeNull();
     expect(result.current.error).toBe("insert denied");
     expect(result.current.humans["Sarah Jones"].trustedIds).toEqual([]);
+  });
+});
+
+describe("useHumanMutations and the WhatsApp opt-out", () => {
+  // The row as the database holds it: the customer said STOP.
+  const stoppedRow = {
+    id: "h1",
+    name: "Sarah",
+    surname: "Jones",
+    phone: "07700900111",
+    sms: true,
+    notes: "",
+    whatsapp_opted_out: true,
+    whatsapp_opted_out_at: "2026-10-03T13:05:00.123456+00:00",
+    whatsapp_opted_out_reason: "asked_on_whatsapp",
+  };
+  // The same customer as the lookups cache them (app shape).
+  const stoppedEntry = {
+    ...h1,
+    sms: true,
+    whatsappOptedOut: true,
+    whatsappOptedOutAt: "2026-10-03T13:05:00.123456+00:00",
+    whatsappOptedOutReason: "asked_on_whatsapp",
+  };
+  const readBack = () =>
+    makeStub((ctx) =>
+      ctx.table === "humans" && ctx.op === "update"
+        ? { data: { ...stoppedRow, ...ctx.payload }, error: null }
+        : undefined,
+    );
+
+  it("keeps a STOP through a save of something else", async () => {
+    const stub = readBack();
+    const { result } = renderMutations({ stub, initial: stoppedEntry });
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.updateHuman("h1", { sms: false });
+    });
+
+    const update = stub._fromCalls.find((c) => c.op === "update");
+    expect(update.payload).toEqual({ sms: false });
+    // The readback rebuilds the entry; it must still say WhatsApp is off.
+    expect(result.current.humans["Sarah Jones"]).toMatchObject({
+      sms: false,
+      whatsappOptedOut: true,
+      whatsappOptedOutAt: "2026-10-03T13:05:00.123456+00:00",
+      whatsappOptedOutReason: "asked_on_whatsapp",
+    });
+    expect(saved.whatsappOptedOut).toBe(true);
+  });
+
+  it("never sends an untick from a JS caller", async () => {
+    const stub = readBack();
+    const { result } = renderMutations({ stub, initial: stoppedEntry });
+
+    await act(async () => {
+      await result.current.updateHuman("h1", {
+        sms: false,
+        whatsappOptedOut: false,
+        whatsappOptedOutAt: null,
+        whatsappOptedOutReason: null,
+      });
+    });
+
+    const update = stub._fromCalls.find((c) => c.op === "update");
+    expect(update.payload).toEqual({ sms: false });
+    expect(Object.keys(update.payload).some((key) => key.startsWith("whatsapp_opted_out"))).toBe(false);
+    expect(result.current.humans["Sarah Jones"].whatsappOptedOut).toBe(true);
   });
 });
 

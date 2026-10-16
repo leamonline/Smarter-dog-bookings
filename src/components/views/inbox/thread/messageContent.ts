@@ -7,7 +7,7 @@
 //
 //   • Template sends  — "[template:<id>] <args>"
 //        WhatsApp: <args> are the {{N}} values joined with " · "
-//                  (whatsapp-send/index.ts builds params.join(" · "))
+//                  (whatsapp-send/handler.ts builds params.join(" · "))
 //        SMS:      <args> are the already-rendered message text
 //                  (sms-send/index.ts stores the final body)
 //   • Reactions       — "[reaction message — no text content]"

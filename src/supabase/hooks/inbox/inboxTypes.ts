@@ -33,6 +33,10 @@ export interface InboxHumanDog {
 export interface InboxHuman {
   name: string | null;
   surname: string | null;
+  phone?: string | null;
+  whatsapp_opted_out?: boolean | null;
+  whatsapp_opted_out_at?: string | null;
+  whatsapp_opted_out_reason?: string | null;
   dogs?: InboxHumanDog[];
 }
 
@@ -60,6 +64,8 @@ export type ConversationListRow = Pick<
   | "closure_reason"
   | "closure_suggested_at"
   | "closure_suggested_reason"
+  | "whatsapp_opted_out_at"
+  | "whatsapp_last_stop_at"
   | "notes"
 > & {
   agent_state?: Json;

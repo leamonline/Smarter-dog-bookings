@@ -7,7 +7,11 @@ beforeEach(() => { mocks.loadHolidays.mockResolvedValue([]); mocks.saveHoliday.m
 it('submits one atomic command with the preview dates and reports a failed save', async () => {
   mocks.saveHoliday.mockRejectedValue(new Error('Open the reopening date in the diary first.'));
   render(<HolidaySettings />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Add holiday' }));
+  // The button is drawn disabled until the holidays have loaded; clicking it
+  // earlier does nothing, so wait for it to be enabled first.
+  const add = await screen.findByRole('button', { name: 'Add holiday' });
+  await waitFor(() => expect(add).toBeEnabled());
+  fireEvent.click(add);
   fireEvent.change(screen.getByLabelText('Show advance notice from'), { target: { value: '2026-09-01' } });
   fireEvent.change(screen.getByLabelText('First closed date'), { target: { value: '2026-09-14' } });
   fireEvent.change(screen.getByLabelText('Reopening date'), { target: { value: '2026-09-22' } });
