@@ -3,7 +3,8 @@ import { AlertTriangle, Send } from "lucide-react";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
-import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
+import { baseTrigger, triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
+import { isDeliveryUnconfirmed } from "../../../../supabase/functions/_shared/twilioDelivery";
 import { isHumanPhoneTakenError } from "../../../supabase/hooks/humans/phoneTaken";
 
 function relativeTime(iso) {
@@ -36,7 +37,9 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
   if (!failures || failures.length === 0) return null;
 
   // Distinct trigger types that are currently failed (one resend per type).
-  const triggers = [...new Set(failures.map((f) => f.trigger_type))];
+  // An SMS fallback row resends as the notice it carried: the resend function
+  // accepts only confirmed|reminder|ready|cancelled.
+  const triggers = [...new Set(failures.map((f) => baseTrigger(f.trigger_type)))];
   const currentPhone = primaryHuman?.phone || "";
 
   const startEdit = () => {
@@ -121,9 +124,15 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
         <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-bold text-red-800">
-            {triggers.length === 1
-              ? `${triggerLabel(triggers[0])} didn't reach the customer`
-              : "Some messages didn't reach the customer"}
+            {/* "Didn't reach" is a claim only a reported failure supports. A
+                Twilio accept with no receipt is unknown, not failed (#1017). */}
+            {failures.every((f) => isDeliveryUnconfirmed(f.error_message))
+              ? triggers.length === 1
+                ? `${triggerLabel(triggers[0])} not confirmed as delivered`
+                : "Some messages are not confirmed as delivered"
+              : triggers.length === 1
+                ? `${triggerLabel(triggers[0])} didn't reach the customer`
+                : "Some messages didn't reach the customer"}
           </div>
           <ul className="mt-1 space-y-0.5">
             {failures.map((f, i) => (

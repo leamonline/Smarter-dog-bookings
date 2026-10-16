@@ -241,7 +241,7 @@
     },
     "notify-booking-cancelled": {
       "authFamily": "webhook-bearer",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "Postgres trigger via pg_net",
       "role": "service",
       "gatewayVerifyJwt": false,
@@ -367,7 +367,7 @@
     },
     "reminder-sms-fallback": {
       "authFamily": "webhook-bearer",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "cron via pg_net only",
       "role": "service",
       "gatewayVerifyJwt": false,

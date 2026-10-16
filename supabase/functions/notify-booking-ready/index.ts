@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
+import { sendSmsBoolean, sendWhatsApp } from "../_shared/twilio.ts";
+import { notificationLogPatchForTwilioWhatsApp } from "../_shared/twilioDelivery.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, joinNames } from "../_shared/format.ts";
@@ -141,25 +142,38 @@ serve(async (req) => {
         continue;
       }
 
-      // Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+      // Send via Twilio (SMS/WhatsApp) or SendGrid (email). A Twilio WhatsApp
+      // accept is not delivery, so that row stays 'pending' for the reaper
+      // rather than being written 'sent' — see _shared/twilioDelivery.ts.
       let sent = false;
+      let patch: Record<string, unknown>;
       if (channel === "whatsapp") {
-        sent = await sendWhatsAppBoolean(human.phone!, message);
-      } else if (channel === "sms") {
-        sent = await sendSmsBoolean(human.phone!, message);
+        const twilio = await sendWhatsApp(human.phone!, message);
+        if (!twilio.ok) {
+          console.error(
+            `Twilio WhatsApp failed (${twilio.status}): ${twilio.errorCode ?? "?"} ${twilio.errorMessage ?? ""}`,
+          );
+        }
+        patch = notificationLogPatchForTwilioWhatsApp(twilio);
+        sent = twilio.ok;
       } else {
-        const subject = `${dogNames} is ready for collection — Smarter Dog Grooming`;
-        sent = await sendEmail(human.email!, subject, message);
+        if (channel === "sms") {
+          sent = await sendSmsBoolean(human.phone!, message);
+        } else {
+          const subject = `${dogNames} is ready for collection — Smarter Dog Grooming`;
+          sent = await sendEmail(human.email!, subject, message);
+        }
+        patch = {
+          status: sent ? "sent" : "failed",
+          sent_at: sent ? new Date().toISOString() : null,
+          error_message: sent ? null : "Delivery failed — check provider logs",
+        };
       }
 
       const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
       await supabase
         .from("notification_log")
-        .update({
-          status: sent ? "sent" : "failed",
-          sent_at: sent ? new Date().toISOString() : null,
-          error_message: sent ? null : "Delivery failed — check provider logs",
-        })
+        .update(patch)
         .in("id", pendingIds);
 
       results.push({ human_id: humanId, channel, sent });
