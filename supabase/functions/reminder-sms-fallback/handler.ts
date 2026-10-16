@@ -310,16 +310,11 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
           )
         );
         if (!stillCancelled) {
+          // Delete the claim rather than mark it failed: a failed claim row
+          // would surface on the dashboard as a cancellation that failed.
+          // Nothing was sent, so the claim leaves no record behind.
           if (claimIds.length) {
-            await supabase
-              .from("notification_log")
-              .update({
-                status: "failed",
-                error_message: nowErr
-                  ? "SMS not sent: could not re-check the booking before sending"
-                  : "SMS not sent: the booking is no longer cancelled",
-              })
-              .in("id", claimIds);
+            await supabase.from("notification_log").delete().in("id", claimIds);
           }
           skipped++;
           continue;

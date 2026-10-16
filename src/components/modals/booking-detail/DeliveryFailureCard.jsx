@@ -3,7 +3,7 @@ import { AlertTriangle, Send } from "lucide-react";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
-import { triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
+import { baseTrigger, triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
 import { isDeliveryUnconfirmed } from "../../../../supabase/functions/_shared/twilioDelivery";
 import { isHumanPhoneTakenError } from "../../../supabase/hooks/humans/phoneTaken";
 
@@ -37,7 +37,9 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
   if (!failures || failures.length === 0) return null;
 
   // Distinct trigger types that are currently failed (one resend per type).
-  const triggers = [...new Set(failures.map((f) => f.trigger_type))];
+  // An SMS fallback row resends as the notice it carried: the resend function
+  // accepts only confirmed|reminder|ready|cancelled.
+  const triggers = [...new Set(failures.map((f) => baseTrigger(f.trigger_type)))];
   const currentPhone = primaryHuman?.phone || "";
 
   const startEdit = () => {

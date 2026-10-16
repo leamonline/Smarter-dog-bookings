@@ -26,7 +26,11 @@
 - A booking cancelled, restored and cancelled again gets one SMS, carrying the
   newest notice (two identical claims made the unique index refuse both). The
   booking's status is read again after the claim and just before the send, so
-  a restore in between releases the claim and sends nothing.
+  a restore in between deletes the claim (so it never shows as a failed
+  cancellation) and sends nothing.
+- Resending from a booking's delivery card resends the notice an SMS fallback
+  row carried (`cancelled_sms_fallback` → `cancelled`), which the resend
+  function accepts; the raw fallback name was refused with a 400.
 
 ## Unreleased — legacy four-zone salon board deleted (#995)
 

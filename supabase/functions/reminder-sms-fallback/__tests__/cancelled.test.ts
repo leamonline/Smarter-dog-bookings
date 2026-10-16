@@ -212,8 +212,9 @@ Deno.test("a booking restored after the claim but before the send is not texted,
     [{ id: "booking-1", status: "Confirmed" }],
   );
   assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0);
-  const release = calls.find((c) => c.method === "PATCH" && c.path === "/rest/v1/notification_log");
-  assert(release, "the claim row is released");
-  assertEquals((release.body as { status: string }).status, "failed");
+  const release = calls.find((c) => c.method === "DELETE" && c.path === "/rest/v1/notification_log");
+  assert(release, "the claim row is deleted, so it never reads as a failed cancellation");
+  assert(release.search.includes("claim-0"));
+  assertEquals(calls.filter((c) => c.method === "PATCH" && c.path === "/rest/v1/notification_log").length, 0);
   assertEquals(json.sms_sent, 0);
 });

@@ -7,6 +7,11 @@ vi.mock("../../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
 }));
 
+const resendMock = vi.hoisted(() => vi.fn(async () => ({ error: null })));
+vi.mock("../../../supabase/hooks/useStaffMessaging", () => ({
+  useStaffMessaging: () => ({ resendBookingNotification: resendMock }),
+}));
+
 const props = {
   booking: { id: "b1" },
   failures: [
@@ -72,5 +77,25 @@ describe("DeliveryFailureCard: unconfirmed is not failed", () => {
       />,
     );
     expect(screen.getByText("Some messages didn't reach the customer")).toBeInTheDocument();
+  });
+});
+
+// The safety net logs its SMS as `<notice>_sms_fallback`; the resend function
+// accepts only the notice itself, so a raw fallback trigger would be refused.
+describe("DeliveryFailureCard: resending an SMS fallback row", () => {
+  it("resends the notice the fallback carried, once", async () => {
+    resendMock.mockClear();
+    render(
+      <DeliveryFailureCard
+        {...props}
+        failures={[
+          { trigger_type: "cancelled", channel: "whatsapp", created_at: "2026-10-14T09:00:00Z" },
+          { trigger_type: "cancelled_sms_fallback", channel: "sms", created_at: "2026-10-14T10:00:00Z" },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /resend message/i }));
+    expect(resendMock).toHaveBeenCalledTimes(1);
+    expect(resendMock).toHaveBeenCalledWith("b1", "cancelled");
   });
 });
