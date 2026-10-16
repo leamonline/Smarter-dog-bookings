@@ -36,7 +36,10 @@ async function sweep(
   rows: LogRow[],
   bookings: { id: string; status: string }[],
   customer: Record<string, unknown> = SMS_CUSTOMER,
+  // What a re-read of the bookings returns after the claim (default: the same).
+  bookingsAtSend: { id: string; status: string }[] = bookings,
 ) {
+  let bookingReads = 0;
   const calls: Call[] = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -51,7 +54,7 @@ async function sweep(
       return new Response(null, { status: 204 });
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") return reply([]);
-    if (url.pathname === "/rest/v1/bookings") return reply(bookings);
+    if (url.pathname === "/rest/v1/bookings") return reply(bookingReads++ === 0 ? bookings : bookingsAtSend);
     if (url.pathname === "/rest/v1/humans") return reply([customer]);
     if (url.pathname.endsWith("/functions/v1/sms-send")) return reply({ ok: true, twilio_sid: "SM-fallback" });
     return reply([]);
@@ -182,5 +185,35 @@ Deno.test("a customer who opted out of SMS is not texted", async () => {
 
 Deno.test("a customer with no phone is not texted", async () => {
   const { json } = await sweep([failedCancellation], [{ id: "booking-1", status: "Cancelled" }], { ...SMS_CUSTOMER, phone: null });
+  assertEquals(json.sms_sent, 0);
+});
+
+Deno.test("a booking cancelled, restored and cancelled again is claimed once, with the newest notice", async () => {
+  const older = { ...failedCancellation, id: "log-cancel-1", message_text: "first cancellation wording",
+    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() };
+  const newer = { ...failedCancellation, id: "log-cancel-2", message_text: "second cancellation wording" };
+  const { json, calls } = await sweep([older, newer], [{ id: "booking-1", status: "Cancelled" }]);
+  const claims = calls.filter((c) => c.method === "POST" && c.path === "/rest/v1/notification_log");
+  assertEquals(claims.length, 1);
+  const rows = claims[0].body as { booking_id: string; message_text: string }[];
+  assertEquals(rows.length, 1, "one claim per booking and recipient, so the unique index cannot refuse the batch");
+  assertEquals(rows[0].message_text, "second cancellation wording");
+  const sms = calls.filter((c) => c.path.endsWith("/functions/v1/sms-send"));
+  assertEquals(sms.length, 1);
+  assertEquals((sms[0].body as { text: string }).text, "second cancellation wording");
+  assertEquals(json.sms_sent, 1);
+});
+
+Deno.test("a booking restored after the claim but before the send is not texted, and the claim is released", async () => {
+  const { json, calls } = await sweep(
+    [failedCancellation],
+    [{ id: "booking-1", status: "Cancelled" }],
+    SMS_CUSTOMER,
+    [{ id: "booking-1", status: "Confirmed" }],
+  );
+  assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0);
+  const release = calls.find((c) => c.method === "PATCH" && c.path === "/rest/v1/notification_log");
+  assert(release, "the claim row is released");
+  assertEquals((release.body as { status: string }).status, "failed");
   assertEquals(json.sms_sent, 0);
 });

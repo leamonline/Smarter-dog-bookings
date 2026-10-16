@@ -257,7 +257,19 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
       // status IN ('pending','sent') makes a re-run's insert fail with
       // 23505 — so we never double-text.
       const fallbackTrigger = `${originalTrigger}_sms_fallback`;
-      const bookingRows = gRows.filter((r) => r.booking_id);
+      // One claim per booking: a booking cancelled, restored and cancelled
+      // again has two failed notices, and two identical claims would make the
+      // unique index refuse the whole batch (read as "already chased"). The
+      // newest notice wins, so the SMS carries the latest wording.
+      const newestByBooking = new Map<string, ReminderRow>();
+      for (const r of gRows) {
+        if (!r.booking_id) continue;
+        const seen = newestByBooking.get(r.booking_id);
+        if (!seen || new Date(r.created_at).getTime() > new Date(seen.created_at).getTime()) {
+          newestByBooking.set(r.booking_id, r);
+        }
+      }
+      const bookingRows = [...newestByBooking.values()];
       const pendingEntries = bookingRows.map((r) => ({
         booking_id: r.booking_id,
         human_id: humanId,
@@ -281,7 +293,44 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
         continue;
       }
 
-      const text = gRows[0].message_text!;
+      const claimIds = ((pendingRows ?? []) as { id: string }[]).map((p) => p.id);
+
+      // A cancellation is only texted while the booking is still cancelled.
+      // The status read above is minutes old by now, so read it again after
+      // the claim: a restore since then releases the claim and sends nothing.
+      if (originalTrigger === "cancelled") {
+        const { data: nowRows, error: nowErr } = await supabase
+          .from("bookings")
+          .select("id, status")
+          .in("id", bookingRows.map((r) => r.booking_id!));
+        const stillCancelled = !nowErr && bookingRows.every((r) =>
+          noticeStillRelevant(
+            originalTrigger,
+            ((nowRows ?? []) as { id: string; status: string }[]).find((b) => b.id === r.booking_id)?.status,
+          )
+        );
+        if (!stillCancelled) {
+          if (claimIds.length) {
+            await supabase
+              .from("notification_log")
+              .update({
+                status: "failed",
+                error_message: nowErr
+                  ? "SMS not sent: could not re-check the booking before sending"
+                  : "SMS not sent: the booking is no longer cancelled",
+              })
+              .in("id", claimIds);
+          }
+          skipped++;
+          continue;
+        }
+      }
+
+      // A cancellation group is one booking: send its newest notice. Reminder
+      // and confirmation groups keep sending the first row's wording.
+      const text = originalTrigger === "cancelled" && bookingRows.length
+        ? bookingRows[0].message_text!
+        : gRows[0].message_text!;
       const result = await invokeInternal("sms-send", {
         mode: "template",
         to: h.phone,

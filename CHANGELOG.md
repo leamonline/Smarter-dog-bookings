@@ -20,8 +20,13 @@
   phone and the SMS opt-out, so it could text a customer who never chose
   SMS. This applies to reminders and confirmations as well as cancellations.
 - Trade-off, by design: until the cancellation moves to a Meta template, a
-  customer whose Twilio WhatsApp did arrive also gets the SMS an hour later,
-  and the Delivery issues card lists the WhatsApp row as failed.
+  customer whose Twilio WhatsApp did arrive also gets the SMS an hour later.
+  The Delivery issues card says "not confirmed as delivered", in its summary
+  and screen-reader label too, when every row on it is unconfirmed.
+- A booking cancelled, restored and cancelled again gets one SMS, carrying the
+  newest notice (two identical claims made the unique index refuse both). The
+  booking's status is read again after the claim and just before the send, so
+  a restore in between releases the claim and sends nothing.
 
 ## Unreleased — Staff can switch WhatsApp back on (#1016 follow-up)
 
