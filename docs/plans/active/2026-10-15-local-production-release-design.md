@@ -96,3 +96,10 @@ Only after its database and application release are verified should #1023 procee
 This avoids a GitHub plan upgrade but adds an operator step and a small maintained release tool. It does not recreate GitHub's server-enforced withholding of environment secrets; it substitutes a deliberately separate local credential boundary whose behaviour must be proven.
 
 Recommended decision: accept this direction for implementation and staging rehearsal only. Production execution, workflow retirement and credential changes remain separate, concrete approval steps.
+
+
+## Current-state amendment, 16 October 2026
+
+The initial plan-restriction evidence above is historical. A fresh GitHub read confirms that Production now has `leamonline` as required reviewer, and production migration workflow run [38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741) completed successfully. PRs #1016 and #1023 have merged elsewhere. The original blocker no longer justifies adopting this additional release path. Preserve the working hosted gate; retain this implementation as a draft alternative pending a separate adoption decision.
+
+Staging currently permits `main` only, and its workflow has no migration-source overlay. That cannot produce the exact unmerged-PR-head workflow evidence required by this alternative. A separately reviewed staging evidence route is an explicit adoption prerequisite, alongside signing, credential isolation and approved bootstrap setup. No environment policy is changed by the implementation.

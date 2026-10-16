@@ -71,3 +71,10 @@ Implementation commits `cc6a14a5` and `55c81ace` implement the local tool, nativ
 On `55c81ace`, release tests (10), real disposable PostgreSQL matrix, workflow tests (24), full Vitest suite (411 files / 4,395 tests), docs, lint, types, 239-file migration validation and production build pass. Lint reports 66 existing warnings. Native helper compilation and credential-free probe pass. These are local results, not hosted acceptance.
 
 The plan remains active for independent final review, implementation PR checks and the explicit operator acceptance in the [runbook](../../local-production-release.md). No production/staging operation, credential enrolment/read, bootstrap installation, workflow retirement or dependent application merge occurred during implementation.
+
+
+### Current upstream integration and adoption recommendation
+
+Integrated `origin/main@fffda165` in `75cc4243`; only CHANGELOG required manual conflict resolution, preserving both sections. Fresh merged-tree verification passes 423 files / 4,765 Vitest tests, 10 release tests, the real isolated PostgreSQL matrix, 71 focused tests, docs, lint, types, 240-file migration validation and build.
+
+A read-only check on 16 October confirms that Production now has its required reviewer and run `38805066741` succeeded. #1016 and #1023 are already merged. Retain the hosted route: this implementation is a draft alternative, not an adoption recommendation. Current staging's main-only policy/no overlay cannot satisfy exact-source evidence for an unmerged PR, so a separately reviewed route is an additional acceptance prerequisite. This active issue/plan retains adoption and operator gates; local code verification does not close them.
