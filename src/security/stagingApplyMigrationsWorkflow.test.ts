@@ -147,41 +147,27 @@ describe("staging apply-migrations workflow", () => {
     expect(script).toContain('^[0-9]{14}_[a-z0-9_]+\\.sql$');
     expect(script).toContain('test -f "supabase/migrations/$migration"');
 
-    // Ledger identity is the NAME (what CI's migrations-applied check reads):
-    // a present name is skipped unless explicitly re-applied, and even a
-    // re-apply never adds a second ledger row for that name.
-    expect(script).toContain(`LEDGER_MATCH="(name = :'name' or name = :'base')"`);
-    expect(script).toContain(
-      'select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;',
-    );
-    // The CLI's temporary login is not postgres: every psql session must adopt
-    // the role before touching supabase_migrations (run #3 failed on exactly this).
-    expect(script).toContain(
-      `    "set role postgres;" \\\n    "select count(*) from supabase_migrations.schema_migrations where $LEDGER_MATCH;" |`,
-    );
-    expect(script).toContain('echo "set role postgres;"');
-    expect(script).toContain(
-      "--command \"set role postgres; select version || '  ' || name from supabase_migrations.schema_migrations order by version;\"",
-    );
-    expect(script).toContain('if [ "$already" != "0" ] && ! may_reapply "$migration"; then');
-    expect(script).toContain('for candidate in ${REAPPLY_MIGRATIONS:-}; do');
-    expect(script).toContain(
-      "where not exists (select 1 from supabase_migrations.schema_migrations where $LEDGER_MATCH);",
-    );
-
-    // Schema change and ledger row commit together, in the apply's session:
-    // the last one that begins in the loop (the skip branch's provenance
-    // session comes earlier and executes no file text).
-    const begin = script.lastIndexOf('echo "begin;"');
-    const body = script.indexOf("printf '%s\\n' \"$executed\"", begin);
-    const ledger = script.indexOf(
-      "insert into supabase_migrations.schema_migrations (version, name, statements)",
-    );
-    const commit = script.indexOf('echo "commit;"', ledger);
+    // The shell's guarded credential acquisition hands off to one shared
+    // session; real PostgreSQL parity cases live in scripts/release/database.test.mjs.
+    expect(script).toContain('/release/engine.mjs" "$@"');
+    const engine = readFileSync(join(root, "scripts/release/engine.mjs"), "utf8");
+    expect(engine).toContain("'set role postgres;'");
+    expect(engine).toContain("pg_try_advisory_lock");
+    expect(engine).toContain("pg_advisory_unlock");
+    expect(engine).toContain("spawn('psql', ['-X', '-A', '-t', '-q', '--file', '-']");
+    expect(engine).toContain("Ledger version conflict");
+    expect(engine).toContain("Multiple ledger identities");
+    expect(engine).toContain("Ledger SQL mismatch");
+    expect(engine).toContain("Final ledger verification failed");
+    const begin = engine.indexOf("'begin;',", engine.indexOf('for (const migration'));
+    const body = engine.indexOf("lines.push('\\\\o /dev/null', { sql }", begin);
+    const ledger = engine.indexOf("insert into supabase_migrations.schema_migrations", body);
+    const commit = engine.indexOf("'commit;'", ledger);
     expect(begin).toBeGreaterThan(-1);
     expect(begin).toBeLessThan(body);
     expect(body).toBeLessThan(ledger);
     expect(ledger).toBeLessThan(commit);
-    expect(script).toContain("--set ON_ERROR_STOP=1");
+    expect(engine).toContain("ON_ERROR_STOP on");
+
   });
 });

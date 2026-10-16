@@ -111,7 +111,7 @@ describe("production apply-migrations workflow", () => {
     // provenance check and the append-only check; the dispatch-time checkout
     // (HEAD) is never the reference, and the apply code must match current main.
     expect(workflow).toContain("          git fetch --no-tags --depth=1 origin main\n          main_sha=\"$(git rev-parse FETCH_HEAD)\"\n          echo \"main_sha=$main_sha\" >> \"$GITHUB_OUTPUT\"");
-    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then');
+    expect(workflow).toContain('            if ! git diff --quiet "$GITHUB_SHA" "$main_sha" -- .github/workflows/production-apply-migrations.yml scripts/apply-hosted-migrations.sh scripts/release/engine.mjs scripts/lex-migration-sql.pl scripts/production-ref-provenance.sh scripts/check-migrations.mjs scripts/migration-name.mjs; then');
     // Provenance (on main, or the current head of an open, non-draft pull
     // request with no outstanding changes request) is decided by one script,
     // run against the fetched main SHA, and run again before the write.
@@ -201,7 +201,7 @@ describe("production apply-migrations workflow", () => {
     // guarded module, is in the list: a rule tightened on main after the
     // dispatch must not be bypassed by a run still waiting for approval.
     const invoked = new Set<string>();
-    for (const match of workflow.matchAll(/(?:^|[\s"'])(scripts\/[A-Za-z0-9_.-]+)/g)) invoked.add(match[1]);
+    for (const match of workflow.matchAll(/(?:^|[\s"'])(scripts\/[A-Za-z0-9_./-]+)/g)) invoked.add(match[1]);
     expect(invoked.size).toBeGreaterThanOrEqual(4);
     for (const path of invoked) expect(guarded, `drift guard must cover ${path}`).toContain(path);
     for (const path of guarded.filter((entry) => entry.endsWith(".mjs"))) {
@@ -318,7 +318,8 @@ describe("production apply-migrations workflow", () => {
     for (const outcome of ["PREFLIGHT_OUTCOME", "LINK_OUTCOME", "APPLY_OUTCOME", "AFTER_OUTCOME"]) {
       expect(workflow).toContain(outcome);
     }
-    expect(workflow).toContain("grep -E '^(file|strip|apply|reapply|skip|done|recorded|MISSING|MISMATCH|CONFLICT|REFUSED|postcondition|POSTCONDITION) ' apply.log");
+    expect(workflow).toContain('grep -E');
+    expect(workflow).toContain('"status":|file |strip |apply |reapply |skip |done |recorded |MISSING |MISMATCH |CONFLICT |REFUSED |postcondition |POSTCONDITION )');
     expect(workflow).toContain('echo "| Migration files from commit | \\`$MIGRATION_REF\\` |"');
   });
 
@@ -354,126 +355,44 @@ describe("production apply-migrations workflow", () => {
     expect(validation).toBeLessThan(dump);
   });
 
-  it("makes the script show before-state, identify each file, and verify the ledger afterwards", () => {
-    const listing =
-      "--command \"set role postgres; select version || '  ' || name from supabase_migrations.schema_migrations order by version;\"";
-    expect(script.split(listing).length - 1).toBe(2);
-    expect(script).toContain('echo "Ledger rows before this run ($TARGET $TARGET_PROJECT_REF):"');
-    expect(script).toContain('echo "Ledger rows after this run:"');
-    expect(script).toMatch(/echo "file {3}\$migration sha256=\$\(sha256sum/);
-    expect(script).toContain('echo "done   $migration"');
-    expect(script).toContain(
-      "\"select string_agg(version || ' ' || name, ', ' order by version) from supabase_migrations.schema_migrations where $LEDGER_MATCH;\" |",
-    );
-    expect(script).toContain('echo "MISSING $migration: no ledger row is named after it (name or basename)" >&2');
-    // A file's own top-level begin;/commit; lines are removed so the apply's
-    // transaction (with the ledger row) is the only one, and anything else
-    // psql or PostgreSQL would still act on (other transaction control, psql
-    // meta-commands, variable interpolation, unreadable quoting) is refused.
-    // Both come from one quoting-aware scan, scripts/lex-migration-sql.pl
-    // (behaviour pinned in lexMigrationSql.test.ts), never from a line-wise
-    // grep or a comment strip over the raw file, which quoted text can fool.
-    expect(script).toContain('lexer="$(cd "$(dirname "$0")" && pwd)/lex-migration-sql.pl"');
-    expect(script).toContain('test -f "$lexer"');
-    expect(script).toContain("command -v perl >/dev/null");
-    expect(script).toMatch(/if ! executed="\$\(perl "\$lexer" executed < "\$file" 2>\/dev\/null\)"; then\n {4}echo "REFUSED \$migration: \$\(perl "\$lexer" executed < "\$file" 2>&1 >\/dev\/null\)" >&2\n {4}exit 1/);
-    expect(script).toMatch(/if ! findings="\$\(perl "\$lexer" check < "\$file"\)"; then\n {4}echo "REFUSED \$migration: .*" >&2\n {4}exit 1/);
-    expect(script).not.toMatch(/grep -viE '\^\[\[:space:]]\*\(begin\|commit\)/);
-    expect(script).not.toMatch(/sed -E 's\/--\.\*\$\/\/'/);
-    expect(script).not.toMatch(/perl -0pe/);
-    // The check runs before the apply's psql session opens (the last session
-    // that begins in the loop; the skip branch's provenance session executes
-    // no file text), and what runs is the lexer's executed text, never the
-    // raw file.
-    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.lastIndexOf('    echo "begin;"'));
-    expect(script.indexOf('if ! findings="$(perl "$lexer" check')).toBeLessThan(script.indexOf('    printf \'%s\\n\' "$executed"'));
-    expect(script).toContain('    printf \'%s\\n\' "$executed"');
-    expect(script).not.toMatch(/^ {4}cat "\$file"$/m);
-    expect(script).toContain('test "$missing" = 0');
-
-    // A recorded name is skipped only when the stored SQL equals the committed
-    // file; otherwise the run stops. A re-apply refreshes the stored SQL in the
-    // same transaction, and the final verification compares content too.
-    // Every ledger predicate that reads or writes a row identifies the migration
-    // by name or basename; a row sharing only the version is a conflict that
-    // stops the run before anything is written.
-    expect(script).toContain(`LEDGER_MATCH="(name = :'name' or name = :'base')"`);
-    expect(script.match(/where \$LEDGER_MATCH/g)?.length).toBeGreaterThanOrEqual(5);
-    expect(script).not.toMatch(/where name = :'name'[;)]/);
-    expect(script).not.toMatch(/LEDGER_MATCH=.*version/);
-    expect(script).toContain("where version = :'version' and not $LEDGER_MATCH;");
-    expect(script).toMatch(/conflict="\$\(version_conflicts "\$name" "\$base" "\$version"\)"\n {2}if \[ -n "\$conflict" \]; then\n(?: {4}.+\n)* {4}exit 1/);
-    expect(script.indexOf('conflict="$(version_conflicts')).toBeLessThan(script.indexOf('already="$('));
-    // Symbolic links are never applied.
+  it("delegates ledger, lexer, lock, receipt and postcondition contracts to the shared single-session engine", () => {
+    const engine = readFileSync(join(root, "scripts/release/engine.mjs"), "utf8");
+    expect(script).toContain('/release/engine.mjs" "$@"');
+    // Exact-byte and runtime parity, including failed postconditions and
+    // interrupted sessions, are tested on real PostgreSQL in database.test.mjs.
+    for (const invariant of [
+      "../lex-migration-sql.pl", "lex('check', sql)", "lex('executed', sql)",
+      "lex('skeleton', executed)", "Empty migration", "Ledger SQL mismatch",
+      "Ledger version conflict", "Multiple ledger identities",
+      "Final ledger verification failed", "RELEASE_BEFORE", "lastSqlSha256",
+      "RELEASE_LEDGER_VERIFIED", "sha256: sha256(m.sql)",
+      "pg_try_advisory_lock", "pg_advisory_unlock", "begin read only;",
+      "set local statement_timeout='30s';", "set local role anon;",
+      "Postcondition failed", "is true,false)", "reconciliation_required",
+      "release_control.attempts", "statements=coalesce(statements,'{}') || array[",
+      "(file ${migration.name})", "child.stdin.end(sql)",
+    ]) expect(engine, invariant).toContain(invariant);
+    expect(engine.indexOf('const sql = compile(options)')).toBeLessThan(engine.indexOf("spawn('psql'"));
+    expect(engine).not.toContain('--set=body=');
+    expect(engine).not.toContain('set statements = array[');
     expect(script).toContain('  if [ -L "supabase/migrations/$migration" ]; then');
-    expect(script).toContain("select coalesce(statements[array_upper(statements, 1)], '') from supabase_migrations.schema_migrations where $LEDGER_MATCH order by version desc limit 1;");
-    expect(script).toContain('    if [ "$(stored_sql "$name" "$base" "$version")" = "$(cat "$file")" ]; then');
-    expect(script).toMatch(/echo "MISMATCH \$migration: name already in the \$TARGET ledger but its stored SQL differs from the committed file\." >&2\n(?:.*\n)? {4}exit 1/);
-    // A re-apply appends evidence; it never overwrites what was applied before.
-    // The ledger text travels inside the psql stdin stream as a dollar-quoted
-    // literal under a tag the file does not contain, never as an argument
-    // (Linux caps one argument at 128 KiB) and never as a psql variable.
-    expect(script).toContain('  while grep -qF "\\$$tag\\$" "$file"; do tag="ledger_$RANDOM$RANDOM"; done');
-    expect(script).not.toContain("--set=body=");
-    expect(script).not.toContain(":'body'");
-    // With LEDGER_PROVENANCE set (the production workflow does), one validated
-    // line is stored just ahead of the file; the file stays the last element,
-    // which is what every comparison reads. A file with no SQL is refused.
-    expect(script).toContain('  recorded="\\$$tag\\$$body\\$$tag\\$"');
-    expect(script).toContain('    recorded="\\$$tag\\$$LEDGER_PROVENANCE (file $migration)\\$$tag\\$, $recorded"');
-    expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[$recorded]"`);
-    expect(script).toContain(`printf '%s\\n' "  select :'version', :'name', array[$recorded]"`);
-    expect(script).toMatch(/if \[\[ "\$LEDGER_PROVENANCE" == \*\$'\\n'\* \]\] \|\| \[\[ "\$LEDGER_PROVENANCE" == \*'\$'\* \]\] \|\| \[\[ ! "\$LEDGER_PROVENANCE" =~ \^--\\ {2}\]\]; then\n {4}echo "Refusing LEDGER_PROVENANCE[^\n]*\n {4}exit 1/);
-    // ... judged on the executed form, so a file that is only its own
-    // begin;/commit; pair (and comments) is refused rather than recorded.
-    expect(script).toMatch(/if \[ -z "\$\(printf '%s\\n' "\$executed" \| perl "\$lexer" skeleton \| tr -d '\[:space:\]'\)" \]; then\n {4}echo "REFUSED \$migration: it contains no SQL statement once its own begin;\/commit; lines are removed[^\n]*\n {4}exit 1/);
-    expect(script).not.toMatch(/perl "\$lexer" skeleton < "\$file"/);
-    // One migration, one row: two rows named after it (stripped name and
-    // basename) stop the run before anything is written, and again at the
-    // verification, instead of judging one of them by version order.
-    expect(script).toContain('  already="$(ledger_row_count "$name" "$base" "$version")"');
-    expect(script).toMatch(/if \[ "\$already" -gt 1 \]; then\n {4}echo "CONFLICT \$migration: \$already ledger rows are named after it \[\$\(ledger_rows "\$name" "\$base" "\$version"\)\][^\n]*\n {4}exit 1/);
-    expect(script.indexOf('if [ "$already" -gt 1 ]; then')).toBeLessThan(script.indexOf('if [ "$already" != "0" ] && ! may_reapply "$migration"; then'));
-    expect(script).toMatch(/elif \[ "\$rows" -gt 1 \]; then\n {4}echo "CONFLICT \$migration: \$rows ledger rows are named after it \[\$recorded\][^\n]*\n {4}missing=1/);
-    // A skip still records this run's provenance (and the file again, so the
-    // file stays the last element) when the production workflow set it, so the
-    // merge gate can hold a later push that drops a file production holds.
-    expect(script).toContain(`printf '%s\\n' "update supabase_migrations.schema_migrations set statements = coalesce(statements, '{}') || array[\\$$tag\\$$LEDGER_PROVENANCE, found already applied with identical SQL (file $migration)\\$$tag\\$, $recorded]"`);
-    expect(script.indexOf("found already applied with identical SQL")).toBeGreaterThan(script.indexOf('echo "skip   $migration'));
-    expect(script.indexOf("found already applied with identical SQL")).toBeLessThan(script.indexOf('echo "MISMATCH $migration'));
-    expect(script).toContain('        echo "recorded $migration (this run\'s provenance appended to its ledger row; nothing executed)"');
-    expect(stagingWorkflow).not.toContain("LEDGER_PROVENANCE");
-    expect(script).not.toMatch(/set statements = array\[/);
-    expect(script.indexOf("update supabase_migrations.schema_migrations set statements")).toBeLessThan(
-      script.indexOf("insert into supabase_migrations.schema_migrations (version, name, statements)"),
-    );
-    expect(script).toContain('  elif [ "$(stored_sql "$name" "$base" "$version")" != "$(cat "supabase/migrations/$migration")" ]; then');
-    // ADR 006 postcondition: read-only, must be exactly one boolean true.
-    // The query runs inside a scalar subquery, so no separator can end the
-    // read-only transaction, and semicolons are refused up front.
-    // ... as the least-privileged `anon` role with a statement timeout: catalogs
-    // readable, customer rows and server-signalling functions denied.
-    expect(script).toContain(
-      '      "set transaction read only;" \\\n      "set local statement_timeout = \'30s\';" \\\n      "set local role anon;" \\\n      "select (" \\\n      "$POSTCONDITION_SQL" \\\n      ") is true;" \\\n      "rollback;" |',
-    );
-    // A file listed twice would run twice under a re-apply: refused before any hosted command.
-    expect(script).toContain('if [ "$(printf \'%s\\n\' "$@" | sort | uniq -d | wc -l | tr -d \' \')" != "0" ]; then');
     expect(script.indexOf("names the same file more than once")).toBeLessThan(script.indexOf("supabase db dump --linked"));
+    expect(script.indexOf("Refusing REAPPLY_MIGRATIONS entry")).toBeLessThan(script.indexOf("supabase db dump --linked"));
     expect(script).toContain('  POSTCONDITION_SQL="${POSTCONDITION_SQL%;}"');
     expect(script).toContain('if [[ "$POSTCONDITION_SQL" == *";"* ]] ||');
-    // A re-apply name that is not in the list would never run: refused before any hosted command.
-    const reapplyGate = script.indexOf("Refusing REAPPLY_MIGRATIONS entry");
-    expect(reapplyGate).toBeGreaterThan(-1);
-    expect(reapplyGate).toBeLessThan(script.indexOf("supabase db dump --linked"));
-    expect(script).toContain('  if [ "$verdict" = "t" ]; then');
-    expect(script).toContain('echo "POSTCONDITION FAILED: expected exactly \'t\', got \'${verdict:-nothing}\'" >&2');
-    expect(script).toMatch(/\[\[ ! "\$POSTCONDITION_SQL" =~ \^\[\[:space:]]\*\[sS]\[eE]\[lL]\[eE]\[cC]\[tT]\[\[:space:]] ]]/);
+    expect(stagingWorkflow).not.toContain('LEDGER_PROVENANCE');
+  });
+});
 
-    const apply = script.indexOf('echo "commit;"');
-    const verify = script.indexOf("Verifying the requested migrations are recorded");
-    const after = script.indexOf('echo "Ledger rows after this run:"');
-    expect(apply).toBeLessThan(verify);
-    expect(verify).toBeLessThan(after);
+describe("local release evidence in the migration merge gate", () => {
+  it("requires the latest local release attempt to have completed its postcondition", () => {
+    expect(gate).toContain("with ordinality as entry(s, position)");
+    expect(gate).toContain("order by position desc limit 1");
+    expect(gate).toContain("printf '%s' \"$rows\" | node scripts/release/merge-gate.mjs");
+    expect(gate).toContain("node-version: 24");
+    expect(gate).toContain("s like '-- applied to production % verification-actions-v1 %'");
+    expect(gate).toContain("  actions: read");
+    expect(gate).toContain("GH_TOKEN: ${{ github.token }}");
   });
 });
 
@@ -521,7 +440,7 @@ describe("check-migrations-applied.yml binds the applied content", () => {
       "            provenance=\"(select string_agg(s, E'\\n') from unnest(coalesce(statements, '{}')) s where s like '-- applied to production from pull request #$PR_NUMBER head %')\"",
     );
     expect(gate).toContain(
-      'query="select version, name, $recorded_sql as recorded_sql, $provenance as provenance from supabase_migrations.schema_migrations"',
+      'query="select version, name, $recorded_sql as recorded_sql, $provenance as provenance, $local_release as local_release from supabase_migrations.schema_migrations"',
     );
     expect(gate).toContain(`--data "$(jq -cn --arg query "$query" '{query: $query}')")`);
     expect(gate).not.toContain('--data \'{"query":"select version, name from');

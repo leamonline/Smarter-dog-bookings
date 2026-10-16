@@ -22,6 +22,7 @@ It does not duplicate those sources.
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
 | Which plan is active? | [`plans/active/`](plans/active/) |
 | Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; its `website.yml` `deploy` job is the live publisher since 9 September 2026 (procedure and rollback: [cutover runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md); evidence: [completed plan](plans/completed/2026-09-05-website-consolidation.md)) |
+| How are exact local database release packages prepared and accepted? | [`local-production-release.md`](local-production-release.md) — implementation and remaining operator gates |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |

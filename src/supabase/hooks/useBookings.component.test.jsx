@@ -243,10 +243,6 @@ function DailyBriefUpdateHarness() {
           toggleImmediateSlot={vi.fn()}
           onRefresh={bookingState.refetch}
           configPricing={null}
-          // The subject here is useBookings' error handling, reached through a
-          // status write. The stack grows its own actions in a later step; until
-          // then the board is the surface that has one.
-          useLegacyBoard
         />
       </ToastProvider>
     </MemoryRouter>
@@ -598,16 +594,17 @@ describe("useBookings", () => {
     );
 
     render(<DailyBriefUpdateHarness />);
-    // Press the dog, then Check in from its action panel.
-    fireEvent.click(await screen.findByRole("button", { name: /^Bella\./ }));
+    // Open the dog's card, then Check in from its actions.
+    fireEvent.click(await screen.findByRole("button", { name: /09:00\. Bella\./ }));
     fireEvent.click(screen.getByRole("button", { name: "Arrived — Bella" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check-in could not be saved.",
     );
     expect(screen.queryByText("Couldn't load bookings for this date.")).not.toBeInTheDocument();
-    // Bella is still in Arriving — a failed write never moves a dog.
-    expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
+    // Bella is still Expected — a failed write never moves a dog.
+    const card = document.querySelector('[data-booking-id="booking-7"]');
+    expect(card.getAttribute("data-status-key")).toBe("expected");
   });
 
   it("removeBooking deletes optimistically and reports success", async () => {

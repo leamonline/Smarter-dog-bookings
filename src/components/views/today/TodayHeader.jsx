@@ -1,4 +1,4 @@
-// The board's header — the day, and whether it is going well.
+// The day's header — the date, and whether the day is going well.
 //
 // Two lines, one anatomy at every width. The first is identity and control:
 // the date IS the date-picker (it must never leave the screen — it is the only
@@ -16,7 +16,7 @@ import { formatMoney } from "./parts.jsx";
 import {
   NeedsAttentionSummary,
   NEEDS_ATTENTION_DEFINITION,
-} from "./board/NeedsAttentionSummary.jsx";
+} from "./NeedsAttentionSummary.jsx";
 
 export { NEEDS_ATTENTION_DEFINITION };
 

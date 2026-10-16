@@ -1,16 +1,18 @@
-// The live salon board — the staff landing screen.
+// The day stack — the staff landing screen.
 //
-// One dog, one token, in the zone that says where that dog physically is:
-// Arriving → With us → Ready → Gone home. Position carries the status, so the
-// question staff actually ask ("where is Teddy?") is answered by looking
-// rather than by reading a column of badges, and the answer to "does anything
-// need me?" is one sentence at the top.
+// One dog, one card, in strict appointment order: the card states its status
+// as a word, carries one elapsed-time line, and expands in place for details
+// and that dog's actions. The question staff actually ask ("how long has Teddy
+// been here?") is answered by reading down the list, and the answer to "does
+// anything need me?" is one sentence at the top.
 //
-// This file composes; it does not decide. Zones, ranking and which actions are
-// legal live in `engine/salonBoard.ts`; every write lives in
-// `useBookingActions`. The viewport still never moves by itself, and the date
-// still never leaves the screen — it is the only guard against doing today's
-// work on Thursday's bookings.
+// This file composes; it does not decide. Time order lives in
+// `engine/dayStack.ts`, the zone vocabulary and which actions are legal in
+// `engine/salonBoard.ts`, and every write in `useBookingActions`. The viewport
+// never moves by itself, and the date never leaves the screen — it is the only
+// guard against doing today's work on Thursday's bookings.
+//
+// The four-zone salon board this replaced was deleted in October 2026 (#995).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
@@ -37,7 +39,6 @@ import { DAY_CAPACITY } from "../../engine/utilisation";
 import { buildDailyBriefBoard } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
 import { BOOKING_STATUS } from "../../constants/index";
-import { FEATURE_FLAGS } from "../../constants/features";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
@@ -51,30 +52,23 @@ import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
 import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
 import { useBookingActions } from "./today/useBookingActions.ts";
-import { SalonBoard } from "./today/board/SalonBoard.jsx";
-import { CompletedDogs, EndOfDayFacts } from "./today/board/CompletedDogs.jsx";
+import { EndOfDayFacts } from "./today/EndOfDayFacts.jsx";
 import { DayStack } from "./today/stack/DayStack.jsx";
 import { CollectedSummary } from "./today/stack/CollectedSummary.jsx";
-import { UnknownStatusRecovery } from "./today/board/UnknownStatusRecovery.jsx";
+import { UnknownStatusRecovery } from "./today/UnknownStatusRecovery.jsx";
 
-// Mirrors the real board: three zones of token ghosts.
-function BoardSkeleton() {
+// Mirrors the stack: a few collapsed card ghosts, time on the left.
+function StackSkeleton() {
   return (
     <div
-      aria-label="Loading the salon board"
-      className="grid grid-cols-1 items-start gap-3 motion-safe:animate-pulse md:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]"
+      aria-label="Loading today's bookings"
+      className="flex flex-col gap-2 motion-safe:animate-pulse"
     >
-      {[0, 1, 2].map((zone) => (
-        <div key={zone} className="min-w-0 p-2">
-          <div className="mb-3 h-3 w-20 rounded bg-slate-200/80" />
-          <div className="flex gap-3">
-            {Array.from({ length: zone === 0 ? 3 : 2 }, (_, index) => (
-              <div key={index} className="flex flex-col items-center gap-1.5">
-                <div className="size-16 rounded-full bg-slate-200/70" />
-                <div className="h-2.5 w-12 rounded bg-slate-200/60" />
-              </div>
-            ))}
-          </div>
+      {[0, 1, 2].map((index) => (
+        <div key={index} className="flex min-h-14 items-center gap-3 rounded-xl bg-slate-200/50 px-3">
+          <div className="h-3.5 w-12 rounded bg-slate-200/90" />
+          <div className="h-3 w-28 rounded bg-slate-200/80" />
+          <div className="ml-auto h-2.5 w-16 rounded bg-slate-200/60" />
         </div>
       ))}
     </div>
@@ -111,12 +105,6 @@ export function TodayView({
   toggleImmediateSlot,
   onRefresh,
   configPricing,
-  /**
-   * Escape hatch back to the four-zone board. Off by default; see
-   * FEATURE_FLAGS.legacy_salon_board_enabled. Taken as a prop so the board's
-   * own tests can exercise it without reaching into module state.
-   */
-  useLegacyBoard = FEATURE_FLAGS.legacy_salon_board_enabled,
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -133,9 +121,8 @@ export function TodayView({
   // Which attention reason is highlighted, or null. Per-reason rather than a
   // single union toggle: "highlight the 2 late dogs" beats "highlight all 11".
   const [attentionReason, setAttentionReason] = useState(null);
-  // Board only: which token has its action panel open. The stack keeps its own
-  // open-row state inside DayStack, because only one row opens at a time there.
-  const [selectedTokenId, setSelectedTokenId] = useState(null);
+  // A colleague's status change on another till, spoken for screen readers.
+  // The stack keeps its own open-row state inside DayStack.
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
   const previousZonesRef = useRef(null);
 
@@ -391,11 +378,10 @@ export function TodayView({
 
   useEffect(() => {
     setAttentionReason(null);
-    setSelectedTokenId(null);
   }, [dateStr]);
   useEffect(() => {
     // A reason whose last dog was dealt with clears itself — an empty
-    // highlight would dim the whole board for nothing.
+    // highlight would dim the whole day for nothing.
     if (attentionReason && attention.reasons[attentionReason].length === 0) {
       setAttentionReason(null);
     }
@@ -405,7 +391,7 @@ export function TodayView({
     if (board.excludedCount === 0 || !import.meta.env?.DEV) return;
     // eslint-disable-next-line no-console -- development-only data recovery signal
     console.warn(
-      `The salon board excluded ${board.excludedCount} booking(s) with an unknown or missing status.`,
+      `The day stack excluded ${board.excludedCount} booking(s) with an unknown or missing status.`,
     );
   }, [board.excludedCount]);
 
@@ -478,11 +464,6 @@ export function TodayView({
       && board.excludedCount === 0);
   const isRefreshing = bookingsLoading && selectedBookings.length > 0;
 
-  const boardHandlers = useMemo(
-    () => ({ onTokenAction: actions.runTokenAction }),
-    [actions.runTokenAction],
-  );
-
   /**
    * Selecting a segment also takes you to the first dog it names, but only if
    * that dog is off screen — the viewport never moves on its own, and the
@@ -494,9 +475,7 @@ export function TodayView({
     const firstId = attention.reasons[reason]?.[0];
     if (!firstId) return;
     requestAnimationFrame(() => {
-      const target = document.querySelector(
-        `[data-booking-id="${firstId}"] [data-dog-token], [data-booking-id="${firstId}"] [data-stack-head]`,
-      );
+      const target = document.querySelector(`[data-booking-id="${firstId}"] [data-stack-head]`);
       if (!target) return;
       const box = target.getBoundingClientRect();
       if (box.top >= 0 && box.bottom <= window.innerHeight) return;
@@ -549,7 +528,7 @@ export function TodayView({
         )}
 
         {bookingsLoading && selectedBookings.length === 0 ? (
-          <BoardSkeleton />
+          <StackSkeleton />
         ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
             <div className="px-4 py-14 text-center">
@@ -575,53 +554,24 @@ export function TodayView({
               onOpenBooking={onOpenBooking}
             />
             <div className={isRefreshing ? "opacity-70 motion-safe:transition-opacity" : "motion-safe:transition-opacity"}>
-              {useLegacyBoard ? (
-                <SalonBoard
-                  tokens={tokens}
-                  resolve={resolve}
-                  getWelfare={getWelfare}
-                  paymentOf={paymentOf}
-                  handlers={boardHandlers}
-                  onTheWaySignals={onTheWaySignals}
-                  busyIds={actions.busyIds}
-                  highlightIds={highlightIds}
-                  landedId={actions.landedId}
-                  boardKey={dateStr}
-                  selectedId={selectedTokenId}
-                  onSelectToken={setSelectedTokenId}
-                />
-              ) : (
-                <DayStack
-                  key={dateStr}
-                  rows={stackRows}
-                  resolve={resolve}
-                  getWelfare={getWelfare}
-                  paymentOf={paymentOf}
-                  lastVisitFor={lastVisitFor}
-                  onTheWaySignals={onTheWaySignals}
-                  highlightIds={highlightIds}
-                  tokensById={tokensById}
-                  onAction={actions.runTokenAction}
-                  onCollectWithPayment={collectWithPayment}
-                  onSetPrice={actions.setPrice}
-                  onOpenInvoice={actions.setInvoiceBooking}
-                  busyIds={actions.busyIds}
-                />
-              )}
-            </div>
-            {useLegacyBoard ? (
-              <CompletedDogs
-                tokens={tokens.home}
-                landedId={actions.landedId}
-                isToday={isToday}
+              <DayStack
+                key={dateStr}
+                rows={stackRows}
                 resolve={resolve}
+                getWelfare={getWelfare}
                 paymentOf={paymentOf}
-                onOpenBooking={onOpenBooking}
-                onOpenToken={(token) => setSelectedTokenId(String(token.booking.id))}
+                lastVisitFor={lastVisitFor}
+                onTheWaySignals={onTheWaySignals}
+                highlightIds={highlightIds}
+                tokensById={tokensById}
+                onAction={actions.runTokenAction}
+                onCollectWithPayment={collectWithPayment}
+                onSetPrice={actions.setPrice}
+                onOpenInvoice={actions.setInvoiceBooking}
+                busyIds={actions.busyIds}
               />
-            ) : (
-              <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
-            )}
+            </div>
+            <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
             <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
