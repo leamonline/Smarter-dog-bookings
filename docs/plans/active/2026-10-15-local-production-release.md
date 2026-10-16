@@ -27,7 +27,7 @@ No production or customer-data operations, credential creation/read/update, live
 
 ## Data/database, API and UI changes
 
-No application schema migration, RPC, Edge API or product UI change planned. A session-held database lock must serialise migration releases. Any newly discovered schema requirement must be escalated before adding a migration. CLI output is the operator UI and must distinguish partial, unknown and verified outcomes.
+No application migration, RPC, Edge API or product UI change. Discovery during implementation: cross-machine approval replay prevention requires a durable release-attempt record before the first migration. Supply separately reviewed bootstrap SQL under scripts/release; never auto-install it or add it to migration history in this task. Execution refuses a missing control table. Hosted installation requires separate approval. A session-held database lock serialises migration releases. CLI output is the operator UI and must distinguish partial, unknown and verified outcomes.
 
 ## Security and risks
 
