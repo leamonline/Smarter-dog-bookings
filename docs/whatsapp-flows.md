@@ -20,7 +20,7 @@ schedules by the 2-2-1 seat model), so Flow A has no groomer screen.
 | Services/prices/slots constants (mirror of `src/constants/salon.ts`) | `supabase/functions/_shared/salonConstants.ts` |
 | Outbound flow-message builder | `supabase/functions/_shared/flowMessage.ts` |
 | Flow Data Endpoint (the brain) | `supabase/functions/whatsapp-flow-endpoint/{index,db}.ts` |
-| `flow` send mode | `supabase/functions/whatsapp-send/index.ts` |
+| `flow` send mode | `supabase/functions/whatsapp-send/handler.ts` |
 | Flow A definition | `whatsapp-flows/appointment-booking.json` |
 | Session table | `supabase/migrations/20260526130000_whatsapp_flow_sessions.sql` |
 | Scripts | `scripts/{generate-flow-keys,publish-flow,send-flow}.mjs` |

@@ -175,4 +175,50 @@ describe("useDraftActions", () => {
     expect(outcome.ok).toBe(false);
     expect(stub.functions.invoke).not.toHaveBeenCalled();
   });
+  // whatsapp-send answers an opted-out customer with a 409 and a JSON body;
+  // supabase-js wraps that in a FunctionsHttpError whose message is generic,
+  // so the reason must be read from the response (#1016 review).
+  const optOutError = () => ({
+    message: "Edge Function returned a non-2xx status code",
+    context: {
+      json: () => Promise.resolve({
+        error: "This customer has opted out of WhatsApp messages",
+        reason: "whatsapp_opted_out",
+      }),
+    },
+  });
+
+  it("approveDraft surfaces the function's own reason for a non-2xx, not the generic message", async () => {
+    const stub = makeStub({ invokeResult: { data: null, error: optOutError() } });
+    const { result, setDraft } = setup({ stub });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.approveDraft();
+    });
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toContain("opted out of WhatsApp messages");
+    expect(outcome.reason).not.toContain("non-2xx");
+    expect(setDraft).not.toHaveBeenCalled();
+  });
+
+  it("sendManualReply surfaces the function's own reason for a non-2xx", async () => {
+    const stub = makeStub({ invokeResult: { data: null, error: optOutError() } });
+    const { result } = setup({ stub });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.sendManualReply({ text: "hello" });
+    });
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toContain("opted out of WhatsApp messages");
+  });
+
+  it("keeps the error's own message when the response has no readable body", async () => {
+    const stub = makeStub({ invokeResult: { data: null, error: { message: "Failed to send a request" } } });
+    const { result } = setup({ stub });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.approveDraft();
+    });
+    expect(outcome).toMatchObject({ ok: false, reason: "Failed to send a request" });
+  });
 });
