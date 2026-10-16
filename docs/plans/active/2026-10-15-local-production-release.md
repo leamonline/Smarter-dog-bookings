@@ -3,7 +3,7 @@
 Status: Active
 Issue: #1024
 Base: origin/main 1cbbce518fc4c8cd6e90649d724802e615b88534
-Last verified: 2026-10-15
+Last verified: 2026-10-16
 Owners: implementer owns release scripts, tests and related documentation; controller owns plan and ledger
 Dependencies: None for implementation; operator credential validation and staging rehearsal gate production use
 Related requirements: GOAL-04
@@ -62,3 +62,12 @@ A reviewed implementation PR, passing relevant checks, documented operator setup
 ## Open questions
 
 The human-only credential mechanism must be proven; the controller will resolve implementation questions within the approved design, and must not infer authority for account/credential changes.
+
+
+## Implementation evidence, 16 October 2026
+
+Implementation commits `cc6a14a5` and `55c81ace` implement the local tool, native helper, shared session-held lock, replay control and merge-gate integration. The independent task review identified one missing guarantee for new Actions releases: final postcondition failure could still leave matching ledger SQL. The fix binds new Actions evidence to the exact run attempt and requires successful terminal verification; historical records retain compatibility.
+
+On `55c81ace`, release tests (10), real disposable PostgreSQL matrix, workflow tests (24), full Vitest suite (411 files / 4,395 tests), docs, lint, types, 239-file migration validation and production build pass. Lint reports 66 existing warnings. Native helper compilation and credential-free probe pass. These are local results, not hosted acceptance.
+
+The plan remains active for independent final review, implementation PR checks and the explicit operator acceptance in the [runbook](../../local-production-release.md). No production/staging operation, credential enrolment/read, bootstrap installation, workflow retirement or dependent application merge occurred during implementation.
