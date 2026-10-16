@@ -96,3 +96,35 @@ manual gate. Faster execution alone is not sufficient.
 
 Related: [migration history](../../migrations.md),
 [ADR 004](004-serial-schema-convergence-and-runtime-capabilities.md).
+
+## Draft local operator alternative (16 October 2026)
+
+Issue [#1024](https://github.com/leamonline/Smarter-dog-bookings/issues/1024)
+implements the [accepted local-release design](../../plans/active/2026-10-15-local-production-release-design.md).
+The [operator runbook](../../local-production-release.md) distinguishes code from
+production acceptance. The existing workflow's environment-reviewer guard stays
+in place; workflow/credential retirement is separate authorised work.
+
+Current state on 16 October: the production environment has required reviewer
+`leamonline`, and production run
+[38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741)
+succeeded from main `1cbbce51`. The design's 15 October HTTP 422 limitation is
+historical. Retain the working hosted gate; this draft implementation neither
+adopts the alternative nor recommends replacing the current route. Adoption and
+operator setup require a separate decision.
+
+The alternative binds a strict canonical 60-minute package to exact reviewed SQL,
+source/main, staging hashes, current checks/reviews, target, postcondition and
+recovery plan. Execution requires a signed macOS data-protection Keychain helper
+with per-read user presence. A terminal or typed digest alone is not approval
+security. Signing, enrolment, denied/repeated unlock behaviour and an equivalent
+synthetic staging rehearsal remain unverified operator gates.
+
+All supported named-file apply paths share one PostgreSQL session and advisory
+release lock. Every file and its ledger evidence remain atomic, but multiple files
+are not one transaction. Local approvals are consumed before writes in a proposed
+private release-attempt table, installed only after separate review/authorisation;
+the engine does not create it. Unknown attempts never retry automatically. Local
+provenance is compatible with the migration gate, which additionally requires a
+successful attempt/postcondition before dependent code may merge. Compilation,
+local tests and a populated migration ledger do not establish production acceptance.
