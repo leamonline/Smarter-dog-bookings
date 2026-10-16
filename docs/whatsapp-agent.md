@@ -244,8 +244,127 @@ never automatically:
 - A redelivered STOP, or an event replayed after it was stored, does not stop
   the number again over a re-enable made since.
 
-There is no staff screen for this yet. Until there is, the functions are
-called with a member of staff's session; they refuse every other caller.
+**Switching it back on in the app.** Staff reach the re-enable from two
+places, and nowhere else: there is no ordinary untick.
+- The customer profile leads with a notice when WhatsApp is switched off
+  (rose for a STOP, slate for any other reason), with **Switch WhatsApp back
+  on…**. The header carries a "WhatsApp stopped" / "WhatsApp off" badge, and
+  the "WA" wa.me link is hidden while it is off.
+- The inbox thread shows a banner in place of the 24-hour banner when sends
+  in the chat are refused, with the same button. It is keyed on the chat’s
+  own number, so it also covers a number with no customer record. A linked
+  customer switched off under a different number gets "Open {name}’s
+  profile" instead, since this number’s re-enable cannot reach them. The
+  Booking Desk shows the banner without buttons.
+
+The dialog (`ReenableWhatsAppDialog`, state in `useWhatsappNumberReenable`)
+reads the scope when it opens and lists the number’s first and latest STOP
+and every switched-off record on it, with each record’s reason, before the
+form. Staff write how and when the customer gave permission again (at least
+10 characters); the note is sent trimmed, verbatim, never prefixed or
+composed. The request carries exactly the scope’s records and the scope’s
+latest STOP as the server’s own string (`whatsappOptOutRepo` takes the scope
+object, so a subset or a reformatted time cannot be sent). Nothing is ever
+retried automatically:
+- If the scope changed since staff looked (`reenable_scope_changed`), or
+  another write held the number’s lock (`40P01`, `55P03`, `40001`,
+  `57014`), the dialog reads the scope again, shows what changed, and waits
+  for staff to confirm again.
+- If the number said STOP again since, the note is cleared too: the
+  permission it recorded predates that STOP. In the inbox, a newer STOP on
+  the live conversation row holds the button until staff reload. A STOP no
+  later than one the dialog has shown is not newer, even once a re-enable
+  has cleared it and the row has not caught up.
+- If the connection drops, the outcome is unknown, so the dialog reads the
+  scope and the audit to find out whether it went through, and says so
+  either way. If either read fails, confirm stays held, and **Check again**
+  repeats the same check against the scope staff were shown.
+- The dialog stays on the number it opened with. If the profile’s number
+  changes underneath it, or the profile’s own record is no longer switched
+  off on the number, it says the profile is out of date and holds confirm
+  until staff refresh (in the inbox, if the chat’s number changes, it says
+  so and holds confirm too). If Confirm had focus, focus moves to that line.
+  Not when an outcome has found that record proven back on, or no longer on
+  file: the dialog has said so already, so nothing is held for it.
+
+**Outcomes come from the audit log, never from absence.** A record also
+leaves a number’s scope when its phone changes while it stays opted out:
+nothing but the re-enable ever clears an opt-out. And an audit row shows a
+re-enable that happened, not the record’s state now: it can have been
+switched off again since (the number said STOP again) and then moved. So
+whenever a re-read has lost records (or a request’s outcome is in doubt),
+the dialog reads, through `whatsappOptOutRepo`:
+1. `whatsapp_opt_out_reenables` for the scope’s own `phone_key` (the
+   server’s, never one worked out in the browser) **and** for any row whose
+   `human_ids` overlap the scope’s records, whatever number it was for (a
+   record whose phone changed can be switched back on under its new number),
+   with the signed-in user;
+2. then `humans.whatsapp_opted_out` for each record that left, as it is now.
+
+`attributeCleared` (`src/engine/whatsappReenable.ts`) then decides:
+- A record is reported back on only if a row proves it was switched back on
+  **and** it reads as on now. A row proves it if it lists the record and is
+  strictly later, to the microsecond, than the record’s switch-off time
+  (`humans.whatsapp_opted_out_at`, when recorded) and the latest STOP staff
+  were shown. Only those records reach the host’s cache.
+- **Our own request** is the row written by the signed-in member of staff,
+  with the note this dialog sent, for exactly the records that request sent
+  (the function refuses any other set) and later than every switch-off and
+  STOP in it. That holds for a legacy record with no switch-off time too.
+  Found after a dropped connection, it is treated exactly as a successful
+  submit, but only when the re-read finds nothing switched off on the
+  number: if anything is switched off there now (another record moved onto
+  it, still opted out, say), the dialog says “Your change went through, but
+  this number has changed since…” and shows the latest, and only the records
+  proven back on reach the cache. A dropped request can land late, even
+  after the dialog said it did not: a later refusal that finds our row
+  reports it as ours, never as someone else’s. If our row is there but the
+  number has said STOP again since, the dialog says “Your change went
+  through, but this number said STOP again on {time}. WhatsApp is off
+  again.” rather than “nothing was switched on”.
+- A plain scope read does not wait for a re-enable still holding its locks,
+  so it can be served just before our request commits while the audit read
+  after it sees our row. When the scope still shows, no later than our row,
+  something our row switched back on, it is read once more before anything
+  is said (`scopePredatesRow`).
+- Proven by any other row: “WhatsApp has already been switched back on for
+  this number.” Neutral on purpose; who did it is in the audit, never guessed.
+- **A record that left and reads as switched off now** is switched off
+  wherever it is. The dialog names it (“Sarah Jones isn’t switched off on
+  this number any more, but WhatsApp is switched off for them now. Their
+  number may have changed — open their profile to check.”, with an **Open …
+  profile** button; an unnamed one is “An unnamed record”), reports nothing
+  for it, and the profile keeps its notice, badge and hidden WA link. It
+  never says “still”: a row can show the record was switched back on (even
+  by this request) and off again since. On that record’s own profile the
+  out-of-date line says it instead, and the notice drops its “then confirm”
+  while confirm is held (or while a newer STOP on the live list holds it).
+  In the inbox, a linked customer the chat shows saved with another number
+  is named only on its own “linked to this chat” line, which stays in an
+  already-on outcome too (sends in the chat are still refused for them, so
+  it never says there is nothing left to do). Any records still on the
+  number are shown as the new scope.
+- **A record the state read does not return** no longer exists (merged into
+  another record, or deleted). It is named as such (“Sarah J isn’t on file
+  any more — merged into another record, or deleted.”), with no profile
+  button, and reported nothing for; on its own profile too, where it is
+  never called out of date.
+- A record that left with no row proving it back on, and that does not read
+  as switched off either, is named as unconfirmed (“…but we can’t confirm
+  WhatsApp was switched back on for them…”) and reported nothing for.
+- If the audit, the signed-in user or the records cannot be read, nothing is
+  reported: the dialog keeps what staff were shown and holds confirm behind
+  **Check again**.
+
+On sample data (`npm run dev`) the notice, badge and banner render from the
+fixtures, but the dialog only explains that switching back on needs the live
+database. Try the live flow on staging, never production: a test re-enable
+changes a real customer’s consent and writes a permanent audit row.
+
+Switching back on does not switch auto-send back on: the assistant stays on
+drafts for staff to approve. A pending STOP acknowledgement draft is left in
+the chat for staff to reject, since it tells the customer messages have
+stopped; the dialog says so.
 
 Numbers are matched however they were typed ("07700 900123",
 `+44 (0)7700 900 123`, "+33 6 12 34 56 78"). In code this is `phoneMatchKey`

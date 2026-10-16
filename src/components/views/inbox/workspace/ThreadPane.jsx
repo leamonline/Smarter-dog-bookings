@@ -9,6 +9,7 @@ import { BookingCreatedCard } from "../thread/BookingCreatedCard.jsx";
 import { ComposePanel } from "../thread/ComposePanel.jsx";
 import { DraftPanel } from "../thread/DraftPanel.jsx";
 import { MessageBubble } from "../thread/MessageBubble.jsx";
+import { NumberStoppedBanner, isThreadWhatsappStopped } from "../thread/NumberStoppedBanner.jsx";
 import { WindowClosedBanner } from "../thread/WindowClosedBanner.jsx";
 
 const BOTTOM_ANCHOR_PX = 80;
@@ -47,6 +48,10 @@ export function ThreadPane({
   onRejectBookingAction,
   autoFocusSignal,
   textareaRef,
+  // Optional: without them (the Booking Desk) a stopped thread shows its
+  // status with no buttons.
+  onWhatsappReenabled,
+  onOpenHuman,
 }) {
   const threadScrollRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -213,7 +218,14 @@ export function ThreadPane({
         </div>
       </div>
 
-      <WindowClosedBanner conversation={conversation} />
+      <NumberStoppedBanner
+        key={conversation?.id ?? "none"}
+        conversation={conversation}
+        onReenabled={onWhatsappReenabled}
+        onOpenHuman={onOpenHuman}
+      />
+      {/* A refused number needs permission, not a template: no 24-hour banner. */}
+      {!isThreadWhatsappStopped(conversation) && <WindowClosedBanner conversation={conversation} />}
 
       <div
         ref={threadScrollRef}

@@ -54,6 +54,13 @@ export interface Human {
   depositRequired?: boolean;
   /** Staff-managed opt-out for AI-initiated WhatsApp messages. */
   aiWhatsappAllowed?: boolean;
+  /**
+   * WhatsApp switched off for this customer (a STOP, or staff). Read-only in
+   * the app: only the audited re-enable switches it back on.
+   */
+  whatsappOptedOut?: boolean;
+  whatsappOptedOutAt?: string | null;
+  whatsappOptedOutReason?: string | null;
   trustedIds: string[];
   trustedContacts: TrustedContact[];
 }

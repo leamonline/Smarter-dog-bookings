@@ -182,6 +182,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               }
               onApproveSignup={humansApi.approveSignup}
               onRejectSignup={humansApi.rejectSignup}
+              onWhatsappReenabled={humansApi.markWhatsappReenabled}
             />
           </Suspense>
         </ErrorBoundary>

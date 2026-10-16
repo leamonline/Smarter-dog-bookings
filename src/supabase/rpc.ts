@@ -617,6 +617,41 @@ export function markWhatsappConversationRead(
   });
 }
 
+// What switching WhatsApp back on for a number would cover: when it first
+// and last said STOP, and every switched-off customer record on it. Staff
+// only (42501 otherwise); SECURITY DEFINER; migration 20261014120000.
+export function getWhatsappNumberOptOutScope(
+  client: SupabaseClient,
+  params: { phone: string },
+) {
+  return client.rpc("staff_whatsapp_number_opt_out_scope", {
+    p_phone: params.phone,
+  });
+}
+
+// Switch WhatsApp back on for a number, with the customer's renewed
+// permission. Staff only (42501 otherwise); SECURITY DEFINER; migration
+// 20261014120000. humanIds and lastStopAt must be EXACTLY what the scope
+// read returned: lastStopAt goes back as the server's own string (it carries
+// microseconds), never through Date, or the server refuses the re-enable as
+// out of date.
+export function reenableWhatsappNumber(
+  client: SupabaseClient,
+  params: {
+    phone: string;
+    humanIds: string[];
+    lastStopAt: string | null;
+    permissionNote: string;
+  },
+) {
+  return client.rpc("staff_reenable_whatsapp_number", {
+    p_phone: params.phone,
+    p_human_ids: params.humanIds,
+    p_last_stop_at: params.lastStopAt ?? null,
+    p_permission_note: params.permissionNote,
+  });
+}
+
 // Open-day lookup -------------------------------------------------------
 
 // day_settings is staff-only via RLS; this RPC exposes just

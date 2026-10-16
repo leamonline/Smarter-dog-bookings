@@ -6,7 +6,9 @@ export const SAMPLE_HUMANS = {
   "Emma Wilson": { id: "h3", name: "Emma", surname: "Wilson", phone: "07700 900113", sms: false, whatsapp: true, email: "emma@example.com", fb: "", insta: "", tiktok: "", address: "789 Park Rd", notes: "", trustedIds: [] },
   "Tom Baker": { id: "h4", name: "Tom", surname: "Baker", phone: "07700 900114", sms: true, whatsapp: true, email: "tom@example.com", fb: "", insta: "", tiktok: "", address: "101 High St", notes: "", trustedIds: [] },
   "Lisa Brown": { id: "h5", name: "Lisa", surname: "Brown", phone: "07700 900115", sms: true, whatsapp: false, email: "lisa@example.com", fb: "", insta: "", tiktok: "", address: "202 Elm St", notes: "", trustedIds: [] },
-  "Jenny Taylor": { id: "h6", name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [] },
+  // Said STOP on WhatsApp: shows the profile's "WhatsApp is off" notice and
+  // header badge offline (the re-enable dialog itself needs the live database).
+  "Jenny Taylor": { id: "h6", name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [], whatsappOptedOut: true, whatsappOptedOutAt: "2026-10-03T13:05:00.000000+00:00", whatsappOptedOutReason: "asked_on_whatsapp" },
   "Mark Johnson": { id: "h7", name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [] },
 };
 
@@ -73,9 +75,11 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
 // breakpoint without touching a real customer conversation.
 //
 // Timestamps are relative so the thread always looks current. Between them the
-// three conversations cover each row status the list can show — pending draft,
-// failed send and needs-review — plus a failed outbound bubble and a pending AI
-// draft in the thread.
+// first three conversations cover each row status the list can show — pending
+// draft, failed send and needs-review — plus a failed outbound bubble and a
+// pending AI draft in the thread. The fourth is a number with no customer
+// record that said STOP (twice), for the thread's "WhatsApp is off" banner; it
+// is the oldest, so it always sorts last and the first thread stays the same.
 
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -174,6 +178,25 @@ export const SAMPLE_WHATSAPP_CONVERSATIONS = [
       },
     ],
   },
+  {
+    id: "sample-stopped-unknown",
+    phone_e164: "+447700900199",
+    channel: "whatsapp",
+    human_id: null,
+    humans: null,
+    whatsapp_opted_out_at: "2026-10-03T13:05:00.000000+00:00",
+    whatsapp_last_stop_at: "2026-10-10T08:12:00.000000+00:00",
+    last_customer_text: "STOP",
+    last_message_text: "STOP",
+    last_message_direction: "inbound",
+    last_inbound_at: minutesAgo(60 * 24 * 4),
+    last_message_at: minutesAgo(60 * 24 * 4),
+    last_outbound_at: null,
+    unread_count: 0,
+    closed_at: null,
+    whatsapp_drafts: [],
+    whatsapp_booking_actions: [],
+  },
 ];
 
 const sampleMessage = (id, direction, content, minutes, overrides = {}) => ({
@@ -214,6 +237,9 @@ export const SAMPLE_WHATSAPP_MESSAGES = {
   "sample-request-priya": [
     sampleMessage("p1", "inbound", "I'd like to book a puppy groom next week.", 126),
   ],
+  "sample-stopped-unknown": [
+    sampleMessage("x1", "inbound", "STOP", 60 * 24 * 4),
+  ],
 };
 
 // One pending AI draft so the thread's DraftPanel renders offline. Keyed by
@@ -238,6 +264,7 @@ export const SAMPLE_WHATSAPP_DOG_NAMES = {
   "sample-request-sarah": [{ id: "sample-luna", name: "Luna" }],
   "sample-request-david": [{ id: "sample-milo", name: "Milo" }],
   "sample-request-priya": [],
+  "sample-stopped-unknown": [],
 };
 
 // Customer context for the workspace's Customer section, keyed by human_id so

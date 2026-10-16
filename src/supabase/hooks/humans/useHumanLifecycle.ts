@@ -3,7 +3,9 @@
 // self-signups. Extracted from useHumans (Debt #5). All three share the
 // { ok: true } | { ok: false, error } result contract, guard for offline,
 // and optimistically update the shared caches while realtime reconciles
-// the canonical rows.
+// the canonical rows. markWhatsappReenabled is the odd one out: no RPC of
+// its own, just the cache patch for a WhatsApp re-enable that has already
+// committed (the re-enable dialog owns the call).
 import type { ApprovalResult } from "./useSignupReview";
 import { useCallback } from "react";
 import { supabase } from "../../client";
@@ -236,5 +238,55 @@ export function useHumanLifecycle({
     [setHumans, setHumansById, setTotalCount, setDirectoryHumans],
   );
 
-  return { mergeHumans, linkPendingSignup, approveSignup, rejectSignup };
+  /**
+   * Show WhatsApp as back on for records the re-enable switched back on,
+   * using the ids the server reported. Patched here rather than refetched:
+   * realtime only refetches the visible directory page, and fetchHumanById
+   * serves this cache once a profile has been loaded. humansById may hold a
+   * raw row or an app-shaped entry, so both spellings are set, as
+   * approveSignup does.
+   */
+  const markWhatsappReenabled = useCallback(
+    (humanIds: string[]) => {
+      if (!humanIds?.length) return;
+      const ids = new Set(humanIds);
+      const cleared = {
+        whatsappOptedOut: false,
+        whatsappOptedOutAt: null,
+        whatsappOptedOutReason: null,
+      };
+      setHumansById((prev) => {
+        if (!humanIds.some((id) => prev[id])) return prev;
+        const next = { ...prev };
+        for (const id of ids) {
+          const existing = prev[id];
+          if (!existing) continue;
+          next[id] = {
+            ...existing,
+            ...cleared,
+            whatsapp_opted_out: false,
+            whatsapp_opted_out_at: null,
+            whatsapp_opted_out_reason: null,
+          };
+        }
+        return next;
+      });
+      setHumans((prev) => {
+        if (!Object.values(prev).some((h) => ids.has(h.id))) return prev;
+        const next = { ...prev };
+        for (const [key, h] of Object.entries(prev)) {
+          if (ids.has(h.id)) next[key] = { ...h, ...cleared };
+        }
+        return next;
+      });
+      setDirectoryHumans((prev) =>
+        prev.some((h) => ids.has(h.id))
+          ? prev.map((h) => (ids.has(h.id) ? { ...h, ...cleared } : h))
+          : prev,
+      );
+    },
+    [setHumans, setHumansById, setDirectoryHumans],
+  );
+
+  return { mergeHumans, linkPendingSignup, approveSignup, rejectSignup, markWhatsappReenabled };
 }

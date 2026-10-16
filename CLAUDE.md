@@ -294,7 +294,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   (unit-test-enforced). WhatsApp opt-out belongs to the **number**: a `STOP` sets
   `whatsapp_conversations.whatsapp_opted_out_at` and `humans.whatsapp_opted_out` on every record with
   that number. DB triggers keep the two in step, always by number, never by a conversation link.
-  Nothing undoes a STOP but the audited, staff-only `staff_reenable_whatsapp_number`.
+  Nothing undoes a STOP but the audited, staff-only `staff_reenable_whatsapp_number` — staff reach it from "Switch WhatsApp back on…" on the customer profile or the inbox thread banner; never an ordinary untick.
   `whatsapp-send` refuses in every mode, for every caller; the Twilio notify paths skip opted-out
   customers via `recipients.ts`. Don't loosen casually. See
   [docs/whatsapp-agent.md](docs/whatsapp-agent.md#customer-opt-out).

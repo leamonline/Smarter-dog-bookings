@@ -18,9 +18,11 @@ export async function fetchConversationsList(
 ): Promise<InboxConversation[]> {
   // We denormalise unread_count, last_customer_text, last_inbound_at
   // onto the conversation row specifically so this query is cheap.
+  // The linked customer's phone and WhatsApp opt-out feed the thread's
+  // "WhatsApp is off" banner (conversationWhatsappStop).
   const humanSelection = includeBookingWorkspaceData
-    ? "humans:human_id ( name, surname, dogs ( id, name, breed, size ) )"
-    : "humans:human_id ( name, surname )";
+    ? "humans:human_id ( name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_at, whatsapp_opted_out_reason, dogs ( id, name, breed, size ) )"
+    : "humans:human_id ( name, surname, phone, whatsapp_opted_out, whatsapp_opted_out_at, whatsapp_opted_out_reason )";
   const draftSelection = includeBookingWorkspaceData
     ? "whatsapp_drafts ( id, state, intent, risk_level, handoff_required, created_at )"
     : "whatsapp_drafts ( id, state, risk_level, handoff_required )";
@@ -53,6 +55,8 @@ export async function fetchConversationsList(
       closure_reason,
       closure_suggested_at,
       closure_suggested_reason,
+      whatsapp_opted_out_at,
+      whatsapp_last_stop_at,
       notes,
       ${humanSelection},
       ${draftSelection},
