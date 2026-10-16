@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased — cancellation notices fail closed and join the SMS safety net (#989)
+
+- `notify-booking-cancelled` (and the dormant `notify-booking-ready`) no longer
+  log a Twilio WhatsApp notice as `sent` when Twilio accepts it. Twilio's 2xx
+  means queued, and the Twilio channel has no delivery receipt here, so the row
+  stays `pending` with the Twilio SID and a note saying why; the existing
+  pending reaper fails it after ten minutes. A Twilio rejection now records
+  Twilio's own reason. The cancellation wording is stored on the row.
+- `reminder-sms-fallback` chases `cancelled` notices as well as reminders and
+  confirmations, claiming a `cancelled_sms_fallback` row first, and only while
+  the booking is still Cancelled (a restored booking is not texted that it was
+  cancelled). Migration `20261014100000` adds the trigger type to the
+  `notification_log` CHECK and makes the reaper keep an `error_message` the
+  sender already wrote instead of overwriting it with "send interrupted".
+- The safety net now texts only a customer who has SMS switched on, has a
+  phone and has not opted out of SMS: the same rule as every other SMS
+  (`recipients.ts` `channelAvailableFor`). It previously checked only the
+  phone and the SMS opt-out, so it could text a customer who never chose
+  SMS. This applies to reminders and confirmations as well as cancellations.
+- Trade-off, by design: until the cancellation moves to a Meta template, a
+  customer whose Twilio WhatsApp did arrive also gets the SMS an hour later.
+  The Delivery issues card says "not confirmed as delivered", in its summary
+  and screen-reader label too, when every row on it is unconfirmed.
+- A booking cancelled, restored and cancelled again gets one SMS, carrying the
+  newest notice (two identical claims made the unique index refuse both). The
+  booking's status is read again after the claim and just before the send, so
+  a restore in between deletes the claim (so it never shows as a failed
+  cancellation) and sends nothing.
+- Resending from a booking's delivery card resends the notice an SMS fallback
+  row carried (`cancelled_sms_fallback` → `cancelled`), which the resend
+  function accepts; the raw fallback name was refused with a 400.
+
 ## Unreleased — legacy four-zone salon board deleted (#995)
 
 - `src/components/views/today/board/` (eleven files, about 2,300 lines plus

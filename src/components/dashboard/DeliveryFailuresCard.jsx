@@ -32,6 +32,10 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
   const fallback = useDeliveryFailures();
   const { failures, count, loading, dismiss } = data ?? fallback;
   const tone = count > 0 ? "attention" : "calm";
+  // Twilio-accepted notices are unconfirmed, not failed (#1017): say so when
+  // nothing on the card is a reported failure.
+  const allUnconfirmed = failures.length > 0 && failures.every((f) => f.unconfirmed);
+  const outcome = allUnconfirmed ? "not confirmed as delivered" : "failed";
 
   const rowClass =
     "text-[12px] bg-white/70 border border-red-100 rounded-lg px-2 py-1.5";
@@ -44,7 +48,7 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
             <span className="font-semibold text-red-900">{f.customerName}</span>
             {f.dogName && <span className="text-red-700/70"> · {f.dogName}</span>}
             <span className="block text-[11px] text-red-600">
-              {f.triggers.map(triggerLabel).join(", ")} failed
+              {f.triggers.map(triggerLabel).join(", ")} {f.unconfirmed ? "not confirmed" : "failed"}
               {f.bookingDate ? ` · ${fmtDate(f.bookingDate)}` : ""}
             </span>
           </>
@@ -89,9 +93,9 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
       heading="Delivery issues"
       icon={AlertTriangle}
       primaryNumber={count}
-      subtitle={count === 1 ? "message failed" : "messages failed"}
+      subtitle={`${count === 1 ? "message" : "messages"} ${outcome}`}
       primaryLine="All messages delivered"
-      ariaLabel={`${count} customer ${count === 1 ? "message" : "messages"} failed to deliver`}
+      ariaLabel={`${count} customer ${count === 1 ? "message" : "messages"} ${allUnconfirmed ? outcome : "failed to deliver"}`}
       loading={loading}
       bare={bare}
       loudChildren={count > 0 ? list : null}
