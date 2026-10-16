@@ -9,7 +9,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(28);
 
 set local session_replication_role = replica;
 insert into auth.users (id) values ('24900000-0000-4000-8000-000000000041');
@@ -152,6 +152,10 @@ insert into _r values ('re', public.staff_reenable_whatsapp_number('07700900903'
 select is(
   (select array_agg(state order by id) from public.whatsapp_drafts where conversation_id = '24900000-0000-4000-8000-000000000003'),
   array['superseded', 'pending', 'approved'], 'only the pending acknowledgement is superseded'
+);
+select is(
+  (select rejected_reason from public.whatsapp_drafts where id = '24900000-0000-4000-8000-000000000021'),
+  'whatsapp_reenabled', 'the superseded acknowledgement says why, like the other supersede paths'
 );
 select is(
   (select array_agg(key order by key) from _r, jsonb_object_keys(v) as key where k = 're'),

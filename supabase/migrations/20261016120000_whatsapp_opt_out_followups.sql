@@ -379,7 +379,7 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  update public.whatsapp_drafts d set state = 'superseded'
+  update public.whatsapp_drafts d set state = 'superseded', rejected_reason = 'whatsapp_reenabled'
    where d.conversation_id = new.id and d.state = 'pending'
      and (d.tool_calls ->> 'opt_out_acknowledgement') = 'true';
   return null;
