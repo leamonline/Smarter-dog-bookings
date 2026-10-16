@@ -1,9 +1,9 @@
 // End-to-end coverage for the time-ordered day stack at /today.
 //
-// Replaces the four-zone board's spec. The board still ships behind
-// FEATURE_FLAGS.legacy_salon_board_enabled and keeps its component tests, but
-// it is no longer what /today renders, so the browser-level coverage follows
-// the surface staff actually get.
+// Replaces the four-zone board's spec. The board was deleted in October 2026
+// (#995) once the stack had run through its first trading weeks, so this is
+// the only browser-level coverage of /today and it follows the surface staff
+// actually get.
 //
 // These run against the deterministic sample dataset in a real browser, so this
 // is where layout, overflow, touch-target size and the full status journey are

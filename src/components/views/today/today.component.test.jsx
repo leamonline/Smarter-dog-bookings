@@ -1,11 +1,12 @@
-// Integration tests for the salon board page: the header, the tokens the
-// board composes, the action panel each token opens, and every write the page
-// can make — including the ones that must NOT happen when a save fails.
+// Integration tests for the /today page: the header, the stack of cards the
+// page composes, the actions each card opens, and every write the page can
+// make — including the ones that must NOT happen when a save fails.
 //
-// Ranking and action legality are unit-tested in src/engine/salonBoard.test.ts;
-// the board's own rendering and keyboard contract in
-// board/salonBoard.component.test.jsx. This file is about the page: that the
-// right handler runs with the right payload, and that the safeguards hold.
+// Time ordering is unit-tested in src/engine/dayStack.test.ts and action
+// legality in src/engine/salonBoard.test.ts; the stack's own rendering and
+// disclosure contract in stack/dayStack.component.test.jsx. This file is about
+// the page: that the right handler runs with the right payload, and that the
+// safeguards hold.
 import { act, render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -16,9 +17,8 @@ import { TodayView } from "../TodayView.jsx";
 
 const noop = () => {};
 
-// The page tests run at the desktop breakpoint: all three zones visible, the
-// popover panel. Phone behaviour (one lane, the sheet) is covered by
-// board/salonBoard.component.test.jsx.
+// The page tests run at the desktop breakpoint. The stack renders one way at
+// every width; the breakpoint only matters to the header.
 beforeEach(() => {
   vi.stubGlobal("matchMedia", (query) => ({
     matches: /min-width: (768|1024)px/.test(query),
@@ -71,10 +71,6 @@ const selectedViewProps = {
   onSendCollection: noop,
   toggleImmediateSlot: noop,
   onRefresh: noop,
-  // This file covers the four-zone board, which now ships behind
-  // FEATURE_FLAGS.legacy_salon_board_enabled. Opt in explicitly so the board's
-  // behaviour stays under test while it is still a supported fallback.
-  useLegacyBoard: true,
 };
 
 function LocationProbe() {
@@ -93,22 +89,27 @@ function renderToday(props = {}) {
   );
 }
 
-/** The one gesture the whole page rests on: find the dog, press the dog. */
-function token(dogName) {
-  return screen.getByRole("button", { name: new RegExp(`^${dogName}\\.`) });
+/** The dog's card, and the disclosure button that is its fixed header. */
+function card(id = "b-selected") {
+  return document.querySelector(`[data-booking-id="${id}"]`);
+}
+function head(id = "b-selected") {
+  return card(id).querySelector("[data-stack-head]");
 }
 
-function openDog(dogName) {
-  fireEvent.click(token(dogName));
-  return screen.getByRole("menu", { name: `Actions for ${dogName}` });
+/** The one gesture the whole page rests on: find the dog, open the dog. */
+function openDog(id = "b-selected") {
+  const button = head(id);
+  if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
+  return card(id);
 }
 
-/** An action row inside the open panel. */
-function action(name) {
-  return screen.getByRole("menuitem", { name });
+/** An action or chain button inside the open card, named "<label> — <dog>". */
+function action(label, dogName = "Jack") {
+  return screen.getByLabelText(`${label} — ${dogName}`);
 }
 
-describe("the board page — selected-date operations", () => {
+describe("the day stack page — selected-date operations", () => {
   it("uses the selected closed date for the heading, the empty state and new bookings", () => {
     const onNewBooking = vi.fn();
     renderToday({ bookingsByDate: { "2026-07-16": [] }, onNewBooking });
@@ -124,11 +125,12 @@ describe("the board page — selected-date operations", () => {
       bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
     });
 
-    openDog("Jack");
-    expect(screen.queryByRole("button", { name: /Mark ready/ })).not.toBeInTheDocument();
-    expect(action("Mark collected — Jack")).toBeInTheDocument();
+    openDog();
+    expect(screen.queryByLabelText(/^Mark ready/)).not.toBeInTheDocument();
+    // Collection and the balance belong to the check-out chain, not the list.
+    expect(action("Check out")).toBeInTheDocument();
 
-    fireEvent.click(action("Take £42 payment — Jack"));
+    fireEvent.click(action("Open full invoice"));
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
@@ -144,8 +146,8 @@ describe("the board page — selected-date operations", () => {
       onSendCollection,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Mark ready — Jack"));
+    openDog();
+    fireEvent.click(action("Mark ready"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -175,8 +177,8 @@ describe("the board page — selected-date operations", () => {
       onSendCollection,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Mark ready — Jack"));
+    openDog();
+    fireEvent.click(action("Mark ready"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -188,15 +190,13 @@ describe("the board page — selected-date operations", () => {
       .mockResolvedValueOnce(selectedBooking);
     renderToday({ onUpdateBooking });
 
-    openDog("Jack");
-    fireEvent.click(action("Arrived — Jack"));
+    openDog();
+    fireEvent.click(action("Arrived"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Check-in could not be saved.");
-    // Still in Arriving: a dog never appears to move when the save did not land.
-    expect(
-      within(screen.getByRole("region", { name: "Arriving, 1 dog" })).getByText("Jack"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "With us, 0 dogs" })).toBeInTheDocument();
+    // Still Expected: a dog never appears to move when the save did not land.
+    expect(within(card()).getByText("Expected")).toBeInTheDocument();
+    expect(card()).toHaveAttribute("data-status-key", "expected");
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
@@ -210,12 +210,12 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Mark ready — Jack"));
-    expect(token("Jack")).toHaveAttribute("aria-busy", "true");
+    openDog();
+    fireEvent.click(action("Mark ready"));
+    expect(action("Mark ready")).toHaveAttribute("aria-busy", "true");
 
     await act(async () => resolveSave({ id: "b-selected", status: "Ready for collection" }));
-    expect(token("Jack")).not.toHaveAttribute("aria-busy");
+    expect(action("Mark ready")).not.toHaveAttribute("aria-busy");
   });
 
   it("offers Undo on an ordinary workflow move and sends the dog back", async () => {
@@ -224,8 +224,8 @@ describe("the board page — selected-date operations", () => {
       .mockResolvedValueOnce({ ...selectedBooking, status: "Booked" });
     renderToday({ onUpdateBooking });
 
-    openDog("Jack");
-    fireEvent.click(action("Arrived — Jack"));
+    openDog();
+    fireEvent.click(action("Arrived"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
 
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
@@ -242,22 +242,30 @@ describe("the board page — selected-date operations", () => {
     expect(await screen.findByText("Jack moved back to arriving")).toBeInTheDocument();
   });
 
-  it("warns about an unpaid balance without blocking collection", async () => {
+  it("takes the balance through the check-out chain and writes once, on the last press", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
     renderToday({
       bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Mark collected — Jack"));
-    expect(screen.getByRole("heading", { name: "£42 is still due for Jack" })).toBeInTheDocument();
+    openDog();
+    fireEvent.click(action("Check out"));
+    fireEvent.click(action("Card £42"));
+    // Method chosen, figure shown — nothing written until it is confirmed.
     expect(onUpdateBooking).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark collected anyway" }));
+    fireEvent.click(action("Collected · £42 card"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "b-selected", status: "Completed", payment: "Due at Pick-up" }),
+      expect.objectContaining({
+        id: "b-selected",
+        status: "Completed",
+        payment: "Paid in Full",
+        paymentMethod: "card",
+        paidAmount: 42,
+        _skipCollectionPrompt: true,
+      }),
       "2026-07-16",
       "2026-07-16",
     );
@@ -272,8 +280,8 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Confirm booking — Jack"));
+    openDog();
+    fireEvent.click(action("Confirm booking"));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
@@ -304,8 +312,8 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Confirm booking — Jack"));
+    openDog();
+    fireEvent.click(action("Confirm booking"));
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
@@ -331,8 +339,8 @@ describe("the board page — selected-date operations", () => {
       reminderConfirmedBy: "staff",
     };
     const { unmount } = renderToday({ bookingsByDate: { "2026-07-16": [staffConfirmed] } });
-    openDog("Jack");
-    expect(action("Unconfirm booking — Jack")).toBeInTheDocument();
+    openDog();
+    expect(action("Unconfirm booking")).toBeInTheDocument();
     unmount();
 
     renderToday({
@@ -340,8 +348,8 @@ describe("the board page — selected-date operations", () => {
         "2026-07-16": [{ ...staffConfirmed, reminderConfirmedBy: "customer" }],
       },
     });
-    openDog("Jack");
-    expect(screen.queryByRole("button", { name: /Unconfirm booking/ })).not.toBeInTheDocument();
+    openDog();
+    expect(screen.queryByLabelText(/^Unconfirm booking/)).not.toBeInTheDocument();
   });
 
   it("reports honestly when the unconfirm is refused because the customer confirmed", async () => {
@@ -358,8 +366,8 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Unconfirm booking — Jack"));
+    openDog();
+    fireEvent.click(action("Unconfirm booking"));
 
     expect(
       await screen.findByText(/Couldn't undo — if the customer has just confirmed themselves/),
@@ -367,20 +375,23 @@ describe("the board page — selected-date operations", () => {
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 
-  it("uses one configured guide price for the header money, the token and the invoice", () => {
+  it("uses one configured guide price for the header money, the card and the invoice", () => {
     renderToday({
       bookingsByDate: { "2026-07-16": [{ ...selectedBooking, status: "Ready for collection" }] },
       configPricing: { "full-groom": { small: 5000 } },
     });
 
     // One financial voice per surface: the strip says what is due right now,
-    // the end-of-day facts carry the day total.
+    // the end-of-day facts carry the day total, the card wears its own balance.
     expect(screen.getByRole("button", { name: /Highlight £50 due/ })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "End of day" })).toHaveTextContent("Taken £0 of £50");
-    expect(document.querySelector('[data-booking-id="b-selected"] [data-token-balance]').textContent).toBe("£50");
+    expect(within(card()).getByText("£50 due")).toBeInTheDocument();
 
-    openDog("Jack");
-    fireEvent.click(action("Take £50 payment — Jack"));
+    openDog();
+    fireEvent.click(action("Check out"));
+    expect(action("Card £50")).toBeInTheDocument();
+    fireEvent.click(action("Back"));
+    fireEvent.click(action("Open full invoice"));
     expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
   });
 
@@ -391,8 +402,8 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Take £42 payment — Jack"));
+    openDog();
+    fireEvent.click(action("Open full invoice"));
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
@@ -420,8 +431,8 @@ describe("the board page — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Arrived — Jack"));
+    openDog("b-past");
+    fireEvent.click(action("Arrived"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
       expect.objectContaining({ id: "b-past", status: "Arrived" }),
@@ -441,20 +452,18 @@ describe("the board page — selected-date operations", () => {
       onOpenBooking,
     });
 
-    openDog("Jack");
-    fireEvent.click(action("Booking details — Jack"));
+    // The card stays open between presses — a pressed action never closes it.
+    openDog();
+    fireEvent.click(action("Booking details"));
     expect(onOpenBooking).toHaveBeenCalledWith("b-selected");
 
-    openDog("Jack");
-    fireEvent.click(action("Jack's file — Jack"));
+    fireEvent.click(action("Jack's file"));
     expect(onOpenDog).toHaveBeenCalledWith("d1");
 
-    openDog("Jack");
-    fireEvent.click(action("David Law's file — Jack"));
+    fireEvent.click(action("David Law's file"));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
 
-    openDog("Jack");
-    fireEvent.click(action("Message David — Jack"));
+    fireEvent.click(action("Message David"));
     expect(screen.getByRole("status", { name: "Current route" })).toHaveTextContent("/inbox?human=h1");
   });
 
@@ -472,11 +481,11 @@ describe("the board page — selected-date operations", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the dogs on the board when a refetch fails", () => {
+  it("keeps the dogs on the stack when a refetch fails", () => {
     renderToday({ bookingsError: new Error("refetch failed") });
 
     expect(screen.getByText("Couldn't load bookings for this date.")).toBeInTheDocument();
-    expect(token("Jack")).toBeInTheDocument();
+    expect(head()).toBeInTheDocument();
     expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
   });
 
@@ -512,17 +521,17 @@ describe("the board page — selected-date operations", () => {
 
     const active = screen.getByRole("button", { name: "Stop highlighting 1 waiting" });
     expect(active).toHaveAttribute("aria-pressed", "true");
-    // Both dogs are still on the board, in their own zones.
-    expect(token("Ruby")).toBeInTheDocument();
-    expect(token("Milo")).toBeInTheDocument();
-    expect(token("Milo").className).toMatch(/opacity-55/);
-    expect(token("Ruby").className).toMatch(/opacity-100/);
+    // Both dogs are still on the stack, in time order.
+    expect(card("b-action")).toBeInTheDocument();
+    expect(card("b-calm")).toBeInTheDocument();
+    expect(card("b-calm").className).toMatch(/opacity-50/);
+    expect(card("b-action").className).toMatch(/opacity-100/);
     expect(
       screen.getByText(/Highlighting 1 dogs waiting to be collected — every other dog is dimmed, not hidden/),
     ).toHaveAttribute("role", "status");
 
     fireEvent.click(active);
-    expect(token("Milo").className).toMatch(/opacity-100/);
+    expect(card("b-calm").className).toMatch(/opacity-100/);
   });
 
 
@@ -568,19 +577,19 @@ describe("the board page — selected-date operations", () => {
 
     expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
     expect(screen.queryByText("Everything's on track")).not.toBeInTheDocument();
-    // A slot time on a browsed date is not a countdown: the group states the
+    // A slot time on a browsed date is not a countdown: the card states the
     // time, and no live timing appears anywhere.
-    expect(document.querySelector('[data-slot-group="10:30"] h3').textContent).toBe("10:30");
-    expect(document.querySelector('[data-slot-group="10:30"] [data-slot-timing]')).toBeNull();
-    expect(document.querySelector(`[data-booking-id="paid-${dateStr}"]`).dataset.tier).toBe("calm");
+    expect(within(card(`paid-${dateStr}`)).getByText("10:30")).toBeInTheDocument();
+    expect(head(`paid-${dateStr}`).getAttribute("aria-label")).not.toMatch(/late|away|waiting/);
+    expect(card(`paid-${dateStr}`)).toHaveAttribute("data-urgent", "false");
 
     const endOfDay = screen.getByRole("group", { name: "End of day" });
     expect(endOfDay).toHaveTextContent("Capacity 2/14");
     expect(endOfDay).toHaveTextContent("Taken £42");
 
-    openDog("Lucy");
-    expect(action("Arrived — Lucy")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Mark ready/ })).not.toBeInTheDocument();
+    openDog(`awaiting-${dateStr}`);
+    expect(action("Arrived", "Lucy")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Mark ready/)).not.toBeInTheDocument();
   });
 
   it("opens an awaiting-deposit booking by id", () => {
@@ -628,7 +637,7 @@ describe("the board page — selected-date operations", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it("keeps the minute tick from moving the viewport and updates the token's timing live", async () => {
+  it("keeps the minute tick from moving the viewport and updates the card's timing live", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-15T09:25:00+01:00"));
     const scrollIntoView = vi.fn();
@@ -642,10 +651,11 @@ describe("the board page — selected-date operations", () => {
       dayOpenState: { "2026-07-15": true },
     });
 
-    const timing = () => document.querySelector('[data-slot-group="08:30"] [data-slot-timing]').textContent;
-    expect(timing()).toBe("55 min late");
+    // The timing line is part of the card's one spoken sentence.
+    const timing = () => head("b-today").getAttribute("aria-label");
+    expect(timing()).toContain("55 min late");
     await act(() => vi.advanceTimersByTimeAsync(60_000));
-    expect(timing()).toBe("56 min late");
+    expect(timing()).toContain("56 min late");
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });

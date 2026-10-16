@@ -3,14 +3,9 @@ import { BOOKING_STATUS } from "../constants/index";
 import { buildDailyBriefBoard, buildDailyBriefFeed } from "./dailyBrief";
 import type { Booking } from "../types/index";
 import {
-  ACTIVE_BOARD_ZONES,
   buildAttentionSummary,
   buildBoardTokens,
   buildZoneCounts,
-  canDragToken,
-  dropZoneFor,
-  groupTokensBySlot,
-  moveForDrag,
   reverseStatusFor,
   tokenActions,
   zoneForStatus,
@@ -313,63 +308,6 @@ describe("token text", () => {
   });
 });
 
-describe("Arriving grouped by appointment", () => {
-  it("states a shared time once, however many dogs are booked into it", () => {
-    const groups = groupTokensBySlot(tokensFor([
-      booking({ id: "a", dogName: "Coco", slot: "09:00" }),
-      booking({ id: "b", dogName: "Teddy", slot: "09:00" }),
-      booking({ id: "c", dogName: "Pip", slot: "09:00" }),
-      booking({ id: "d", dogName: "Rex", slot: "12:00" }),
-    ]).due);
-
-    expect(groups.map((group) => group.label)).toEqual(["09:00", "12:00"]);
-    expect(names(groups[0].tokens)).toEqual(["Coco", "Teddy", "Pip"]);
-    expect(groups[0].timing).toBe("1 hr late");
-    expect(groups[1].timing).toBe("in 2 hrs");
-    // And not one of those dogs repeats it.
-    for (const group of groups) {
-      for (const token of group.tokens) expect(token.meta).toBeNull();
-    }
-  });
-
-  it("takes each group's position from its first dog, so grouping never reorders the board", () => {
-    const tokens = tokensFor([
-      booking({ id: "a", dogName: "Later", slot: "12:00" }),
-      booking({ id: "b", dogName: "Late", slot: "08:30" }),
-      booking({ id: "c", dogName: "Soon", slot: "10:30" }),
-      booking({ id: "d", dogName: "AlsoLate", slot: "08:30" }),
-    ]).due;
-    const groups = groupTokensBySlot(tokens);
-    expect(groups.flatMap((group) => names(group.tokens))).toEqual(names(tokens));
-  });
-
-  it("keeps a booking with no usable slot visible in a trailing Unscheduled group", () => {
-    const groups = groupTokensBySlot(tokensFor([
-      booking({ id: "a", dogName: "Timed", slot: "09:00" }),
-      booking({ id: "b", dogName: "Slotless", slot: "" }),
-      booking({ id: "c", dogName: "Nonsense", slot: "not-a-time" }),
-    ]).due);
-
-    expect(groups.at(-1)).toMatchObject({ key: "unscheduled", label: "Unscheduled", timing: null });
-    expect(names(groups.at(-1)!.tokens).sort()).toEqual(["Nonsense", "Slotless"]);
-    expect(groups.flatMap((group) => group.tokens)).toHaveLength(3);
-  });
-
-  it("states no countdown on a browsed date — the label already is the time", () => {
-    const board = buildDailyBriefBoard(
-      [booking({ id: "a", slot: "09:00", _bookingDate: "2026-07-21" })],
-      "2026-07-21",
-      NOW,
-    );
-    const groups = groupTokensBySlot(buildBoardTokens({ board, now: NOW, isToday: false }).due);
-    expect(groups[0]).toMatchObject({ label: "09:00", timing: null });
-  });
-
-  it("returns nothing at all for an empty zone", () => {
-    expect(groupTokensBySlot([])).toEqual([]);
-  });
-});
-
 describe("needs attention", () => {
   it("reassures when nothing is outstanding today", () => {
     const summary = buildAttentionSummary(tokensFor([booking({ id: "a", slot: "12:00" })]), true);
@@ -438,7 +376,6 @@ describe("needs attention", () => {
       { zone: "withUs", label: "with us", count: 1 },
       { zone: "ready", label: "ready", count: 0 },
     ]);
-    expect(ACTIVE_BOARD_ZONES).toEqual(["due", "withUs", "ready"]);
   });
 });
 
@@ -570,41 +507,6 @@ describe("actions available by state", () => {
     expect(ids).not.toContain("humanFile");
     expect(ids).not.toContain("message");
     expect(ids).toContain("booking");
-  });
-});
-
-describe("drag legality", () => {
-  it("allows exactly one forward step per zone, and names the action it performs", () => {
-    expect(moveForDrag("due", "withUs")).toMatchObject({ action: "checkIn" });
-    expect(moveForDrag("withUs", "ready")).toMatchObject({ action: "ready" });
-    expect(moveForDrag("ready", "home")).toMatchObject({ action: "collected" });
-  });
-
-  it("refuses to skip a zone — a skipped care step is a decision, not a flick of the wrist", () => {
-    expect(moveForDrag("due", "ready")).toBeNull();
-    expect(moveForDrag("due", "home")).toBeNull();
-    expect(moveForDrag("withUs", "home")).toBeNull();
-  });
-
-  it("refuses to go backwards — a correction belongs in the menu where it can be read", () => {
-    expect(moveForDrag("withUs", "due")).toBeNull();
-    expect(moveForDrag("ready", "withUs")).toBeNull();
-    expect(moveForDrag("home", "ready")).toBeNull();
-  });
-
-  it("refuses a drop onto the zone the dog is already in", () => {
-    expect(moveForDrag("ready", "ready")).toBeNull();
-  });
-
-  it("does not let a dog that has gone home be dragged at all", () => {
-    const [home] = tokensFor([
-      booking({ id: "a", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T08:00:00Z" }),
-    ]).home;
-    const [due] = tokensFor([booking({ id: "b", slot: "12:00" })]).due;
-    expect(canDragToken(home)).toBe(false);
-    expect(dropZoneFor(home)).toBeNull();
-    expect(canDragToken(due)).toBe(true);
-    expect(dropZoneFor(due)).toBe("withUs");
   });
 });
 

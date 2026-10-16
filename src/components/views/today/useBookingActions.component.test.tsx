@@ -369,3 +369,25 @@ describe("staff confirmation", () => {
     expect(row.reminderState).toBe("confirmed");
   });
 });
+
+// The four-zone board flashed a ring on a token for 900 ms after it changed
+// zone, so this hook kept a `landedId` and a timer for it. The board was
+// deleted (#995) and nothing reads that state any more; a timer that sets
+// state after every check-in would only re-render the day stack for nothing.
+describe("a zone-changing write leaves nothing running behind it", () => {
+  it("schedules no timer and exposes no landing flash after a check-in", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result, onUpdateBooking } = setup();
+      const booking = { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.BOOKED, payment: "Due at Pick-up" };
+      await act(async () => {
+        await result.current.runTokenAction({ booking } as never, { id: "checkIn" } as never);
+      });
+      expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.ARRIVED);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(result.current).not.toHaveProperty("landedId");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

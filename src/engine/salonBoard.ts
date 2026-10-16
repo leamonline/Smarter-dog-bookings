@@ -1,19 +1,19 @@
-// The live salon board — the pure layer behind the spatial `/today` view.
+// The zone vocabulary and action legality behind `/today`.
 //
-// The board shows one TOKEN per dog, placed in the zone that says where the
-// dog physically is. Position carries the status, so a token needs almost no
-// text: "where is Teddy?" is answered by looking, not by reading badges.
-//
-// This module owns three decisions and nothing else:
+// Written for the four-zone salon board (one TOKEN per dog, placed in the zone
+// that says where the dog physically is). The board itself was deleted in
+// October 2026 (#995) once the time-ordered day stack had replaced it, but the
+// stack, its header and `useBookingActions` still read this module, so it keeps
+// the three decisions it always owned:
 //   1. ZONE      — which of the four zones a booking sits in (a straight
 //                  relabel of the existing Daily Brief lanes; no new state).
-//   2. PRIORITY  — where inside its zone it sits, and how prominent it looks.
+//   2. PRIORITY  — where inside its zone it sits, and how prominent it looks
+//                  (the attention strip and the header counts read this).
 //   3. ACTIONS   — which operations are legal on it right now.
 //
 // It never mutates a booking, never invents a status, and never decides what
-// anything looks like. Rendering reads these results; the drag layer reads
-// `canMoveToZone`; the menu and the sheet read the SAME `tokenActions` list,
-// so a touch, a click and a drag can never disagree about what is possible.
+// anything looks like. Every surface reads the SAME `tokenActions` list, so no
+// two controls can disagree about what is possible.
 import { BOOKING_STATUS } from "../constants/index";
 import type { Booking } from "../types/index";
 import type { DailyBriefBoard, DailyBriefBoardEntry } from "./dailyBrief";
@@ -35,11 +35,11 @@ import type { TodayFeedEntry } from "./today";
  */
 export type BoardZone = "due" | "withUs" | "ready" | "home";
 
-/** Journey order. The board renders the first three; `home` is the compact strip. */
+/** Journey order. */
 export const BOARD_ZONES: readonly BoardZone[] = ["due", "withUs", "ready", "home"];
 
-/** The three zones that hold live tokens. `home` is collapsed by default. */
-export const ACTIVE_BOARD_ZONES: readonly BoardZone[] = ["due", "withUs", "ready"];
+/** The three zones that hold dogs still on the premises or expected; the header counts these. */
+const ACTIVE_BOARD_ZONES: readonly BoardZone[] = ["due", "withUs", "ready"];
 
 export interface ZoneMeta {
   /** The zone's visible heading. */
@@ -437,63 +437,6 @@ export function buildZoneCounts(tokens: BoardTokens): Array<{ zone: BoardZone; l
   }));
 }
 
-// ---- Arriving, grouped by appointment ----------------------------------------
-
-export interface BoardSlotGroup {
-  /** Stable key: the slot time, or "unscheduled". */
-  key: string;
-  /** The visible heading — the slot time, or "Unscheduled". */
-  label: string;
-  /** The countdown or lateness shared by every dog in this slot, today only. */
-  timing: string | null;
-  tokens: BoardToken[];
-}
-
-/**
- * Group the Arriving zone by appointment time.
- *
- * Arriving is the one zone that is inherently a schedule, and a time belongs to
- * the slot rather than to each dog standing in it. Printing it under every
- * token repeats the same fact three or four times on a busy morning — exactly
- * the duplicate labelling this board exists to remove — so it is stated once
- * per group instead, and the tokens beneath carry only their own exceptions.
- *
- * Order is taken from the already-ranked token list: a group takes the
- * position of its first dog, so the ranking is preserved exactly and grouping
- * can never reorder the board. A booking with no usable slot must never
- * disappear, so those collect in a trailing "Unscheduled" group.
- */
-export function groupTokensBySlot(tokens: BoardToken[]): BoardSlotGroup[] {
-  const groups: BoardSlotGroup[] = [];
-  const bySlot = new Map<string, BoardSlotGroup>();
-  const unscheduled: BoardSlotGroup = {
-    key: "unscheduled",
-    label: "Unscheduled",
-    timing: null,
-    tokens: [],
-  };
-
-  for (const token of tokens) {
-    const slot = token.booking.slot;
-    if (!slot || !Number.isFinite(token.entry.slotMinutes)) {
-      unscheduled.tokens.push(token);
-      continue;
-    }
-    let group = bySlot.get(slot);
-    if (!group) {
-      // Every dog in a slot shares its slot and the same `now`, so the first
-      // token's timing is the whole group's timing — never recomputed here.
-      group = { key: slot, label: slot, timing: token.slotTiming, tokens: [] };
-      bySlot.set(slot, group);
-      groups.push(group);
-    }
-    group.tokens.push(token);
-  }
-
-  if (unscheduled.tokens.length > 0) groups.push(unscheduled);
-  return groups;
-}
-
 // ---- Actions -----------------------------------------------------------------
 
 export type TokenActionId =
@@ -636,68 +579,6 @@ export function tokenActions(token: TokenActionSubject, context: TokenActionCont
   }
 
   return actions;
-}
-
-// ---- Drag legality -----------------------------------------------------------
-
-/**
- * Which zone each forward transition lands in, and the action that performs it.
- * Dragging never invents a transition: it fires the same handler the menu item
- * does, so every existing safeguard (unpaid collection, the staff-reviewed
- * collection notice, the care-step confirm) still runs.
- */
-const FORWARD_MOVE: Partial<Record<BoardZone, { to: BoardZone; action: TokenActionId }>> = {
-  due: { to: "withUs", action: "checkIn" },
-  withUs: { to: "ready", action: "ready" },
-  ready: { to: "home", action: "collected" },
-};
-
-export interface ZoneMove {
-  from: BoardZone;
-  to: BoardZone;
-  action: TokenActionId;
-  /** Past-tense sentence for the toast and the live announcement. */
-  describe: (dogName: string) => string;
-}
-
-const MOVE_COPY: Record<TokenActionId, (dogName: string) => string> = {
-  checkIn: (dog) => `${dog} checked in — with us now`,
-  reconfirm: (dog) => `${dog} — reconfirmed`,
-  ready: (dog) => `${dog} is ready to go home`,
-  collected: (dog) => `${dog} collected — home today`,
-  payment: (dog) => `${dog}'s payment recorded`,
-  confirm: (dog) => `${dog}'s booking confirmed`,
-  unconfirm: (dog) => `${dog}'s booking is unconfirmed again`,
-  message: (dog) => `Messaging ${dog}'s owner`,
-  call: (dog) => `Calling ${dog}'s owner`,
-  didntShow: (dog) => `${dog} marked as a no-show`,
-  undoNoShow: (dog) => `${dog} is back in today's appointments`,
-  booking: (dog) => `${dog}'s booking`,
-  dogFile: (dog) => `${dog}'s file`,
-  humanFile: (dog) => `${dog}'s owner's file`,
-};
-
-/**
- * The move a drag from `from` to `to` would perform, or null when it is not a
- * legal drag. Only forward, only one zone at a time: skipping a care step is a
- * decision that deserves the confirm dialog, not a flick of the wrist, and
- * going backwards is a correction — it belongs in the menu where it can be
- * read before it is pressed.
- */
-export function moveForDrag(from: BoardZone, to: BoardZone): ZoneMove | null {
-  const forward = FORWARD_MOVE[from];
-  if (!forward || forward.to !== to) return null;
-  return { from, to, action: forward.action, describe: MOVE_COPY[forward.action] };
-}
-
-/** True when this token may be dragged at all (everything except already home). */
-export function canDragToken(token: BoardToken): boolean {
-  return !!FORWARD_MOVE[token.zone];
-}
-
-/** The zone a drag from this token would legally land in, or null. */
-export function dropZoneFor(token: BoardToken): BoardZone | null {
-  return FORWARD_MOVE[token.zone]?.to ?? null;
 }
 
 // ---- Undo --------------------------------------------------------------------
