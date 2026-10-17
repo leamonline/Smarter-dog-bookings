@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — WhatsApp STOP acknowledgement races (#1026 review follow-up)
+
+- A "your messages have stopped" draft can no longer be queued after staff
+  have switched the number back on. The database now refuses it atomically with
+  the re-enable, so it cannot occupy the staff queue or be sent by mistake.
+- A STOP whose confirmation was lost on the way back to the agent still gets its
+  acknowledgement draft when the agent retries, and never more than one per STOP
+  message. Nothing is sent to the customer automatically.
+- Needs migration `20261017120000_whatsapp_stop_ack_guards.sql` applied to
+  production first (expand-only: one trigger, one partial index).
+
 ## Unreleased — WhatsApp opt-out follow-ups (#1016)
 
 - Merging two customer records no longer loses a STOP: if either record

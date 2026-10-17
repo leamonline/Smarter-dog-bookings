@@ -423,6 +423,26 @@ marked `tool_calls.opt_out_acknowledgement`).
 - The unique index `whatsapp_drafts_one_pending_opt_out_ack` allows one
   pending acknowledgement per conversation, so a repeated or concurrent STOP
   cannot queue a second. The agent treats the refusal as expected.
+- Two races are closed in the database and the agent (migration
+  `20261017120000`, a follow-up to #1026's review):
+  - **No acknowledgement after a re-enable.** The agent decides from a
+    conversation snapshot read before the STOP was applied, so staff could
+    re-enable the number between the STOP and the draft being saved.
+    `trg_whatsapp_drafts_guard_stop_ack` refuses an acknowledgement draft
+    (`P0001`, detail `whatsapp_stop_ack_not_stopped`) unless its conversation is
+    stopped now, reading the row under `FOR SHARE` so the check is atomic with
+    the re-enable: either the re-enable wins and the draft is refused, or the
+    draft lands first and the re-enable's supersede trigger supersedes it. The
+    agent treats the refusal as expected.
+  - **No lost acknowledgement after an ambiguous response.** If
+    `apply_whatsapp_stop` commits but its answer is lost, the retry reports
+    "already applied". The agent treats that as its own commit, and queues the
+    acknowledgement, only when an earlier attempt in the same invocation failed
+    without an answer; a plain replay of an old STOP still queues nothing. The
+    draft records its STOP (`tool_calls.stop_meta_message_id`) and the partial
+    unique index `whatsapp_drafts_one_opt_out_ack_per_stop` allows one
+    acknowledgement per STOP message in any state, so the retry can never queue
+    a second one, even after staff rejected or sent the first.
 - One STOP gets one acknowledgement. The index cannot stop a second draft
   queued after the first was claimed or sent (a repeated STOP, or one racing
   staff's Send), so `whatsapp-send` refuses an acknowledgement with

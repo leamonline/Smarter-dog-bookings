@@ -53,6 +53,30 @@ interface Faults {
   appliedStopIds?: string[];
   /** Give every message this Meta id (null: Meta sent none). */
   messageId?: string | null;
+  /**
+   * The first apply_whatsapp_stop call COMMITS (marker written, number
+   * stamped) but its HTTP response is lost: the caller sees a transport error.
+   * The retry then finds the marker and is told "already applied" (#1026
+   * review, thread on the replay branch).
+   */
+  firstStopResponseLost?: boolean;
+  /**
+   * The first apply_whatsapp_stop call fails WITHOUT committing, so the retry
+   * really applies. Pins that an unanswered attempt alone never suppresses
+   * the customer step.
+   */
+  firstStopFailsUncommitted?: boolean;
+  /**
+   * Staff re-enable the number after the STOP is applied and before the
+   * acknowledgement is saved: the stale conversation snapshot the agent holds
+   * still says ai_handling (#1026 review, thread on the acknowledgement save).
+   */
+  reenableBeforeAcknowledgement?: boolean;
+  /**
+   * An acknowledgement already exists for these STOP messages, in any state
+   * (staff rejected or sent it): migration 20261017120000's per-STOP index.
+   */
+  acknowledgedStopIds?: string[];
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -72,6 +96,13 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const appliedStopIds = new Set(faults.appliedStopIds ?? []);
+  const acknowledgedStopIds = new Set(faults.acknowledgedStopIds ?? []);
+  // Drafts the database ACCEPTED, as opposed to insert attempts: since
+  // migration 20261017120000 an acknowledgement can be attempted and refused,
+  // and the guarantee is about what is stored, not what was sent.
+  const storedDrafts: Record<string, unknown>[] = [];
+  let stopCalls = 0;
+  let reenablePending = faults.reenableBeforeAcknowledgement === true;
   const conversation: Record<string, unknown> = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null, whatsapp_opted_out_at: faults.numberStoppedAt ?? null };
   // Several texts are one webhook batch, in the order the customer sent them.
   const messages = (Array.isArray(text) ? text : [text]).map((body, index) => ({
@@ -129,7 +160,10 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     if (url.pathname === "/rest/v1/rpc/apply_whatsapp_stop") {
       // migration 20261016120000: one marker per Meta message id, written in
       // the same transaction as the number's stamp.
+      stopCalls++;
       if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
+      // Fails before the transaction commits: nothing is written.
+      if (faults.firstStopFailsUncommitted && stopCalls === 1) return reply({ message: "connection reset" }, 500);
       const metaId = typeof body.p_meta_message_id === "string" && body.p_meta_message_id.trim() !== "" ? body.p_meta_message_id : null;
       if (metaId !== null) {
         if (appliedStopIds.has(metaId)) return reply({ applied: false, reason: "already_applied" });
@@ -139,6 +173,8 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
       // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps the first time.
       if (conversation.whatsapp_opted_out_at === null) conversation.whatsapp_opted_out_at = new Date().toISOString();
       conversation.auto_send_enabled = false;
+      // Committed above; only the answer is lost.
+      if (faults.firstStopResponseLost && stopCalls === 1) return reply({ message: "connection reset" }, 500);
       return reply({ applied: true, whatsapp_opted_out_at: conversation.whatsapp_opted_out_at });
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
@@ -160,6 +196,17 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       const stored = faults.storedMessageIds ?? [];
       if (method === "POST") {
+        // The STOP is applied by now and the acknowledgement is not saved yet:
+        // the window in which staff can re-enable the number
+        // (staff_reenable_whatsapp_number clears the number and its records).
+        if (reenablePending) {
+          reenablePending = false;
+          conversation.whatsapp_opted_out_at = null;
+          for (const row of humans) {
+            row.whatsapp_opted_out = false;
+            row.whatsapp_opted_out_reason = null;
+          }
+        }
         return stored.includes(String(body.meta_message_id))
           ? reply({ code: "23505", message: 'duplicate key value violates unique constraint "idx_whatsapp_messages_meta_msg"' }, 409)
           : reply({ id: "message-opt-out" }, 201);
@@ -168,13 +215,38 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
       return reply(asked && stored.includes(asked.replace(/^eq\./, "")) ? [{ id: "message-stored" }] : []);
     }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
-      const isAcknowledgement = (body.tool_calls as Record<string, unknown> | undefined)?.opt_out_acknowledgement === true;
+      const toolCalls = (body.tool_calls as Record<string, unknown> | undefined) ?? {};
+      const isAcknowledgement = toolCalls.opt_out_acknowledgement === true;
       if (method === "POST" && isAcknowledgement && faults.pendingAcknowledgement) {
         return reply({
           code: "23505",
           message: 'duplicate key value violates unique constraint "whatsapp_drafts_one_pending_opt_out_ack"',
         }, 409);
       }
+      if (method === "POST" && isAcknowledgement) {
+        // trg_whatsapp_drafts_guard_stop_ack (migration 20261017120000): an
+        // acknowledgement is refused unless its conversation is stopped NOW,
+        // whatever snapshot the caller holds.
+        if (conversation.whatsapp_opted_out_at === null) {
+          return reply({
+            code: "P0001",
+            message: "whatsapp_stop_ack_not_stopped: this conversation is not stopped, so no STOP acknowledgement is queued",
+          }, 400);
+        }
+        // whatsapp_drafts_one_opt_out_ack_per_stop: one acknowledgement per
+        // STOP message, in any state. A draft without the id is outside it.
+        const stopId = typeof toolCalls.stop_meta_message_id === "string" ? toolCalls.stop_meta_message_id : null;
+        if (stopId !== null) {
+          if (acknowledgedStopIds.has(stopId)) {
+            return reply({
+              code: "23505",
+              message: 'duplicate key value violates unique constraint "whatsapp_drafts_one_opt_out_ack_per_stop"',
+            }, 409);
+          }
+          acknowledgedStopIds.add(stopId);
+        }
+      }
+      if (method === "POST") storedDrafts.push(body);
       return method === "POST" ? reply({ id: "draft-opt-out" }, 201) : reply([]);
     }
     if (url.pathname === "/rest/v1/bookings") return reply([]);
@@ -193,7 +265,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const humanPatches = calls.filter((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   const conversationPatches = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH").map((c) => c.body);
   const stopRpcs = calls.filter((c) => c.path === "/rest/v1/rpc/apply_whatsapp_stop" && c.method === "POST").map((c) => c.body);
-  return { sends, drafts, humanPatches, conversationPatches, stopRpcs, humanRow, humans, eventPatch, calls, conversation };
+  return { sends, drafts, storedDrafts, humanPatches, conversationPatches, stopRpcs, humanRow, humans, eventPatch, calls, conversation };
 }
 
 Deno.test("STOP flags the customer, switches auto-send off, sends nothing and leaves one draft", async () => {
@@ -483,5 +555,107 @@ Deno.test("a STOP with no Meta id passes a null id", async () => {
   const { stopRpcs, eventPatch } = await send("STOP", "ai_handling", HUMAN, { messageId: null });
   assertEquals(stopRpcs.length, 1);
   assertEquals(stopRpcs[0].p_meta_message_id, null);
+  assertEquals(eventPatch.processing_status, "processed");
+});
+
+// ── The two acknowledgement races left open by #1026's review ──────────
+// (migration 20261017120000). Both are interleavings, so each test fixes the
+// order in which the database and the agent see events rather than hoping a
+// race shows up.
+
+Deno.test("the acknowledgement names the STOP it answers, so the database can keep one per STOP", async () => {
+  const { storedDrafts } = await send("STOP");
+  assertEquals(storedDrafts.length, 1);
+  const toolCalls = storedDrafts[0].tool_calls as Record<string, unknown>;
+  assertEquals(toolCalls.opt_out_acknowledgement, true);
+  assertEquals(toolCalls.stop_meta_message_id, "synthetic-0");
+});
+
+Deno.test("a STOP Meta sent no id for carries no stop id, rather than a null the index would trip on", async () => {
+  const { storedDrafts } = await send("STOP", "ai_handling", HUMAN, { messageId: null });
+  assertEquals(storedDrafts.length, 1);
+  assertEquals("stop_meta_message_id" in (storedDrafts[0].tool_calls as Record<string, unknown>), false);
+});
+
+Deno.test("race: the STOP commits, its response is lost, and the retry still queues the acknowledgement", async () => {
+  // apply_whatsapp_stop commits, the HTTP answer never arrives, the retry finds
+  // the per-message marker and is told "already applied". Before the fix that
+  // read as a historical replay, so a genuine STOP lost its acknowledgement
+  // although the suppression itself succeeded.
+  const { stopRpcs, storedDrafts, eventPatch, conversation, sends, humanPatches } = await send("STOP", "ai_handling", HUMAN, { firstStopResponseLost: true });
+  assertEquals(stopRpcs.length, 2, "one unanswered attempt, one retry that is told 'already applied'");
+  assertEquals(eventPatch.processing_status, "processed");
+  assert(typeof conversation.whatsapp_opted_out_at === "string", "the STOP stands");
+  assertEquals(conversation.auto_send_enabled, false);
+  assertEquals(sends.length, 0, "nothing is sent to someone who asked us to stop");
+  assertEquals(storedDrafts.length, 1, "exactly one acknowledgement is stored");
+  assertEquals((storedDrafts[0].tool_calls as Record<string, unknown>).opt_out_acknowledgement, true);
+  assertEquals((storedDrafts[0].tool_calls as Record<string, unknown>).stop_meta_message_id, "synthetic-0");
+  // The customer step is not redone: the database flagged the number's
+  // records inside the RPC's own transaction, exactly as for a replay.
+  assertEquals(humanPatches.length, 0);
+});
+
+Deno.test("race: a failure that never committed still applies for real and queues one acknowledgement", async () => {
+  // An unanswered attempt must not, by itself, suppress the customer step: the
+  // retry here is the first that commits, so it is "applied", not "own_commit".
+  const { stopRpcs, storedDrafts, humanPatches, humanRow, eventPatch } = await send("STOP", "ai_handling", HUMAN, { firstStopFailsUncommitted: true });
+  assertEquals(stopRpcs.length, 2);
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(humanPatches.length, 1, "the retry that really applied also flags the customer");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+  assertEquals(storedDrafts.length, 1);
+});
+
+Deno.test("race: a replay with no unanswered attempt of its own still queues nothing", async () => {
+  // The guarantee the narrow reading preserves: only an invocation that LOST
+  // an answer treats "already applied" as its own. A genuine historical
+  // replay, with the number re-enabled since, stays quiet.
+  const { storedDrafts, conversation, humanPatches, eventPatch } = await send("STOP", "ai_handling", HUMAN, { appliedStopIds: ["synthetic-0"] });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(storedDrafts.length, 0);
+  assertEquals(conversation.whatsapp_opted_out_at, null, "the number stays as staff left it");
+  assertEquals(humanPatches.length, 0);
+});
+
+Deno.test("race: an acknowledgement already queued for this STOP is not queued twice, even after staff handled it", async () => {
+  // The lost-response retry and the original invocation can both reach the
+  // acknowledgement (a slow response is not a lost one). The database keeps
+  // one per STOP message in any state; the loser's refusal is expected.
+  const { stopRpcs, drafts, storedDrafts, eventPatch, conversation } = await send("STOP", "ai_handling", HUMAN, {
+    firstStopResponseLost: true,
+    acknowledgedStopIds: ["synthetic-0"],
+  });
+  assertEquals(stopRpcs.length, 2);
+  assertEquals(drafts.length, 1, "the insert was attempted");
+  assertEquals(storedDrafts.length, 0, "and refused: no second acknowledgement");
+  assertEquals(eventPatch.processing_status, "processed", "an expected refusal never fails the event");
+  assert(typeof conversation.whatsapp_opted_out_at === "string");
+});
+
+Deno.test("race: staff re-enable between the STOP and the acknowledgement, and no acknowledgement is stored", async () => {
+  // The agent's conversation snapshot, read before the STOP was applied, still
+  // says ai_handling. The re-enable has already fired its supersede trigger
+  // with nothing to supersede, so before the fix the draft went in and sat in
+  // the staff queue as false work. Now the database refuses it.
+  const { drafts, storedDrafts, conversation, humans, eventPatch, sends } = await send("STOP", "ai_handling", HUMAN, { reenableBeforeAcknowledgement: true });
+  assertEquals(drafts.length, 1, "the agent attempts the acknowledgement from its stale snapshot");
+  assertEquals(storedDrafts.length, 0, "and the database refuses it: no pending acknowledgement outlives the re-enable");
+  assertEquals(conversation.whatsapp_opted_out_at, null, "the agent does not stop the number again");
+  assertEquals(humans[0].whatsapp_opted_out, false, "the customer stays as staff left them");
+  assertEquals(eventPatch.processing_status, "processed", "an expected refusal never fails the event");
+  assertEquals(sends.length, 0);
+});
+
+Deno.test("race: the same re-enable during a lost-response retry also stores no acknowledgement", async () => {
+  // Both races at once: the retry is "own_commit", and staff re-enable before
+  // its acknowledgement is saved. STOP still wins over the draft.
+  const { stopRpcs, storedDrafts, conversation, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+    firstStopResponseLost: true,
+    reenableBeforeAcknowledgement: true,
+  });
+  assertEquals(stopRpcs.length, 2);
+  assertEquals(storedDrafts.length, 0);
+  assertEquals(conversation.whatsapp_opted_out_at, null);
   assertEquals(eventPatch.processing_status, "processed");
 });

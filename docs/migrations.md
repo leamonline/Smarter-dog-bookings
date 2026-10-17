@@ -1,5 +1,19 @@
 # Migration history
 
+## WhatsApp STOP acknowledgement guards (#1026 review follow-up) — prepared, NOT applied
+
+`20261017120000_whatsapp_stop_ack_guards.sql` is committed on the follow-up
+pull request and has **not** been applied to staging or production. It is
+expand-only and idempotent: one `BEFORE INSERT` trigger on `whatsapp_drafts`
+(`trg_whatsapp_drafts_guard_stop_ack`, definer, pinned `search_path`, not
+executable by clients) and one partial unique index
+(`whatsapp_drafts_one_opt_out_ack_per_stop`). Existing rows cannot violate the
+index because it only covers acknowledgement drafts that carry a
+`stop_meta_message_id`, which no existing draft has. No function, table or row
+already live is changed. Production needs the approval-gated **Apply named
+migrations to production** workflow, authorised by the owner; until then
+`migrations-applied` is expected to be red on the pull request.
+
 ## WhatsApp opt-out follow-ups (#1026) — applied 16 October 2026
 
 `20261016120000_whatsapp_opt_out_followups.sql` was applied to **staging**
