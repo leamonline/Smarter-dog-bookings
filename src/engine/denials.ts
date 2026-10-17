@@ -21,6 +21,10 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
   pregnant: "Pregnant dog",
   customer_slot_blocked: "Blocked time for this customer",
   double_booked: "Dog already booked",
+  awaiting_approval: "Account awaiting approval",
+  profile_incomplete: "Profile incomplete",
+  dog_size_unconfirmed: "Dog size not confirmed",
+  dog_not_owned: "Dog not on this account",
   unavailable: "No availability",
   unknown: "Other",
 };
@@ -48,6 +52,12 @@ export const DENIAL_REASON_GROUP: Record<string, DenialGroup> = {
   past_cutoff: "policy",
   pregnant: "policy",
   double_booked: "policy",
+  // Account-state refusals from create_customer_booking_group (#1006). Nothing
+  // about the salon's capacity was refused, so none of these is lost demand.
+  awaiting_approval: "policy",
+  profile_incomplete: "policy",
+  dog_size_unconfirmed: "policy",
+  dog_not_owned: "policy",
   unknown: "other",
 };
 
@@ -89,6 +99,13 @@ export function mapDenialReason(
   const m = (message || "").toLowerCase();
   if (!m) return "unknown";
   if (m.includes("pregnant")) return "pregnant";
+  // Account-state refusals raised by create_customer_booking_group. They carry
+  // no DETAIL code yet (a separate, migration-backed change), so they are
+  // recognised by message, before any capacity pattern can claim them.
+  if (m.includes("awaiting approval")) return "awaiting_approval";
+  if (m.includes("complete your profile")) return "profile_incomplete";
+  if (m.includes("dog_size_unconfirmed")) return "dog_size_unconfirmed";
+  if (m.includes("not on your account")) return "dog_not_owned";
   // enforce_human_slot_blocks (migration 20260714120000): the owner's
   // blocked_slots gate. "for your account" is unique to that message.
   if (m.includes("for your account")) return "customer_slot_blocked";
@@ -152,6 +169,14 @@ export function friendlyDenialMessage(
       return "That time isn’t available for a larger dog. Please pick another slot, or give us a call and we’ll find one that works.";
     case "double_booked":
       return "That dog’s already booked in for that time. Check “My appointments”, or pick a different slot.";
+    case "awaiting_approval":
+      return "Your account is still being approved, so online booking isn’t open to you yet. Please bear with us — we’ll message you as soon as you’re set up.";
+    case "profile_incomplete":
+      return "Please finish your profile (name, address and agreeing to our policies) before booking, then try again.";
+    case "dog_size_unconfirmed":
+      return "We need to confirm your dog’s size before it can be booked online. Please message the salon and we’ll sort it out.";
+    case "dog_not_owned":
+      return "We couldn’t match that dog to your account. Please check the dog you picked, or message the salon and we’ll help.";
     case "customer_slot_blocked":
       // Keep the meaning (this time is off the menu for THEM, not full)
       // rather than pretending the slot was taken.
@@ -237,4 +262,20 @@ export function computeDenialStats(rows: DenialRow[], days: number, today: Date 
   const bySource = Object.entries(sourceAcc).map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
 
   return { total, byReason, byGroup, bySize, bySlot, bySource, alternativeShownN, alternativeTakenN, firstSeen };
+}
+
+/**
+ * Refusals that say something about the customer's account, not about the
+ * salon's capacity. The wizard shows their own copy and keeps them out of
+ * booking_denials, which report 2F reads as turned-away demand (#1006).
+ */
+export const ACCOUNT_REFUSAL_REASONS: ReadonlySet<string> = new Set([
+  "awaiting_approval",
+  "profile_incomplete",
+  "dog_size_unconfirmed",
+  "dog_not_owned",
+]);
+
+export function isAccountRefusal(message?: string | null, details?: string | null): boolean {
+  return ACCOUNT_REFUSAL_REASONS.has(mapDenialReason(message, details));
 }

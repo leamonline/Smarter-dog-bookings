@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapDenialReason, friendlyDenialMessage, computeDenialStats, DENIAL_REASON_GROUP, DENIAL_REASON_LABELS, type DenialRow } from "./denials";
+import { mapDenialReason, friendlyDenialMessage, computeDenialStats, DENIAL_REASON_GROUP, DENIAL_REASON_LABELS, isAccountRefusal, type DenialRow } from "./denials";
 
 describe("mapDenialReason", () => {
   it("maps the real gate messages to reason codes", () => {
@@ -174,5 +174,31 @@ describe("computeDenialStats groups reasons (capacity vs restriction vs policy)"
   it("is zero across the board with no rows", () => {
     const empty = computeDenialStats([], 30, new Date("2026-07-04T09:00:00Z"));
     expect(empty.byGroup).toEqual({ capacity: 0, restriction: 0, policy: 0, other: 0 });
+  });
+});
+
+describe("account-state refusals from create_customer_booking_group (#1006)", () => {
+  const cases: Array<[string, string]> = [
+    ["Your account is awaiting approval. We'll be in touch as soon as you're set up.", "awaiting_approval"],
+    ["Please complete your profile (name, address and policy agreement) before booking", "profile_incomplete"],
+    ["dog_size_unconfirmed", "dog_size_unconfirmed"],
+    ["Row 2: that dog is not on your account", "dog_not_owned"],
+  ];
+
+  it.each(cases)("maps %j to %s", (message, code) => {
+    expect(mapDenialReason(message)).toBe(code);
+    expect(mapDenialReason(null, code)).toBe(code);
+    expect(DENIAL_REASON_GROUP[code]).toBe("policy");
+    expect(isAccountRefusal(message)).toBe(true);
+  });
+
+  it.each(cases)("never tells the customer the slot was taken for %j", (message) => {
+    expect(friendlyDenialMessage(message)).not.toMatch(/slot|taken|available anymore/i);
+  });
+
+  it("does not catch capacity refusals", () => {
+    expect(isAccountRefusal("Slot is full")).toBe(false);
+    expect(isAccountRefusal("Capped at 1 (2-2-1 rule)")).toBe(false);
+    expect(isAccountRefusal("That time is not available for your account")).toBe(false);
   });
 });

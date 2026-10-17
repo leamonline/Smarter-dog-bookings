@@ -37,6 +37,7 @@ export const KNOWN_DENIAL_CODES: ReadonlySet<string> = new Set([
   "capacity_2_2_1", "daily_cap", "slot_full", "seat_blocked",
   "large_dog_ineligible", "calendar_closed", "past_date", "past_cutoff",
   "pregnant", "customer_slot_blocked", "double_booked", "unavailable", "unknown",
+  "awaiting_approval", "profile_incomplete", "dog_size_unconfirmed", "dog_not_owned",
 ]);
 
 /**
@@ -63,6 +64,12 @@ export function mapDenialReason(
   const m = (message || "").toLowerCase();
   if (!m) return "unknown";
   if (m.includes("pregnant")) return "pregnant";
+  // Account-state refusals from create_customer_booking_group (#1006). The
+  // portal is where they arise; mirrored so the vocabularies cannot drift.
+  if (m.includes("awaiting approval")) return "awaiting_approval";
+  if (m.includes("complete your profile")) return "profile_incomplete";
+  if (m.includes("dog_size_unconfirmed")) return "dog_size_unconfirmed";
+  if (m.includes("not on your account")) return "dog_not_owned";
   // enforce_human_slot_blocks (migration 20260714120000): the owner's
   // blocked_slots gate. "for your account" is unique to that message.
   if (m.includes("for your account")) return "customer_slot_blocked";
@@ -107,6 +114,8 @@ export function mapDenialReason(
  *   daily_cap       — the whole DAY is full, so every slot on it fails
  *   calendar_closed — the salon is closed that day
  *   past_date       — the date has already gone
+ *   awaiting_approval, profile_incomplete, dog_size_unconfirmed,
+ *   dog_not_owned   — about the account, not the time (#1006)
  *   unknown         — unrecognised refusal; fail closed rather than loop the
  *                     customer through slots that may all reject
  */
@@ -164,6 +173,14 @@ export function friendlyDenialMessage(
       return "That time isn’t available for a larger dog. Please pick another time, or reply here and we’ll find one that works.";
     case "double_booked":
       return "That dog’s already booked in for that time. Please pick a different time, or reply here and we’ll check for you.";
+    case "awaiting_approval":
+      return "Your account is still being approved, so online booking isn’t open to you yet. Please bear with us — reply here and we’ll help.";
+    case "profile_incomplete":
+      return "Please finish your profile (name, address and agreeing to our policies) before booking, or reply here and we’ll help.";
+    case "dog_size_unconfirmed":
+      return "We need to confirm your dog’s size before it can be booked online. Please reply here and we’ll sort it out.";
+    case "dog_not_owned":
+      return "We couldn’t match that dog to your account. Please check the dog you picked, or reply here and we’ll help.";
     case "customer_slot_blocked":
       // Keep the meaning (this time is off the menu for THEM, not full)
       // rather than pretending the slot was taken.

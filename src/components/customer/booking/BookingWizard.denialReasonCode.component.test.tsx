@@ -213,4 +213,29 @@ describe("BookingWizard honours the emitted reason code", () => {
     await waitFor(() => expect(mocks.logBookingDenial).toHaveBeenCalled());
     expect(loggedReasonCode()).toBe("slot_full");
   });
+
+  // #1006: account-state refusals used to read as "that slot isn't available
+  // anymore" and land in booking_denials, which report 2F counts as
+  // turned-away demand.
+  describe.each([
+    ["awaiting approval", "P0001", "Your account is awaiting approval. We'll be in touch as soon as you're set up.", /still being approved/],
+    ["incomplete profile", "P0001", "Please complete your profile (name, address and policy agreement) before booking", /finish your profile/],
+    ["unconfirmed dog size", "22023", "dog_size_unconfirmed", /confirm your dog.s size/],
+    ["dog not on the account", "22023", "Row 1: that dog is not on your account", /couldn.t match that dog/],
+  ])("%s", (_name, code, message, copy) => {
+    it("says what happened, never that the slot was taken", async () => {
+      mocks.createMany.mockResolvedValue({ ids: [], error: { code, message, details: null } });
+      const shown = await confirmAndReadRefusal();
+
+      expect(shown).toMatch(copy);
+      expect(shown).not.toMatch(/slot|just been taken/i);
+    });
+
+    it("is not recorded as turned-away demand", async () => {
+      mocks.createMany.mockResolvedValue({ ids: [], error: { code, message, details: null } });
+      await confirmAndReadRefusal();
+
+      expect(mocks.logBookingDenial).not.toHaveBeenCalled();
+    });
+  });
 });
