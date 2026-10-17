@@ -47,9 +47,11 @@ select extensions.dblink_exec('setup', $setup$
     '24500000-0000-4000-8000-000000000001',
     '24500000-0000-4000-8000-000000000002'
   );
-  insert into public.whatsapp_conversations (id, phone_e164) values
-    ('24500000-0000-4000-8000-000000000001', '+447700900451'),
-    ('24500000-0000-4000-8000-000000000002', '+447700900452');
+  -- Stopped: an acknowledgement is only accepted for a stopped conversation
+  -- (migration 20261017120000).
+  insert into public.whatsapp_conversations (id, phone_e164, whatsapp_opted_out_at) values
+    ('24500000-0000-4000-8000-000000000001', '+447700900451', now()),
+    ('24500000-0000-4000-8000-000000000002', '+447700900452', now());
   commit;
 $setup$);
 

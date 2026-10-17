@@ -1296,13 +1296,27 @@ async function saveDraft(
  * than reading as processed (AGENTS.md: never infer an outcome from an
  * attempted write). Idempotent, so a retry or a replayed event repeats it
  * safely.
+ *
+ * Says what it found, because the staff acknowledgement depends on it:
+ *  - "applied":    this call applied the STOP.
+ *  - "own_commit": the database answered "already applied", but an earlier
+ *                  attempt of THIS invocation got no answer at all, so that
+ *                  attempt most likely committed and lost its response. The
+ *                  STOP is this message's own, not a historical replay.
+ *  - "replay":     the STOP was applied before this invocation began (an event
+ *                  replayed after its inbound row failed). Nothing is queued.
+ * An unanswered RPC is not evidence of a commit either (the request may never
+ * have arrived), so it only makes the invocation a candidate; the marker's
+ * database timestamp against the first call decides, with no schema change.
  */
+type StopRecorded = "applied" | "own_commit" | "replay";
+
 async function recordOptOut(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
   metaMsgId: string | null,
-  state: { applied?: boolean },
-): Promise<boolean> {
+  state: { applied?: boolean; unanswered?: boolean; firstAttemptDbAt?: string },
+): Promise<StopRecorded> {
   // 1. The number itself (migration 20261014120000). This is the whole of
   // the suppression for a number with no customer record, and the database
   // carries it to any record later created with, or changed to, this number.
@@ -1324,16 +1338,61 @@ async function recordOptOut(
   // that re-enable. `state` carries the outcome across retries, so a retry
   // after the RPC committed redoes only the read-back and the customer step.
   if (state.applied === undefined) {
+    // The DATABASE's clock, read before the first call leaves. A marker's
+    // applied_at is also the database's now(), so comparing the two never
+    // depends on this function's own clock (see the correlation below). A
+    // failure here is before anything was applied, so it simply retries.
+    if (state.firstAttemptDbAt === undefined) {
+      const { data: dbNow, error: dbNowErr } = await supabase.rpc("whatsapp_stop_attempt_started_at");
+      if (dbNowErr || typeof dbNow !== "string") {
+        throw new Error(`STOP not recorded: could not read the database clock (${dbNowErr?.message ?? "no value"})`);
+      }
+      state.firstAttemptDbAt = dbNow;
+    }
     const { data, error } = await supabase.rpc("apply_whatsapp_stop", {
       p_conversation_id: conversation.id,
       p_meta_message_id: metaMsgId,
     });
-    if (error) throw new Error(`STOP not recorded: could not store the number's opt-out (${error.message})`);
+    if (error) {
+      // No answer is not "nothing committed": the transaction may have
+      // committed and lost its response. Remember that, so a retry that finds
+      // the marker can tell its own commit from a replay.
+      state.unanswered = true;
+      throw new Error(`STOP not recorded: could not store the number's opt-out (${error.message})`);
+    }
     state.applied = (data as { applied?: boolean } | null)?.applied === true;
   }
   if (!state.applied) {
-    console.log(`opt-out: STOP for message ${metaMsgId} was already applied; not applied again`);
-    return false;
+    // An unanswered attempt does not prove a commit: the request may never have
+    // reached PostgreSQL (a gateway or connection error), in which case an
+    // "already applied" answer is a historical replay. So an unanswered attempt
+    // only makes this INVOCATION a candidate; the marker's own timestamp then
+    // decides. apply_whatsapp_stop stamps it with now() inside the transaction,
+    // so a marker written by one of our attempts is no older than the first
+    // call, while a replayed STOP's marker is from an earlier invocation.
+    let ownCommit = false;
+    if (state.unanswered === true && metaMsgId) {
+      // Through a definer function: the marker table has no grant for any
+      // client role (whatsapp_stop_marker_applied_at, 20261017120000).
+      const { data: marker, error: markerErr } = await supabase.rpc("whatsapp_stop_marker_applied_at", {
+        p_meta_message_id: metaMsgId,
+      });
+      if (markerErr) {
+        // Cannot tell: fail visibly and let the retry read it again, rather
+        // than guess either way.
+        throw new Error(`STOP not recorded: could not read the STOP marker (${markerErr.message})`);
+      }
+      const appliedAt = Date.parse(typeof marker === "string" ? marker : "");
+      // Same clock on both sides: a marker written by one of our attempts is
+      // no older than the bound taken before the first of them.
+      ownCommit = Number.isFinite(appliedAt) && appliedAt >= Date.parse(state.firstAttemptDbAt ?? "");
+    }
+    console.log(
+      ownCommit
+        ? `opt-out: STOP for message ${metaMsgId} was committed by an earlier, unanswered attempt of this invocation`
+        : `opt-out: STOP for message ${metaMsgId} was already applied; not applied again`,
+    );
+    return ownCommit ? "own_commit" : "replay";
   }
   const { data: convStored, error: convReadErr } = await supabase
     .from("whatsapp_conversations")
@@ -1392,7 +1451,7 @@ async function recordOptOut(
     }
     console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
   }
-  return true;
+  return "applied";
 }
 
 // A transient database error must not leave a STOP unrecorded: try the
@@ -1403,10 +1462,12 @@ async function recordOptOutWithRetry(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
   metaMsgId: string | null,
-): Promise<boolean> {
+): Promise<StopRecorded> {
   // One state for every attempt: once apply_whatsapp_stop has answered, a
-  // retry must not call it again (it would answer "already applied").
-  const state: { applied?: boolean } = {};
+  // retry must not call it again (it would answer "already applied"). It also
+  // remembers an attempt that got no answer, which is what lets a retry tell
+  // its own lost commit from a replay (recordOptOut).
+  const state: { applied?: boolean; unanswered?: boolean; firstAttemptDbAt?: string } = {};
   for (let attempt = 0; ; attempt++) {
     try {
       return await recordOptOut(supabase, conversation, metaMsgId, state);
@@ -2914,9 +2975,9 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // deliberately no comparison with the re-enable time: it fails open,
           // dropping a genuine STOP still in flight (supabase/tests/246).
           const stopRequested = !forceDraft && isOptOutRequest(text);
-          let stopApplied = false;
+          let stopRecorded: StopRecorded | null = null;
           if (stopRequested && !(await inboundAlreadyStored(supabase, msg.id))) {
-            stopApplied = await recordOptOutWithRetry(supabase, conversation, msg.id ?? null);
+            stopRecorded = await recordOptOutWithRetry(supabase, conversation, msg.id ?? null);
           }
 
           if (!forceDraft) {
@@ -3065,11 +3126,22 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // whatsapp_drafts_one_pending_opt_out_ack allows one PENDING
           // acknowledgement per conversation, so a repeated STOP, or two
           // processed at once, cannot queue a second (#1016 review).
+          //
+          // Two more guarantees live in the database, not here (migration
+          // 20261017120000, #1026 review). The conversation row this branch
+          // holds was read before the STOP was applied, so it cannot say
+          // whether staff re-enabled the number since: the insert itself is
+          // refused unless the conversation is stopped now, atomically with a
+          // re-enable. And the draft carries its STOP's Meta message id, of
+          // which the database keeps one in any state, so a retry can ask for
+          // an acknowledgement without ever queueing a second.
           if (stopRequested) {
             // A STOP that was not applied now (a replay of one already
             // applied) queues no new acknowledgement; it is still handled
-            // here so nothing else acts on it.
-            if (stopApplied && conversation.state === "ai_handling") {
+            // here so nothing else acts on it. The one exception is a STOP
+            // whose own commit lost its response ("own_commit"): that is not
+            // a replay, and its acknowledgement was never queued.
+            if ((stopRecorded === "applied" || stopRecorded === "own_commit") && conversation.state === "ai_handling") {
               const policy: DraftPolicy = {
                 riskLevel: "high",
                 handoffRequired: true,
@@ -3088,12 +3160,22 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                 await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
                   reason: "opt_out: the customer asked us to stop messaging them",
                   opt_out_acknowledgement: true,
+                  // Which STOP this answers, so the database keeps one
+                  // acknowledgement per STOP message. Omitted, not null, when
+                  // Meta sent no id: there is then nothing to key it on.
+                  ...(msg.id ? { stop_meta_message_id: msg.id } : {}),
                 });
               } catch (err) {
                 // The opt-out itself is stored by now; the draft is a courtesy.
                 const message = err instanceof Error ? err.message : String(err);
                 if (message.includes("whatsapp_drafts_one_pending_opt_out_ack")) {
                   console.log(`opt-out: an acknowledgement is already pending on conversation ${conversation.id}`);
+                } else if (message.includes("whatsapp_drafts_one_opt_out_ack_per_stop")) {
+                  console.log(`opt-out: an acknowledgement for message ${msg.id} was already queued; none added`);
+                } else if (message.includes("whatsapp_stop_ack_not_stopped")) {
+                  // Staff re-enabled the number after the STOP was applied.
+                  // Queueing an acknowledgement now would be false work.
+                  console.log(`opt-out: conversation ${conversation.id} was re-enabled before its acknowledgement was queued; none added`);
                 } else {
                   console.error("opt-out draft save failed (non-fatal):", err);
                 }
