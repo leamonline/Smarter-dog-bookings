@@ -313,6 +313,11 @@ select is(
 );
 
 -- ── One pending STOP acknowledgement per conversation ───────────────
+-- An acknowledgement only exists for a conversation that is stopped now
+-- (migration 20261017120000), and both of these were re-enabled above: stop
+-- them again, as a later STOP would, before leaving acknowledgements for them.
+update public.whatsapp_conversations set whatsapp_opted_out_at = now()
+ where id in ('24400000-0000-4000-8000-000000000001', '24400000-0000-4000-8000-000000000002');
 select lives_ok(
   $$insert into public.whatsapp_drafts (conversation_id, proposed_text, intent, confidence, state, tool_calls)
     values ('24400000-0000-4000-8000-000000000001', 'ack', 'escalate', 1, 'pending', '{"opt_out_acknowledgement": true}')$$,
