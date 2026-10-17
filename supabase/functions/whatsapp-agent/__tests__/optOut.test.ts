@@ -67,13 +67,11 @@ interface Faults {
    */
   firstStopFailsUncommitted?: boolean;
   /**
-   * The database's clock runs this far from the function's (ms; negative:
-   * behind). Both the clock bound and the markers use the database's, so the
-   * correlation must not care.
+   * Every apply_whatsapp_stop call commits (the first time) but its answer is
+   * lost, including all the retries of one invocation: the event fails and is
+   * reset to pending by hand (#1028 review, second round).
    */
-  dbClockOffsetMs?: number;
-  /** The marker read fails (the STOP marker cannot be told from a replay). */
-  markerReadFails?: boolean;
+  everyStopResponseLost?: boolean;
   /**
    * Staff re-enable the number after the STOP is applied and before the
    * acknowledgement is saved: the stale conversation snapshot the agent holds
@@ -104,10 +102,6 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const appliedStopIds = new Set(faults.appliedStopIds ?? []);
-  const dbNow = () => new Date(Date.now() + (faults.dbClockOffsetMs ?? 0)).toISOString();
-  const stopMarkerAt = new Map<string, string>(
-    (faults.appliedStopIds ?? []).map((id) => [id, new Date(Date.now() + (faults.dbClockOffsetMs ?? 0) - 2 * 24 * 3600 * 1000).toISOString()]),
-  );
   const acknowledgedStopIds = new Set(faults.acknowledgedStopIds ?? []);
   // Drafts the database ACCEPTED, as opposed to insert attempts: since
   // migration 20261017120000 an acknowledgement can be attempted and refused,
@@ -169,33 +163,26 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         : humans;
       return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
     }
-    if (url.pathname === "/rest/v1/rpc/whatsapp_stop_attempt_started_at") return reply(dbNow());
-    if (url.pathname === "/rest/v1/rpc/whatsapp_stop_marker_applied_at") {
-      // Markers already in `appliedStopIds` predate this invocation by days;
-      // one written during it carries the time it was written.
-      if (faults.markerReadFails) return reply({ message: "connection reset" }, 500);
-      const writtenAt = stopMarkerAt.get(String(body.p_meta_message_id));
-      return reply(writtenAt ?? null);
-    }
     if (url.pathname === "/rest/v1/rpc/apply_whatsapp_stop") {
       // migration 20261016120000: one marker per Meta message id, written in
       // the same transaction as the number's stamp.
       stopCalls++;
       if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
+      // Every answer after the first commit is lost as well (retries included).
+      if (faults.everyStopResponseLost && stopCalls > 1) return reply({ message: "bad gateway" }, 502);
       // Fails before the transaction commits: nothing is written.
       if (faults.firstStopFailsUncommitted && stopCalls === 1) return reply({ message: "connection reset" }, 500);
       const metaId = typeof body.p_meta_message_id === "string" && body.p_meta_message_id.trim() !== "" ? body.p_meta_message_id : null;
       if (metaId !== null) {
         if (appliedStopIds.has(metaId)) return reply({ applied: false, reason: "already_applied" });
         appliedStopIds.add(metaId);
-        stopMarkerAt.set(metaId, dbNow());
       }
       if (faults.numberStampMatchesNothing) return reply({ applied: true, whatsapp_opted_out_at: null });
       // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps the first time.
       if (conversation.whatsapp_opted_out_at === null) conversation.whatsapp_opted_out_at = new Date().toISOString();
       conversation.auto_send_enabled = false;
       // Committed above; only the answer is lost.
-      if (faults.firstStopResponseLost && stopCalls === 1) return reply({ message: "connection reset" }, 500);
+      if ((faults.firstStopResponseLost && stopCalls === 1) || faults.everyStopResponseLost) return reply({ message: "connection reset" }, 500);
       return reply({ applied: true, whatsapp_opted_out_at: conversation.whatsapp_opted_out_at });
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
@@ -552,15 +539,15 @@ Deno.test("a STOP is applied through apply_whatsapp_stop with its Meta id, not a
   assertEquals(conversationPatches.filter((p) => "whatsapp_opted_out_at" in p).length, 0);
 });
 
-Deno.test("a STOP already applied for its Meta id is not applied again: no customer write, no acknowledgement", async () => {
+Deno.test("a STOP already applied for its Meta id is not applied again: no customer write, and none stored for a re-enabled number", async () => {
   // The STOP committed, the inbound row did not, and staff re-enabled the
   // number before the event was replayed: the replay must not undo that.
-  const { humanPatches, humans, drafts, eventPatch, conversation, sends } = await send("STOP", "ai_handling", HUMAN, { appliedStopIds: ["synthetic-0"] });
+  const { humanPatches, humans, storedDrafts, eventPatch, conversation, sends } = await send("STOP", "ai_handling", HUMAN, { appliedStopIds: ["synthetic-0"] });
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(conversation.whatsapp_opted_out_at, null, "the number stays as staff left it");
   assertEquals(humanPatches.length, 0);
   assertEquals(humans[0].whatsapp_opted_out, false);
-  assertEquals(drafts.length, 0, "no new acknowledgement for a replayed STOP");
+  assertEquals(storedDrafts.length, 0, "the database refuses an acknowledgement for a number staff re-enabled");
   assertEquals(sends.length, 0);
 });
 
@@ -619,7 +606,7 @@ Deno.test("race: the STOP commits, its response is lost, and the retry still que
 
 Deno.test("race: a failure that never committed still applies for real and queues one acknowledgement", async () => {
   // An unanswered attempt must not, by itself, suppress the customer step: the
-  // retry here is the first that commits, so it is "applied", not "own_commit".
+  // retry here is the first that commits, so it is "applied", not a replay.
   const { stopRpcs, storedDrafts, humanPatches, humanRow, eventPatch } = await send("STOP", "ai_handling", HUMAN, { firstStopFailsUncommitted: true });
   assertEquals(stopRpcs.length, 2);
   assertEquals(eventPatch.processing_status, "processed");
@@ -628,10 +615,8 @@ Deno.test("race: a failure that never committed still applies for real and queue
   assertEquals(storedDrafts.length, 1);
 });
 
-Deno.test("race: a replay with no unanswered attempt of its own still queues nothing", async () => {
-  // The guarantee the narrow reading preserves: only an invocation that LOST
-  // an answer treats "already applied" as its own. A genuine historical
-  // replay, with the number re-enabled since, stays quiet.
+Deno.test("race: a replay of a STOP staff re-enabled since queues nothing", async () => {
+  // The database, not the agent, refuses: the number is not stopped now.
   const { storedDrafts, conversation, humanPatches, eventPatch } = await send("STOP", "ai_handling", HUMAN, { appliedStopIds: ["synthetic-0"] });
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(storedDrafts.length, 0);
@@ -669,7 +654,7 @@ Deno.test("race: staff re-enable between the STOP and the acknowledgement, and n
 });
 
 Deno.test("race: the same re-enable during a lost-response retry also stores no acknowledgement", async () => {
-  // Both races at once: the retry is "own_commit", and staff re-enable before
+  // Both races at once: the retry is told "already applied", and staff re-enable before
   // its acknowledgement is saved. STOP still wins over the draft.
   const { stopRpcs, storedDrafts, conversation, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
     firstStopResponseLost: true,
@@ -681,54 +666,47 @@ Deno.test("race: the same re-enable during a lost-response retry also stores no 
   assertEquals(eventPatch.processing_status, "processed");
 });
 
-Deno.test("race: a replayed STOP whose first attempt never reached the database queues no acknowledgement", async () => {
-  // Codex review on #1028: an unanswered attempt is not proof of a commit. A
-  // gateway error before PostgreSQL, then "already applied" for a marker from
-  // days ago, is a historical replay and must not recreate a handled draft.
-  const { stopRpcs, storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+Deno.test("race: all retries lose their answer, the event is reset by hand, and the replay queues the acknowledgement", async () => {
+  // Codex review on #1028, second round. The first invocation: the STOP
+  // commits, then the first call and both retries lose their answers, so the
+  // event fails. Nothing is carried over in memory.
+  const first = await send("STOP", "ai_handling", HUMAN, { everyStopResponseLost: true });
+  assertEquals(first.stopRpcs.length, 3, "the first call and both retries");
+  assertEquals(first.eventPatch.processing_status, "failed");
+  assertEquals(first.storedDrafts.length, 0);
+  // Staff reset the event to pending. A fresh invocation, with the marker and
+  // the stopped number the first one left behind and no acknowledgement:
+  const second = await send("STOP", "ai_handling", HUMAN, {
     appliedStopIds: ["synthetic-0"],
-    firstStopFailsUncommitted: true,
-    // Still stopped, so the database guard would accept an acknowledgement:
-    // only the agent's own judgement stands between a replay and a stray draft.
-    numberStoppedAt: "2026-10-14T09:00:00.000Z",
+    numberStoppedAt: "2026-10-17T09:00:00.000Z",
+  });
+  assertEquals(second.eventPatch.processing_status, "processed");
+  assertEquals(second.stopRpcs.length, 1, "told 'already applied': the STOP is not applied again");
+  assertEquals(second.humanPatches.length, 0);
+  assertEquals(second.storedDrafts.length, 1, "the genuine STOP gets its acknowledgement");
+  assertEquals((second.storedDrafts[0].tool_calls as Record<string, unknown>).stop_meta_message_id, "synthetic-0");
+  assertEquals(second.sends.length, 0, "nothing is sent to the customer");
+});
+
+Deno.test("race: the same replay adds nothing when the acknowledgement already exists, in any state", async () => {
+  // A replay must not recreate a draft staff already sent or rejected.
+  const { storedDrafts, drafts, eventPatch, sends } = await send("STOP", "ai_handling", HUMAN, {
+    appliedStopIds: ["synthetic-0"],
+    numberStoppedAt: "2026-10-17T09:00:00.000Z",
+    acknowledgedStopIds: ["synthetic-0"],
   });
   assertEquals(eventPatch.processing_status, "processed");
-  assertEquals(stopRpcs.length, 2, "the failed call is retried");
-  assertEquals(storedDrafts.length, 0, "an old marker is not this invocation's commit");
+  assertEquals(drafts.length, 1, "asked for");
+  assertEquals(storedDrafts.length, 0, "refused by the per-STOP index");
+  assertEquals(sends.length, 0);
 });
 
-Deno.test("race: a STOP marker that cannot be read fails the event visibly instead of guessing", async () => {
-  const { storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+Deno.test("race: a replay for a number staff re-enabled after the first attempt stores nothing and does not stop it again", async () => {
+  const { storedDrafts, conversation, humans, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
     appliedStopIds: ["synthetic-0"],
-    firstStopFailsUncommitted: true,
-    markerReadFails: true,
   });
+  assertEquals(eventPatch.processing_status, "processed");
   assertEquals(storedDrafts.length, 0);
-  assertEquals(eventPatch.processing_status, "failed");
-});
-
-Deno.test("race: a database clock far behind the function's still recognises the STOP's own lost commit", async () => {
-  // Codex review on #1028: a fixed window against this function's own clock
-  // misreads the outcome when the two machines disagree. The bound and the
-  // marker are both the database's time, so an hour of skew changes nothing.
-  for (const dbClockOffsetMs of [-3_600_000, 3_600_000]) {
-    const { storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
-      firstStopResponseLost: true,
-      dbClockOffsetMs,
-    });
-    assertEquals(eventPatch.processing_status, "processed");
-    assertEquals(storedDrafts.length, 1, `exactly one acknowledgement with the database ${dbClockOffsetMs} ms from here`);
-  }
-});
-
-Deno.test("race: the same skew does not turn an old marker into this invocation's own", async () => {
-  for (const dbClockOffsetMs of [-3_600_000, 3_600_000]) {
-    const { storedDrafts } = await send("STOP", "ai_handling", HUMAN, {
-      appliedStopIds: ["synthetic-0"],
-      firstStopFailsUncommitted: true,
-      numberStoppedAt: "2026-10-14T09:00:00.000Z",
-      dbClockOffsetMs,
-    });
-    assertEquals(storedDrafts.length, 0, `a replay stays a replay with the database ${dbClockOffsetMs} ms from here`);
-  }
+  assertEquals(conversation.whatsapp_opted_out_at, null);
+  assertEquals(humans[0].whatsapp_opted_out, false);
 });

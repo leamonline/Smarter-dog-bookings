@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — STOP acknowledgement after repeated lost responses (#1028 review follow-up)
+
+- A genuine STOP whose confirmation was lost on every retry, and whose event
+  staff then reset, still gets its acknowledgement draft. The agent now asks for
+  the draft whenever it handles a STOP, applied now or already applied, and the
+  database keeps it to one per STOP message and refuses it after a re-enable.
+  No migration, and nothing is sent to the customer automatically.
+
 ## Unreleased — WhatsApp STOP acknowledgement races (#1026 review follow-up)
 
 - A "your messages have stopped" draft can no longer be queued after staff
