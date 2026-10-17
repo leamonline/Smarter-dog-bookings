@@ -1,21 +1,35 @@
 # Migration history
 
-## WhatsApp STOP acknowledgement guards (#1026 review follow-up) — prepared, NOT applied
+## WhatsApp STOP acknowledgement guards (#1026 review follow-up) — applied 17 October 2026
 
-`20261017120000_whatsapp_stop_ack_guards.sql` is committed on the follow-up
-pull request and has **not** been applied to staging or production. It is
-expand-only and idempotent: one `BEFORE INSERT` trigger on `whatsapp_drafts`
+`20261017120000_whatsapp_stop_ack_guards.sql` is expand-only and idempotent:
+one `BEFORE INSERT` trigger on `whatsapp_drafts`
 (`trg_whatsapp_drafts_guard_stop_ack`, definer, pinned `search_path`, not
 executable by clients) and one partial unique index
-(`whatsapp_drafts_one_opt_out_ack_per_stop`), plus a restore-to-pending guard on the same trigger function and two small
-definer lookups, `whatsapp_stop_marker_applied_at(text)` and
+(`whatsapp_drafts_one_opt_out_ack_per_stop`), plus a restore-to-pending guard
+(`trg_whatsapp_drafts_guard_stop_ack_restore`) on the same trigger function and
+two small definer lookups, `whatsapp_stop_marker_applied_at(text)` and
 `whatsapp_stop_attempt_started_at()`, executable by `service_role` only (the
 marker table itself stays ungranted). Existing rows cannot violate the
 index because it only covers acknowledgement drafts that carry a
 `stop_meta_message_id`, which no existing draft has. No function, table or row
-already live is changed. Production needs the approval-gated **Apply named
-migrations to production** workflow, authorised by the owner; until then
-`migrations-applied` is expected to be red on the pull request.
+already live is changed.
+
+**Staging** (`btjnxvgkpdbfrrqxvkfj`): applied on 17 October 2026 through the
+Supabase MCP as `whatsapp_stop_ack_guards` (ledger 71 → 72 rows), with the
+explanatory comments trimmed from the pasted SQL, so the staging ledger text is
+not byte-identical to the file. Read back from the catalog: both triggers
+enabled, index valid, `anon`/`authenticated` cannot execute the lookups,
+`service_role` can.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 17 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run
+39026364742, approved by the environment reviewer. The run's own output
+reports `outcome: applied` for the file with sha256
+`52f091b41bcc8832069fd6344f87621e4891e1bb9fedd5505eb544e60d6c70b0` (the file
+as committed), `before.rows: 0`, `ledgerVerified: true` and `postcondition:
+true` (both triggers, the index and both definer functions present in
+`pg_catalog`). The pull request's `migrations-applied` check passes against it.
 
 ## WhatsApp opt-out follow-ups (#1026) — applied 16 October 2026
 
