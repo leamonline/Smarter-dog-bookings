@@ -29,7 +29,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(22);
+select plan(25);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -168,6 +168,13 @@ select ok(
   and not has_function_privilege('anon', to_regprocedure('public.whatsapp_stop_marker_applied_at(text)'), 'execute')
   and not has_function_privilege('authenticated', to_regprocedure('public.whatsapp_stop_marker_applied_at(text)'), 'execute'),
   'the marker-time lookup is executable by service_role only'
+);
+select ok(
+  to_regprocedure('public.whatsapp_stop_attempt_started_at()') is not null
+  and has_function_privilege('service_role', to_regprocedure('public.whatsapp_stop_attempt_started_at()'), 'execute')
+  and not has_function_privilege('anon', to_regprocedure('public.whatsapp_stop_attempt_started_at()'), 'execute')
+  and not has_function_privilege('authenticated', to_regprocedure('public.whatsapp_stop_attempt_started_at()'), 'execute'),
+  'the database-clock bound is executable by service_role only'
 );
 select ok(
   public.whatsapp_stop_marker_applied_at('wamid.250.never-recorded') is null,
@@ -325,6 +332,34 @@ select extensions.dblink_exec('setup', $r$update public.whatsapp_drafts set stat
 select lives_ok(
   pg_temp.remote(pg_temp.ack_insert('25000000-0000-4000-8000-000000000004', null)),
   'and so is a second one, which only the one-pending index bounds'
+);
+
+-- ── A claimed acknowledgement restored to pending after a re-enable ──
+-- whatsapp-send claims a draft (pending -> approved) and puts it back to
+-- pending when the Meta call fails. If staff re-enabled the number meanwhile,
+-- the re-enable skipped it (it was not pending), so the restore must not leave
+-- a pending acknowledgement on a number that is no longer stopped.
+-- Conversation B was re-enabled above and still holds its superseded ack.
+select extensions.dblink_exec('setup', $r$update public.whatsapp_drafts set state = 'approved', rejected_reason = null
+ where conversation_id = '25000000-0000-4000-8000-000000000002' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$);
+select extensions.dblink_exec('setup', $r$update public.whatsapp_drafts set state = 'pending'
+ where conversation_id = '25000000-0000-4000-8000-000000000002' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$);
+select is(
+  (select s from extensions.dblink('setup',
+     $r$select state from public.whatsapp_drafts where conversation_id = '25000000-0000-4000-8000-000000000002' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$) as t(s text)),
+  'superseded',
+  'an acknowledgement restored to pending on a re-enabled number is superseded, not left in the queue'
+);
+-- On a number that is still stopped, the same restore is untouched.
+select extensions.dblink_exec('setup', $r$update public.whatsapp_drafts set state = 'approved'
+ where conversation_id = '25000000-0000-4000-8000-000000000004' and state = 'pending' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$);
+select extensions.dblink_exec('setup', $r$update public.whatsapp_drafts set state = 'pending'
+ where conversation_id = '25000000-0000-4000-8000-000000000004' and state = 'approved' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$);
+select is(
+  (select n from extensions.dblink('setup',
+     $r$select count(*)::int from public.whatsapp_drafts where conversation_id = '25000000-0000-4000-8000-000000000004' and state = 'pending' and tool_calls ->> 'opt_out_acknowledgement' = 'true'$r$) as t(n int)),
+  1,
+  'and on a number that is still stopped the restore leaves it pending'
 );
 
 -- ── Clean up the committed fixtures ─────────────────────────────────

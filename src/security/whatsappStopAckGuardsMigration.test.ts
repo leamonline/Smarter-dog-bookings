@@ -74,6 +74,21 @@ describe("WhatsApp STOP acknowledgement guards migration", () => {
     expect(code).not.toMatch(/grant\s+\w+(\s*,\s*\w+)*\s+on\s+(table\s+)?public\.whatsapp_stop_applications/i);
   });
 
+  it("also guards an acknowledgement going back to pending, by superseding it", () => {
+    expect(code).toMatch(/before update of state on public\.whatsapp_drafts/i);
+    expect(code).toMatch(/when \(new\.state = 'pending' and old\.state is distinct from 'pending'\)/i);
+    expect(code).toMatch(/new\.state := 'superseded';/);
+    expect(code).toMatch(/new\.rejected_reason := 'whatsapp_reenabled';/);
+  });
+
+  it("gives the agent a database-clock bound, service_role only", () => {
+    expect(code).toMatch(/create or replace function public\.whatsapp_stop_attempt_started_at\(\)/i);
+    expect(code).toMatch(/grant execute on function public\.whatsapp_stop_attempt_started_at\(\) to service_role;/i);
+    for (const role of ["public", "anon", "authenticated"]) {
+      expect(code).toMatch(new RegExp(`revoke all on function public\\.whatsapp_stop_attempt_started_at\\(\\) from ${role};`, "i"));
+    }
+  });
+
   it("sets a lock timeout so a blocked apply fails fast instead of queueing", () => {
     expect(code).toMatch(/set local lock_timeout = '5s';/);
   });

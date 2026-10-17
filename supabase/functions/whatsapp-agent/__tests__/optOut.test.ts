@@ -66,6 +66,12 @@ interface Faults {
    * the customer step.
    */
   firstStopFailsUncommitted?: boolean;
+  /**
+   * The database's clock runs this far from the function's (ms; negative:
+   * behind). Both the clock bound and the markers use the database's, so the
+   * correlation must not care.
+   */
+  dbClockOffsetMs?: number;
   /** The marker read fails (the STOP marker cannot be told from a replay). */
   markerReadFails?: boolean;
   /**
@@ -98,8 +104,9 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const appliedStopIds = new Set(faults.appliedStopIds ?? []);
+  const dbNow = () => new Date(Date.now() + (faults.dbClockOffsetMs ?? 0)).toISOString();
   const stopMarkerAt = new Map<string, string>(
-    (faults.appliedStopIds ?? []).map((id) => [id, new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()]),
+    (faults.appliedStopIds ?? []).map((id) => [id, new Date(Date.now() + (faults.dbClockOffsetMs ?? 0) - 2 * 24 * 3600 * 1000).toISOString()]),
   );
   const acknowledgedStopIds = new Set(faults.acknowledgedStopIds ?? []);
   // Drafts the database ACCEPTED, as opposed to insert attempts: since
@@ -162,6 +169,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         : humans;
       return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
     }
+    if (url.pathname === "/rest/v1/rpc/whatsapp_stop_attempt_started_at") return reply(dbNow());
     if (url.pathname === "/rest/v1/rpc/whatsapp_stop_marker_applied_at") {
       // Markers already in `appliedStopIds` predate this invocation by days;
       // one written during it carries the time it was written.
@@ -180,7 +188,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
       if (metaId !== null) {
         if (appliedStopIds.has(metaId)) return reply({ applied: false, reason: "already_applied" });
         appliedStopIds.add(metaId);
-        stopMarkerAt.set(metaId, new Date().toISOString());
+        stopMarkerAt.set(metaId, dbNow());
       }
       if (faults.numberStampMatchesNothing) return reply({ applied: true, whatsapp_opted_out_at: null });
       // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps the first time.
@@ -697,4 +705,30 @@ Deno.test("race: a STOP marker that cannot be read fails the event visibly inste
   });
   assertEquals(storedDrafts.length, 0);
   assertEquals(eventPatch.processing_status, "failed");
+});
+
+Deno.test("race: a database clock far behind the function's still recognises the STOP's own lost commit", async () => {
+  // Codex review on #1028: a fixed window against this function's own clock
+  // misreads the outcome when the two machines disagree. The bound and the
+  // marker are both the database's time, so an hour of skew changes nothing.
+  for (const dbClockOffsetMs of [-3_600_000, 3_600_000]) {
+    const { storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+      firstStopResponseLost: true,
+      dbClockOffsetMs,
+    });
+    assertEquals(eventPatch.processing_status, "processed");
+    assertEquals(storedDrafts.length, 1, `exactly one acknowledgement with the database ${dbClockOffsetMs} ms from here`);
+  }
+});
+
+Deno.test("race: the same skew does not turn an old marker into this invocation's own", async () => {
+  for (const dbClockOffsetMs of [-3_600_000, 3_600_000]) {
+    const { storedDrafts } = await send("STOP", "ai_handling", HUMAN, {
+      appliedStopIds: ["synthetic-0"],
+      firstStopFailsUncommitted: true,
+      numberStoppedAt: "2026-10-14T09:00:00.000Z",
+      dbClockOffsetMs,
+    });
+    assertEquals(storedDrafts.length, 0, `a replay stays a replay with the database ${dbClockOffsetMs} ms from here`);
+  }
 });

@@ -1315,7 +1315,7 @@ async function recordOptOut(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
   metaMsgId: string | null,
-  state: { applied?: boolean; unanswered?: boolean; firstAttemptAtMs?: number },
+  state: { applied?: boolean; unanswered?: boolean; firstAttemptDbAt?: string },
 ): Promise<StopRecorded> {
   // 1. The number itself (migration 20261014120000). This is the whole of
   // the suppression for a number with no customer record, and the database
@@ -1338,9 +1338,17 @@ async function recordOptOut(
   // that re-enable. `state` carries the outcome across retries, so a retry
   // after the RPC committed redoes only the read-back and the customer step.
   if (state.applied === undefined) {
-    // Taken before the first call leaves, so a marker the database stamped
-    // inside that call can never predate it (see the correlation below).
-    state.firstAttemptAtMs ??= Date.now();
+    // The DATABASE's clock, read before the first call leaves. A marker's
+    // applied_at is also the database's now(), so comparing the two never
+    // depends on this function's own clock (see the correlation below). A
+    // failure here is before anything was applied, so it simply retries.
+    if (state.firstAttemptDbAt === undefined) {
+      const { data: dbNow, error: dbNowErr } = await supabase.rpc("whatsapp_stop_attempt_started_at");
+      if (dbNowErr || typeof dbNow !== "string") {
+        throw new Error(`STOP not recorded: could not read the database clock (${dbNowErr?.message ?? "no value"})`);
+      }
+      state.firstAttemptDbAt = dbNow;
+    }
     const { data, error } = await supabase.rpc("apply_whatsapp_stop", {
       p_conversation_id: conversation.id,
       p_meta_message_id: metaMsgId,
@@ -1375,8 +1383,9 @@ async function recordOptOut(
         throw new Error(`STOP not recorded: could not read the STOP marker (${markerErr.message})`);
       }
       const appliedAt = Date.parse(typeof marker === "string" ? marker : "");
-      // Allow for clock difference between this function and the database.
-      ownCommit = Number.isFinite(appliedAt) && appliedAt >= (state.firstAttemptAtMs ?? 0) - STOP_MARKER_CLOCK_SKEW_MS;
+      // Same clock on both sides: a marker written by one of our attempts is
+      // no older than the bound taken before the first of them.
+      ownCommit = Number.isFinite(appliedAt) && appliedAt >= Date.parse(state.firstAttemptDbAt ?? "");
     }
     console.log(
       ownCommit
@@ -1448,9 +1457,6 @@ async function recordOptOut(
 // A transient database error must not leave a STOP unrecorded: try the
 // idempotent writes again after a short pause before failing the event.
 const OPT_OUT_RETRY_DELAYS_MS = [200, 800];
-// How far a marker's database timestamp may sit before this function's first
-// call and still count as that call's own commit.
-const STOP_MARKER_CLOCK_SKEW_MS = 5000;
 
 async function recordOptOutWithRetry(
   supabase: SupabaseClient,
@@ -1461,7 +1467,7 @@ async function recordOptOutWithRetry(
   // retry must not call it again (it would answer "already applied"). It also
   // remembers an attempt that got no answer, which is what lets a retry tell
   // its own lost commit from a replay (recordOptOut).
-  const state: { applied?: boolean; unanswered?: boolean; firstAttemptAtMs?: number } = {};
+  const state: { applied?: boolean; unanswered?: boolean; firstAttemptDbAt?: string } = {};
   for (let attempt = 0; ; attempt++) {
     try {
       return await recordOptOut(supabase, conversation, metaMsgId, state);

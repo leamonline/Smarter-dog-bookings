@@ -60,6 +60,15 @@ begin
      for share;
   -- A missing conversation is left to the foreign key to refuse.
   if found and v_stopped_at is null then
+    -- Restored to pending (whatsapp-send puts a claimed draft back when the
+    -- Meta call fails) after the number was re-enabled: the re-enable's
+    -- supersede trigger skipped it while it was claimed, so supersede it now,
+    -- exactly as that trigger would have. A failed send must not fail.
+    if tg_op = 'UPDATE' then
+      new.state := 'superseded';
+      new.rejected_reason := 'whatsapp_reenabled';
+      return new;
+    end if;
     raise exception 'whatsapp_stop_ack_not_stopped: this conversation is not stopped, so no STOP acknowledgement is queued'
       using errcode = 'P0001', detail = 'whatsapp_stop_ack_not_stopped';
   end if;
@@ -77,6 +86,13 @@ comment on function public.whatsapp_drafts_guard_stop_ack() is
 create or replace trigger trg_whatsapp_drafts_guard_stop_ack
   before insert on public.whatsapp_drafts
   for each row
+  execute function public.whatsapp_drafts_guard_stop_ack();
+
+-- The same check when an acknowledgement goes back to pending.
+create or replace trigger trg_whatsapp_drafts_guard_stop_ack_restore
+  before update of state on public.whatsapp_drafts
+  for each row
+  when (new.state = 'pending' and old.state is distinct from 'pending')
   execute function public.whatsapp_drafts_guard_stop_ack();
 
 -- ── R2. One acknowledgement per STOP message, in any state ──────────
@@ -112,6 +128,22 @@ revoke all on function public.whatsapp_stop_marker_applied_at(text) from public;
 revoke all on function public.whatsapp_stop_marker_applied_at(text) from anon;
 revoke all on function public.whatsapp_stop_marker_applied_at(text) from authenticated;
 grant execute on function public.whatsapp_stop_marker_applied_at(text) to service_role;
+
+-- The lower bound for "was this marker written by my attempt?", taken from the
+-- DATABASE's clock before the first attempt. Comparing the marker's time (also
+-- the database's) with this one never mixes two machines' clocks.
+create or replace function public.whatsapp_stop_attempt_started_at()
+returns timestamptz
+language sql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$ select clock_timestamp() $$;
+
+revoke all on function public.whatsapp_stop_attempt_started_at() from public;
+revoke all on function public.whatsapp_stop_attempt_started_at() from anon;
+revoke all on function public.whatsapp_stop_attempt_started_at() from authenticated;
+grant execute on function public.whatsapp_stop_attempt_started_at() to service_role;
 
 comment on function public.whatsapp_stop_marker_applied_at(text) is
   'When apply_whatsapp_stop recorded this Meta message''s STOP, or null. service_role only (20261017120000).';
