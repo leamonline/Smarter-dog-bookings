@@ -438,21 +438,21 @@ marked `tool_calls.opt_out_acknowledgement`).
     path restores a claimed draft when the Meta call fails): on a number that is
     no longer stopped it becomes `superseded` instead.
   - **No lost acknowledgement after an ambiguous response.** If
-    `apply_whatsapp_stop` commits but its answer is lost, the retry reports
-    "already applied". The agent treats that as its own commit, and queues the
-    acknowledgement, only when an earlier attempt in the same invocation failed
-    without an answer **and** the STOP marker's database timestamp
-    (`whatsapp_stop_applications.applied_at`, read through the `service_role`-only
-    function `whatsapp_stop_marker_applied_at`) is no older than the database's
-    own clock read before the first call (`whatsapp_stop_attempt_started_at`), so
-    no two machines' clocks are compared (a failed call may never have reached
-    the database); a plain replay of an old STOP queues nothing, and a marker
-    that cannot be read fails the event
-    visibly rather than guessing. The
-    draft records its STOP (`tool_calls.stop_meta_message_id`) and the partial
-    unique index `whatsapp_drafts_one_opt_out_ack_per_stop` allows one
-    acknowledgement per STOP message in any state, so the retry can never queue
-    a second one, even after staff rejected or sent the first.
+    `apply_whatsapp_stop` commits but its answer is lost, the retry (or, after
+    every retry has failed and staff reset the event, the next invocation)
+    reports "already applied". The agent no longer tries to work out whose
+    commit that was, which needed state that does not survive an invocation:
+    every STOP the agent handles asks for its acknowledgement, whether it
+    applied the STOP now or found it applied already, and the database decides.
+    The draft records its STOP (`tool_calls.stop_meta_message_id`) and the
+    partial unique index `whatsapp_drafts_one_opt_out_ack_per_stop` allows one
+    acknowledgement per STOP message in any state, so asking again never
+    queues a second, even after staff rejected or sent the first; and the guard
+    above refuses it once the number has been re-enabled. The lookup functions
+    `whatsapp_stop_marker_applied_at` and `whatsapp_stop_attempt_started_at`
+    that the earlier design used are still in the database (`service_role`
+    only) and are no longer called; dropping them is a later contract
+    migration.
 - One STOP gets one acknowledgement. The index cannot stop a second draft
   queued after the first was claimed or sent (a repeated STOP, or one racing
   staff's Send), so `whatsapp-send` refuses an acknowledgement with
