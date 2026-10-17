@@ -1300,7 +1300,9 @@ async function saveDraft(
 async function recordOptOut(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
-): Promise<void> {
+  metaMsgId: string | null,
+  state: { applied?: boolean },
+): Promise<boolean> {
   // 1. The number itself (migration 20261014120000). This is the whole of
   // the suppression for a number with no customer record, and the database
   // carries it to any record later created with, or changed to, this number.
@@ -1311,12 +1313,27 @@ async function recordOptOut(
   // would match nothing, not wait, and be lost when the re-enable commits.
   // Matched by id alone, it waits for the re-enable and then stops the number
   // again (supabase/tests/246, #1016 final review).
-  const { error: stampErr } = await supabase
-    .from("whatsapp_conversations")
-    .update({ whatsapp_opted_out_at: new Date().toISOString(), auto_send_enabled: false })
-    .eq("id", conversation.id);
-  if (stampErr) {
-    throw new Error(`STOP not recorded: could not store the number's opt-out (${stampErr.message})`);
+  //
+  // apply_whatsapp_stop (migration 20261016120000) keeps that unfiltered
+  // by-id write, and in the same transaction records this Meta message in
+  // whatsapp_stop_applications: a given message's STOP is applied once. A
+  // replay whose STOP already committed (the inbound row then failed) is not
+  // applied again, so it cannot undo a re-enable staff made since. The
+  // customer step below is skipped then too: the database flagged the number's
+  // records when the STOP was first applied, and flagging them now would undo
+  // that re-enable. `state` carries the outcome across retries, so a retry
+  // after the RPC committed redoes only the read-back and the customer step.
+  if (state.applied === undefined) {
+    const { data, error } = await supabase.rpc("apply_whatsapp_stop", {
+      p_conversation_id: conversation.id,
+      p_meta_message_id: metaMsgId,
+    });
+    if (error) throw new Error(`STOP not recorded: could not store the number's opt-out (${error.message})`);
+    state.applied = (data as { applied?: boolean } | null)?.applied === true;
+  }
+  if (!state.applied) {
+    console.log(`opt-out: STOP for message ${metaMsgId} was already applied; not applied again`);
+    return false;
   }
   const { data: convStored, error: convReadErr } = await supabase
     .from("whatsapp_conversations")
@@ -1375,6 +1392,7 @@ async function recordOptOut(
     }
     console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
   }
+  return true;
 }
 
 // A transient database error must not leave a STOP unrecorded: try the
@@ -1384,11 +1402,14 @@ const OPT_OUT_RETRY_DELAYS_MS = [200, 800];
 async function recordOptOutWithRetry(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
-): Promise<void> {
+  metaMsgId: string | null,
+): Promise<boolean> {
+  // One state for every attempt: once apply_whatsapp_stop has answered, a
+  // retry must not call it again (it would answer "already applied").
+  const state: { applied?: boolean } = {};
   for (let attempt = 0; ; attempt++) {
     try {
-      await recordOptOut(supabase, conversation);
-      return;
+      return await recordOptOut(supabase, conversation, metaMsgId, state);
     } catch (err) {
       const delay = OPT_OUT_RETRY_DELAYS_MS[attempt];
       if (delay === undefined) throw err;
@@ -2886,10 +2907,16 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // A message already stored was already recorded: a redelivery, or
           // an event reset to pending, must not stamp a fresh STOP over a
           // re-enable staff made since (#1016 final review). It is then
-          // skipped as a duplicate below.
+          // skipped as a duplicate below. A STOP applied before its inbound
+          // row failed to store is caught by apply_whatsapp_stop's per-message
+          // marker instead (migration 20261016120000); messages stored before
+          // that migration have no marker, so this check stays. There is
+          // deliberately no comparison with the re-enable time: it fails open,
+          // dropping a genuine STOP still in flight (supabase/tests/246).
           const stopRequested = !forceDraft && isOptOutRequest(text);
+          let stopApplied = false;
           if (stopRequested && !(await inboundAlreadyStored(supabase, msg.id))) {
-            await recordOptOutWithRetry(supabase, conversation);
+            stopApplied = await recordOptOutWithRetry(supabase, conversation, msg.id ?? null);
           }
 
           if (!forceDraft) {
@@ -3039,7 +3066,10 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // acknowledgement per conversation, so a repeated STOP, or two
           // processed at once, cannot queue a second (#1016 review).
           if (stopRequested) {
-            if (conversation.state === "ai_handling") {
+            // A STOP that was not applied now (a replay of one already
+            // applied) queues no new acknowledgement; it is still handled
+            // here so nothing else acts on it.
+            if (stopApplied && conversation.state === "ai_handling") {
               const policy: DraftPolicy = {
                 riskLevel: "high",
                 handoffRequired: true,

@@ -46,6 +46,13 @@ interface Faults {
   separateEntries?: boolean;
   /** Meta message ids already in whatsapp_messages (a redelivery or replay). */
   storedMessageIds?: string[];
+  /**
+   * Meta message ids whose STOP apply_whatsapp_stop already applied (its
+   * whatsapp_stop_applications marker exists): the RPC answers applied:false.
+   */
+  appliedStopIds?: string[];
+  /** Give every message this Meta id (null: Meta sent none). */
+  messageId?: string | null;
 }
 
 async function send(text: string | string[], state = "ai_handling", humanId: string | null = HUMAN, faults: Faults = {}) {
@@ -64,10 +71,11 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const idsFrom = (filter: string | null) =>
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
+  const appliedStopIds = new Set(faults.appliedStopIds ?? []);
   const conversation: Record<string, unknown> = { id: "conv-opt-out", state, human_id: humanId, phone_e164: "+447700900444", auto_send_enabled: true, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null, whatsapp_opted_out_at: faults.numberStoppedAt ?? null };
   // Several texts are one webhook batch, in the order the customer sent them.
   const messages = (Array.isArray(text) ? text : [text]).map((body, index) => ({
-    id: `synthetic-${index}`, from: "447700900444", type: "text", text: { body }, timestamp: String(Math.floor(Date.now() / 1000) + index),
+    id: faults.messageId !== undefined ? faults.messageId : `synthetic-${index}`, from: "447700900444", type: "text", text: { body }, timestamp: String(Math.floor(Date.now() / 1000) + index),
   }));
   const payload = faults.separateEntries
     ? { entry: messages.map((message) => ({ changes: [{ value: { messages: [message] } }] })) }
@@ -117,6 +125,21 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         ? humans.filter((row) => new RegExp(match.slice(6)).test(String(row.phone)))
         : humans;
       return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
+    }
+    if (url.pathname === "/rest/v1/rpc/apply_whatsapp_stop") {
+      // migration 20261016120000: one marker per Meta message id, written in
+      // the same transaction as the number's stamp.
+      if (faults.conversationWriteFails) return reply({ message: "connection reset" }, 500);
+      const metaId = typeof body.p_meta_message_id === "string" && body.p_meta_message_id.trim() !== "" ? body.p_meta_message_id : null;
+      if (metaId !== null) {
+        if (appliedStopIds.has(metaId)) return reply({ applied: false, reason: "already_applied" });
+        appliedStopIds.add(metaId);
+      }
+      if (faults.numberStampMatchesNothing) return reply({ applied: true, whatsapp_opted_out_at: null });
+      // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps the first time.
+      if (conversation.whatsapp_opted_out_at === null) conversation.whatsapp_opted_out_at = new Date().toISOString();
+      conversation.auto_send_enabled = false;
+      return reply({ applied: true, whatsapp_opted_out_at: conversation.whatsapp_opted_out_at });
     }
     if (url.pathname === "/rest/v1/whatsapp_conversations") {
       if (method === "PATCH") {
@@ -169,7 +192,8 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
   const drafts = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "POST").map((c) => c.body);
   const humanPatches = calls.filter((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   const conversationPatches = calls.filter((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH").map((c) => c.body);
-  return { sends, drafts, humanPatches, conversationPatches, humanRow, humans, eventPatch, calls, conversation };
+  const stopRpcs = calls.filter((c) => c.path === "/rest/v1/rpc/apply_whatsapp_stop" && c.method === "POST").map((c) => c.body);
+  return { sends, drafts, humanPatches, conversationPatches, stopRpcs, humanRow, humans, eventPatch, calls, conversation };
 }
 
 Deno.test("STOP flags the customer, switches auto-send off, sends nothing and leaves one draft", async () => {
@@ -184,7 +208,7 @@ Deno.test("STOP flags the customer, switches auto-send off, sends nothing and le
   assertEquals(humanPatches[0].body.whatsapp_opted_out_reason, "asked_on_whatsapp");
   assert(typeof humanPatches[0].body.whatsapp_opted_out_at === "string");
   assertStringIncludes(decodeURIComponent(humanPatches[0].search), HUMAN);
-  assert(conversationPatches.some((p) => p.auto_send_enabled === false), "auto-send is switched off on the thread");
+  assertEquals(conversationPatches.filter((p) => "whatsapp_opted_out_at" in p).length, 0, "no bare stamp: the RPC applies it");
   assertEquals(conversation.auto_send_enabled, false);
   assert(typeof conversation.whatsapp_opted_out_at === "string", "the number's own opt-out is stored");
   assertEquals(drafts.length, 1);
@@ -329,8 +353,9 @@ Deno.test("a STOP batched after an ordinary message is honoured before that mess
   const { calls, humanRow, eventPatch } = await send(["Can I book Bella in on Tuesday?", "STOP"]);
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humanRow.whatsapp_opted_out, true);
-  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && typeof c.body.whatsapp_opted_out_at === "string");
-  const autoSendOff = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && c.body.auto_send_enabled === false);
+  // apply_whatsapp_stop stamps the number and switches auto-send off together.
+  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/rpc/apply_whatsapp_stop");
+  const autoSendOff = numberStop;
   const customerStop = calls.findIndex((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
   assert(numberStop >= 0 && autoSendOff >= 0 && customerStop >= 0, "number, thread and customer suppression all stored");
   const optOutWrite = Math.max(numberStop, autoSendOff, customerStop);
@@ -394,7 +419,7 @@ Deno.test("a STOP in a later entry of the same webhook is still recorded before 
   const { calls, humanRow, eventPatch } = await send(["Can I book Bella in on Tuesday?", "STOP"], "ai_handling", HUMAN, { separateEntries: true });
   assertEquals(eventPatch.processing_status, "processed");
   assertEquals(humanRow.whatsapp_opted_out, true);
-  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_conversations" && c.method === "PATCH" && typeof c.body.whatsapp_opted_out_at === "string");
+  const numberStop = calls.findIndex((c) => c.path === "/rest/v1/rpc/apply_whatsapp_stop");
   const firstInbound = calls.findIndex((c) => c.path === "/rest/v1/whatsapp_messages" && c.method === "POST");
   assert(numberStop >= 0 && firstInbound > numberStop, "the STOP is recorded before any message of the payload is stored or answered");
 });
@@ -422,4 +447,41 @@ Deno.test("an already-stored message in a batch does not drop the newer message 
 Deno.test("STOP flags a record stored without its trunk 0, which shares the number's key", async () => {
   const { humans } = await send("STOP", "ai_handling", null, { onNumber: [{ id: "bare", phone: "7700900444" }, { id: "spaced", phone: "00 44 7700 900444" }] });
   assertEquals(humans.map((row) => row.whatsapp_opted_out), [true, true]);
+});
+
+// ── A STOP is applied once per Meta message (migration 20261016120000) ──
+
+Deno.test("a STOP is applied through apply_whatsapp_stop with its Meta id, not a bare update", async () => {
+  const { stopRpcs, conversationPatches, eventPatch } = await send("STOP");
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(stopRpcs.length, 1);
+  assertEquals(stopRpcs[0], { p_conversation_id: "conv-opt-out", p_meta_message_id: "synthetic-0" });
+  assertEquals(conversationPatches.filter((p) => "whatsapp_opted_out_at" in p).length, 0);
+});
+
+Deno.test("a STOP already applied for its Meta id is not applied again: no customer write, no acknowledgement", async () => {
+  // The STOP committed, the inbound row did not, and staff re-enabled the
+  // number before the event was replayed: the replay must not undo that.
+  const { humanPatches, humans, drafts, eventPatch, conversation, sends } = await send("STOP", "ai_handling", HUMAN, { appliedStopIds: ["synthetic-0"] });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(conversation.whatsapp_opted_out_at, null, "the number stays as staff left it");
+  assertEquals(humanPatches.length, 0);
+  assertEquals(humans[0].whatsapp_opted_out, false);
+  assertEquals(drafts.length, 0, "no new acknowledgement for a replayed STOP");
+  assertEquals(sends.length, 0);
+});
+
+Deno.test("a retry after the STOP committed does not call apply_whatsapp_stop again", async () => {
+  const { stopRpcs, humanPatches, humanRow, eventPatch } = await send("STOP", "ai_handling", HUMAN, { humanWriteFailures: 1 });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(stopRpcs.length, 1, "the RPC runs exactly once");
+  assertEquals(humanPatches.length, 2, "the retry redoes the customer step");
+  assertEquals(humanRow.whatsapp_opted_out, true);
+});
+
+Deno.test("a STOP with no Meta id passes a null id", async () => {
+  const { stopRpcs, eventPatch } = await send("STOP", "ai_handling", HUMAN, { messageId: null });
+  assertEquals(stopRpcs.length, 1);
+  assertEquals(stopRpcs[0].p_meta_message_id, null);
+  assertEquals(eventPatch.processing_status, "processed");
 });
