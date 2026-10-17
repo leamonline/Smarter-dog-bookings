@@ -1,5 +1,70 @@
 # Migration history
 
+## WhatsApp opt-out follow-ups (#1026) — applied 16 October 2026
+
+`20261016120000_whatsapp_opt_out_followups.sql` was applied to **staging**
+(`btjnxvgkpdbfrrqxvkfj`) on 16 October 2026 through the Supabase MCP as
+`whatsapp_opt_out_followups` (ledger version `20261016225058`; ledger 70 → 71
+rows). The staging workflow could not be used for it: the file lived on the
+#1026 branch. The migration copies `merge_humans`, whose body removes the
+losing record with `delete from`; the MCP tool applied it without asking for a
+confirmation. Post-apply evidence was read back from the staging catalog
+through the MCP (read-only):
+
+- `merge_humans` keeps an `asked_on_whatsapp` label from either record, and
+  `anon` cannot execute it;
+- `humans_guard_whatsapp_reenable` refuses an untick of a record linked to a
+  stopped conversation;
+- `whatsapp_stop_applications` has RLS and no policy;
+- `apply_whatsapp_stop` is executable by `service_role` only, not by `anon` or
+  `authenticated`;
+- `trg_whatsapp_conversation_supersede_stop_acks` is present and enabled;
+- all four functions are `SECURITY DEFINER` with a pinned `search_path`.
+
+**Production** followed the same day through **Apply named migrations to
+production** run
+[38978291998](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38978291998)
+(run #13). It took the file from the #1026 head `5e878cee` (sha256
+`ba3dc5a8…`) and was approved by @leamonline. A read-only pre-check confirmed
+what the file depends on: `whatsapp_phone_key(text)`,
+`smarter_dog_private.late_cancellation_history`,
+`whatsapp_drafts.rejected_reason`, `trg_whatsapp_conversation_guard_stop`, and
+no `whatsapp_stop_applications` yet. In the run:
+
+- ledger row `20261016120000 whatsapp_opt_out_followups` was recorded
+  (ledger 245 → 246 rows);
+- the postcondition passed as `anon`: the table exists with RLS, the trigger
+  is enabled, and `apply_whatsapp_stop` is a definer function.
+
+The same read-back as on staging, run against production after the apply,
+matched it on every line. `migrations-applied` was then re-run on #1026 and
+passed.
+
+## Cancellation notices in the SMS safety net (#1017) — applied 16 October 2026
+
+`20261014100000_cancelled_sms_fallback.sql` was applied to **staging**
+through the Supabase MCP as `cancelled_sms_fallback` (ledger version
+`20261016025614`). Post-apply evidence (read-only): one validated
+`trigger_type` CHECK on `notification_log` that allows
+`cancelled_sms_fallback`; the `notification-pending-reaper` job keeps an
+existing `error_message` (`coalesce`); the postcondition is true as `anon`.
+Before production, the new CHECK list was confirmed to be a superset of the
+old one, covering every `trigger_type` value in use.
+
+**Production** followed on 16 October 2026 through run
+[38904945610](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38904945610)
+(run #11), taking the file from the current head of #1017 (sha256
+`32feaf4a…`), approved by @leamonline. Earlier runs #9 and #10 were cancelled
+before approval because new pushes had made their ref stale; run #12, a
+duplicate dispatched seconds after #11, was cancelled without applying
+anything. Afterwards, read from the production catalog:
+
+- ledger row `20261014100000 cancelled_sms_fallback` (ledger 244 → 245 rows);
+- exactly one `trigger_type` CHECK, validated, allowing
+  `cancelled_sms_fallback`, so no older differently named copy survives to
+  refuse the fallback's claim;
+- the reaper's command keeps an existing `error_message`.
+
 ## WhatsApp opt-out by number (#1016) — applied 15 October 2026
 
 `20261014120000_whatsapp_number_opt_out.sql` was applied to **staging**
