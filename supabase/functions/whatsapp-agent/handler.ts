@@ -1364,17 +1364,17 @@ async function recordOptOut(
     // call, while a replayed STOP's marker is from an earlier invocation.
     let ownCommit = false;
     if (state.unanswered === true && metaMsgId) {
-      const { data: marker, error: markerErr } = await supabase
-        .from("whatsapp_stop_applications")
-        .select("applied_at")
-        .eq("meta_message_id", metaMsgId)
-        .maybeSingle();
+      // Through a definer function: the marker table has no grant for any
+      // client role (whatsapp_stop_marker_applied_at, 20261017120000).
+      const { data: marker, error: markerErr } = await supabase.rpc("whatsapp_stop_marker_applied_at", {
+        p_meta_message_id: metaMsgId,
+      });
       if (markerErr) {
         // Cannot tell: fail visibly and let the retry read it again, rather
         // than guess either way.
         throw new Error(`STOP not recorded: could not read the STOP marker (${markerErr.message})`);
       }
-      const appliedAt = Date.parse((marker as { applied_at?: string } | null)?.applied_at ?? "");
+      const appliedAt = Date.parse(typeof marker === "string" ? marker : "");
       // Allow for clock difference between this function and the database.
       ownCommit = Number.isFinite(appliedAt) && appliedAt >= (state.firstAttemptAtMs ?? 0) - STOP_MARKER_CLOCK_SKEW_MS;
     }

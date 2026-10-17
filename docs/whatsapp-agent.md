@@ -439,7 +439,8 @@ marked `tool_calls.opt_out_acknowledgement`).
     "already applied". The agent treats that as its own commit, and queues the
     acknowledgement, only when an earlier attempt in the same invocation failed
     without an answer **and** the STOP marker's database timestamp
-    (`whatsapp_stop_applications.applied_at`) is no older than that first call
+    (`whatsapp_stop_applications.applied_at`, read through the `service_role`-only
+    function `whatsapp_stop_marker_applied_at`) is no older than that first call
     (a failed call may never have reached the database); a plain replay of an
     old STOP queues nothing, and a marker that cannot be read fails the event
     visibly rather than guessing. The

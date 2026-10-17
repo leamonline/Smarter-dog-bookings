@@ -88,3 +88,30 @@ create unique index if not exists whatsapp_drafts_one_opt_out_ack_per_stop
   on public.whatsapp_drafts (conversation_id, (tool_calls ->> 'stop_meta_message_id'))
   where (tool_calls ->> 'opt_out_acknowledgement') = 'true'
     and (tool_calls ->> 'stop_meta_message_id') is not null;
+
+-- ── R2. Reading a STOP marker's time, without a table grant ─────────
+-- The agent asks when a STOP's marker was written, to tell its own lost commit
+-- from a replay: an unanswered attempt alone proves nothing, because the
+-- request may never have reached PostgreSQL. whatsapp_stop_applications has no
+-- grant or policy for any client role (apply_whatsapp_stop is its only
+-- writer), and this keeps it that way: the one fact is exposed through a
+-- definer function that only service_role may execute.
+create or replace function public.whatsapp_stop_marker_applied_at(p_meta_message_id text)
+returns timestamptz
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select m.applied_at
+    from public.whatsapp_stop_applications m
+   where m.meta_message_id = p_meta_message_id
+$$;
+
+revoke all on function public.whatsapp_stop_marker_applied_at(text) from public;
+revoke all on function public.whatsapp_stop_marker_applied_at(text) from anon;
+revoke all on function public.whatsapp_stop_marker_applied_at(text) from authenticated;
+grant execute on function public.whatsapp_stop_marker_applied_at(text) to service_role;
+
+comment on function public.whatsapp_stop_marker_applied_at(text) is
+  'When apply_whatsapp_stop recorded this Meta message''s STOP, or null. service_role only (20261017120000).';

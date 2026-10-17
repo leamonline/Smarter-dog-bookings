@@ -23,9 +23,9 @@ describe("WhatsApp STOP acknowledgement guards migration", () => {
   });
 
   it("leaves apply_whatsapp_stop and the re-enable path untouched", () => {
-    expect(code).not.toMatch(/apply_whatsapp_stop/);
-    expect(code).not.toMatch(/staff_reenable_whatsapp_number/);
-    expect(code).not.toMatch(/humans_guard_whatsapp_reenable/);
+    for (const name of ["apply_whatsapp_stop", "staff_reenable_whatsapp_number", "humans_guard_whatsapp_reenable"]) {
+      expect(code).not.toMatch(new RegExp(`(create or replace|alter|drop)\\s+function\\s+public\\.${name}\\b`, "i"));
+    }
   });
 
   it("is idempotent", () => {
@@ -61,6 +61,17 @@ describe("WhatsApp STOP acknowledgement guards migration", () => {
     expect(index).toMatch(/\(conversation_id, \(tool_calls ->> 'stop_meta_message_id'\)\)/);
     expect(index).toMatch(/\(tool_calls ->> 'opt_out_acknowledgement'\) = 'true'/);
     expect(index).toMatch(/\(tool_calls ->> 'stop_meta_message_id'\) is not null/);
+  });
+
+  it("exposes the STOP marker time only through a service_role definer function", () => {
+    expect(code).toMatch(/create or replace function public\.whatsapp_stop_marker_applied_at\(p_meta_message_id text\)/i);
+    expect(code).toMatch(/security definer\s+set search_path = public, pg_temp/i);
+    for (const role of ["public", "anon", "authenticated"]) {
+      expect(code).toMatch(new RegExp(`revoke all on function public\\.whatsapp_stop_marker_applied_at\\(text\\) from ${role};`, "i"));
+    }
+    expect(code).toMatch(/grant execute on function public\.whatsapp_stop_marker_applied_at\(text\) to service_role;/i);
+    // Still no grant on the table itself.
+    expect(code).not.toMatch(/grant\s+\w+(\s*,\s*\w+)*\s+on\s+(table\s+)?public\.whatsapp_stop_applications/i);
   });
 
   it("sets a lock timeout so a blocked apply fails fast instead of queueing", () => {

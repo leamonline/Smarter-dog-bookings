@@ -7,7 +7,9 @@ pull request and has **not** been applied to staging or production. It is
 expand-only and idempotent: one `BEFORE INSERT` trigger on `whatsapp_drafts`
 (`trg_whatsapp_drafts_guard_stop_ack`, definer, pinned `search_path`, not
 executable by clients) and one partial unique index
-(`whatsapp_drafts_one_opt_out_ack_per_stop`). Existing rows cannot violate the
+(`whatsapp_drafts_one_opt_out_ack_per_stop`), plus a read-only definer lookup,
+`whatsapp_stop_marker_applied_at(text)`, executable by `service_role` only (the
+marker table itself stays ungranted). Existing rows cannot violate the
 index because it only covers acknowledgement drafts that carry a
 `stop_meta_message_id`, which no existing draft has. No function, table or row
 already live is changed. Production needs the approval-gated **Apply named

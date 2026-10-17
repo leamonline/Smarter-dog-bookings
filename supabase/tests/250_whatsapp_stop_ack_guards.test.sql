@@ -29,7 +29,7 @@ set pgtap.hosted_dblink_password = 'postgres';
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(20);
+select plan(22);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -160,6 +160,19 @@ select ok(
   and not has_function_privilege('anon', to_regprocedure('public.whatsapp_drafts_guard_stop_ack()'), 'execute')
   and not has_function_privilege('authenticated', to_regprocedure('public.whatsapp_drafts_guard_stop_ack()'), 'execute'),
   'neither anon nor authenticated can execute the guard directly');
+
+-- ── The marker-time lookup: service_role only, null when unknown ────
+select ok(
+  to_regprocedure('public.whatsapp_stop_marker_applied_at(text)') is not null
+  and has_function_privilege('service_role', to_regprocedure('public.whatsapp_stop_marker_applied_at(text)'), 'execute')
+  and not has_function_privilege('anon', to_regprocedure('public.whatsapp_stop_marker_applied_at(text)'), 'execute')
+  and not has_function_privilege('authenticated', to_regprocedure('public.whatsapp_stop_marker_applied_at(text)'), 'execute'),
+  'the marker-time lookup is executable by service_role only'
+);
+select ok(
+  public.whatsapp_stop_marker_applied_at('wamid.250.never-recorded') is null,
+  'an unknown STOP message has no marker time'
+);
 
 -- ── R1, order 1: staff re-enable first; the stale acknowledgement is refused ──
 select extensions.dblink_exec('reenable', 'begin isolation level read committed');

@@ -162,13 +162,12 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         : humans;
       return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
     }
-    if (url.pathname === "/rest/v1/whatsapp_stop_applications") {
+    if (url.pathname === "/rest/v1/rpc/whatsapp_stop_marker_applied_at") {
       // Markers already in `appliedStopIds` predate this invocation by days;
       // one written during it carries the time it was written.
       if (faults.markerReadFails) return reply({ message: "connection reset" }, 500);
-      const id = (url.searchParams.get("meta_message_id") ?? "").replace(/^eq\./, "");
-      const writtenAt = stopMarkerAt.get(id);
-      return writtenAt ? reply({ applied_at: writtenAt }) : reply(null);
+      const writtenAt = stopMarkerAt.get(String(body.p_meta_message_id));
+      return reply(writtenAt ?? null);
     }
     if (url.pathname === "/rest/v1/rpc/apply_whatsapp_stop") {
       // migration 20261016120000: one marker per Meta message id, written in
