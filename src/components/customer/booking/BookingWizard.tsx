@@ -28,7 +28,7 @@ import {
   type CustomerPortalPolicy,
 } from "../../../supabase/customerBookingRules";
 import { deadlineAnchorSlot } from "../../../engine/changeDeadline";
-import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
+import { mapDenialReason, friendlyDenialMessage, isAccountRefusal } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
@@ -756,8 +756,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const isTriggerError =
         cause?.code === "P0001" ||                          // raise_exception
         /Slot is full|2-2-1|Large dog|Capped at 1|early close|Back-to-back/i.test(msg);
+      // An account-state refusal (awaiting approval, profile incomplete, dog
+      // size unconfirmed, dog not on the account) is not a slot problem and not
+      // lost demand (#1006): say what it is, and keep it out of booking_denials.
+      const isAccountRefusalError = isAccountRefusal(msg, denialDetails);
       // A gate rejection is capacity-prevented demand — log it best-effort.
-      if (isTriggerError) {
+      if (isTriggerError && !isAccountRefusalError) {
         fireDenialLog({
           reasonCode: mapDenialReason(msg, denialDetails),
           requestedDate: selectedDate,
@@ -791,7 +795,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       // capacity-prevented demand, and report 2F reads it as such. A network
       // failure is not a refusal, and filing it as one would corrupt the very
       // metric this makes measurable.
-      if (!isTriggerError && !HANDLED_RESCHEDULE_CODES.includes(cause?.code ?? "")) {
+      if (!isTriggerError && !isAccountRefusalError && !HANDLED_RESCHEDULE_CODES.includes(cause?.code ?? "")) {
         logger.error("Customer booking submission failed", err, {
           tags: {
             component: "BookingWizard",
@@ -816,7 +820,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             ? "You already have a change request waiting for the team."
           : cause?.code === "SDC04"
             ? "Please select the same dog or dogs as the groom you’re moving."
-          : isTriggerError
+          : isTriggerError || isAccountRefusalError
             ? friendlyDenialMessage(msg, denialDetails)
             : "Sorry, we couldn’t save that booking change. Please try again, or message us if it keeps happening.",
       );

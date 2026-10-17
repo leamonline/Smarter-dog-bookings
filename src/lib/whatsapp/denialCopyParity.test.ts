@@ -75,6 +75,10 @@ const SAMPLE_MESSAGES: Record<string, string[]> = {
   past_date: ["That date is in the past"],
   past_cutoff: ["Same-day bookings close 30 minutes before the slot"],
   seat_blocked: ["That seat is blocked"],
+  awaiting_approval: ["Your account is awaiting approval. We'll be in touch as soon as you're set up."],
+  profile_incomplete: ["Please complete your profile (name, address and policy agreement) before booking"],
+  dog_size_unconfirmed: ["dog_size_unconfirmed"],
+  dog_not_owned: ["Row 1: that dog is not on your account"],
   unknown: ["something nobody has classified yet"],
 };
 
@@ -97,6 +101,10 @@ const NOT_RETRYABLE = [
   "daily_cap",
   "calendar_closed",
   "past_date",
+  "awaiting_approval",
+  "profile_incomplete",
+  "dog_size_unconfirmed",
+  "dog_not_owned",
   "unknown",
 ] as const;
 
