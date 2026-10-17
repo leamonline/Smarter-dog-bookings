@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — honest booking refusals for account problems (#1006)
+
+- A customer whose account is awaiting approval, whose profile is incomplete,
+  whose dog's size is unconfirmed, or whose chosen dog is not on their account,
+  is now told that, instead of "that slot isn't available anymore".
+- Those refusals are no longer written to the turned-away-demand log, so
+  report 2F stops counting them as lost bookings.
+- Portal and WhatsApp Flow vocabularies stay in step. Not yet done: the booking
+  RPC does not emit `DETAIL` codes for these four refusals (that needs a
+  migration to a write-path function and the owner's production apply); the
+  message-based recognition here is the documented fallback until then.
+
 ## Unreleased — WhatsApp opt-out follow-ups (#1016)
 
 - Merging two customer records no longer loses a STOP: if either record
