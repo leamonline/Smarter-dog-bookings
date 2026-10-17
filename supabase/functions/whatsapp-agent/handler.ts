@@ -1305,8 +1305,9 @@ async function saveDraft(
  *                  STOP is this message's own, not a historical replay.
  *  - "replay":     the STOP was applied before this invocation began (an event
  *                  replayed after its inbound row failed). Nothing is queued.
- * An unanswered RPC is not evidence that nothing committed; it is the one
- * thing that tells "own_commit" from "replay" without a schema change.
+ * An unanswered RPC is not evidence of a commit either (the request may never
+ * have arrived), so it only makes the invocation a candidate; the marker's
+ * database timestamp against the first call decides, with no schema change.
  */
 type StopRecorded = "applied" | "own_commit" | "replay";
 
@@ -1314,7 +1315,7 @@ async function recordOptOut(
   supabase: SupabaseClient,
   conversation: { id: string; phone_e164: string | null },
   metaMsgId: string | null,
-  state: { applied?: boolean; unanswered?: boolean },
+  state: { applied?: boolean; unanswered?: boolean; firstAttemptAtMs?: number },
 ): Promise<StopRecorded> {
   // 1. The number itself (migration 20261014120000). This is the whole of
   // the suppression for a number with no customer record, and the database
@@ -1337,6 +1338,9 @@ async function recordOptOut(
   // that re-enable. `state` carries the outcome across retries, so a retry
   // after the RPC committed redoes only the read-back and the customer step.
   if (state.applied === undefined) {
+    // Taken before the first call leaves, so a marker the database stamped
+    // inside that call can never predate it (see the correlation below).
+    state.firstAttemptAtMs ??= Date.now();
     const { data, error } = await supabase.rpc("apply_whatsapp_stop", {
       p_conversation_id: conversation.id,
       p_meta_message_id: metaMsgId,
@@ -1351,10 +1355,32 @@ async function recordOptOut(
     state.applied = (data as { applied?: boolean } | null)?.applied === true;
   }
   if (!state.applied) {
-    const ownCommit = state.unanswered === true;
+    // An unanswered attempt does not prove a commit: the request may never have
+    // reached PostgreSQL (a gateway or connection error), in which case an
+    // "already applied" answer is a historical replay. So an unanswered attempt
+    // only makes this INVOCATION a candidate; the marker's own timestamp then
+    // decides. apply_whatsapp_stop stamps it with now() inside the transaction,
+    // so a marker written by one of our attempts is no older than the first
+    // call, while a replayed STOP's marker is from an earlier invocation.
+    let ownCommit = false;
+    if (state.unanswered === true && metaMsgId) {
+      const { data: marker, error: markerErr } = await supabase
+        .from("whatsapp_stop_applications")
+        .select("applied_at")
+        .eq("meta_message_id", metaMsgId)
+        .maybeSingle();
+      if (markerErr) {
+        // Cannot tell: fail visibly and let the retry read it again, rather
+        // than guess either way.
+        throw new Error(`STOP not recorded: could not read the STOP marker (${markerErr.message})`);
+      }
+      const appliedAt = Date.parse((marker as { applied_at?: string } | null)?.applied_at ?? "");
+      // Allow for clock difference between this function and the database.
+      ownCommit = Number.isFinite(appliedAt) && appliedAt >= (state.firstAttemptAtMs ?? 0) - STOP_MARKER_CLOCK_SKEW_MS;
+    }
     console.log(
       ownCommit
-        ? `opt-out: STOP for message ${metaMsgId} was already applied after an unanswered attempt; treated as this invocation's own`
+        ? `opt-out: STOP for message ${metaMsgId} was committed by an earlier, unanswered attempt of this invocation`
         : `opt-out: STOP for message ${metaMsgId} was already applied; not applied again`,
     );
     return ownCommit ? "own_commit" : "replay";
@@ -1422,6 +1448,9 @@ async function recordOptOut(
 // A transient database error must not leave a STOP unrecorded: try the
 // idempotent writes again after a short pause before failing the event.
 const OPT_OUT_RETRY_DELAYS_MS = [200, 800];
+// How far a marker's database timestamp may sit before this function's first
+// call and still count as that call's own commit.
+const STOP_MARKER_CLOCK_SKEW_MS = 5000;
 
 async function recordOptOutWithRetry(
   supabase: SupabaseClient,
@@ -1432,7 +1461,7 @@ async function recordOptOutWithRetry(
   // retry must not call it again (it would answer "already applied"). It also
   // remembers an attempt that got no answer, which is what lets a retry tell
   // its own lost commit from a replay (recordOptOut).
-  const state: { applied?: boolean; unanswered?: boolean } = {};
+  const state: { applied?: boolean; unanswered?: boolean; firstAttemptAtMs?: number } = {};
   for (let attempt = 0; ; attempt++) {
     try {
       return await recordOptOut(supabase, conversation, metaMsgId, state);

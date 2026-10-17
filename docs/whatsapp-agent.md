@@ -438,7 +438,11 @@ marked `tool_calls.opt_out_acknowledgement`).
     `apply_whatsapp_stop` commits but its answer is lost, the retry reports
     "already applied". The agent treats that as its own commit, and queues the
     acknowledgement, only when an earlier attempt in the same invocation failed
-    without an answer; a plain replay of an old STOP still queues nothing. The
+    without an answer **and** the STOP marker's database timestamp
+    (`whatsapp_stop_applications.applied_at`) is no older than that first call
+    (a failed call may never have reached the database); a plain replay of an
+    old STOP queues nothing, and a marker that cannot be read fails the event
+    visibly rather than guessing. The
     draft records its STOP (`tool_calls.stop_meta_message_id`) and the partial
     unique index `whatsapp_drafts_one_opt_out_ack_per_stop` allows one
     acknowledgement per STOP message in any state, so the retry can never queue

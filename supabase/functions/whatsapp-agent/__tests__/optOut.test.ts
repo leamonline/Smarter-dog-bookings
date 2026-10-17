@@ -66,6 +66,8 @@ interface Faults {
    * the customer step.
    */
   firstStopFailsUncommitted?: boolean;
+  /** The marker read fails (the STOP marker cannot be told from a replay). */
+  markerReadFails?: boolean;
   /**
    * Staff re-enable the number after the STOP is applied and before the
    * acknowledgement is saved: the stale conversation snapshot the agent holds
@@ -96,6 +98,9 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
     filter?.startsWith("in.(") ? filter.slice(4, -1).split(",") : filter?.startsWith("eq.") ? [filter.slice(3)] : [];
   let eventPatch: Record<string, unknown> = {};
   const appliedStopIds = new Set(faults.appliedStopIds ?? []);
+  const stopMarkerAt = new Map<string, string>(
+    (faults.appliedStopIds ?? []).map((id) => [id, new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()]),
+  );
   const acknowledgedStopIds = new Set(faults.acknowledgedStopIds ?? []);
   // Drafts the database ACCEPTED, as opposed to insert attempts: since
   // migration 20261017120000 an acknowledgement can be attempted and refused,
@@ -157,6 +162,14 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
         : humans;
       return reply(rows.map((row) => ({ id: row.id, phone: row.phone })));
     }
+    if (url.pathname === "/rest/v1/whatsapp_stop_applications") {
+      // Markers already in `appliedStopIds` predate this invocation by days;
+      // one written during it carries the time it was written.
+      if (faults.markerReadFails) return reply({ message: "connection reset" }, 500);
+      const id = (url.searchParams.get("meta_message_id") ?? "").replace(/^eq\./, "");
+      const writtenAt = stopMarkerAt.get(id);
+      return writtenAt ? reply({ applied_at: writtenAt }) : reply(null);
+    }
     if (url.pathname === "/rest/v1/rpc/apply_whatsapp_stop") {
       // migration 20261016120000: one marker per Meta message id, written in
       // the same transaction as the number's stamp.
@@ -168,6 +181,7 @@ async function send(text: string | string[], state = "ai_handling", humanId: str
       if (metaId !== null) {
         if (appliedStopIds.has(metaId)) return reply({ applied: false, reason: "already_applied" });
         appliedStopIds.add(metaId);
+        stopMarkerAt.set(metaId, new Date().toISOString());
       }
       if (faults.numberStampMatchesNothing) return reply({ applied: true, whatsapp_opted_out_at: null });
       // trg_whatsapp_conversation_guard_stop: a repeat STOP keeps the first time.
@@ -658,4 +672,30 @@ Deno.test("race: the same re-enable during a lost-response retry also stores no 
   assertEquals(storedDrafts.length, 0);
   assertEquals(conversation.whatsapp_opted_out_at, null);
   assertEquals(eventPatch.processing_status, "processed");
+});
+
+Deno.test("race: a replayed STOP whose first attempt never reached the database queues no acknowledgement", async () => {
+  // Codex review on #1028: an unanswered attempt is not proof of a commit. A
+  // gateway error before PostgreSQL, then "already applied" for a marker from
+  // days ago, is a historical replay and must not recreate a handled draft.
+  const { stopRpcs, storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+    appliedStopIds: ["synthetic-0"],
+    firstStopFailsUncommitted: true,
+    // Still stopped, so the database guard would accept an acknowledgement:
+    // only the agent's own judgement stands between a replay and a stray draft.
+    numberStoppedAt: "2026-10-14T09:00:00.000Z",
+  });
+  assertEquals(eventPatch.processing_status, "processed");
+  assertEquals(stopRpcs.length, 2, "the failed call is retried");
+  assertEquals(storedDrafts.length, 0, "an old marker is not this invocation's commit");
+});
+
+Deno.test("race: a STOP marker that cannot be read fails the event visibly instead of guessing", async () => {
+  const { storedDrafts, eventPatch } = await send("STOP", "ai_handling", HUMAN, {
+    appliedStopIds: ["synthetic-0"],
+    firstStopFailsUncommitted: true,
+    markerReadFails: true,
+  });
+  assertEquals(storedDrafts.length, 0);
+  assertEquals(eventPatch.processing_status, "failed");
 });
