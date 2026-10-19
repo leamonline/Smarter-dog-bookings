@@ -58,9 +58,21 @@ appears **once**, not twelve times.
 | Message unanswered | Sweep | `Unanswered message — 34 min` | 🟡 |
 | Morning summary | 08:15 | `Today: 9 bookings · first 08:30 · last 13:00 · 5 dogs free` | 🟢 |
 | Quiet / full | 08:15 | appended: `· Quiet day — 36% of capacity` or `· Full — no space left` | 🟢 |
+| AI out of credit | Any AI call | `AI out of credit — Generate reply, AI drafts and the Daily Brief summary are off · Top up credit` | 🔴 |
 
 Every booking alert ends with an `Open booking` link; unanswered messages end
 with `Open conversation`.
+
+**AI out of credit** is the one alert not about a booking. When Anthropic
+answers any AI call with "credit balance is too low" (`whatsapp-agent`,
+`dashboard-summary`, `whatsapp-update-notes`), the caller asks `slack-alerts`
+for mode `ai_credit` via
+[`_shared/aiCreditAlert.ts`](../supabase/functions/_shared/aiCreditAlert.ts).
+It posts **once per London day** (key `aicredit:<date>`). Out of hours it is
+dropped rather than queued, so it claims nothing and the next AI call inside
+the window raises it afresh. It earns its place in the channel because it is
+something a human must act on today: on 19 Oct 2026 every AI feature was down
+from 09:16 and nobody knew until a mid-shift Generate reply failed.
 
 Two details that differ from a naive reading of the brief, both deliberate:
 
@@ -224,5 +236,7 @@ no reason.
 | The function | [`slack-alerts/index.ts`](../supabase/functions/slack-alerts/index.ts) |
 | Ledger table | [`20260915120000_slack_alerts_ledger.sql`](../supabase/migrations/20260915120000_slack_alerts_ledger.sql) |
 | Trigger, cron, retention | [`20260916090000_slack_alerts_triggers_and_cron.sql`](../supabase/migrations/20260916090000_slack_alerts_triggers_and_cron.sql) |
+| `ai_credit` alert type | [`20261019160000_slack_alerts_ai_credit.sql`](../supabase/migrations/20261019160000_slack_alerts_ai_credit.sql) |
+| Out-of-credit detector | [`_shared/aiCreditAlert.ts`](../supabase/functions/_shared/aiCreditAlert.ts) |
 | Booking deep link | [`useBookingDeepLink.ts`](../src/hooks/useBookingDeepLink.ts) |
 | Database tests | [`223_slack_alerts.test.sql`](../supabase/tests/223_slack_alerts.test.sql) |

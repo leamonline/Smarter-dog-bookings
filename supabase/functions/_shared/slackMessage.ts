@@ -34,7 +34,8 @@ export type AlertType =
   | "no_show"
   | "ready_overdue"
   | "unanswered"
-  | "summary";
+  | "summary"
+  | "ai_credit";
 
 /** act = a human must do something now; notice = worth knowing; good = FYI. */
 export type Severity = "act" | "notice" | "good";
@@ -62,6 +63,7 @@ export const ALERT_SEVERITY: Record<AlertType, Severity> = {
   ready_overdue: "notice",
   unanswered: "notice",
   summary: "good",
+  ai_credit: "act",
 };
 
 /**
@@ -122,7 +124,16 @@ export type AlertInput =
     cap: number;
     firstSlot: string | null;
     lastSlot: string | null;
+  }
+  | {
+    /** The Anthropic account is out of credit; every AI feature is down. */
+    type: "ai_credit";
+    /** London date it was noticed. One alert per day, via the dedupe key. */
+    date: string;
   };
+
+/** Where staff buy more Anthropic credit. */
+export const ANTHROPIC_BILLING_URL = "https://console.anthropic.com/settings/billing";
 
 // ── Deep links ─────────────────────────────────────────────────────────
 
@@ -254,6 +265,11 @@ export function buildAlertBody(input: AlertInput): string {
       }
       return text;
     }
+
+    case "ai_credit":
+      return `AI out of credit — Generate reply, AI drafts and the Daily Brief summary are off · ${
+        slackLink(ANTHROPIC_BILLING_URL, "Top up credit")
+      }`;
   }
 }
 
@@ -295,6 +311,8 @@ export function buildDedupeKey(input: AlertInput): string {
       return `unanswered:${input.conversationId}:${input.lastInboundAt}`;
     case "summary":
       return `summary:${input.date}`;
+    case "ai_credit":
+      return `aicredit:${input.date}`;
   }
 }
 
@@ -332,6 +350,7 @@ export function alertBookingDate(input: AlertInput): string | null {
     case "moved_off":
       return input.previousDate;
     case "summary":
+    case "ai_credit":
       return input.date;
     default:
       return null;

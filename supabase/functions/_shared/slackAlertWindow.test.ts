@@ -239,3 +239,19 @@ Deno.test("a queued alert about today or later is not stale", () => {
   assertFalse(isQueuedAlertStale("2026-06-16", monday));
   assertFalse(isQueuedAlertStale(null, monday));
 });
+
+Deno.test("an AI credit alert raised out of hours is dropped, not queued", () => {
+  // Dropping claims nothing, so the next AI call inside the window raises it
+  // afresh; queueing would flush a stale overnight alert instead.
+  assertEquals(
+    decidePosting({ alertType: "ai_credit", bookingDate: MONDAY, slot: null, firstSlotOfDate: null }, sundayEvening),
+    "drop",
+  );
+  assertEquals(
+    decidePosting(
+      { alertType: "ai_credit", bookingDate: MONDAY, slot: null, firstSlotOfDate: null },
+      at("2026-06-15T08:00:00Z"),
+    ),
+    "post",
+  );
+});

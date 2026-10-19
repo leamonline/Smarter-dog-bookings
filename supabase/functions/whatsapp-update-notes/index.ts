@@ -28,6 +28,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
+import { isCreditExhausted, reportAiCreditExhausted } from "../_shared/aiCreditAlert.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -163,6 +164,7 @@ async function extractNotes(
   });
   if (!res.ok) {
     const errText = await res.text();
+    if (isCreditExhausted(errText)) await reportAiCreditExhausted("whatsapp-update-notes");
     throw new Error(`Anthropic ${res.status}: ${errText.slice(0, 300)}`);
   }
   const body = await res.json();
