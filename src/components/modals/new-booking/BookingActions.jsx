@@ -1,11 +1,12 @@
+import { useId } from "react";
+
 // Pinned footer for the New Booking modal: the validation error (kept next to
 // the primary action so it can't scroll off-screen) plus the Confirm / Cancel
 // buttons. Lifted out of BookingFormFields so it stays fixed at the bottom of
 // the modal while the date/time/recurring body scrolls — matching the
 // header / scroll-body / pinned-footer shape the app's ModalShell uses.
 //
-// Presentational only: the `ready` gate and button copy are unchanged so the
-// existing NewBookingModal tests keep passing.
+// Presentational only: explain the existing readiness gate beside its action.
 export function BookingActions({
   hasDogs,
   dogEntries,
@@ -15,6 +16,8 @@ export function BookingActions({
   onConfirm,
   onClose,
 }) {
+  const hintId = useId();
+  const hint = !hasDogs ? "Choose a dog to continue" : !selectedDateStr ? "Choose a date to continue" : !selectedSlot ? "Choose a time to continue" : null;
   const ready = hasDogs && selectedDateStr && selectedSlot;
   const label = dogEntries.length > 1
     ? `Confirm ${dogEntries.length} Bookings`
@@ -29,11 +32,13 @@ export function BookingActions({
         </div>
       )}
 
+      {hint && <p id={hintId} role="status" className="mb-3 text-sm text-slate-600">{hint}</p>}
       {/* ─── Actions ─── */}
       <div className="flex gap-2.5">
         <button
           onClick={onConfirm}
           disabled={!ready}
+          aria-describedby={hint ? hintId : undefined}
           className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
         >
           {label}

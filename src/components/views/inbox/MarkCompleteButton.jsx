@@ -76,7 +76,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
         // Always show the icon + text label (including on phones) so the
         // action reads as "Reopen" / "Mark complete" rather than a bare
         // icon whose meaning a sighted user has to guess.
-        "inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit] shrink-0",
+        "inline-flex items-center gap-1 min-h-11 px-2 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit] shrink-0",
         isClosed
           ? "bg-white border border-slate-200 text-brand-purple hover:border-brand-yellow/60"
           : "bg-brand-green-50 border border-brand-green-200 text-brand-green-800 hover:bg-brand-green-100",

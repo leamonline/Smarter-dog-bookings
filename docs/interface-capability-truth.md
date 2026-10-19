@@ -78,3 +78,12 @@ test. Observation against live events began on 28 August 2026.
 - [`CustomerContextPanel.component.test.jsx`](../src/components/views/inbox/customer-context/CustomerContextPanel.component.test.jsx) proves the customer context has no direct-booking control.
 - [`ErrorBoundary.component.test.jsx`](../src/components/ui/ErrorBoundary.component.test.jsx) proves raw exception text is absent from recovery UI and the error is reported once.
 - [`bookingPolicyInactiveIsolation.test.ts`](../src/security/bookingPolicyInactiveIsolation.test.ts) proves dormant visit-policy commands have no production caller and the live staff diary continues to use the legacy group path.
+
+## Phone inbox decision controls
+
+Pending AI drafts keep their decision buttons below a separately scrolling draft
+body and above the reply composer. Draft actions and inbox filter chips have
+44px minimum touch targets. Conversation filters scroll within the list pane
+with a trailing fade; unknown waiting time uses neutral styling. The compact
+inbox header leaves more room for the conversation. Sending, rejecting and
+booking-action guards retain their existing semantics.

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Ban, Clock, CalendarPlus, AlertTriangle, Zap, DoorClosed } from "lucide-react";
-import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { CapacityOverrideDialog } from "./CapacityOverrideDialog.jsx";
 
 function formatSlot(slot) {
   const [h, m] = slot.split(":");
@@ -225,12 +225,7 @@ export function SlotRowMenu({
       </button>
 
       {pendingOverbook && (
-        <ConfirmDialog
-          title="This time is fully booked"
-          message="Override and book anyway?"
-          confirmLabel="Override and book"
-          cancelLabel="Pick another time"
-          variant="primary"
+        <CapacityOverrideDialog
           onConfirm={handleConfirmOverbook}
           onCancel={() => setPendingOverbook(false)}
         />

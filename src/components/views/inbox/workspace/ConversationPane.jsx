@@ -123,7 +123,7 @@ export function ConversationPane({
   const activeConversation = displayedConversations[activeIndex] ?? null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-white">
       <div className="shrink-0 border-b border-slate-200 px-2 py-2">
         <div className="relative">
           <Search
@@ -154,7 +154,7 @@ export function ConversationPane({
         </div>
 
         <div
-          className="mt-2 flex min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:thin]"
+          className="mt-2 flex min-w-0 items-center gap-1.5 overflow-x-auto pr-5 [scrollbar-width:thin] [mask-image:linear-gradient(to_right,black_calc(100%-16px),transparent)]"
           role="group"
           aria-label="Filter conversations"
         >

@@ -176,3 +176,12 @@ hex for brand colours; missing entrance animation.
 `ModalShell`: `onClose`, `titleId`, `accent`, `header`, `footer?`, `widthClass`,
 `maxHeightClass?`, `bodyClassName?`, `rootClassName?` (`"bm-fields"` when the body has inputs),
 `dismissOnEscape?` (`false` only for explicit unsaved-changes guards).
+
+## Staff capacity confirmation
+
+The New Booking drawer and slot action menu share
+[`CapacityOverrideDialog`](../src/components/booking/CapacityOverrideDialog.jsx).
+Selecting an over-capacity time does not grant an override: staff must explicitly
+confirm **Override and book**. The existing save path records
+`staff_capacity_override`; PostgreSQL remains the final capacity authority.
+The drawer explains a missing dog, date or time beside its disabled confirmation.

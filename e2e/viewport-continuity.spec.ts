@@ -323,3 +323,35 @@ test.describe("Viewport continuity", () => {
       .toBeLessThanOrEqual(1);
   });
 });
+
+test("phone inbox keeps draft decisions above the composer and filters inside the page", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/inbox");
+  const filters = page.getByRole("group", { name: "Filter conversations" });
+  await expect(filters).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await filters.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+  await expect(filters.getByRole("button", { name: /^Done:/ })).toBeInViewport();
+  await page.getByRole("button", { name: /Sarah Jones/ }).click();
+  const actions = page.getByRole("group", { name: "AI draft actions" });
+  const composer = page.getByRole("textbox", { name: "Write a reply" });
+  for (const height of [740, 640, 844]) {
+    await page.setViewportSize({ width: 360, height });
+    await expect(actions).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mark conversation complete" })).toBeInViewport({ ratio: 1 });
+    await expect.poll(async () => (await page.getByRole("log", { name: "Conversation messages" }).boundingBox())?.height ?? 0).toBeGreaterThan(20);
+    for (const name of ["Approve & send", "Edit first", "Reject"]) {
+      const button = actions.getByRole("button", { name, exact: true });
+      await expect(button).toBeInViewport({ ratio: 1 });
+      await expect.poll(async () => {
+        const buttonBox = await button.boundingBox();
+        const composerBox = await composer.boundingBox();
+        return !!buttonBox && !!composerBox && buttonBox.height >= 44 && buttonBox.y + buttonBox.height <= composerBox.y;
+      }).toBe(true);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+  await actions.getByRole("button", { name: "Edit first" }).click();
+  await expect(page.getByRole("textbox", { name: "Edit the suggested reply" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "Cancel edit" })).toBeInViewport({ ratio: 1 });
+});

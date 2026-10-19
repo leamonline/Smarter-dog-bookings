@@ -128,7 +128,7 @@ export function ThreadPane({
       lastDayKey = dayKey;
       chronology.push(
         <div key={`day-${dayKey}`} className="my-3 flex justify-center">
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
             {formatDayToken(item.at)}
           </span>
         </div>,
@@ -149,7 +149,7 @@ export function ThreadPane({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-h-0 shrink overflow-y-auto flex flex-col gap-1.5 border-b border-slate-100 bg-brand-paper px-2 py-1.5 sm:px-4 sm:py-2.5">
+      <div className="max-h-[35%] min-h-0 shrink-0 overflow-y-auto flex flex-col gap-1.5 border-b border-slate-100 bg-brand-paper px-2 py-1.5 sm:px-4 sm:py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
@@ -169,7 +169,7 @@ export function ThreadPane({
               <span className="block max-w-[260px] truncate font-display text-[14px] font-bold leading-tight text-brand-purple">
                 {displayName(conversation)}
               </span>
-              <div className="truncate text-[11px] text-slate-600">
+              <div className="truncate text-[12px] text-slate-600">
                 {formatPhoneForDisplay(conversation?.phone_e164)}
                 {customerEmail ? ` | ${customerEmail}` : ""}
               </div>
@@ -199,7 +199,7 @@ export function ThreadPane({
               type="button"
               onClick={onOpenBooking}
               aria-label={bookingSuggested ? "Booking (suggested)" : undefined}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Booking
               {bookingSuggested ? (
@@ -210,7 +210,7 @@ export function ThreadPane({
               ref={contextTriggerRef}
               type="button"
               onClick={onOpenCustomer}
-              className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-2 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Customer
             </button>
@@ -233,7 +233,7 @@ export function ThreadPane({
         role="log"
         aria-label="Conversation messages"
         aria-live="polite"
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-brand-paper overscroll-contain"
+        className="min-h-0 min-w-0 grow shrink basis-20 overflow-y-auto bg-brand-paper overscroll-contain"
       >
         <div className="px-4 py-3">
           {loadingDetail ? (
@@ -255,7 +255,7 @@ export function ThreadPane({
         </div>
       </div>
 
-      <div className="max-h-[45%] min-h-0 shrink overflow-y-auto">
+      <div className="flex max-h-[45%] min-h-0 shrink flex-col overflow-y-auto">
         {draft && (
           <DraftPanel
             draft={draft}

@@ -211,6 +211,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   const pageHeader = (
     <PageHeader
       title="Inbox"
+      className="!min-h-0 !py-1.5 !mb-2"
       actions={
         <PageHeaderAction
           type="button"

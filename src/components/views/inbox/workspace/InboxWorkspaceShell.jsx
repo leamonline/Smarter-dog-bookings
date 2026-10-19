@@ -64,7 +64,7 @@ export function InboxWorkspaceShell({
         <section
           role="region"
           aria-label="Conversations"
-          className={`${conversationVisibility} min-h-0 flex-col overflow-y-auto overscroll-contain bg-white md:flex md:border-r md:border-slate-200`}
+          className={`${conversationVisibility} min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain bg-white md:flex md:border-r md:border-slate-200`}
         >
           {conversationPane}
         </section>
