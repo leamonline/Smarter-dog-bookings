@@ -462,10 +462,13 @@ function groupDaySize(sizes: DogSize[]): DogSize {
 }
 
 /**
- * Days a group can be dropped off, from `today` for `windowDays`. Day-level
- * only — uses the existing availability RPCs with the group's most-constrained
- * size; the exact per-slot group fit is resolved on the time screen
- * (groupSlotOptions) and finally by the insert trigger.
+ * Days a group can be dropped off, from `today` for `windowDays`. The
+ * availability RPCs give the candidate days, but they only count free seats
+ * per slot — they know nothing of the 2-2-1 rule or the daily dog cap — so a
+ * day that is full under the real rules still comes back. Each candidate is
+ * therefore re-checked with the same allocator the time screen uses
+ * (groupAllocations); a day with no drop-off time is not offered, rather than
+ * leading the customer to a dead end. The insert trigger stays the final guard.
  */
 export async function availableGroupDateOptions(
   db: FlowDb,
@@ -473,7 +476,11 @@ export async function availableGroupDateOptions(
   today: Date,
   windowDays = 60,
 ): Promise<FlowOption[]> {
-  return availableDateOptions(db, groupDaySize(dogs.map((d) => d.size)), today, windowDays);
+  const candidates = await availableDateOptions(db, groupDaySize(dogs.map((d) => d.size)), today, windowDays);
+  const fits = await Promise.all(
+    candidates.map(async (c) => (await groupAllocations(db, dogs, c.id, today)).length > 0),
+  );
+  return candidates.filter((_, i) => fits[i]);
 }
 
 /**

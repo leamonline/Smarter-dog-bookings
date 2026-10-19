@@ -565,6 +565,30 @@ describe("availableGroupDateOptions", () => {
     );
     expect(dates.map((d) => d.id)).toEqual(["2026-06-03"]);
   });
+
+  it("drops a day the RPC lists but the 2-2-1 rules and daily cap leave full", async () => {
+    // 14 dogs booked (the daily cap), several slots only half full on paper —
+    // the per-slot RPC still returns the day; the allocator finds no time.
+    const full: ExistingBooking[] = [
+      ["08:30", 2], ["09:00", 2], ["09:30", 1], ["10:00", 2], ["10:30", 2],
+      ["11:00", 1], ["12:00", 2], ["12:30", 1], ["13:00", 1],
+    ].flatMap(([slot, n]) => Array.from({ length: n as number }, () => ({ slot: slot as string, size: "small" })));
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      smallMed: [
+        { booking_date: "2026-06-02", slot: "09:30" },
+        { booking_date: "2026-06-02", slot: "11:00" },
+        { booking_date: "2026-06-03", slot: "09:00" },
+      ],
+      bookingsByDate: { "2026-06-02": full, "2026-06-03": [] },
+    });
+    const dates = await availableGroupDateOptions(
+      db,
+      [{ id: "s1", size: "small" }, { id: "s2", size: "small" }],
+      new Date("2026-05-26T09:00:00Z"),
+    );
+    expect(dates.map((d) => d.id)).toEqual(["2026-06-03"]);
+  });
 });
 
 describe("bookingGroupSummary", () => {
