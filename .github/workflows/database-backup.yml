@@ -18,15 +18,22 @@ name: Encrypted database backup
 # What it never does: write to production, upload plaintext, or run at all
 # while the repository variable DATABASE_BACKUP_ENABLED is not `true`.
 #
-# It runs under the `production` GitHub environment, so a required reviewer
-# approves each run (scheduled runs wait for that approval too) and the
-# secrets are the environment's own:
+# Which environment gates a run depends on how it started (owner decision,
+# 19 October 2026, #986):
+#   - a run started by hand runs under `production`, so a required reviewer
+#     approves it;
+#   - the Sunday SCHEDULED run runs under `production-scheduled-backup`, which
+#     has no reviewers, so a backup is not lost because nobody tapped approve.
+#     That environment must be restricted to `main`, and only the `schedule`
+#     event may use it: the first step refuses anything else. A schedule fires
+#     only from the default branch's own copy of this file, so changing what it
+#     runs still needs a reviewed merge to main.
+# Each environment holds its own copy of the secrets:
 #   PRODUCTION_SUPABASE_ACCESS_TOKEN  Supabase Management API token (already
 #                                     used by production-apply-migrations.yml)
 #   BACKUP_AGE_PUBLIC_KEY             the `age1…` recipient; the private key is
 #                                     NEVER stored in GitHub
-# Both must exist ONLY on the `production` environment, never at repository
-# level: GitHub creates a referenced environment with no protection rules if
+# Both must exist ONLY on those environments, never at repository level: GitHub creates a referenced environment with no protection rules if
 # it does not exist, so an unconfigured environment would otherwise run with
 # repository-level values. Without them the first step fails closed.
 # Procedure, contents, restore and the drill log: docs/operations.md.
@@ -43,8 +50,12 @@ permissions:
   contents: read
   actions: read # only to confirm the production environment really gates this job
 
+# Separate groups for scheduled and manual runs: a manual run waiting for the
+# production reviewer would otherwise hold the group and leave the Sunday run
+# pending (or replaced), which is the very loss the no-approval schedule exists
+# to prevent. Both only read production, so overlapping is harmless.
 concurrency:
-  group: database-backup
+  group: database-backup-${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
   cancel-in-progress: false
 
 jobs:
@@ -53,7 +64,7 @@ jobs:
     # posture checklist in docs/operations.md and set this variable to `true`.
     if: ${{ vars.DATABASE_BACKUP_ENABLED == 'true' }}
     runs-on: ubuntu-24.04
-    environment: production
+    environment: ${{ github.event_name == 'schedule' && 'production-scheduled-backup' || 'production' }}
     timeout-minutes: 30
     env:
       PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
@@ -92,25 +103,46 @@ jobs:
           # rules, and a secret of the same name at repository or organisation
           # level would still reach this job. So the environment itself is
           # checked, not the presence of a specially named secret.
-          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then
-            echo "::error::Could not read the production environment (it must exist, and the workflow needs actions: read); refusing to continue."
+          # A scheduled run uses the unreviewed environment; every other trigger
+          # must use, and be approved through, production.
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            env_name="production-scheduled-backup"
+          else
+            env_name="production"
+          fi
+          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/$env_name")"; then
+            echo "::error::Could not read the $env_name environment (it must exist, and the workflow needs actions: read); refusing to continue."
             exit 1
           fi
           reviewers="$(printf '%s' "$environment" | jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers | length] | add // 0')"
-          if [ "$reviewers" -lt 1 ]; then
+          if [ "$env_name" = "production" ] && [ "$reviewers" -lt 1 ]; then
             echo "::error::The production environment has no required reviewers, so no approval gated this run. Configure it before enabling backups (docs/operations.md)."
             exit 1
           fi
-          if [ "$(printf '%s' "$environment" | jq '.deployment_branch_policy == null')" = "true" ]; then
-            echo "::error::The production environment has no deployment branch policy; restrict it to main before enabling backups (docs/operations.md)."
+          # The unreviewed environment is safe only while nothing but main can
+          # deploy to it: exactly one custom branch policy, and it is main.
+          policy="$(printf '%s' "$environment" | jq -c '.deployment_branch_policy')"
+          if [ "$policy" = "null" ]; then
+            echo "::error::The $env_name environment has no deployment branch policy; restrict it to main before enabling backups (docs/operations.md)."
             exit 1
           fi
+          if [ "$env_name" = "production-scheduled-backup" ]; then
+            if [ "$(printf '%s' "$policy" | jq '.custom_branch_policies == true')" != "true" ]; then
+              echo "::error::production-scheduled-backup must use a custom branch policy limited to main."
+              exit 1
+            fi
+            branches="$(gh api "repos/$GITHUB_REPOSITORY/environments/$env_name/deployment-branch-policies" --jq '[.branch_policies[].name] | sort | join(",")')"
+            if [ "$branches" != "main" ]; then
+              echo "::error::production-scheduled-backup may deploy only from main (found: ${branches:-none}); refusing to continue."
+              exit 1
+            fi
+          fi
           if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then
-            echo "::error::No PRODUCTION_SUPABASE_ACCESS_TOKEN reached this job. Add it as a secret of the production environment (docs/operations.md)."
+            echo "::error::No PRODUCTION_SUPABASE_ACCESS_TOKEN reached this job. Add it as a secret of the $env_name environment (docs/operations.md)."
             exit 1
           fi
           if [ -z "${BACKUP_AGE_PUBLIC_KEY:-}" ]; then
-            echo "::error::No BACKUP_AGE_PUBLIC_KEY reached this job. Add the age recipient (age1…) as a secret of the production environment (docs/operations.md)."
+            echo "::error::No BACKUP_AGE_PUBLIC_KEY reached this job. Add the age recipient (age1…) as a secret of the $env_name environment (docs/operations.md)."
             exit 1
           fi
           # An age X25519 recipient is `age1` plus 58 bech32 characters. Anything
@@ -130,8 +162,8 @@ jobs:
             echo "| Target | **production** (\`$PRODUCTION_PROJECT_REF\`) |"
             echo "| Trigger | \`$EVENT_NAME\` by \`$ACTOR\`, attempt $RUN_ATTEMPT |"
             echo "| Ran from | \`$GITHUB_REF\` at \`$GITHUB_SHA\` |"
-            echo "| Production environment | exists; required reviewers: $reviewers; deployment branch policy: set |"
-            echo "| Production environment secrets present | access token: yes; age recipient: yes (format checked) |"
+            echo "| Environment | \`$env_name\`; required reviewers: $reviewers; deployment branch policy: set |"
+            echo "| Environment secrets present | access token: yes; age recipient: yes (format checked) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check out repository
