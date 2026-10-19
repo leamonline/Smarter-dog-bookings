@@ -28,7 +28,19 @@ export type TitleAuth = "in" | "out" | "denied" | "loading" | "setup";
  * that actually rendered.
  */
 export function normaliseTitlePath(pathname: string): string {
-  const lower = (pathname || "/").toLowerCase();
+  // Decode each segment as the router does (`/n%65w` is `/new`), keeping an
+  // encoded slash encoded so it can never invent a new segment.
+  const decoded = (pathname || "/")
+    .split("/")
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment.replace(/%2f/gi, "%252F"));
+      } catch {
+        return segment;
+      }
+    })
+    .join("/");
+  const lower = decoded.toLowerCase();
   const trimmed = lower.replace(/\/+$/, "");
   return trimmed || "/";
 }
@@ -67,9 +79,25 @@ export function documentTitleFor(
 
   if (auth === "out") return `Staff sign in · ${STAFF_TITLE_SUFFIX}`;
   if (auth === "denied") return `Staff access needed · ${STAFF_TITLE_SUFFIX}`;
-  return sectionTitle ? `${sectionTitle} · ${STAFF_TITLE_SUFFIX}` : STAFF_TITLE_SUFFIX;
+  if (!sectionTitle) return STAFF_TITLE_SUFFIX;
+  const page = staffPageLabel(normaliseTitlePath(pathname));
+  return page
+    ? `${page} · ${sectionTitle} · ${STAFF_TITLE_SUFFIX}`
+    : `${sectionTitle} · ${STAFF_TITLE_SUFFIX}`;
 }
 
 function isRoute(pathname: string, route: string): boolean {
   return normaliseTitlePath(pathname) === route;
+}
+
+/**
+ * Sub-pages that share a section but show different content, so each tab and
+ * history entry is distinguishable (profiles, the two report pages).
+ */
+function staffPageLabel(path: string): string | null {
+  if (/^\/dogs\/[^/]+$/.test(path)) return "Dog profile";
+  if (/^\/humans\/[^/]+$/.test(path)) return "Human profile";
+  if (path === "/reports/cash-up") return "Cash-up";
+  if (path === "/reports/insights") return "Insights";
+  return null;
 }

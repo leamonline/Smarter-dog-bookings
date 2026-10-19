@@ -21,6 +21,11 @@ describe("documentTitleFor", () => {
     ["customer", "/NEW//", null, "in", "Book a groom · Smarter Dog Bookings"],
     ["customer", "/Login", null, "in", "My bookings · Smarter Dog Bookings"],
     ["customer", "//new", null, "in", "My bookings · Smarter Dog Bookings"],
+    ["customer", "/n%65w", null, "in", "Book a groom · Smarter Dog Bookings"],
+    ["staff", "/dogs/abc", "Dogs", "in", "Dog profile · Dogs · Smarter Dog"],
+    ["staff", "/humans/abc", "Humans", "in", "Human profile · Humans · Smarter Dog"],
+    ["staff", "/reports/cash-up", "Reports", "in", "Cash-up · Reports · Smarter Dog"],
+    ["staff", "/reports/insights", "Reports", "in", "Insights · Reports · Smarter Dog"],
     ["reset-password", "/reset-password", null, "in", "Reset password · Smarter Dog Bookings"],
   ] as const)("%s %s (%s) → %s", (mount, path, section, auth, expected) => {
     expect(documentTitleFor(mount, path, section, auth)).toBe(expected);
@@ -29,7 +34,7 @@ describe("documentTitleFor", () => {
   it("never shows a bare suffix-less title or the old shared one", () => {
     const t = documentTitleFor("staff", "/dogs/1", "Dogs");
     expect(t).not.toBe("SmarterDog — Salon Bookings");
-    expect(t).toBe("Dogs · Smarter Dog");
+    expect(t).toBe("Dog profile · Dogs · Smarter Dog");
   });
 });
 
@@ -41,6 +46,8 @@ describe("normaliseTitlePath", () => {
     ["//new", "//new"],
     ["/", "/"],
     ["", "/"],
+    ["/d%6fgs", "/dogs"],
+    ["/a%2Fb", "/a%2fb"],
   ])("%s → %s", (raw, expected) => {
     expect(normaliseTitlePath(raw)).toBe(expected);
   });
