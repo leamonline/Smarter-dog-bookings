@@ -1,5 +1,38 @@
 # Migration history
 
+## Availability RPC matches the capacity trigger (#1039) — applied 19 October 2026
+
+`20261019150000_availability_rpc_matches_trigger.sql` is one idempotent
+`CREATE OR REPLACE` of `get_small_medium_availability(date, date)` with an
+unchanged signature, return shape and grants, so old and new application code
+both work against either version. It rebuilds the function on the trigger's own
+helpers (`get_seats_used`, `get_max_seats_for_slot`, `booking_occupies_seat`) and
+adds the daily dog cap, so the Flow and the agent stop offering days and slots
+the trigger would refuse, and Cancelled and No-show bookings free their seat. No
+table, RLS or data change. Rollback is re-applying the previous definition from
+`20260702170000_extra_slots_bookable.sql`.
+
+**Staging:** not applied. Verified instead on a disposable local database
+replaying every committed migration: `252_availability_rpc_matches_trigger`
+failed 4 of 10 against the old function and passed 10 of 10 against the new
+one; `232`, `035` and `036` showed no failures; a second apply succeeded.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 19 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 17
+([39230048004](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39230048004)),
+approved by @leamonline. It took the file from the #1039 head `641932e3`, and
+every step including the apply and the after-state listing succeeded. A first
+dispatch, run 16, failed at the file-overlay step before any apply step ran,
+because #1039 was still a draft and the workflow only accepts the head of an
+open, non-draft pull request; nothing was applied by it. The after-state ledger
+lists `20261019150000` as present both locally and remotely. Read back from
+production afterwards through the Supabase MCP (read-only): the function is
+`SECURITY DEFINER` and its body contains the new helpers; Wed 21 October 2026, a
+day at the daily cap, returns 0 slots, while 26 October to 30 November still
+returns 119 slots and 21 distinct days are offered across 20 October to
+18 December; `anon` and `authenticated` cannot execute it and `service_role`
+can.
+
 ## WhatsApp STOP acknowledgement guards (#1026 review follow-up) — applied 17 October 2026
 
 `20261017120000_whatsapp_stop_ack_guards.sql` is expand-only and idempotent:
