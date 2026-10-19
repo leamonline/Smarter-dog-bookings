@@ -621,6 +621,46 @@ Deno.test("suggest_only re-draft does not re-insert the already-ingested inbound
 
 // ── Failure bookkeeping ──────────────────────────────────────
 
+Deno.test("suggest_only answers JSON with the real reason when the AI call fails, and leaves the event alone", async () => {
+  // The staff "Generate reply" button showed "The AI returned an unexpected
+  // response" because any throw fell through to the plain-text catch-all.
+  // Model the Anthropic API refusing the call (bad key, no credit, retired
+  // model): the button must get the reason, and the customer's already
+  // processed message must not be re-marked failed.
+  resetStub(
+    eventSelect(eventRow({ payload: inboundPayload, processing_status: "processed" })),
+    eventUpdate,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/humans"
+        ? json([{ id: "human-1", phone: "07700900111" }])
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_conversations"
+        ? json(conversationRow(), 201)
+        : undefined,
+    (call) =>
+      call.path === "/v1/messages"
+        ? json({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, 401)
+        : undefined,
+    (call) =>
+      call.method === "GET" || call.path.startsWith("/rest/v1/rpc/") ? json([]) : undefined,
+  );
+
+  const res = await handleAgentRequest(
+    agentRequest({ event_id: "event-1", suggest_only: true }),
+  );
+  assertEquals(res.status, 200);
+  const body = JSON.parse(await res.text()) as { ok?: boolean; reason?: string };
+  assertEquals(body.ok, false);
+  assertStringIncludes(body.reason ?? "", "Anthropic API 401");
+  assertEquals(
+    calls.filter((c) => c.method === "PATCH" && c.path === "/rest/v1/whatsapp_events").length,
+    0,
+    "a button click must not change the event's processing_status",
+  );
+});
+
+
 Deno.test("marks the event failed (but answers 200) when processing throws", async () => {
   resetStub(
     eventSelect(eventRow({ payload: inboundPayload })),

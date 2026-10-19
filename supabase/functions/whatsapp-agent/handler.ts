@@ -2841,6 +2841,12 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
         error_message: "signature_valid=false, ignored by agent",
       })
       .eq("id", event.id);
+    if (suggestOnly) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "This message failed its WhatsApp signature check, so the AI won't draft from it." }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
     return new Response("ignored (invalid signature)", { status: 200 });
   }
 
@@ -3556,6 +3562,20 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("whatsapp-agent failed:", message);
+    // Suggest-only (the staff "Generate reply" button): answer JSON with the
+    // real reason so whatsapp-generate-reply can show it, rather than the
+    // plain-text body below that it can only report as "unexpected
+    // response". A button click is not a failure of the customer's message,
+    // so leave the event's processing_status alone.
+    if (suggestOnly) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          reason: `The AI couldn't draft a reply: ${message.slice(0, 200)}`,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
     await supabase
       .from("whatsapp_events")
       .update({
