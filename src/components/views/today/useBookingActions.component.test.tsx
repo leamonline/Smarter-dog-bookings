@@ -391,3 +391,37 @@ describe("a zone-changing write leaves nothing running behind it", () => {
     }
   });
 });
+
+describe("a bare collected action never records a dog collected but unpaid (#1019)", () => {
+  function setupOwing(amountDue: number) {
+    const onUpdateBooking = vi.fn(async (booking: never) => booking);
+    const rendered = renderHook(() => useBookingActions({
+      dateStr: DATE,
+      toast: { show: vi.fn() } as never,
+      onUpdateBooking: onUpdateBooking as never,
+      onSendCollection: vi.fn(),
+      onMessageOwner: vi.fn(),
+      amountDueFor: () => amountDue,
+    }));
+    return { ...rendered, onUpdateBooking };
+  }
+
+  it("with money owed, opens the invoice and writes nothing", async () => {
+    const { result, onUpdateBooking } = setupOwing(42);
+    await act(async () => {
+      await result.current.runTokenAction({ booking: OWES } as never, { id: "collected" } as never);
+    });
+    expect(onUpdateBooking).not.toHaveBeenCalled();
+    expect(result.current.invoiceBooking).toMatchObject({ id: "owes" });
+  });
+
+  it("with nothing owed, marks the dog collected", async () => {
+    const { result, onUpdateBooking } = setupOwing(0);
+    await act(async () => {
+      await result.current.runTokenAction({ booking: PAID_IN_ADVANCE } as never, { id: "collected" } as never);
+    });
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.COMPLETED);
+    expect(result.current.invoiceBooking).toBeNull();
+  });
+});

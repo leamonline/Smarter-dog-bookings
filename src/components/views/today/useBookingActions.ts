@@ -60,7 +60,7 @@ export interface UseBookingActionsInput {
   onOpenDog?: (id: string | null) => void;
   onOpenHuman?: (id: string | null) => void;
   onMessageOwner: (booking: Booking) => void;
-  /** Amount still owed on a booking, for the unpaid-collection safeguard. */
+  /** Amount still owed on a booking: a bare `collected` with money owed opens the invoice instead. */
   amountDueFor: (booking: Booking) => number | null;
 }
 
@@ -82,7 +82,6 @@ export function useBookingActions({
 }: UseBookingActionsInput) {
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
   const [invoiceBooking, setInvoiceBooking] = useState<Booking | null>(null);
-  const [collectionDueBooking, setCollectionDueBooking] = useState<Booking | null>(null);
   const [pendingCareSkip, setPendingCareSkip] = useState<PendingCareSkip | null>(null);
   // Zone changes this session caused itself. The view announces only the moves
   // it did NOT cause, so a colleague's check-in on the other till is spoken
@@ -238,15 +237,17 @@ export function useBookingActions({
   ), [changeStatus]);
 
   /**
-   * Collection with money still owed goes through the existing safeguard
-   * modal, which offers to take the payment first. The check lives here rather
-   * than in the board so a drag-drop collection is gated exactly like a
-   * pressed one.
+   * A bare `collected` action. Nothing on /today dispatches it any more — the
+   * card's check-out chain takes payment and collection in one write — but it
+   * is still a legal token action, so it stays safe: with money owed it opens
+   * the invoice to take payment first, and never records a dog as collected
+   * but unpaid (#1019). The "Mark collected anyway" modal that used to sit
+   * here was unreachable from the stack and is gone.
    */
   const requestCollected = useCallback((booking: Booking) => {
     const amountDue = amountDueFor(booking);
     if (amountDue != null && amountDue > 0) {
-      setCollectionDueBooking(booking);
+      setInvoiceBooking(booking);
       return;
     }
     void markCollected(booking);
@@ -539,8 +540,6 @@ export function useBookingActions({
     busyIds,
     invoiceBooking,
     setInvoiceBooking,
-    collectionDueBooking,
-    setCollectionDueBooking,
     pendingCareSkip,
     setPendingCareSkip,
     confirmCareSkip,

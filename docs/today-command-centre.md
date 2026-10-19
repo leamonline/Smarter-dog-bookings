@@ -290,8 +290,7 @@ place the viewport is allowed to move.
 
 `AwaitingDepositsCard`, `MissingSizeNotice`, `TodayBriefNotes`, the
 Manage-availability modal (still `buildSlotOpportunities` → `buildAvailabilityView`,
-which **never** forks the capacity engine), `MiniInvoiceModal`, the
-`UnpaidCollectionModal` safeguard, the care-step `ConfirmDialog` and the
+which **never** forks the capacity engine), `MiniInvoiceModal`, the care-step `ConfirmDialog` and the
 end-of-day facts row (arrived, till by method, expected revenue, capacity) all
 carry over unchanged. Writes go through **one** path — `useBookingActions` →
 the same `onUpdateBooking` the booking detail modal uses — so the three
