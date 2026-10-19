@@ -525,21 +525,9 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
       });
 
       if (error) {
-        // FunctionsHttpError surfaces a generic "non-2xx" message and hides
-        // the function's JSON body, which is where the actual reason lives
-        // (Meta template errors, 24h-window rejections, etc). Read the body
-        // via error.context (a Response) and prefer its `detail` field.
-        let detail = error.message ?? "Template send failed";
-        try {
-          const body = await error.context?.json?.();
-          if (body) {
-            const parts = [body.error, body.detail].filter(Boolean);
-            if (parts.length) detail = parts.join(": ");
-          }
-        } catch {
-          /* fall back to the generic message */
-        }
-        throw new Error(detail);
+        // Reads the function's JSON reason (Meta template errors, 24h-window
+        // rejections) and turns a final 401 into "please sign in again".
+        throw new Error(await parseSupabaseFunctionError(error, "Template send failed"));
       }
 
       // Refresh the thread so the sent message appears immediately.
