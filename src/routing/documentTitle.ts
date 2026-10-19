@@ -55,9 +55,10 @@ export function documentTitleFor(
 
   if (mount === "customer") {
     if (auth === "setup") return `Your account · ${CUSTOMER_TITLE_SUFFIX}`;
-    // Exact segments, matching the router: `/login` is the guard's login route
-    // and `new` the wizard; anything else (`/news`) falls to the dashboard.
-    if (auth !== "in" || isRoute(pathname, "/login")) return `Sign in · ${CUSTOMER_TITLE_SUFFIX}`;
+    // "Sign in" comes only from the route guard's own decision (auth "out"),
+    // never from the path: once signed in, every path but `new` renders the
+    // dashboard, `/login` included. `new` is matched as React Router does.
+    if (auth === "out") return `Sign in · ${CUSTOMER_TITLE_SUFFIX}`;
     if (isRoute(pathname, "/new")) return `Book a groom · ${CUSTOMER_TITLE_SUFFIX}`;
     return `My bookings · ${CUSTOMER_TITLE_SUFFIX}`;
   }
