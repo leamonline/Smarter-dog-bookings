@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 import { isPasswordPwned } from "../../utils/pwnedPassword";
@@ -10,6 +11,7 @@ import { isPasswordPwned } from "../../utils/pwnedPassword";
  * via onAuthStateChange (PASSWORD_RECOVERY event), giving us a session to work with.
  */
 export function ResetPasswordPage() {
+  useDocumentTitle("reset-password");
   const authActions = useStaffAuthActions();
   const [ready, setReady] = useState(false);       // recovery session established
   const [expired, setExpired] = useState(false);   // link is invalid/expired
