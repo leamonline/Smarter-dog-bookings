@@ -16,6 +16,7 @@ import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen } from "./components/ui/PageShell.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import "./customer-portal.css";
+import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 
 export default function CustomerApp() {
   // Wrap the whole app in ToastProvider so customer-facing save flows
@@ -72,6 +73,21 @@ function CustomerAppContent() {
     },
     from: location.state?.from,
   });
+  // The title follows the gate the render below resolves to, checked in the
+  // SAME order as those early returns: the first gate that would render
+  // decides, so a loading check further down never hides a screen already up.
+  const titleAuth = (() => {
+    if (authRoute.status === "loading") return "loading";
+    if (authRoute.status === "login" || !user) return "out";
+    if (!humanRecord) return "setup";
+    if (hasPassword === false || mustSetPassword) return "setup";
+    if (signup.loading) return "loading";
+    if (signup.status === "onboarding" || signup.status === "pending") return "setup";
+    if (gate.loading) return "loading";
+    if (!gate.complete) return "setup";
+    return "in";
+  })();
+  useDocumentTitle("customer", titleAuth);
 
   if (authRoute.status === "loading") {
     return (

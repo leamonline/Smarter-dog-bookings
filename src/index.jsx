@@ -40,6 +40,9 @@ if (legacyRedirect) {
 
   const screen = () => {
     if (supabaseConfigError) {
+      // No entrance hook mounts on these screens, so name them here (#1004).
+      document.title =
+        mount === "customer" ? "Booking unavailable · Smarter Dog Bookings" : "Setup problem · Smarter Dog";
       return mount === "customer" ? (
         <CustomerUnavailablePage />
       ) : (

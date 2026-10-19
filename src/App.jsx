@@ -30,6 +30,7 @@ import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
 import { StaffRoutes } from "./components/layout/StaffRoutes.jsx";
 import { StaffModals } from "./components/layout/StaffModals.jsx";
 import { sectionScrollsInShell } from "./components/layout/navConfig.jsx";
+import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 
 // Vercel page-view analytics. Dynamically imported so the library stays out
 // of the App chunk's boot path — it renders nothing and can arrive whenever.
@@ -119,6 +120,15 @@ export default function App() {
     if (!user) return;
     warmRouteChunkOnce(window.location.pathname);
   }, [user]);
+  // Offline (sample data) has no sign-in, so the views are always showing.
+  useDocumentTitle(
+    "staff",
+    !isOnline || (user && staffProfile)
+      ? "in"
+      : authLoading
+        ? "loading" // the staff profile is still being fetched; only a spinner shows
+        : user ? "denied" : "out",
+  );
 
   // Dev-only: render the UI kitchen sink before the auth gate so the primitive
   // catalogue is reviewable without signing in. Tree-shaken from production

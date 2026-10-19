@@ -3,8 +3,8 @@
 **Status:** Active
 **Authority:** Operational record for the production database's backup posture
 **Issue:** [#986](https://github.com/leamonline/Smarter-dog-bookings/issues/986)
-**Last verified:** 13 October 2026 (workflow and procedure; the posture checklist
-below is unanswered until the owner fills it in)
+**Last verified:** 19 October 2026 (posture checklist answered, backup enabled,
+first run succeeded, first restore drill **partial**: see the drill log)
 
 Everything else operational lives where it already was: migrations in
 [`migrations.md`](migrations.md), hosted-target control in
@@ -18,19 +18,19 @@ how to get it back.
 Nothing in the repository can read the Supabase plan or its backup settings;
 the owner checks them in the dashboard (Project → Settings → Database →
 Backups, and the organisation's Billing page) and records the answer here.
-Until this table is filled in, assume **no automated backup exists**: the
-README and the advisor notes describe the project as on the Free plan, which
-has none.
+As answered below, the project is on the Free plan, so **Supabase keeps no
+backup of its own**: the encrypted dump in the next section is the only copy
+outside the live database.
 
 | Question | Answer |
 |---|---|
-| Plan tier (Free / Pro / Team) | _unanswered_ |
-| Automated daily backups (Supabase-managed) | _unanswered_ (yes / no) |
-| Point-in-time recovery (PITR) add-on | _unanswered_ (yes / no) |
-| Retention of those backups | _unanswered_ |
-| Date checked | _unanswered_ |
-| Checked by | _unanswered_ |
-| `DATABASE_BACKUP_ENABLED` set to `true`? | _no_ (set it once the rows above are answered, whatever the answer: a copy outside Supabase is cheap) |
+| Plan tier (Free / Pro / Team) | **Free** (organisation `igfmzgmalwntolwhavoa`, read from the Supabase Management API) |
+| Automated daily backups (Supabase-managed) | **No**: the Free plan has none |
+| Point-in-time recovery (PITR) add-on | **No** (not available on Free) |
+| Retention of those backups | n/a: the only copy outside the live database is the encrypted dump below (90-day artifact retention) |
+| Date checked | 19 October 2026 |
+| Checked by | Claude Code, for the owner (#986) |
+| `DATABASE_BACKUP_ENABLED` set to `true`? | **Yes**, 19 October 2026. The first run, [39190407921](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39190407921), was owner-approved and succeeded |
 
 When the answer changes (plan upgrade, PITR purchase), update the row and the
 date; do not delete the old answer from history.
@@ -43,17 +43,21 @@ by hand from Actions → **Encrypted database backup** → *Run workflow* (from
 `main` only). Sunday night is as far as the week allows from the Mon–Wed
 08:00–14:00 London booking window, and the salon is closed Thursday to Sunday.
 
-**It is off until enabled.** The job is skipped entirely unless the repository
-variable `DATABASE_BACKUP_ENABLED` is `true`; merging the workflow changed
-nothing.
+**It is enabled (19 October 2026).** The job is skipped entirely unless the
+repository variable `DATABASE_BACKUP_ENABLED` is `true`, and that variable is now
+set. Every run, scheduled ones included, still waits for the `production`
+reviewer's approval, so a Sunday run that nobody approves produces no backup.
 
 **How it proves its target.** It is the read-only twin of
-*Apply named migrations to production*: it runs under the `production` GitHub
-environment, so the same required reviewer approves every run (a scheduled run
-waits for that approval and sends the usual notification); its first step
-checks the environment really has required reviewers and a deployment branch
-policy, that the secrets below reached the job, and that the age recipient is
-well-formed, all before checkout; it links production with the explicit ref and
+*Apply named migrations to production*. A run started **by hand** runs under
+the `production` GitHub environment, so the same required reviewer approves it.
+The **scheduled** Sunday run runs under `production-scheduled-backup`, which
+has no reviewers (see "Scheduled runs need no approval" below). Either way its
+first step checks, before checkout, that the environment for this trigger
+exists; that `production` has required reviewers (manual runs) or that
+`production-scheduled-backup` can deploy only from `main` (scheduled runs);
+that the secrets below reached the job; and that the age recipient is
+well-formed; it links production with the explicit ref and
 asserts `supabase/.temp/project-ref` immediately before every linked command,
 as [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md)
 requires. It runs no write against production.
@@ -94,14 +98,16 @@ the recipient in `BACKUP_AGE_PUBLIC_KEY`. Make the key pair once, offline:
 age-keygen -o smarter-dog-backup-key.txt     # prints the public key (age1…) to stderr
 ```
 
-Put the **public** line (`age1…`) in the `production` environment secret. Keep
+Put the **public** line (`age1…`) in the `BACKUP_AGE_PUBLIC_KEY` secret of
+**both** environments, `production` and `production-scheduled-backup`. Keep
 `smarter-dog-backup-key.txt` (the `AGE-SECRET-KEY-…` line) **offline, held by
 the owner**: a password manager entry plus a printed copy in the same place as
 the business's other critical papers. It must never be stored in GitHub, in
 the repository, in `.env*`, or on a shared drive. **Losing the private key makes
 every backup unreadable**; rotate by generating a new pair, replacing the
-secret, and keeping the old private key until its last 90-day artifact has
-expired. Anyone who obtains the private key and a downloaded artifact has the
+secret **in both environments at once** (a missed copy keeps encrypting Sunday
+backups to the old key), and keeping the old private key until the last
+artifact encrypted to it, manual or scheduled, has passed its 90-day expiry. Anyone who obtains the private key and a downloaded artifact has the
 whole customer database, so an artifact download is a customer-data access and
 needs the authority `AGENTS.md` describes.
 
@@ -111,7 +117,18 @@ needs the authority `AGENTS.md` describes.
 |---|---|---|
 | `production` environment secret | `PRODUCTION_SUPABASE_ACCESS_TOKEN` | Supabase Management API token; already required by the production migration workflow |
 | `production` environment secret | `BACKUP_AGE_PUBLIC_KEY` | The `age1…` recipient the dump is encrypted to |
+| `production-scheduled-backup` environment secret | `PRODUCTION_SUPABASE_ACCESS_TOKEN` | Its own copy, for the Sunday scheduled run |
+| `production-scheduled-backup` environment secret | `BACKUP_AGE_PUBLIC_KEY` | Its own copy of the same `age1…` recipient |
 | Repository variable | `DATABASE_BACKUP_ENABLED` | `true` to run; anything else skips the job |
+
+**Scheduled runs need no approval** (owner decision, 19 October 2026). The
+Sunday run uses `production-scheduled-backup`, an environment with no required
+reviewers, so a week's backup is not lost because nobody approved it. It stays
+safe because that environment can deploy only from `main`, only the `schedule`
+event may use it (the workflow's first step refuses anything else), and a
+schedule runs the copy of the workflow already merged to `main`. A run started
+by hand still goes through `production` and its reviewer. Reverting this means
+pointing the job back at `production` alone and deleting the extra environment.
 
 Both secrets belong on the environment only, never at repository level, for
 the reason `migrations.md` gives: an unconfigured environment must fail closed.
@@ -183,4 +200,26 @@ from artifact download to the counts query. No customer values in this table.
 
 | Date | Artifact | Scratch project ref | Duration | Result | Notes |
 |---|---|---|---|---|---|
-| _none yet_ | | | | | First drill is acceptance criterion 2 of #986 |
+| 19 Oct 2026 | `database-backup-production-2026-10-19-run39190407921` | none: local PostgreSQL 17.11 scratch cluster (see below) | about 2 minutes, download to counts | **Partial**: `public` and `smarter_dog_private` restored and verified; `auth` and `storage` not loaded | First drill (#986). Owner-authorised; run by Claude Code |
+
+**19 October 2026 drill, in detail.** The artifact decrypted with the offline
+key, and both SHA-256 digests matched `manifest.txt`. `schema.sql` restored with
+no errors on PostgreSQL 17 (production's major version: PostgreSQL 15 rejects
+the dump's `MAINTAIN` grants). `data.sql` restored once the `auth` and
+`storage` `COPY` blocks and their sequence resets were cut out, because a plain
+PostgreSQL has neither Supabase service's tables. Restored counts matched live
+production exactly: 783 bookings, 1,160 dogs, 952 humans, 1,561 booking
+events, 2,985 WhatsApp messages, 66 public tables. The `auth` and `storage`
+rows were counted in the dump instead of loaded, and also matched production:
+271 `auth.users` with 271 identities, and 19 `storage.objects`. With triggers
+on, in a rolled-back transaction, two dogs were accepted into one slot and a
+third was refused with `Slot is full`, so the capacity gate survives a
+restore. Every plaintext file and the scratch cluster were deleted afterwards.
+
+Why not a scratch Supabase project, as the procedure above says: restoring into
+one means typing its database password into `psql`, which the agent running
+the drill may not do. **This drill does not satisfy "one drill before the workflow
+is trusted"**: loading `auth` and `storage` into a real Supabase project, and so
+account recovery, is still unproven. The required drill stays outstanding until
+a person runs the hosted procedure above successfully. Until then, the dump's
+counts show the data is there; they do not show it can be put back.

@@ -18,8 +18,8 @@ export interface UseProfileRoutingOptions {
   setSelectedHumanId: (id: string | null) => void;
 }
 
-const DOG_PROFILE_PATH = /^\/dogs\/([^/]+)$/;
-const HUMAN_PROFILE_PATH = /^\/humans\/([^/]+)$/;
+export const DOG_PROFILE_PATH = /^\/dogs\/([^/]+)$/;
+export const HUMAN_PROFILE_PATH = /^\/humans\/([^/]+)$/;
 
 type ProfileKind = "dog" | "human";
 
