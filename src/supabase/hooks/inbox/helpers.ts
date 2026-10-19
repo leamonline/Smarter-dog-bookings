@@ -20,8 +20,15 @@ export type InboxActionResult<T = object> =
  */
 interface FunctionErrorLike {
   message?: string;
-  context?: { json?: () => Promise<unknown> };
+  context?: { status?: number; json?: () => Promise<unknown> };
 }
+
+/**
+ * Shown when an edge function answers 401. Every staff-callable function
+ * uses 401 only for "no usable login" ("missing authorization" / "invalid
+ * token"), which staff can only fix by signing in again.
+ */
+export const SESSION_EXPIRED_MESSAGE = "Your login has expired. Please sign in again.";
 
 interface FunctionErrorBody {
   error?: unknown;
@@ -42,6 +49,7 @@ export async function parseSupabaseFunctionError(
   error: FunctionErrorLike,
   fallbackMessage: string,
 ): Promise<string> {
+  if (error.context?.status === 401) return SESSION_EXPIRED_MESSAGE;
   let detail = error.message ?? fallbackMessage;
   try {
     const errorBody = (await error.context?.json?.()) as FunctionErrorBody | null | undefined;

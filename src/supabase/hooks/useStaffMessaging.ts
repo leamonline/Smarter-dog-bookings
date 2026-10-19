@@ -14,27 +14,38 @@ function requireClient(): Client {
   return supabase;
 }
 
+/**
+ * Invoke a staff edge function, retrying once after a forced session refresh
+ * if it answers 401. An installed PWA left asleep can wake with a session the
+ * background refresh never renewed; supabase-js then sends the anon key and
+ * the function rejects it as "invalid token". If the refresh fails too, the
+ * 401 result is returned as-is and the caller shows "sign in again".
+ */
+async function invokeStaff(name: string, body: Record<string, unknown>) {
+  const client = requireClient();
+  const first = await client.functions.invoke(name, { body });
+  const status = (first.error as { context?: { status?: number } } | null)?.context?.status;
+  if (status !== 401) return first;
+  const { data, error } = await client.auth.refreshSession();
+  if (error || !data?.session) return first;
+  return client.functions.invoke(name, { body });
+}
+
 export type NotificationTrigger = string;
 
 /** resend-booking-notification: dispatches server-side to the right notify function. */
 export async function resendBookingNotification(bookingId: string, triggerType: NotificationTrigger) {
-  return requireClient().functions.invoke("resend-booking-notification", {
-    body: { booking_id: bookingId, trigger_type: triggerType },
-  });
+  return invokeStaff("resend-booking-notification", { booking_id: bookingId, trigger_type: triggerType });
 }
 
 /** broadcast-message: message every customer booked on a date (dry run previews). */
 export async function broadcastMessage(input: { bookingDate: string; reason: string; dryRun: boolean }) {
-  return requireClient().functions.invoke("broadcast-message", {
-    body: { booking_date: input.bookingDate, reason: input.reason, dry_run: input.dryRun },
-  });
+  return invokeStaff("broadcast-message", { booking_date: input.bookingDate, reason: input.reason, dry_run: input.dryRun });
 }
 
 /** notify-booking-reminder: one anchor booking id; the function expands it to the customer's dogs that day. */
 export async function sendBookingReminder(anchorBookingId: string) {
-  return requireClient().functions.invoke("notify-booking-reminder", {
-    body: { booking_id: anchorBookingId },
-  });
+  return invokeStaff("notify-booking-reminder", { booking_id: anchorBookingId });
 }
 
 /** whatsapp-send in template mode: one approved Meta template to one number, logged to the inbox. */
@@ -45,23 +56,19 @@ export async function sendWhatsAppTemplate(input: {
   params: unknown;
   humanId: string;
 }) {
-  return requireClient().functions.invoke("whatsapp-send", {
-    body: {
+  return invokeStaff("whatsapp-send", {
       mode: "template",
       to: input.to,
       template_name: input.templateName,
       language: input.language,
       params: input.params,
       human_id: input.humanId,
-    },
-  });
+    });
 }
 
 /** reminder-send: the staff-composed reminder on the chosen channel for one anchor booking. */
 export async function sendReminder(anchorBookingId: string, channelPayload: Record<string, unknown>) {
-  return requireClient().functions.invoke("reminder-send", {
-    body: { booking_id: anchorBookingId, ...channelPayload },
-  });
+  return invokeStaff("reminder-send", { booking_id: anchorBookingId, ...channelPayload });
 }
 
 const messaging = {
