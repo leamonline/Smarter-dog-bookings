@@ -18,10 +18,26 @@ const BASE =
 // drops its quiet buttons to 40px; this does not, because the hands using this
 // are wet and one of them is usually holding a dog.
 const KIND_CLASS = {
-  primary: "flex-auto border-[1.5px]",
-  default: "flex-auto border-[1.5px]",
-  quiet: "flex-none border border-dashed text-[13.5px]",
+  primary: "border-[1.5px]",
+  default: "border-[1.5px]",
+  quiet: "border border-dashed px-3 text-[13.5px]",
 };
+
+// A two-column grid rather than free wrapping (#1001): free wrapping put five
+// actions on three phone rows with "Didn't show" alone on the last. In the grid
+// every row is a pair, and when the count is odd the first action takes the
+// whole first row, so nothing is orphaned.
+function spanFor(index, count) {
+  return count % 2 === 1 && index === 0 ? " col-span-2" : "";
+}
+
+// The primary action is moved to the front so it is the one that gets the wide
+// first row ("Reconfirmed" otherwise came before "Arrived"). Everything else
+// keeps the order `tokenActions` gave it.
+function primaryFirst(actions) {
+  const primary = actions.filter((a) => a.kind === "primary");
+  return primary.length ? [...primary, ...actions.filter((a) => a.kind !== "primary")] : actions;
+}
 
 function styleFor(kind, tone) {
   if (kind === "primary") {
@@ -57,10 +73,11 @@ function styleFor(kind, tone) {
  */
 export function StackActions({ actions, onSelect, tone, dogName, busy = false }) {
   if (actions.length === 0) return null;
+  const ordered = primaryFirst(actions);
 
   return (
-    <div data-stack-actions className="mt-3.5 flex flex-wrap gap-2">
-      {actions.map((action) =>
+    <div data-stack-actions className="mt-3.5 grid grid-cols-2 gap-2">
+      {ordered.map((action, index) =>
         action.href ? (
           <a
             key={action.id}
@@ -70,7 +87,7 @@ export function StackActions({ actions, onSelect, tone, dogName, busy = false })
               e.stopPropagation();
               onSelect(action);
             }}
-            className={`${BASE} ${KIND_CLASS[action.kind]}`}
+            className={`${BASE} text-center ${KIND_CLASS[action.kind]}${spanFor(index, actions.length)}`}
             style={styleFor(action.kind, tone)}
           >
             {action.label}
@@ -86,7 +103,7 @@ export function StackActions({ actions, onSelect, tone, dogName, busy = false })
               e.stopPropagation();
               onSelect(action);
             }}
-            className={`${BASE} ${KIND_CLASS[action.kind]}`}
+            className={`${BASE} text-center ${KIND_CLASS[action.kind]}${spanFor(index, actions.length)}`}
             style={styleFor(action.kind, tone)}
           >
             {action.label}

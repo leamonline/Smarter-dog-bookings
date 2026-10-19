@@ -12,7 +12,7 @@
 // than a confirmation dialog on every press: the common case costs one tap, and
 // the mistake costs two. Genuinely destructive work keeps its confirmation —
 // "Didn't show" cancels a booking, and skipping a care step still asks.
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { BOOKING_STATUS, NO_SHOW_REASON } from "../../../constants/index";
 import { buildMarkPaidPatch } from "../../../engine/bookingRules";
 import type { BookingPricingInput } from "../../../engine/bookingRules";
@@ -40,6 +40,7 @@ interface ToastAction {
 
 interface Toast {
   show: (message: string, variant?: string, action?: ToastAction | (() => void)) => unknown;
+  dismiss?: (id: unknown) => void;
 }
 
 export interface PendingCareSkip {
@@ -71,7 +72,7 @@ interface PatchOptions {
 
 export function useBookingActions({
   dateStr,
-  toast,
+  toast: appToast,
   onUpdateBooking,
   onSendCollection,
   onOpenBooking,
@@ -87,6 +88,19 @@ export function useBookingActions({
   // it did NOT cause, so a colleague's check-in on the other till is spoken
   // while your own is not announced twice.
   const localMoves = useRef<Set<string>>(new Set());
+
+  // One toast at a time from the stack (#1001). Three quick state changes used
+  // to stack three toasts at the foot of a phone screen, over Check out and the
+  // owner's phone link. The newest replaces the last, so the Undo on screen is
+  // always the Undo for the most recent action.
+  const lastToastId = useRef<unknown>(null);
+  const toast = useMemo<Toast>(() => ({
+    show: (message, variant, action) => {
+      if (lastToastId.current != null) appToast.dismiss?.(lastToastId.current);
+      lastToastId.current = appToast.show(message, variant, action);
+      return lastToastId.current;
+    },
+  }), [appToast]);
 
   /**
    * The one write. Marks the booking busy, sends the change, and on failure
@@ -480,15 +494,36 @@ export function useBookingActions({
         // context while the booking is marked No-show and keeps pre-migration
         // and post-migration rows looking the same. Nothing auto-labels a
         // no-show, and nothing is sent to the customer.
-        return patch(
-          booking,
-          {
-            status: BOOKING_STATUS.NO_SHOW,
-            cancelReason: NO_SHOW_REASON,
-          } as Partial<Booking>,
-          `${booking.dogName} marked as a no-show`,
-          "Marking this booking as a no-show could not be saved.",
-        );
+        // The tap is quiet and one-handed, so its toast carries Undo, which
+        // puts back exactly the status and reason the booking had before.
+        return (async () => {
+          const before = { status: booking.status, cancelReason: booking.cancelReason ?? null };
+          const saved: { row: Booking | null } = { row: null };
+          const persisted = await patch(
+            booking,
+            {
+              status: BOOKING_STATUS.NO_SHOW,
+              cancelReason: NO_SHOW_REASON,
+            } as Partial<Booking>,
+            `${booking.dogName} marked as a no-show`,
+            "Marking this booking as a no-show could not be saved.",
+            {
+              successAction: {
+                label: "Undo",
+                onClick: () => {
+                  void patch(
+                    saved.row ?? booking,
+                    before as Partial<Booking>,
+                    `${booking.dogName} is back in today's appointments`,
+                    "That change could not be undone.",
+                  );
+                },
+              },
+            },
+          );
+          saved.row = persisted;
+          return persisted;
+        })();
       case "undoNoShow":
         // This is an attendance correction, not a check-in. Returning to
         // Booked restores the ordinary Arrived action and lets the database

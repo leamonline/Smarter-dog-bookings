@@ -347,6 +347,18 @@ so in an info toast). A customer's confirmation is never removable from the UI.
 "Didn't show" writes the first-class `No-show` status and keeps
 `cancel_reason = 'No-show'` as readable context while that status stands. It
 sends no customer message.
+Because it is a single quiet tap, its success toast carries **Undo** for its
+10-second life, which writes back exactly the status and `cancel_reason` the
+booking had before; after that, **They turned up** on the no-show card is the
+correction.
+
+The stack shows **one toast at a time**: each new action's toast replaces the
+last, so three quick state changes never pile up over Check out or the owner's
+phone link, and the Undo on screen is always the Undo for the newest action
+(#1001). On phones the toast spans the width less the gutters so it stays one
+short line. Card actions sit in a two-column grid with the primary action
+first; when the count is odd it takes the whole first row, so no action is ever
+left alone on a row.
 
 ## Accessibility contract
 
