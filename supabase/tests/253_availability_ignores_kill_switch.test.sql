@@ -7,9 +7,8 @@
 -- Flow and agent — keeps applying 2-2-1 and the daily dog cap, so a switch left
 -- off by mistake can never quietly open extra capacity to customers.
 --
--- (get_large_dog_day_availability() is the known exception: it fails open when
--- the switch is off. That asymmetry is recorded in docs/capacity-engine.md and
--- is deliberately not asserted here.)
+-- The large-dog equivalent, get_large_dog_day_availability(), is pinned the same
+-- way by 254 (migration 20261019170000).
 --
 -- Each block pairs the pre-filter with the trigger on the same day, so the test
 -- also proves the switch really is off where it should be.
@@ -57,14 +56,14 @@ returns text[] language sql as $fn$
     from public.get_small_medium_availability(p_date, p_date);
 $fn$;
 
--- Tuesday 2 Feb 2099: 08:30 and 09:00 are doubles, 09:30 holds its one allowed dog.
+-- Monday 2 Feb 2099: 08:30 and 09:00 are doubles, 09:30 holds its one allowed dog.
 select pg_temp.put(date '2099-02-02', '08:30', 1);
 select pg_temp.put(date '2099-02-02', '08:30', 2);
 select pg_temp.put(date '2099-02-02', '09:00', 3);
 select pg_temp.put(date '2099-02-02', '09:00', 4);
 select pg_temp.put(date '2099-02-02', '09:30', 5);
 
--- Wednesday 3 Feb 2099: 14 dogs, one in every slot plus four doubles (the cap).
+-- Tuesday 3 Feb 2099: 14 dogs, one in every slot plus four doubles (the cap).
 select pg_temp.put(date '2099-02-03', s, i::integer)
   from unnest(array['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00'])
        with ordinality as t(s, i);
