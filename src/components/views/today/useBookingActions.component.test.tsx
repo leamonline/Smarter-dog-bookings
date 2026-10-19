@@ -391,3 +391,53 @@ describe("a zone-changing write leaves nothing running behind it", () => {
     }
   });
 });
+
+describe("the stack shows one toast at a time (#1001)", () => {
+  it("dismisses the previous toast before showing the next, so the Undo on screen is the newest", async () => {
+    const onUpdateBooking = vi.fn(async (booking: never) => booking);
+    let next = 0;
+    const toast = { show: vi.fn((..._args: unknown[]) => ++next), dismiss: vi.fn() };
+    const { result } = renderHook(() => useBookingActions({
+      dateStr: DATE,
+      toast: toast as never,
+      onUpdateBooking: onUpdateBooking as never,
+      onSendCollection: vi.fn(),
+      onMessageOwner: vi.fn(),
+      amountDueFor: () => 0,
+    }));
+    const booked = { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.BOOKED, payment: "Due at Pick-up" };
+
+    await act(async () => {
+      await result.current.runTokenAction({ booking: booked } as never, { id: "checkIn" } as never);
+    });
+    expect(toast.dismiss).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.runTokenAction(
+        { booking: { ...booked, status: BOOKING_STATUS.ARRIVED } } as never,
+        { id: "ready" } as never,
+      );
+    });
+    expect(toast.dismiss).toHaveBeenLastCalledWith(1);
+    // The newest toast still carries its Undo.
+    expect(toast.show.mock.calls.at(-1)?.[2]).toMatchObject({ label: "Undo" });
+  });
+});
+
+describe("a mis-tapped Didn't show is reversible (#1001)", () => {
+  it("offers Undo that restores the previous status and reason", async () => {
+    const { result, onUpdateBooking, toast } = setup();
+    const booked = { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.RECONFIRMED, cancelReason: null };
+    await act(async () => {
+      await result.current.runTokenAction({ booking: booked } as never, { id: "didntShow" } as never);
+    });
+    const action = toast.show.mock.calls.at(-1)?.[2] as { label: string; onClick: () => void };
+    expect(action.label).toBe("Undo");
+
+    await act(async () => { action.onClick(); });
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
+    const row = writtenRow(onUpdateBooking, 1);
+    expect(row.status).toBe(BOOKING_STATUS.RECONFIRMED);
+    expect(row.cancelReason).toBeNull();
+  });
+});

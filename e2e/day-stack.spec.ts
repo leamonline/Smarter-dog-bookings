@@ -133,6 +133,33 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
   await expect(coco).toContainText("Ready");
 });
 
+test("on a phone, three quick changes leave one toast and Check out uncovered (#1001)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today");
+  await settle(page);
+
+  const coco = await openDog(page, "Coco");
+  await coco.getByRole("button", { name: "Reconfirmed — Coco" }).click();
+  await expect(coco).toContainText("Reconfirmed");
+  await coco.getByRole("button", { name: "Arrived — Coco" }).click();
+  await expect(coco).toContainText("Arrived");
+  await coco.getByRole("button", { name: "Mark ready — Coco" }).click();
+  await page.getByRole("button", { name: "Not now" }).click();
+  await expect(coco).toContainText("Ready");
+
+  // Newest replaces: one toast, still carrying the Undo for the last action.
+  const toasts = page.getByRole("status").filter({ hasText: "Coco" });
+  await expect(toasts).toHaveCount(1);
+  await expect(toasts.getByRole("button", { name: "Undo" })).toBeVisible();
+
+  const checkout = coco.getByRole("button", { name: /^Check out/ });
+  await checkout.scrollIntoViewIfNeeded();
+  const button = await checkout.boundingBox();
+  const toast = await toasts.boundingBox();
+  expect(button && toast && button.y + button.height <= toast.y).toBe(true);
+});
+
 test("the check-out chain takes the money and hands the dog back in one go", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);

@@ -92,7 +92,7 @@ function Toaster({ toasts, onDismiss }) {
       role={t.variant === "error" ? "alert" : "status"}
       className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold animate-[toastIn_0.25s_ease-out] ${VARIANT_STYLES[t.variant] || VARIANT_STYLES.info}`}
     >
-      <span>{t.message}</span>
+      <span className="flex-1">{t.message}</span>
 
       {t.action && (
         <button
@@ -116,9 +116,11 @@ function Toaster({ toasts, onDismiss }) {
   );
 
   return (
-    // Mobile: bottom-centre above the nav strip. Desktop: bottom-right, out
-    // of the content column so a confirmation never covers the next control.
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-6 md:left-auto md:right-6 md:translate-x-0 z-[2000] flex flex-col items-center md:items-end gap-2 pointer-events-none">
+    // Mobile: bottom-centre above the nav strip, full width less the gutters so
+    // a message sits on one short line instead of a tall narrow block over the
+    // controls (#1001). Desktop: bottom-right, out of the content column so a
+    // confirmation never covers the next control.
+    <div className="fixed bottom-20 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-[2000] flex flex-col items-stretch md:items-end gap-2 pointer-events-none">
       <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-2">
         {politeToasts.map(renderToast)}
       </div>
