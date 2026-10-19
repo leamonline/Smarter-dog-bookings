@@ -45,7 +45,6 @@ import { useReplyConfirmations } from "../../hooks/useReplyConfirmations.ts";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ConfirmDialog } from "../modals/ConfirmDialog.jsx";
 import { TodayHeader } from "./today/TodayHeader.jsx";
-import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
@@ -607,22 +606,6 @@ export function TodayView({
             configPricing={configPricing}
             onSave={(invoicePatch) => actions.saveInvoice(actions.invoiceBooking, invoicePatch)}
             onClose={() => actions.setInvoiceBooking(null)}
-          />
-        )}
-        {actions.collectionDueBooking && (
-          <UnpaidCollectionModal
-            booking={actions.collectionDueBooking}
-            amountDue={paymentOf(actions.collectionDueBooking).amountDue ?? 0}
-            onTakePayment={() => {
-              actions.setInvoiceBooking(actions.collectionDueBooking);
-              actions.setCollectionDueBooking(null);
-            }}
-            onMarkCollected={async () => {
-              const booking = actions.collectionDueBooking;
-              actions.setCollectionDueBooking(null);
-              await actions.markCollected(booking);
-            }}
-            onClose={() => actions.setCollectionDueBooking(null)}
           />
         )}
       </div>
