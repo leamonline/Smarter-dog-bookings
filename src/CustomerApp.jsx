@@ -81,7 +81,7 @@ function CustomerAppContent() {
     && !gate.loading && gate.complete;
   useDocumentTitle(
     "customer",
-    authRoute.status === "loading" ? "loading"
+    authRoute.status === "loading" || (user && (signup.loading || gate.loading)) ? "loading"
       : authRoute.status === "login" || !user ? "out"
         : atDestination ? "in" : "setup",
   );

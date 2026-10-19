@@ -26,6 +26,9 @@ describe("documentTitleFor", () => {
     ["staff", "/humans/abc", "Humans", "in", "Human profile · Humans · Smarter Dog"],
     ["staff", "/reports/cash-up", "Reports", "in", "Cash-up · Reports · Smarter Dog"],
     ["staff", "/reports/insights", "Reports", "in", "Insights · Reports · Smarter Dog"],
+    ["customer", "/%256eew", null, "in", "My bookings · Smarter Dog Bookings"],
+    ["staff", "/DOGS/123", "Dogs", "in", "Dogs · Smarter Dog"],
+    ["staff", "/d%6fgs/123", "Dogs", "in", "Dogs · Smarter Dog"],
     ["reset-password", "/reset-password", null, "in", "Reset password · Smarter Dog Bookings"],
   ] as const)("%s %s (%s) → %s", (mount, path, section, auth, expected) => {
     expect(documentTitleFor(mount, path, section, auth)).toBe(expected);
