@@ -21,7 +21,7 @@
 --      could then answer yes through a large-dog slot that was not flagged, or
 --      already past its cutoff. validate_booking_calendar() refuses that slot.
 --
---   All three only ever OFFERED days the database then refused; none hid real
+--   All four only ever OFFERED days the database then refused; none hid real
 --   capacity.
 --
 -- WHAT THIS CHANGES

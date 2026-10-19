@@ -14,8 +14,8 @@
 --      booking and their 30-minute cutoff, and it never refused a past or
 --      closed day itself.
 --
--- Decision (19 October 2026, owner): the switch is a staff-side lever only;
--- customer-facing availability must keep the rules while it is off (see 253
+-- Decision (19 October 2026, owner): the switch relaxes the trigger for every
+-- insert, but customer-facing availability must keep the rules while it is off (see 253
 -- and docs/capacity-engine.md). Every case below is asserted with the switch
 -- ON and OFF. Days that genuinely have room are asserted too, so a function
 -- that simply returned false would fail. The last block confirms the answers
@@ -142,7 +142,10 @@ values (date '2099-03-18', true,
 -- Today (Europe/London): open, but only 10:00 — not a large-dog slot — is
 -- flagged for last-minute booking. Replaced later in the file.
 insert into public.day_settings (setting_date, is_open, overrides, extra_slots, immediate_slots)
-values (((now() at time zone 'Europe/London'))::date, true, '{}'::jsonb, '{}', array['10:00']);
+values (((now() at time zone 'Europe/London'))::date, true, '{}'::jsonb, '{}', array['10:00'])
+on conflict (setting_date) do update
+  set is_open = true, overrides = '{}'::jsonb, extra_slots = '{}',
+      immediate_slots = excluded.immediate_slots;
 
 set local session_replication_role = default;
 set local role postgres;
