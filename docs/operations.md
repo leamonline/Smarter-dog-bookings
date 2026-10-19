@@ -24,13 +24,13 @@ has none.
 
 | Question | Answer |
 |---|---|
-| Plan tier (Free / Pro / Team) | _unanswered_ |
-| Automated daily backups (Supabase-managed) | _unanswered_ (yes / no) |
-| Point-in-time recovery (PITR) add-on | _unanswered_ (yes / no) |
-| Retention of those backups | _unanswered_ |
-| Date checked | _unanswered_ |
-| Checked by | _unanswered_ |
-| `DATABASE_BACKUP_ENABLED` set to `true`? | _no_ (set it once the rows above are answered, whatever the answer: a copy outside Supabase is cheap) |
+| Plan tier (Free / Pro / Team) | **Free** (organisation `igfmzgmalwntolwhavoa`, read from the Supabase Management API) |
+| Automated daily backups (Supabase-managed) | **No**: the Free plan has none |
+| Point-in-time recovery (PITR) add-on | **No** (not available on Free) |
+| Retention of those backups | n/a: the only copy outside the live database is the encrypted dump below (90-day artifact retention) |
+| Date checked | 19 October 2026 |
+| Checked by | Claude Code, for the owner (#986) |
+| `DATABASE_BACKUP_ENABLED` set to `true`? | **Yes**, 19 October 2026. The first run, [39190407921](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39190407921), was owner-approved and succeeded |
 
 When the answer changes (plan upgrade, PITR purchase), update the row and the
 date; do not delete the old answer from history.
@@ -183,4 +183,25 @@ from artifact download to the counts query. No customer values in this table.
 
 | Date | Artifact | Scratch project ref | Duration | Result | Notes |
 |---|---|---|---|---|---|
-| _none yet_ | | | | | First drill is acceptance criterion 2 of #986 |
+| 19 Oct 2026 | `database-backup-production-2026-10-19-run39190407921` | none: local PostgreSQL 17.11 scratch cluster (see below) | about 2 minutes, download to counts | **Pass**, with the `auth`/`storage` limitation below | First drill (#986). Owner-authorised; run by Claude Code |
+
+**19 October 2026 drill, in detail.** The artifact decrypted with the offline
+key, and both SHA-256 digests matched `manifest.txt`. `schema.sql` restored with
+no errors on PostgreSQL 17 (production's major version: PostgreSQL 15 rejects
+the dump's `MAINTAIN` grants). `data.sql` restored once the `auth` and
+`storage` `COPY` blocks and their sequence resets were cut out, because a plain
+PostgreSQL has neither Supabase service's tables. Restored counts matched live
+production exactly: 783 bookings, 1,160 dogs, 952 humans, 1,561 booking
+events, 2,985 WhatsApp messages, 66 public tables. The `auth` and `storage`
+rows were counted in the dump instead of loaded, and also matched production:
+271 `auth.users` with 271 identities, and 19 `storage.objects`. With triggers
+on, in a rolled-back transaction, two dogs were accepted into one slot and a
+third was refused with `Slot is full`, so the capacity gate survives a
+restore. Every plaintext file and the scratch cluster were deleted afterwards.
+
+Why not a scratch Supabase project, as the procedure above says: restoring into
+one means typing its database password into `psql`, which the agent running
+the drill may not do. **Still unproven: loading `auth` and `storage` into a
+real Supabase project.** A person should run the hosted procedure once, ideally
+before the drill falls due next year. Until then, account recovery after a
+disaster is supported by the counts in the dump, not by a demonstrated load.
