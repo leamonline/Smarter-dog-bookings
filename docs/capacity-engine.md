@@ -139,21 +139,25 @@ never quietly open extra capacity to customers:
 
 - `get_small_medium_availability()` (behind the WhatsApp Flow and agent) still
   applies 2-2-1, the daily dog cap, blocked seats and the early close.
+- `get_large_dog_day_availability()` / `large_dog_can_fit_on_day()` (behind
+  the agent and the Flow's large-dog day list) do the same for large dogs:
+  2-2-1, the large-dog slot rules, early close, blocked seats and the daily cap.
 - The Flow's group allocator, the browser engine and the portal wizard never
   read the flag.
 
 So while the switch is off, staff can book beyond capacity (staff inserts, and
 any non-staff insert that reaches the table) but customer screens keep showing
 normal capacity. This was decided on 19 October 2026 and is pinned by
-`supabase/tests/253_availability_ignores_kill_switch.test.sql`. To let
+`supabase/tests/253_availability_ignores_kill_switch.test.sql` (small/medium)
+and `supabase/tests/254_large_dog_availability_matches_trigger.test.sql`
+(large). To let
 customers book more for an event, change the real limits (the day's seat
 overrides, `daily_dog_cap` or extra slots) rather than the switch.
 
-**Known asymmetry (not changed):** `get_large_dog_day_availability()` reads the
-flag and fails open when it is off, so large-dog days are listed regardless of
-capacity. The Flow's TypeScript day check still narrows them, but the chat
-agent does not. If that matters, make the large-dog function ignore the flag
-too, in a new migration.
+Until migration `20261019170000_large_dog_availability_matches_trigger.sql`,
+`large_dog_can_fit_on_day()` failed open while the switch was off and also
+ignored the daily cap and blocked seats, so the agent could list a large-dog day
+the database would refuse.
 
 Two things that could look like off-switches but are not:
 
