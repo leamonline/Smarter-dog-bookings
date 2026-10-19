@@ -16,6 +16,7 @@ import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen } from "./components/ui/PageShell.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import "./customer-portal.css";
+import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 
 export default function CustomerApp() {
   // Wrap the whole app in ToastProvider so customer-facing save flows
@@ -72,6 +73,7 @@ function CustomerAppContent() {
     },
     from: location.state?.from,
   });
+  useDocumentTitle("customer", !!user);
 
   if (authRoute.status === "loading") {
     return (
