@@ -102,7 +102,7 @@ export function ConversationListItem({
           </span>
           {lastAt && (
             <span
-              className="shrink-0 tabular-nums text-[10px] text-slate-500"
+              className="shrink-0 tabular-nums text-[12px] text-slate-500"
               title={absoluteWhen}
               aria-label={absoluteWhen}
             >
@@ -111,12 +111,12 @@ export function ConversationListItem({
           )}
         </div>
 
-        {waitingLabel && <p className="mt-1 text-[10px] font-semibold text-amber-900">{waitingLabel}</p>}
+        {waitingLabel && <p className={`mt-1 text-[12px] font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-amber-900"}`}>{waitingLabel}</p>}
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {preview ? (
             <span
-              className={`min-w-0 flex-1 truncate text-[11px] ${
+              className={`min-w-0 flex-1 truncate text-[12px] ${
                 isOurs ? "text-left" : "text-right"
               } ${unread ? "text-slate-700" : "text-slate-600"}`}
             >
@@ -129,7 +129,7 @@ export function ConversationListItem({
           <div className="flex shrink-0 items-center gap-1">
             {rowStatus && (
               <span
-                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[10px] font-semibold ${
+                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[12px] font-semibold ${
                   STATUS_TONES[rowStatus.tone] ?? STATUS_TONES.neutral
                 }`}
                 title={rowStatus.title}
@@ -140,7 +140,7 @@ export function ConversationListItem({
             )}
             {windowBadge && (
               <span
-                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[10px] font-semibold ${
+                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[12px] font-semibold ${
                   windowBadge.kind === "closing_soon"
                     ? "border-amber-200 bg-amber-50 text-amber-900"
                     : "border-slate-200 bg-slate-100 text-slate-700"

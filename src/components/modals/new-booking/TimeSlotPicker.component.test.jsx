@@ -40,7 +40,7 @@ describe("TimeSlotPicker — staff-blocked seat", () => {
   it("renders 10:30 as over-capacity (overridable) when the second seat is blocked", () => {
     renderPicker({ [DATE]: { overrides: { "10:30": { 1: "blocked" } }, extraSlots: [] } });
     expect(
-      screen.getByRole("button", { name: /10:30am — over capacity, click to override/i }),
+      screen.getByRole("button", { name: /10:30am — over capacity, confirmation required/i }),
     ).toBeInTheDocument();
     // A free slot is unaffected — still a plain bookable button.
     expect(screen.getByRole("button", { name: "11:00am" })).toBeInTheDocument();

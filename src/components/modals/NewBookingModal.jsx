@@ -7,6 +7,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
+import { CapacityOverrideDialog } from "../booking/CapacityOverrideDialog.jsx";
 import { BookingActions } from "./new-booking/BookingActions.jsx";
 import { NotifyRecipientsDialog } from "./new-booking/NotifyRecipientsDialog.jsx";
 import { ConfirmationMethodDialog } from "./new-booking/ConfirmationMethodDialog.jsx";
@@ -802,12 +803,8 @@ export function NewBookingModal({
         )}
 
         {pendingCapacityOverride && (
-          <ConfirmDialog
-            title="This booking breaks the capacity rule"
-            message={`${pendingCapacityOverride.reason}. Override the capacity rule and book anyway?`}
-            confirmLabel="Override and book"
-            cancelLabel="Pick another time"
-            variant="primary"
+          <CapacityOverrideDialog
+            reason={pendingCapacityOverride.reason}
             onConfirm={confirmCapacityOverride}
             onCancel={() => setPendingCapacityOverride(null)}
           />

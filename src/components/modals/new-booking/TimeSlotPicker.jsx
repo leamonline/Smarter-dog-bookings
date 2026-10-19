@@ -105,7 +105,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
             disabled={!isClickable}
             title={
               isOverrideEligible
-                ? `${reason}. Click to override.`
+                ? `${reason}. Requires confirmation before booking.`
                 : isAlreadyBooked
                   ? reason
                   : undefined
@@ -113,7 +113,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
             aria-disabled={!isClickable}
             aria-label={
               isOverrideEligible
-                ? `${displayTime} — over capacity, click to override`
+                ? `${displayTime} — over capacity, confirmation required`
                 : isAlreadyBooked
                   ? `${displayTime} — ${reason}`
                   : displayTime

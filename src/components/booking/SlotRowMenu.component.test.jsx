@@ -152,3 +152,13 @@ describe("SlotRowMenu — placement stays on-screen", () => {
     }
   });
 });
+
+it("requires the shared capacity decision before opening an override booking", () => {
+  const onOverbook = vi.fn();
+  openMenu({ seatStates: [{ type: "booking", seatIndex: 0 }, { type: "booking", seatIndex: 1 }], onOverbook });
+  fireEvent.click(screen.getByRole("menuitem", { name: "Override & book" }));
+  expect(screen.getByRole("dialog", { name: "This booking breaks the capacity rule" })).toBeInTheDocument();
+  expect(onOverbook).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Override and book" }));
+  expect(onOverbook).toHaveBeenCalledTimes(1);
+});

@@ -1,5 +1,15 @@
 # Changelog
 
+## 19 October 2026 — staff booking and phone inbox controls
+
+- Explain missing booking selections beside Confirm and share the explicit
+  capacity-override dialogue between the drawer and slot menu (#1003).
+- Keep AI draft decisions above the composer, contain scrolling filters, enlarge
+  touch controls and reduce inbox header space (#1002).
+- Rechecked #1006: the client refusal-copy fix is merged, but structured database
+  refusal codes remain outstanding; the issue must remain open.
+
+
 ## Unreleased — STOP acknowledgement after repeated lost responses (#1028 review follow-up)
 
 - A genuine STOP whose confirmation was lost on every retry, and whose event

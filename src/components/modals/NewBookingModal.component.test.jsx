@@ -391,3 +391,25 @@ describe("NewBookingModal — a dog with no recorded size (#683)", () => {
     expect(rows[0].size).toBe("large");
   });
 });
+
+describe("NewBookingModal — explicit booking decisions (#1003)", () => {
+  it("explains that a time is needed beside the disabled confirmation", () => {
+    renderModal({ initialEntries: [resumeEntry], initialSlot: "" });
+    const confirm = screen.getByRole("button", { name: "Confirm Booking" });
+    expect(confirm).toBeDisabled();
+    expect(confirm).toHaveAccessibleDescription("Choose a time to continue");
+  });
+
+  it("requires a separate capacity decision and allows choosing another time", async () => {
+    const props = renderModal({
+      initialEntries: [resumeEntry],
+      daySettings: { [OPEN_DATE]: { overrides: { "09:00": { 0: "blocked", 1: "blocked" } } } },
+    });
+    await confirmWithMethod();
+    await screen.findByText("This booking breaks the capacity rule");
+    expect(props.onAdd).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Pick another time" }));
+    expect(screen.queryByText("This booking breaks the capacity rule")).not.toBeInTheDocument();
+    expect(props.onAdd).not.toHaveBeenCalled();
+  });
+});
