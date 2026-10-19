@@ -39,7 +39,9 @@ schedules by the 2-2-1 seat model), so Flow A has no groomer screen.
    dog's size, available days, slots).
 3. Availability comes from the existing RPCs `get_small_medium_availability`
    and `get_large_dog_day_availability`. Dates are a radio list of genuinely
-   bookable open days (Mon–Wed); times are the 08:30–13:00 drop-off grid.
+   bookable open days (Mon–Wed); times are the 08:30–13:00 drop-off grid. Each
+   candidate day is re-checked with the same group allocator the time screen
+   uses, and a day with no drop-off time for the chosen dogs is not offered.
 4. On **CONFIRM**, the endpoint inserts the booking (`source = 'whatsapp_flow'`,
    `status = 'Booked'`). The capacity trigger is the hard guard: if the slot
    was taken in a race it raises `P0001`, which we surface as a "slot taken"

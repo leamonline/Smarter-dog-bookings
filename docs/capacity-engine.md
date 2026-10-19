@@ -201,7 +201,8 @@ daily dog cap. Enforced in all three implementations (migration
 - `validate_booking_capacity()` subtracts the target slot's blocked-seat
   count from its max seats (inside the per-slot advisory lock;
   `staff_capacity_override` bypasses it like the other seat rules), and
-  `get_small_medium_availability()` uses `slot_cap = 2 − blocked`.
+  `get_small_medium_availability()` subtracts the same count from the 2-2-1
+  ceiling (see "Availability RPC" below).
 - Both TS engines make bookings claim **non-blocked** seat indexes, so a
   booking can no longer land on a blocked index and silently displace the
   block (the old quirk that re-opened the second seat).
@@ -255,6 +256,21 @@ Three SQL touchpoints, all in migration
 - `get_small_medium_availability()` / `get_large_dog_day_availability()` —
   apply the same predicate so the WhatsApp Flow and agent never offer a
   today-slot the trigger would reject.
+
+### Availability RPC (`get_small_medium_availability`)
+
+Since migration `20261019150000_availability_rpc_matches_trigger.sql` the RPC
+answers "would the trigger accept ONE more small/medium dog here?" by reusing
+the trigger's own helpers rather than a simplified rule: `get_seats_used()`
+(Cancelled and No-show free their seat), `get_max_seats_for_slot()` over the
+whole per-date grid (2-2-1), 13:00 closed after a large dog at 12:00, blocked
+seats subtracted, large-dog slots excluded, and any day at
+`salon_config.daily_dog_cap` omitted. Before it, the RPC counted every booking
+row and ignored 2-2-1 and the daily cap, so a full day could still be offered.
+It remains a single-dog pre-filter: group placement is the allocator's job
+(`groupAllocations`, which the Flow also uses to drop days with no drop-off
+time), and the trigger stays the final authority.
+`supabase/tests/252_availability_rpc_matches_trigger.test.sql` pins each rule.
 - `get_immediate_slots()` — the customer-safe read (portal "Today — last
   minute" entry + Flow), returning today's still-bookable flagged slots.
 

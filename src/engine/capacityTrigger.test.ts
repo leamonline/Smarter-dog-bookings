@@ -174,16 +174,36 @@ describe("capacity trigger: staff-blocked seats", () => {
   });
 
   it("the small/medium availability RPC applies the same per-slot reduction", () => {
-    // Keep the Flow/agent's offered availability in step with the trigger:
-    // slot_cap = 2 - blocked_count (clamped), not the old both-blocked-only
-    // rule, so a slot the trigger would reject is never offered.
+    // Keep the Flow/agent's offered availability in step with the trigger: the
+    // ceiling is the trigger's own 2-2-1 helper minus blocked seats (clamped),
+    // seats are counted the way the trigger counts them, and a day at the
+    // daily cap is not offered — so a slot the trigger would reject is never
+    // offered.
     const fn = lastDefinitionOf(
       /create\s+or\s+replace\s+function\s+get_small_medium_availability\(/i,
     );
 
-    expect(fn, "slot_cap must subtract blocked seats").toMatch(
-      /greatest\(\s*\n?\s*2\s*-\s*\(/i,
+    expect(fn, "ceiling must come from the 2-2-1 helper").toMatch(
+      /get_max_seats_for_slot\(\s*u\.idx\s*,\s*ds\.used_arr\s*\)/i,
+    );
+    expect(fn, "slot_cap must subtract blocked seats and clamp at zero").toMatch(
+      /greatest\(\s*case[\s\S]*?end\s*-\s*\(\s*select\s+count\(\*\)[\s\S]*?\)::integer\s*,\s*0\s*\)/i,
     );
     expect(fn, "must guard malformed seat keys").toMatch(/\^\[0-9\]\+\$/);
+    expect(fn, "must count only 'blocked' values").toMatch(
+      /seat\.v\s*=\s*'blocked'/i,
+    );
+    expect(fn, "must close 13:00 after a large dog at 12:00").toMatch(
+      /u\.slot\s*=\s*'13:00'\s+and\s+ds\.early_close/i,
+    );
+    expect(fn, "seats used must free Cancelled and No-show").toMatch(
+      /get_seats_used\(/i,
+    );
+    expect(fn, "the day count must use the shared occupancy predicate").toMatch(
+      /booking_occupies_seat\(\s*b\.status\s*\)/i,
+    );
+    expect(fn, "a day at the daily cap must not be offered").toMatch(
+      /ss\.dogs_booked\s*<\s*dc\.cap/i,
+    );
   });
 });
