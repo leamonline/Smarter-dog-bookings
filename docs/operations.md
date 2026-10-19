@@ -111,7 +111,18 @@ needs the authority `AGENTS.md` describes.
 |---|---|---|
 | `production` environment secret | `PRODUCTION_SUPABASE_ACCESS_TOKEN` | Supabase Management API token; already required by the production migration workflow |
 | `production` environment secret | `BACKUP_AGE_PUBLIC_KEY` | The `age1…` recipient the dump is encrypted to |
+| `production-scheduled-backup` environment secret | `PRODUCTION_SUPABASE_ACCESS_TOKEN` | Its own copy, for the Sunday scheduled run |
+| `production-scheduled-backup` environment secret | `BACKUP_AGE_PUBLIC_KEY` | Its own copy of the same `age1…` recipient |
 | Repository variable | `DATABASE_BACKUP_ENABLED` | `true` to run; anything else skips the job |
+
+**Scheduled runs need no approval** (owner decision, 19 October 2026). The
+Sunday run uses `production-scheduled-backup`, an environment with no required
+reviewers, so a week's backup is not lost because nobody approved it. It stays
+safe because that environment can deploy only from `main`, only the `schedule`
+event may use it (the workflow's first step refuses anything else), and a
+schedule runs the copy of the workflow already merged to `main`. A run started
+by hand still goes through `production` and its reviewer. Reverting this means
+pointing the job back at `production` alone and deleting the extra environment.
 
 Both secrets belong on the environment only, never at repository level, for
 the reason `migrations.md` gives: an unconfigured environment must fail closed.
