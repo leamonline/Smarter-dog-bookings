@@ -6,6 +6,7 @@
 // (`{ data, error }`, with `error.context` holding the Response on a non-2xx)
 // so the components keep their own error-payload parsing and toast copy.
 import { supabase } from "../client";
+import { invokeWithSessionRetry } from "./inbox/helpers";
 
 type Client = NonNullable<typeof supabase>;
 
@@ -14,21 +15,9 @@ function requireClient(): Client {
   return supabase;
 }
 
-/**
- * Invoke a staff edge function, retrying once after a forced session refresh
- * if it answers 401. An installed PWA left asleep can wake with a session the
- * background refresh never renewed; supabase-js then sends the anon key and
- * the function rejects it as "invalid token". If the refresh fails too, the
- * 401 result is returned as-is and the caller shows "sign in again".
- */
-async function invokeStaff(name: string, body: Record<string, unknown>) {
-  const client = requireClient();
-  const first = await client.functions.invoke(name, { body });
-  const status = (first.error as { context?: { status?: number } } | null)?.context?.status;
-  if (status !== 401) return first;
-  const { data, error } = await client.auth.refreshSession();
-  if (error || !data?.session) return first;
-  return client.functions.invoke(name, { body });
+/** Every staff call goes through the shared 401 refresh-and-retry. */
+function invokeStaff(name: string, body: Record<string, unknown>) {
+  return invokeWithSessionRetry(requireClient(), name, { body });
 }
 
 export type NotificationTrigger = string;

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 // Shared helpers for the useWhatsAppInbox surface. Extracted from the
 // monolithic hook so smaller sub-hooks (useOutboundSender etc.) can
 // reuse them without dragging the rest of the inbox state along.
@@ -65,4 +66,30 @@ export async function parseSupabaseFunctionError(
     /* fall through */
   }
   return detail;
+}
+
+/** The slice of a Supabase client the session retry needs. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any schema's client qualifies
+type RetryableClient = Pick<SupabaseClient<any, any, any>, "functions" | "auth">;
+
+/**
+ * Invoke an edge function, retrying once after a forced session refresh if it
+ * answers 401. An installed PWA left asleep can wake with a session the
+ * background refresh never renewed; supabase-js then sends the anon key and
+ * the function rejects it as "invalid token". Every staff function checks the
+ * caller before doing anything, so a 401 means nothing was sent and the retry
+ * cannot double-send. If the refresh fails, the original 401 is returned and
+ * parseSupabaseFunctionError shows SESSION_EXPIRED_MESSAGE.
+ */
+export async function invokeWithSessionRetry<T = unknown>(
+  client: RetryableClient,
+  name: string,
+  options: { body: Record<string, unknown> },
+) {
+  const first = await client.functions.invoke<T>(name, options);
+  const status = (first.error as { context?: { status?: number } } | null)?.context?.status;
+  if (status !== 401) return first;
+  const { data, error } = await client.auth.refreshSession();
+  if (error || !data?.session) return first;
+  return client.functions.invoke<T>(name, options);
 }
