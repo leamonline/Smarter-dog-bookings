@@ -50,8 +50,12 @@ permissions:
   contents: read
   actions: read # only to confirm the production environment really gates this job
 
+# Separate groups for scheduled and manual runs: a manual run waiting for the
+# production reviewer would otherwise hold the group and leave the Sunday run
+# pending (or replaced), which is the very loss the no-approval schedule exists
+# to prevent. Both only read production, so overlapping is harmless.
 concurrency:
-  group: database-backup
+  group: database-backup-${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
   cancel-in-progress: false
 
 jobs:

@@ -26,6 +26,12 @@ describe("database-backup.yml approval rule", () => {
     expect(workflow).toContain(".custom_branch_policies == true");
   });
 
+  it("keeps scheduled runs out of the manual runs' concurrency group", () => {
+    expect(workflow).toContain(
+      "group: database-backup-${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}",
+    );
+  });
+
   it("still runs only from main and only when enabled", () => {
     expect(workflow).toContain('if [ "$GITHUB_REF" != "refs/heads/main" ]; then');
     expect(workflow).toContain("if: ${{ vars.DATABASE_BACKUP_ENABLED == 'true' }}");

@@ -48,12 +48,15 @@ variable `DATABASE_BACKUP_ENABLED` is `true`; merging the workflow changed
 nothing.
 
 **How it proves its target.** It is the read-only twin of
-*Apply named migrations to production*: it runs under the `production` GitHub
-environment, so the same required reviewer approves every run (a scheduled run
-waits for that approval and sends the usual notification); its first step
-checks the environment really has required reviewers and a deployment branch
-policy, that the secrets below reached the job, and that the age recipient is
-well-formed, all before checkout; it links production with the explicit ref and
+*Apply named migrations to production*. A run started **by hand** runs under
+the `production` GitHub environment, so the same required reviewer approves it.
+The **scheduled** Sunday run runs under `production-scheduled-backup`, which
+has no reviewers (see "Scheduled runs need no approval" below). Either way its
+first step checks, before checkout, that the environment for this trigger
+exists; that `production` has required reviewers (manual runs) or that
+`production-scheduled-backup` can deploy only from `main` (scheduled runs);
+that the secrets below reached the job; and that the age recipient is
+well-formed; it links production with the explicit ref and
 asserts `supabase/.temp/project-ref` immediately before every linked command,
 as [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md)
 requires. It runs no write against production.
@@ -94,14 +97,16 @@ the recipient in `BACKUP_AGE_PUBLIC_KEY`. Make the key pair once, offline:
 age-keygen -o smarter-dog-backup-key.txt     # prints the public key (age1…) to stderr
 ```
 
-Put the **public** line (`age1…`) in the `production` environment secret. Keep
+Put the **public** line (`age1…`) in the `BACKUP_AGE_PUBLIC_KEY` secret of
+**both** environments, `production` and `production-scheduled-backup`. Keep
 `smarter-dog-backup-key.txt` (the `AGE-SECRET-KEY-…` line) **offline, held by
 the owner**: a password manager entry plus a printed copy in the same place as
 the business's other critical papers. It must never be stored in GitHub, in
 the repository, in `.env*`, or on a shared drive. **Losing the private key makes
 every backup unreadable**; rotate by generating a new pair, replacing the
-secret, and keeping the old private key until its last 90-day artifact has
-expired. Anyone who obtains the private key and a downloaded artifact has the
+secret **in both environments at once** (a missed copy keeps encrypting Sunday
+backups to the old key), and keeping the old private key until the last
+artifact encrypted to it, manual or scheduled, has passed its 90-day expiry. Anyone who obtains the private key and a downloaded artifact has the
 whole customer database, so an artifact download is a customer-data access and
 needs the authority `AGENTS.md` describes.
 
