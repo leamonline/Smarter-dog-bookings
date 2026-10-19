@@ -20,6 +20,7 @@ describe("documentTitleFor", () => {
     ["customer", "/new", null, "setup", "Your account · Smarter Dog Bookings"],
     ["customer", "/NEW//", null, "in", "Book a groom · Smarter Dog Bookings"],
     ["customer", "/Login", null, "in", "My bookings · Smarter Dog Bookings"],
+    ["customer", "//new", null, "in", "My bookings · Smarter Dog Bookings"],
     ["reset-password", "/reset-password", null, "in", "Reset password · Smarter Dog Bookings"],
   ] as const)("%s %s (%s) → %s", (mount, path, section, auth, expected) => {
     expect(documentTitleFor(mount, path, section, auth)).toBe(expected);
@@ -36,7 +37,8 @@ describe("normaliseTitlePath", () => {
   it.each([
     ["/DOGS/123", "/dogs/123"],
     ["/new//", "/new"],
-    ["//today", "/today"],
+    ["//today", "//today"],
+    ["//new", "//new"],
     ["/", "/"],
     ["", "/"],
   ])("%s → %s", (raw, expected) => {

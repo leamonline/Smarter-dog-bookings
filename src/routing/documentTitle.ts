@@ -21,13 +21,15 @@ export type TitleMount = "staff" | "customer" | "reset-password";
 export type TitleAuth = "in" | "out" | "denied" | "loading" | "setup";
 
 /**
- * React Router matches case-insensitively and tolerates repeated trailing
- * slashes, so `/book/NEW//` renders the wizard. Titles are resolved from the
- * same normalised form, so they describe the view that actually rendered.
+ * React Router matches case-insensitively and tolerates trailing slashes, so
+ * `/book/NEW//` renders the wizard. It does NOT collapse an internal double
+ * slash: `/book//new` misses the `new` route and renders the dashboard. So this
+ * lowercases and strips trailing slashes only, and the title describes the view
+ * that actually rendered.
  */
 export function normaliseTitlePath(pathname: string): string {
-  const lower = (pathname || "/").toLowerCase().replace(/\/{2,}/g, "/");
-  const trimmed = lower.length > 1 ? lower.replace(/\/+$/, "") : lower;
+  const lower = (pathname || "/").toLowerCase();
+  const trimmed = lower.replace(/\/+$/, "");
   return trimmed || "/";
 }
 
