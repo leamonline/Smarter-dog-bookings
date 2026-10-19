@@ -9,14 +9,17 @@
 // the kill switch, the posting window, the deduplication claim and the
 // privacy rule cannot be bypassed by a future call site that forgets them.
 //
-// Called only by Postgres — pg_net from a booking_events trigger, and pg_cron
-// for the sweeps. Never by a browser. Auth is the webhook Bearer secret.
+// Called by Postgres — pg_net from a booking_events trigger, and pg_cron for
+// the sweeps — and by the AI edge functions for ai_credit (via
+// _shared/aiCreditAlert.ts). Never by a browser. Auth is the webhook Bearer
+// secret.
 //
-// THREE MODES
+// FOUR MODES
 //   event    a booking was created, moved or cancelled (trigger, immediate)
 //   sweep    every 5 minutes: no-shows, dogs left in Ready, unanswered
 //            messages — plus flushing anything queued out of hours
 //   summary  08:15 London: the day ahead, and whether it is quiet or full
+//   ai_credit  an AI caller hit "credit balance is too low" (once a day)
 //
 // Why that split: the trigger alerts are EVENTS — there is an exact moment
 // they happen and the database already recorded it. The sweep alerts are the
@@ -646,6 +649,20 @@ serve(async (req) => {
             typeof payload.at_hour_uk === "number" ? payload.at_hour_uk : null,
             now,
           )),
+        });
+      case "ai_credit":
+        // Raised by any AI caller when Anthropic says the account is out of
+        // credit. Not queueable: out of hours it drops without claiming, and
+        // the next AI call inside the window raises it again.
+        return json({
+          ok: true,
+          alerts: [
+            await postToSlack(
+              supabase,
+              { type: "ai_credit", date: londonWallClock(now).dateStr },
+              now,
+            ),
+          ],
         });
       default:
         return json({ error: "unknown mode", mode }, 400);

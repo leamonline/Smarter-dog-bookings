@@ -310,6 +310,18 @@ Deno.test("the morning summary is keyed once per day", () => {
   );
 });
 
+Deno.test("the AI credit alert is keyed once per day", () => {
+  assertEquals(buildDedupeKey({ type: "ai_credit", date: "2026-10-19" }), "aicredit:2026-10-19");
+});
+
+Deno.test("the AI credit alert is red, says what is off, and links billing", () => {
+  const text = buildAlertText({ type: "ai_credit", date: "2026-10-19" });
+  assert(text.startsWith("\u{1F534}"));
+  assertStringIncludes(text, "AI out of credit");
+  assertStringIncludes(text, "Generate reply");
+  assertStringIncludes(text, "<https://console.anthropic.com/settings/billing|Top up credit>");
+});
+
 // ── Severity ───────────────────────────────────────────────────────────
 
 Deno.test("severity emoji match the brief's event table", () => {
@@ -372,6 +384,7 @@ const everyAlert = (booking: BookingSubject): AlertInput[] => [
     firstSlot: "08:30",
     lastSlot: "13:00",
   },
+  { type: "ai_credit", date: "2026-06-15" },
 ];
 
 Deno.test("no alert can contain an owner name, phone, address or note", () => {

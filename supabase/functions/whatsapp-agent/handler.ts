@@ -115,6 +115,7 @@ import {
 } from "../_shared/manageBooking.ts";
 
 import { agentCalendar, addCalendarDays, contextHorizon, bookEntryOutcome, type BookEntryOutcome } from "../_shared/agentContext.ts";
+import { isCreditExhausted, reportAiCreditExhausted } from "../_shared/aiCreditAlert.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1036,6 +1037,7 @@ async function callClaude(
 
   if (!res.ok) {
     const errText = await res.text();
+    if (isCreditExhausted(errText)) await reportAiCreditExhausted("whatsapp-agent");
     throw new Error(`Anthropic API ${res.status}: ${errText}`);
   }
 

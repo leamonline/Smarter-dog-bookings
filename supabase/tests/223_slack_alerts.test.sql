@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(16);
 
 -- ── Shape ─────────────────────────────────────────────────────
 select has_table('public', 'slack_alerts', 'slack_alerts exists');
@@ -45,6 +45,11 @@ select throws_ok(
   $$ insert into public.slack_alerts (alert_key, alert_type, severity)
      values ('k1', 'not_a_real_alert', 'act') $$,
   '23514', null, 'an unknown alert_type is rejected'
+);
+select lives_ok(
+  $$ insert into public.slack_alerts (alert_key, alert_type, severity)
+     values ('aicredit:2026-10-19', 'ai_credit', 'act') $$,
+  'the out-of-credit alert type is accepted (20261019160000)'
 );
 select throws_ok(
   $$ insert into public.slack_alerts (alert_key, alert_type, severity)
