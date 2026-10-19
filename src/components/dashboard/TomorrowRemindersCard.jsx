@@ -13,6 +13,7 @@
 import { useMemo, useState } from "react";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { parseSupabaseFunctionError } from "../../supabase/hooks/inbox/helpers";
 import { useStaffMessaging } from "../../supabase/hooks/useStaffMessaging";
 import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
@@ -130,16 +131,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       // this customer has that day and sends a single combined reminder.
       const { data: result, error: invokeErr } =
         await messaging.sendBookingReminder(row.anchorBookingId);
-      if (invokeErr) {
-        let detail = invokeErr.message ?? "Reminder failed";
-        try {
-          const errorBody = await invokeErr.context?.json?.();
-          if (errorBody?.error) detail = errorBody.error;
-        } catch {
-          /* fall through */
-        }
-        throw new Error(detail);
-      }
+      if (invokeErr) throw new Error(await parseSupabaseFunctionError(invokeErr, "Reminder failed"));
       const anyFail = (result?.results ?? []).some((r) => !r.success);
       if (anyFail) {
         toast.show(

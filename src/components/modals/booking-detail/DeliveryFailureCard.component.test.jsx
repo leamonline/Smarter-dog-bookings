@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { DeliveryFailureCard } from "./DeliveryFailureCard.jsx";
 
+const toastShow = vi.hoisted(() => vi.fn());
 vi.mock("../../../contexts/ToastContext.jsx", () => ({
-  useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
+  useToast: () => ({ show: toastShow, dismiss: vi.fn() }),
 }));
 
 const resendMock = vi.hoisted(() => vi.fn(async () => ({ error: null })));
@@ -97,5 +98,23 @@ describe("DeliveryFailureCard: resending an SMS fallback row", () => {
     await userEvent.click(screen.getByRole("button", { name: /resend message/i }));
     expect(resendMock).toHaveBeenCalledTimes(1);
     expect(resendMock).toHaveBeenCalledWith("b1", "cancelled");
+  });
+});
+
+describe("DeliveryFailureCard: an expired login", () => {
+  it("asks staff to sign in again instead of showing 'invalid token'", async () => {
+    resendMock.mockClear();
+    toastShow.mockClear();
+    resendMock.mockResolvedValueOnce({
+      error: {
+        message: "non-2xx",
+        context: { status: 401, json: async () => ({ error: "invalid token" }) },
+      },
+    });
+    render(<DeliveryFailureCard {...props} />);
+    await userEvent.click(screen.getByRole("button", { name: /resend message/i }));
+    const shown = toastShow.mock.calls.map((c) => c[0]).join(" | ");
+    expect(shown).toContain("Your login has expired. Please sign in again.");
+    expect(shown).not.toContain("invalid token");
   });
 });

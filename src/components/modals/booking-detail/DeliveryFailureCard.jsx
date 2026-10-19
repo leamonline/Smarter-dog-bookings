@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Send } from "lucide-react";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
+import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { baseTrigger, triggerLabel } from "../../../supabase/hooks/useDeliveryFailures";
 import { isDeliveryUnconfirmed } from "../../../../supabase/functions/_shared/twilioDelivery";
@@ -92,13 +93,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
         const { error: invokeErr } = await messaging.resendBookingNotification(booking.id, trigger);
         if (invokeErr) {
           anyError = true;
-          let detail = invokeErr.message ?? "Resend failed";
-          try {
-            const body = await invokeErr.context?.json?.();
-            if (body?.error) detail = body.error;
-          } catch {
-            /* non-JSON */
-          }
+          const detail = await parseSupabaseFunctionError(invokeErr, "Resend failed");
           toast.show(`${triggerLabel(trigger)} resend failed: ${detail}`, "error");
         }
       }
