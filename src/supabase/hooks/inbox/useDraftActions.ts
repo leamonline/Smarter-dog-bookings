@@ -22,7 +22,7 @@ import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
-import { parseSupabaseFunctionError, SEND_FUNCTION_PATH } from "./helpers";
+import { invokeWithSessionRetry, parseSupabaseFunctionError, SEND_FUNCTION_PATH } from "./helpers";
 
 /** The draft fields this hook reads; the thread holds the full whatsapp_drafts row. */
 export interface PendingDraft {
@@ -81,7 +81,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     setActionInFlight(true);
     try {
       if (!supabase) throw new Error("Not connected");
-      const { data, error } = await supabase.functions.invoke<SendFunctionResponse>(SEND_FUNCTION_PATH, {
+      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, SEND_FUNCTION_PATH, {
         body: {
           mode: "draft",
           draft_id: draft.id,
@@ -158,7 +158,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     setActionInFlight(true);
     try {
       if (!supabase) throw new Error("Not connected");
-      const { data, error } = await supabase.functions.invoke<SendFunctionResponse>(SEND_FUNCTION_PATH, {
+      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, SEND_FUNCTION_PATH, {
         body: {
           mode: "manual",
           conversation_id: selectedId,

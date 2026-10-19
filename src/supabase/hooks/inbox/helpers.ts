@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 // Shared helpers for the useWhatsAppInbox surface. Extracted from the
 // monolithic hook so smaller sub-hooks (useOutboundSender etc.) can
 // reuse them without dragging the rest of the inbox state along.
@@ -20,8 +21,15 @@ export type InboxActionResult<T = object> =
  */
 interface FunctionErrorLike {
   message?: string;
-  context?: { json?: () => Promise<unknown> };
+  context?: { status?: number; json?: () => Promise<unknown> };
 }
+
+/**
+ * Shown when an edge function answers 401. Every staff-callable function
+ * uses 401 only for "no usable login" ("missing authorization" / "invalid
+ * token"), which staff can only fix by signing in again.
+ */
+export const SESSION_EXPIRED_MESSAGE = "Your login has expired. Please sign in again.";
 
 interface FunctionErrorBody {
   error?: unknown;
@@ -42,6 +50,7 @@ export async function parseSupabaseFunctionError(
   error: FunctionErrorLike,
   fallbackMessage: string,
 ): Promise<string> {
+  if (error.context?.status === 401) return SESSION_EXPIRED_MESSAGE;
   let detail = error.message ?? fallbackMessage;
   try {
     const errorBody = (await error.context?.json?.()) as FunctionErrorBody | null | undefined;
@@ -57,4 +66,30 @@ export async function parseSupabaseFunctionError(
     /* fall through */
   }
   return detail;
+}
+
+/** The slice of a Supabase client the session retry needs. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any schema's client qualifies
+type RetryableClient = Pick<SupabaseClient<any, any, any>, "functions" | "auth">;
+
+/**
+ * Invoke an edge function, retrying once after a forced session refresh if it
+ * answers 401. An installed PWA left asleep can wake with a session the
+ * background refresh never renewed; supabase-js then sends the anon key and
+ * the function rejects it as "invalid token". Every staff function checks the
+ * caller before doing anything, so a 401 means nothing was sent and the retry
+ * cannot double-send. If the refresh fails, the original 401 is returned and
+ * parseSupabaseFunctionError shows SESSION_EXPIRED_MESSAGE.
+ */
+export async function invokeWithSessionRetry<T = unknown>(
+  client: RetryableClient,
+  name: string,
+  options: { body: Record<string, unknown> },
+) {
+  const first = await client.functions.invoke<T>(name, options);
+  const status = (first.error as { context?: { status?: number } } | null)?.context?.status;
+  if (status !== 401) return first;
+  const { data, error } = await client.auth.refreshSession();
+  if (error || !data?.session) return first;
+  return client.functions.invoke<T>(name, options);
 }

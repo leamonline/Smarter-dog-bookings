@@ -16,7 +16,9 @@ const {
 } = await import("./useStaffMessaging");
 
 const invoke = vi.fn(async () => ({ data: { ok: true }, error: null }));
-const client = { functions: { invoke } };
+const refreshSession = vi.fn(async () => ({ data: { session: { access_token: "new" } }, error: null }));
+const client = { functions: { invoke }, auth: { refreshSession } };
+const unauthorised = { data: null, error: { message: "non-2xx", context: { status: 401 } } };
 
 beforeEach(() => {
   (globalThis as { __staffClient?: unknown }).__staffClient = client;
@@ -84,5 +86,28 @@ describe("useStaffMessaging", () => {
     await expect(broadcastMessage({ bookingDate: "d", reason: "r", dryRun: false })).rejects.toThrow("Not connected");
     await expect(resendBookingNotification("b", "t")).rejects.toThrow("Not connected");
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the session and retries once when a function answers 401", async () => {
+    invoke.mockResolvedValueOnce(unauthorised as never);
+    const result = await sendBookingReminder("b-9");
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ data: { ok: true }, error: null });
+  });
+
+  it("returns the original 401 without retrying when the refresh fails", async () => {
+    invoke.mockResolvedValueOnce(unauthorised as never);
+    refreshSession.mockResolvedValueOnce({ data: { session: null }, error: { message: "revoked" } } as never);
+    const result = await sendBookingReminder("b-9");
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(result).toBe(unauthorised);
+  });
+
+  it("does not refresh on any other failure", async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: { context: { status: 500 } } } as never);
+    await sendBookingReminder("b-9");
+    expect(refreshSession).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
   });
 });

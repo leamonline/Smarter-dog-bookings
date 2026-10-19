@@ -153,4 +153,39 @@ describe("useOutboundSender", () => {
     );
     expect(refreshList).toHaveBeenCalledTimes(1);
   });
+
+  it("sendOutboundSMS refreshes a stale session and retries once after a 401", async () => {
+    const invoke = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: { message: "non-2xx", context: { status: 401 } } })
+      .mockResolvedValueOnce({ data: null, error: null });
+    const refreshSession = vi.fn(() => Promise.resolve({ data: { session: {} }, error: null }));
+    setSupabase({ functions: { invoke }, auth: { refreshSession } });
+    const refreshList = vi.fn(() => Promise.resolve([]));
+    const { result } = renderHook(() => useOutboundSender({ refreshList }));
+
+    let res;
+    await act(async () => {
+      res = await result.current.sendOutboundSMS({ phoneE164: "+447700900111", text: "Hi" });
+    });
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(res.ok).toBe(true);
+  });
+
+  it("sendOutboundSMS asks staff to sign in again when the refresh also fails", async () => {
+    const invoke = vi.fn(() =>
+      Promise.resolve({ data: null, error: { message: "non-2xx", context: { status: 401 } } }),
+    );
+    const refreshSession = vi.fn(() => Promise.resolve({ data: { session: null }, error: { message: "revoked" } }));
+    setSupabase({ functions: { invoke }, auth: { refreshSession } });
+    const { result } = renderHook(() => useOutboundSender({ refreshList: vi.fn() }));
+
+    let res;
+    await act(async () => {
+      res = await result.current.sendOutboundSMS({ phoneE164: "+447700900111", text: "Hi" });
+    });
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(res).toEqual({ ok: false, reason: "Your login has expired. Please sign in again." });
+  });
 });

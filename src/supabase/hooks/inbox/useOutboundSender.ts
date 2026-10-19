@@ -17,7 +17,7 @@
 import { useCallback } from "react";
 import { supabase } from "../../client";
 import { buildTemplateParams } from "../../../constants/whatsappTemplates.js";
-import { SEND_FUNCTION_PATH, parseSupabaseFunctionError } from "./helpers";
+import { SEND_FUNCTION_PATH, invokeWithSessionRetry, parseSupabaseFunctionError } from "./helpers";
 import type { InboxActionResult } from "./helpers";
 
 /** The subset of a WHATSAPP_TEMPLATES entry a send needs (the picker passes the whole entry). */
@@ -59,7 +59,7 @@ export function useOutboundSender<C>({
         return { ok: false, reason: "missing recipient or text" };
       }
       if (!supabase) return { ok: false, reason: "Not connected" };
-      const { error } = await supabase.functions.invoke("sms-send", {
+      const { error } = await invokeWithSessionRetry(supabase, "sms-send", {
         body: {
           mode: "manual",
           to: phoneE164,
@@ -84,7 +84,7 @@ export function useOutboundSender<C>({
       }
       if (!supabase) return { ok: false, reason: "Not connected" };
       const params = buildTemplateParams(template, paramValues);
-      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+      const { error } = await invokeWithSessionRetry(supabase, SEND_FUNCTION_PATH, {
         body: {
           mode: "template",
           to: phoneE164,

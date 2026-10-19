@@ -6,6 +6,7 @@
 // (`{ data, error }`, with `error.context` holding the Response on a non-2xx)
 // so the components keep their own error-payload parsing and toast copy.
 import { supabase } from "../client";
+import { invokeWithSessionRetry } from "./inbox/helpers";
 
 type Client = NonNullable<typeof supabase>;
 
@@ -14,27 +15,26 @@ function requireClient(): Client {
   return supabase;
 }
 
+/** Every staff call goes through the shared 401 refresh-and-retry. */
+function invokeStaff(name: string, body: Record<string, unknown>) {
+  return invokeWithSessionRetry(requireClient(), name, { body });
+}
+
 export type NotificationTrigger = string;
 
 /** resend-booking-notification: dispatches server-side to the right notify function. */
 export async function resendBookingNotification(bookingId: string, triggerType: NotificationTrigger) {
-  return requireClient().functions.invoke("resend-booking-notification", {
-    body: { booking_id: bookingId, trigger_type: triggerType },
-  });
+  return invokeStaff("resend-booking-notification", { booking_id: bookingId, trigger_type: triggerType });
 }
 
 /** broadcast-message: message every customer booked on a date (dry run previews). */
 export async function broadcastMessage(input: { bookingDate: string; reason: string; dryRun: boolean }) {
-  return requireClient().functions.invoke("broadcast-message", {
-    body: { booking_date: input.bookingDate, reason: input.reason, dry_run: input.dryRun },
-  });
+  return invokeStaff("broadcast-message", { booking_date: input.bookingDate, reason: input.reason, dry_run: input.dryRun });
 }
 
 /** notify-booking-reminder: one anchor booking id; the function expands it to the customer's dogs that day. */
 export async function sendBookingReminder(anchorBookingId: string) {
-  return requireClient().functions.invoke("notify-booking-reminder", {
-    body: { booking_id: anchorBookingId },
-  });
+  return invokeStaff("notify-booking-reminder", { booking_id: anchorBookingId });
 }
 
 /** whatsapp-send in template mode: one approved Meta template to one number, logged to the inbox. */
@@ -45,23 +45,19 @@ export async function sendWhatsAppTemplate(input: {
   params: unknown;
   humanId: string;
 }) {
-  return requireClient().functions.invoke("whatsapp-send", {
-    body: {
+  return invokeStaff("whatsapp-send", {
       mode: "template",
       to: input.to,
       template_name: input.templateName,
       language: input.language,
       params: input.params,
       human_id: input.humanId,
-    },
-  });
+    });
 }
 
 /** reminder-send: the staff-composed reminder on the chosen channel for one anchor booking. */
 export async function sendReminder(anchorBookingId: string, channelPayload: Record<string, unknown>) {
-  return requireClient().functions.invoke("reminder-send", {
-    body: { booking_id: anchorBookingId, ...channelPayload },
-  });
+  return invokeStaff("reminder-send", { booking_id: anchorBookingId, ...channelPayload });
 }
 
 const messaging = {

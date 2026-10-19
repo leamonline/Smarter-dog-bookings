@@ -36,6 +36,7 @@ import {
 import { logger } from "../../lib/logger";
 import {
   SEND_FUNCTION_PATH,
+  invokeWithSessionRetry,
   parseSupabaseFunctionError,
 } from "./inbox/helpers";
 import { useOutboundSender } from "./inbox/useOutboundSender";
@@ -512,7 +513,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
 
       const params = buildTemplateParams(template, paramValues);
 
-      const { error } = await requireClient().functions.invoke(SEND_FUNCTION_PATH, {
+      const { error } = await invokeWithSessionRetry(requireClient(), SEND_FUNCTION_PATH, {
         body: {
           mode: "template",
           to: selectedConversation.phone_e164,
