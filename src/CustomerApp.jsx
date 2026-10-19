@@ -73,18 +73,21 @@ function CustomerAppContent() {
     },
     from: location.state?.from,
   });
-  // The title follows the gate the render below resolves to: a customer held at
-  // an account step (password, approval, profile) is not on the dashboard yet.
-  const atDestination = !!humanRecord
-    && hasPassword !== false && !mustSetPassword
-    && !signup.loading && signup.status !== "onboarding" && signup.status !== "pending"
-    && !gate.loading && gate.complete;
-  useDocumentTitle(
-    "customer",
-    authRoute.status === "loading" || (user && (signup.loading || gate.loading)) ? "loading"
-      : authRoute.status === "login" || !user ? "out"
-        : atDestination ? "in" : "setup",
-  );
+  // The title follows the gate the render below resolves to, checked in the
+  // SAME order as those early returns: the first gate that would render
+  // decides, so a loading check further down never hides a screen already up.
+  const titleAuth = (() => {
+    if (authRoute.status === "loading") return "loading";
+    if (authRoute.status === "login" || !user) return "out";
+    if (!humanRecord) return "setup";
+    if (hasPassword === false || mustSetPassword) return "setup";
+    if (signup.loading) return "loading";
+    if (signup.status === "onboarding" || signup.status === "pending") return "setup";
+    if (gate.loading) return "loading";
+    if (!gate.complete) return "setup";
+    return "in";
+  })();
+  useDocumentTitle("customer", titleAuth);
 
   if (authRoute.status === "loading") {
     return (
