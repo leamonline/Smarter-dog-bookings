@@ -7,12 +7,12 @@ import { sectionTitleFor } from "../components/layout/navConfig.jsx";
 
 /**
  * @param {"staff" | "customer" | "reset-password"} mount
- * @param {boolean} [signedIn]
+ * @param {"in" | "out" | "denied"} [auth]
  */
-export function useDocumentTitle(mount, signedIn = true) {
+export function useDocumentTitle(mount, auth = "in") {
   const { pathname } = useLocation();
   useEffect(() => {
     const section = mount === "staff" ? sectionTitleFor(pathname) : null;
-    document.title = documentTitleFor(mount, pathname, section, signedIn);
-  }, [mount, pathname, signedIn]);
+    document.title = documentTitleFor(mount, pathname, section, auth);
+  }, [mount, pathname, auth]);
 }

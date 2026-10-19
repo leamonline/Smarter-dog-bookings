@@ -10,6 +10,9 @@
 
 export type TitleMount = "staff" | "customer" | "reset-password";
 
+/** Where the visitor stands with the entrance's sign-in. */
+export type TitleAuth = "in" | "out" | "denied";
+
 export const STAFF_TITLE_SUFFIX = "Smarter Dog";
 export const CUSTOMER_TITLE_SUFFIX = "Smarter Dog Bookings";
 
@@ -17,22 +20,30 @@ export const CUSTOMER_TITLE_SUFFIX = "Smarter Dog Bookings";
  * @param mount       which entrance is mounted
  * @param pathname    the router's pathname, inside that entrance's basename
  * @param sectionTitle the staff section's display name, for the staff mount
- * @param signedIn    false while the entrance is showing its sign-in screen
+ * @param auth        "out" on the sign-in screen; "denied" when signed in but
+ *                    without a staff profile (the access-needed screen)
  */
 export function documentTitleFor(
   mount: TitleMount,
   pathname: string,
   sectionTitle: string | null | undefined,
-  signedIn = true,
+  auth: TitleAuth = "in",
 ): string {
   if (mount === "reset-password") return `Reset password · ${CUSTOMER_TITLE_SUFFIX}`;
 
   if (mount === "customer") {
-    if (!signedIn || pathname.startsWith("/login")) return `Sign in · ${CUSTOMER_TITLE_SUFFIX}`;
-    if (pathname.startsWith("/new")) return `Book a groom · ${CUSTOMER_TITLE_SUFFIX}`;
+    // Exact segments, matching the router: `/login` is the guard's login route
+    // and `new` the wizard; anything else (`/news`) falls to the dashboard.
+    if (auth !== "in" || isRoute(pathname, "/login")) return `Sign in · ${CUSTOMER_TITLE_SUFFIX}`;
+    if (isRoute(pathname, "/new")) return `Book a groom · ${CUSTOMER_TITLE_SUFFIX}`;
     return `My bookings · ${CUSTOMER_TITLE_SUFFIX}`;
   }
 
-  if (!signedIn) return `Staff sign in · ${STAFF_TITLE_SUFFIX}`;
+  if (auth === "out") return `Staff sign in · ${STAFF_TITLE_SUFFIX}`;
+  if (auth === "denied") return `Staff access needed · ${STAFF_TITLE_SUFFIX}`;
   return sectionTitle ? `${sectionTitle} · ${STAFF_TITLE_SUFFIX}` : STAFF_TITLE_SUFFIX;
+}
+
+function isRoute(pathname: string, route: string): boolean {
+  return pathname === route || pathname === `${route}/`;
 }

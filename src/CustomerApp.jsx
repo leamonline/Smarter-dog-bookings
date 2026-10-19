@@ -73,7 +73,7 @@ function CustomerAppContent() {
     },
     from: location.state?.from,
   });
-  useDocumentTitle("customer", !!user);
+  useDocumentTitle("customer", user ? "in" : "out");
 
   if (authRoute.status === "loading") {
     return (

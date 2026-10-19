@@ -121,7 +121,10 @@ export default function App() {
     warmRouteChunkOnce(window.location.pathname);
   }, [user]);
   // Offline (sample data) has no sign-in, so the views are always showing.
-  useDocumentTitle("staff", !isOnline || !!(user && staffProfile));
+  useDocumentTitle(
+    "staff",
+    !isOnline || (user && staffProfile) ? "in" : user ? "denied" : "out",
+  );
 
   // Dev-only: render the UI kitchen sink before the auth gate so the primitive
   // catalogue is reviewable without signing in. Tree-shaken from production
