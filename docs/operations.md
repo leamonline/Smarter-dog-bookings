@@ -3,8 +3,8 @@
 **Status:** Active
 **Authority:** Operational record for the production database's backup posture
 **Issue:** [#986](https://github.com/leamonline/Smarter-dog-bookings/issues/986)
-**Last verified:** 13 October 2026 (workflow and procedure; the posture checklist
-below is unanswered until the owner fills it in)
+**Last verified:** 19 October 2026 (posture checklist answered, backup enabled,
+first run succeeded, first restore drill **partial**: see the drill log)
 
 Everything else operational lives where it already was: migrations in
 [`migrations.md`](migrations.md), hosted-target control in
@@ -18,9 +18,9 @@ how to get it back.
 Nothing in the repository can read the Supabase plan or its backup settings;
 the owner checks them in the dashboard (Project → Settings → Database →
 Backups, and the organisation's Billing page) and records the answer here.
-Until this table is filled in, assume **no automated backup exists**: the
-README and the advisor notes describe the project as on the Free plan, which
-has none.
+As answered below, the project is on the Free plan, so **Supabase keeps no
+backup of its own**: the encrypted dump in the next section is the only copy
+outside the live database.
 
 | Question | Answer |
 |---|---|
@@ -43,9 +43,10 @@ by hand from Actions → **Encrypted database backup** → *Run workflow* (from
 `main` only). Sunday night is as far as the week allows from the Mon–Wed
 08:00–14:00 London booking window, and the salon is closed Thursday to Sunday.
 
-**It is off until enabled.** The job is skipped entirely unless the repository
-variable `DATABASE_BACKUP_ENABLED` is `true`; merging the workflow changed
-nothing.
+**It is enabled (19 October 2026).** The job is skipped entirely unless the
+repository variable `DATABASE_BACKUP_ENABLED` is `true`, and that variable is now
+set. Every run, scheduled ones included, still waits for the `production`
+reviewer's approval, so a Sunday run that nobody approves produces no backup.
 
 **How it proves its target.** It is the read-only twin of
 *Apply named migrations to production*: it runs under the `production` GitHub
@@ -183,7 +184,7 @@ from artifact download to the counts query. No customer values in this table.
 
 | Date | Artifact | Scratch project ref | Duration | Result | Notes |
 |---|---|---|---|---|---|
-| 19 Oct 2026 | `database-backup-production-2026-10-19-run39190407921` | none: local PostgreSQL 17.11 scratch cluster (see below) | about 2 minutes, download to counts | **Pass**, with the `auth`/`storage` limitation below | First drill (#986). Owner-authorised; run by Claude Code |
+| 19 Oct 2026 | `database-backup-production-2026-10-19-run39190407921` | none: local PostgreSQL 17.11 scratch cluster (see below) | about 2 minutes, download to counts | **Partial**: `public` and `smarter_dog_private` restored and verified; `auth` and `storage` not loaded | First drill (#986). Owner-authorised; run by Claude Code |
 
 **19 October 2026 drill, in detail.** The artifact decrypted with the offline
 key, and both SHA-256 digests matched `manifest.txt`. `schema.sql` restored with
@@ -201,7 +202,8 @@ restore. Every plaintext file and the scratch cluster were deleted afterwards.
 
 Why not a scratch Supabase project, as the procedure above says: restoring into
 one means typing its database password into `psql`, which the agent running
-the drill may not do. **Still unproven: loading `auth` and `storage` into a
-real Supabase project.** A person should run the hosted procedure once, ideally
-before the drill falls due next year. Until then, account recovery after a
-disaster is supported by the counts in the dump, not by a demonstrated load.
+the drill may not do. **This drill does not satisfy "one drill before the workflow
+is trusted"**: loading `auth` and `storage` into a real Supabase project, and so
+account recovery, is still unproven. The required drill stays outstanding until
+a person runs the hosted procedure above successfully. Until then, the dump's
+counts show the data is there; they do not show it can be put back.
