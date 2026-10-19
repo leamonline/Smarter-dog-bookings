@@ -31,6 +31,7 @@ import { DENIAL_REASON_LABELS, mapDenialReason } from "./denials";
 const MIGRATIONS = [
   "../../supabase/migrations/20260826120000_gate_reason_codes.sql",
   "../../supabase/migrations/20260830120000_seat_blocked_reason.sql",
+  "../../supabase/migrations/20261019120000_customer_booking_refusal_codes.sql",
 ].map((rel) => fileURLToPath(new URL(rel, import.meta.url)));
 
 /**
@@ -132,7 +133,15 @@ describe("gate reason codes agree with the prose mapper", () => {
     // stays at 22 — the re-issue adds nothing and loses nothing.
     expect(emittedRaisesIn(MIGRATIONS[0]).length).toBe(26);
     expect(emittedRaisesIn(MIGRATIONS[1]).length).toBe(6);
-    expect(raises.length).toBe(22);
+    // 20261019 adds the four account-state refusals from
+    // create_customer_booking_group (#1006), all new messages: 22 + 4.
+    expect(emittedRaisesIn(MIGRATIONS[2]).map((r) => r.code).sort()).toEqual([
+      "awaiting_approval",
+      "dog_not_owned",
+      "dog_size_unconfirmed",
+      "profile_incomplete",
+    ]);
+    expect(raises.length).toBe(26);
   });
 
   it("lets the re-issue change ONLY the code it exists to change", () => {
@@ -142,7 +151,9 @@ describe("gate reason codes agree with the prose mapper", () => {
     // site would fail here by name.
     const base = new Map(emittedRaisesIn(MIGRATIONS[0]).map((r) => [r.message, r.code]));
     const changed = raises
-      .filter((r) => base.get(r.message) !== r.code)
+      // Only sites the base migration defines: 20261019's four messages are new
+      // (#1006) and pinned by name in the test above.
+      .filter((r) => base.has(r.message) && base.get(r.message) !== r.code)
       .map((r) => `${r.message} → ${r.code}`);
     expect(changed).toEqual(["That time slot is closed on this date → seat_blocked"]);
   });
