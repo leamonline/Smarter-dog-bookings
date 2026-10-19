@@ -1,11 +1,11 @@
 # WhatsApp Business app replies: mirror them into the staff inbox
 
 Status: Draft
-Issue: None yet. Open one when this plan is accepted and put its number here.
+Issue: [#1050](https://github.com/leamonline/Smarter-dog-bookings/issues/1050)
 Base: origin/main, 500ead13400334d0a3187aeb367f02e3c4b2a64e
 Last verified: 2026-10-19
 Owners: `supabase/functions/whatsapp-agent/`, `supabase/functions/whatsapp-webhook/`, `supabase/functions/_shared/` (new echo parser), the staff inbox message bubble, agent tests and this document
-Dependencies: None in code. Two external prerequisites: confirmation that the salon's number is connected to Meta in coexistence mode, and an owner action in the Meta App Dashboard (subscribing one webhook field). Step 0 needs a separately approved read-only production query.
+Dependencies: None in code. Two external prerequisites: confirmation that the salon's number is connected to Meta in coexistence mode, and an owner action in the Meta App Dashboard (subscribing one webhook field). Step 0 (a read-only production query) was approved and run on 19 October 2026; its result is recorded under Implementation sequence.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md); [docs/meta-app-recovery.md](../../meta-app-recovery.md)
 Related ADRs: None identified
 
@@ -43,8 +43,9 @@ Confirmed from Meta's documentation (read 19 October 2026):
 
 Not known, and not assumed:
 
-- Whether the salon's number is connected in coexistence mode. The customer-thread screenshot suggests it, but that is inference. The repository has no mention of coexistence.
-- Whether `smb_message_echoes` is already subscribed, and whether echo events are already arriving in `whatsapp_events`. Step 0 answers this.
+- Whether the salon's number is connected in coexistence mode. The customer-thread screenshot suggests it, but that is inference. The repository has no mention of coexistence, and Step 0 could not settle it (the field is not subscribed, so silence proves nothing). Meta's documented check is a read-only request for `is_on_biz_app` and `platform_type` on the phone number ID; `true` with `CLOUD_API` means coexistence is active. It needs the server's access token, so the owner runs it.
+
+Answered by Step 0 (19 October 2026): `smb_message_echoes` is not subscribed and no echo event has ever arrived (see Implementation sequence, step 0).
 - Whether Meta also echoes messages sent through Cloud API (it should not per the reference, but the docs list a separate "Message echoes" page that was not reviewed).
 - Whether edits or revokes of an app-sent message produce any webhook.
 
@@ -125,7 +126,7 @@ None required. The unique index, the last-message trigger, the unread and push t
 
 - Owner confirms the number is in coexistence mode (WhatsApp Manager / Meta Business Suite) before the subscription step.
 - Owner subscribes `smb_message_echoes` (and `account_update`) in the Meta App Dashboard. Nothing in this repository can do that.
-- Step 0 needs an approved read-only production query (aggregates only).
+- Step 0 (read-only, aggregates only) is done; the owner still has to confirm coexistence (Open question 1).
 
 ## Risks
 
@@ -141,7 +142,7 @@ None required. The unique index, the last-message trigger, the unread and push t
 
 Order, with approval points:
 
-1. Step 0: owner approves and runs the read-only evidence query.
+1. Step 0: the read-only evidence query. Done 19 October 2026. The owner still confirms coexistence before the subscription step.
 2. Merge and deploy the code (Edge Functions deploy automatically from `main`). Safe before the subscription, because no echoes arrive until Meta is told to send them.
 3. Owner subscribes `smb_message_echoes` and `account_update` in the Meta App Dashboard.
 4. Test with a phone message to a staff-owned number, then a dashboard-sent message to check for duplicates.
@@ -154,10 +155,16 @@ Rollback: unsubscribe the field in Meta, or revert the pull request. Rows alread
 0. **Evidence (no code).** Run the read-only query below once, with approval, and record the result in this plan:
    `select event_type, count(*), min(received_at), max(received_at) from whatsapp_events where received_at > now() - interval '30 days' group by 1 order by 2 desc;`
    Aggregates only, no customer data. Tells us whether echoes already arrive and which Meta fields are subscribed. Also confirm coexistence (Open question 1).
+
+   **Result (done, owner-approved, 19 October 2026, production project `nlzhllhkigmsvrzduefz`):**
+   - Last 30 days: one row, `messages`, 1,838 events (first 19 September, last 19 October 2026).
+   - Whole history (`group by event_type`, same table): `messages` 6,421 events from 22 April 2026, and `message_template_status_update` 5 events (last 15 August 2026). No `smb_message_echoes`, `account_update`, `history` or `smb_app_state_sync` has ever arrived. `event_type` is Meta's webhook field name (`whatsapp-webhook/index.ts`, `change.field`).
+   - Meta side, read-only listing for the active app "Smarter Dog Bookings": one enabled `whatsapp_business_account` subscription calling the production Supabase project, fields `messages` and `message_template_status_update` only. A second app, "Smarter Dog App", is archived and was not inspected.
+   - Reading: echoes do not arrive because the field is not subscribed. This says nothing about whether the number is in coexistence mode. Subscribing the field is safe to do only after coexistence is confirmed, and only after the code in steps 1 to 4 is deployed.
 1. **Parser.** `_shared/messageEcho.ts`: pure function turning a webhook `value` into normalised echoes (`to` as E.164, id, sent-at ISO, text via `extractMessageText`-compatible shape, raw with `source`). Tests first: text, media with caption, unsupported type, missing or malformed fields, number normalisation, timestamp parsing.
 2. **Webhook indexing.** Teach `summarise()` echoes. Tests.
 3. **Agent ingestion.** In the handler, after the existing merge, process echoes: find or create the conversation, insert the outbound row, advance `last_outbound_at` monotonically, treat `23505` as a no-op, supersede pending drafts older than the echo (reason `answered_from_phone`). Never call the model or the dispatch gates for an echo. Tests in `__tests__/messageEcho.test.ts`.
-4. **Auto-send guard (recommended).** Skip auto-send when an outbound message newer than the triggering inbound exists. Tests; the seven-gate unit tests must stay green.
+4. **Auto-send guard (in scope, owner decision 19 October 2026).** Skip auto-send when an outbound message newer than the triggering inbound exists. Tests; the seven-gate unit tests must stay green.
 5. **Optional UI label.** "Sent from phone", component test.
 6. **Docs and rollout.** Update docs (below), then the Meta subscription and live test.
 
@@ -200,11 +207,11 @@ Steps 1 to 4 are one pull request with one writer; step 5 can be a separate smal
 
 Decisions needed from the owner unless noted:
 
-1. Is the salon's number connected in coexistence mode? (Blocks the Meta subscription step. Check WhatsApp Manager under the number's settings.)
-2. Are echo events already arriving? (Step 0 will show.)
+1. Is the salon's number connected in coexistence mode? (Blocks the Meta subscription step. Open: Step 0 could not show it. Run Meta's `is_on_biz_app` / `platform_type` check on the phone number ID, or confirm in WhatsApp Manager under the number's settings.)
+2. Are echo events already arriving? **Answered: no.** The field is not subscribed and none has ever arrived (Step 0).
 3. Does Meta echo messages sent through Cloud API? (Verify in the live test; no action if it does not.)
 4. If staff message a number we have never had a conversation with, should the inbox create the thread? Recommended: yes.
-5. After a phone reply, supersede pending AI drafts (recommended: yes), and block auto-send when staff already replied (recommended: yes, even though auto-send is off today)?
+5. After a phone reply, supersede pending AI drafts and block auto-send when staff already replied? **Decided by the owner, 19 October 2026: yes.** The stated preference is that phone replies appear in the booking system, mark the conversation answered, and stop the AI sending unnecessary replies. Steps 3 and 4 are therefore in scope, not optional.
 6. Should a phone reply switch the conversation to "Handled by staff"? Recommended: no, so the explicit AI-mode toggle stays authoritative; the label tells staff what happened.
 7. Is a "Sent from phone" label wanted? Recommended: yes.
 8. Should phone-app inactivity (`PARTNER_REMOVED`) raise a staff-visible alert? Recommended: yes, as a separate small change, because losing coexistence would also affect dashboard sending.
