@@ -123,7 +123,11 @@ export default function App() {
   // Offline (sample data) has no sign-in, so the views are always showing.
   useDocumentTitle(
     "staff",
-    !isOnline || (user && staffProfile) ? "in" : user ? "denied" : "out",
+    !isOnline || (user && staffProfile)
+      ? "in"
+      : authLoading
+        ? "loading" // the staff profile is still being fetched; only a spinner shows
+        : user ? "denied" : "out",
   );
 
   // Dev-only: render the UI kitchen sink before the auth gate so the primitive

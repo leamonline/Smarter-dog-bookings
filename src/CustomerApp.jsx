@@ -73,7 +73,18 @@ function CustomerAppContent() {
     },
     from: location.state?.from,
   });
-  useDocumentTitle("customer", user ? "in" : "out");
+  // The title follows the gate the render below resolves to: a customer held at
+  // an account step (password, approval, profile) is not on the dashboard yet.
+  const atDestination = !!humanRecord
+    && hasPassword !== false && !mustSetPassword
+    && !signup.loading && signup.status !== "onboarding" && signup.status !== "pending"
+    && !gate.loading && gate.complete;
+  useDocumentTitle(
+    "customer",
+    authRoute.status === "loading" ? "loading"
+      : authRoute.status === "login" || !user ? "out"
+        : atDestination ? "in" : "setup",
+  );
 
   if (authRoute.status === "loading") {
     return (

@@ -10,8 +10,26 @@
 
 export type TitleMount = "staff" | "customer" | "reset-password";
 
-/** Where the visitor stands with the entrance's sign-in. */
-export type TitleAuth = "in" | "out" | "denied";
+/**
+ * Where the visitor stands with the entrance's gate:
+ *  - "in"      the entrance's own screens are showing
+ *  - "out"     the sign-in screen
+ *  - "denied"  signed in, but no staff profile (the access-needed screen)
+ *  - "loading" the gate has not resolved yet (only the spinner shows)
+ *  - "setup"   a customer stopped at an account step (password, approval, profile)
+ */
+export type TitleAuth = "in" | "out" | "denied" | "loading" | "setup";
+
+/**
+ * React Router matches case-insensitively and tolerates repeated trailing
+ * slashes, so `/book/NEW//` renders the wizard. Titles are resolved from the
+ * same normalised form, so they describe the view that actually rendered.
+ */
+export function normaliseTitlePath(pathname: string): string {
+  const lower = (pathname || "/").toLowerCase().replace(/\/{2,}/g, "/");
+  const trimmed = lower.length > 1 ? lower.replace(/\/+$/, "") : lower;
+  return trimmed || "/";
+}
 
 export const STAFF_TITLE_SUFFIX = "Smarter Dog";
 export const CUSTOMER_TITLE_SUFFIX = "Smarter Dog Bookings";
@@ -31,7 +49,12 @@ export function documentTitleFor(
 ): string {
   if (mount === "reset-password") return `Reset password · ${CUSTOMER_TITLE_SUFFIX}`;
 
+  if (auth === "loading") {
+    return mount === "staff" ? STAFF_TITLE_SUFFIX : CUSTOMER_TITLE_SUFFIX;
+  }
+
   if (mount === "customer") {
+    if (auth === "setup") return `Your account · ${CUSTOMER_TITLE_SUFFIX}`;
     // Exact segments, matching the router: `/login` is the guard's login route
     // and `new` the wizard; anything else (`/news`) falls to the dashboard.
     if (auth !== "in" || isRoute(pathname, "/login")) return `Sign in · ${CUSTOMER_TITLE_SUFFIX}`;
@@ -45,5 +68,5 @@ export function documentTitleFor(
 }
 
 function isRoute(pathname: string, route: string): boolean {
-  return pathname === route || pathname === `${route}/`;
+  return normaliseTitlePath(pathname) === route;
 }

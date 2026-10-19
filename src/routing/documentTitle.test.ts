@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { documentTitleFor } from "./documentTitle";
+import { documentTitleFor, normaliseTitlePath } from "./documentTitle";
 
 describe("documentTitleFor", () => {
   it.each([
@@ -14,6 +14,10 @@ describe("documentTitleFor", () => {
     ["customer", "/news", null, "in", "My bookings · Smarter Dog Bookings"],
     ["customer", "/login-history", null, "in", "My bookings · Smarter Dog Bookings"],
     ["customer", "/new/", null, "in", "Book a groom · Smarter Dog Bookings"],
+    ["staff", "/today", "Daily Brief", "loading", "Smarter Dog"],
+    ["customer", "/new", null, "setup", "Your account · Smarter Dog Bookings"],
+    ["customer", "/NEW//", null, "in", "Book a groom · Smarter Dog Bookings"],
+    ["customer", "/Login", null, "in", "Sign in · Smarter Dog Bookings"],
     ["reset-password", "/reset-password", null, "in", "Reset password · Smarter Dog Bookings"],
   ] as const)("%s %s (%s) → %s", (mount, path, section, auth, expected) => {
     expect(documentTitleFor(mount, path, section, auth)).toBe(expected);
@@ -23,5 +27,17 @@ describe("documentTitleFor", () => {
     const t = documentTitleFor("staff", "/dogs/1", "Dogs");
     expect(t).not.toBe("SmarterDog — Salon Bookings");
     expect(t).toBe("Dogs · Smarter Dog");
+  });
+});
+
+describe("normaliseTitlePath", () => {
+  it.each([
+    ["/DOGS/123", "/dogs/123"],
+    ["/new//", "/new"],
+    ["//today", "/today"],
+    ["/", "/"],
+    ["", "/"],
+  ])("%s → %s", (raw, expected) => {
+    expect(normaliseTitlePath(raw)).toBe(expected);
   });
 });
