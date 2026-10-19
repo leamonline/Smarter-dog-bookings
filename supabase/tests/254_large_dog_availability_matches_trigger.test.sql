@@ -10,6 +10,9 @@
 --   2. It ignored the daily dog cap.
 --   3. It ignored staff-blocked seats, which are how partial-day closures are
 --      enforced.
+--   4. For today it ignored which slots staff had flagged for last-minute
+--      booking and their 30-minute cutoff, and it never refused a past or
+--      closed day itself.
 --
 -- Decision (19 October 2026, owner): the switch is a staff-side lever only;
 -- customer-facing availability must keep the rules while it is off (see 253
@@ -23,7 +26,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(27);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
@@ -128,6 +131,19 @@ values (date '2099-03-16', true,
           "12:30": {"0": "blocked", "1": "blocked"},
           "13:00": {"0": "blocked", "1": "blocked"}}'::jsonb, '{}');
 
+-- I  Wed 18 Mar: 08:30 and 12:00 full of small dogs; ONE seat blocked at
+--    12:30 and at 13:00, so neither takeover slot keeps the two seats a large
+--    dog needs. Partial blocks, not whole closed slots.
+select pg_temp.fill(date '2099-03-18', array['08:30','12:00'], array[2,2]);
+insert into public.day_settings (setting_date, is_open, overrides, extra_slots)
+values (date '2099-03-18', true,
+        '{"12:30": {"0": "blocked"}, "13:00": {"0": "blocked"}}'::jsonb, '{}');
+
+-- Today (Europe/London): open, but only 10:00 — not a large-dog slot — is
+-- flagged for last-minute booking. Replaced later in the file.
+insert into public.day_settings (setting_date, is_open, overrides, extra_slots, immediate_slots)
+values (((now() at time zone 'Europe/London'))::date, true, '{}'::jsonb, '{}', array['10:00']);
+
 set local session_replication_role = default;
 set local role postgres;
 
@@ -140,6 +156,7 @@ select ok(pg_temp.large_ok(date '2099-03-17'), 'switch ON: one blocked large slo
 select ok(not pg_temp.large_ok(date '2099-03-09'), 'switch ON: day with every large slot taken is not offered');
 select ok(not pg_temp.large_ok(date '2099-03-10'), 'switch ON: day at the daily cap is not offered');
 select ok(not pg_temp.large_ok(date '2099-03-16'), 'switch ON: day with every large slot blocked by staff is not offered');
+select ok(not pg_temp.large_ok(date '2099-03-18'), 'switch ON: one blocked seat in each takeover slot leaves no room');
 
 -- ── Switch OFF: nothing above may change ──────────────────────────────
 select pg_temp.set_switch(false);
@@ -152,8 +169,46 @@ select ok(pg_temp.large_ok(date '2099-03-17'), 'switch OFF: one blocked large sl
 select ok(not pg_temp.large_ok(date '2099-03-09'), 'switch OFF: day with every large slot taken is still not offered');
 select ok(not pg_temp.large_ok(date '2099-03-10'), 'switch OFF: day at the daily cap is still not offered');
 select ok(not pg_temp.large_ok(date '2099-03-16'), 'switch OFF: day with every large slot blocked is still not offered');
+select ok(not pg_temp.large_ok(date '2099-03-18'), 'switch OFF: one blocked seat in each takeover slot still leaves no room');
+
+-- ── Calendar rules (switch still OFF) ─────────────────────────────────
+-- Called directly: get_large_dog_day_availability() already skips past and
+-- closed days, but the function must not answer yes for them on its own.
+select ok(
+  not public.large_dog_can_fit_on_day(((now() at time zone 'Europe/London'))::date - 1),
+  'calendar: yesterday is never available'
+);
+select ok(
+  not public.large_dog_can_fit_on_day(date '2099-03-05'),
+  'calendar: a Thursday (closed by default) is never available'
+);
+select ok(
+  not public.large_dog_can_fit_on_day(((now() at time zone 'Europe/London'))::date),
+  'same day: today with only a non-large slot flagged offers no large-dog slot'
+);
+
+-- Flag every large-dog slot for today. Before 12:30 London time at least one
+-- (13:00) is still 30+ minutes away, so today must be available; after that
+-- no large slot can be, so the positive check is skipped rather than faked.
+set local session_replication_role = replica;
+update public.day_settings
+   set immediate_slots = array['08:30','09:00','12:00','12:30','13:00']
+ where setting_date = ((now() at time zone 'Europe/London'))::date;
+set local session_replication_role = default;
+
+select case
+  when (now() at time zone 'Europe/London')
+       <= (((now() at time zone 'Europe/London'))::date + time '12:30')
+  then ok(
+    public.large_dog_can_fit_on_day(((now() at time zone 'Europe/London'))::date),
+    'same day: today with the large-dog slots flagged is available'
+  )
+  else skip('after 12:30 London time no large-dog slot is 30+ minutes away', 1)
+end;
 
 -- ── The trigger agrees (switch ON, a non-staff insert) ────────────────
+-- Checked with the switch ON only: with it OFF the trigger deliberately accepts
+-- what customer availability refuses (see 253 and docs/capacity-engine.md).
 select pg_temp.set_switch(true);
 
 select lives_ok(
@@ -184,6 +239,15 @@ select throws_ok(
   -- refuses it before the capacity gate is reached.
   'That time slot is closed on this date',
   'trigger agreement: a large dog in a staff-blocked slot on 16 Mar is refused'
+);
+
+select throws_ok(
+  $$ insert into public.bookings (booking_date, slot, dog_id, size, service)
+     values (date '2099-03-18', '12:30',
+             '65020000-0000-4000-8000-000000000005', 'large', 'full-groom') $$,
+  'P0001',
+  'Not enough capacity (2-2-1 rule)',
+  'trigger agreement: a large dog at 12:30 with one seat blocked on 18 Mar is refused by the capacity gate'
 );
 
 select * from finish();

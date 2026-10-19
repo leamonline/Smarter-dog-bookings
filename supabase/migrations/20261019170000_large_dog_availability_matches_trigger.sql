@@ -8,23 +8,31 @@
 --   validate_booking_capacity() in three ways:
 --
 --   1. Kill switch. With salon_config.enforce_server_capacity = false it
---      returned true for every open day. The owner decided (#1040) that the
---      switch is a staff-side lever only and must never loosen what customers
---      are offered; get_small_medium_availability() already behaves that way.
+--      returned true for every open day. The switch relaxes the trigger for
+--      every insert, but the owner decided (#1040) that it must never loosen
+--      what customers are offered; get_small_medium_availability() already
+--      behaves that way.
 --   2. Daily dog cap. Never checked, so a day already at the cap could be
 --      listed for a large dog. The trigger refuses any non-staff booking there.
 --   3. Staff-blocked seats. Never subtracted, so a slot staff had blocked
 --      (including every slot inside a partial-day closure) could be listed.
+--   4. Same-day rules. For today the caller only checked that SOME slot was
+--      flagged for last-minute booking and 30+ minutes away; this function
+--      could then answer yes through a large-dog slot that was not flagged, or
+--      already past its cutoff. validate_booking_calendar() refuses that slot.
 --
 --   All three only ever OFFERED days the database then refused; none hid real
 --   capacity.
 --
 -- WHAT THIS CHANGES
---   The body is 20260702170000's, with exactly three edits that copy the
---   trigger's own reads:
+--   The body is 20260702170000's, with these edits, each copying the reads of
+--   validate_booking_capacity() or validate_booking_calendar():
 --     - the enforce_server_capacity early return is removed;
+--     - a past day, or a day that is not open, returns false;
 --     - a day at salon_config.daily_dog_cap (14 when unset; seats counted with
 --       booking_occupies_seat) returns false;
+--     - for today, only large-dog slots flagged in day_settings.immediate_slots
+--       and still 30+ minutes away (Europe/London) are candidates;
 --     - each candidate slot's ceiling has its staff-blocked seats subtracted,
 --       clamped at zero, after the early-close rule — the trigger's order.
 --   Signature, return type, grants and every other rule are unchanged, and
@@ -62,10 +70,39 @@ declare
   v_daily_cap     integer;
   v_day_count     integer;
   v_blocked_seats integer;
+  v_is_open       boolean;
+  v_immediate     text[];
+  v_now_ldn       timestamp := (now() at time zone 'Europe/London');
+  v_today_ldn     date      := ((now() at time zone 'Europe/London'))::date;
   i               integer;
 begin
-  -- No kill-switch shortcut: enforce_server_capacity relaxes the trigger for
-  -- staff only, never what customers are offered (decision in #1040).
+  -- No kill-switch shortcut: enforce_server_capacity relaxes the trigger, but
+  -- never what customers are offered (decision in #1040).
+
+  -- Calendar, read exactly as validate_booking_calendar() reads it.
+  if p_date is null or p_date < v_today_ldn then
+    return false;
+  end if;
+
+  select ds.is_open, ds.immediate_slots
+    into v_is_open, v_immediate
+    from day_settings ds
+   where ds.setting_date = p_date;
+
+  if not coalesce(v_is_open, extract(isodow from p_date) in (1, 2, 3)) then
+    return false;
+  end if;
+
+  -- Same day: only staff-flagged slots with 30+ minutes to go are bookable.
+  if p_date = v_today_ldn then
+    v_large_slots := array(
+      select u.slot
+        from unnest(v_large_slots) with ordinality as u(slot, ord)
+       where u.slot = any (coalesce(v_immediate, '{}'::text[]))
+         and v_now_ldn <= (p_date + u.slot::time - interval '30 minutes')
+       order by u.ord
+    );
+  end if;
 
   -- Daily dog cap, read exactly as validate_booking_capacity() reads it.
   select coalesce((select sc.daily_dog_cap from salon_config sc limit 1), 14)
@@ -200,7 +237,7 @@ end;
 $$;
 
 comment on function large_dog_can_fit_on_day(date) is
-  'Returns true if at least one of the 5 large-dog allowed slots passes the same rules the capacity trigger checks for a non-staff booking: 2-2-1 over the per-date grid, large-dog slot rules, early close, staff-blocked seats and the daily dog cap. Ignores salon_config.enforce_server_capacity by design: the kill switch never loosens customer-facing availability. Read-only; the trigger remains the source of truth on insert.';
+  'Returns true if at least one of the 5 large-dog allowed slots passes the same rules the capacity and calendar triggers check for a non-staff booking: open future day, same-day flag and 30-minute cutoff (Europe/London), 2-2-1 over the per-date grid, large-dog slot rules, early close, staff-blocked seats and the daily dog cap. Ignores salon_config.enforce_server_capacity by design: the kill switch never loosens customer-facing availability. Read-only; the trigger remains the source of truth on insert.';
 
 revoke all on function large_dog_can_fit_on_day(date) from public, anon, authenticated;
 grant execute on function large_dog_can_fit_on_day(date) to service_role;
