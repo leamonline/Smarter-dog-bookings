@@ -1,5 +1,42 @@
 # Migration history
 
+## Large-dog availability matches the booking gates (#1044) — applied 19 October 2026
+
+`20261019170000_large_dog_availability_matches_trigger.sql` is one idempotent
+`CREATE OR REPLACE` of `large_dog_can_fit_on_day(date)` (called by
+`get_large_dog_day_availability()`, which the WhatsApp agent reads), with an
+unchanged signature, return type and grants. It removes the
+`enforce_server_capacity` fail-open, and adds the daily dog cap, staff-blocked
+seats and the calendar gate's rules (past and closed days; for today, only
+flagged large-dog slots still 30+ minutes away). Each copies the reads of
+`validate_booking_capacity()` or `validate_booking_calendar()`. No table, RLS or
+data change. Rollback is re-applying the definition from
+`20260702170000_extra_slots_bookable.sql`.
+
+**Staging:** not applied. Verified instead on a disposable local database
+replaying every committed migration: `254_large_dog_availability_matches_trigger`
+failed 10 of 27 against the old function and passed 26 plus 1 time-based skip
+against the new one; the same-day path was also exercised on a throwaway copy
+with the clock pinned; the full local pgTAP suite passed (75 files, 1610 tests);
+a second apply succeeded. Two rounds of independent review found nothing
+blocking.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 19 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 20
+([39251642480](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39251642480)),
+approved by @leamonline, taking the file from the #1044 head `82846fcb` (commit
+provenance: current head of open pull request #1044). The run's own output
+reports `outcome: applied` for the file with sha256
+`eba0a96396cde95216878861957b673e5b93fef82f9fd6b503bb7466d8a050f3`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true` (the function
+is `SECURITY DEFINER`, no longer reads the switch, and contains the cap,
+blocked-seat and same-day logic). Read back from production afterwards through
+the Supabase MCP (read-only): the new body is live; Wed 21 October 2026, a day at
+the daily cap (14 dogs), now returns false for a large dog, as does yesterday;
+21 of the 24 open days from 20 October to 18 December still offer large-dog
+room; the kill switch was ON (enforcing) at the time; `anon` and
+`authenticated` cannot execute the function and `service_role` can.
+
 ## Availability RPC matches the capacity trigger (#1039) — applied 19 October 2026
 
 `20261019150000_availability_rpc_matches_trigger.sql` is one idempotent
