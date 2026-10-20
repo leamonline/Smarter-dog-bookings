@@ -419,8 +419,9 @@ the cutover, not after.
 
 > **Historical (20 October 2026).** This DNS rollback no longer works: the
 > Bluehost publisher was retired in #999, so `public_html/` stops receiving
-> updates and `/book` would 404 there anyway. Roll back in Vercel instead; see
-> `docs/rollback.md` (added by #1055). The text below is
+> updates and `/book` would 404 there anyway. Roll back in Vercel instead:
+> project **smarter-dogs-smart-humans** → Deployments → the last good production
+> deployment → **Instant Rollback** (or `vercel rollback <url>`). The text below is
 > kept as the record of what the procedure was on 11 September 2026.
 
 Restore the two DNS records — apex `A` to `50.6.153.109`, `www` to

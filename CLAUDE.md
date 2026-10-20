@@ -32,7 +32,8 @@ on 11 September 2026 the domain points at **Vercel**, so the live site is the co
 deployment that carries the booking app. A `website/**` change therefore reaches visitors through the
 **root** deployment, not through `website.yml`, which only lints, tests and builds. The old FTP
 publisher, kept warm as a DNS-rollback target after the cutover, was retired on 20 October 2026
-(#999); rolling back now means a Vercel rollback (see `docs/rollback.md`).
+(#999); rolling back now means a Vercel rollback: Vercel → project **smarter-dogs-smart-humans** →
+Deployments → the last good production deployment → **Instant Rollback** (or `vercel rollback <url>`).
 Nameservers and MX records still sit with the old host; that is DNS and email, not publishing.
 
 Do not merge the two apps' CSS, routing, auth or service workers.

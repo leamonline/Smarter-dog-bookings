@@ -64,24 +64,24 @@ npm run dev
 
 ## Environment Variables
 
-The production workflow supplies `VITE_SUPABASE_URL` and
-`VITE_SUPABASE_PUBLISHABLE_KEY` as public browser configuration. Their values
-are embedded in the built assets. The source also supports
-`VITE_GA_MEASUREMENT_ID`; the tracked template lists `VITE_EMAILJS_*` names,
-but the current production workflow does not supply analytics or EmailJS
+The live site is built by the repository's root Vercel deployment
+(`scripts/build-combined.mjs`), which passes the Vercel project's environment
+variables through to this build. `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` are set there (the same ones the booking app
+uses) as public browser configuration, embedded in the built assets. The
+source also supports `VITE_GA_MEASUREMENT_ID`; the tracked template lists
+`VITE_EMAILJS_*` names, but production does not set analytics or EmailJS
 configuration. Do not describe these as mandatory booking-form settings.
 
 Never commit local environment files or put privileged credentials in `VITE_`
-variables. Destination build configuration is verified at the authorised cutover.
+variables.
 
 ---
 
 ## Holiday Notices
 
 The production build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-from GitHub Actions secrets of the same names in the original publisher
-(configured there on 6 September 2026). Destination provisioning remains a
-cutover step. If either is missing, the site still builds without a Supabase
+from the Vercel project's environment variables (see above). If either is missing, the site still builds without a Supabase
 client: holiday notices are hidden, while salon facts and open days use their
 fallbacks. A successful unconfigured build does not verify live holiday data.
 
