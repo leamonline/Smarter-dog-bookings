@@ -46,6 +46,13 @@ one rolls back the other.
   automatically until a deployment is promoted again. When the fix lands, check
   that its deployment is the one serving production; promote it if not.
 
+**Before you roll back, check the schema.** If a migration has been applied to
+production since the deployment you are going back to (`docs/migrations.md`
+lists them with dates), make sure that migration only *added* things. An older
+frontend runs happily against added columns and functions, but not against a
+**contract** migration that removed or renamed something it still uses. If one
+did, don't roll back past it: fix forward instead (section 3).
+
 **Limits:** this only swaps the frontend. An Edge Function or migration that
 shipped in the same merge is still live.
 
@@ -55,17 +62,23 @@ shipped in the same merge is still live.
 WhatsApp replies stop, notifications stop, the `deploy-edge-functions` job is
 red).
 
-**Preferred: a revert PR.** Revert the merge commit on a branch, open the PR and
-merge it. The deploy workflow redeploys every function the revert touches, with
-the pinned CLI. This keeps `main` and production in step.
+**Preferred: a revert PR.** Revert the function changes on a branch, open the PR
+and merge it. The deploy workflow redeploys every function the revert touches,
+which keeps `main` and production in step. If the bad merge also contained a
+migration that has been applied, do **not** revert the migration file: applied
+history can't be removed (the `migrations-applied` check refuses it). Revert
+only the paths under `supabase/functions/` (`git revert --no-commit <sha>`, then
+`git checkout HEAD -- supabase/migrations` before committing).
 
-**Faster, by hand (owner only):** from a checkout with the Supabase CLI logged
-in,
+**Faster, by hand (owner only):** with the Supabase CLI logged in, use a
+separate, clean worktree so nothing in your own checkout is overwritten:
 
 ```bash
-git checkout <last-good-sha> -- supabase/functions/<name> supabase/functions/_shared
+git fetch origin
+git worktree add /tmp/rollback <last-good-sha>
+cd /tmp/rollback
 supabase functions deploy <name> --project-ref nlzhllhkigmsvrzduefz --no-verify-jwt
-git checkout main -- supabase/functions   # put your working tree back
+cd - && git worktree remove /tmp/rollback
 ```
 
 Then open the revert PR anyway, or the next merge that touches the function
@@ -73,12 +86,16 @@ redeploys the bad code.
 
 **Check afterwards:** Supabase dashboard → Edge Functions → the function →
 **Logs** shows successful invocations. For the WhatsApp agent, send a test
-message from a staff number. Note that the deploy workflow keeps going after a
-failed function, then fails naming every function that did not deploy (#992).
+message from a staff number. If the deploy job failed part-way, check which
+functions it reached: until #992 is merged it stops at the first failure, so
+later functions keep their old code.
 
 **Limits:** `_shared/` code is bundled into every function at deploy time, so a
 bad shared change needs every affected function redeployed. Function secrets are
-not versioned; restore them with `supabase secrets set` if one was changed.
+not versioned; restore one with
+`supabase secrets set --project-ref nlzhllhkigmsvrzduefz NAME=value`, always with
+the explicit production ref, as
+[`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) requires.
 
 ## 3. Database
 
