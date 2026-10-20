@@ -128,3 +128,14 @@ the engine does not create it. Unknown attempts never retry automatically. Local
 provenance is compatible with the migration gate, which additionally requires a
 successful attempt/postcondition before dependent code may merge. Compilation,
 local tests and a populated migration ledger do not establish production acceptance.
+
+
+## Decision, 20 October 2026 (#1024)
+
+The owner chose option A: the hosted, approval-gated **Apply named migrations
+to production** workflow is the production route, and the local operator
+alternative stays a **dormant contingency**. Its code stays; nothing is retired
+and no credential is provisioned for it. Revisit only if the repository goes
+private again (required reviewers stop working) or a second person starts
+operating releases. Recorded in
+[`docs/migrations.md`](../../migrations.md#production-route-decision-1024--20-october-2026).

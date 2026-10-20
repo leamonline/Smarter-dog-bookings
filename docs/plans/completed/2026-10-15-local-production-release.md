@@ -1,6 +1,6 @@
 # Local production release implementation
 
-Status: Dormant — contingency only (owner decision 20 October 2026, #1024)
+Status: Implemented (code merged under #1024); not adopted. Dormant contingency by owner decision, 20 October 2026. Do not build further on this plan unless that decision is revisited.
 Issue: #1024
 Base: origin/main 1cbbce518fc4c8cd6e90649d724802e615b88534
 Last verified: 2026-10-16
@@ -11,7 +11,7 @@ Related ADRs: ADR 006
 
 ## Goal and why
 
-Implement the [approved design](2026-10-15-local-production-release-design.md) as a reviewable alternative to a GitHub environment feature rejected by the current billing plan. Preserve exact-content human approval and database safety.
+Implement the [approved design](../active/2026-10-15-local-production-release-design.md) as a reviewable alternative to a GitHub environment feature rejected by the current billing plan. Preserve exact-content human approval and database safety.
 
 ## Current and desired behaviour
 
