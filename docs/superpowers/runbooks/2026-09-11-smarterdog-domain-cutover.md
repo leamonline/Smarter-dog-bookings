@@ -2,7 +2,7 @@
 
 **Status:** Complete — executed 11 September 2026, every step including the deferred Supabase Site URL. See the [completion record](#completion-record--11-september-2026).
 **Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
-**Plan:** [single-domain routing](../../plans/completed/2026-09-10-smarterdog-domain-routing.md)
+**Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
 **Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
 
 Read the completion record first: three things went wrong on the day and are written up
@@ -316,6 +316,9 @@ new domain while everything else works.
 
 ## 6. Lower the TTL, then disable the publisher — AUTHORISE
 
+> **Historical.** The publisher and its `WEBSITE_PUBLISHER_ENABLED` variable no
+> longer exist (#999); for a future re-cutover, skip the publisher part of this step.
+
 At Bluehost, lower the TTL on the apex `A` and the `www` record to the minimum
 offered (typically 300s). **Wait for the old TTL to expire** before step 7 —
 otherwise rollback is as slow as the old TTL, which is the difference between a
@@ -413,6 +416,12 @@ and re-enable device notifications in Settings → Your Account. Tell them befor
 the cutover, not after.
 
 ## Rollback
+
+> **Historical (20 October 2026).** This DNS rollback no longer works: the
+> Bluehost publisher was retired in #999, so `public_html/` stops receiving
+> updates and `/book` would 404 there anyway. Roll back in Vercel instead; see
+> `docs/rollback.md` (added by #1055). The text below is
+> kept as the record of what the procedure was on 11 September 2026.
 
 Restore the two DNS records — apex `A` to `50.6.153.109`, `www` to
 `103.169.142.0` — and set `WEBSITE_PUBLISHER_ENABLED` back to `true`. Bluehost

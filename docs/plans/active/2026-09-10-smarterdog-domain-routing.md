@@ -1,6 +1,6 @@
 # Single-domain routing: /book and /stafflogin on smarterdog.co.uk
 
-**Status:** Complete (cutover executed 11 September 2026; publisher retired 20 October 2026, #999)
+**Status:** Cutover executed 11 September 2026; publisher retired 20 October 2026 (#999). Still open before this plan can move to `completed/`: confirmation that every staff device was re-enrolled for notifications, and the ADR recording the hosting decision that supersedes ADR 009
 Issue: [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 Base: `codex/smarterdog-domain-routing` off `origin/main` at `0e1b8541`
 Last verified: 2026-09-10
