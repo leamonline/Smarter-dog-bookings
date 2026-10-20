@@ -22,7 +22,6 @@ const TABS_WITH_CONTROLS = [
   "Services & Pricing",
   "Booking Rules",
   "Customer Portal",
-  "Notifications",
 ] as const;
 
 const INTERACTIVE = "button, input, select, textarea, [role='switch']";
@@ -132,6 +131,19 @@ test.describe("Settings tabs", () => {
     await expect(panel.locator(INTERACTIVE)).toHaveCount(0);
   });
 
+  // Notifications is read-only since #1000: nothing read the old switches, so
+  // the tab describes what is actually sent. Pin that, like Capacity Engine.
+  test(`"Notifications" tab paints its read-only content`, async ({ page }) => {
+    await page.goto("/settings");
+    await openSettingsSection(page, "Notifications");
+
+    const panel = page.locator("#settings-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("What we send and when")).toBeVisible();
+    await expect(panel.getByText("Booking confirmation")).toBeVisible();
+    await expect(panel.locator(INTERACTIVE)).toHaveCount(0);
+  });
+
   test(`"Calendar Sync" tab paints its content offline`, async ({ page }) => {
     await page.goto("/settings");
     await openSettingsSection(page, "Calendar Sync");
@@ -189,7 +201,8 @@ test.describe("Settings tabs", () => {
 
     await panel.getByRole("spinbutton", { name: "Booking horizon" }).fill("365");
     await panel.getByRole("spinbutton", { name: "Booking horizon" }).press("Tab");
-    await panel.getByRole("switch", { name: "Auto-confirm bookings" }).click();
+    // No Auto-confirm switch since #1000 (its only reader was dormant).
+    await expect(panel.getByRole("switch", { name: "Auto-confirm bookings" })).toHaveCount(0);
     await panel.getByRole("combobox", { name: "Deposit hold window" }).selectOption("36");
     await panel.getByLabel("Account name", { exact: true }).fill("Smarter Dog");
     await panel.getByLabel("Sort code", { exact: true }).fill("12-34-56");
@@ -211,9 +224,6 @@ test.describe("Settings tabs", () => {
     await expect(
       panel.getByRole("spinbutton", { name: "Booking horizon" }),
     ).toHaveValue("365");
-    await expect(
-      panel.getByRole("switch", { name: "Auto-confirm bookings" }),
-    ).toHaveAttribute("aria-checked", "false");
     await expect(
       panel.getByRole("combobox", { name: "Deposit hold window" }),
     ).toHaveValue("36");
