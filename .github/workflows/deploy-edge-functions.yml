@@ -74,10 +74,17 @@ jobs:
           echo "Changed paths:"
           echo "$changed_paths"
 
+          # A change to this workflow changes how every function is deployed,
+          # so it redeploys them all, the same as a _shared change.
+          workflow_changed=""
+          if [ -n "${base_sha:-}" ] && git diff --name-only "$base_sha" "$AFTER_SHA" -- '.github/workflows/deploy-edge-functions.yml' | grep -q .; then
+            workflow_changed=1
+          fi
+
           # If the _shared dir changed, any function could be affected —
           # redeploy every function rather than guess.
-          if echo "$changed_paths" | grep -qE '^supabase/functions/_shared/'; then
-            echo "_shared changed — scheduling full redeploy"
+          if [ -n "$workflow_changed" ] || echo "$changed_paths" | grep -qE '^supabase/functions/_shared/'; then
+            echo "_shared or the deploy workflow changed — scheduling full redeploy"
             functions=$(ls -1 supabase/functions/ | grep -v '^_' | sort -u)
           else
             # Otherwise, extract the unique function-dir names from the
@@ -85,6 +92,11 @@ jobs:
             functions=$(echo "$changed_paths" \
               | awk -F/ '$1=="supabase" && $2=="functions" && $3!="" && $3 !~ /^_/ {print $3}' \
               | sort -u)
+            # A function deleted in this range shows up in the diff but has
+            # nothing left to deploy; skip it rather than fail the job.
+            functions=$(for f in $functions; do
+              if [ -d "supabase/functions/$f" ]; then echo "$f"; fi
+            done)
           fi
 
           if [ -z "$functions" ]; then
@@ -136,9 +148,13 @@ jobs:
           while IFS= read -r fn; do
             [ -z "$fn" ] && continue
             echo "::group::Deploying $fn"
+            # --use-api bundles on Supabase's side. The Docker bundler pulls
+            # public.ecr.aws/supabase/edge-runtime on every run, and shared
+            # runner IPs hit ECR's anonymous "Data limit exceeded" (20 Oct 2026).
             if supabase functions deploy "$fn" \
               --project-ref "$SUPABASE_PROJECT_REF" \
-              --no-verify-jwt; then
+              --no-verify-jwt \
+              --use-api; then
               echo "deployed: $fn"
             else
               echo "::error::$fn did not deploy"
