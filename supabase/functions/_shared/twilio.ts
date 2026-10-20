@@ -2,7 +2,7 @@
 //
 // This file replaces the per-function `sendTwilio()` helper that was
 // duplicated across notify-booking-confirmed, notify-booking-cancelled,
-// notify-booking-ready, notify-booking-reminder, and notify-waitlist-joined.
+// notify-booking-reminder, and notify-waitlist-joined.
 //
 // Two key changes from the inlined version:
 //

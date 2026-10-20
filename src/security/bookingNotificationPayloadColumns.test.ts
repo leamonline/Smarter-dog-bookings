@@ -38,7 +38,6 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 // a booking_id and loads its own row, so it consumes nothing from the payload.
 const RECORD_CONSUMERS = [
   "supabase/functions/notify-booking-confirmed/index.ts",
-  "supabase/functions/notify-booking-ready/index.ts",
   "supabase/functions/notify-booking-cancelled/handler.ts",
   "supabase/functions/_shared/recipients.ts",
 ];

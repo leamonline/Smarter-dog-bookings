@@ -250,7 +250,6 @@ describe("Supabase security review regressions", () => {
       // notify-booking-cancelled keeps its implementation in handler.ts;
       // index.ts is a serve() shim kept importable for deno tests.
       "supabase/functions/notify-booking-cancelled/handler.ts",
-      "supabase/functions/notify-booking-ready/index.ts",
       "supabase/functions/notify-booking-reminder/index.ts",
       "supabase/functions/notify-waitlist-joined/index.ts",
     ];
