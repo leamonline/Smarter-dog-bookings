@@ -39,7 +39,12 @@ flags before a release.
 | Customer notification after a staff reschedule | Gap — staff contact the customer manually | Not applicable | Tracked by [#604](https://github.com/leamonline/Smarter-dog-bookings/issues/604); automation is under a recorded **STOP** (15 August 2026). Revisit when *both* hold: the owner finds the manual contacting burdensome in practice, **and** an approved Meta template route with a deterministic fallback plus a separately authorised production check can be supplied — the [resumption trigger](docs/research/2026-08-09-reschedule-automation-go-no-go.md#resumption-trigger). |
 | Visit-level notification intent and attempt history | Gap | Not applicable | Tracked by [#610](https://github.com/leamonline/Smarter-dog-bookings/issues/610) |
 | Generic runtime schema/capability contract | Partial policy-specific pilot | Environment support not inferred | Tracked by [#607](https://github.com/leamonline/Smarter-dog-bookings/issues/607) |
-| Critical PR browser gate with WebKit | Gap | PR job currently skips Playwright | Tracked by [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606) |
+| Critical PR browser gate with WebKit | Gap (at the 9 August baseline) | PR job skipped Playwright at the baseline; see the note below the table | Tracked by [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606) |
+
+**Since the baseline (not reverified in the table):** the PR browser gate now
+exists. `pr-production-smoke` runs every spec once on desktop Chromium plus the
+smoke and continuity journeys on WebKit (from 14 August 2026), and any spec a
+pull request changes on tablet and mobile Chromium too (from 20 September 2026).
 
 The evidence and distinctions behind this table live in
 [`docs/research/2026-08-09-issue-603-plan-reality-audit.md`](docs/research/2026-08-09-issue-603-plan-reality-audit.md).
@@ -50,7 +55,7 @@ The evidence and distinctions behind this table live in
 
 - **Weekly calendar** with slot-based booking (08:30–13:00)
 - **Capacity engine** — enforces the 2-2-1 rule for large dogs
-- **Booking workflow** — Not Arrived → Checked In → In Bath → Ready for Pick-up → Completed
+- **Booking workflow** — Booked → Reconfirmed → Arrived → Ready for collection → Completed, plus Cancelled and No-show (the `BOOKING_STATUS` constants, mirroring the database check constraint)
 - **Dogs & Humans directories** — full contact management with alerts, notes, and trusted contacts
 - **WhatsApp inbox** — two-way customer messaging with AI-drafted replies and AI-proposed booking actions, staff-approved before anything goes live
 - **Reminders & notifications** — multi-channel (WhatsApp, SMS, email) booking confirmations, reminders, ready-for-pickup and cancellations
@@ -84,9 +89,12 @@ The evidence and distinctions behind this table live in
 
 ## Architecture
 
-- **Frontend** — a single-page app served by **Vercel**. `src/index.jsx` routes
-  `/customer/*` to the customer portal (`CustomerApp.jsx`) and everything else to the
-  staff dashboard (`App.jsx`).
+- **Frontend** — a single-page app served by **Vercel**, sharing its origin with the
+  marketing site. `src/index.jsx` asks `src/routing/entrypoints.ts` where a URL belongs:
+  `/book/*` goes to the customer portal (`CustomerApp.jsx`), `/staff/*` to the staff
+  dashboard (`App.jsx`, entered at `/stafflogin`), and `/reset-password` stands alone. On
+  smarterdog.co.uk `/` is the marketing site, not the app; old `/today` and `/customer/*`
+  links redirect into the app.
 - **Supabase** — Postgres database, Auth, Row Level Security, Realtime and Storage
   (private `dog-photos` bucket).
 - **Edge Functions** — backend logic in Deno (notifications, WhatsApp, calendar
@@ -314,13 +322,19 @@ Backend logic lives in `supabase/functions/` as Deno Edge Functions (with a
 
 - **WhatsApp** — `whatsapp-webhook` (inbound Meta events), `whatsapp-agent` (AI
   receptionist), `whatsapp-send`, `whatsapp-generate-reply`, `whatsapp-flow-endpoint`,
-  `whatsapp-register`, `whatsapp-admin`.
+  `whatsapp-register`, `whatsapp-admin`, `whatsapp-media`, `whatsapp-update-notes`.
 - **Notifications** — `notify-booking-confirmed`, `notify-booking-cancelled`,
   `notify-booking-reminder`, `notify-waitlist-joined`,
   `notify-customer-welcome`, `resend-booking-notification`.
-- **Messaging** — `sms-send`, `reminder-send`, `reminder-sms-fallback`.
+- **Staff alerts** — `notify-staff` (device push), `slack-alerts` (#salon-today).
+- **Messaging** — `sms-send`, `reminder-send`, `reminder-sms-fallback`,
+  `broadcast-message`.
 - **Customer / utilities** — `customer-phone-on-file`, `apply-customer-confirm`,
   `postcode-lookup`, `calendar-feed`, `calendar-ics`, `dashboard-summary`.
+
+This list was checked against `ls supabase/functions` (27 functions, plus `_shared/`)
+on 20 October 2026; `scripts/check-edge-function-auth.mjs` fails CI if a function is
+missing from `_shared/authManifest.json`.
 
 Functions authenticate in-function (HMAC, internal secret, or JWT) rather than at the
 gateway. Their secrets are set with `supabase secrets set` — **never** from
