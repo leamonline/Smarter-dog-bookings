@@ -72,7 +72,9 @@ begin
       into v_cron using v_since;
   end if;
   if to_regclass('net._http_response') is not null then
-    execute 'select count(*) from net._http_response where status_code >= 400'
+    -- A transport failure (DNS, connect, timeout) leaves status_code null and
+    -- sets error_msg; count it as an error too.
+    execute 'select count(*) from net._http_response where status_code >= 400 or error_msg is not null'
       into v_http;
   end if;
 

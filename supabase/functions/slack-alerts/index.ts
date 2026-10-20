@@ -196,7 +196,16 @@ async function postToSlack(
 
 /** The only fetch() to Slack in the codebase. Returns false rather than
  *  throwing: a Slack outage must never propagate into a booking transaction. */
-async function sendToSlack(text: string, webhook = SLACK_SALON_TODAY_WEBHOOK, name = "SLACK_SALON_TODAY_WEBHOOK"): Promise<boolean> {
+// The target is an object, not defaulted parameters: an explicitly unset ops
+// webhook must stay unset, never fall back to #salon-today (#1007 review).
+interface SlackTarget {
+  url: string | undefined;
+  name: string;
+}
+const SALON_TODAY_TARGET: SlackTarget = { url: SLACK_SALON_TODAY_WEBHOOK, name: "SLACK_SALON_TODAY_WEBHOOK" };
+
+async function sendToSlack(text: string, target: SlackTarget = SALON_TODAY_TARGET): Promise<boolean> {
+  const { url: webhook, name } = target;
   if (SLACK_ALERTS_DRY_RUN) {
     console.log(`slack-alerts [DRY RUN] would post to ${name}: ${text}`);
     return true;
@@ -662,7 +671,7 @@ async function handlePipelineHealth(
   if (claimErr) {
     return { pipeline_health: claimErr.code === "23505" ? "duplicate" : "failed" };
   }
-  const sent = await sendToSlack(text, SLACK_OPS_WEBHOOK, "SLACK_OPS_WEBHOOK");
+  const sent = await sendToSlack(text, { url: SLACK_OPS_WEBHOOK, name: "SLACK_OPS_WEBHOOK" });
   if (!sent) {
     // Not retried by the sweep (that flushes #salon-today only); record it.
     await supabase

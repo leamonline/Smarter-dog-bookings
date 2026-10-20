@@ -252,7 +252,7 @@ line of counts** to a separate ops channel, never to #salon-today:
   `20261020110000`): `notification_log` rows still `pending` after
   `PIPELINE_PENDING_AFTER_MINUTES`; rows `failed` in the window, by
   `trigger_type`; `whatsapp_events` that failed; failed `cron.job_run_details`
-  runs; `net._http_response` rows with status 400 or above (pg_net keeps these
+  runs; `net._http_response` rows with status 400 or above, or a transport error (pg_net keeps these
   for about six hours, so this is "recent", not "24 hours"); SMS sent. The
   thresholds live in `_shared/slackAlertThresholds.ts`.
 - **Counts only.** `_shared/pipelineHealth.ts` takes numbers and trigger-type
