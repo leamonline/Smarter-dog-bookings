@@ -57,7 +57,7 @@ Answered by Step 0 (19 October 2026): `smb_message_echoes` is not subscribed and
 - The AI assistant does not respond to an echo, and does not answer a customer after staff already did (see Open questions).
 - Replaying or redelivering the same event changes nothing.
 - An echo for a number with no conversation yet creates the conversation so the thread is not lost.
-- Staff can tell a phone-sent message from a dashboard-sent one (small label; optional).
+- Staff can tell a phone-sent message from a dashboard-sent one (a small "Sent from phone" label; wanted by the owner, shipped as a separate small pull request).
 
 ## Scope
 
@@ -96,7 +96,7 @@ Keep the existing shape: the webhook stays thin and signature-gated; the agent (
 - Idempotency: the Meta message id is the key. Insert the outbound row; a `23505` on `idx_whatsapp_messages_meta_msg` means already stored and is a no-op that must not overwrite the existing row.
 - Order-independence: `last_outbound_at` only ever moves forward (conditional update); the existing last-message trigger is already monotonic.
 - An echo never reaches the drafting or auto-send path. It does not count as `freshInbound`.
-- Provenance without a migration: `raw` stores the echo object with an added `source: "business_app"` at the top level, so code reading `raw.type` / `raw.text` still works and the optional UI label can read `raw.source`.
+- Provenance without a migration: `raw` stores the echo object with an added `source: "business_app"` at the top level, so code reading `raw.type` / `raw.text` still works and the UI label can read `raw.source`.
 - Conversation lookup: by the customer number in `to` (normalised like inbound), channel `whatsapp`, creating it if missing, with `human_id` from `findHumanIdByPhone`. Do not write `human_id: null` over an existing link (the comment in `upsertConversation` explains why).
 
 ## Data/database changes
@@ -112,7 +112,7 @@ None required. The unique index, the last-message trigger, the unread and push t
 ## UI changes
 
 - None required: echoes render as ordinary outbound bubbles.
-- Optional: a small "Sent from phone" label on a bubble whose `raw.source === "business_app"`, with a component test. Recommended, because it explains why a message has no AI or dashboard history.
+- A small "Sent from phone" label on a bubble whose `raw.source === "business_app"`, with a component test. Wanted by the owner (20 October 2026), because it explains why a message has no AI or dashboard history. Shipped as its own small pull request, after the ingestion work.
 
 ## Security/privacy considerations
 
@@ -165,7 +165,7 @@ Rollback: unsubscribe the field in Meta, or revert the pull request. Rows alread
 2. **Webhook indexing.** Teach `summarise()` echoes. Tests.
 3. **Agent ingestion.** In the handler, after the existing merge, process echoes: find or create the conversation, insert the outbound row, advance `last_outbound_at` monotonically, treat `23505` as a no-op, supersede pending drafts older than the echo (reason `answered_from_phone`). Never call the model or the dispatch gates for an echo. Tests in `__tests__/messageEcho.test.ts`.
 4. **Auto-send guard (in scope, owner decision 19 October 2026).** Skip auto-send when an outbound message newer than the triggering inbound exists. Tests; the seven-gate unit tests must stay green.
-5. **Optional UI label.** "Sent from phone", component test.
+5. **UI label (in scope, owner decision 20 October 2026).** "Sent from phone", component test. Separate small pull request.
 6. **Docs and rollout.** Update docs (below), then the Meta subscription and live test.
 
 Steps 1 to 4 are one pull request with one writer; step 5 can be a separate small pull request.
@@ -191,7 +191,7 @@ Steps 1 to 4 are one pull request with one writer; step 5 can be a separate smal
 - `docs/whatsapp-agent.md`: how echoes are handled and that the AI never reacts to them.
 - `docs/meta-app-recovery.md`: the webhook fields that must be subscribed, including `smb_message_echoes` and `account_update`.
 - This plan: record Step 0 evidence and the live-test outcome; move to `completed/` when verified.
-- Staff guidance: replies from the phone now appear in the inbox; how to read the "Sent from phone" label.
+- Staff guidance: replies from the phone now appear in the inbox; how to read the "Sent from phone" label; and a short rule that a customer who has sent STOP must not be messaged from the phone either, because the system's opt-out protection cannot stop a message sent from the app (owner decision, 20 October 2026).
 
 ## Definition of done
 
@@ -210,10 +210,12 @@ Decisions needed from the owner unless noted:
 1. Is the salon's number connected in coexistence mode? (Blocks the Meta subscription step. Open: Step 0 could not show it. Run Meta's `is_on_biz_app` / `platform_type` check on the phone number ID, or confirm in WhatsApp Manager under the number's settings.)
 2. Are echo events already arriving? **Answered: no.** The field is not subscribed and none has ever arrived (Step 0).
 3. Does Meta echo messages sent through Cloud API? (Verify in the live test; no action if it does not.)
-4. If staff message a number we have never had a conversation with, should the inbox create the thread? Recommended: yes.
+4. If staff message a number we have never had a conversation with, should the inbox create the thread? **Decided by the owner, 20 October 2026: yes.**
 5. After a phone reply, supersede pending AI drafts and block auto-send when staff already replied? **Decided by the owner, 19 October 2026: yes.** The stated preference is that phone replies appear in the booking system, mark the conversation answered, and stop the AI sending unnecessary replies. Steps 3 and 4 are therefore in scope, not optional.
-6. Should a phone reply switch the conversation to "Handled by staff"? Recommended: no, so the explicit AI-mode toggle stays authoritative; the label tells staff what happened.
-7. Is a "Sent from phone" label wanted? Recommended: yes.
-8. Should phone-app inactivity (`PARTNER_REMOVED`) raise a staff-visible alert? Recommended: yes, as a separate small change, because losing coexistence would also affect dashboard sending.
-9. Edits and revokes in the phone app: accept that v1 does not mirror them? (Meta's documentation did not clearly say whether a webhook is sent; check in the live test.)
-10. Staff policy: messaging a customer who has sent STOP from the phone bypasses the system's opt-out protection. Does the salon want guidance or a visible warning?
+6. Should a phone reply switch the conversation to "Handled by staff"? **Decided by the owner, 20 October 2026: no.** The explicit AI-mode toggle stays authoritative. Known trade-off, accepted: the customer's next message in an AI-handling conversation can still produce an AI draft for staff review. A phone reply clears stale drafts (Step 3) and blocks auto-send (Step 4), and auto-send is off today, so nothing goes out by itself. Revisit if staff find the drafts noisy.
+7. Is a "Sent from phone" label wanted? **Decided by the owner, 20 October 2026: yes** (Step 5).
+8. Should phone-app inactivity (`PARTNER_REMOVED`) raise a staff-visible alert? **Decided by the owner, 20 October 2026: yes, as a separate small change**, because losing coexistence would also affect dashboard sending. Not part of the pull requests for Steps 1 to 5; it needs its own plan or issue before it is built, and `account_update` events (subscribed in Rollout step 3) are what it would read.
+9. Edits and revokes in the phone app: accept that v1 does not mirror them? **Decided by the owner, 20 October 2026: yes, accept for now.** Meta's documentation did not clearly say whether a webhook is sent; the live test checks, and this is revisited if one arrives.
+10. Staff policy: messaging a customer who has sent STOP from the phone bypasses the system's opt-out protection. **Decided by the owner, 20 October 2026: staff guidance only**, with no visible in-app warning for now. The phone reply is still mirrored so the record is honest. The guidance goes into the staff documentation listed under Documentation updates.
+
+Still open: question 1 (coexistence). The owner is checking. Nothing is built or subscribed until it is answered; question 3 is verified in the live test and needs no decision.
