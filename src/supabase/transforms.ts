@@ -128,7 +128,6 @@ export interface DbConfigRow {
   pricing: Record<string, Record<string, string | number | null>> | null;
   enforce_capacity: boolean | null;
   daily_dog_cap?: number | null;
-  large_dog_slots: Record<string, unknown> | null;
   settings?: PersistedSalonSettings | null;
 }
 
@@ -137,7 +136,6 @@ interface DbConfigOut {
   pricing: Record<string, Record<string, string | number | null>>;
   enforce_capacity: boolean;
   daily_dog_cap: number;
-  large_dog_slots: Record<string, unknown>;
   settings: SalonSettings;
 }
 
@@ -490,7 +488,6 @@ export function dbConfigToApp(row: DbConfigRow | null): SalonConfig | null {
     pricing: row.pricing || defaults.pricing,
     enforceCapacity: row.enforce_capacity ?? defaults.enforceCapacity,
     dailyDogCap: row.daily_dog_cap ?? defaults.dailyDogCap,
-    largeDogSlots: (row.large_dog_slots || defaults.largeDogSlots) as SalonConfig["largeDogSlots"],
   };
 }
 
@@ -502,7 +499,6 @@ export function appConfigToDb(config: SalonConfig): DbConfigOut {
     pricing: config.pricing || defaults.pricing,
     enforce_capacity: config.enforceCapacity ?? defaults.enforceCapacity,
     daily_dog_cap: config.dailyDogCap ?? defaults.dailyDogCap,
-    large_dog_slots: config.largeDogSlots || defaults.largeDogSlots,
     settings,
   };
 }

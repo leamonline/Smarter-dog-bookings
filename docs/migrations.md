@@ -736,7 +736,23 @@ the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
 production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
 below does.
 
-## Draft local production release alternative: adoption pending
+## Production route decision (#1024) — 20 October 2026
+
+**Primary:** the hosted, approval-gated **Apply named migrations to production**
+workflow (below). **Contingency:** the local human-operated release tool,
+kept **dormant**: its code stays, nothing is retired, and no credential is
+provisioned for it. Decided by the owner on 20 October 2026 (option A on #1024).
+
+Revisit the contingency only if one of these happens:
+
+- the repository goes private again (required reviewers were refused on the
+  private plan, so the hosted gate would stop working), or
+- a second person starts operating production releases.
+
+Until then, approval of a production run is a guard against accidents and wrong
+targets by the one owner, not a separation of duties.
+
+## Local production release alternative: dormant contingency
 
 The [local release runbook](local-production-release.md) documents credential-free
 package preparation/validation and the human-operated execution path implemented

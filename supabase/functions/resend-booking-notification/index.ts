@@ -11,7 +11,7 @@ import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 // DB-trigger path. So the four live messaging functions need no changes, and
 // the browser never sees the webhook secret.
 //
-// Body: { booking_id: string, trigger_type: 'confirmed'|'reminder'|'ready'|'cancelled' }
+// Body: { booking_id: string, trigger_type: 'confirmed'|'reminder'|'cancelled' }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -23,7 +23,6 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // notify-booking-reminder takes { booking_id } on its (webhook) single path.
 const TARGET: Record<string, { fn: string; key: "record" | "old_record" | "booking_id" }> = {
   confirmed: { fn: "notify-booking-confirmed", key: "record" },
-  ready: { fn: "notify-booking-ready", key: "record" },
   cancelled: { fn: "notify-booking-cancelled", key: "old_record" },
   reminder: { fn: "notify-booking-reminder", key: "booking_id" },
 };
@@ -72,7 +71,7 @@ serve(async (req) => {
     const target = triggerType ? TARGET[triggerType] : null;
     if (!bookingId || !target) {
       return json(
-        { error: "booking_id and a valid trigger_type (confirmed|reminder|ready|cancelled) are required" },
+        { error: "booking_id and a valid trigger_type (confirmed|reminder|cancelled) are required" },
         400,
       );
     }

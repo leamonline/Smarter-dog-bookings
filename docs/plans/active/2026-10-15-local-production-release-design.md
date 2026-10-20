@@ -103,3 +103,14 @@ Recommended decision: accept this direction for implementation and staging rehea
 The initial plan-restriction evidence above is historical. A fresh GitHub read confirms that Production now has `leamonline` as required reviewer, and production migration workflow run [38805066741](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/38805066741) completed successfully. PRs #1016 and #1023 have merged elsewhere. The original blocker no longer justifies adopting this additional release path. Preserve the working hosted gate; retain this implementation as a draft alternative pending a separate adoption decision.
 
 Staging currently permits `main` only, and its workflow has no migration-source overlay. That cannot produce the exact unmerged-PR-head workflow evidence required by this alternative. A separately reviewed staging evidence route is an explicit adoption prerequisite, alongside signing, credential isolation and approved bootstrap setup. No environment policy is changed by the implementation.
+
+## Decision, 20 October 2026 (#1024)
+
+The owner chose option A: the hosted, approval-gated **Apply named migrations
+to production** workflow is the production route, and the local operator
+alternative stays a **dormant contingency**. Its code stays; nothing is retired
+and no credential is provisioned for it. Revisit only if the repository goes
+private again (required reviewers stop working) or a second person starts
+operating releases. Recorded in
+[`docs/migrations.md`](../../migrations.md#production-route-decision-1024--20-october-2026).
+

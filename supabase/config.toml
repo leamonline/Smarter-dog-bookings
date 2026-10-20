@@ -83,8 +83,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.notify-booking-reminder]
 verify_jwt = false
-[functions.notify-booking-ready]
-verify_jwt = false
 [functions.notify-customer-welcome]
 verify_jwt = false
 [functions.notify-waitlist-joined]

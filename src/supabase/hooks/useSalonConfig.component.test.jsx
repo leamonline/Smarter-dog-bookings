@@ -230,7 +230,7 @@ describe("useSalonConfig boot prefetch", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     await waitFor(() => expect(result.current.bookingRulesLoading).toBe(false));
-    expect(result.current.config.advanceBookingWeeks).toBe(8);
+    expect(result.current.config.defaultPickupOffset).toBe(4);
     expect(result.current.bookingRules.bookingHorizonDays).toBe(180);
     expect(result.current.bookingPolicyRuntime.state).toBe("inactive");
     expect(result.current.updateBookingRules).toEqual(expect.any(Function));
