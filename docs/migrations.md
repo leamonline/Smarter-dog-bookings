@@ -1,5 +1,16 @@
 # Migration history
 
+## Daily pipeline health line (#1007) — prepared, NOT applied
+
+`20261020110000_pipeline_health_line.sql` widens `slack_alerts.alert_type` to
+admit `pipeline_health`, adds the `service_role`-only definer function
+`pipeline_health_counts(integer, integer)` (counts only) and two cron jobs
+(06:00 and 07:00 UTC) that call `slack-alerts` in `pipeline_health` mode.
+Additive and idempotent; nothing posts until `SLACK_ALERTS_ENABLED` is true and
+`SLACK_OPS_WEBHOOK` is set. Staging could not be used (paused; the organisation
+is at its two-active-project limit), so CI's `db-tests` (`supabase/tests/256`)
+stands in. Production needs the approval-gated workflow.
+
 ## Large-dog availability matches the booking gates (#1044) — applied 19 October 2026
 
 `20261019170000_large_dog_availability_matches_trigger.sql` is one idempotent

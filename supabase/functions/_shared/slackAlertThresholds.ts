@@ -57,3 +57,17 @@ export const MORNING_SUMMARY_HOUR_UK = 8;
 /** How long a posted-alert record is kept before the nightly prune drops it.
  *  Matches the 90-day telemetry retention already in the database. */
 export const ALERT_RETENTION_DAYS = 90;
+
+// ── Daily pipeline health line (#1007) ──────────────────────────────────
+//
+// One line a day into the ops channel, counts only. These are passed to
+// public.pipeline_health_counts() as parameters, so the SQL holds no copy.
+
+/** A notification_log row still 'pending' after this long is stuck. */
+export const PIPELINE_PENDING_AFTER_MINUTES = 10;
+
+/** How far back the failure counts look. */
+export const PIPELINE_WINDOW_HOURS = 24;
+
+/** London hour the health line belongs to (two UTC crons, like the summary). */
+export const PIPELINE_HEALTH_HOUR_UK = 7;
