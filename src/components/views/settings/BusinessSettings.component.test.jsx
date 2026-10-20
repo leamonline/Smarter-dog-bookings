@@ -106,13 +106,16 @@ describe("autosave SaveStatus indicator", () => {
       />,
     );
 
-    // Toggling auto-confirm triggers a live save.
-    await user.click(
-      screen.getByRole("switch", { name: /auto-confirm bookings/i }),
-    );
+    // Changing the booking horizon triggers a live save on blur.
+    const horizon = screen.getByRole("spinbutton", { name: "Booking horizon" });
+    await user.clear(horizon);
+    await user.type(horizon, "90");
+    await user.tab();
 
     expect(await screen.findByText("✓ Saved", { exact: true })).toBeInTheDocument();
-    expect(onUpdateBookingRules).toHaveBeenCalledWith({ autoConfirm: false });
+    expect(onUpdateBookingRules).toHaveBeenCalledWith({ bookingHorizonDays: 90 });
+    // The dead Auto-confirm switch is gone (#1000).
+    expect(screen.queryByRole("switch", { name: /auto-confirm bookings/i })).not.toBeInTheDocument();
   });
 });
 

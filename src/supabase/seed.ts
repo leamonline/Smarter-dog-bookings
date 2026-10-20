@@ -204,7 +204,6 @@ async function seed(): Promise<void> {
     defaultPickupOffset,
     pricing,
     enforceCapacity,
-    largeDogSlots,
     ...settings
   } = defaultConfig;
   const { error: configErr } = await supabase
@@ -213,7 +212,6 @@ async function seed(): Promise<void> {
       default_pickup_offset: defaultPickupOffset,
       pricing,
       enforce_capacity: enforceCapacity,
-      large_dog_slots: largeDogSlots,
       settings,
     });
   if (configErr) console.error("Salon config:", configErr.message);

@@ -610,11 +610,12 @@ describe("dbConfigToApp", () => {
     expect(config!.defaultPickupOffset).toBe(90);
     expect(config!.pricing).toEqual({ small: { "full-groom": "35" } });
     expect(config!.enforceCapacity).toBe(true);
-    expect(config!.largeDogSlots).toEqual({ "12:00": { seats: 2, canShare: true } });
+    expect(config).not.toHaveProperty("largeDogSlots");
     expect(config!.businessName).toBe("Bleep's Groom Room");
     expect(config!.businessPhone).toBe("07507 731487");
     expect(config!.customerPortal.allowCancellations).toBe(false);
-    expect(config!.customerPortal.showUpcoming).toBe(true);
+    // Retired portal keys are dropped on read (#1000).
+    expect(config!.customerPortal).not.toHaveProperty("showUpcoming");
   });
 
   it("returns null when row is null", () => {
@@ -634,10 +635,10 @@ describe("dbConfigToApp", () => {
     expect(config!.defaultPickupOffset).toBe(120);
     expect(config!.pricing["full-groom"]).toEqual({ small: 4200, medium: 4600, large: 6000 });
     expect(config!.enforceCapacity).toBe(true); // null !== false => true
-    expect(config!.largeDogSlots["08:30"]).toEqual({ seats: 1, canShare: true, needsApproval: false });
     expect(config!.businessName).toBe("Smarter Dog Grooming");
-    expect(config!.advanceBookingWeeks).toBe(8);
-    expect(config!.notifications.dayBeforeReminder.channels).toEqual(["whatsapp"]);
+    for (const key of ["advanceBookingWeeks", "notifications", "services", "autoConfirm", "largeDogSlots"]) {
+      expect(config).not.toHaveProperty(key);
+    }
   });
 
   it("sets enforceCapacity to false when explicitly false", () => {
@@ -675,14 +676,15 @@ describe("appConfigToDb", () => {
     expect(dbRow.default_pickup_offset).toBe(90);
     expect(dbRow.pricing).toEqual({ small: { "full-groom": "35" } });
     expect(dbRow.enforce_capacity).toBe(true);
-    expect(dbRow.large_dog_slots).toEqual({ "12:00": { seats: 2, canShare: true } });
+    expect(dbRow).not.toHaveProperty("large_dog_slots");
     expect(dbRow.settings.businessName).toBe("Bleep's Groom Room");
     expect(dbRow.settings.businessPhone).toBe("07507 731487");
     expect(dbRow.settings.businessEmail).toBe("hello@example.com");
     expect(dbRow.settings.businessAddress).toBe("1 High Street");
-    expect(dbRow.settings.advanceBookingWeeks).toBe(12);
     expect(dbRow.settings.minCancellationHours).toBe(48);
-    expect(dbRow.settings.autoConfirm).toBe(false);
+    // Retired keys are not written back, even when the caller still has them.
+    expect(dbRow.settings).not.toHaveProperty("advanceBookingWeeks");
+    expect(dbRow.settings).not.toHaveProperty("autoConfirm");
   });
 
   it("round-trips every editable settings field with dbConfigToApp", () => {
@@ -727,7 +729,6 @@ describe("appConfigToDb", () => {
     expect(restored!.defaultPickupOffset).toBe(original.defaultPickupOffset);
     expect(restored!.pricing).toEqual(original.pricing);
     expect(restored!.enforceCapacity).toBe(original.enforceCapacity);
-    expect(restored!.largeDogSlots).toEqual(original.largeDogSlots);
     expect(restored!.businessName).toBe(original.businessName);
     expect(restored!.businessPhone).toBe(original.businessPhone);
     expect(restored!.businessEmail).toBe(original.businessEmail);
@@ -736,12 +737,11 @@ describe("appConfigToDb", () => {
     expect(restored!.businessHours.Tuesday).toEqual(original.businessHours.Tuesday);
     expect(restored!.businessHours.Sunday).toEqual({ open: "", close: "", closed: true });
     expect(restored!.closures).toEqual(original.closures);
-    expect(restored!.advanceBookingWeeks).toBe(original.advanceBookingWeeks);
     expect(restored!.minCancellationHours).toBe(original.minCancellationHours);
-    expect(restored!.autoConfirm).toBe(original.autoConfirm);
-    expect(restored!.customerPortal).toEqual(original.customerPortal);
-    expect(restored!.notifications).toEqual(original.notifications);
-    expect(restored!.services).toEqual(original.services);
+    expect(restored!.customerPortal).toEqual({
+      showHistory: original.customerPortal.showHistory,
+      allowCancellations: original.customerPortal.allowCancellations,
+    });
   });
 });
 
