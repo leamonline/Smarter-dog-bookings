@@ -267,20 +267,6 @@
       "emptySecretBehaviour": "closed — returns 500 before evaluating the header when WEBHOOK_SECRET is unset",
       "notes": "Calls whatsapp-send onward with the service-role JWT plus x-internal-secret."
     },
-    "notify-booking-ready": {
-      "authFamily": "webhook-bearer",
-      "authSource": "index.ts",
-      "caller": "Postgres trigger via pg_net",
-      "role": "service",
-      "gatewayVerifyJwt": false,
-      "configToml": "declared-false",
-      "serviceRole": true,
-      "originPolicy": null,
-      "replayDefence": "none at the transport; duplicate sends are bounded by booking state",
-      "unauthorizedResponse": "401 Unauthorized, or 500 when WEBHOOK_SECRET is unset",
-      "emptySecretBehaviour": "closed — returns 500 before evaluating the header when WEBHOOK_SECRET is unset",
-      "notes": ""
-    },
     "notify-booking-reminder": {
       "authFamily": "webhook-bearer-or-staff-jwt",
       "authSource": "index.ts",

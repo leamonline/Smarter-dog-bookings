@@ -316,7 +316,7 @@ Backend logic lives in `supabase/functions/` as Deno Edge Functions (with a
   receptionist), `whatsapp-send`, `whatsapp-generate-reply`, `whatsapp-flow-endpoint`,
   `whatsapp-register`, `whatsapp-admin`.
 - **Notifications** — `notify-booking-confirmed`, `notify-booking-cancelled`,
-  `notify-booking-ready`, `notify-booking-reminder`, `notify-waitlist-joined`,
+  `notify-booking-reminder`, `notify-waitlist-joined`,
   `notify-customer-welcome`, `resend-booking-notification`.
 - **Messaging** — `sms-send`, `reminder-send`, `reminder-sms-fallback`.
 - **Customer / utilities** — `customer-phone-on-file`, `apply-customer-confirm`,
