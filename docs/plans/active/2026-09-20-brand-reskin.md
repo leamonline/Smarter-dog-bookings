@@ -259,7 +259,7 @@ committed under `docs/ux/captures`.
 
 - **Logo SVG set** — approved 2026-09-20. Five files: roundel, small roundel,
   lockup black, lockup white, silhouette. See Recorded decisions.
-- **Conflict: [domain routing plan](2026-09-10-smarterdog-domain-routing.md)**
+- **Conflict: [domain routing plan](../completed/2026-09-10-smarterdog-domain-routing.md)**
   (Draft) owns `public/**`, `index.html` asset paths and the `/app/` prefix.
   Every step here that touches `public/**` or `index.html` — **step 3** (logos,
   icons, manifest, `theme-color`, `og:image`), **step 4** (font files) and the

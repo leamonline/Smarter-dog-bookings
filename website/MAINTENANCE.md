@@ -41,7 +41,7 @@ include those peers when it regenerates `website/package-lock.json`.
 ### Code Backups
 
 - **Primary**: Git repository (GitHub/GitLab)
-- **Hosting backup**: Retain a known-good Bluehost website artefact and its source SHA.
+- **Hosting backup**: every production deployment stays in Vercel; roll back there.
 
 ### How to backup manually
 
@@ -114,22 +114,15 @@ Before deploying:
 - [ ] Build succeeds: `npm run build`
 - [ ] Check bundle size: `npm run build:analyze`
 
-### Publisher cutover (completed 9 September 2026)
+### How the site is published
 
-The Bluehost publisher moved from the original `smarter-dog-website`
-repository to this repository's root [`website.yml`](../.github/workflows/website.yml)
-workflow, following the
-[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
-The first attempt on 8 September 2026 (PR #810) did not publish: the
-`deploy` job was skipped because the `WEBSITE_PUBLISHER_ENABLED` repository
-variable was not yet set. Once the owner set it, the next website-touching
-merge (PR #811, `main@61d668d`) ran [run 34359840293](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/34359840293) and its
-`deploy` job published at 14:03 UTC on 9 September 2026 (64 files synced, no
-clean slate). smarterdog.co.uk then served `index-DqSb2wRt.js`, the bundle
-built here. The original repository was archived on 9 September 2026 (read-only,
-workflow disabled); **this workflow is now the single publisher.** Evidence is in the
-[completion record](../docs/plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026)
-and on [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784).
+Since the 11 September 2026 domain cutover, smarterdog.co.uk is served by the
+repository's **root** Vercel deployment: a `website/**` change goes live when it
+merges to `main`. The FTP publisher that ran from 9 September and was then kept
+warm as a rollback target was retired on 20 October 2026
+([#999](https://github.com/leamonline/Smarter-dog-bookings/issues/999)). The
+history is in the
+[completion record](../docs/plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026).
 
 ### Where this site lives now (7 September 2026)
 
@@ -140,30 +133,6 @@ repository, imported with full history from `smarter-dog-website`
 Run every command in this guide from `website/`, or from the repository root
 with the `website:*` scripts (`npm run website:test`, `npm run website:build`, …).
 Use `npm ci`, not `npm install`, unless you mean to change dependencies.
-
-### Bluehost FTP Deployment (CI)
-
-The `deploy` job in the **root** workflow
-[`.github/workflows/website.yml`](../.github/workflows/website.yml) syncs
-`website/dist/` to Bluehost via FTPS using `SamKirkland/FTP-Deploy-Action`.
-It runs only on a push to `main` that touches `website/**` or the workflow file **and** only while
-the repository variable `WEBSITE_PUBLISHER_ENABLED` is `true`. That variable
-has been set since the cutover on 9 September 2026, so every website-touching
-merge to `main` publishes. Setting it to `false` (or deleting it) is the
-kill switch; see the rollback section of the
-[cutover runbook](../docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
-
-**FTP account scope matters.** The original account was documented as scoped to `/home1/<cpanel-user>/public_html`. Reverify that scope at cutover. When the FTP root is `public_html/`, use `server-dir: ./`.
-
-Do **not** use `/public_html/` (absolute) or `public_html/` (relative) with this account — both resolve to `public_html/public_html/` and the deploy will fail when it tries to step into `public_html/assets/`.
-
-**If the FTP account is ever recreated or rotated:**
-
-- Sub-account scoped to `public_html/` → keep `server-dir: ./`
-- Main cPanel user (lands in `/home1/<cpanel-user>/`, above the website folder) → change `server-dir` to `public_html/` (no leading slash)
-- Sub-account scoped to a subfolder of `public_html/` (e.g. `public_html/leam`) → won't work; recreate it scoped to `public_html` itself
-
-The action stores its incremental-sync state in `.ftp-deploy-sync-state.json` at the FTP root. A repository or account change does not necessarily remove that remote file. Preserve and inspect its state and the proposed changes before cutover. Disabling the publisher variable prevents future jobs; cancel and wait for active deployments before rollback.
 
 ---
 

@@ -7,9 +7,8 @@
 //
 // Deliberately "/book/login" and not "/book": this site has its own "/book"
 // route that redirects here (App.jsx), so aiming this at "/book" would be a
-// redirect loop anywhere that route is the one serving the path — which is
-// exactly what a DNS rollback to Bluehost would do, since Bluehost carries
-// only the marketing build and has no edge rewrite to intercept "/book".
+// redirect loop anywhere that route is the one serving the path, such as a
+// host that carries only the marketing build with no edge rewrite for "/book".
 // "/book/login" does not match that route, and is the screen
 // "/customer/login" already redirected to.
 export const BOOKING_URL = 'https://smarterdog.co.uk/book/login';

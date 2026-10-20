@@ -2,12 +2,12 @@
 
 **Status:** Complete — executed 11 September 2026, every step including the deferred Supabase Site URL. See the [completion record](#completion-record--11-september-2026).
 **Issue:** [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
-**Plan:** [single-domain routing](../../plans/active/2026-09-10-smarterdog-domain-routing.md)
+**Plan:** [single-domain routing](../../plans/completed/2026-09-10-smarterdog-domain-routing.md)
 **Pull request:** [#825](https://github.com/leamonline/Smarter-dog-bookings/pull/825)
 
 Read the completion record first: three things went wrong on the day and are written up
-there. Items that outlived the cutover are under [Still open](#still-open) — the one that
-still needs a decision is retiring the Bluehost publisher. The steps below are retained as
+there. Items that outlived the cutover are under [Still open](#still-open) — the Bluehost
+publisher was retired on 20 October 2026. The steps below are retained as
 the procedure for any future re-cutover, so they stay in the imperative; a ✅ records what
 was done on the day, not an instruction to skip that step next time.
 
@@ -122,8 +122,9 @@ which is exactly what a variable looks like when nobody wrote down why.
   with a certificate that validates.
 - ~~Delete the repository variable `WEBSITE_DEPLOY_ENABLED`~~ — done
   11 September 2026.
-- Turn `WEBSITE_PUBLISHER_ENABLED` off once rollback is no longer plausible
-  (see above).
+- ~~Turn `WEBSITE_PUBLISHER_ENABLED` off once rollback is no longer plausible~~ —
+  the publisher job was retired on 20 October 2026 (#999); the owner removes the
+  variable and the three FTP secrets in GitHub settings.
 
 ## Invariants
 

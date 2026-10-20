@@ -30,13 +30,10 @@ Root lint, test and build discovery exclude it; use the `website:*` scripts (`np
 on 11 September 2026 the domain points at **Vercel**, so the live site is the combined build
 ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that a merge to `main` deploys — the same
 deployment that carries the booking app. A `website/**` change therefore reaches visitors through the
-**root** deployment, not through `website.yml`. Its `deploy` job still publishes to Bluehost (gate:
-repository variable `WEBSITE_PUBLISHER_ENABLED`; procedure in the
-[publisher cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)), but
-nothing routes there any more: it is kept deliberately warm **as a rollback target** so that reverting
-DNS lands on a current site, and is due to be switched off once rollback stops being plausible. Do not
-read a green Bluehost `deploy` as evidence that the live site updated, and do not read its absence as
-evidence that it did not.
+**root** deployment, not through `website.yml`, which only lints, tests and builds. The old FTP
+publisher, kept warm as a DNS-rollback target after the cutover, was retired on 20 October 2026
+(#999); rolling back now means a Vercel rollback (see `docs/rollback.md`).
+Nameservers and MX records still sit with the old host; that is DNS and email, not publishing.
 
 Do not merge the two apps' CSS, routing, auth or service workers.
 
