@@ -327,6 +327,8 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that deployment carries **the marketing
   site as well as the booking app**, so a bad merge takes down smarterdog.co.uk too, not just the
   salon's internal tooling. DB migrations do **not** auto-apply; apply them to prod first.
+- **Rolling back:** [docs/rollback.md](docs/rollback.md) covers the three layers: Vercel instant
+  rollback, redeploying an Edge Function, and forward-fixing the database (it cannot roll back).
 - **Database backups:** the weekly encrypted `pg_dump` (`database-backup.yml`, `production` environment,
   off until `DATABASE_BACKUP_ENABLED=true`), what it does and does not contain, and the restore
   drill live in [docs/operations.md](docs/operations.md). A downloaded backup is customer data.
