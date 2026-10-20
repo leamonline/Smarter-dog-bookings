@@ -138,7 +138,8 @@ completed plan to make its history look cleaner.
   the May 2026 QA pass and security scan, the superseded launch plan, design
   spec and inbox plan, and the UX reviews under [`archive/ux-reviews/`](archive/ux-reviews/).
 - `docs/private/`, `.env.local` and `flow-keys/` may contain sensitive or
-  operational material. Do not inspect, quote, move or commit their contents
+  operational material. None of them is in the repository; they are local-only, and
+  these rules apply wherever one exists. Do not inspect, quote, move or commit their contents
   unless the task explicitly requires it and the appropriate authority exists.
 - Point-in-time production evidence must identify its observation date and
   environment. It must never include identifiable customer data in general
