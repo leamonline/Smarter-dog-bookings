@@ -240,3 +240,28 @@ no reason.
 | Out-of-credit detector | [`_shared/aiCreditAlert.ts`](../supabase/functions/_shared/aiCreditAlert.ts) |
 | Booking deep link | [`useBookingDeepLink.ts`](../src/hooks/useBookingDeepLink.ts) |
 | Database tests | [`223_slack_alerts.test.sql`](../supabase/tests/223_slack_alerts.test.sql) |
+
+## Daily pipeline health line (#1007)
+
+Once a day at 07:00 London, `slack-alerts` (mode `pipeline_health`) posts **one
+line of counts** to a separate ops channel, never to #salon-today:
+
+> :large_green_circle: Pipeline 24h: stuck 0 · failed 0 · WhatsApp events failed 0 · cron failed 0 · HTTP errors 0 · SMS sent 12
+
+- **What it counts** (`public.pipeline_health_counts`, migration
+  `20261020110000`): `notification_log` rows still `pending` after
+  `PIPELINE_PENDING_AFTER_MINUTES`; rows `failed` in the window, by
+  `trigger_type`; `whatsapp_events` that failed; failed `cron.job_run_details`
+  runs; `net._http_response` rows with status 400 or above, or a transport error (pg_net keeps these
+  for about six hours, so this is "recent", not "24 hours"); SMS sent. The
+  thresholds live in `_shared/slackAlertThresholds.ts`.
+- **Counts only.** `_shared/pipelineHealth.ts` takes numbers and trigger-type
+  labels, collapses any label that is not a plain identifier to `other`, and a
+  test asserts a name, phone number or message text cannot be rendered.
+- **Where it goes:** the `SLACK_OPS_WEBHOOK` Edge Function secret, an incoming
+  webhook for a separate channel. Until it is set the line is recorded in the
+  ledger as `dropped` and nothing posts. `SLACK_ALERTS_ENABLED` and
+  `SLACK_ALERTS_DRY_RUN` apply exactly as for every other alert.
+- **Red or green:** red when anything is stuck or failed, green otherwise.
+  One line per day (`alert_key` `pipelinehealth:<date>`).
+

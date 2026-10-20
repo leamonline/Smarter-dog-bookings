@@ -20,6 +20,8 @@
 //            messages — plus flushing anything queued out of hours
 //   summary  08:15 London: the day ahead, and whether it is quiet or full
 //   ai_credit  an AI caller hit "credit balance is too low" (once a day)
+//   pipeline_health  07:00 London: one line of counts to the OPS channel
+//            (SLACK_OPS_WEBHOOK), never to #salon-today (#1007)
 //
 // Why that split: the trigger alerts are EVENTS — there is an exact moment
 // they happen and the database already recorded it. The sweep alerts are the
@@ -44,7 +46,15 @@ import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { buildSlotGrid, DAILY_DOG_CAP, type DogSize } from "../_shared/salonConstants.ts";
 import { visitStartInstant } from "../_shared/manageBooking.ts";
 import {
+  buildPipelineHealthLine,
+  parsePipelineHealthCounts,
+  pipelineHealthIsClean,
+} from "../_shared/pipelineHealth.ts";
+import {
   MORNING_SUMMARY_HOUR_UK,
+  PIPELINE_HEALTH_HOUR_UK,
+  PIPELINE_PENDING_AFTER_MINUTES,
+  PIPELINE_WINDOW_HOURS,
   NO_SHOW_AFTER_MINUTES,
   READY_OVERDUE_MINUTES,
   UNANSWERED_AFTER_MINUTES,
@@ -72,6 +82,9 @@ const SLACK_ALERTS_ENABLED =
 const SLACK_ALERTS_DRY_RUN =
   (Deno.env.get("SLACK_ALERTS_DRY_RUN") ?? "false").toLowerCase() === "true";
 const SLACK_SALON_TODAY_WEBHOOK = Deno.env.get("SLACK_SALON_TODAY_WEBHOOK");
+// The ops channel for the daily pipeline line. Deliberately separate: the
+// salon channel is for "something changes today", not plumbing (#1007).
+const SLACK_OPS_WEBHOOK = Deno.env.get("SLACK_OPS_WEBHOOK");
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -183,17 +196,26 @@ async function postToSlack(
 
 /** The only fetch() to Slack in the codebase. Returns false rather than
  *  throwing: a Slack outage must never propagate into a booking transaction. */
-async function sendToSlack(text: string): Promise<boolean> {
+// The target is an object, not defaulted parameters: an explicitly unset ops
+// webhook must stay unset, never fall back to #salon-today (#1007 review).
+interface SlackTarget {
+  url: string | undefined;
+  name: string;
+}
+const SALON_TODAY_TARGET: SlackTarget = { url: SLACK_SALON_TODAY_WEBHOOK, name: "SLACK_SALON_TODAY_WEBHOOK" };
+
+async function sendToSlack(text: string, target: SlackTarget = SALON_TODAY_TARGET): Promise<boolean> {
+  const { url: webhook, name } = target;
   if (SLACK_ALERTS_DRY_RUN) {
-    console.log(`slack-alerts [DRY RUN] would post: ${text}`);
+    console.log(`slack-alerts [DRY RUN] would post to ${name}: ${text}`);
     return true;
   }
-  if (!SLACK_SALON_TODAY_WEBHOOK) {
-    console.error("slack-alerts: SLACK_SALON_TODAY_WEBHOOK is not set");
+  if (!webhook) {
+    console.error(`slack-alerts: ${name} is not set`);
     return false;
   }
   try {
-    const res = await fetch(SLACK_SALON_TODAY_WEBHOOK, {
+    const res = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -610,6 +632,58 @@ async function handleSummary(
   return { summary: outcome };
 }
 
+// ── Mode: pipeline_health (07:00 London, ops channel) ──────────────────
+
+async function handlePipelineHealth(
+  supabase: SupabaseClient,
+  now: Date,
+): Promise<Record<string, unknown>> {
+  const wall = londonWallClock(now);
+  if (wall.hour !== PIPELINE_HEALTH_HOUR_UK) {
+    return { skipped: true, reason: `London hour is ${wall.hour}, not ${PIPELINE_HEALTH_HOUR_UK}` };
+  }
+  const { data, error } = await supabase.rpc("pipeline_health_counts", {
+    p_pending_after_minutes: PIPELINE_PENDING_AFTER_MINUTES,
+    p_window_hours: PIPELINE_WINDOW_HOURS,
+  });
+  if (error) {
+    console.error(`slack-alerts: pipeline_health_counts failed: ${error.message}`);
+    return { pipeline_health: "failed" };
+  }
+  const counts = parsePipelineHealthCounts(data);
+  const text = buildPipelineHealthLine(counts, PIPELINE_WINDOW_HOURS);
+
+  // Same claim-before-send ledger as every other alert: one line per day.
+  const { data: claimed, error: claimErr } = await supabase
+    .from("slack_alerts")
+    .insert({
+      alert_key: `pipelinehealth:${wall.dateStr}`,
+      alert_type: "pipeline_health",
+      severity: pipelineHealthIsClean(counts) ? "good" : "act",
+      booking_date: wall.dateStr,
+      state: "posted",
+      message: text,
+      dry_run: SLACK_ALERTS_DRY_RUN,
+      posted_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (claimErr) {
+    return { pipeline_health: claimErr.code === "23505" ? "duplicate" : "failed" };
+  }
+  const sent = await sendToSlack(text, { url: SLACK_OPS_WEBHOOK, name: "SLACK_OPS_WEBHOOK" });
+  if (!sent) {
+    // Not retried by the sweep (that flushes #salon-today only); record it.
+    await supabase
+      .from("slack_alerts")
+      .update({ state: "dropped", posted_at: null })
+      .eq("id", claimed?.id ?? "")
+      .then(undefined, () => undefined);
+    return { pipeline_health: "failed" };
+  }
+  return { pipeline_health: "post" };
+}
+
 // ── Entry point ────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -664,6 +738,8 @@ serve(async (req) => {
             ),
           ],
         });
+      case "pipeline_health":
+        return json({ ok: true, ...(await handlePipelineHealth(supabase, now)) });
       default:
         return json({ error: "unknown mode", mode }, 400);
     }

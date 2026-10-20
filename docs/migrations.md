@@ -1,5 +1,32 @@
 # Migration history
 
+## Daily pipeline health line (#1007) — applied 20 October 2026
+
+`20261020110000_pipeline_health_line.sql` widens `slack_alerts.alert_type` to
+admit `pipeline_health`, adds the `service_role`-only definer function
+`pipeline_health_counts(integer, integer)` (counts only) and two cron jobs
+(06:00 and 07:00 UTC) that call `slack-alerts` in `pipeline_health` mode.
+Additive and idempotent; nothing posts until `SLACK_ALERTS_ENABLED` is true and
+`SLACK_OPS_WEBHOOK` is set. Staging could not be used (paused; the organisation
+is at its two-active-project limit), so CI's `db-tests` (`supabase/tests/256`)
+stands in.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 20 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 22
+([39403121002](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39403121002)),
+approved by @leamonline, taking the file from the #1061 head `eec97686`. The
+run's own output reports `outcome: applied` for the file with sha256
+`e053a60d473cdbfa0245ba31db74df93d6a4c4fe7d67648262aae9014c2c3107`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true`. Read back
+from production afterwards through the Supabase MCP (read-only, catalogue only):
+the ledger holds `20261020110000 pipeline_health_line`,
+`pipeline_health_counts` is `SECURITY DEFINER` and `anon` cannot execute it, and
+the jobs `slack-alerts-pipeline-health-0600-utc` (`0 6 * * *`) and
+`slack-alerts-pipeline-health-0700-utc` (`0 7 * * *`) exist. Until this pull
+request deploys `slack-alerts`, the live function answers that mode with
+`400 unknown mode` and posts nothing; after it deploys, nothing posts until
+`SLACK_OPS_WEBHOOK` is set, and never to #salon-today.
+
 ## Status vocabulary stragglers (#1005) — applied 20 October 2026
 
 `20261020100000_status_vocabulary_stragglers.sql` re-issues two functions the
