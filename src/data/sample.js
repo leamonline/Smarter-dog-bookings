@@ -71,7 +71,7 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
 // ── WhatsApp inbox ────────────────────────────────────────────
 // Offline fixtures for the Inbox workspace. useWhatsAppInbox serves these
 // whenever there is no Supabase client (VITE_FORCE_OFFLINE=1, or missing creds
-// in dev), so /inbox and /booking-workspace both render populated at every
+// in dev), so /inbox renders populated at every
 // breakpoint without touching a real customer conversation.
 //
 // Timestamps are relative so the thread always looks current. Between them the

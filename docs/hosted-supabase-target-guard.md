@@ -27,12 +27,6 @@ the separate human authority defined in [ADR 006](architecture/decisions/006-man
 
 | Location | Command | Target control | Capability | Authority boundary |
 |---|---|---|---|---|
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref | Reads the production schema only after linking | Workflow remains staging-only; no production write |
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase db dump --linked` | Adjacent assertion of `PRODUCTION_PROJECT_REF` | Schema-only production read | No customer data, migration or write |
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase link --project-ref "$STAGING_PROJECT_REF"` | Explicit staging ref; staging ref must differ from production | Sets local link state | Named `staging` GitHub environment and manual exact-ref confirmation |
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase migration list --linked` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration-state read | Named `staging` environment |
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase db push --linked --include-all --dry-run` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration preview | Named `staging` environment |
-| `.github/workflows/staging-tranche1-smoke.yml` | `supabase db push --linked --include-all --yes` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted staging migration write | Named `staging` environment; never production |
 | `scripts/run-hosted-pgtap.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded staging ref and differ from production; adjacent link-state assertion | Retrieves ephemeral connection details for staging pgTAP | Script accepts staging only |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase link --project-ref "$STAGING_PROJECT_REF"` | Explicit staging ref; staging ref must differ from production | Sets local link state | Named `staging` GitHub environment and manual exact-ref confirmation |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase migration list --linked` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration-state read | Named `staging` environment |

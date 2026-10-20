@@ -30,13 +30,11 @@ Root lint, test and build discovery exclude it; use the `website:*` scripts (`np
 on 11 September 2026 the domain points at **Vercel**, so the live site is the combined build
 ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that a merge to `main` deploys — the same
 deployment that carries the booking app. A `website/**` change therefore reaches visitors through the
-**root** deployment, not through `website.yml`. Its `deploy` job still publishes to Bluehost (gate:
-repository variable `WEBSITE_PUBLISHER_ENABLED`; procedure in the
-[publisher cutover runbook](docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md)), but
-nothing routes there any more: it is kept deliberately warm **as a rollback target** so that reverting
-DNS lands on a current site, and is due to be switched off once rollback stops being plausible. Do not
-read a green Bluehost `deploy` as evidence that the live site updated, and do not read its absence as
-evidence that it did not.
+**root** deployment, not through `website.yml`, which only lints, tests and builds. The old FTP
+publisher, kept warm as a DNS-rollback target after the cutover, was retired on 20 October 2026
+(#999); rolling back now means a Vercel rollback: Vercel → project **smarter-dogs-smart-humans** →
+Deployments → the last good production deployment → **Instant Rollback** (or `vercel rollback <url>`).
+Nameservers and MX records still sit with the old host; that is DNS and email, not publishing.
 
 Do not merge the two apps' CSS, routing, auth or service workers.
 
@@ -327,6 +325,8 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that deployment carries **the marketing
   site as well as the booking app**, so a bad merge takes down smarterdog.co.uk too, not just the
   salon's internal tooling. DB migrations do **not** auto-apply; apply them to prod first.
+- **Rolling back:** [docs/rollback.md](docs/rollback.md) covers the three layers: Vercel instant
+  rollback, redeploying an Edge Function, and forward-fixing the database (it cannot roll back).
 - **Database backups:** the weekly encrypted `pg_dump` (`database-backup.yml`, `production` environment,
   off until `DATABASE_BACKUP_ENABLED=true`), what it does and does not contain, and the restore
   drill live in [docs/operations.md](docs/operations.md). A downloaded backup is customer data.

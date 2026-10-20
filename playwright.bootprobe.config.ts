@@ -12,6 +12,10 @@ import { defineConfig, devices } from "@playwright/test";
 //
 // Run with: npm run e2e:bootprobe
 
+// Same escape hatch as playwright.config.ts: a sandbox whose pre-installed
+// Chromium differs from the pinned Playwright's can point this at it.
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+
 const PORT = Number(process.env.PLAYWRIGHT_BOOTPROBE_PORT) || 4174;
 const baseURL =
   process.env.PLAYWRIGHT_BOOTPROBE_BASE_URL || `http://127.0.0.1:${PORT}`;
@@ -34,7 +38,11 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], browserName: "chromium" },
+      use: {
+        ...devices["Desktop Chrome"],
+        browserName: "chromium",
+        ...(chromiumExecutable ? { launchOptions: { executablePath: chromiumExecutable } } : {}),
+      },
     },
   ],
   webServer: {

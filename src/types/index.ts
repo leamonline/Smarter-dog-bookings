@@ -253,9 +253,7 @@ export interface SalonClosure {
 }
 
 export interface CustomerPortalSettings {
-  showUpcoming: boolean;
   showHistory: boolean;
-  allowRebooking: boolean;
   allowCancellations: boolean;
 }
 
@@ -281,11 +279,6 @@ export interface BookingPolicyRules {
   customerPortal: BookingPolicyCustomerPortalSettings;
 }
 
-export interface NotificationSetting {
-  enabled: boolean;
-  channels: string[];
-}
-
 export interface SalonSettings {
   businessName: string;
   businessPhone: string;
@@ -293,9 +286,7 @@ export interface SalonSettings {
   businessAddress: string;
   businessHours: Record<string, BusinessDayHours>;
   closures: SalonClosure[];
-  advanceBookingWeeks: number;
   minCancellationHours: number;
-  autoConfirm: boolean;
   /** Bank details customers are GIVEN to pay deposits into (not secrets).
    *  Read by the deposit panels (staff + portal) via getDepositSettings. */
   depositBank: { accountName: string; sortCode: string; accountNumber: string };
@@ -304,8 +295,6 @@ export interface SalonSettings {
    *  salon_config.settings. */
   depositReleaseHours: number;
   customerPortal: CustomerPortalSettings;
-  notifications: Record<string, NotificationSetting>;
-  services: SalonService[];
 }
 
 export interface SalonConfig extends SalonSettings {
@@ -316,7 +305,6 @@ export interface SalonConfig extends SalonSettings {
   enforceCapacity: boolean;
   /** Maximum total dogs that can be booked in a single day (across all slots). */
   dailyDogCap: number;
-  largeDogSlots: Record<string, LargeDogSlotRule>;
 }
 
 /**

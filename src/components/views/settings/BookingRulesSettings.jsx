@@ -7,8 +7,6 @@ import {
   Card,
   CardHead,
   CardBody,
-  SettingRow,
-  Toggle,
   InlineField,
   useAutosaveStatus,
   SaveStatus,
@@ -481,20 +479,8 @@ export function BookingRulesSettings({
                   </div>
                 </div>
 
-                <SettingRow
-                  label="Auto-confirm bookings"
-                  sublabel="When off, new bookings need manual approval"
-                  control={
-                    <Toggle
-                      on={rules.autoConfirm}
-                      onToggle={() =>
-                        void saveRules({ autoConfirm: !rules.autoConfirm })
-                      }
-                      disabled={!canEdit}
-                    />
-                  }
-                />
-
+                {/* No "Auto-confirm bookings" switch (#1000): its only reader is
+                    a dormant visit command, so it changed nothing live. */}
                 <div className="flex items-center justify-between gap-4 border-b border-slate-200 py-3.5">
                   <div>
                     <div className="text-sm font-semibold text-slate-800">

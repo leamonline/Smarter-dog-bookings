@@ -1,6 +1,6 @@
 # Single-domain routing: /book and /stafflogin on smarterdog.co.uk
 
-Status: Draft
+**Status:** Cutover executed 11 September 2026; publisher retired 20 October 2026 (#999). Still open before this plan can move to `completed/`: confirmation that every staff device was re-enrolled for notifications, and the ADR recording the hosting decision that supersedes ADR 009
 Issue: [#824](https://github.com/leamonline/Smarter-dog-bookings/issues/824)
 Base: `codex/smarterdog-domain-routing` off `origin/main` at `0e1b8541`
 Last verified: 2026-09-10
@@ -96,7 +96,7 @@ declares `"start_url": "/"` and root-absolute icon paths. A separate
 so it follows whichever origin the user is on. No code change is needed for
 the new domain; the Supabase redirect allowlist must permit both.
 
-**Apache configuration.** [`website/public/.htaccess`](../../../website/public/.htaccess)
+**Apache configuration.** `website/public/.htaccess` (deleted in #999)
 provides gzip, cache expiry, `no-cache` for HTML and SPA history fallback.
 Vercel ignores `.htaccess`; each behaviour must be reproduced in `vercel.json`.
 

@@ -5,7 +5,7 @@ import { Card, CardHead, CardBody, SECTION_LABEL_CLS } from "./shared.jsx";
 // copies that must change together — the frontend engine (LARGE_DOG_SLOTS,
 // rendered here), the Deno mirror in _shared/salonConstants.ts, and the
 // Postgres trigger's SQL helpers. The old editable card wrote
-// salon_config.large_dog_slots / enforce_capacity, which no enforcement
+// salon_config.large_dog_slots (no longer written, #1000) / enforce_capacity, which no enforcement
 // path reads; the real kill switch is salon_config.enforce_server_capacity
 // (SQL-only, deliberately not a UI toggle). See docs/capacity-engine.md.
 

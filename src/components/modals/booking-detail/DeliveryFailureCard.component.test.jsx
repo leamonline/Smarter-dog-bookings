@@ -118,3 +118,15 @@ describe("DeliveryFailureCard: an expired login", () => {
     expect(shown).not.toContain("invalid token");
   });
 });
+
+describe("DeliveryFailureCard with only a retired ready text (#997)", () => {
+  it("shows no card: no resend to claim, no number to fix for an obsolete text", () => {
+    const { container } = render(
+      <DeliveryFailureCard
+        {...props}
+        failures={[{ trigger_type: "ready", channel: "sms", created_at: "2026-06-18T08:00:00Z" }]}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+});

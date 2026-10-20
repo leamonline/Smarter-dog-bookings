@@ -69,8 +69,7 @@ jobs:
     env:
       PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
       STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
-      # Application schemas, as the schema baseline in
-      # staging-tranche1-smoke.yml names them. The data dump adds auth and
+      # Application schemas. The data dump adds auth and
       # storage so account rows survive a restore; see docs/operations.md
       # for exactly what is and is not in a backup.
       SCHEMA_DUMP_SCHEMAS: public,smarter_dog_private

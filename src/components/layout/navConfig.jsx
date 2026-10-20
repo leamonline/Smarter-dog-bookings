@@ -33,19 +33,6 @@ export const PRIMARY_NAV = [
     ),
   },
   {
-    key: "booking-desk",
-    to: "/booking-workspace",
-    label: "Booking Desk",
-    ownerFeature: "booking_workspace_enabled",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z" />
-        <path d="M9 3v4h6V3" />
-        <path d="M8 12h8M8 16h5" />
-      </svg>
-    ),
-  },
-  {
     key: "dogs",
     to: "/dogs",
     label: "Dogs",
@@ -128,7 +115,6 @@ export function navTargetFor(item, currentDateStr) {
 // tools menu rather than the primary nav.
 export function sectionKeyFor(pathname) {
   if (pathname.startsWith("/today")) return "today";
-  if (pathname.startsWith("/booking-workspace")) return "booking-desk";
   if (pathname === "/" || pathname === "") return "bookings";
   if (pathname.startsWith("/dogs")) return "dogs";
   if (pathname.startsWith("/humans")) return "humans";
@@ -142,7 +128,6 @@ export function sectionKeyFor(pathname) {
 const SECTION_TITLES = {
   today: "Daily Brief",
   bookings: "Bookings",
-  "booking-desk": "Booking Desk",
   dogs: "Dogs",
   humans: "Humans",
   inbox: "Inbox",

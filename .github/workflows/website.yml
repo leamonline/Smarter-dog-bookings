@@ -14,12 +14,9 @@ name: Website
 #   2. No Codecov upload: that step needed a token this repository does not
 #      hold and was already non-blocking (fail_ci_if_error: false). The
 #      coverage report is still archived as an artifact.
-#   3. The Bluehost publisher is DARK by default. The deploy job only runs
-#      on a push to main AND when the repository variable
-#      WEBSITE_PUBLISHER_ENABLED is exactly "true". Flipping that variable is
-#      the authorised cutover step in
-#      docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md;
-#      until then the original repository remains the single publisher.
+#   3. No publisher. smarterdog.co.uk is served by the root Vercel deployment
+#      since the 11 September 2026 domain cutover; the Bluehost FTP job that
+#      was kept warm as a rollback target was retired on 20 October 2026 (#999).
 #
 # Isolation guarantees (enforced by src/security/websiteWorkflowIsolation.test.ts):
 #   - only website/** (and this file) trigger it, so bookings changes never
@@ -27,7 +24,7 @@ name: Website
 #   - it never receives SUPABASE_ACCESS_TOKEN and cannot deploy Edge
 #     Functions — deploy-edge-functions.yml is path-filtered to
 #     supabase/functions/**;
-#   - pull requests can never reach the deploy job.
+#   - it deploys nothing: lint, test, build and E2E only.
 
 on:
   push:
@@ -131,46 +128,3 @@ jobs:
           name: website-playwright-report
           path: website/playwright-report/
           retention-days: 30
-
-  deploy:
-    # DARK until the authorised cutover. Three conditions, all required:
-    #   - a push event (a pull request can never publish);
-    #   - to main;
-    #   - the repository variable WEBSITE_PUBLISHER_ENABLED == 'true', which
-    #     does not exist until the cutover runbook creates it.
-    # The FTP secrets are likewise absent until the runbook provisions them.
-    runs-on: ubuntu-24.04
-    needs: [test, build, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WEBSITE_PUBLISHER_ENABLED == 'true'
-    concurrency:
-      group: deploy-bluehost
-      cancel-in-progress: false
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: website-build-artifacts
-          path: website/dist/
-
-      - name: Deploy to Bluehost via FTPS
-        # Same action, protocol, server-dir and exclusions as the source
-        # repository's workflow. server-dir "./" is correct ONLY for an FTP
-        # account whose root is public_html/ (website/MAINTENANCE.md); the
-        # runbook re-verifies the account scope before enabling this job.
-        # dangerous-clean-slate stays false: never wipe the target.
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.BLUEHOST_FTP_HOST }}
-          username: ${{ secrets.BLUEHOST_FTP_USER }}
-          password: ${{ secrets.BLUEHOST_FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: ./website/dist/
-          server-dir: ./
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.well-known/**
-            **/cgi-bin/**
-            **/.htaccess
