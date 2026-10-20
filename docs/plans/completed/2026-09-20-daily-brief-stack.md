@@ -1,6 +1,6 @@
 # Daily Brief appointment interaction
 
-**Status:** Complete (the /today day stack is the default staff landing; the four-zone board was deleted in #995)
+**Status:** Complete (the /today day stack shipped; the four-zone board was deleted in #995)
 Issue: #891
 Base: origin/main at 2379ab57
 Last verified: 2026-09-20

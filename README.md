@@ -39,7 +39,12 @@ flags before a release.
 | Customer notification after a staff reschedule | Gap — staff contact the customer manually | Not applicable | Tracked by [#604](https://github.com/leamonline/Smarter-dog-bookings/issues/604); automation is under a recorded **STOP** (15 August 2026). Revisit when *both* hold: the owner finds the manual contacting burdensome in practice, **and** an approved Meta template route with a deterministic fallback plus a separately authorised production check can be supplied — the [resumption trigger](docs/research/2026-08-09-reschedule-automation-go-no-go.md#resumption-trigger). |
 | Visit-level notification intent and attempt history | Gap | Not applicable | Tracked by [#610](https://github.com/leamonline/Smarter-dog-bookings/issues/610) |
 | Generic runtime schema/capability contract | Partial policy-specific pilot | Environment support not inferred | Tracked by [#607](https://github.com/leamonline/Smarter-dog-bookings/issues/607) |
-| Critical PR browser gate with WebKit | Implemented | `pr-production-smoke` runs every spec once on desktop Chromium, the smoke and continuity journeys on WebKit, and changed specs on tablet and mobile Chromium; the full matrix runs after merge | [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606) |
+| Critical PR browser gate with WebKit | Gap (at the 9 August baseline) | PR job skipped Playwright at the baseline; see the note below the table | Tracked by [#606](https://github.com/leamonline/Smarter-dog-bookings/issues/606) |
+
+**Since the baseline (not reverified in the table):** the PR browser gate now
+exists. `pr-production-smoke` runs every spec once on desktop Chromium plus the
+smoke and continuity journeys on WebKit (from 14 August 2026), and any spec a
+pull request changes on tablet and mobile Chromium too (from 20 September 2026).
 
 The evidence and distinctions behind this table live in
 [`docs/research/2026-08-09-issue-603-plan-reality-audit.md`](docs/research/2026-08-09-issue-603-plan-reality-audit.md).
@@ -87,8 +92,9 @@ The evidence and distinctions behind this table live in
 - **Frontend** — a single-page app served by **Vercel**, sharing its origin with the
   marketing site. `src/index.jsx` asks `src/routing/entrypoints.ts` where a URL belongs:
   `/book/*` goes to the customer portal (`CustomerApp.jsx`), `/staff/*` to the staff
-  dashboard (`App.jsx`, entered at `/stafflogin`), `/reset-password` stands alone, and old
-  `/`, `/today` and `/customer/*` links redirect.
+  dashboard (`App.jsx`, entered at `/stafflogin`), and `/reset-password` stands alone. On
+  smarterdog.co.uk `/` is the marketing site, not the app; old `/today` and `/customer/*`
+  links redirect into the app.
 - **Supabase** — Postgres database, Auth, Row Level Security, Realtime and Storage
   (private `dog-photos` bucket).
 - **Edge Functions** — backend logic in Deno (notifications, WhatsApp, calendar
