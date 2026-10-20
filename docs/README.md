@@ -83,6 +83,8 @@ These files remain authoritative for their bounded topics:
   lifecycle, and what the booking wizard promises. Size itself stays staff-only.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
+- [`rollback.md`](rollback.md) — how to roll back the website and app, an Edge
+  Function, or (forward-fix only) the database after a bad release.
 - [`operations.md`](operations.md) — database backup posture (owner-recorded),
   the weekly encrypted dump workflow, the restore procedure and the drill log.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
