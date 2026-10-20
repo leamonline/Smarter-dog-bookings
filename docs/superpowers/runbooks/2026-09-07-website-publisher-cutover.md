@@ -1,6 +1,6 @@
 # Website publisher cutover runbook
 
-**Status:** Executed — cutover completed 9 September 2026 (first successful publish from this repository). See the [completion record](../../plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026).
+**Status:** Historical. Executed 9 September 2026; the publisher it set up was retired on 20 October 2026 (#999), so none of its steps or its rollback apply any more. Kept as a record. See the [completion record](../../plans/completed/2026-09-05-website-consolidation.md#cutover-completion-record-9-september-2026).
 **Issue:** [#784](https://github.com/leamonline/Smarter-dog-bookings/issues/784)
 **Plan:** [website consolidation](../../plans/completed/2026-09-05-website-consolidation.md)
 **Decision:** [ADR 009](../../architecture/decisions/009-independent-applications-in-one-repository.md)
