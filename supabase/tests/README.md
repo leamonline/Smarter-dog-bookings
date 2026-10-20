@@ -31,13 +31,15 @@ New migrations cannot inherit the emulated legacy grants.
 Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 `supabase/config.toml`.
 
-The guarded Tranche 1 staging smoke run uses
-[`scripts/run-hosted-pgtap.sh`](../../scripts/run-hosted-pgtap.sh). It converts
+[`scripts/run-hosted-pgtap.sh`](../../scripts/run-hosted-pgtap.sh) runs a
+fixed set of pgTAP files against the hosted **staging** project from a terminal
+(the manual Tranche 1 workflow that used to call it was retired in #998). It converts
 the CLI's short-lived database login into private temporary `psql` settings,
 assumes the linked project's `postgres` role, ensures `pg_net` is enabled under
 `extensions`, and removes the credential and TAP files on exit. It never needs
-a stored database password. That separate, manual-only staging workflow uses
-`SUPABASE_ACCESS_TOKEN`; the automatic DB workflow does not.
+a stored database password. It needs a logged-in Supabase CLI and refuses any
+project ref but staging; `src/security/hostedPgtapRunnerGuard.test.ts` keeps
+that guard in place. The automatic DB workflow does not use it.
 
 ## Running locally
 
