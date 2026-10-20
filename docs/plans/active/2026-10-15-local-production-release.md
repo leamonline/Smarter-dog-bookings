@@ -1,6 +1,6 @@
 # Local production release implementation
 
-Status: Active
+Status: Dormant — contingency only (owner decision 20 October 2026, #1024)
 Issue: #1024
 Base: origin/main 1cbbce518fc4c8cd6e90649d724802e615b88534
 Last verified: 2026-10-16
