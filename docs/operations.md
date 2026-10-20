@@ -157,7 +157,7 @@ sha256sum restore/schema.sql restore/data.sql   # must match the manifest
 export SCRATCH_DB_URL='postgresql://postgres.<scratch-ref>:<password>@<host>:5432/postgres'
 
 # 3. Restore. The two REVOKEs are what Supabase documents for restoring a dump
-#    into a new project (and what staging-tranche1-smoke.yml does): without
+#    into a new project: without
 #    them every restored table would inherit anon/authenticated privileges that
 #    production never granted. session_replication_role=replica lets the data
 #    load without firing the booking gates and audit triggers.

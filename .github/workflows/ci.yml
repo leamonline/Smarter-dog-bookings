@@ -241,6 +241,12 @@ jobs:
         run: npx playwright install-deps chromium
       - run: npm run e2e
         if: github.event_name != 'pull_request'
+      # The boot-order guard (#998): the only check that tier-1 data queries
+      # leave before the staff profile resolves. It builds its own online
+      # bundle against a stub Supabase URL, so it cannot share the run above.
+      - name: Boot request order probe
+        if: github.event_name != 'pull_request'
+        run: npm run e2e:bootprobe
       - if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
