@@ -106,6 +106,12 @@ describe("Edge Function deploy loop", () => {
     expect(detect).toMatch(/if \[ -d "supabase\/functions\/\$f" \]/);
   });
 
+  it("redeploys every function when the deploy workflow itself changes", () => {
+    const detect = text.slice(text.indexOf("- name: Work out which functions changed"), text.indexOf("- name: Install Supabase CLI"));
+    expect(detect).toContain("-- '.github/workflows/deploy-edge-functions.yml'");
+    expect(detect).toMatch(/if \[ -n "\$workflow_changed" \] \|\|/);
+  });
+
   it("reads the function list from the environment, not the script text", () => {
     expect(script).not.toContain("${{");
   });
