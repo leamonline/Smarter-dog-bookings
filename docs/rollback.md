@@ -86,7 +86,7 @@ separate, clean worktree so nothing in your own checkout is overwritten:
 git fetch origin
 git worktree add /tmp/rollback <last-good-sha>
 cd /tmp/rollback
-supabase functions deploy <name> --project-ref nlzhllhkigmsvrzduefz --no-verify-jwt
+supabase functions deploy <name> --project-ref nlzhllhkigmsvrzduefz --no-verify-jwt --use-api
 cd - && git worktree remove /tmp/rollback
 ```
 

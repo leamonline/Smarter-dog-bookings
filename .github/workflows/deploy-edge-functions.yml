@@ -85,6 +85,11 @@ jobs:
             functions=$(echo "$changed_paths" \
               | awk -F/ '$1=="supabase" && $2=="functions" && $3!="" && $3 !~ /^_/ {print $3}' \
               | sort -u)
+            # A function deleted in this range shows up in the diff but has
+            # nothing left to deploy; skip it rather than fail the job.
+            functions=$(for f in $functions; do
+              if [ -d "supabase/functions/$f" ]; then echo "$f"; fi
+            done)
           fi
 
           if [ -z "$functions" ]; then
@@ -136,9 +141,13 @@ jobs:
           while IFS= read -r fn; do
             [ -z "$fn" ] && continue
             echo "::group::Deploying $fn"
+            # --use-api bundles on Supabase's side. The Docker bundler pulls
+            # public.ecr.aws/supabase/edge-runtime on every run, and shared
+            # runner IPs hit ECR's anonymous "Data limit exceeded" (20 Oct 2026).
             if supabase functions deploy "$fn" \
               --project-ref "$SUPABASE_PROJECT_REF" \
-              --no-verify-jwt; then
+              --no-verify-jwt \
+              --use-api; then
               echo "deployed: $fn"
             else
               echo "::error::$fn did not deploy"

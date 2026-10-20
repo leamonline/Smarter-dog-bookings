@@ -81,6 +81,31 @@ describe("Edge Function deploy loop", () => {
     expect(output).toContain("::error::Not deployed: broken-fn");
   });
 
+  it("bundles server-side, so a deploy never pulls the Docker bundler image", () => {
+    const dir = mkdtempSync(join(tmpdir(), "deploy-args-"));
+    const stub = join(dir, "supabase");
+    writeFileSync(stub, '#!/bin/bash\necho "$*" >> "$LOG"\n');
+    chmodSync(stub, 0o755);
+    const log = join(dir, "log");
+    writeFileSync(log, "");
+    execFileSync("bash", ["-c", script], {
+      env: {
+        PATH: `${dir}:${process.env.PATH}`,
+        LOG: log,
+        SUPABASE_ACCESS_TOKEN: "test-only",
+        SUPABASE_PROJECT_REF: "test-ref",
+        CHANGED_FUNCTIONS: "only-fn",
+      },
+      encoding: "utf8",
+    });
+    expect(readFileSync(log, "utf8").trim()).toBe("functions deploy only-fn --project-ref test-ref --no-verify-jwt --use-api");
+  });
+
+  it("skips a function directory that the pushed range deleted", () => {
+    const detect = text.slice(text.indexOf("- name: Work out which functions changed"), text.indexOf("- name: Install Supabase CLI"));
+    expect(detect).toMatch(/if \[ -d "supabase\/functions\/\$f" \]/);
+  });
+
   it("reads the function list from the environment, not the script text", () => {
     expect(script).not.toContain("${{");
   });
