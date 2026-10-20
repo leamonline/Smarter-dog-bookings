@@ -332,7 +332,7 @@ Backend logic lives in `supabase/functions/` as Deno Edge Functions (with a
 - **Customer / utilities** — `customer-phone-on-file`, `apply-customer-confirm`,
   `postcode-lookup`, `calendar-feed`, `calendar-ics`, `dashboard-summary`.
 
-This list was checked against `ls supabase/functions` (28 functions, plus `_shared/`)
+This list was checked against `ls supabase/functions` (27 functions, plus `_shared/`)
 on 20 October 2026; `scripts/check-edge-function-auth.mjs` fails CI if a function is
 missing from `_shared/authManifest.json`.
 
