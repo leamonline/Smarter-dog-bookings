@@ -195,7 +195,10 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
             </button>
           )}
 
-          {/* Resend */}
+          {/* Resend. Nothing to offer when the only failures are old "ready"
+              texts the collection notice replaced (#997): a button that loops
+              over nothing would report a resend that never happened. */}
+          {triggers.length > 0 && (
           <div className="mt-2.5">
             <button
               type="button"
@@ -211,6 +214,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                   : "Resend all"}
             </button>
           </div>
+          )}
         </div>
       </div>
     </div>
