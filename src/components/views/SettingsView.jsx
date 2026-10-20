@@ -186,7 +186,7 @@ export function SettingsView({
             canEdit={canEdit}
           />
         )}
-        {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "notifs" && <NotificationSettings />}
         {activeTab === "aiMessaging" && <AiWhatsAppSettings />}
         {activeTab === "calendar" && <CalendarSettings />}
       </div>

@@ -1,16 +1,31 @@
-import { LARGE_DOG_SLOTS, PRICING, SERVICES, DAILY_DOG_CAP } from "./salon";
+import { PRICING, DAILY_DOG_CAP } from "./salon";
 import type { BookingPolicyRules, SalonConfig, SalonSettings } from "../types/index";
 
 export const DEFAULT_BUSINESS_NAME = "Smarter Dog Grooming";
 
 export type PersistedSalonSettings = Partial<
-  Omit<SalonSettings, "businessHours" | "customerPortal" | "notifications" | "depositBank">
+  Omit<SalonSettings, "businessHours" | "customerPortal" | "depositBank">
 > & {
   businessHours?: Partial<Record<string, Partial<SalonSettings["businessHours"][string]>>>;
   customerPortal?: Partial<SalonSettings["customerPortal"]>;
-  notifications?: Record<string, Partial<SalonSettings["notifications"][string]>>;
   depositBank?: Partial<SalonSettings["depositBank"]>;
 };
+
+/**
+ * Keys older saves left in salon_config.settings that nothing reads any more
+ * (#1000). mergeSalonSettings drops them, so the next save of any setting
+ * removes them from the stored JSON instead of re-asserting them.
+ */
+export const RETIRED_SETTINGS_KEYS = [
+  "advanceBookingWeeks",
+  "autoConfirm",
+  // Older saves passed the whole config through here, so a camelCase copy of
+  // the large-dog slot rules sits in settings too (#1000 review).
+  "largeDogSlots",
+  "notifications",
+  "services",
+] as const;
+const RETIRED_PORTAL_KEYS = ["showUpcoming", "allowRebooking"] as const;
 
 export const DEFAULT_BUSINESS_HOURS: SalonSettings["businessHours"] = {
   Monday: { open: "08:00", close: "17:00", closed: false },
@@ -23,9 +38,7 @@ export const DEFAULT_BUSINESS_HOURS: SalonSettings["businessHours"] = {
 };
 
 export const DEFAULT_CUSTOMER_PORTAL_SETTINGS: SalonSettings["customerPortal"] = {
-  showUpcoming: true,
   showHistory: true,
-  allowRebooking: false,
   allowCancellations: true,
 };
 
@@ -61,13 +74,6 @@ export function createDefaultBookingRules(): BookingPolicyRules {
   };
 }
 
-export const DEFAULT_NOTIFICATION_SETTINGS: SalonSettings["notifications"] = {
-  bookingConfirmation: { enabled: true, channels: ["whatsapp", "email"] },
-  dayBeforeReminder: { enabled: true, channels: ["whatsapp"] },
-  readyForCollection: { enabled: true, channels: ["whatsapp", "sms"] },
-  followUp: { enabled: false, channels: ["email"] },
-};
-
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -80,14 +86,10 @@ export function createDefaultSalonSettings(): SalonSettings {
     businessAddress: "",
     businessHours: cloneJson(DEFAULT_BUSINESS_HOURS),
     closures: [],
-    advanceBookingWeeks: 8,
     minCancellationHours: 24,
-    autoConfirm: true,
     depositBank: cloneJson(DEFAULT_DEPOSIT_BANK),
     depositReleaseHours: DEFAULT_DEPOSIT_RELEASE_HOURS,
     customerPortal: cloneJson(DEFAULT_CUSTOMER_PORTAL_SETTINGS),
-    notifications: cloneJson(DEFAULT_NOTIFICATION_SETTINGS),
-    services: SERVICES.map((service) => ({ ...service })),
   };
 }
 
@@ -110,35 +112,19 @@ export function mergeSalonSettings(settings?: PersistedSalonSettings | null): Sa
     ]),
   );
 
-  const notificationDefaults = defaults.notifications;
-  const incomingNotifications = settings.notifications || {};
-  const notificationKeys = new Set([
-    ...Object.keys(notificationDefaults),
-    ...Object.keys(incomingNotifications),
-  ]);
-  const notifications = Object.fromEntries(
-    [...notificationKeys].map((key) => [
-      key,
-      {
-        ...(notificationDefaults[key] || { enabled: false, channels: [] }),
-        ...(incomingNotifications[key] || {}),
-        channels: [
-          ...((incomingNotifications[key]?.channels ||
-            notificationDefaults[key]?.channels ||
-            []) as string[]),
-        ],
-      },
-    ]),
-  );
+  const kept: Record<string, unknown> = { ...settings };
+  for (const key of RETIRED_SETTINGS_KEYS) delete kept[key];
+  const portal: Record<string, unknown> = { ...(settings.customerPortal || {}) };
+  for (const key of RETIRED_PORTAL_KEYS) delete portal[key];
 
   return {
     ...defaults,
-    ...settings,
+    ...(kept as PersistedSalonSettings),
     businessHours,
     closures: Array.isArray(settings.closures) ? [...settings.closures] : defaults.closures,
     customerPortal: {
       ...defaults.customerPortal,
-      ...(settings.customerPortal || {}),
+      ...portal,
     },
     depositBank: {
       ...defaults.depositBank,
@@ -148,10 +134,6 @@ export function mergeSalonSettings(settings?: PersistedSalonSettings | null): Sa
       typeof settings.depositReleaseHours === "number" && settings.depositReleaseHours > 0
         ? settings.depositReleaseHours
         : defaults.depositReleaseHours,
-    notifications,
-    services: Array.isArray(settings.services)
-      ? settings.services.map((service) => ({ ...service }))
-      : defaults.services,
   };
 }
 
@@ -161,7 +143,6 @@ export function createDefaultSalonConfig(): SalonConfig {
     pricing: cloneJson(PRICING),
     enforceCapacity: true,
     dailyDogCap: DAILY_DOG_CAP,
-    largeDogSlots: cloneJson(LARGE_DOG_SLOTS),
     ...createDefaultSalonSettings(),
   };
 }

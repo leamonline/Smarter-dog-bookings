@@ -1,6 +1,6 @@
 # Migration history
 
-## Daily pipeline health line (#1007) — prepared, NOT applied
+## Daily pipeline health line (#1007) — applied 20 October 2026
 
 `20261020110000_pipeline_health_line.sql` widens `slack_alerts.alert_type` to
 admit `pipeline_health`, adds the `service_role`-only definer function
@@ -9,7 +9,47 @@ admit `pipeline_health`, adds the `service_role`-only definer function
 Additive and idempotent; nothing posts until `SLACK_ALERTS_ENABLED` is true and
 `SLACK_OPS_WEBHOOK` is set. Staging could not be used (paused; the organisation
 is at its two-active-project limit), so CI's `db-tests` (`supabase/tests/256`)
-stands in. Production needs the approval-gated workflow.
+stands in.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 20 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 22
+([39403121002](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39403121002)),
+approved by @leamonline, taking the file from the #1061 head `eec97686`. The
+run's own output reports `outcome: applied` for the file with sha256
+`e053a60d473cdbfa0245ba31db74df93d6a4c4fe7d67648262aae9014c2c3107`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true`. Read back
+from production afterwards through the Supabase MCP (read-only, catalogue only):
+the ledger holds `20261020110000 pipeline_health_line`,
+`pipeline_health_counts` is `SECURITY DEFINER` and `anon` cannot execute it, and
+the jobs `slack-alerts-pipeline-health-0600-utc` (`0 6 * * *`) and
+`slack-alerts-pipeline-health-0700-utc` (`0 7 * * *`) exist. Until this pull
+request deploys `slack-alerts`, the live function answers that mode with
+`400 unknown mode` and posts nothing; after it deploys, nothing posts until
+`SLACK_OPS_WEBHOOK` is set, and never to #salon-today.
+
+## Status vocabulary stragglers (#1005) — applied 20 October 2026
+
+`20261020100000_status_vocabulary_stragglers.sql` re-issues two functions the
+September status split missed: `recompute_legacy_booking_visit` now treats
+No-show as terminal (through `booking_occupies_seat()`), and
+`suggest_conversation_closures` recognises Reconfirmed, Arrived and Ready for
+collection. CREATE OR REPLACE only; no table, row, grant or capacity rule
+changes, and a post-condition refuses to commit if any `public` function still
+names a retired status. Staging could not be used: the project is paused and
+the Supabase organisation is at its two-active-project limit, so CI's
+`db-tests` (full schema plus `supabase/tests/255`) stands in.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 20 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 21
+([39401261171](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39401261171)),
+approved by @leamonline, taking the file from the #1059 head `7683cf6b`. The
+run's own output reports `outcome: applied` for the file with sha256
+`2dd5ab21887a9c5824dabbd0562d25ce9755cfeae62425d183b24b0a9cdff00e`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true`. Read back
+from production afterwards through the Supabase MCP (read-only, catalogue only):
+the ledger holds `20261020100000 status_vocabulary_stragglers`, no `public`
+function names a retired status, and both re-issued functions call
+`booking_occupies_seat()`.
 
 ## Large-dog availability matches the booking gates (#1044) — applied 19 October 2026
 
@@ -747,7 +787,23 @@ the caller sets `HOSTED_MIGRATION_TARGET=production` **and** repeats the
 production ref in `CONFIRM_PRODUCTION_REF`, which only the production workflow
 below does.
 
-## Draft local production release alternative: adoption pending
+## Production route decision (#1024) — 20 October 2026
+
+**Primary:** the hosted, approval-gated **Apply named migrations to production**
+workflow (below). **Contingency:** the local human-operated release tool,
+kept **dormant**: its code stays, nothing is retired, and no credential is
+provisioned for it. Decided by the owner on 20 October 2026 (option A on #1024).
+
+Revisit the contingency only if one of these happens:
+
+- the repository goes private again (required reviewers were refused on the
+  private plan, so the hosted gate would stop working), or
+- a second person starts operating production releases.
+
+Until then, approval of a production run is a guard against accidents and wrong
+targets by the one owner, not a separation of duties.
+
+## Local production release alternative: dormant contingency
 
 The [local release runbook](local-production-release.md) documents credential-free
 package preparation/validation and the human-operated execution path implemented

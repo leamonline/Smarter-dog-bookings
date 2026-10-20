@@ -16,8 +16,8 @@ name: Migration Drift Audit
 # migration is missing on prod, so historical / pre-gate drift surfaces
 # instead of lurking.
 #
-# It does NOT block merges (and on GitHub Free there's no branch protection
-# to make it required anyway) — it's an alarm. A failed scheduled run emails
+# It does NOT block merges — the per-PR `migrations-applied` check, required by
+# the `Protect main` ruleset, does that. This one is an alarm. A failed scheduled run emails
 # the repo admins, which is the point: you find out within a day, not weeks.
 #
 # Matching note (same rule as check-migrations-applied.yml): a migration

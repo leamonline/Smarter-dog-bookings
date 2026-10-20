@@ -21,7 +21,7 @@ It does not duplicate those sources.
 | What does the product currently do? | [`product/`](product/) and [`architecture/overview.md`](architecture/overview.md) |
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
 | Which plan is active? | [`plans/active/`](plans/active/) |
-| Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; its `website.yml` `deploy` job is the live publisher since 9 September 2026 (procedure and rollback: [cutover runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md); evidence: [completed plan](plans/completed/2026-09-05-website-consolidation.md)) |
+| Where is the marketing website, and how is it published? | [`../website/`](../website/) — an independent application in this repository ([ADR 009](architecture/decisions/009-independent-applications-in-one-repository.md)); the [approved design](superpowers/specs/2026-09-07-website-repository-consolidation-design.md) records the boundary; the site is published by the root Vercel deployment since the 11 September 2026 domain cutover; the old FTP publisher was retired on 20 October 2026, #999 (history: [publisher runbook](superpowers/runbooks/2026-09-07-website-publisher-cutover.md), [completed plan](plans/completed/2026-09-05-website-consolidation.md)) |
 | How are exact local database release packages prepared and accepted? | [`local-production-release.md`](local-production-release.md) — implementation and remaining operator gates |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
@@ -83,6 +83,8 @@ These files remain authoritative for their bounded topics:
   lifecycle, and what the booking wizard promises. Size itself stays staff-only.
 - [`migrations.md`](migrations.md) — migration history, known tracking
   exceptions and database-function permission convention.
+- [`rollback.md`](rollback.md) — how to roll back the website and app, an Edge
+  Function, or (forward-fix only) the database after a bad release.
 - [`operations.md`](operations.md) — database backup posture (owner-recorded),
   the weekly encrypted dump workflow, the restore procedure and the drill log.
 - [`edge-function-auth.md`](edge-function-auth.md) — caller and authentication
@@ -138,7 +140,8 @@ completed plan to make its history look cleaner.
   the May 2026 QA pass and security scan, the superseded launch plan, design
   spec and inbox plan, and the UX reviews under [`archive/ux-reviews/`](archive/ux-reviews/).
 - `docs/private/`, `.env.local` and `flow-keys/` may contain sensitive or
-  operational material. Do not inspect, quote, move or commit their contents
+  operational material. None of them is in the repository; they are local-only, and
+  these rules apply wherever one exists. Do not inspect, quote, move or commit their contents
   unless the task explicitly requires it and the appropriate authority exists.
 - Point-in-time production evidence must identify its observation date and
   environment. It must never include identifiable customer data in general

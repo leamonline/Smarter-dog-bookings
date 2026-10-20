@@ -9,11 +9,8 @@
 //      Their lint, test and build inputs remain scoped to bookings.
 //
 //   2. Publishing safety. The website workflow can never deploy Edge
-//      Functions, can never run its publisher from a pull request, and its
-//      Bluehost deploy job stays dark until the repository variable
-//      WEBSITE_PUBLISHER_ENABLED is set at the authorised cutover
-//      (docs/superpowers/runbooks/2026-09-07-website-publisher-cutover.md).
-//      Until then the original repository remains the single publisher.
+//      Functions, and it publishes nothing: the Bluehost job was retired
+//      (#999) and the root Vercel deployment serves the site.
 //
 // The change-selection table below simulates GitHub's `paths` /
 // `paths-ignore` filters against each workflow's triggers, so "a website-only
@@ -207,7 +204,7 @@ describe("root tooling never discovers website/", () => {
   });
 });
 
-describe("the website workflow is scoped and cannot publish without the cutover", () => {
+describe("the website workflow is scoped and publishes nothing", () => {
   it("only website/** and the workflow itself trigger it, on push and pull_request", () => {
     for (const event of ["push", "pull_request"] as const) {
       const filter = trigger(website, event);
@@ -239,26 +236,9 @@ describe("the website workflow is scoped and cannot publish without the cutover"
     expect(source).not.toMatch(/supabase\/setup-cli/);
   });
 
-  it("gates the deploy job on push + main + WEBSITE_PUBLISHER_ENABLED == 'true'", () => {
-    const deploy = executable(job(website, "deploy"));
-    expect(deploy).not.toBe("");
-    const condition = deploy.match(/^\s*if:\s*(.+)$/m)?.[1] ?? "";
-    expect(condition).toContain("github.event_name == 'push'");
-    expect(condition).toContain("github.ref == 'refs/heads/main'");
-    expect(condition).toContain("vars.WEBSITE_PUBLISHER_ENABLED == 'true'");
-    // All three joined by AND — an OR anywhere would let one condition
-    // publish on its own.
-    expect(condition).not.toMatch(/\|\|/);
-    expect(condition.split("&&")).toHaveLength(3);
-  });
-
-  it("publishes only the website build, never wipes the target and needs every check first", () => {
-    const deploy = executable(job(website, "deploy"));
-    expect(deploy).toMatch(/needs:\s*\[test, build, e2e\]/);
-    expect(deploy).toMatch(/local-dir:\s*\.\/website\/dist\//);
-    expect(deploy).toMatch(/dangerous-clean-slate:\s*false/);
-    expect(deploy).toMatch(/protocol:\s*ftps/);
-    expect(deploy).not.toMatch(/local-dir:\s*\.\/dist\//);
+  it("has no deploy job: the root Vercel deployment publishes the site (#999)", () => {
+    expect(job(website, "deploy")).toBe("");
+    expect(executable(website)).not.toMatch(/FTP|BLUEHOST|WEBSITE_PUBLISHER_ENABLED/);
   });
 
   it("gives the workflow read-only contents permission", () => {

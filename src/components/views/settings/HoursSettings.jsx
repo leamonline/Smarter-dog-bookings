@@ -95,7 +95,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
       <CardHead
         variant="blue"
         title="Opening Hours & Closures"
-        desc="Shown on the public website — for a one-off date change use Bookings instead"
+        desc="Shown on the website; the booking days are set in the diary. For a one-off date change use Bookings instead"
       />
       <CardBody>
         <div className={SECTION_LABEL_CLS}>Weekly Hours</div>

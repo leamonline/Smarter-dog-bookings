@@ -39,8 +39,12 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
 
   // Distinct trigger types that are currently failed (one resend per type).
   // An SMS fallback row resends as the notice it carried: the resend function
-  // accepts only confirmed|reminder|ready|cancelled.
-  const triggers = [...new Set(failures.map((f) => baseTrigger(f.trigger_type)))];
+  // accepts only confirmed|reminder|cancelled. A failed "ready" text from before
+  // the collection notice replaced it has nothing left to resend (#997).
+  const triggers = [...new Set(failures.map((f) => baseTrigger(f.trigger_type)))].filter((t) => t !== "ready");
+  // Only retired "ready" failures: nothing can be resent, so don't show the
+  // card at all rather than invite staff to fix a number for an obsolete text.
+  if (triggers.length === 0) return null;
   const currentPhone = primaryHuman?.phone || "";
 
   const startEdit = () => {

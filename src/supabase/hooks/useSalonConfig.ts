@@ -54,7 +54,6 @@ function toConfigRow(row: Partial<SalonConfigRow>): DbConfigRow {
     pricing: (row.pricing as DbConfigRow["pricing"]) ?? null,
     enforce_capacity: row.enforce_capacity ?? null,
     daily_dog_cap: row.daily_dog_cap ?? null,
-    large_dog_slots: (row.large_dog_slots as DbConfigRow["large_dog_slots"]) ?? null,
     settings: (row.settings as DbConfigRow["settings"]) ?? null,
   };
 }
@@ -67,7 +66,6 @@ function toDbPayload(config: SalonConfig): SalonConfigInsert & SalonConfigUpdate
     pricing: out.pricing as Json,
     enforce_capacity: out.enforce_capacity,
     daily_dog_cap: out.daily_dog_cap,
-    large_dog_slots: out.large_dog_slots as Json,
     settings: out.settings as unknown as Json,
   };
 }

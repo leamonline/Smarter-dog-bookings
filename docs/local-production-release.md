@@ -1,6 +1,6 @@
 # Local production database release
 
-Status: draft alternative implemented for review; no adoption decision or production acceptance.
+Status: dormant contingency (owner decision, 20 October 2026, #1024). The hosted workflow is the production route; see [Production route decision](migrations.md#production-route-decision-1024--20-october-2026).
 Governing decision: [ADR 006](architecture/decisions/006-manual-target-verified-database-rollout.md).
 Design: [local release contract](plans/active/2026-10-15-local-production-release-design.md).
 
