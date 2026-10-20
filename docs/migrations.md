@@ -1,5 +1,18 @@
 # Migration history
 
+## Status vocabulary stragglers (#1005) — prepared, NOT applied
+
+`20261020100000_status_vocabulary_stragglers.sql` re-issues two functions the
+September status split missed: `recompute_legacy_booking_visit` now treats
+No-show as terminal (through `booking_occupies_seat()`), and
+`suggest_conversation_closures` recognises Reconfirmed, Arrived and Ready for
+collection. CREATE OR REPLACE only; no table, row, grant or capacity rule
+changes, and a post-condition refuses to commit if any `public` function still
+names a retired status. Staging could not be used: the project is paused and
+the Supabase organisation is at its two-active-project limit, so CI's
+`db-tests` (full schema plus `supabase/tests/255`) stands in. Production needs
+the approval-gated workflow.
+
 ## Large-dog availability matches the booking gates (#1044) — applied 19 October 2026
 
 `20261019170000_large_dog_availability_matches_trigger.sql` is one idempotent
