@@ -1,5 +1,29 @@
 # Migration history
 
+## Status vocabulary stragglers (#1005) — applied 20 October 2026
+
+`20261020100000_status_vocabulary_stragglers.sql` re-issues two functions the
+September status split missed: `recompute_legacy_booking_visit` now treats
+No-show as terminal (through `booking_occupies_seat()`), and
+`suggest_conversation_closures` recognises Reconfirmed, Arrived and Ready for
+collection. CREATE OR REPLACE only; no table, row, grant or capacity rule
+changes, and a post-condition refuses to commit if any `public` function still
+names a retired status. Staging could not be used: the project is paused and
+the Supabase organisation is at its two-active-project limit, so CI's
+`db-tests` (full schema plus `supabase/tests/255`) stands in.
+
+**Production** (`nlzhllhkigmsvrzduefz`): applied on 20 October 2026 by the
+approval-gated **Apply named migrations to production** workflow, run 21
+([39401261171](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39401261171)),
+approved by @leamonline, taking the file from the #1059 head `7683cf6b`. The
+run's own output reports `outcome: applied` for the file with sha256
+`2dd5ab21887a9c5824dabbd0562d25ce9755cfeae62425d183b24b0a9cdff00e`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true`. Read back
+from production afterwards through the Supabase MCP (read-only, catalogue only):
+the ledger holds `20261020100000 status_vocabulary_stragglers`, no `public`
+function names a retired status, and both re-issued functions call
+`booking_occupies_seat()`.
+
 ## Large-dog availability matches the booking gates (#1044) — applied 19 October 2026
 
 `20261019170000_large_dog_availability_matches_trigger.sql` is one idempotent
