@@ -42,6 +42,9 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
   // accepts only confirmed|reminder|cancelled. A failed "ready" text from before
   // the collection notice replaced it has nothing left to resend (#997).
   const triggers = [...new Set(failures.map((f) => baseTrigger(f.trigger_type)))].filter((t) => t !== "ready");
+  // Only retired "ready" failures: nothing can be resent, so don't show the
+  // card at all rather than invite staff to fix a number for an obsolete text.
+  if (triggers.length === 0) return null;
   const currentPhone = primaryHuman?.phone || "";
 
   const startEdit = () => {
@@ -195,10 +198,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
             </button>
           )}
 
-          {/* Resend. Nothing to offer when the only failures are old "ready"
-              texts the collection notice replaced (#997): a button that loops
-              over nothing would report a resend that never happened. */}
-          {triggers.length > 0 && (
+          {/* Resend */}
           <div className="mt-2.5">
             <button
               type="button"
@@ -214,7 +214,6 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                   : "Resend all"}
             </button>
           </div>
-          )}
         </div>
       </div>
     </div>
