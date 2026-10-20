@@ -62,13 +62,22 @@ shipped in the same merge is still live.
 WhatsApp replies stop, notifications stop, the `deploy-edge-functions` job is
 red).
 
-**Preferred: a revert PR.** Revert the function changes on a branch, open the PR
-and merge it. The deploy workflow redeploys every function the revert touches,
-which keeps `main` and production in step. If the bad merge also contained a
-migration that has been applied, do **not** revert the migration file: applied
-history can't be removed (the `migrations-applied` check refuses it). Revert
-only the paths under `supabase/functions/` (`git revert --no-commit <sha>`, then
-`git checkout HEAD -- supabase/migrations` before committing).
+**Preferred: a function-only revert PR.** On a new branch, restore just the
+function code from before the bad merge, leaving the frontend, docs and
+migrations alone (applied migrations can't be removed; the `migrations-applied`
+check refuses it):
+
+```bash
+git switch -c revert-functions origin/main
+git checkout <bad-merge-sha>^1 -- supabase/functions/<name> supabase/functions/_shared
+git commit -m "Revert <name> to before <bad-merge-sha>"
+```
+
+Merge the PR; the deploy workflow redeploys the functions it touches. If the bad
+release **added** a new function, reverting removes the folder but not the
+deployed function: the owner also runs
+`supabase functions delete <name> --project-ref nlzhllhkigmsvrzduefz`, so
+production stops serving it.
 
 **Faster, by hand (owner only):** with the Supabase CLI logged in, use a
 separate, clean worktree so nothing in your own checkout is overwritten:
