@@ -42,7 +42,7 @@ describe("Edge Function deploy loop", () => {
     .slice(step.indexOf("run: |") + "run: |".length)
     .split("\n")
     .slice(1)
-    .filter((line, index, lines) => {
+    .filter((_line, index, lines) => {
       // The block ends at the first line indented less than the script body.
       const end = lines.findIndex((l) => l.trim() !== "" && !l.startsWith("          "));
       return end === -1 || index < end;
@@ -59,7 +59,7 @@ describe("Edge Function deploy loop", () => {
     const log = join(dir, "log");
     writeFileSync(log, "");
     let status = 0;
-    let output = "";
+    let output: string;
     try {
       output = execFileSync("bash", ["-c", script], {
         env: {
