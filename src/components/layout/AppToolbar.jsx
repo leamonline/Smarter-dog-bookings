@@ -47,7 +47,7 @@ const PawIcon = (
   </svg>
 );
 
-export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview, currentDateStr, showBookingWorkspace = false }) {
+export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview, currentDateStr}) {
   // openMenu is null | "tools" | "account" | "mobile" — only one dropdown
   // is open at a time, and outside-click clears whichever one is showing.
   const [openMenu, setOpenMenu] = useState(null);
@@ -90,9 +90,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             side clear for the New booking CTA. One uniform active state;
             the icon + label pair does the wayfinding. */}
         <nav className="flex items-center gap-0.5 ml-1 xl:ml-2" aria-label="Primary">
-          {PRIMARY_NAV.filter(
-            (item) => !item.ownerFeature || showBookingWorkspace,
-          ).map((item) => {
+          {PRIMARY_NAV.map((item) => {
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} to reply`

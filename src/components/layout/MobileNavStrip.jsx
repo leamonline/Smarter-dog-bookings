@@ -11,7 +11,7 @@ import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 // Badges (Inbox unread, Humans approvals) ride on the icon.
 // Steps aside on phones while the on-screen keyboard is up (see
 // useKeyboardOpen): the view being typed into keeps its own Back control.
-export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false }) {
+export function MobileNavStrip({ currentDateStr }) {
   const { unread: waUnread } = useWhatsAppUnread();
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
   const { count: pendingSignups } = usePendingSignupsCount();
@@ -23,9 +23,7 @@ export function MobileNavStrip({ currentDateStr, showBookingWorkspace = false })
       className="lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-1.5 sm:px-3 py-1.5 short:py-0.5 flex items-stretch gap-1 bg-white border-b border-slate-200"
       aria-label="Primary"
     >
-      {MOBILE_NAV.filter(
-        (item) => !item.ownerFeature || showBookingWorkspace,
-      ).map((item) => {
+      {MOBILE_NAV.map((item) => {
         const ariaLabel =
           item.to === "/inbox" && waUnread > 0
             ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} to reply`

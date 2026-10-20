@@ -3,7 +3,6 @@ import { useLocation, useNavigate, Navigate } from "react-router-dom";
 
 import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
-import { FEATURE_FLAGS } from "./constants/features";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth";
 import { useWeekNav } from "./hooks/useWeekNav";
@@ -75,7 +74,6 @@ const appLoadingShell = (
 // "/" is the catch-all (the week calendar).
 const ROUTE_CHUNK_IMPORTS = [
   ["/today", () => import("./components/views/TodayView.jsx")],
-  ["/booking-workspace", () => import("./components/views/booking-workspace/BookingWorkspaceView.jsx")],
   ["/inbox", () => import("./components/views/inbox/InboxView.jsx")],
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
@@ -247,9 +245,6 @@ function AuthedApp({
   // <main> is the app's scroll container now that the frame owns the viewport.
   const mainRef = useRef(null);
   useMainScrollReset(mainRef, location.pathname);
-  const canAccessBookingWorkspace =
-    FEATURE_FLAGS.booking_workspace_enabled &&
-    (isOwner || (import.meta.env.DEV && !isOnline));
 
   const modals = useModalState();
   const {
@@ -500,7 +495,6 @@ function AuthedApp({
               isOnline={isOnline}
               user={user}
               currentDateStr={currentDateStr}
-              showBookingWorkspace={canAccessBookingWorkspace}
               onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
               onNewClient={openNewClient}
               onOpenOverview={() => {
@@ -511,7 +505,6 @@ function AuthedApp({
             />
             <MobileNavStrip
               currentDateStr={currentDateStr}
-              showBookingWorkspace={canAccessBookingWorkspace}
             />
             </>
           }
@@ -542,7 +535,6 @@ function AuthedApp({
                   staffProfile,
                   isOwner,
                   isOnline,
-                  canAccessBookingWorkspace,
                   showDatePicker,
                   setShowDatePicker,
                   showNewBooking,

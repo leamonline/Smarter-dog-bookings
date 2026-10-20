@@ -118,11 +118,6 @@ const InboxView = lazy(() =>
     default: module.InboxView,
   })),
 );
-const BookingWorkspaceView = lazy(() =>
-  import("../views/booking-workspace/BookingWorkspaceView.jsx").then((module) => ({
-    default: module.BookingWorkspaceView,
-  })),
-);
 
 export function StaffRoutes({ data, nav, ui }) {
   const {
@@ -166,7 +161,6 @@ export function StaffRoutes({ data, nav, ui }) {
     staffProfile,
     isOwner,
     isOnline,
-    canAccessBookingWorkspace,
     showDatePicker,
     setShowDatePicker,
     showNewBooking,
@@ -270,19 +264,6 @@ export function StaffRoutes({ data, nav, ui }) {
           onOpenDog={onOpenDog}
           onWhatsappReenabled={humansApi.markWhatsappReenabled}
         />
-      } />
-      <Route path="/booking-workspace" element={
-        canAccessBookingWorkspace ? (
-          <BookingWorkspaceView
-            isOnline={isOnline}
-            dates={dates}
-            currentDateStr={currentDateStr}
-            onPickDate={handleDatePick}
-            dailyDogCap={salonConfig?.dailyDogCap}
-          />
-        ) : (
-          <Navigate to="/today" replace />
-        )
       } />
       <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
       {/* Read-only backlog of unfinished work from previous days.

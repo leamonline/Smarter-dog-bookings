@@ -43,17 +43,11 @@ describe("AppToolbar", () => {
   it("renders every primary section as a labelled link in the Primary nav", () => {
     renderToolbar();
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    for (const item of PRIMARY_NAV.filter((entry) => !entry.ownerFeature)) {
+    for (const item of PRIMARY_NAV) {
       expect(within(nav).getByRole("link", { name: item.label })).toBeInTheDocument();
     }
-    // The owner-gated Booking Desk stays hidden unless the feature is on.
+    // The Booking Desk pilot was deleted (#996).
     expect(within(nav).queryByRole("link", { name: "Booking Desk" })).toBeNull();
-  });
-
-  it("shows Booking Desk only when the workspace feature is enabled", () => {
-    renderToolbar({ showBookingWorkspace: true });
-    const nav = screen.getByRole("navigation", { name: "Primary" });
-    expect(within(nav).getByRole("link", { name: "Booking Desk" })).toBeInTheDocument();
   });
 
   it("marks the current section with one uniform quiet active state", () => {
@@ -115,7 +109,7 @@ describe("MobileNavStrip", () => {
   it("renders the same primary sections with the uniform active tint", () => {
     renderStrip({ route: "/humans" });
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    for (const item of PRIMARY_NAV.filter((entry) => !entry.ownerFeature)) {
+    for (const item of PRIMARY_NAV) {
       expect(within(nav).getByRole("link", { name: item.label })).toBeInTheDocument();
     }
     const active = within(nav).getByRole("link", { name: "Humans" });
