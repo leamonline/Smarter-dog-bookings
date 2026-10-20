@@ -19,6 +19,9 @@ export type PersistedSalonSettings = Partial<
 export const RETIRED_SETTINGS_KEYS = [
   "advanceBookingWeeks",
   "autoConfirm",
+  // Older saves passed the whole config through here, so a camelCase copy of
+  // the large-dog slot rules sits in settings too (#1000 review).
+  "largeDogSlots",
   "notifications",
   "services",
 ] as const;

@@ -684,6 +684,7 @@ describe("appConfigToDb", () => {
     expect(dbRow.settings.minCancellationHours).toBe(48);
     // Retired keys are not written back, even when the caller still has them.
     expect(dbRow.settings).not.toHaveProperty("advanceBookingWeeks");
+    expect(dbRow.settings).not.toHaveProperty("largeDogSlots");
     expect(dbRow.settings).not.toHaveProperty("autoConfirm");
   });
 

@@ -7,7 +7,7 @@ import { Card, CardHead, CardBody } from "./shared.jsx";
 const MESSAGES = [
   {
     label: "Booking confirmation",
-    when: "As soon as a booking is made.",
+    when: "As soon as a booking is made, unless staff chose not to send one for that booking, or a deposit is still owed.",
   },
   {
     label: "Reminder",
@@ -19,7 +19,7 @@ const MESSAGES = [
   },
   {
     label: "Cancellation",
-    when: "When a booking is cancelled.",
+    when: "When a booking is cancelled. Not when it is cancelled as part of a reschedule: the new appointment's confirmation goes instead.",
   },
 ];
 
@@ -40,9 +40,10 @@ export function NotificationSettings() {
           ))}
         </ul>
         <p className="text-xs text-slate-500 mt-3 mb-0">
-          The channel (WhatsApp, text or email) comes from each customer's own
-          record, and nothing goes to a channel they have opted out of, or to a
-          number that has said STOP. Change it on the customer's profile.
+          The channel (WhatsApp, text or email) is chosen from the customer's
+          preferences on their profile, unless staff picked a channel for that
+          booking when making it. Nothing goes to a channel the customer has
+          opted out of, or to a number that has said STOP.
         </p>
       </CardBody>
     </Card>

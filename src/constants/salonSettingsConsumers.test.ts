@@ -39,6 +39,7 @@ describe("salon settings keys", () => {
       businessName: "Fixture",
       advanceBookingWeeks: 12,
       autoConfirm: false,
+      largeDogSlots: { "12:00": { seats: 2, canShare: true } },
       notifications: { followUp: { enabled: true, channels: ["email"] } },
       services: [],
       customerPortal: { showUpcoming: true, allowRebooking: true, showHistory: false },
