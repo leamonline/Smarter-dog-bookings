@@ -17,10 +17,12 @@
 //     record, name, phone, email or humans.id is ever sent.
 //   - autocapture, pageviews, session replay, surveys, feature flags and
 //     external script loading are all off. Only the events we name go out.
-//   - beforeSend trims URLs to origin + path and blanks UUIDs, and drops the
-//     full referrer (it can carry a magic-link token); the referring DOMAIN
-//     is kept for attribution.
-//   - EU host by default, matching Sentry's EU region.
+//   - beforeSend trims every URL-shaped property (including the SDK's
+//     session-entry URL) to origin + path with UUIDs blanked, and drops full
+//     referrers and ad click ids; the referring DOMAIN is kept.
+//   - EU host by default, matching Sentry's EU region. The booking CSP in
+//     vercel.json allows only that host: a custom VITE_POSTHOG_HOST must be
+//     added to connect-src too, or every capture is blocked by the browser.
 //
 // Off unless VITE_POSTHOG_KEY is set, the build is production, and the app
 // is not forced offline — so tests, `npm run dev` and E2E never load it.
@@ -88,16 +90,35 @@ interface CaptureResultLike {
   $set_once?: unknown;
 }
 
-/** PostHog before_send hook: strip anything URL-shaped that could identify. */
+// Ad-platform click ids are per-click identifiers, not campaign labels.
+const CLICK_ID_KEYS = /(gclid|gbraid|wbraid|dclid|fbclid|msclkid|ttclid|twclid|li_fat_id|igshid|epik|qclid|sccid|rdt_cid|irclid|mc_cid|_kx)$/i;
+
+/**
+ * PostHog before_send hook: strip anything that could identify.
+ *
+ * Rules are by key SHAPE, not a list of today's names, because the SDK adds
+ * URL-bearing properties over time ($session_entry_url arrived that way):
+ *   - any key containing "referrer" is dropped (full referrers can carry a
+ *     magic-link token); "$referring_domain" style keys survive
+ *   - any key containing "url" or "pathname" is scrubbed with scrubUrl
+ *   - any other string value that is itself an http(s) URL is scrubbed too
+ *   - ad click ids are dropped; utm_* campaign labels are kept
+ */
 export function scrubEvent<T extends CaptureResultLike | null>(event: T): T {
   if (!event) return event;
   const props = event.properties;
   if (props) {
-    for (const key of ["$current_url", "$pathname", "$initial_current_url"]) {
-      if (key in props) props[key] = scrubUrl(props[key]);
+    for (const key of Object.keys(props)) {
+      const lower = key.toLowerCase();
+      const value = props[key];
+      if (lower.includes("referrer") || CLICK_ID_KEYS.test(lower)) {
+        delete props[key];
+      } else if (lower.includes("url") || lower.includes("pathname")) {
+        props[key] = scrubUrl(value);
+      } else if (typeof value === "string" && /^https?:\/\//i.test(value)) {
+        props[key] = scrubUrl(value);
+      }
     }
-    delete props.$referrer;
-    delete props.$initial_referrer;
   }
   // person_profiles "never" already stops these being processed; belt and braces.
   delete event.$set;
@@ -124,6 +145,8 @@ export function buildPostHogConfig(host: string, distinctId?: string): Record<st
     disable_web_experiments: true,
     disable_external_dependency_loading: true,
     advanced_disable_flags: true,
+    save_campaign_params: false,
+    mask_personal_data_properties: true,
     before_send: scrubEvent,
     ...(distinctId ? { bootstrap: { distinctID: distinctId } } : {}),
   };
@@ -201,6 +224,20 @@ export function trackFunnelStep(
   } catch {
     /* analytics must never surface into the wizard */
   }
+}
+
+/**
+ * Mirror a funnel row to PostHog only once the database accepted it, so
+ * PostHog never counts a step booking_funnel_events does not hold. A
+ * Supabase RPC reports failure in `error` rather than by rejecting.
+ */
+export function mirrorIfLogged(
+  result: { error?: unknown } | null | undefined,
+  event: FunnelAnalyticsEvent,
+  env: AnalyticsEnv = readEnv(),
+  load: Loader = defaultLoader,
+): void {
+  if (result && !result.error) trackFunnelStep(event, env, load);
 }
 
 /** Test seam: forget the cached client. */

@@ -15,7 +15,7 @@ import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import type { BookingDenialInput } from "../../../supabase/rpc";
 import { claimFunnelBlocker, claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
-import { trackFunnelStep } from "../../../lib/analytics";
+import { mirrorIfLogged, type FunnelAnalyticsEvent } from "../../../lib/analytics";
 import {
   dateStepBlocker,
   dogStepBlocker,
@@ -483,6 +483,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const claim = claimFunnelStep(funnelStep);
       if (!claim) return;
       const occurredAt = new Date().toISOString();
+      const mirror: FunnelAnalyticsEvent = {
+        sessionId: claim.sessionId,
+        step: funnelStep,
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+      };
       wizard.logFunnel({
         sessionId: claim.sessionId,
         step: funnelStep,
@@ -490,13 +496,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         occurredAt,
         humanId: funnelMeta.current.humanId,
         dogCount: funnelMeta.current.dogCount,
-      }).then(undefined, () => {});
-      trackFunnelStep({
-        sessionId: claim.sessionId,
-        step: funnelStep,
-        stepIndex: claim.stepIndex,
-        dogCount: funnelMeta.current.dogCount,
-      });
+      }).then((result) => mirrorIfLogged(result, mirror), () => {});
     } catch {
       /* telemetry must never surface into the wizard */
     }
@@ -515,6 +515,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       if (!wizard.connected) return;
       const claim = claimFunnelBlocker(reason);
       if (!claim) return;
+      const mirror: FunnelAnalyticsEvent = {
+        sessionId: claim.sessionId,
+        step,
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+        blockedReason: reason,
+      };
       wizard.logFunnel({
         sessionId: claim.sessionId,
         step,
@@ -523,14 +530,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         humanId: funnelMeta.current.humanId,
         dogCount: funnelMeta.current.dogCount,
         blockedReason: reason,
-      }).then(undefined, () => {});
-      trackFunnelStep({
-        sessionId: claim.sessionId,
-        step,
-        stepIndex: claim.stepIndex,
-        dogCount: funnelMeta.current.dogCount,
-        blockedReason: reason,
-      });
+      }).then((result) => mirrorIfLogged(result, mirror), () => {});
     } catch {
       /* telemetry must never surface into the wizard */
     }
@@ -549,6 +549,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       if (!wizard.connected) return;
       const claim = claimFunnelStep("confirm_failed");
       if (!claim) return;
+      const mirror: FunnelAnalyticsEvent = {
+        sessionId: claim.sessionId,
+        step: "confirm_failed",
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+        failureCode: failure.code,
+      };
       wizard.logFunnel({
         sessionId: claim.sessionId,
         step: "confirm_failed",
@@ -558,14 +565,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         dogCount: funnelMeta.current.dogCount,
         failureCode: failure.code,
         failureDetail: failure.detail,
-      }).then(undefined, () => {});
-      trackFunnelStep({
-        sessionId: claim.sessionId,
-        step: "confirm_failed",
-        stepIndex: claim.stepIndex,
-        dogCount: funnelMeta.current.dogCount,
-        failureCode: failure.code,
-      });
+      }).then((result) => mirrorIfLogged(result, mirror), () => {});
     } catch {
       /* telemetry must never surface into the wizard */
     }

@@ -6,8 +6,8 @@ charts, time-to-convert and breakdowns (device, browser, referring domain) witho
 
 Code: [src/lib/analytics.ts](../src/lib/analytics.ts), called from the three telemetry callbacks in
 [BookingWizard.tsx](../src/components/customer/booking/BookingWizard.tsx) (`fireFunnel`,
-`fireBlocker`, `fireConfirmFailed`). A PostHog event is sent only when the database row is, so
-the two stay aligned.
+`fireBlocker`, `fireConfirmFailed`). A PostHog event is sent only after the database RPC
+returns without an error (`mirrorIfLogged`), so PostHog never counts a step the table lacks.
 
 ## What is sent
 
@@ -23,7 +23,7 @@ One event name, `booking_funnel_step`, with:
 | `failure_code` | Stable confirm-failure code |
 
 Never sent: `humans.id`, names, phone numbers, emails, dog details, `failureDetail` (free text),
-query strings, URL hashes, UUIDs in paths, or the full referrer.
+query strings, URL hashes, UUIDs in paths, full referrers, or ad click ids (`gclid`, `fbclid`…).
 
 ## Privacy design
 
@@ -34,7 +34,10 @@ query strings, URL hashes, UUIDs in paths, or the full referrer.
 - **No people.** `person_profiles: "never"`; `identify()` is never called.
 - **Nothing automatic.** Autocapture, pageviews, page-leave, session replay, surveys, feature
   flags, web experiments and external script loading are all off.
-- **Scrubbed URLs.** `before_send` trims URLs to origin + path and replaces UUIDs with `:id`.
+- **Scrubbed URLs.** `before_send` works by key shape, so it also catches properties the SDK adds
+  on its own (such as `$session_entry_url`): any key containing `url` or `pathname`, and any
+  value that is an http(s) URL, is trimmed to origin + path with UUIDs replaced by `:id`; any key
+  containing `referrer` and any ad click id is dropped. Campaign params are not saved.
 - **EU region** (`eu.i.posthog.com`), with "Discard client IP data" on in the project.
 
 This is still processing of personal data under UK GDPR (device and browser metadata), on a
@@ -42,6 +45,10 @@ legitimate-interests basis. The public privacy policy should name PostHog as an 
 processor before this is switched on in production.
 
 ## Switching it on
+
+The booking Content-Security-Policy in [vercel.json](../vercel.json) allows `https://eu.i.posthog.com`
+in `connect-src`. Using a different `VITE_POSTHOG_HOST` means adding that host there too, or the
+browser silently blocks every capture.
 
 1. Vercel → Project → Settings → Environment Variables → add `VITE_POSTHOG_KEY` (the project's
    `phc_` key) for **Production** only. Optionally `VITE_POSTHOG_HOST`.

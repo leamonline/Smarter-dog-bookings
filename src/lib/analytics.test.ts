@@ -3,6 +3,7 @@ import {
   buildPostHogConfig,
   DEFAULT_POSTHOG_HOST,
   isAnalyticsEnabled,
+  mirrorIfLogged,
   resetAnalyticsForTests,
   scrubEvent,
   scrubUrl,
@@ -48,6 +49,8 @@ describe("buildPostHogConfig", () => {
       disable_session_recording: true,
       disable_external_dependency_loading: true,
       advanced_disable_flags: true,
+      save_campaign_params: false,
+      mask_personal_data_properties: true,
     });
     expect(config).not.toHaveProperty("bootstrap");
   });
@@ -94,8 +97,48 @@ describe("scrubEvent", () => {
     expect(event).not.toHaveProperty("$set_once");
   });
 
+  it("scrubs URL-shaped keys it was never told about, like the session-entry set", () => {
+    const event = scrubEvent({
+      properties: {
+        $session_entry_url: `https://smarterdog.co.uk/book?reschedule=${UUID}`,
+        $session_entry_pathname: `/book/bookings/${UUID}`,
+        $session_entry_referrer: "https://mail.example.com/?token=secret",
+        $session_entry_referring_domain: "mail.example.com",
+        $session_entry_gclid: "click-123",
+        fbclid: "click-456",
+        utm_source: "newsletter",
+        landing: "https://smarterdog.co.uk/book?token=secret",
+      },
+    });
+    expect(event.properties).toEqual({
+      $session_entry_url: "https://smarterdog.co.uk/book",
+      $session_entry_pathname: "/book/bookings/:id",
+      $session_entry_referring_domain: "mail.example.com",
+      utm_source: "newsletter",
+      landing: "https://smarterdog.co.uk/book",
+    });
+  });
+
   it("passes null through", () => {
     expect(scrubEvent(null)).toBeNull();
+  });
+});
+
+describe("mirrorIfLogged", () => {
+  const event = { sessionId: "m1", step: "started", stepIndex: 0, dogCount: null };
+
+  it("sends only when the database write succeeded", async () => {
+    const posthog = fakePostHog();
+    const load = async () => posthog;
+    mirrorIfLogged({ error: { message: "rls" } }, event, LIVE, load);
+    mirrorIfLogged(null, event, LIVE, load);
+    mirrorIfLogged(undefined, event, LIVE, load);
+    await settle();
+    expect(posthog.capture).not.toHaveBeenCalled();
+
+    mirrorIfLogged({ error: null }, event, LIVE, load);
+    await settle();
+    expect(posthog.capture).toHaveBeenCalledTimes(1);
   });
 });
 

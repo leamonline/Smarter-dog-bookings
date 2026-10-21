@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolveLegacyRedirect, resolveMount } from "../routing/entrypoints";
+import { DEFAULT_POSTHOG_HOST } from "../lib/analytics";
 
 const config = JSON.parse(readFileSync("vercel.json", "utf8"));
 const BOOKING_SHELL = "/app/index.html";
@@ -122,6 +123,16 @@ describe("vercel routing table", () => {
     for (const prefix of ["book", "staff", "stafflogin", "reset-password", "app"]) {
       expect(csp[0].source, prefix).toContain(prefix);
     }
+  });
+
+  it("lets the booking app reach the default PostHog host", () => {
+    // Without it the browser blocks every capture and analytics.ts swallows
+    // the failure, so analytics would look switched on while sending nothing.
+    const csp = config.headers
+      .flatMap((h: { headers: { key: string; value: string }[] }) => h.headers)
+      .find((x: { key: string }) => x.key === "Content-Security-Policy");
+    const connectSrc = csp.value.split(";").map((d: string) => d.trim()).find((d: string) => d.startsWith("connect-src"));
+    expect(connectSrc.split(/\s+/)).toContain(DEFAULT_POSTHOG_HOST);
   });
 
   it("never lets a service worker be cached", () => {
