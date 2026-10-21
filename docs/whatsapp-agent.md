@@ -20,6 +20,21 @@ requests, so a later failure could leave the diary and the customer message
 disagreeing. A future server-owned, idempotent command may restore a combined
 action only when both outcomes and retries have one authoritative contract.
 
+**A staff reply supersedes the drafts it answers (#1063).** When a signed-in
+member of staff sends text from the inbox, by the compose box or by approving
+a draft, and Meta accepts it, `whatsapp-send` supersedes that conversation's
+older pending drafts (`rejected_reason = 'staff_replied'`), so nobody approves
+a second, overlapping reply later. The draft just approved, STOP
+acknowledgement drafts, drafts with a pending booking action attached and
+drafts written after the reply are left alone. Only a signed-in staff member
+counts: the agent's own sends and `apply-customer-confirm` use the internal
+secret and never supersede, and templates and failed sends never do. A failure
+to supersede is logged and never fails the send. The staff reply's outbound row
+carries `sent_by: "staff"` beside Meta's keys in `raw`, the only way to tell it
+from an AI or system message (all are `role = 'assistant'`). The agent does not
+read that marker yet: blocking its drafting and auto-send for a message staff
+already answered is Step 2 of the plan, sequenced after #921.
+
 **Known-customer drafting is on demand by default.** The default-off `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` flag allows a known customer's `booking_propose` message in `ai_handling` to create a held staff-review draft. Human only, changes, cancellations and other intents stay on demand. Unknown-customer onboarding and staff Generate reply retain their existing contracts.
 
 An automatic review draft writes no learned state, customer records or booking actions and sends no confirmation buttons or reply. Existing book-entry handling runs first: accepted or uncertain attempts stop; a validated pre-send refusal can fall through to an eligible review draft. Generic 502/network failures are uncertain, never automatic retry permission. Draft creation does not require the durable AI send switch to be enabled. Existing send gates still govern any later AI send.

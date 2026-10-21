@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — a staff reply clears the AI drafts it answers (#1063, Step 1)
+
+- When staff reply to a customer from the inbox, by typing or by approving a
+  draft, the conversation's older AI drafts stop waiting for approval, so no
+  one sends a second, overlapping reply later. The "needs eyes" count drops
+  with them.
+- STOP acknowledgements, drafts with a booking proposal still to resolve and
+  drafts written after the reply are kept. The AI's own sends, templates and
+  failed sends change nothing.
+- No migration. Staff replies are now marked in the stored message so the
+  agent can recognise them in a later step.
+
 ## 19 October 2026 — staff booking and phone inbox controls
 
 - Explain missing booking selections beside Confirm and share the explicit
