@@ -1,13 +1,23 @@
 # WhatsApp Business app replies: mirror them into the staff inbox
 
-Status: Draft
+Status: Superseded
 Issue: [#1050](https://github.com/leamonline/Smarter-dog-bookings/issues/1050)
 Base: origin/main, 500ead13400334d0a3187aeb367f02e3c4b2a64e
-Last verified: 2026-10-19
+Last verified: 2026-10-21 (superseded; the plan below is kept as it stood on 20 October 2026)
 Owners: `supabase/functions/whatsapp-agent/`, `supabase/functions/whatsapp-webhook/`, `supabase/functions/_shared/` (new echo parser), the staff inbox message bubble, agent tests and this document
 Dependencies: None in code. Two external prerequisites: confirmation that the salon's number is connected to Meta in coexistence mode, and an owner action in the Meta App Dashboard (subscribing one webhook field). Step 0 (a read-only production query) was approved and run on 19 October 2026; its result is recorded under Implementation sequence.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md); [docs/meta-app-recovery.md](../../meta-app-recovery.md)
 Related ADRs: None identified
+
+## Outcome: superseded (21 October 2026)
+
+Replaced by [a staff reply clears stale AI drafts and blocks auto-send](2026-10-21-staff-reply-clears-stale-ai-drafts.md) (#1063). Work stopped because the plan's premise failed. The rest of this document is preserved as it stood.
+
+- **The check.** Meta's documented request for `is_on_biz_app` and `platform_type` on the production phone number ID, run by the owner in the Graph API Explorer on 21 October 2026, returned `is_on_biz_app: false` and `platform_type: CLOUD_API` (ID `1060731703795077`). The number is on the Cloud API only. Meta describes `true` with `CLOUD_API` as the coexistence state ([Meta, onboarding Business app users](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/), read 19 October 2026).
+- **What it means.** The WhatsApp Business app is not connected to this number, so staff replies cannot be arriving from the phone app and there is nothing to mirror. The customer-thread screenshot that suggested phone replies (see Why) was inference, and is contradicted: those replies were most likely typed in the inbox.
+- **A caveat.** The owner has not yet confirmed that this ID is the number customers message (its `display_phone_number`). A code comment at `supabase/functions/whatsapp-send/handler.ts` (about line 57) gives the same ID as the example value of `META_PHONE_NUMBER_ID`, which supports it, but a comment is not proof.
+- **What survives.** The owner's wish to stop unnecessary AI replies after staff have answered is real for replies typed in the inbox, and moves to the new plan. The owner decisions recorded under Open questions (create a thread for an unknown number, no "Handled by staff" switch, a "Sent from phone" label, an inactivity alert, edits and deletes not mirrored, staff guidance only for STOP) stay as a record. They matter only if the number is ever moved to coexistence.
+- **Reopen if** the ID above proves not to be the live number, or the owner chooses to move the salon number to coexistence (a separate, unresearched change to a live number that would need its own plan).
 
 ## Goal
 
@@ -207,7 +217,7 @@ Steps 1 to 4 are one pull request with one writer; step 5 can be a separate smal
 
 Decisions needed from the owner unless noted:
 
-1. Is the salon's number connected in coexistence mode? (Blocks the Meta subscription step. Open: Step 0 could not show it. Run Meta's `is_on_biz_app` / `platform_type` check on the phone number ID, or confirm in WhatsApp Manager under the number's settings.)
+1. Is the salon's number connected in coexistence mode? **Answered on 21 October 2026: no (see Outcome).** (Blocks the Meta subscription step. Open: Step 0 could not show it. Run Meta's `is_on_biz_app` / `platform_type` check on the phone number ID, or confirm in WhatsApp Manager under the number's settings.)
 2. Are echo events already arriving? **Answered: no.** The field is not subscribed and none has ever arrived (Step 0).
 3. Does Meta echo messages sent through Cloud API? (Verify in the live test; no action if it does not.)
 4. If staff message a number we have never had a conversation with, should the inbox create the thread? **Decided by the owner, 20 October 2026: yes.**
@@ -218,4 +228,4 @@ Decisions needed from the owner unless noted:
 9. Edits and revokes in the phone app: accept that v1 does not mirror them? **Decided by the owner, 20 October 2026: yes, accept for now.** Meta's documentation did not clearly say whether a webhook is sent; the live test checks, and this is revisited if one arrives.
 10. Staff policy: messaging a customer who has sent STOP from the phone bypasses the system's opt-out protection. **Decided by the owner, 20 October 2026: staff guidance only**, with no visible in-app warning for now. The phone reply is still mirrored so the record is honest. The guidance goes into the staff documentation listed under Documentation updates.
 
-Still open: question 1 (coexistence). The owner is checking. Nothing is built or subscribed until it is answered; question 3 is verified in the live test and needs no decision.
+Question 1 was answered on 21 October 2026: the number is not in coexistence mode (see Outcome), so nothing was built or subscribed. Question 3 was never reached.
