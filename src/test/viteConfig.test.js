@@ -32,6 +32,8 @@ describe("vite config", () => {
     expect(manualChunks("/x/node_modules/@sentry/core/build/esm/integrations/supabase.js")).toBe("sentry");
     expect(manualChunks("/x/node_modules/@sentry/react/index.js")).toBe("sentry");
     expect(manualChunks("/x/node_modules/@sentry-internal/replay/index.js")).toBe("sentry");
+    expect(manualChunks("/x/node_modules/posthog-js/dist/module.js")).toBe("posthog");
+    expect(manualChunks("/x/node_modules/@posthog/core/dist/index.mjs")).toBe("posthog");
     // App code must stay on Rollup's natural per-lazy() boundaries.
     expect(manualChunks("/x/src/components/views/SettingsView.jsx")).toBeUndefined();
     expect(manualChunks("/x/src/components/modals/DogCardModal.jsx")).toBeUndefined();

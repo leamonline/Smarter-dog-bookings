@@ -85,6 +85,8 @@ Names only — never commit values. Full documented list: [.env.example](.env.ex
   `VITE_TURNSTILE_SITE_KEY`, `VITE_SENTRY_DSN` / `VITE_SENTRY_ENVIRONMENT` (error reporting is
   **LIVE in prod** since 28 Aug 2026 — verify with `npm run check:sentry`; see
   [docs/error-reporting.md](docs/error-reporting.md)),
+  `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` (cookieless PostHog mirror of the booking funnel,
+  production builds only — see [docs/product-analytics.md](docs/product-analytics.md)),
   `VITE_FORCE_OFFLINE` (set `=1` for offline/sample-data mode; used by E2E). Missing Supabase vars
   in a **prod** build is a hard error page; in dev it just goes offline.
 - **Server/admin scripts only (NEVER `VITE_`):** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`

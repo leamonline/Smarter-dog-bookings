@@ -15,6 +15,7 @@ import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import type { BookingDenialInput } from "../../../supabase/rpc";
 import { claimFunnelBlocker, claimFunnelStep, clearFunnelSession } from "../../../lib/funnelSession";
+import { trackFunnelStep } from "../../../lib/analytics";
 import {
   dateStepBlocker,
   dogStepBlocker,
@@ -490,6 +491,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         humanId: funnelMeta.current.humanId,
         dogCount: funnelMeta.current.dogCount,
       }).then(undefined, () => {});
+      trackFunnelStep({
+        sessionId: claim.sessionId,
+        step: funnelStep,
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+      });
     } catch {
       /* telemetry must never surface into the wizard */
     }
@@ -517,6 +524,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         dogCount: funnelMeta.current.dogCount,
         blockedReason: reason,
       }).then(undefined, () => {});
+      trackFunnelStep({
+        sessionId: claim.sessionId,
+        step,
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+        blockedReason: reason,
+      });
     } catch {
       /* telemetry must never surface into the wizard */
     }
@@ -545,6 +559,13 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         failureCode: failure.code,
         failureDetail: failure.detail,
       }).then(undefined, () => {});
+      trackFunnelStep({
+        sessionId: claim.sessionId,
+        step: "confirm_failed",
+        stepIndex: claim.stepIndex,
+        dogCount: funnelMeta.current.dogCount,
+        failureCode: failure.code,
+      });
     } catch {
       /* telemetry must never surface into the wizard */
     }
