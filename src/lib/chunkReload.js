@@ -52,7 +52,11 @@ export function handleStaleChunkError(source, error) {
   }
   safeSet("session", RELOAD_FLAG, String(Date.now()));
 
+  // A reload that is about to fix itself (a tab open across a deploy) is
+  // expected, so it is recorded at info level to stay out of error alerts.
+  // The loop-guard branch above stays an error: that one means it is still broken.
   captureException(error ?? new Error(`stale chunk reload (${source})`), {
+    level: "info",
     tags: { chunkReload: "reloading", source },
   });
 
