@@ -21,7 +21,7 @@ Owner preference (19 October 2026): stop the AI sending unnecessary replies. Own
 
 Without this, a draft that was written before a colleague answered the customer stays pending. Anyone can approve it afterwards and the customer then gets two overlapping replies. The dashboard "needs eyes" number also counts it. The review-draft work in #921 will create more pending drafts for known customers, so stale drafts will become more common, not less.
 
-How many stale drafts exist today is not known. Step 0 would measure it.
+Step 0 measured the problem on 21 October 2026: none today. Production had 4 pending drafts and none had a later outbound message (details under Implementation sequence). That makes this preventive work, not a fix for an active problem, and it affects priority (see Open questions, "Priority").
 
 ## Current behaviour
 
@@ -39,7 +39,7 @@ Confirmed from code at the base commit, read 21 October 2026. Not observed live.
 
 Not known, and not assumed:
 
-- How many pending drafts are already stale in production (Step 0).
+- Whether stale drafts have happened before. Step 0 is a snapshot of one moment, not a history.
 - What an open inbox draft card does at the moment it becomes superseded. The realtime subscription suggests it disappears; a stale approve returns `draft is superseded, not pending` with status 409. Neither has been exercised.
 - Whether any caller other than the inbox compose box and draft approval sends staff-initiated text through `whatsapp-send`. Step 1 begins by searching the callers.
 - Whether anything reads the `raw` column of outbound messages in a way an added key could break (Step 1 searches the readers).
@@ -51,7 +51,7 @@ Not known, and not assumed:
 - The agent does not draft for, or auto-send to, a customer message that staff have already answered.
 - A failed send changes nothing.
 - AI sends, templates, reminders and confirmations never supersede drafts.
-- Opt-out acknowledgement drafts are never superseded by this. Drafts with pending attached booking actions follow the owner's answer to Open question 1.
+- Opt-out acknowledgement drafts are never superseded by this. Drafts with a pending attached booking action are left alone (owner decision, 21 October 2026).
 
 ## Scope
 
@@ -83,7 +83,7 @@ Not known, and not assumed:
 The sender is the source of authority. `whatsapp-send` knows when it is sending staff-initiated text; the database and the agent cannot infer it.
 
 - **What counts as staff-initiated:** a manual-mode or draft-mode send made by a signed-in staff member (`auth.userId` set). Manual mode must be passed the auth result for this. Any call made with the internal secret never counts, including the agent's auto-send, so the AI cannot supersede drafts or mark its own messages as staff.
-- **On a successful staff-initiated send:** after Meta accepts the message and `recordOutbound` has run, one conditional update sets `state = 'superseded'`, `rejected_reason = 'staff_replied'`, `decided_at = now()` for drafts on that conversation that are `pending`, were created before the send time, and are not opt-out acknowledgement drafts (`tool_calls->>opt_out_acknowledgement = 'true'`, the same test `whatsapp-send` already uses). Re-running changes nothing. A failure of this update is logged and does not fail the send, because the message has already gone.
+- **On a successful staff-initiated send:** after Meta accepts the message and `recordOutbound` has run, one conditional update sets `state = 'superseded'`, `rejected_reason = 'staff_replied'`, `decided_at = now()` for drafts on that conversation that are `pending`, were created before the send time, are not opt-out acknowledgement drafts (`tool_calls->>opt_out_acknowledgement = 'true'`, the same test `whatsapp-send` already uses), and have no pending `whatsapp_booking_actions` row attached through `draft_id`. Doing this as a short select, a filter in code, and an update by id (guarded by `state = 'pending'`) avoids SQL null-comparison traps and is easy to test. Re-running changes nothing. A failure of this update is logged and does not fail the send, because the message has already gone.
 - **Marking the message:** the outbound row's `raw` is Meta's response today. Staff sends add a top-level `sent_by: "staff"` next to Meta's keys, so code that reads `raw.messages[0].id` still works. No migration. Older rows have no marker, so only new replies are protected.
 - **In the agent:** before the model is called for an inbound message, and again before auto-send eligibility is final, check whether an outbound message with `raw->>'sent_by' = 'staff'` exists after that inbound message. If so: skip drafting (first check) or set `autoSendEligible = false` and save the draft as already superseded (second check, for a reply that lands while the model is thinking). It only ever removes sends.
 - Booking actions are not touched by superseding, matching the existing newer-inbound trigger.
@@ -132,7 +132,8 @@ Rollback: revert the pull request. Superseded rows are harmless and identifiable
 
 ## Implementation sequence
 
-0. **Evidence (no code, needs approval).** One read-only production query, aggregates only: count of `pending` drafts whose conversation has an outbound message sent after the draft was created. Record the number here. Skip if the owner prefers to proceed without it.
+0. **Evidence (done, owner-approved, 21 October 2026, production project `nlzhllhkigmsvrzduefz`).** One read-only query, aggregates only, no message text, numbers or names: count of `pending` drafts, and of those how many have an outbound message sent after the draft was created, and how many of those are older than 24 hours.
+   **Result:** 4 pending drafts in total; 0 with a later outbound message; 0 older than 24 hours with one. Limits: it is a snapshot of one moment; and "any later outbound message" is an upper bound for staff replies, because the database cannot tell a staff reply from a system message (every outbound row is `assistant`), so the true number could only be lower. Zero is therefore a real zero for today.
 1. **`whatsapp-send`.** Search callers of manual and draft mode (including any internal-secret callers of manual mode) and readers of outbound `raw`. Pass the auth result into manual mode. Add the `sent_by` marker, then the supersede update after a successful send, only when a signed-in staff member made the call. Tests first, in a new file beside `optOut.test.ts`.
 2. **Agent guard.** The two checks above, after #921's agent changes or coordinated with them. Tests alongside `dispatch.test.ts`; the existing gate tests must stay green.
 3. **UI check.** Exercise the superseded-draft states; add a component test only if something is wrong.
@@ -171,11 +172,15 @@ Steps 1 and 2 are separate pull requests with one writer each.
 
 ## Open questions
 
-Decisions needed from the owner unless noted:
+Decided by the owner on 21 October 2026:
 
-1. Should a draft with pending attached booking actions be left alone when staff reply? Recommended: yes, leave it, so a staff reply never quietly changes what staff still have to resolve.
-2. Should a staff member approving one draft also supersede that conversation's other older pending drafts? Recommended: yes, same rule (never for the agent's own auto-send).
-3. When staff already answered, should the agent skip the model call entirely (saves cost) or still draft and save it as superseded (keeps an audit trail)? Recommended: skip, and log the event id.
-4. Is the Step 0 count wanted before building, or should the work proceed without it?
-5. Sequencing against #921: land the `whatsapp-send` change first and the agent change after #921? Recommended: yes.
-6. The marker: a `sent_by` key in `raw` now (no migration), or a proper `staff` message role later? Recommended: the key now.
+1. A draft with a pending attached booking action is left alone when staff reply, so a staff reply never quietly changes what staff still have to resolve.
+2. A staff member approving one draft also supersedes that conversation's other older pending drafts (never for the agent's own auto-send).
+3. When staff already answered, the agent skips the model call entirely and logs the event id.
+4. The Step 0 count was wanted before building. It was run (result under Implementation sequence).
+5. Sequencing: land the `whatsapp-send` change first and the agent change after #921, or coordinated with it.
+6. The marker is a `sent_by` key in `raw` now (no migration), not a `staff` message role.
+
+The owner also accepted this plan and asked for Step 1 to be built on a separate branch. That instruction was given before the Step 0 result was known.
+
+**Priority (open).** The count came back at zero, and the count was framed as a priority signal. Step 1 also changes `whatsapp-send`, the function every customer message goes through, for no measured benefit today. Options: pause until #921's review drafts increase the number of pending drafts or auto-send is considered (the recommendation); build Step 1 anyway as a draft pull request; or close #1063 as not needed. Nothing is built until the owner chooses.
