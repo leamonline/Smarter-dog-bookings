@@ -93,6 +93,18 @@ describe("installChunkReloadHandler", () => {
     expect(isChunkReloadPending()).toBe(false);
   });
 
+  it("reports a recovering reload as info and a loop-guard hit as an error", async () => {
+    const { captureException } = await import("./sentry.js");
+    captureException.mockClear();
+    const err = () => new Error("Failed to fetch dynamically imported module");
+    listeners.error({ error: err() });
+    listeners.error({ error: err() });
+    const [first, second] = captureException.mock.calls;
+    expect(first[1]).toMatchObject({ level: "info", tags: { chunkReload: "reloading" } });
+    expect(second[1].level).toBeUndefined();
+    expect(second[1].tags.chunkReload).toBe("loop_guard_hit");
+  });
+
   it("ignores unrelated errors", () => {
     listeners.error({ error: new TypeError("x is not a function") });
     listeners.unhandledrejection({ reason: new Error("network timeout") });
