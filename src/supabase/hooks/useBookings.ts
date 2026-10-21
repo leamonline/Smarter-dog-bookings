@@ -83,6 +83,22 @@ function friendlyBookingError(err: PostgrestErrorLike | null | undefined): strin
   return raw || "Couldn't save the booking — please try again.";
 }
 
+// A capacity-gate refusal is the database doing its job: the groomer is told
+// "That slot just filled up" and picks another time, so it is not sent to
+// Sentry as an error. Anything else (RLS, a bad payload, an outage) still is.
+function logBookingFailure(
+  message: string,
+  err: PostgrestErrorLike | null | undefined,
+  op: string,
+) {
+  const tags = { hook: "useBookings", op };
+  if (isCapacityRejection(err?.message)) {
+    logger.warn(message, { tags, extra: { code: err?.code } });
+    return;
+  }
+  logger.error(message, err, { tags });
+}
+
 // Map a modal-built booking to the bookings INSERT column shape. Shared by
 // the single insert (addBooking) and the atomic group path (addBookingGroup)
 // so the two can't drift.
@@ -361,9 +377,7 @@ export function useBookings(
 
       if (err) {
         setRows((prev) => (prev || []).filter((r) => r.id !== newId));
-        logger.error("Failed to add booking", err, {
-          tags: { hook: "useBookings", op: "addBooking" },
-        });
+        logBookingFailure("Failed to add booking", err, "addBooking");
         const friendly = friendlyBookingError(err);
         setError(friendly);
         onErrorRef.current?.(friendly);
@@ -441,9 +455,7 @@ export function useBookings(
       if (err) {
         const ids = new Set(payloads.map((p) => p.id));
         setRows((prev) => (prev || []).filter((r) => !ids.has(r.id)));
-        logger.error("Failed to add booking group", err, {
-          tags: { hook: "useBookings", op: "addBookingGroup" },
-        });
+        logBookingFailure("Failed to add booking group", err, "addBookingGroup");
         const friendly = friendlyBookingError(err);
         setError(friendly);
         onErrorRef.current?.(friendly);
@@ -615,9 +627,7 @@ export function useBookings(
             (prev || []).map((r) => (r.id === prevRow.id ? prevRow : r)),
           );
         }
-        logger.error("Failed to update booking", err, {
-          tags: { hook: "useBookings", op: "updateBooking" },
-        });
+        logBookingFailure("Failed to update booking", err, "updateBooking");
         onErrorRef.current?.(err?.message ?? "Couldn't save the booking — please try again.");
         return null;
       }

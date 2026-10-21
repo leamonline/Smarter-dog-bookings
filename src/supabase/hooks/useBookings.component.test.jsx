@@ -55,7 +55,12 @@ vi.mock("../transforms.js", async () => {
   };
 });
 
+vi.mock("../../lib/logger", () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+}));
+
 const { useBookings } = await import("./useBookings");
+const { logger } = await import("../../lib/logger");
 
 function makeChannel() {
   const handlers = [];
@@ -499,6 +504,40 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"] ?? []).toHaveLength(0);
     expect(result.current.error).toMatch(/just filled up/i);
     expect(onError).toHaveBeenCalledWith(expect.stringMatching(/just filled up/i));
+  });
+
+  // The groomer already sees "just filled up", so a capacity refusal must not
+  // reach Sentry as an error; any other failure still must.
+  it("addBooking keeps a capacity refusal out of Sentry but reports other failures", async () => {
+    const book = async (error) => {
+      setSupabase(
+        makeSupabaseStub({
+          selectResult: { data: [], error: null },
+          insertResult: { data: null, error },
+        }),
+      );
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById, {}));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await act(async () => {
+        await result.current.addBooking("2026-05-18", {
+          _dogId: "dog-1",
+          slot: "11:00",
+          size: "small",
+          service: "full-groom",
+        });
+      });
+    };
+
+    vi.mocked(logger.error).mockClear();
+    vi.mocked(logger.warn).mockClear();
+    await book({ code: "P0001", message: "Slot is full" });
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+
+    vi.mocked(logger.warn).mockClear();
+    await book({ code: "42501", message: "new row violates row-level security policy" });
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   // Fix C: the unique-constraint race (same dog, same slot) is mapped too.
