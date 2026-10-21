@@ -267,8 +267,8 @@ async function recordOutbound(
   metaMessageId: string | null,
   content: string | null,
   raw: unknown,
-) {
-  if (!conversationId) return;
+): Promise<string | null> {
+  if (!conversationId) return null;
   const sentAt = new Date().toISOString();
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
@@ -287,6 +287,76 @@ async function recordOutbound(
     .update({ last_outbound_at: sentAt })
     .eq("id", conversationId);
   if (convError) console.error("recordOutbound conversation update failed:", convError);
+  return sentAt;
+}
+
+// ── A staff reply supersedes the AI drafts it answers (#1063) ──
+// Only a signed-in member of staff counts. The agent's own sends use the
+// internal secret (userId undefined), so the AI can neither supersede drafts
+// nor mark its own messages as staff.
+//
+// The database cannot tell a staff reply from an AI or system message (every
+// outbound row is role 'assistant'), so the sender marks it: a top-level
+// `sent_by: "staff"` beside Meta's own keys in `raw`, which leaves
+// `raw.messages[0].id` where its readers expect it. No migration.
+function outboundRaw(metaRes: MetaSendSuccess, staffUserId: string | undefined): unknown {
+  return staffUserId ? { ...metaRes, sent_by: "staff" } : metaRes;
+}
+
+// After a staff member's text has gone, the conversation's older pending
+// drafts no longer need an answer: supersede them, exactly as the
+// newer-inbound trigger does (20260520240000), so nobody approves a second,
+// overlapping reply later. Left alone: STOP acknowledgement drafts, drafts with
+// a pending booking action attached (owner decision, 21 October 2026), and any
+// draft created after the reply. Best effort: the message has already been
+// sent, so a failure here is logged and never fails the send.
+async function supersedeDraftsAfterStaffReply(
+  supabase: SupabaseClient,
+  conversationId: string,
+  sentAt: string,
+  keepDraftId?: string,
+): Promise<void> {
+  try {
+    const { data: pending, error: pendingErr } = await supabase
+      .from("whatsapp_drafts")
+      .select("id, tool_calls")
+      .eq("conversation_id", conversationId)
+      .eq("state", "pending")
+      .lt("created_at", sentAt);
+    if (pendingErr) throw new Error(pendingErr.message);
+
+    const candidates = ((pending ?? []) as { id: string; tool_calls: Record<string, unknown> | null }[])
+      .filter((d) => d.id !== keepDraftId)
+      .filter((d) => String(d.tool_calls?.opt_out_acknowledgement) !== "true")
+      .map((d) => d.id);
+    if (candidates.length === 0) return;
+
+    const { data: actions, error: actionsErr } = await supabase
+      .from("whatsapp_booking_actions")
+      .select("draft_id")
+      .eq("state", "pending")
+      .in("draft_id", candidates);
+    if (actionsErr) throw new Error(actionsErr.message);
+    const held = new Set(((actions ?? []) as { draft_id: string | null }[]).map((a) => a.draft_id));
+    const ids = candidates.filter((id) => !held.has(id));
+    if (ids.length === 0) return;
+
+    const { data: superseded, error: updateErr } = await supabase
+      .from("whatsapp_drafts")
+      .update({ state: "superseded", rejected_reason: "staff_replied", decided_at: new Date().toISOString() })
+      .in("id", ids)
+      .eq("state", "pending")
+      .select("id");
+    if (updateErr) throw new Error(updateErr.message);
+    console.log(
+      `whatsapp-send: staff reply on conversation ${conversationId} superseded ${superseded?.length ?? 0} older pending draft(s)`,
+    );
+  } catch (err) {
+    console.error(
+      `whatsapp-send: superseding drafts after a staff reply on ${conversationId} failed (the reply was sent):`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 }
 
 function isWindowOpen(lastInboundAt: string | null | undefined): boolean {
@@ -735,7 +805,8 @@ async function handleDraftMode(
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  await recordOutbound(supabase, conv.id, metaMessageId, textToSend, metaRes);
+  const sentAt = await recordOutbound(supabase, conv.id, metaMessageId, textToSend, outboundRaw(metaRes, userId));
+  if (userId && sentAt) await supersedeDraftsAfterStaffReply(supabase, conv.id, sentAt, draft.id);
 
   return json(req, {
     ok: true,
@@ -754,6 +825,7 @@ async function handleManualMode(
   req: Request,
   supabase: SupabaseClient,
   body: ManualMode,
+  userId: string | undefined,
 ): Promise<Response> {
   if (!body.conversation_id) {
     return json(req, { error: "conversation_id is required" }, 400);
@@ -817,7 +889,8 @@ async function handleManualMode(
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  await recordOutbound(supabase, conv.id, metaMessageId, text, metaRes);
+  const sentAt = await recordOutbound(supabase, conv.id, metaMessageId, text, outboundRaw(metaRes, userId));
+  if (userId && sentAt) await supersedeDraftsAfterStaffReply(supabase, conv.id, sentAt);
 
   return json(req, {
     ok: true,
@@ -975,8 +1048,9 @@ async function handleConfirmButtons(
   const deps: ConfirmButtonsDeps = {
     supabase: supabase as unknown as SupabaseLike,
     callMeta,
-    recordOutbound: (conversationId, metaMessageId, content, raw) =>
-      recordOutbound(supabase, conversationId, metaMessageId, content, raw),
+    recordOutbound: async (conversationId, metaMessageId, content, raw) => {
+      await recordOutbound(supabase, conversationId, metaMessageId, content, raw);
+    },
     now: () => new Date(),
   };
 
@@ -1346,7 +1420,7 @@ export async function handleSendRequest(req: Request): Promise<Response> {
     if (parsed.mode === "draft") {
       return await handleDraftMode(req, supabase, parsed, auth.userId);
     } else if (parsed.mode === "manual") {
-      return await handleManualMode(req, supabase, parsed);
+      return await handleManualMode(req, supabase, parsed, auth.userId);
     } else if (parsed.mode === "template") {
       return await handleTemplateMode(req, supabase, parsed);
     } else if (parsed.mode === "confirm_buttons") {

@@ -1,15 +1,15 @@
 # WhatsApp: a staff reply clears stale AI drafts and blocks auto-send
 
-Status: Blocked
+Status: Active
 Issue: [#1063](https://github.com/leamonline/Smarter-dog-bookings/issues/1063)
 Base: origin/main, 500ead13400334d0a3187aeb367f02e3c4b2a64e
-Last verified: 2026-10-21
+Last verified: 2026-10-21 (Step 1 built 2026-10-21)
 Owners: `supabase/functions/whatsapp-send/`, `supabase/functions/whatsapp-agent/`, their Deno tests and this document
 Dependencies: The agent change (Step 2) touches the same area as #921 ([plan](2026-10-01-whatsapp-agent-review-drafts.md)); sequence it after, or coordinate with, that work. Step 0 needs a separately approved read-only production query.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
 Related ADRs: None identified
 
-**Paused by the owner on 21 October 2026.** The plan was accepted, then paused once Step 0 showed no stale drafts today. It is Blocked only by that choice, not by any technical obstacle. See Open questions, "Priority", for what brings it back.
+**Resumed by the owner on 21 October 2026** after an earlier pause the same day. Step 0 was re-run on resuming (same result) and Step 1 is built on `fix/staff-reply-supersedes-drafts`. Step 2 still waits for #921.
 
 Replaces the goal that survives from [the Business app echoes plan](2026-10-19-whatsapp-business-app-echoes.md) (#1050, Superseded). That plan assumed staff reply from the WhatsApp Business app on the salon phone. Meta reports the salon number is not in coexistence mode, so that premise does not hold. The owner's wish to stop the AI sending unnecessary replies does hold, and applies to replies staff type in the inbox.
 
@@ -136,7 +136,8 @@ Rollback: revert the pull request. Superseded rows are harmless and identifiable
 
 0. **Evidence (done, owner-approved, 21 October 2026, production project `nlzhllhkigmsvrzduefz`).** One read-only query, aggregates only, no message text, numbers or names: count of `pending` drafts, and of those how many have an outbound message sent after the draft was created, and how many of those are older than 24 hours.
    **Result:** 4 pending drafts in total; 0 with a later outbound message; 0 older than 24 hours with one. Limits: it is a snapshot of one moment; and "any later outbound message" is an upper bound for staff replies, because the database cannot tell a staff reply from a system message (every outbound row is `assistant`), so the true number could only be lower. Zero is therefore a real zero for today.
-1. **`whatsapp-send`.** Search callers of manual and draft mode (including any internal-secret callers of manual mode) and readers of outbound `raw`. Pass the auth result into manual mode. Add the `sent_by` marker, then the supersede update after a successful send, only when a signed-in staff member made the call. Tests first, in a new file beside `optOut.test.ts`.
+   **Re-run on resuming (owner-approved, 21 October 2026, same query, joined on `whatsapp_messages.sent_at`):** 4 pending drafts; 0 with a later outbound message; 0 older than 24 hours with one.
+1. **`whatsapp-send`.** **Built** (21 October 2026): callers searched (staff: the inbox compose box and draft approval; internal secret: the agent and `apply-customer-confirm`, both manual mode; neither counts as staff), and the only reader of `raw` is `whatsapp-media`, for media ids. Tests in `whatsapp-send/__tests__/staffReply.test.ts`. Search callers of manual and draft mode (including any internal-secret callers of manual mode) and readers of outbound `raw`. Pass the auth result into manual mode. Add the `sent_by` marker, then the supersede update after a successful send, only when a signed-in staff member made the call. Tests first, in a new file beside `optOut.test.ts`.
 2. **Agent guard.** The two checks above, after #921's agent changes or coordinated with them. Tests alongside `dispatch.test.ts`; the existing gate tests must stay green.
 3. **UI check.** Exercise the superseded-draft states; add a component test only if something is wrong.
 4. **Docs and live test.** Update the documents below, run the live test, record the result here.
@@ -184,6 +185,8 @@ Decided by the owner on 21 October 2026:
 6. The marker is a `sent_by` key in `raw` now (no migration), not a `staff` message role.
 
 The owner also accepted this plan and asked for Step 1 to be built on a separate branch. That instruction was given before the Step 0 result was known.
+
+**Priority: resumed by the owner later on 21 October 2026** ("start on #1063"), with a fresh Step 0 count first. The earlier decision follows for the record.
 
 **Priority (decided by the owner, 21 October 2026): pause.** The count came back at zero, and Step 1 changes `whatsapp-send`, the function every customer message goes through, for no measured benefit today. The owner chose to pause rather than build Step 1 anyway or close the issue. Nothing has been built, and no code branch exists.
 
