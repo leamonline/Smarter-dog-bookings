@@ -1,6 +1,6 @@
 # WhatsApp: a staff reply clears stale AI drafts and blocks auto-send
 
-Status: Draft
+Status: Blocked
 Issue: [#1063](https://github.com/leamonline/Smarter-dog-bookings/issues/1063)
 Base: origin/main, 500ead13400334d0a3187aeb367f02e3c4b2a64e
 Last verified: 2026-10-21
@@ -8,6 +8,8 @@ Owners: `supabase/functions/whatsapp-send/`, `supabase/functions/whatsapp-agent/
 Dependencies: The agent change (Step 2) touches the same area as #921 ([plan](2026-10-01-whatsapp-agent-review-drafts.md)); sequence it after, or coordinate with, that work. Step 0 needs a separately approved read-only production query.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
 Related ADRs: None identified
+
+**Paused by the owner on 21 October 2026.** The plan was accepted, then paused once Step 0 showed no stale drafts today. It is Blocked only by that choice, not by any technical obstacle. See Open questions, "Priority", for what brings it back.
 
 Replaces the goal that survives from [the Business app echoes plan](2026-10-19-whatsapp-business-app-echoes.md) (#1050, Superseded). That plan assumed staff reply from the WhatsApp Business app on the salon phone. Meta reports the salon number is not in coexistence mode, so that premise does not hold. The owner's wish to stop the AI sending unnecessary replies does hold, and applies to replies staff type in the inbox.
 
@@ -183,4 +185,13 @@ Decided by the owner on 21 October 2026:
 
 The owner also accepted this plan and asked for Step 1 to be built on a separate branch. That instruction was given before the Step 0 result was known.
 
-**Priority (open).** The count came back at zero, and the count was framed as a priority signal. Step 1 also changes `whatsapp-send`, the function every customer message goes through, for no measured benefit today. Options: pause until #921's review drafts increase the number of pending drafts or auto-send is considered (the recommendation); build Step 1 anyway as a draft pull request; or close #1063 as not needed. Nothing is built until the owner chooses.
+**Priority (decided by the owner, 21 October 2026): pause.** The count came back at zero, and Step 1 changes `whatsapp-send`, the function every customer message goes through, for no measured benefit today. The owner chose to pause rather than build Step 1 anyway or close the issue. Nothing has been built, and no code branch exists.
+
+Resume when any of these happens:
+
+- #921's review-draft path ships, or is enabled, so pending drafts for known customers become common.
+- Auto-send or autonomous booking is being considered for switching on.
+- A real double reply, or a stale draft that staff approved after a colleague had already answered, is reported.
+- The owner asks.
+
+On resuming: re-run the Step 0 count first (it is cheap and read-only, and needs fresh approval), then start at Step 1. The answers above still stand unless the owner changes them.
