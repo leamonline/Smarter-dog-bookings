@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — PostHog mirror of the booking-wizard funnel
+
+- The customer booking wizard can now send its existing funnel steps, blockers
+  and confirm failures to PostHog as `booking_funnel_step`, for funnel charts
+  and device/referrer breakdowns. `booking_funnel_events` stays the source of
+  truth for the staff Funnel report.
+- Off until `VITE_POSTHOG_KEY` is set in Vercel production. Cookieless, no
+  customer identifiers, no autocapture or replay; see
+  [docs/product-analytics.md](docs/product-analytics.md).
+- No migration.
+
 ## Unreleased — a staff reply clears the AI drafts it answers (#1063, Step 1)
 
 - When staff reply to a customer from the inbox, by typing or by approving a
