@@ -1291,6 +1291,56 @@ async function saveDraft(
   return data.id as string;
 }
 
+const HANDOFF_CARRY_DAYS = 14;
+
+/**
+ * True when the customer asked for a person and nobody has answered yet: the
+ * newest draft on the conversation is a handoff that only a newer inbound
+ * message superseded (trigger 20260520240000), and no member of staff has
+ * replied since (whatsapp-send marks a staff reply `raw.sent_by = 'staff'`,
+ * #1063). A draft staff sent, rejected or answered never counts, and nor does
+ * a STOP acknowledgement, or one older than HANDOFF_CARRY_DAYS: staff replies
+ * sent before #1063 carry no marker, and a request that old was settled some
+ * other way. A lookup failure reads as "not open" so the message keeps its
+ * normal route.
+ */
+async function hasUnansweredHandoff(supabase: SupabaseClient, conversationId: string): Promise<boolean> {
+  const { data: latest, error } = await supabase
+    .from("whatsapp_drafts")
+    .select("created_at, state, rejected_reason, handoff_required, tool_calls")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn("hasUnansweredHandoff: draft lookup failed:", error.message);
+    return false;
+  }
+  if (
+    !latest?.handoff_required ||
+    latest.state !== "superseded" ||
+    latest.rejected_reason !== "newer_inbound" ||
+    String((latest.tool_calls as Record<string, unknown> | null)?.opt_out_acknowledgement) === "true" ||
+    Date.now() - Date.parse(latest.created_at) > HANDOFF_CARRY_DAYS * 24 * 60 * 60 * 1000
+  ) {
+    return false;
+  }
+  const { data: staffReply, error: replyErr } = await supabase
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .eq("raw->>sent_by", "staff")
+    .gt("sent_at", latest.created_at)
+    .limit(1)
+    .maybeSingle();
+  if (replyErr) {
+    console.warn("hasUnansweredHandoff: staff-reply lookup failed:", replyErr.message);
+    return false;
+  }
+  return !staffReply;
+}
+
 /**
  * Records a customer's STOP: the number's own opt-out, auto-send off, and the
  * opt-out on every customer record whose phone is that number. Every write is
@@ -3226,6 +3276,39 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               humanNeeded === "service_recovery" ? "arrived_salon_closed" : "chasing_reply",
               { reply: "none" },
             );
+            continue;
+          }
+
+          // An earlier request for a person that nobody has answered yet ("I
+          // need help", "Not me", anything drafted as a handoff). This message
+          // has just superseded that draft, and a known customer's ordinary
+          // follow-up writes no draft of its own, so without this the flag
+          // vanished from the inbox and the customer went unanswered (October
+          // 2026). Carry it onto this message instead, and send no scripts
+          // (tap-to-book, manage pickers) while the customer waits for a
+          // person. Booking-page trouble keeps its offer to book it by hand.
+          // Only while the AI is handling the thread, like every handoff draft.
+          if (
+            !forceDraft &&
+            conversation.human_id &&
+            conversation.state === "ai_handling" &&
+            (await hasUnansweredHandoff(supabase, conversation.id))
+          ) {
+            const policy: DraftPolicy = {
+              riskLevel: "high",
+              handoffRequired: true,
+              autoSendEligible: false,
+              draftOnly: false,
+            };
+            const draft: DraftFromClaude = {
+              intent: "escalate",
+              confidence: 1,
+              proposed_text: fallbackReplyForIntent(isPortalTrouble(text) ? "portal_trouble" : "handoff"),
+              extracted_state: null,
+            };
+            await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+              reason: "carried_handoff: an earlier request for a person is still unanswered",
+            });
             continue;
           }
 

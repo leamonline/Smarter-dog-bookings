@@ -97,6 +97,8 @@ async function run(s: Scenario = {}) {
     if (url.pathname === "/rest/v1/rpc/get_large_dog_day_availability") return reply([]);
     if (url.pathname === "/v1/messages") return reply({ content: [{ type: "text", text: JSON.stringify({ intent: "greeting", confidence: 0.99, proposed_text: "Synthetic review text", ...((s.force && !s.memoryFailure) || s.suggest ? {} : { extracted_state: { breed: "Changed breed", customerName: "Changed name" }, booking_action: { action: "create", dog_id: dogId, booking_date: today, slot: "09:00", service: "full-groom", size: "small" } }) , ...(s.preferenceCorrection ? {extracted_state:{corrections:[{field:"preferredTime",value:null,evidence:"Forget 09:00"}]}} : {}) , ...((s.perDog || s.singleDogUpdate) ? {extracted_state:{dogs:[{dogId, service:"puppy-groom"}]}} : {}) }) }], stop_reason: s.truncated ? "max_tokens" : "end_turn", usage: { input_tokens: 10, output_tokens: 10 } });
     if (url.pathname === "/rest/v1/whatsapp_drafts" && method === "POST") { rows.push(body); return reply({ id: "review-draft" }, 201); }
+    // The open-handoff check (hasUnansweredHandoff) reads the newest draft; none here.
+    if (url.pathname === "/rest/v1/whatsapp_drafts" && method === "GET") return reply([]);
     if (url.pathname.endsWith("/functions/v1/whatsapp-send")) {
       if (s.outcome === "timeout") throw new Error("synthetic timeout after request");
       if (s.outcome === "refused") return reply({ error: "AI-initiated WhatsApp messaging is disabled", reason: "global_disabled" }, 409);

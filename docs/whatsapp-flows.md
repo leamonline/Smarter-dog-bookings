@@ -128,6 +128,15 @@ npm run flow:send -- --to +447700900123 --flow-id <flowId> --human-id <your-huma
 - **Validation errors on publish** — `npm run flow:publish -- status <id>`
   prints them. If Meta requires a newer Flow JSON version, bump `version` in
   `whatsapp-flows/appointment-booking.json`.
+- **A customer stopped part-way through** — start from their
+  `whatsapp_flow_sessions` row: `screen`, `state` and `updated_at` show the
+  last step the endpoint saw (a `date` with no `drop_off` means they never
+  chose a time). When a screen the endpoint returned fails on the phone,
+  WhatsApp reports it and the endpoint logs one warning line,
+  `client reported an error: screen=… action=… error=… token=<first 8>… message=…`
+  (`clientError.ts`); match the token prefix against `flow_token`. Edge logs
+  drop some REST calls, so a missing database request proves nothing, and Meta
+  pings the endpoint about hourly, so a lone POST may not be a customer.
 
 ## Booking entry (auto-trigger) + multi-dog
 
@@ -151,6 +160,9 @@ visit** (mirroring the customer portal wizard).
    `auto_send_eligible=false`. This does not send a reply, call the language
    model, change conversation mode, or create a booking. Staff review the
    request in the inbox. Existing button IDs continue to work on older messages.
+   If the customer writes again before staff answer, the request is carried
+   onto the newest message rather than lost (see "An unanswered request for a
+   person carries forward" in [whatsapp-agent.md](whatsapp-agent.md)).
 3. The Flow runs: **SELECT_PET (checkboxes, 1–4 dogs)** → one screen per dog
    **DOG_A…DOG_D** (service + add-ons together; the endpoint advances by the
    letter in the screen id and jumps to the date screen once the last

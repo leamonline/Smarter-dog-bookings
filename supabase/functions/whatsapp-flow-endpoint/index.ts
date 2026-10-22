@@ -72,6 +72,7 @@ import {
   handleRescheduleConfirm,
   reviewedBookingSnapshotsEqual,
 } from "./rescheduleConfirm.ts";
+import { clientErrorNotice } from "./clientError.ts";
 
 // Reschedule fail-safe copy (the old booking is left untouched in these cases).
 // Both are dead ends, so neither asks the customer to message us: the team is
@@ -697,8 +698,10 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
     return { version: DATA_API_VERSION, data: { status: "active" } };
   }
 
-  // Client-reported error notification — acknowledge per Meta's spec.
-  if (req.data && typeof (req.data as Record<string, unknown>).error_message === "string") {
+  // Client-reported error notification — log it, then acknowledge per Meta's spec.
+  const clientError = clientErrorNotice(req);
+  if (clientError) {
+    console.warn(clientError);
     return { version: DATA_API_VERSION, data: { acknowledged: true } };
   }
 

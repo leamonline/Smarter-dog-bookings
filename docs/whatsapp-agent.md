@@ -123,6 +123,11 @@ block is part of `WHATSAPP_REPLY_PROMPT_VERSION = 2026-10-07.portal-trouble-1`;
 see the [evaluation record](../prompts/evals/2026-10-07-whatsapp-portal-trouble.md).
 The patterns are taken from real customer messages and were checked against
 the full inbound history (17 matches, no false positives) before release.
+Trouble that is described rather than named ("struggling with your app",
+"having problems booking online", "need help with the app") was added in
+October 2026 after such a message went unanswered; the booking-page word must
+follow closely and be pointed at ("the/your/this app") or be "online", so
+everyday struggles ("struggling with his skin") keep their normal route.
 
 ### Messages that need a person, not a script
 
@@ -146,6 +151,24 @@ and never auto-sends. The to-do is raised with `reply: "none"`, so its wording
 says the customer is still waiting rather than claiming a reply went out.
 Known customers only; an unknown number still takes the onboarding pass, where
 Claude's own prompt escalates complaints.
+
+### An unanswered request for a person carries forward
+
+Every new inbound message supersedes the conversation's pending drafts
+(trigger `supersede_drafts_on_new_inbound`), and a known customer's ordinary
+follow-up writes no draft of its own. So a handoff draft (**I need help**,
+**Not me**, a medical question) used to vanish the moment the customer wrote
+again, and the thread no longer showed that anyone needed a person. Now, right
+after `humanNeededKind`, the agent checks `hasUnansweredHandoff`: the newest
+draft is a handoff superseded only by `newer_inbound` (not a STOP
+acknowledgement) created within the last 14 days, and no staff reply
+(`raw.sent_by = 'staff'`) has gone out since. The 14-day limit matters: staff
+replies sent before that marker existed (#1063, 21 October 2026) carry none,
+and on rollout six older threads would otherwise have looked unanswered. If so it saves a fresh `escalate` handoff draft for the new message
+(reason `carried_handoff`) and stops, sending no tap-to-book prompt or manage
+picker while the customer waits. A message describing booking-page trouble
+gets the no-link `portal_trouble` text instead. Staff sending, rejecting or
+answering the draft ends the chain. Only while the AI is handling the thread.
 
 Separately, the turned-away-demand report (2F) now groups reason codes into
 capacity, account restriction and calendar/policy (`DENIAL_REASON_GROUP` in
