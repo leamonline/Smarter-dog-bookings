@@ -1,7 +1,7 @@
 {
   "$comment": "Supabase advisor baseline for the hosted project. Regenerate with `npm run check:advisors -- --update` after deliberately accepting or fixing findings; see docs/supabase-advisors.md.",
   "project_ref": "nlzhllhkigmsvrzduefz",
-  "recorded_at": "2026-10-06",
+  "recorded_at": "2026-10-23",
   "security": [
     {
       "cache_key": "anon_security_definer_function_executable_public_booking_policy_runtime_",
@@ -508,6 +508,18 @@
       "detail": "Function `public.staff_customer_cancellation_history(p_human_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/staff_customer_cancellation_history`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     {
+      "cache_key": "authenticated_security_definer_function_executable_public_staff_reenable_whatsapp_number_p_phone text, p_human_ids uuid[], p_last_stop_at timestamp with time zone, p_permission_note text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.staff_reenable_whatsapp_number(p_phone text, p_human_ids uuid[], p_last_stop_at timestamp with time zone, p_permission_note text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/staff_reenable_whatsapp_number`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "cache_key": "authenticated_security_definer_function_executable_public_staff_whatsapp_number_opt_out_scope_p_phone text",
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.staff_whatsapp_number_opt_out_scope(p_phone text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/staff_whatsapp_number_opt_out_scope`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
       "cache_key": "authenticated_security_definer_function_executable_public_submit_customer_signup_p_owner jsonb, p_dogs jsonb",
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -734,6 +746,12 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.whatsapp_reschedule_receipts\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "cache_key": "rls_enabled_no_policy_public_whatsapp_stop_applications",
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.whatsapp_stop_applications\\` has RLS enabled, but no policies exist"
     }
   ],
   "performance": [
@@ -1402,6 +1420,12 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`whatsapp_messages_in_reply_to_idx\\` on table \\`public.whatsapp_messages\\` has not been used"
+    },
+    {
+      "cache_key": "unused_index_public_whatsapp_stop_applications_whatsapp_stop_applications_conversation_id_idx",
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`whatsapp_stop_applications_conversation_id_idx\\` on table \\`public.whatsapp_stop_applications\\` has not been used"
     },
     {
       "cache_key": "unused_index_public_whatsapp_templates_idx_whatsapp_templates_status",
