@@ -26,6 +26,7 @@ type LatestDraft = {
   rejected_reason: string | null;
   handoff_required: boolean;
   tool_calls: Record<string, unknown> | null;
+  trigger_message_id?: string | null;
 };
 
 const unansweredHelp: LatestDraft = {
@@ -54,13 +55,22 @@ type Opts = {
   lookupError?: boolean;
   // The inbound row is already stored: a replayed event or a redelivery.
   duplicate?: boolean;
+  // The number matches no customer record.
+  unknownSender?: boolean;
+  // The help request's triggering inbound, and a staff reply, as instants:
+  // the reply counts only when it is after the time the query asks about.
+  triggerSentAt?: string;
+  staffReplyAt?: string;
+  // Pending carried drafts on the conversation after this handler's insert,
+  // newest first, as the duplicate check reads them.
+  pendingCarried?: { id: string; created_at: string }[];
 };
 
 /** `input` is the customer's text, or the Meta message fields for a tap. */
 async function send(input: string | Record<string, unknown>, opts: Opts = {}) {
-  const { latest = unansweredHelp, staffReplied = false, state = "ai_handling", lookupError = false, duplicate = false } = opts;
-  const calls: { method: string; path: string; body: Record<string, unknown> }[] = [];
-  const conversation = { id: "conv-carried", state, human_id: HUMAN, phone_e164: "+447700900444", auto_send_enabled: false, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: "records_created", lead_payload: null };
+  const { latest = unansweredHelp, staffReplied = false, state = "ai_handling", lookupError = false, duplicate = false, unknownSender = false, triggerSentAt, staffReplyAt, pendingCarried = [] } = opts;
+  const calls: { method: string; path: string; body: Record<string, unknown>; query: URLSearchParams }[] = [];
+  const conversation = { id: "conv-carried", state, human_id: unknownSender ? null : HUMAN, phone_e164: "+447700900444", auto_send_enabled: false, autonomous_booking_enabled: false, agent_state_rev: 0, agent_state: {}, lead_status: unknownSender ? null : "records_created", lead_payload: null };
   const content = typeof input === "string" ? { type: "text", text: { body: input } } : input;
   const message = { id: "synthetic-carried", from: "447700900444", timestamp: String(Math.floor(Date.now() / 1000)), ...content };
   const payload = { entry: [{ changes: [{ value: { messages: [message] } }] }] };
@@ -69,10 +79,13 @@ async function send(input: string | Record<string, unknown>, opts: Opts = {}) {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : {};
-    calls.push({ method, path: url.pathname, body });
+    calls.push({ method, path: url.pathname, body, query: url.searchParams });
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
     if (url.pathname === "/rest/v1/whatsapp_events") return method === "PATCH" ? new Response(null, { status: 204 }) : reply({ id: "event-carried", processing_status: "pending", signature_valid: true, payload });
-    if (url.pathname === "/rest/v1/humans") return url.searchParams.get("select")?.startsWith("name") ? reply({ name: "Synthetic", surname: "Person" }) : reply([{ id: HUMAN, phone: "07700900444" }]);
+    if (url.pathname === "/rest/v1/humans") {
+      if (url.searchParams.get("select")?.startsWith("name")) return reply({ name: "Synthetic", surname: "Person" });
+      return reply(unknownSender ? [] : [{ id: HUMAN, phone: "07700900444" }]);
+    }
     if (url.pathname === "/rest/v1/whatsapp_conversations") return reply(conversation);
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       if (method === "POST") {
@@ -81,11 +94,18 @@ async function send(input: string | Record<string, unknown>, opts: Opts = {}) {
           : reply({ id: "message-carried" }, 201);
       }
       // Only a staff-marked outbound (raw.sent_by = 'staff', #1063) answers the request.
-      if (url.searchParams.get("raw->>sent_by") === "eq.staff") return reply(staffReplied ? [{ id: "staff-reply" }] : []);
+      if (url.searchParams.get("raw->>sent_by") === "eq.staff") {
+        if (staffReplied) return reply([{ id: "staff-reply" }]);
+        const after = url.searchParams.get("sent_at")?.replace(/^gt\./, "");
+        return reply(staffReplyAt && after && Date.parse(staffReplyAt) > Date.parse(after) ? [{ id: "staff-reply" }] : []);
+      }
+      if (url.searchParams.get("id") === "eq.trigger-msg" && triggerSentAt) return reply([{ sent_at: triggerSentAt }]);
       return reply([]);
     }
     if (url.pathname === "/rest/v1/whatsapp_drafts") {
       if (method === "POST") return reply({ id: "draft-carried" }, 201);
+      if (method === "PATCH") return reply([{ id: "superseded" }]);
+      if (url.searchParams.has("tool_calls->>carried_handoff")) return reply(pendingCarried);
       if (lookupError) return reply({ message: "synthetic lookup failure" }, 500);
       return reply(latest ? [latest] : []);
     }
@@ -106,7 +126,11 @@ async function send(input: string | Record<string, unknown>, opts: Opts = {}) {
   const drafts = calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "POST").map((c) => c.body);
   const reasons = drafts.map((d) => String((d.tool_calls as Record<string, unknown>).reason));
   const called = (suffix: string) => calls.some((c) => c.path.endsWith(suffix));
-  return { sends, drafts, reasons, called };
+  // Draft ids this handler superseded as duplicates, from its PATCH filter.
+  const supersededIds = calls
+    .filter((c) => c.path === "/rest/v1/whatsapp_drafts" && c.method === "PATCH" && c.body.rejected_reason === "duplicate_carry")
+    .flatMap((c) => (c.query.get("id") ?? "").replace(/^in\.\(|\)$/g, "").split(",").filter(Boolean));
+  return { sends, drafts, reasons, called, supersededIds };
 }
 
 const tap = (id: string, title: string) => ({ type: "interactive", interactive: { type: "button_reply", button_reply: { id, title } } });
@@ -193,6 +217,65 @@ Deno.test("a replayed event whose carried draft never saved writes it now", asyn
 Deno.test("a redelivery after the carried draft saved writes nothing more", async () => {
   const { drafts } = await send("Hello?", { duplicate: true, latest: carriedByOverlap });
   assertEquals(drafts.length, 0);
+});
+
+// ── Unknown senders, reply races, simultaneous carries ──────────
+
+Deno.test("an unknown sender's open request is carried too, instead of an onboarding draft", async () => {
+  const { sends, drafts, called } = await send("Hello?", { unknownSender: true });
+  assertEquals(sends.length, 0);
+  assertEquals(drafts.length, 1);
+  assertEquals(drafts[0].handoff_required, true);
+  assert(!called("/v1/messages"), "no onboarding pass while the request waits for a person");
+});
+
+Deno.test("a staff reply between the request arriving and its draft saving still answers it", async () => {
+  const requestAt = new Date(Date.now() - 60_000);
+  const { drafts } = await send("Hello?", {
+    latest: { ...unansweredHelp, trigger_message_id: "trigger-msg", created_at: new Date(requestAt.getTime() + 5_000).toISOString() },
+    triggerSentAt: requestAt.toISOString(),
+    staffReplyAt: new Date(requestAt.getTime() + 2_000).toISOString(),
+  });
+  assertEquals(drafts.length, 0, "the reply came after the request, so it answers it");
+});
+
+Deno.test("a staff reply before the request arrived does not answer it", async () => {
+  const requestAt = new Date(Date.now() - 60_000);
+  const { drafts } = await send("Hello?", {
+    latest: { ...unansweredHelp, trigger_message_id: "trigger-msg", created_at: new Date(requestAt.getTime() + 5_000).toISOString() },
+    triggerSentAt: requestAt.toISOString(),
+    staffReplyAt: new Date(requestAt.getTime() - 2_000).toISOString(),
+  });
+  assertEquals(drafts.length, 1);
+});
+
+Deno.test("two simultaneous carries converge: this handler's older draft is superseded", async () => {
+  const now = Date.now();
+  const { drafts, supersededIds } = await send("Hello?", {
+    pendingCarried: [
+      { id: "draft-other", created_at: new Date(now).toISOString() },
+      { id: "draft-carried", created_at: new Date(now - 100).toISOString() },
+    ],
+  });
+  assertEquals(drafts.length, 1);
+  assertEquals(drafts[0].tool_calls && (drafts[0].tool_calls as Record<string, unknown>).carried_handoff, true);
+  assertEquals(supersededIds, ["draft-carried"], "the newest pending carried draft is the one kept");
+});
+
+Deno.test("two simultaneous carries converge: the other handler's older draft is superseded", async () => {
+  const now = Date.now();
+  const { supersededIds } = await send("Hello?", {
+    pendingCarried: [
+      { id: "draft-carried", created_at: new Date(now).toISOString() },
+      { id: "draft-other", created_at: new Date(now - 100).toISOString() },
+    ],
+  });
+  assertEquals(supersededIds, ["draft-other"]);
+});
+
+Deno.test("a single carried draft supersedes nothing", async () => {
+  const { supersededIds } = await send("Hello?", { pendingCarried: [{ id: "draft-carried", created_at: new Date().toISOString() }] });
+  assertEquals(supersededIds, []);
 });
 
 // ── What stays out ──────────────────────────────────────────────

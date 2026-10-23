@@ -162,7 +162,9 @@ again, and the thread no longer showed that anyone needed a person. Now
 `openHandoffState` reads the newest draft once the message is stored. The
 request is open when that draft is a handoff (not a STOP acknowledgement)
 created within the last 14 days that is either still pending, or superseded
-only by `newer_inbound` with no staff reply (`raw.sent_by = 'staff'`) since.
+only by `newer_inbound` with no staff reply (`raw.sent_by = 'staff'`) since the
+request's own message arrived (a reply sent while its draft was still being
+saved counts).
 The 14-day limit matters: staff replies sent before that marker existed (#1063,
 21 October 2026) carry none, and on rollout six older threads would otherwise
 have looked unanswered.
@@ -184,6 +186,13 @@ While it is open, every route that would end without a draft calls
 - **A replayed event** (its inbound row already stored) resumes the carry, so a
   carried draft that failed to save is written on retry. A redelivery after
   success finds it pending and adds nothing.
+- **Two messages handled at once** can both save a carried draft
+  (`tool_calls.carried_handoff`). Each handler then keeps only the newest
+  pending one and supersedes the rest (`duplicate_carry`), so they converge on
+  one. A unique index would need a hand-applied migration.
+- **Unknown numbers** are covered too: booking-page trouble and an unmatched
+  **Book my dogs** leave them a handoff, and the onboarding pass waits until a
+  person has answered.
 
 Staff sending, rejecting or answering the draft ends the chain. Only while the
 AI is handling the thread.

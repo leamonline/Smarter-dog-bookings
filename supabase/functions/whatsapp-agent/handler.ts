@@ -1316,9 +1316,10 @@ type HandoffState = "carry" | "flagged" | "clear" | "unknown";
 async function openHandoffState(supabase: SupabaseClient, conversationId: string): Promise<HandoffState> {
   const { data: latest, error } = await supabase
     .from("whatsapp_drafts")
-    .select("created_at, state, rejected_reason, handoff_required, tool_calls")
+    .select("created_at, state, rejected_reason, handoff_required, tool_calls, trigger_message_id")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false }) // the same tie-break settleCarriedDuplicates keeps
     .limit(1)
     .maybeSingle();
   if (error) {
@@ -1334,13 +1335,29 @@ async function openHandoffState(supabase: SupabaseClient, conversationId: string
   }
   if (latest.state === "pending") return "flagged";
   if (latest.state !== "superseded" || latest.rejected_reason !== "newer_inbound") return "clear";
+  // A staff reply answers the request from the moment its message arrived, not
+  // from when the draft was saved: a reply in between sees no pending draft
+  // to supersede, so it would otherwise be missed.
+  let since = latest.created_at as string;
+  if (latest.trigger_message_id) {
+    const { data: trigger, error: triggerErr } = await supabase
+      .from("whatsapp_messages")
+      .select("sent_at")
+      .eq("id", latest.trigger_message_id)
+      .maybeSingle();
+    if (triggerErr) {
+      console.warn("openHandoffState: request message lookup failed:", triggerErr.message);
+      return "unknown";
+    }
+    if (trigger?.sent_at && Date.parse(trigger.sent_at) < Date.parse(since)) since = trigger.sent_at;
+  }
   const { data: staffReply, error: replyErr } = await supabase
     .from("whatsapp_messages")
     .select("id")
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
     .eq("raw->>sent_by", "staff")
-    .gt("sent_at", latest.created_at)
+    .gt("sent_at", since)
     .limit(1)
     .maybeSingle();
   if (replyErr) {
@@ -1381,8 +1398,45 @@ async function keepHandoffVisible(
     reason: state === "unknown"
       ? "carried_handoff: an earlier request for a person could not be checked, so a person should look"
       : "carried_handoff: an earlier request for a person is still unanswered",
+    carried_handoff: true,
   });
+  await settleCarriedDuplicates(supabase, conversationId);
   return true;
+}
+
+/**
+ * Two messages handled at the same moment can both read "carry" and both save
+ * a carried draft. Each handler then keeps only the newest pending carried
+ * draft and supersedes the rest, so whichever finishes last, they converge on
+ * one. (A unique index, as the STOP acknowledgement has, would need a
+ * hand-applied migration.) Best effort: the draft this handler saved stands
+ * either way.
+ */
+async function settleCarriedDuplicates(supabase: SupabaseClient, conversationId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from("whatsapp_drafts")
+      .select("id, created_at")
+      .eq("conversation_id", conversationId)
+      .eq("state", "pending")
+      .eq("tool_calls->>carried_handoff", "true")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+    if (error) throw new Error(error.message);
+    const stale = ((data ?? []) as { id: string }[]).slice(1).map((d) => d.id);
+    if (stale.length === 0) return;
+    const { error: updateErr } = await supabase
+      .from("whatsapp_drafts")
+      .update({ state: "superseded", rejected_reason: "duplicate_carry", decided_at: new Date().toISOString() })
+      .in("id", stale)
+      .eq("state", "pending");
+    if (updateErr) throw new Error(updateErr.message);
+  } catch (err) {
+    console.warn(
+      `settleCarriedDuplicates: conversation ${conversationId} may keep a duplicate carried draft:`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 }
 
 /**
@@ -3043,10 +3097,12 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // keepHandoff(), which carries the request onto this message (see
           // openHandoffState). Read at most once, and only once the message is
           // stored; only while the AI is handling the thread, like every
-          // handoff draft.
+          // handoff draft. Unknown numbers too: booking-page trouble and an
+          // unmatched "Book my dogs" leave them a handoff, and the onboarding
+          // pass would otherwise replace it with a routine draft.
           let handoffStateRead: Promise<HandoffState> | null = null;
           const keepHandoff = async (): Promise<boolean> => {
-            if (forceDraft || !conversation.human_id || conversation.state !== "ai_handling") return false;
+            if (forceDraft || conversation.state !== "ai_handling") return false;
             handoffStateRead ??= openHandoffState(supabase, conversation.id);
             return keepHandoffVisible(supabase, conversation.id, event.id, text, await handoffStateRead);
           };
