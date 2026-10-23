@@ -38,6 +38,10 @@ export default defineConfig({
       manifest: false, // use public/app/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // PostHog only ever loads in the customer booking wizard, and only when
+        // VITE_POSTHOG_KEY is set (src/lib/analytics.ts). Precaching it would
+        // make every staff install download it for nothing.
+        globIgnores: ["**/posthog-*.js"],
         // The shell at its namespaced home, never "/" — which belongs to the
         // marketing site once the two are served together.
         navigateFallback: "app/index.html",
@@ -120,6 +124,11 @@ export default defineConfig({
           }
           if (/node_modules\/react-router(-dom)?\//.test(id)) {
             return "router";
+          }
+          // Dynamically imported by src/lib/analytics.ts; named so the PWA
+          // precache can exclude it (workbox.globIgnores above).
+          if (/node_modules\/(posthog-js|@posthog\/[^/]+)\//.test(id)) {
+            return "posthog";
           }
         },
       },
