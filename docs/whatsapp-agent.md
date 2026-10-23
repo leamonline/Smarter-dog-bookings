@@ -625,6 +625,42 @@ thread renders the inverse: inline "Booking created" cards at
 `applied_at`, sorted into the message timeline. See migration
 `20260513140000_link_bookings_to_whatsapp.sql`.
 
+## A booking confirmation completes the thread
+
+When the `booking_confirmed_v1` template is sent (by `notify-booking-confirmed`,
+or by staff from the inbox) and Meta accepts it, `whatsapp-send` marks that
+conversation complete, so staff no longer press **Mark complete** on every
+confirmed thread (`whatsapp-send/confirmationCompletes.ts`). It writes the same
+columns as Mark complete: `closed_at`, `closure_reason`, the cleared closure
+suggestion, and `closed_by`, left empty because no person closed it. The Reopen
+button's tooltip says the thread closed automatically when the confirmation was
+sent.
+
+- **Reason:** the `closure_reason` CHECK allows only `manual`,
+  `booking_confirmed_quiet`, `stale_30d` and `customer_cancelled`, so the
+  booking reason is reused rather than adding a value by hand-applied
+  migration. An empty `closed_by` is what tells this apart from staff accepting
+  a "booking + quiet" suggestion.
+- **Reopening:** the customer's next message reopens the thread through
+  `reopen_on_new_inbound`, exactly as after a manual close.
+- **A request for a person keeps it open.** Closing supersedes pending drafts as
+  `conversation_closed`, which `openHandoffState` reads as settled, so the
+  request would end silently. The thread therefore stays open while a handoff
+  draft (not a STOP acknowledgement) is pending, or while the newest draft is a
+  handoff that only a newer message superseded, under 14 days old, with no staff
+  reply since.
+- **Fails safe:** a failed lookup leaves the thread open, and a failed close is
+  logged. Neither fails the send, because the confirmation has already gone.
+- **Left alone:** a conversation that is already closed, every other template, a
+  send Meta refused or named no message for, and SMS or email confirmations.
+- **Known limits:** an unanswered customer message that is not a request for a
+  person is closed with the thread, as Mark complete would close it, and
+  reappears when the customer writes again. A handoff draft the agent saves just
+  after the close lands on a closed thread; a manual close has the same race.
+
+The database side is pinned by
+`supabase/tests/257_booking_confirmation_completes_conversation.test.sql`.
+
 ## Staff unanswered-request waiting time
 
 The inbox shows elapsed salon working time for open conversations whose latest customer text looks like a request and has no later outbound reply. Pending drafts do not clear the waiting label; failed sends remain waiting. Marking a conversation Done is explicit resolution. This is heuristic triage, not proof that a customer was ignored or that an outbound message was delivered.

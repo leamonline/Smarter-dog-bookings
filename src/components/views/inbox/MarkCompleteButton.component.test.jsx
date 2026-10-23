@@ -62,6 +62,27 @@ describe("MarkCompleteButton — the E shortcut", () => {
     expect(onResolve).toHaveBeenCalledTimes(1);
   });
 
+  it("says a thread closed itself when the booking confirmation went out", () => {
+    // whatsapp-send closes the thread with the booking reason and no closed_by.
+    renderButton({
+      conversation: { ...conversation, closed_at: "2026-10-23T09:00:00Z", closure_reason: "booking_confirmed_quiet", closed_by: null },
+    });
+    expect(screen.getByRole("button", { name: "Reopen conversation" })).toHaveAttribute(
+      "title",
+      "Bring this conversation back into the active queue (was closed automatically when the booking confirmation was sent). Shortcut: E",
+    );
+  });
+
+  it("still credits staff who accepted a booking + quiet suggestion", () => {
+    renderButton({
+      conversation: { ...conversation, closed_at: "2026-10-23T09:00:00Z", closure_reason: "booking_confirmed_quiet", closed_by: "user-1" },
+    });
+    expect(screen.getByRole("button", { name: "Reopen conversation" })).toHaveAttribute(
+      "title",
+      "Bring this conversation back into the active queue (was closed after booking + quiet). Shortcut: E",
+    );
+  });
+
   it("leaves typing alone, and modified keys", () => {
     const { onResolve } = renderButton();
     const input = document.createElement("textarea");

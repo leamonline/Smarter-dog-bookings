@@ -25,9 +25,19 @@ const CLOSURE_REASON_LABEL = {
   customer_cancelled: "after cancellation",
 };
 
+// whatsapp-send closes a thread itself once the booking confirmation goes out:
+// the booking reason with no closed_by, because no member of staff closed it.
+function closureNote(conversation) {
+  if (conversation.closure_reason === "booking_confirmed_quiet" && !conversation.closed_by) {
+    return "automatically when the booking confirmation was sent";
+  }
+  return CLOSURE_REASON_LABEL[conversation.closure_reason];
+}
+
 export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled }) {
   const isClosed = !!conversation?.closed_at;
   const buttonRef = useRef(null);
+  const closedNote = isClosed ? closureNote(conversation) : null;
 
   // Keyboard shortcut "E" — only fires when no input/textarea/select
   // has focus, so it doesn't hijack typing in the compose box, and never
@@ -66,9 +76,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
       title={
         isClosed
           ? `Bring this conversation back into the active queue${
-              CLOSURE_REASON_LABEL[conversation.closure_reason]
-                ? ` (was closed ${CLOSURE_REASON_LABEL[conversation.closure_reason]})`
-                : ""
+              closedNote ? ` (was closed ${closedNote})` : ""
             }. Shortcut: E`
           : "Mark this conversation complete and remove it from the active queue. Shortcut: E"
       }

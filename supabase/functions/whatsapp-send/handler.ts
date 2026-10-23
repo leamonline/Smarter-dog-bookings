@@ -22,7 +22,8 @@
 //   mode: "template"
 //     Sends a pre-approved Meta template message. Used for
 //     appointment reminders and for re-engaging outside the 24h
-//     customer service window.
+//     customer service window. A booking_confirmed_v1 send also marks
+//     the conversation complete (confirmationCompletes.ts).
 //
 //   mode: "confirm_buttons"
 //     Sends an interactive button message asking the customer to
@@ -73,6 +74,10 @@ import {
   runConfirmButtons,
 } from "../_shared/confirmButtons.ts";
 import { buildFlowMetaBody, validateFlowMessageParams } from "../_shared/flowMessage.ts";
+import {
+  completeConversationAfterConfirmation,
+  CONVERSATION_COMPLETING_TEMPLATES,
+} from "./confirmationCompletes.ts";
 import { SALON_LOCATION, TEMPLATES_WITH_LOCATION_HEADER } from "../_shared/salonConstants.ts";
 import {
   decideAiMessagingSend,
@@ -1002,6 +1007,12 @@ async function handleTemplateMode(
 
   const content = `[template:${body.template_name}] ${params.join(" · ")}`.trim();
   await recordOutbound(supabase, conversationId, metaMessageId, content, metaRes);
+
+  // A booking confirmation leaves nothing for staff to do in the thread, so
+  // mark it complete, unless a request for a person is still unanswered.
+  if (metaMessageId && conversationId && CONVERSATION_COMPLETING_TEMPLATES.has(body.template_name)) {
+    await completeConversationAfterConfirmation(supabase, conversationId);
+  }
 
   return json(req, {
     ok: true,
