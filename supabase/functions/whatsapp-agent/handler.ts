@@ -1291,6 +1291,154 @@ async function saveDraft(
   return data.id as string;
 }
 
+const HANDOFF_CARRY_DAYS = 14;
+
+/**
+ * Whether the customer asked for a person and nobody has answered yet, read
+ * from the newest draft on the conversation:
+ *   "carry"   — a handoff that only a newer inbound message superseded
+ *               (trigger 20260520240000), with no staff reply since
+ *               (whatsapp-send marks one `raw.sent_by = 'staff'`, #1063):
+ *               this message needs its own handoff draft.
+ *   "flagged" — a handoff still pending: an overlapping handler's carried
+ *               draft, or one written after this message was stored. The
+ *               request is open and already visible; add nothing.
+ *   "clear"   — no open request.
+ *   "unknown" — a lookup failed. Callers fail closed, because this message
+ *               may already have hidden the only pending handoff.
+ * A draft staff sent, rejected or answered never counts, nor does a STOP
+ * acknowledgement, nor one older than HANDOFF_CARRY_DAYS: staff replies sent
+ * before #1063 carry no marker, and a request that old was settled some other
+ * way.
+ */
+type HandoffState = "carry" | "flagged" | "clear" | "unknown";
+
+async function openHandoffState(supabase: SupabaseClient, conversationId: string): Promise<HandoffState> {
+  const { data: latest, error } = await supabase
+    .from("whatsapp_drafts")
+    .select("created_at, state, rejected_reason, handoff_required, tool_calls, trigger_message_id")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false }) // the same tie-break settleCarriedDuplicates keeps
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn("openHandoffState: draft lookup failed:", error.message);
+    return "unknown";
+  }
+  if (
+    !latest?.handoff_required ||
+    String((latest.tool_calls as Record<string, unknown> | null)?.opt_out_acknowledgement) === "true" ||
+    Date.now() - Date.parse(latest.created_at) > HANDOFF_CARRY_DAYS * 24 * 60 * 60 * 1000
+  ) {
+    return "clear";
+  }
+  if (latest.state === "pending") return "flagged";
+  if (latest.state !== "superseded" || latest.rejected_reason !== "newer_inbound") return "clear";
+  // A staff reply answers the request from the moment its message arrived, not
+  // from when the draft was saved: a reply in between sees no pending draft
+  // to supersede, so it would otherwise be missed.
+  let since = latest.created_at as string;
+  if (latest.trigger_message_id) {
+    const { data: trigger, error: triggerErr } = await supabase
+      .from("whatsapp_messages")
+      .select("sent_at")
+      .eq("id", latest.trigger_message_id)
+      .maybeSingle();
+    if (triggerErr) {
+      console.warn("openHandoffState: request message lookup failed:", triggerErr.message);
+      return "unknown";
+    }
+    if (trigger?.sent_at && Date.parse(trigger.sent_at) < Date.parse(since)) since = trigger.sent_at;
+  }
+  const { data: staffReply, error: replyErr } = await supabase
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .eq("raw->>sent_by", "staff")
+    .gt("sent_at", since)
+    .limit(1)
+    .maybeSingle();
+  if (replyErr) {
+    console.warn("openHandoffState: staff-reply lookup failed:", replyErr.message);
+    return "unknown";
+  }
+  return staffReply ? "clear" : "carry";
+}
+
+/**
+ * Keeps an open request for a person visible on this message: writes the
+ * carried handoff draft when one is needed. Returns true while the request is
+ * open, so the caller sends no script. A failed write throws, failing the
+ * event; its replay finds the inbound already stored and resumes here.
+ */
+async function keepHandoffVisible(
+  supabase: SupabaseClient,
+  conversationId: string,
+  eventId: string,
+  text: string | null,
+  state: HandoffState,
+): Promise<boolean> {
+  if (state === "clear") return false;
+  if (state === "flagged") return true;
+  const policy: DraftPolicy = {
+    riskLevel: "high",
+    handoffRequired: true,
+    autoSendEligible: false,
+    draftOnly: false,
+  };
+  const draft: DraftFromClaude = {
+    intent: "escalate",
+    confidence: 1,
+    proposed_text: fallbackReplyForIntent(isPortalTrouble(text) ? "portal_trouble" : "handoff"),
+    extracted_state: null,
+  };
+  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, {
+    reason: state === "unknown"
+      ? "carried_handoff: an earlier request for a person could not be checked, so a person should look"
+      : "carried_handoff: an earlier request for a person is still unanswered",
+    carried_handoff: true,
+  });
+  await settleCarriedDuplicates(supabase, conversationId);
+  return true;
+}
+
+/**
+ * Two messages handled at the same moment can both read "carry" and both save
+ * a carried draft. Each handler then keeps only the newest pending carried
+ * draft and supersedes the rest, so whichever finishes last, they converge on
+ * one. (A unique index, as the STOP acknowledgement has, would need a
+ * hand-applied migration.) Best effort: the draft this handler saved stands
+ * either way.
+ */
+async function settleCarriedDuplicates(supabase: SupabaseClient, conversationId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from("whatsapp_drafts")
+      .select("id, created_at")
+      .eq("conversation_id", conversationId)
+      .eq("state", "pending")
+      .eq("tool_calls->>carried_handoff", "true")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+    if (error) throw new Error(error.message);
+    const stale = ((data ?? []) as { id: string }[]).slice(1).map((d) => d.id);
+    if (stale.length === 0) return;
+    const { error: updateErr } = await supabase
+      .from("whatsapp_drafts")
+      .update({ state: "superseded", rejected_reason: "duplicate_carry", decided_at: new Date().toISOString() })
+      .in("id", stale)
+      .eq("state", "pending");
+    if (updateErr) throw new Error(updateErr.message);
+  } catch (err) {
+    console.warn(
+      `settleCarriedDuplicates: conversation ${conversationId} may keep a duplicate carried draft:`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 /**
  * Records a customer's STOP: the number's own opt-out, auto-send off, and the
  * opt-out on every customer record whose phone is that number. Every write is
@@ -2941,6 +3089,24 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             stopRecorded = await recordOptOutWithRetry(supabase, conversation, msg.id ?? null);
           }
 
+          // An earlier request for a person that nobody has answered yet ("I
+          // need help", "Not me", anything drafted as a handoff). Storing this
+          // message supersedes that draft, and many routes below end without
+          // a draft of their own, so before October 2026 the flag vanished and
+          // the customer went unanswered. Each route that ends here calls
+          // keepHandoff(), which carries the request onto this message (see
+          // openHandoffState). Read at most once, and only once the message is
+          // stored; only while the AI is handling the thread, like every
+          // handoff draft. Unknown numbers too: booking-page trouble and an
+          // unmatched "Book my dogs" leave them a handoff, and the onboarding
+          // pass would otherwise replace it with a routine draft.
+          let handoffStateRead: Promise<HandoffState> | null = null;
+          const keepHandoff = async (): Promise<boolean> => {
+            if (forceDraft || conversation.state !== "ai_handling") return false;
+            handoffStateRead ??= openHandoffState(supabase, conversation.id);
+            return keepHandoffVisible(supabase, conversation.id, event.id, text, await handoffStateRead);
+          };
+
           if (!forceDraft) {
             const { duplicate, id: insertedId } = await insertInboundMessage(
               supabase,
@@ -2975,6 +3141,13 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               // never draft a second reply to it. Move on to the rest of the
               // batch, which now holds every message of the payload, so one
               // stored message must not drop a newer one (#1016 final review).
+              //
+              // One exception: a replay of a message whose carried handoff
+              // draft failed to save resumes the carry here, since nothing
+              // below runs again. After a successful run the carried draft is
+              // pending, so a redelivery finds the request flagged and adds
+              // nothing. A STOP keeps its own acknowledgement.
+              if (!stopRequested) await keepHandoff();
               duplicateInbound++;
               continue;
             }
@@ -3021,6 +3194,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
                   console.warn("apply-customer-confirm dispatch failed:", err);
                 }
               }
+              await keepHandoff(); // the choice is applied; an open request stays visible
               continue; // skip Claude draft for this turn
             }
           }
@@ -3031,6 +3205,9 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             const choice = buttonReply.id.slice("bookentry:".length);
             if (choice === "start" && conversation.human_id) {
               await dispatchBookingFlow(conversation.id, conversation.human_id, phoneE164);
+              // The customer chose the form, so it opens; an open request for
+              // a person stays visible alongside it.
+              await keepHandoff();
             } else if (choice === "help" || choice === "notme" || choice === "start") {
               const policy: DraftPolicy = {
                 riskLevel: "high",
@@ -3074,6 +3251,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             } catch (err) {
               console.warn("mark_reminder_confirmed dispatch failed:", err);
             }
+            await keepHandoff(); // the visit is confirmed; an open request stays visible
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
           }
 
@@ -3228,6 +3406,12 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             );
             continue;
           }
+
+          // An earlier request for a person is still open (keepHandoff, above):
+          // carry it onto this message and send no scripts (tap-to-book,
+          // manage pickers) while the customer waits for a person.
+          // Booking-page trouble keeps its offer to book it by hand.
+          if (await keepHandoff()) continue;
 
           // Manage-booking (Flow C): a recognised customer cancelling or
           // rescheduling their own upcoming visit. MUST run before the

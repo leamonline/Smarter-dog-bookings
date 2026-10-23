@@ -207,6 +207,14 @@ export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
   // the size wall: "it's asking us to contact you to enter his size"
   /\b(?:asking|asks|says|said)\b[^.?!]{0,40}\b(?:contact|message|tell|let you know)\b[^.?!]{0,40}\b(?:size|weight)\b/,
   /\b(?:says|said)\b[^.?!]{0,10}\bneed to (?:know|tell|enter)\b[^.?!]{0,30}\b(?:size|weight)\b/,
+  // Trouble described rather than named: "struggling with your app", "having
+  // problems booking online", "need help with the app", "finding it confusing
+  // using your booking system". Struggles are everyday too ("struggling with
+  // his skin", "had trouble finding parking on site"), so the booking-page word
+  // must follow closely and be pointed at ("the/your/this app"), or be "online".
+  // A bare "site" is a place as often as a page ("parking at the site"), so
+  // only "website" or "booking site" count.
+  /\b(?:struggl\w*|(?:having|have|had|got|getting) (?:some |a few |a lot of )?(?:trouble|problems?|issues?|difficulty|a hard time)|(?:need|needs|want) (?:some )?help (?:with|using|on)|finding it (?:really |so |very |a bit )?(?:hard|difficult|confusing|tricky))\b[^.?!]{0,30}\b(?:(?:the|this|your|ur|my|that) (?:new )?(?:booking site|(?:booking )?(?:app|website|web site|portal|page|system|link|form))|online|on ?line)\b/,
 ];
 
 /**

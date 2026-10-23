@@ -689,6 +689,14 @@ describe("isPortalTrouble", () => {
     "Can\u2019t book the two of them, it says need to know Max\u2019s size",
     "For some reason I can\u2019t book in on the App",
     "wanted to add my second dog but wont let me add her",
+    // Trouble described rather than named ("struggling", "having problems").
+    "I\u2019m really struggling with your app",
+    "struggling to book on the website",
+    "Having trouble with the booking page again",
+    "had problems booking online last night",
+    "I need help with the app please",
+    "finding it really confusing using your booking system",
+    "having trouble with your booking site",
   ];
   it.each(reports)("flags: %s", (msg) => {
     expect(isPortalTrouble(msg)).toBe(true);
@@ -712,6 +720,16 @@ describe("isPortalTrouble", () => {
     "I can't seem to get him to eat before a groom",
     "I can't get in until 10, is that ok?",
     "Can't get on the bus with him so my mum will drop off",
+    // Everyday struggles that have nothing to do with the booking page.
+    "He’s been struggling with his skin, could you use the sensitive shampoo?",
+    "She has trouble with her hips so please be gentle",
+    "We’re having problems with matting at home",
+    "struggling to get her in the car so might be 10 mins late",
+    "Had trouble finding parking on site last time",
+    // "the site" as a place, not a web page.
+    "Had trouble finding parking at the site last time",
+    "We're struggling to find the site, is it behind the shops?",
+    "Can you help with his nails while he's in?",
     "",
   ];
   it.each(ordinary)("leaves alone: %s", (msg) => {
