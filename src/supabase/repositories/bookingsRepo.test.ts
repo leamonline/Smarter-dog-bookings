@@ -292,6 +292,7 @@ describe("customer dashboard reads", () => {
     deposit_amount: 10,
     deposit_reference: "SDG-7K3M",
     deposit_due_by: "2099-06-14T09:00:00Z",
+    paid_amount: 46,
     dogs: { name: "Alfie", breed: "Boston Terrier", size: "small" },
   };
 
@@ -341,9 +342,27 @@ describe("customer dashboard reads", () => {
         depositAmount: 10,
         depositReference: "SDG-7K3M",
         depositDueBy: "2099-06-14T09:00:00Z",
+        paidAmount: 46,
         dog: { name: "Alfie", breed: "Boston Terrier", size: "small" },
       },
     ]);
+  });
+
+  it("reads what was actually taken, so history never has to guess a price", async () => {
+    // paid_amount is recorded only when a booking is marked Paid in Full
+    // (from 4 July 2026; no backfill). Past appointments show that or nothing.
+    const { client, calls } = fakeQueryClient({
+      data: [{ ...dbRow, paid_amount: null }],
+      error: null,
+    });
+
+    const { bookings } = await listCustomerBookings(client, {
+      dogIds: [DOG],
+      sinceDate: "2099-01-01",
+    });
+
+    expect(String(calls.select[0][0])).toMatch(/\bpaid_amount\b/);
+    expect(bookings[0].paidAmount).toBeNull();
   });
 
   it("returns empty without querying when the customer has no dogs", async () => {

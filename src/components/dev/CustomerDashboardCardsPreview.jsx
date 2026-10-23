@@ -12,6 +12,7 @@
 
 import { BookingCard } from "../customer/BookingCard.jsx";
 import { TrustedHumansSection } from "../customer/TrustedHumansSection.jsx";
+import { DepositHoldInstructions } from "../customer/DepositHoldInstructions";
 import "../../customer-portal.css";
 
 function Frame({ title, children, wide }) {
@@ -65,6 +66,18 @@ export function CustomerDashboardCardsPreview() {
           <TrustedHumansSection trustedHumans={[]} />
           <TrustedHumansSection
             trustedHumans={[{ id: "th-1", name: "Jo", surname: "Bloggs", relationship: "Partner", phone: "07000 000000" }]}
+          />
+        </div>
+      </Frame>
+
+      <Frame title="DepositHoldInstructions — copy reference, sort code and account number">
+        <div className="wizard-card" style={{ textAlign: "left" }}>
+          <DepositHoldInstructions
+            amount={10}
+            reference="SDG-7K3M"
+            dueBy="2099-06-14T09:00:00Z"
+            bank={{ accountName: "Smarter Dog", sortCode: "01-02-03", accountNumber: "12345678" }}
+            compact
           />
         </div>
       </Frame>

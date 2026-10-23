@@ -108,6 +108,26 @@ interface RepoErrorShape {
 // They are ordinary outcomes, not faults, so they are not reported as errors.
 const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04"];
 
+// What the receipt says about changing the booking just made. It reads the
+// same server answer as the confirm step's warning — the change deadline for
+// this exact visit — so the dashboard is suggested only when it can actually
+// move or cancel the booking, and WhatsApp when it cannot. With no answer,
+// both routes are offered rather than a guess.
+function receiptChangeGuidance(
+  preview: ChangeDeadlinePreview | null,
+  policy: CustomerPortalPolicy,
+): string {
+  if (preview?.allowCancellations === false || policy.allowCancellations === false) {
+    return "Need to change something? Message us on WhatsApp.";
+  }
+  if (preview?.allowCancellations === true) {
+    return preview.passed
+      ? "It's too close to the day to change online, so if anything comes up, message us on WhatsApp."
+      : "Need to change something? You can move or cancel it from your dashboard.";
+  }
+  return "Need to change something? Head to your dashboard, or message us on WhatsApp.";
+}
+
 const STEP_TITLES = [
   "Select dogs",
   "Choose services",
@@ -1035,7 +1055,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </button>
           </div>
           <p className="booking-success-footnote">
-            We&apos;ll text a reminder the day before. Need to change something? Message us on WhatsApp.
+            We&apos;ll text a reminder the day before. {receiptChangeGuidance(changeDeadline, portalPolicy)}
           </p>
         </div>
       </SuccessShell>

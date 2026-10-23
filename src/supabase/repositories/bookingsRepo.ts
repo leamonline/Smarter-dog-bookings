@@ -499,13 +499,16 @@ export interface CustomerBookingSummary {
   depositAmount: number | null;
   depositReference: string | null;
   depositDueBy: string | null;
+  /** Pounds actually taken, recorded on Paid in Full (from 4 July 2026). */
+  paidAmount: number | null;
   dog: { name: string; breed: string; size: string | null } | null;
 }
 
 const CUSTOMER_BOOKING_COLUMNS =
   "id, booking_date, slot, size, service, status, payment, dog_id, visit_id, " +
   "group_id, staff_capacity_override, deposit_required, deposit_received_at, " +
-  "deposit_amount, deposit_reference, deposit_due_by, dogs(name, breed, size)";
+  "deposit_amount, deposit_reference, deposit_due_by, paid_amount, " +
+  "dogs(name, breed, size)";
 
 interface DbCustomerBookingRow {
   id: string;
@@ -524,6 +527,7 @@ interface DbCustomerBookingRow {
   deposit_amount: number | null;
   deposit_reference: string | null;
   deposit_due_by: string | null;
+  paid_amount: number | null;
   dogs: { name: string | null; breed: string | null; size: string | null } | null;
 }
 
@@ -545,6 +549,7 @@ function dbRowToCustomerBooking(row: DbCustomerBookingRow): CustomerBookingSumma
     depositAmount: row.deposit_amount ?? null,
     depositReference: row.deposit_reference ?? null,
     depositDueBy: row.deposit_due_by ?? null,
+    paidAmount: row.paid_amount ?? null,
     dog: row.dogs
       ? {
           name: row.dogs.name ?? "",
