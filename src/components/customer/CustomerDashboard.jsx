@@ -35,20 +35,25 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     bookings,
     olderBookings,
     trustedHumans,
+    // `loading` gates only on dogs → bookings, the reads the booking card
+    // needs. `loadError` is their failure; trusted humans has its own.
     loading,
+    retrying,
     loadError,
+    trustedHumansError,
     // Past the loading gate an array is only meaningful if the fetch that
     // fills it actually succeeded: a failure leaves it at its initial [],
     // which must never be read out as "nothing booked" / "no dogs yet".
     // Loading, empty and error are three different states and do not share
-    // copy. Per resource rather than one flag off `loadError`, because the
-    // fetches run as one chain — a trusted-humans failure lands after
-    // bookings have loaded, and must not take a good booking list with it.
+    // copy. Per resource, because each read fails on its own — a
+    // trusted-humans failure must not take a good booking list with it.
     loaded,
     hasMorePast,
     loadingMore,
     loadMore,
     refreshBookings,
+    retryLoad,
+    retryTrustedHumans,
     saveContactDetails,
     updateDog,
     addDog,
@@ -277,7 +282,17 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           {loadError && (
             <div role="alert" className="portal-section--full portal-alert portal-alert--error">
               {/* Don't surface the raw fetch/RLS error; a dropped connection gets its own line. */}
-              {friendlySaveError(loadError, "We couldn't load your details. Please refresh, or message us if it keeps happening.")}
+              {friendlySaveError(loadError, "We couldn't load your details. Please try again, or message us if it keeps happening.")}
+              <button
+                type="button"
+                className="portal-btn portal-btn--secondary"
+                style={{ display: "block", marginTop: 12 }}
+                onClick={retryLoad}
+                disabled={retrying}
+                aria-busy={retrying}
+              >
+                {retrying ? "Trying again…" : "Try again"}
+              </button>
             </div>
           )}
 
@@ -314,7 +329,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               onDogAdded={addDog}
             />
 
-            <TrustedHumansSection trustedHumans={trustedHumans} />
+            <TrustedHumansSection
+              trustedHumans={trustedHumans}
+              status={loaded.trustedHumans ? "loaded" : trustedHumansError ? "error" : "loading"}
+              onRetry={retryTrustedHumans}
+            />
           </div>
 
           {/* Past appointments — collapsed by default. */}

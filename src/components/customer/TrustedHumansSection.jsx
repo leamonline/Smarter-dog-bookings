@@ -9,11 +9,16 @@ function avatarTintFor(id) {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-export function TrustedHumansSection({ trustedHumans }) {
-  const isEmpty = trustedHumans.length === 0;
-
+// `status` is this card's own read: "loading" | "loaded" | "error". The list
+// is only meaningful once it is "loaded" — before that, or after a failure,
+// an empty card would tell someone with trusted humans that they have none.
+export function TrustedHumansSection({ trustedHumans, status = "loaded", onRetry }) {
   return (
-    <div className="portal-card portal-card--buttercup" style={cardAnim(0.15)}>
+    <div
+      className="portal-card portal-card--buttercup"
+      style={cardAnim(0.15)}
+      aria-busy={status === "loading" || undefined}
+    >
       <div className="portal-card-header">
         <span className="portal-card-iconbadge portal-card-iconbadge--buttercup">
           <Users size={18} aria-hidden="true" />
@@ -21,42 +26,72 @@ export function TrustedHumansSection({ trustedHumans }) {
         <h2 className="portal-card-title">Trusted humans</h2>
       </div>
 
-      <div className={`flex-1${isEmpty ? " flex flex-col justify-center" : ""}`}>
-        {trustedHumans.map(th => {
-          const initial = (th.name || "?").trim().charAt(0).toUpperCase();
-          const tint = avatarTintFor(th.id);
-          const fullName = `${th.name || ""} ${th.surname || ""}`.trim();
-          return (
-            <div key={th.id} className="portal-entity-row">
-              <span className={`portal-avatar portal-avatar--${tint}`} aria-hidden="true">
-                {initial}
-              </span>
-              <div className="portal-entity-row-body">
-                <p className="portal-entity-row-name">{fullName}</p>
-                {th.relationship && (
-                  <p className="portal-entity-row-meta">{th.relationship}</p>
-                )}
-                {th.phone && (
-                  <a
-                    href={`tel:${th.phone.replace(/\s/g, "")}`}
-                    className="portal-entity-row-meta hover:underline"
-                    style={{ display: "block" }}
-                  >
-                    {th.phone}
-                  </a>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      {status === "loaded" ? (
+        <TrustedHumansList trustedHumans={trustedHumans} />
+      ) : (
+        <div className="flex-1 flex flex-col justify-center">
+          {status === "loading" ? (
+            <p className="portal-empty-body">Just fetching your trusted humans…</p>
+          ) : (
+            <>
+              <p className="portal-empty-body">
+                We couldn&apos;t load your trusted humans just now.
+              </p>
+              <button
+                type="button"
+                className="portal-btn portal-btn--secondary"
+                style={{ marginTop: 12 }}
+                onClick={onRetry}
+              >
+                Try again
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-        <p
-          className={isEmpty ? "portal-empty-body" : "portal-text-help"}
-          style={isEmpty ? undefined : { margin: "12px 0 0" }}
-        >
-          Adding a trusted human online is temporarily unavailable.
-        </p>
-      </div>
+function TrustedHumansList({ trustedHumans }) {
+  const isEmpty = trustedHumans.length === 0;
+
+  return (
+    <div className={`flex-1${isEmpty ? " flex flex-col justify-center" : ""}`}>
+      {trustedHumans.map(th => {
+        const initial = (th.name || "?").trim().charAt(0).toUpperCase();
+        const tint = avatarTintFor(th.id);
+        const fullName = `${th.name || ""} ${th.surname || ""}`.trim();
+        return (
+          <div key={th.id} className="portal-entity-row">
+            <span className={`portal-avatar portal-avatar--${tint}`} aria-hidden="true">
+              {initial}
+            </span>
+            <div className="portal-entity-row-body">
+              <p className="portal-entity-row-name">{fullName}</p>
+              {th.relationship && (
+                <p className="portal-entity-row-meta">{th.relationship}</p>
+              )}
+              {th.phone && (
+                <a
+                  href={`tel:${th.phone.replace(/\s/g, "")}`}
+                  className="portal-entity-row-meta hover:underline"
+                  style={{ display: "block" }}
+                >
+                  {th.phone}
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      <p
+        className={isEmpty ? "portal-empty-body" : "portal-text-help"}
+        style={isEmpty ? undefined : { margin: "12px 0 0" }}
+      >
+        Adding a trusted human online is temporarily unavailable.
+      </p>
     </div>
   );
 }

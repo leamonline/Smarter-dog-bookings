@@ -3,7 +3,7 @@
 // contacts, contact-detail saves — so CustomerDashboard.jsx never touches the
 // Supabase client or a snake_case row. Rows cross this boundary already
 // app-shaped (CustomerDog / CustomerBookingSummary from the repositories).
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { customerSupabase } from "../customerClient";
 import { listForHuman, type CustomerDog } from "../repositories/dogsRepo";
 import {
@@ -34,95 +34,159 @@ function pastWindowStart(): string {
   return toDateStr(pastDate);
 }
 
+type LoadedKey = "dogs" | "bookings" | "trustedHumans";
+
+const NOTHING_LOADED: Record<LoadedKey, boolean> = {
+  dogs: false,
+  bookings: false,
+  trustedHumans: false,
+};
+
 export function useCustomerDashboardData(
   humanRecord: DashboardHumanRecord | null | undefined,
 ) {
+  // Every read depends only on who the customer is. The auth hook hands over
+  // a fresh humanRecord object on session events, so keying on the object
+  // would blank the whole page behind the loader for the same person.
+  const humanId = humanRecord?.id ?? null;
   const [dogs, setDogs] = useState<CustomerDog[]>([]);
   const [bookings, setBookings] = useState<CustomerBookingSummary[]>([]);
   const [olderBookings, setOlderBookings] = useState<CustomerBookingSummary[]>([]);
   const [trustedHumans, setTrustedHumans] = useState<unknown[]>([]);
+  // `loading` covers only the first dogs → bookings read: the booking card
+  // needs both, and nothing else holds the page back. A retry after a
+  // failure reports `retrying` instead, so the page stays on screen.
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
-  // The fetches below run as one sequential chain, so a late failure leaves
-  // earlier results valid while `loadError` is set. A single flag would make
-  // a trusted-humans outage suppress a booking list that loaded perfectly
-  // well, so each resource records its own success and consumers ask only
-  // about the fetch that fills them.
-  const [loaded, setLoaded] = useState({
-    dogs: false,
-    bookings: false,
-    trustedHumans: false,
-  });
+  const [trustedHumansError, setTrustedHumansError] = useState<unknown>(null);
+  // Each resource records its own success and consumers ask only about the
+  // read that fills them: a trusted-humans outage must not suppress a
+  // booking list that loaded perfectly well, and vice versa.
+  const [loaded, setLoaded] = useState(NOTHING_LOADED);
   const [hasMorePast, setHasMorePast] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Bumped on every new read and on identity change or unmount. A response
+  // whose run is no longer current belongs to a superseded read (or another
+  // account) and is dropped instead of overwriting newer state.
+  const bookingsRun = useRef(0);
+  const trustedRun = useRef(0);
 
-  useEffect(() => {
-    if (!customerSupabase || !humanRecord?.id) {
-      setLoading(false);
-      return undefined;
-    }
-    const client = customerSupabase;
-    const humanId = humanRecord.id;
-    let cancelled = false;
-    const markLoaded = (key: "dogs" | "bookings" | "trustedHumans") => {
-      if (cancelled) return;
-      setLoaded((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
-    };
+  const markLoaded = useCallback((key: LoadedKey) => {
+    setLoaded((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
 
-    async function fetchData() {
+  const loadBookings = useCallback(
+    async (id: string, mode: "initial" | "retry") => {
+      if (!customerSupabase) return;
+      const client = customerSupabase;
+      const run = ++bookingsRun.current;
+      const isCurrent = () => run === bookingsRun.current;
+      const setBusy = mode === "initial" ? setLoading : setRetrying;
+      setBusy(true);
+      // A retry leaves the previous error standing until it settles: the
+      // page alert holding the retry button is keyed on it.
+      if (mode === "initial") setLoadError(null);
       try {
         const { dogs: dogRows, error: dogErr } = await listForHuman(client, {
-          humanId,
+          humanId: id,
         });
         if (dogErr) throw dogErr;
-        if (cancelled) return;
+        if (!isCurrent()) return;
         setDogs(dogRows);
         markLoaded("dogs");
 
         const dogIds = dogRows.map((d) => d.id);
-        if (dogIds.length > 0) {
-          const pastStr = pastWindowStart();
-          const { bookings: bookingRows, error: bookErr } =
-            await listCustomerBookings(client, { dogIds, sinceDate: pastStr });
-          if (bookErr) throw bookErr;
-          if (cancelled) return;
-          setBookings(bookingRows);
-
-          const more = await hasCustomerBookingsBefore(client, {
-            dogIds,
-            beforeDate: pastStr,
-          });
-          if (!cancelled) setHasMorePast(more);
-          markLoaded("bookings");
-        } else {
+        if (dogIds.length === 0) {
           // No dogs on the account means there is nothing a booking could be
           // attached to. That is a known-empty diary, not an unknown one, so
           // the empty state is honest here.
           markLoaded("bookings");
+          setLoadError(null);
+          return;
         }
+        const pastStr = pastWindowStart();
+        const { bookings: bookingRows, error: bookErr } =
+          await listCustomerBookings(client, { dogIds, sinceDate: pastStr });
+        if (bookErr) throw bookErr;
+        if (!isCurrent()) return;
+        setBookings(bookingRows);
+        markLoaded("bookings");
+        setLoadError(null);
 
-        const { data: trustedLinks, error: trustedErr } =
-          await listCustomerTrustedHumans(client);
-        if (trustedErr) throw trustedErr;
-
-        if (!cancelled) {
-          setTrustedHumans(Array.isArray(trustedLinks) ? trustedLinks : []);
-          markLoaded("trustedHumans");
-        }
+        // Only decides whether "Show older" is offered, so it never holds the
+        // booking card back. It already answers false on a failed count.
+        void hasCustomerBookingsBefore(client, { dogIds, beforeDate: pastStr })
+          .then((more) => {
+            if (isCurrent()) setHasMorePast(more);
+          })
+          .catch((err) => {
+            logger.error("CustomerDashboard older-history check failed", err, {
+              tags: { component: "CustomerDashboard", op: "hasMorePast" },
+            });
+          });
       } catch (err) {
         logger.error("CustomerDashboard fetch failed", err, {
           tags: { component: "CustomerDashboard", op: "fetchData" },
         });
-        if (!cancelled) setLoadError(err);
+        if (isCurrent()) setLoadError(err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (isCurrent()) setBusy(false);
       }
+    },
+    [markLoaded],
+  );
+
+  const loadTrustedHumans = useCallback(async () => {
+    if (!customerSupabase) return;
+    const client = customerSupabase;
+    const run = ++trustedRun.current;
+    const isCurrent = () => run === trustedRun.current;
+    setTrustedHumansError(null);
+    try {
+      const { data, error } = await listCustomerTrustedHumans(client);
+      if (error) throw error;
+      if (!isCurrent()) return;
+      setTrustedHumans(Array.isArray(data) ? data : []);
+      markLoaded("trustedHumans");
+    } catch (err) {
+      logger.error("CustomerDashboard trusted humans fetch failed", err, {
+        tags: { component: "CustomerDashboard", op: "trustedHumans" },
+      });
+      if (isCurrent()) setTrustedHumansError(err);
     }
-    fetchData();
+  }, [markLoaded]);
+
+  useEffect(() => {
+    // A different account starts from nothing, so no row of the previous
+    // one can be shown under the new identity.
+    setDogs([]);
+    setBookings([]);
+    setOlderBookings([]);
+    setTrustedHumans([]);
+    setHasMorePast(false);
+    setLoaded(NOTHING_LOADED);
+    setLoadError(null);
+    setTrustedHumansError(null);
+    setRetrying(false);
+    if (!customerSupabase || !humanId) {
+      setLoading(false);
+      return undefined;
+    }
+    // Independent reads start together; the trusted-humans RPC is scoped by
+    // the session, not by the dogs.
+    void loadBookings(humanId, "initial");
+    void loadTrustedHumans();
     return () => {
-      cancelled = true;
+      bookingsRun.current += 1;
+      trustedRun.current += 1;
     };
-  }, [humanRecord]);
+  }, [humanId, loadBookings, loadTrustedHumans]);
+
+  const retryLoad = useCallback(async () => {
+    if (!humanId) return;
+    await loadBookings(humanId, "retry");
+  }, [humanId, loadBookings]);
 
   const loadMore = useCallback(async () => {
     if (!customerSupabase) return;
@@ -186,12 +250,16 @@ export function useCustomerDashboardData(
     olderBookings,
     trustedHumans,
     loading,
+    retrying,
     loadError,
+    trustedHumansError,
     loaded,
     hasMorePast,
     loadingMore,
     loadMore,
     refreshBookings,
+    retryLoad,
+    retryTrustedHumans: loadTrustedHumans,
     saveContactDetails,
     updateDog,
     addDog,
