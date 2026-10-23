@@ -158,17 +158,35 @@ Every new inbound message supersedes the conversation's pending drafts
 (trigger `supersede_drafts_on_new_inbound`), and a known customer's ordinary
 follow-up writes no draft of its own. So a handoff draft (**I need help**,
 **Not me**, a medical question) used to vanish the moment the customer wrote
-again, and the thread no longer showed that anyone needed a person. Now, right
-after `humanNeededKind`, the agent checks `hasUnansweredHandoff`: the newest
-draft is a handoff superseded only by `newer_inbound` (not a STOP
-acknowledgement) created within the last 14 days, and no staff reply
-(`raw.sent_by = 'staff'`) has gone out since. The 14-day limit matters: staff
-replies sent before that marker existed (#1063, 21 October 2026) carry none,
-and on rollout six older threads would otherwise have looked unanswered. If so it saves a fresh `escalate` handoff draft for the new message
-(reason `carried_handoff`) and stops, sending no tap-to-book prompt or manage
-picker while the customer waits. A message describing booking-page trouble
-gets the no-link `portal_trouble` text instead. Staff sending, rejecting or
-answering the draft ends the chain. Only while the AI is handling the thread.
+again, and the thread no longer showed that anyone needed a person. Now
+`openHandoffState` reads the newest draft once the message is stored. The
+request is open when that draft is a handoff (not a STOP acknowledgement)
+created within the last 14 days that is either still pending, or superseded
+only by `newer_inbound` with no staff reply (`raw.sent_by = 'staff'`) since.
+The 14-day limit matters: staff replies sent before that marker existed (#1063,
+21 October 2026) carry none, and on rollout six older threads would otherwise
+have looked unanswered.
+
+While it is open, every route that would end without a draft calls
+`keepHandoff`:
+
+- **Text** (right after `humanNeededKind`): a fresh `escalate` handoff draft
+  (reason `carried_handoff`), and no tap-to-book prompt or manage picker. A
+  message describing booking-page trouble gets the no-link `portal_trouble`
+  text instead.
+- **Button taps** (Yes/No booking confirm, **Book my dogs**, a reminder's
+  **Confirm**): the tap does what the customer chose, then the handoff draft is
+  carried as well.
+- **A still-pending handoff** (an overlapping message's carried draft): nothing
+  is added and no script is sent.
+- **A lookup that fails** fails closed: a handoff draft is saved and no script
+  is sent, because the message may already have hidden the only pending one.
+- **A replayed event** (its inbound row already stored) resumes the carry, so a
+  carried draft that failed to save is written on retry. A redelivery after
+  success finds it pending and adds nothing.
+
+Staff sending, rejecting or answering the draft ends the chain. Only while the
+AI is handling the thread.
 
 Separately, the turned-away-demand report (2F) now groups reason codes into
 capacity, account restriction and calendar/policy (`DENIAL_REASON_GROUP` in

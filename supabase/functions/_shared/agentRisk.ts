@@ -212,7 +212,9 @@ export const PORTAL_TROUBLE_PATTERNS: readonly RegExp[] = [
   // using your booking system". Struggles are everyday too ("struggling with
   // his skin", "had trouble finding parking on site"), so the booking-page word
   // must follow closely and be pointed at ("the/your/this app"), or be "online".
-  /\b(?:struggl\w*|(?:having|have|had|got|getting) (?:some |a few |a lot of )?(?:trouble|problems?|issues?|difficulty|a hard time)|(?:need|needs|want) (?:some )?help (?:with|using|on)|finding it (?:really |so |very |a bit )?(?:hard|difficult|confusing|tricky))\b[^.?!]{0,30}\b(?:(?:the|this|your|ur|my|that) (?:new )?(?:booking )?(?:app|site|website|web site|portal|page|system|link|form)|online|on ?line)\b/,
+  // A bare "site" is a place as often as a page ("parking at the site"), so
+  // only "website" or "booking site" count.
+  /\b(?:struggl\w*|(?:having|have|had|got|getting) (?:some |a few |a lot of )?(?:trouble|problems?|issues?|difficulty|a hard time)|(?:need|needs|want) (?:some )?help (?:with|using|on)|finding it (?:really |so |very |a bit )?(?:hard|difficult|confusing|tricky))\b[^.?!]{0,30}\b(?:(?:the|this|your|ur|my|that) (?:new )?(?:booking site|(?:booking )?(?:app|website|web site|portal|page|system|link|form))|online|on ?line)\b/,
 ];
 
 /**

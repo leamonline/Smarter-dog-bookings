@@ -696,6 +696,7 @@ describe("isPortalTrouble", () => {
     "had problems booking online last night",
     "I need help with the app please",
     "finding it really confusing using your booking system",
+    "having trouble with your booking site",
   ];
   it.each(reports)("flags: %s", (msg) => {
     expect(isPortalTrouble(msg)).toBe(true);
@@ -725,6 +726,9 @@ describe("isPortalTrouble", () => {
     "We’re having problems with matting at home",
     "struggling to get her in the car so might be 10 mins late",
     "Had trouble finding parking on site last time",
+    // "the site" as a place, not a web page.
+    "Had trouble finding parking at the site last time",
+    "We're struggling to find the site, is it behind the shops?",
     "Can you help with his nails while he's in?",
     "",
   ];
