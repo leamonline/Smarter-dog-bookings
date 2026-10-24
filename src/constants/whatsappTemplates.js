@@ -21,19 +21,23 @@
  *
  * Template names here MUST match the registered names in Meta
  * Business Manager → WhatsApp Manager → Message Templates. As of
- * 2026-05-20 the salon has:
- *   - appointment_reminder_v1   (en_GB, 3 params, Active)
- *   - booking_confirmed_v1      (en_GB, 4 params, Active)
- *   - booking_changed_v1        (en,    3 params, Active)
- *   - ready_for_collection_v1   (en_GB, 2 params, PENDING Meta approval —
- *                                {{1}} dog name, {{2}} minutes. Sends fail
- *                                with a 132xxx gateway error until Approved.)
- *   - welcome_to_the_pack_v1    (en_GB, 1 param, PENDING Meta approval —
- *                                {{1}} customer first name. Sent when staff
- *                                approve a Join the Pack self-signup. Sends
- *                                fail with a 132xxx gateway error until it is
- *                                Approved in Meta Business Manager.)
+ * 2026-10-24 the salon has (all Approved):
+ *   - appointment_reminder_v1   (en_GB, 3 params)
+ *   - booking_confirmed_v1      (en_GB, 4 params)
+ *   - booking_changed_v1        (en,    3 params)
+ *   - ready_for_collection_v1   (en_GB, 2 params — {{1}} dog name,
+ *                                {{2}} minutes)
+ *   - welcome_to_the_pack_v1__english (en_GB, 1 param — {{1}} customer
+ *                                first name. Sent when staff approve a Join
+ *                                the Pack self-signup. The `__english` suffix
+ *                                is part of the registered name: it was
+ *                                re-created under it on 2026-06-15, and the
+ *                                old name failed with 132001 from then on.)
+ *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
+ *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
+ * A wrong name or language fails with Meta error 132001 ("Template name
+ * does not exist in the translation"), so match both exactly.
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
  */
@@ -115,11 +119,13 @@ export const WHATSAPP_TEMPLATES = [
       `Hi! ${values.dog_name || PLACEHOLDER.dog_name} is all done and ready for collection in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon — Smarter Dog Grooming Salon.`,
   },
   {
-    // Approved & live in Meta (verified 2026-06-15: welcome sends read by
-    // customers). Sent automatically when staff approve a "Join the Pack"
+    // Approved in Meta under the suffixed name (re-created 2026-06-15; the
+    // unsuffixed name has failed with 132001 since, and every welcome fell
+    // back to SMS). Sent automatically when staff approve a "Join the Pack"
     // self-signup; the welcome edge function still falls back to SMS / email
-    // when the customer has no WhatsApp / has opted out.
-    name: "welcome_to_the_pack_v1",
+    // when the customer has no WhatsApp / has opted out. The preview below is
+    // the body Meta has registered for this name.
+    name: "welcome_to_the_pack_v1__english",
     label: "Welcome to the Pack",
     description: "Welcome a newly-approved self-signup customer",
     status: "approved",
@@ -128,7 +134,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, welcome to the Pack! 🐾 You're all set up with Smarter Dog Grooming Salon and can now book appointments. See you soon!`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, you're officially part of the pack! 🐾 Your registration with Smarter Dog Online Bookings is confirmed and your account is active and ready to use.`,
   },
 ];
 

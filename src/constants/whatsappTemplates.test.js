@@ -108,7 +108,7 @@ describe("WHATSAPP_PICKER_TEMPLATES", () => {
       "booking_confirmed_v1",
       "booking_changed_v1",
       "ready_for_collection_v1",
-      "welcome_to_the_pack_v1",
+      "welcome_to_the_pack_v1__english",
     ]);
     expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
   });
