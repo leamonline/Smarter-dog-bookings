@@ -74,13 +74,15 @@ describe("resolveDayStatus", () => {
   it("keeps an unrecognised status visible rather than guessing at it", () => {
     const tone = resolveDayStatus("Awaiting deposit");
     expect(tone.key).toBe("unknown");
-    expect(tone.label).toBe("Awaiting deposit");
+    expect(tone.label).toBe("Unknown: Awaiting deposit");
+    expect(tone.tint).not.toBe(resolveDayStatus(BOOKING_STATUS.COMPLETED).tint);
+    expect(contrastRatio(tone.ink, tone.tint)).toBeGreaterThanOrEqual(4.5);
     expect(tone.inStack).toBe(false);
   });
 
   it("never leaves a null status unlabelled", () => {
-    expect(resolveDayStatus(null).label).toBe("Unknown");
-    expect(resolveDayStatus("   ").label).toBe("Unknown");
+    expect(resolveDayStatus(null).label).toBe("Unknown: Not set");
+    expect(resolveDayStatus("   ").label).toBe("Unknown: Not set");
   });
 
   it("only keeps the four live states in the stack", () => {
