@@ -128,3 +128,39 @@ and production `nlzhllhkigmsvrzduefz` is `ACTIVE_HEALTHY` on 24 October.
 No hosted database writes were performed. Staging validation remains blocked
 until staging is available or an explicit alternative is approved. The expected
 `migrations-applied` failure is retained until authorised production application.
+
+## Release prerequisite follow-up (24 October 2026)
+
+The owner requested staging validation, staff-session refresh and a #1060-or-later
+rollback minimum. A restore request for the verified staging project
+`btjnxvgkpdbfrrqxvkfj` was rejected by Supabase because the account has reached
+its two-active-free-project limit. No staging migration was applied. The visible
+project list contains only production (active) and staging (inactive); the other
+active project cannot be identified from that connection. Do not pause production,
+delete another project or change billing to work around this without an explicit
+owner choice. Hosted staging remains blocked; isolated database CI is verified
+but is not relabelled as hosted staging validation.
+
+The existing app uses `registerType: autoUpdate`, `skipWaiting` and `clientsClaim`
+in `vite.config.js`. Its resume handler refreshes database data, not the loaded
+JavaScript. There is no remote force-refresh command or per-device acknowledgement
+in the deployed app, so a deployment alone cannot prove all staff sessions updated.
+
+Before the column drop, the operator must:
+
+1. Save open edits on every staff device, including installed app windows and
+   background browser tabs.
+2. Close all staff app tabs/windows, reopen online and allow the service worker
+   to update; then reload. On desktop use a hard refresh. On an installed mobile
+   app, close and reopen again after the online update has had time to activate.
+3. Confirm Settings shows the read-only capacity card and the read-only
+   notifications explanation shipped in #1060. If old editable controls remain,
+   keep that device out of use and resolve its update before proceeding.
+4. Confirm completion for every staff device; record the operator acknowledgement
+   here before production application. No acknowledgement has been received yet.
+
+[The rollback runbook](../../rollback.md#minimum-compatible-frontend-after-the-1000-column-drop)
+now states the exact minimum merge SHA and candidate verification procedure.
+The owner has requested that minimum; it is documented operationally, not enforced
+by a new Vercel platform control. No production rollback or session revocation was
+performed.
