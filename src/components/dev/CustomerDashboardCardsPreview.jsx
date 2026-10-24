@@ -70,6 +70,13 @@ export function CustomerDashboardCardsPreview() {
         </div>
       </Frame>
 
+      <Frame title="TrustedHumansSection — own read still loading, and failed with retry" wide>
+        <div className="portal-trio" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, alignItems: "stretch" }}>
+          <TrustedHumansSection trustedHumans={[]} status="loading" />
+          <TrustedHumansSection trustedHumans={[]} status="error" onRetry={() => {}} />
+        </div>
+      </Frame>
+
       <Frame title="DepositHoldInstructions — copy reference, sort code and account number">
         <div className="wizard-card" style={{ textAlign: "left" }}>
           <DepositHoldInstructions

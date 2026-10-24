@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 
@@ -37,5 +37,34 @@ describe("TrustedHumansSection", () => {
       screen.queryByRole("textbox", { name: /mobile number/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // The list is only meaningful once its own read has succeeded. While it is
+  // in flight or after it failed, an empty card would read as "you have no
+  // trusted humans" to someone who has several.
+  it("says it is still fetching while the read is in flight", () => {
+    render(<TrustedHumansSection trustedHumans={[]} status="loading" />);
+
+    expect(screen.getByText(/fetching your trusted humans/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText("Adding a trusted human online is temporarily unavailable."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("owns a failed read with its own retry instead of looking empty", () => {
+    const onRetry = vi.fn();
+    render(
+      <TrustedHumansSection trustedHumans={[]} status="error" onRetry={onRetry} />,
+    );
+
+    expect(
+      screen.getByText(/couldn.t load your trusted humans/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Adding a trusted human online is temporarily unavailable."),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
