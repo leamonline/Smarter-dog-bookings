@@ -27,6 +27,23 @@ import {
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 
+// The editable copy of a profile. `postcode` travels with `address` — the
+// address picker reports both — so a save never pairs a new address with the
+// postcode the page was opened with.
+function detailsFrom(profile) {
+  return {
+    name: profile?.name || "",
+    surname: profile?.surname || "",
+    address: profile?.address || "",
+    postcode: profile?.postcode || null,
+    email: profile?.email || "",
+    whatsapp: profile?.whatsapp || false,
+    fb: profile?.fb || "",
+    insta: profile?.insta || "",
+    tiktok: profile?.tiktok || "",
+  };
+}
+
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -64,16 +81,14 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [saveError, setSaveError] = useState(null);
   const [pastExpanded, setPastExpanded] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [details, setDetails] = useState({
-    name: humanRecord?.name || "",
-    surname: humanRecord?.surname || "",
-    address: humanRecord?.address || "",
-    email: humanRecord?.email || "",
-    whatsapp: humanRecord?.whatsapp || false,
-    fb: humanRecord?.fb || "",
-    insta: humanRecord?.insta || "",
-    tiktok: humanRecord?.tiktok || "",
-  });
+  // What the server last saved. Cancel returns here and the address picker
+  // starts from it — not from the humanRecord the page opened with, which a
+  // save does not refresh.
+  const [savedProfile, setSavedProfile] = useState(() => detailsFrom(humanRecord));
+  const [details, setDetails] = useState(() => detailsFrom(humanRecord));
+  // False while the address picker holds an unfinished search, so Save can't
+  // send an address the customer hasn't actually chosen.
+  const [addressReady, setAddressReady] = useState(true);
 
   // Persist an in-progress edit of "My details" so navigating away mid-edit
   // doesn't discard it. The card shows live server data until the customer
@@ -96,24 +111,44 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const handleSetEditing = useCallback(
     (next) => {
       if (next === true && !draftAppliedRef.current && restoredDetails) {
-        setDetails(restoredDetails);
+        // A draft from before postcodes travelled with the address has none;
+        // the saved one fills in and stays visible in the picker to correct.
+        setDetails({ ...savedProfile, ...restoredDetails });
         draftAppliedRef.current = true;
       }
       setEditing(next);
     },
-    [restoredDetails],
+    [restoredDetails, savedProfile],
   );
 
-  const humanName = `${humanRecord?.name || ""} ${humanRecord?.surname || ""}`.trim();
+  // The picker reports { ready, address, postcode }. Only a usable answer
+  // becomes the edited address, so an unfinished search can't blank it.
+  const handleAddressChange = useCallback(({ ready, address, postcode }) => {
+    setAddressReady(ready);
+    if (!ready) return;
+    const nextAddress = address ?? "";
+    const nextPostcode = postcode ?? null;
+    setDetails((d) =>
+      d.address === nextAddress && d.postcode === nextPostcode
+        ? d
+        : { ...d, address: nextAddress, postcode: nextPostcode },
+    );
+  }, []);
+
+  const humanName = `${savedProfile.name} ${savedProfile.surname}`.trim();
 
   const handleSave = useCallback(async () => {
+    if (!addressReady) {
+      setSaveError("Choose your address from the list, or enter it manually.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
-    const { error: err, saved } = await saveContactDetails({
+    const { error: err, saved, profile } = await saveContactDetails({
       name: details.name,
       surname: details.surname,
       address: details.address,
-      postcode: humanRecord?.postcode ?? null,
+      postcode: details.postcode,
       email: details.email,
       whatsapp: details.whatsapp,
       fb: details.fb,
@@ -132,26 +167,23 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       return;
     }
     if (!saved) return;
+    // The server's row is the truth (trimmed, postcode upper-cased); with no
+    // row back, what was sent is the best record of what was saved.
+    const next = detailsFrom(profile ?? details);
+    setSavedProfile(next);
+    setDetails(next);
     clearDetailsDraft();
     setEditing(false);
     toast.show("Details saved", "success");
-  }, [humanRecord, details, toast, clearDetailsDraft, saveContactDetails]);
+  }, [addressReady, details, toast, clearDetailsDraft, saveContactDetails]);
 
   const handleCancel = useCallback(() => {
     setSaveError(null);
-    setDetails({
-      name: humanRecord?.name || "",
-      surname: humanRecord?.surname || "",
-      address: humanRecord?.address || "",
-      email: humanRecord?.email || "",
-      whatsapp: humanRecord?.whatsapp || false,
-      fb: humanRecord?.fb || "",
-      insta: humanRecord?.insta || "",
-      tiktok: humanRecord?.tiktok || "",
-    });
+    setDetails(savedProfile);
+    setAddressReady(true);
     clearDetailsDraft();
     setEditing(false);
-  }, [humanRecord, clearDetailsDraft]);
+  }, [savedProfile, clearDetailsDraft]);
 
   const today = toDateStr(new Date());
 
@@ -218,7 +250,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (editing) { setShowSignOutConfirm(true); return; }
     onSignOut();
   };
-  const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
+  const firstName = (savedProfile.name || humanName || "there").trim().split(" ")[0];
   const handleBook = () => navigate("/new");
 
 
@@ -315,6 +347,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               details={details}
               setDetails={setDetails}
               humanRecord={humanRecord}
+              savedAddress={savedProfile.address}
+              savedPostcode={savedProfile.postcode}
+              onAddressChange={handleAddressChange}
               onSave={handleSave}
               onCancel={handleCancel}
             />

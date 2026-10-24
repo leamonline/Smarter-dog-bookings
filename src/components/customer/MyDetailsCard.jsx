@@ -1,13 +1,15 @@
 import { cardAnim } from "./dashboardConstants.js";
 import { User, Plus, Pencil, X } from "lucide-react";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
+import { AddressPicker } from "./onboarding/AddressPicker.jsx";
 
-function DetailRow({ label, value, editing, editor, addPrompt, onAdd }) {
+function DetailRow({ label, value, editing, editor, addPrompt, onAdd, stackWhenEditing = false }) {
+  const stacked = editing && stackWhenEditing;
   return (
-    <div className="portal-detail-row">
+    <div className={`portal-detail-row${stacked ? " portal-detail-row--stacked" : ""}`}>
       <span className="portal-detail-label">{label}</span>
       {editing ? (
-        <div className="flex-1 ml-3">{editor}</div>
+        <div className={stacked ? "w-full" : "flex-1 ml-3"}>{editor}</div>
       ) : value ? (
         <span className="portal-detail-value">{value}</span>
       ) : (
@@ -22,7 +24,20 @@ function DetailRow({ label, value, editing, editor, addPrompt, onAdd }) {
   );
 }
 
-export function MyDetailsCard({ editing, setEditing, saving, saveError, details, setDetails, humanRecord, onSave, onCancel }) {
+export function MyDetailsCard({
+  editing,
+  setEditing,
+  saving,
+  saveError,
+  details,
+  setDetails,
+  humanRecord,
+  savedAddress = "",
+  savedPostcode = null,
+  onAddressChange,
+  onSave,
+  onCancel,
+}) {
   const fullName = `${details.name} ${details.surname}`.trim();
   const startEdit = () => setEditing(true);
 
@@ -68,14 +83,20 @@ export function MyDetailsCard({ editing, setEditing, saving, saveError, details,
           label="Address"
           value={details.address}
           editing={editing}
+          stackWhenEditing
           editor={
-            <input
-              aria-label="Address"
-              autoComplete="street-address"
-              value={details.address}
-              onChange={e => setDetails(d => ({ ...d, address: e.target.value }))}
-              placeholder="Street, city, postcode"
-              className="portal-input"
+            // The same picker as sign-up, so the address and its postcode are
+            // chosen — and saved — together. It opens on the saved address; a
+            // restored draft with a different address reopens in manual entry.
+            <AddressPicker
+              existingAddress={savedAddress}
+              existingPostcode={savedPostcode ?? ""}
+              initialValue={
+                details.address && details.address !== savedAddress
+                  ? { address: details.address, postcode: details.postcode ?? "", keepingExisting: false }
+                  : undefined
+              }
+              onChange={onAddressChange}
             />
           }
           addPrompt="Add address"

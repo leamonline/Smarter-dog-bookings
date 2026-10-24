@@ -511,6 +511,13 @@
   border-bottom: 1px solid rgba(45, 0, 75, 0.07);
 }
 .portal-detail-row:last-child { border-bottom: none; }
+/* An editor too wide to share the row with its label (the address picker's
+   search box and button) drops below the label at full width. */
+.portal-detail-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
 
 .portal-detail-label {
   font-family: 'Montserrat', sans-serif;
