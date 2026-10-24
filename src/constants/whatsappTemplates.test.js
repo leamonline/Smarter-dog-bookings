@@ -149,6 +149,7 @@ describe("WHATSAPP_PICKER_TEMPLATES", () => {
       "ready_for_collection_v1",
       "welcome_to_the_pack_v1__english",
       "appointment_request_reply_v1",
+      "customer_enquiry_response_v1",
     ]);
     expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
   });
