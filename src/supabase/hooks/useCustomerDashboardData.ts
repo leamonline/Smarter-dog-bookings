@@ -28,6 +28,20 @@ interface DashboardHumanRecord {
   id?: string | null;
 }
 
+/** The contact-detail columns update_customer_contact_details returns. */
+export interface SavedContactDetails {
+  id: string;
+  name: string | null;
+  surname: string | null;
+  address: string | null;
+  postcode: string | null;
+  email: string | null;
+  whatsapp: boolean | null;
+  fb: string | null;
+  insta: string | null;
+  tiktok: string | null;
+}
+
 function pastWindowStart(): string {
   const pastDate = new Date();
   pastDate.setDate(pastDate.getDate() - PAST_WINDOW_DAYS);
@@ -222,16 +236,24 @@ export function useCustomerDashboardData(
     setBookings(rows);
   }, [dogs]);
 
+  // `profile` is the row the RPC returns — what was actually stored, after
+  // the server trims, upper-cases the postcode and nulls blanks. The page
+  // adopts it as the new saved baseline instead of trusting what was typed.
   const saveContactDetails = useCallback(
     async (input: CustomerContactDetailsInput) => {
       if (!customerSupabase || !humanRecord?.id) {
-        return { error: null as { message?: string } | null, saved: false };
+        return {
+          error: null as { message?: string } | null,
+          saved: false,
+          profile: null as SavedContactDetails | null,
+        };
       }
-      const { error } = await updateCustomerContactDetails(
+      const { data, error } = await updateCustomerContactDetails(
         customerSupabase,
         input,
       );
-      return { error, saved: !error };
+      const row = (Array.isArray(data) ? data[0] : data) as SavedContactDetails | undefined;
+      return { error, saved: !error, profile: error ? null : (row ?? null) };
     },
     [humanRecord],
   );

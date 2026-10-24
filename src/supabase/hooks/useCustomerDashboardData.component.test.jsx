@@ -382,11 +382,43 @@ describe("useCustomerDashboardData", () => {
       });
     });
 
-    expect(outcome).toEqual({ error: null, saved: true });
+    expect(outcome).toEqual({ error: null, saved: true, profile: null });
     expect(mocks.updateCustomerContactDetails).toHaveBeenCalledWith(
       expect.anything(),
       { name: "Jo", surname: "Bloggs", address: "1 Bark Lane" },
     );
+  });
+
+  it("hands back the row the server saved, so the page can show canonical values", async () => {
+    // The RPC trims, upper-cases the postcode and nulls blanks. What it
+    // returns is what was stored; the form's own copy is only what was typed.
+    const savedRow = {
+      id: HUMAN.id,
+      name: "Jo",
+      surname: "Bloggs",
+      address: "2 New Street, Hyde",
+      postcode: "SK14 2AB",
+      email: null,
+      whatsapp: true,
+      fb: null,
+      insta: null,
+      tiktok: null,
+    };
+    mocks.updateCustomerContactDetails.mockResolvedValue({ data: [savedRow], error: null });
+    const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.saveContactDetails({
+        name: " Jo ",
+        surname: "Bloggs",
+        address: "2 New Street, Hyde",
+        postcode: "sk14 2ab",
+      });
+    });
+
+    expect(outcome).toEqual({ error: null, saved: true, profile: savedRow });
   });
 
   it("merges a dog edit by id and ignores a duplicate add", async () => {

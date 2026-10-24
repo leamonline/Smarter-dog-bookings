@@ -13,6 +13,19 @@
 import { BookingCard } from "../customer/BookingCard.jsx";
 import { TrustedHumansSection } from "../customer/TrustedHumansSection.jsx";
 import { DepositHoldInstructions } from "../customer/DepositHoldInstructions";
+import { MyDetailsCard } from "../customer/MyDetailsCard.jsx";
+
+const SAMPLE_DETAILS = {
+  name: "Sam",
+  surname: "Jones",
+  address: "1 Old Road, Hyde, SK14 1AA",
+  postcode: "SK14 1AA",
+  email: "sam@example.com",
+  whatsapp: false,
+  fb: "",
+  insta: "",
+  tiktok: "",
+};
 import "../../customer-portal.css";
 
 function Frame({ title, children, wide }) {
@@ -87,6 +100,23 @@ export function CustomerDashboardCardsPreview() {
             compact
           />
         </div>
+      </Frame>
+
+      <Frame title="MyDetailsCard — editing, address through the shared picker">
+        <MyDetailsCard
+          editing
+          setEditing={() => {}}
+          saving={false}
+          saveError={null}
+          details={SAMPLE_DETAILS}
+          setDetails={() => {}}
+          humanRecord={{ phone: "+447700900123" }}
+          savedAddress={SAMPLE_DETAILS.address}
+          savedPostcode={SAMPLE_DETAILS.postcode}
+          onAddressChange={() => {}}
+          onSave={() => {}}
+          onCancel={() => {}}
+        />
       </Frame>
     </div>
   );
