@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Clock } from "lucide-react";
+import { SALON_WHATSAPP_URL } from "../../../constants/salonContact.ts";
 
 /**
  * Shown after a self-signup customer finishes onboarding but before staff
@@ -45,8 +46,9 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
             <p className="text-sm text-slate-500 mt-1 leading-relaxed">
               This number is new to us, but your name matches someone already on
               our books. One of the team will link this login to your existing
-              record — you don&apos;t need to do anything. As soon as that&apos;s
-              done we&apos;ll send you a message and you can book as usual.
+              record — you don&apos;t need to do anything. We usually do this on
+              salon days, Monday to Wednesday, and we&apos;ll send you a message
+              as soon as it&apos;s done so you can book as usual.
             </p>
           </>
         ) : (
@@ -56,11 +58,27 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
             </h1>
             <p className="text-sm text-slate-500 mt-1 leading-relaxed">
               We&apos;ve got your details and one of the team will check everything
-              over. As soon as you&apos;re approved we&apos;ll send you a message —
+              over. We usually look at new sign-ups on salon days, Monday to
+              Wednesday, and we&apos;ll message you as soon as you&apos;re approved —
               then you can book your first appointment.
             </p>
           </>
         )}
+
+        {/* Timing is deliberately "usually", never a deadline: the owner chose
+            soft wording (23 Oct 2026, #1073) so a holiday closure can't turn
+            it into a broken promise. */}
+        <p className="text-sm text-slate-500 mt-3 leading-relaxed">
+          Got a question while you wait?{" "}
+          <a
+            href={SALON_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-brand-purple underline"
+          >
+            Message us on WhatsApp
+          </a>
+        </p>
 
         <button
           type="button"

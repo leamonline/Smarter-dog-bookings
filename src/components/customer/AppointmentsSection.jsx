@@ -2,8 +2,7 @@ import {
   SERVICE_LABELS,
   formatDate,
 } from "./dashboardConstants.js";
-import { resolveServicePricePence } from "../../engine/bookingRules";
-import { formatGBP } from "../../utils/money";
+import { formatGBP, poundsToPence } from "../../utils/money";
 import { ClipboardList, ChevronDown } from "lucide-react";
 import { titleCase } from "../../utils/text";
 
@@ -19,11 +18,12 @@ import { titleCase } from "../../utils/text";
  *     decided in the parent and passed via onSubscribe)
  */
 
-function priceLabelFor(service, size) {
-  if (!service || !size) return null;
-  // Bare guide amount ("£42", no "+" suffix) for cleaner inline display.
-  const pence = resolveServicePricePence(service, size);
-  return pence != null ? formatGBP(pence) : null;
+// A past price is history, so it is the amount recorded as taken (pounds,
+// set on Paid in Full) or nothing — never today's list price for the dog's
+// current size, which may not be what was paid.
+function paidLabelFor(paidAmount) {
+  if (typeof paidAmount !== "number" || !(paidAmount > 0)) return null;
+  return formatGBP(poundsToPence(paidAmount));
 }
 
 export function AppointmentsSection({
@@ -77,9 +77,8 @@ export function AppointmentsSection({
         <div id="past-appointments-list" className="mt-3">
           {pastBookings.map(b => {
             const dogName = b.dog?.name ? titleCase(b.dog.name) : "your dog";
-            const size = b.dog?.size || b.size;
             const service = SERVICE_LABELS[b.service] || b.service;
-            const price = priceLabelFor(b.service, size);
+            const price = paidLabelFor(b.paidAmount);
             return (
               <div key={b.id} className="portal-past-row">
                 <span className="portal-past-row-date">{formatDate(b.bookingDate)}</span>
