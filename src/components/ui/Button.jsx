@@ -38,7 +38,7 @@ const VARIANTS = {
     "disabled:bg-white disabled:text-slate-500 disabled:border-slate-200",
   link:
     "bg-transparent text-ink border-transparent underline underline-offset-2 " +
-    "hover:no-underline " +
+    "hover:underline " +
     "motion-safe:hover:translate-y-0 active:scale-100",
 };
 
