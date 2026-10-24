@@ -33,6 +33,15 @@
  *                                is part of the registered name: it was
  *                                re-created under it on 2026-06-15, and the
  *                                old name failed with 132001 from then on.)
+ *   - appointment_request_reply_v1 (en_GB, 3 params — {{1}} customer first
+ *                                name, {{2}} date, {{3}} time. For someone who
+ *                                asked for an appointment and has waited more
+ *                                than 24 hours for a reply. Approved as
+ *                                Utility on 2026-10-24: the "Thanks for
+ *                                getting in touch about an appointment" line
+ *                                is what keeps it Utility rather than
+ *                                Marketing, so don't reword it. Changed
+ *                                wording needs a new _v2 template.)
  *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
  *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
@@ -48,6 +57,8 @@ const PLACEHOLDER = {
   service: "[service]",
   change_description: "[what changed]",
   minutes: "[mins]",
+  date: "[date]",
+  time: "[time]",
 };
 
 export const WHATSAPP_TEMPLATES = [
@@ -135,6 +146,26 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, you're officially part of the pack! 🐾 Your registration with Smarter Dog Online Bookings is confirmed and your account is active and ready to use.`,
+  },
+  {
+    // Approved as Utility in Meta on 2026-10-24 (template id 1451183307104993).
+    // For a customer who asked for an appointment and was not answered within
+    // the 24-hour reply window, so free text is no longer allowed. Date and
+    // time are separate placeholders ({{2}}, {{3}}) here, unlike the other
+    // templates' combined "when". The emoji sign-off and trailing "X" are part
+    // of the registered body.
+    name: "appointment_request_reply_v1",
+    label: "Reply to Appointment Request",
+    description: "Offer a date and time to someone who asked for an appointment",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "appointment_date", label: "Date (e.g. Tuesday 28 October)", autoFill: null },
+      { key: "appointment_time", label: "Time (e.g. 10:30am)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, hope you are well. Thanks for getting in touch about an appointment. We have availability on ${values.appointment_date || PLACEHOLDER.date} at ${values.appointment_time || PLACEHOLDER.time}. Does that work for you? 🎓🐶❤️ X`,
   },
 ];
 
