@@ -701,7 +701,7 @@ body {
 /* ── Text colour hierarchy ───────────────────────────────────── */
 /* Primary text: text-slate-800 */
 /* Secondary text: text-slate-600 */
-/* Muted/tertiary text: text-slate-400 */
+/* Required muted text: text-ink-muted / --color-text-muted; slate-400 only for placeholders */
 
 /* ── Standard button styles (staff dashboard) ────────────────── */
 .btn {
