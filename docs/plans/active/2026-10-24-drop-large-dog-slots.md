@@ -164,3 +164,27 @@ now states the exact minimum merge SHA and candidate verification procedure.
 The owner has requested that minimum; it is documented operationally, not enforced
 by a new Vercel platform control. No production rollback or session revocation was
 performed.
+
+## Hosted staging validation completed (24 October 2026)
+
+This supersedes the staging blocker recorded above. The owner resumed staging;
+its verified project ref `btjnxvgkpdbfrrqxvkfj` reached `ACTIVE_HEALTHY`. The
+preflight confirmed the retired column, the public website RPC and no registered
+non-default column dependencies or public function-body references.
+
+Applied the exact migration from head `533ea1f2586cd0c07cde6c3c9dbfa14fd9329d25`
+through Supabase MCP under name `drop_large_dog_slots`. Ledger version:
+`20261024134931`. SQL SHA-256:
+`08593dc8623c51b6c3f2ed9b7a609ea4e355d1f13426f5f83a029025b7f1336d`.
+The workflow is restricted to `main`; MCP accepted this staging-only operation.
+
+All five pgTAP assertions in test 258 passed against hosted staging. The wrapper
+collected TAP results and raised on a missing/non-passing assertion before
+rolling back the fixture transaction. Independent read-back confirmed column
+absence, the recorded SQL and fixture removal. This is focused hosted validation;
+the full suite and concurrency checks ran in isolated CI, not hosted staging.
+
+Production application remains pending. Staff-device refresh completion still
+requires an explicit acknowledgement; the owner's earlier yes was agreement to
+perform the refresh, not a report that every device had completed it. The #1060
+rollback minimum remains required. No production write or merge occurred.
