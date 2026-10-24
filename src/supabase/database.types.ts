@@ -2949,7 +2949,6 @@ export type Database = {
           enforce_capacity: boolean | null
           enforce_server_capacity: boolean | null
           id: string
-          large_dog_slots: Json
           pricing: Json
           settings: Json
           updated_at: string | null
@@ -2961,7 +2960,6 @@ export type Database = {
           enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
           id?: string
-          large_dog_slots?: Json
           pricing?: Json
           settings?: Json
           updated_at?: string | null
@@ -2973,7 +2971,6 @@ export type Database = {
           enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
           id?: string
-          large_dog_slots?: Json
           pricing?: Json
           settings?: Json
           updated_at?: string | null

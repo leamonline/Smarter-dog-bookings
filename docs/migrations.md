@@ -1,5 +1,32 @@
 # Migration history
 
+## Retired large-dog settings column (#1000) — staging applied 24 October 2026
+
+`20261024110000_drop_large_dog_slots.sql` drops only
+`public.salon_config.large_dog_slots`, with `IF EXISTS`, no `CASCADE`, and a
+five-second lock timeout. #1060 removed application and seed consumers first.
+The generated row/insert/update contract and ordinary fixtures omit the column.
+Capacity rules, grants, RLS and `get_public_salon_facts()` remain unchanged.
+
+**Staging** (`btjnxvgkpdbfrrqxvkfj`): after the owner resumed the project, its
+status reached `ACTIVE_HEALTHY`. Applied through Supabase MCP under name
+`drop_large_dog_slots`, ledger version `20261024134931`, using the exact SQL
+from PR #1077 head `533ea1f2586cd0c07cde6c3c9dbfa14fd9329d25`. File SHA-256:
+`08593dc8623c51b6c3f2ed9b7a609ea4e355d1f13426f5f83a029025b7f1336d`.
+All five assertions from `258_drop_large_dog_slots.test.sql` passed on hosted
+staging through a transaction wrapper that raises on any non-passing TAP result.
+Fixtures were rolled back. Independent read-back confirmed the column absent,
+the ledger SQL matching the committed file and the synthetic fixture absent.
+The staging workflow permits only `main`, so this unmerged contract migration
+used the explicitly targeted MCP route. No production writes were performed.
+
+**Production:** pending application. Follow
+the [contract rollout plan](plans/active/2026-10-24-drop-large-dog-slots.md)
+for deployment evidence, validation and the production postcondition. Refresh
+old staff browser sessions before application; do not roll the frontend back
+to a revision before #1060 afterwards. Dropped values cannot be recovered by
+recreating the column.
+
 ## Daily pipeline health line (#1007) — applied 20 October 2026
 
 `20261020110000_pipeline_health_line.sql` widens `slack_alerts.alert_type` to

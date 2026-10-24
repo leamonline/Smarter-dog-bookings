@@ -113,11 +113,12 @@ Current rules: **08:30** and **09:00** take 1 seat and can share
 early-closes 13:00; **12:30** and **13:00** are 2-seat full
 takeovers with no sharing.
 
-> ⚠️ **`salon_config.large_dog_slots` is decorative.** Earlier editable
+> ⚠️ **`salon_config.large_dog_slots` is retired.** Earlier editable
 > versions of the Settings → Capacity Engine card wrote that jsonb column,
 > but no enforcement path read it — removing a chip in Settings changed
 > nothing (audit finding AUDIT-1, 2026-07-01). The current card is read-only
-> and cannot change that column. Changing the real rules means changing all
+> and no longer reads or writes that column (#1060). The contract migration in
+> [migration history](migrations.md) removes it. Changing the real rules means changing all
 > three hardcoded copies above **together** and adding the scenario to
 > `src/engine/capacityParityFixtures.ts` — the one list that
 > `src/lib/whatsapp/capacityParity.test.ts` (browser ↔ Deno),
