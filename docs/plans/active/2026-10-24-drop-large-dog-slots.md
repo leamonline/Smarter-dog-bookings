@@ -23,8 +23,10 @@ schema and explanatory text. Browser and Edge capacity use `LARGE_DOG_SLOTS`.
 GitHub deployment 7296935373 reports Production success at 2026-10-24 09:43:41 UTC
 for the base SHA; #1060 merge 1c3488b7891002b2438f4147b60231819f1aaac5 is an
 ancestor. This proves a successful compatible deployment, not that every old
-browser session has refreshed. Production database dependency checks reported in
-the preceding discussion have not been independently repeated in this change.
+browser session has refreshed. A read-only catalogue check on the verified production project on 24 October
+confirmed the column still exists, with zero public function-body mentions, zero
+public view mentions and zero registered non-default dependencies. This does not
+prove the absence of external clients or old browser sessions.
 
 ## Desired behaviour, scope and non-goals
 
@@ -72,8 +74,8 @@ Production execution requires separate explicit authority and the existing gate.
 The deployment prerequisite is confirmed above. Refresh staff browser sessions
 before applying, and exclude pre-#1060 frontend versions from rollback choices.
 An external consumer outside this repository is not ruled out by source search.
-Reconfirm catalogue dependencies and available aggregate query evidence before
-release. Lock contention fails quickly; retry only through the normal workflow.
+Reconfirm catalogue dependencies and any available aggregate query evidence
+before release. Lock contention fails quickly; retry only through the normal workflow.
 
 ## Migration/rollout
 
@@ -115,3 +117,14 @@ schema; staging and production evidence are recorded; migration gate passes;
 merge is explicitly authorised. Until then this plan remains active. Outstanding
 release evidence: staging availability, live dependencies, refreshed sessions,
 production application and rollback-floor acknowledgement.
+
+## Preparation evidence
+
+[Draft PR #1077](https://github.com/leamonline/Smarter-dog-bookings/pull/1077).
+Local documentation, migration validation, typecheck, lint, build and all 435
+test files (4,920 tests) passed. Lint reports warnings but no errors.
+The Supabase project API confirmed staging `btjnxvgkpdbfrrqxvkfj` is `INACTIVE`
+and production `nlzhllhkigmsvrzduefz` is `ACTIVE_HEALTHY` on 24 October.
+No hosted database writes were performed. Staging validation remains blocked
+until staging is available or an explicit alternative is approved. The expected
+`migrations-applied` failure is retained until authorised production application.
