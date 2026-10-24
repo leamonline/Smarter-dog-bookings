@@ -1087,11 +1087,8 @@
 [aria-expanded="true"] .portal-chevron { transform: rotate(180deg); }
 
 /* --- Focus rings: per-context overrides --- */
-/* Global focus uses charcoal on light surfaces; these CTA overrides provide
-   a white ring with a dark outer border on coloured button surfaces. Against the yellow
-   CTA itself, that ring vanishes — so swap to a white inner ring + navy glow
-   so the focused state is visible on coloured surfaces. Same treatment for
-   the green confirm CTA. */
+/* Global focus uses charcoal on light surfaces. These CTA overrides provide
+   a white ring with a dark outer outline on coloured buttons. */
 .portal-btn--cta:focus-visible,
 .wizard-btn--confirm:focus-visible,
 .wizard-btn--primary:focus-visible {
