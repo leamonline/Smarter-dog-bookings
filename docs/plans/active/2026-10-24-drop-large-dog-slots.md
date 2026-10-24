@@ -188,3 +188,23 @@ Production application remains pending. Staff-device refresh completion still
 requires an explicit acknowledgement; the owner's earlier yes was agreement to
 perform the refresh, not a report that every device had completed it. The #1060
 rollback minimum remains required. No production write or merge occurred.
+
+## Production release verified (25 October 2026)
+
+This supersedes the pending production/session statements above. The owner
+explicitly approved production and confirmed all staff devices refreshed before
+dispatch. All CI checks on `f7e0fffb578d48035e129cf60cc59f698ffc5717` passed
+except the then-expected unapplied migration gate.
+
+[Production run 40100364743](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/40100364743)
+completed successfully at 00:07 BST on 25 October (23:07 UTC on 24 October).
+Receipt: `outcome: applied`, `before.rows: 0`, `ledgerVerified: true`,
+`postcondition: true`, SHA-256 identical to staging. The production ledger records
+version `20261024110000`, the exact migration SQL, PR head and run provenance.
+Independent catalogue verification confirmed the column absent and the website
+RPC still present. No customer rows were queried or modified for verification.
+
+The #1060-or-later rollback requirement is now active. Production schema release
+is complete; PR merge remains a separate action. Keep the plan active until that
+merge and its final checks have been verified. This evidence update changes only
+documentation and leaves the applied migration byte-for-byte unchanged.

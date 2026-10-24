@@ -1,6 +1,6 @@
 # Migration history
 
-## Retired large-dog settings column (#1000) — staging applied 24 October 2026
+## Retired large-dog settings column (#1000) — production applied 25 October 2026
 
 `20261024110000_drop_large_dog_slots.sql` drops only
 `public.salon_config.large_dog_slots`, with `IF EXISTS`, no `CASCADE`, and a
@@ -18,14 +18,23 @@ staging through a transaction wrapper that raises on any non-passing TAP result.
 Fixtures were rolled back. Independent read-back confirmed the column absent,
 the ledger SQL matching the committed file and the synthetic fixture absent.
 The staging workflow permits only `main`, so this unmerged contract migration
-used the explicitly targeted MCP route. No production writes were performed.
+used the explicitly targeted MCP route.
 
-**Production:** pending application. Follow
-the [contract rollout plan](plans/active/2026-10-24-drop-large-dog-slots.md)
-for deployment evidence, validation and the production postcondition. Refresh
-old staff browser sessions before application; do not roll the frontend back
-to a revision before #1060 afterwards. Dropped values cannot be recovered by
-recreating the column.
+**Production** (`nlzhllhkigmsvrzduefz`): applied by the approval-gated
+[production workflow run 40100364743](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/40100364743)
+at 00:07 BST on 25 October (23:07 UTC on 24 October), from PR #1077 head
+`f7e0fffb578d48035e129cf60cc59f698ffc5717`. The receipt reports `outcome: applied`,
+`before.rows: 0`, `ledgerVerified: true` and `postcondition: true`, with the same
+SHA-256 as staging above. Independent catalogue/ledger read-back confirmed the
+column absent, version `20261024110000` recorded with the exact SQL and workflow
+provenance, and `get_public_salon_facts()` still present.
+
+The owner explicitly approved production application and confirmed every staff
+device refreshed before dispatch. The #1060-or-later rollback minimum now applies:
+see the [rollback runbook](rollback.md#minimum-compatible-frontend-after-the-1000-column-drop).
+Dropped values cannot be recovered by recreating the column. The
+[contract rollout plan](plans/active/2026-10-24-drop-large-dog-slots.md) records
+validation and remaining PR completion separately from the database release.
 
 ## Daily pipeline health line (#1007) — applied 20 October 2026
 
