@@ -1,5 +1,20 @@
 # Migration history
 
+## Retired large-dog settings column (#1000) — pending application
+
+`20261024110000_drop_large_dog_slots.sql` drops only
+`public.salon_config.large_dog_slots`, with `IF EXISTS`, no `CASCADE`, and a
+five-second lock timeout. #1060 removed application and seed consumers first.
+The generated row/insert/update contract and ordinary fixtures omit the column.
+Capacity rules, grants, RLS and `get_public_salon_facts()` remain unchanged.
+
+**Release status:** not applied to staging or production by this change. Follow
+the [contract rollout plan](plans/active/2026-10-24-drop-large-dog-slots.md)
+for deployment evidence, validation and the production postcondition. Refresh
+old staff browser sessions before application; do not roll the frontend back
+to a revision before #1060 afterwards. Dropped values cannot be recovered by
+recreating the column.
+
 ## Daily pipeline health line (#1007) — applied 20 October 2026
 
 `20261020110000_pipeline_health_line.sql` widens `slack_alerts.alert_type` to

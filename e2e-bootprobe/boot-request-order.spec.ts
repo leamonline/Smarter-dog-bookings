@@ -145,7 +145,6 @@ test("tier-1 queries fire during the profile fetch; directory page-0 stays off t
             default_pickup_offset: 2,
             pricing: null,
             enforce_capacity: false,
-            large_dog_slots: null,
             settings: null,
           },
         ],

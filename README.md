@@ -307,7 +307,7 @@ troubleshooting are in [docs/whatsapp-flows.md](docs/whatsapp-flows.md).
 
 See [docs/capacity-engine.md](docs/capacity-engine.md) for what the
 rule does, a worked example, where it lives in code, and the
-`salon_config.large_dog_slots` shape.
+`LARGE_DOG_SLOTS` rules.
 
 ### Migration history
 
