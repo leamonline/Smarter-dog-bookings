@@ -7,10 +7,11 @@
 //
 // Channel logic (defensive, best-effort — never hard-fail on one channel):
 //   1. PRIMARY: WhatsApp via the existing whatsapp-send function in
-//      "template" mode (template welcome_to_the_pack_v1, en_GB, 1 param =
-//      customer first name). Requires the template be APPROVED in Meta
-//      Business Manager — until then Meta rejects with a 132xxx error and we
-//      fall through to SMS / email.
+//      "template" mode (template welcome_to_the_pack_v1__english, en_GB,
+//      1 param = customer first name). The name must match Meta exactly — a
+//      wrong name or language is rejected with 132001 and we fall through to
+//      SMS / email, which is how the old unsuffixed name went unnoticed from
+//      2026-06-16 until 2026-10-24.
 //   2. FALLBACK: SMS via _shared/twilio.ts sendSms (if the customer is set up
 //      for SMS and hasn't opted out), then email via _shared/email.ts
 //      sendEmail (if an email is on file and they haven't opted out).
@@ -55,7 +56,7 @@ const corsFor = (req: Request) =>
 // WhatsApp template — must be APPROVED in Meta before it delivers (see
 // src/constants/whatsappTemplates.js for the registry note). 1 param: the
 // customer's first name.
-const WELCOME_TEMPLATE_NAME = "welcome_to_the_pack_v1";
+const WELCOME_TEMPLATE_NAME = "welcome_to_the_pack_v1__english";
 const WELCOME_TEMPLATE_LANG = "en_GB";
 
 interface HumanRow {

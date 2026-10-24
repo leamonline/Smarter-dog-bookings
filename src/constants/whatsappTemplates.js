@@ -21,19 +21,35 @@
  *
  * Template names here MUST match the registered names in Meta
  * Business Manager → WhatsApp Manager → Message Templates. As of
- * 2026-05-20 the salon has:
- *   - appointment_reminder_v1   (en_GB, 3 params, Active)
- *   - booking_confirmed_v1      (en_GB, 4 params, Active)
- *   - booking_changed_v1        (en,    3 params, Active)
- *   - ready_for_collection_v1   (en_GB, 2 params, PENDING Meta approval —
- *                                {{1}} dog name, {{2}} minutes. Sends fail
- *                                with a 132xxx gateway error until Approved.)
- *   - welcome_to_the_pack_v1    (en_GB, 1 param, PENDING Meta approval —
- *                                {{1}} customer first name. Sent when staff
- *                                approve a Join the Pack self-signup. Sends
- *                                fail with a 132xxx gateway error until it is
- *                                Approved in Meta Business Manager.)
+ * 2026-10-24 the salon has (all Approved):
+ *   - appointment_reminder_v1   (en_GB, 3 params)
+ *   - booking_confirmed_v1      (en_GB, 4 params)
+ *   - booking_changed_v1        (en,    3 params)
+ *   - ready_for_collection_v1   (en_GB, 2 params — {{1}} dog name,
+ *                                {{2}} minutes)
+ *   - welcome_to_the_pack_v1__english (en_GB, 1 param — {{1}} customer
+ *                                first name. Sent when staff approve a Join
+ *                                the Pack self-signup. The `__english` suffix
+ *                                is part of the registered name: it was
+ *                                re-created under it on 2026-06-15, and the
+ *                                old name failed with 132001 from then on.)
+ *   - appointment_request_reply_v1 (en_GB, 3 params — {{1}} customer first
+ *                                name, {{2}} date, {{3}} time. For someone who
+ *                                asked for an appointment and has waited more
+ *                                than 24 hours for a reply. Approved as
+ *                                Utility on 2026-10-24: the "Thanks for
+ *                                getting in touch about an appointment" line
+ *                                is what keeps it Utility rather than
+ *                                Marketing, so don't reword it. Changed
+ *                                wording needs a new _v2 template.)
+ *   - customer_enquiry_response_v1 (en_GB, 3 params — {{1}} customer first
+ *                                name, {{2}} enquiry topic, {{3}} reply.
+ *                                Approved as Utility on 2026-10-24.)
+ *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
+ *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
+ * A wrong name or language fails with Meta error 132001 ("Template name
+ * does not exist in the translation"), so match both exactly.
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
  */
@@ -44,6 +60,10 @@ const PLACEHOLDER = {
   service: "[service]",
   change_description: "[what changed]",
   minutes: "[mins]",
+  date: "[date]",
+  time: "[time]",
+  enquiry_topic: "[enquiry topic]",
+  reply: "[your reply]",
 };
 
 export const WHATSAPP_TEMPLATES = [
@@ -115,11 +135,13 @@ export const WHATSAPP_TEMPLATES = [
       `Hi! ${values.dog_name || PLACEHOLDER.dog_name} is all done and ready for collection in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon — Smarter Dog Grooming Salon.`,
   },
   {
-    // Approved & live in Meta (verified 2026-06-15: welcome sends read by
-    // customers). Sent automatically when staff approve a "Join the Pack"
+    // Approved in Meta under the suffixed name (re-created 2026-06-15; the
+    // unsuffixed name has failed with 132001 since, and every welcome fell
+    // back to SMS). Sent automatically when staff approve a "Join the Pack"
     // self-signup; the welcome edge function still falls back to SMS / email
-    // when the customer has no WhatsApp / has opted out.
-    name: "welcome_to_the_pack_v1",
+    // when the customer has no WhatsApp / has opted out. The preview below is
+    // the body Meta has registered for this name.
+    name: "welcome_to_the_pack_v1__english",
     label: "Welcome to the Pack",
     description: "Welcome a newly-approved self-signup customer",
     status: "approved",
@@ -128,7 +150,44 @@ export const WHATSAPP_TEMPLATES = [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, welcome to the Pack! 🐾 You're all set up with Smarter Dog Grooming Salon and can now book appointments. See you soon!`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, you're officially part of the pack! 🐾 Your registration with Smarter Dog Online Bookings is confirmed and your account is active and ready to use.`,
+  },
+  {
+    // Approved as Utility in Meta on 2026-10-24 (template id 1451183307104993).
+    // For a customer who asked for an appointment and was not answered within
+    // the 24-hour reply window, so free text is no longer allowed. Date and
+    // time are separate placeholders ({{2}}, {{3}}) here, unlike the other
+    // templates' combined "when". The emoji sign-off and trailing "X" are part
+    // of the registered body.
+    name: "appointment_request_reply_v1",
+    label: "Reply to Appointment Request",
+    description: "Offer a date and time to someone who asked for an appointment",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "appointment_date", label: "Date (e.g. Tuesday 28 October)", autoFill: null },
+      { key: "appointment_time", label: "Time (e.g. 10:30am)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, hope you are well. Thanks for getting in touch about an appointment. We have availability on ${values.appointment_date || PLACEHOLDER.date} at ${values.appointment_time || PLACEHOLDER.time}. Does that work for you? 🎓🐶❤️ X`,
+  },
+  {
+    // Approved in Meta on 2026-10-24 (template id 1997939067553272).
+    // Staff replies to an existing customer enquiry outside the 24-hour
+    // window. Parameter order and preview match the registered body.
+    name: "customer_enquiry_response_v1",
+    label: "Reply to Customer Enquiry",
+    description: "Reply to an existing customer enquiry after the 24-hour window",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "enquiry_topic", label: "Enquiry topic", autoFill: null },
+      { key: "reply", label: "Reply", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, thank you for your message about ${values.enquiry_topic || PLACEHOLDER.enquiry_topic}. ${values.reply || PLACEHOLDER.reply}\nThanks 🎓🐶❤️ X`,
   },
 ];
 

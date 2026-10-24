@@ -39,6 +39,20 @@ already answered is Step 2 of the plan, sequenced after #921.
 
 An automatic review draft writes no learned state, customer records or booking actions and sends no confirmation buttons or reply. Existing book-entry handling runs first: accepted or uncertain attempts stop; a validated pre-send refusal can fall through to an eligible review draft. Generic 502/network failures are uncertain, never automatic retry permission. Draft creation does not require the durable AI send switch to be enabled. Existing send gates still govern any later AI send.
 
+## Staff replies outside the 24-hour window
+
+In the inbox template picker, choose **Reply to Customer Enquiry** to answer an
+existing enquiry after the free-form reply window closes. The approved Utility
+template `customer_enquiry_response_v1` uses UK English and three ordered fields:
+customer first name (auto-filled), enquiry topic, and reply. All three are
+required; review the preview before sending. Use it for the customer's existing
+enquiry, not unrelated promotional messages.
+
+The preview matches Meta's approved body, including the line break and sign-off.
+Sending uses the existing `whatsapp-send` endpoint and records the outbound
+message in the conversation. The customer must reply to open a fresh 24-hour
+free-form window; sending a template alone does not open it.
+
 ## Function secrets
 
 Set with `supabase secrets set NAME=value`. **Never** put these in

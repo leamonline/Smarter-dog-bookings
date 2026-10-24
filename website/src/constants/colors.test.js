@@ -30,12 +30,12 @@ describe('colors constants', () => {
 
     it('defines pink bright color', () => {
       expect(colors.pink).toBeDefined();
-      expect(colors.pink).toBe('#E8506A');
+      expect(colors.pink).toBe('#E7546C');
     });
 
     it('defines yellow bright color', () => {
       expect(colors.yellow).toBeDefined();
-      expect(colors.yellow).toBe('#FFCC00');
+      expect(colors.yellow).toBe('#FECC13');
     });
 
     it('defines orange bright color', () => {

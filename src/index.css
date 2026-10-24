@@ -129,6 +129,7 @@
   /* Darker coral for borders/strokes on coral surfaces (e.g. size-large
      border, status pill borders). */
   --color-brand-coral-dark: #C93D63;
+  --color-brand-coral-deep: #A72849; /* danger-button hover with readable white labels */
   /* Text-weight coral for text on coral-tint backgrounds and inline links. */
   --color-brand-coral-text: #B83A4F;
   --color-brand-teal: #2D8B7A;
@@ -151,7 +152,7 @@
   --color-brand-green-300: #5FE293;
   --color-brand-green-400: #1ECF64;
   --color-brand-green-500: #00D94A;
-  --color-brand-green-600: #009A39;
+  --color-brand-green-600: #0F7D39; /* white on fill: AA at 5.2:1 */
   --color-brand-green-700: #0A7D30;
   --color-brand-green-800: #0B5C26;
   --color-brand-green-900: #08401C;
@@ -159,7 +160,7 @@
      inline bg-[#25D366]/text-[#25D366] copies into a token. */
   --color-brand-whatsapp: #25D366;
   /* AA-readable WhatsApp green for text links on white (#25D366 is ~1.9:1). */
-  --color-brand-whatsapp-dark: #128C50;
+  --color-brand-whatsapp-dark: #136F4A; /* AA for normal link text */
   --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
   /* Mustard family — waitlist tab/tag palette. Lifted out of WaitlistNote
@@ -170,7 +171,8 @@
   --color-brand-mustard-paper: #FFFBF2;
 
   /* Customer portal palette */
-  --color-brand-purple: #1F1F1F;
+  --color-brand-ink: #1F1F1F;
+  --color-brand-purple: var(--color-brand-ink); /* backwards-compatible pre-reskin name */
   --color-brand-purple-light: #4A4A4A;
   --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
@@ -186,7 +188,7 @@
   /* Semantic action tokens (Tailwind v4 utilities: bg-action, text-action, text-on-action, etc.) */
   /* Mapped to mustard CTA on deep-purple ink — matches smarterdog.co.uk */
   --color-action: #FECC13;
-  --color-on-action: #2D004B;
+  --color-on-action: var(--color-brand-ink);
 
   /* === Customer-portal palette (PR 1) === */
 
@@ -200,11 +202,11 @@
      was a purple-derived "soft tint of the brand navy", now a plain warm
      grey wash for the past-appointments tint. */
   --color-sd-cloud-tint: #F6F4F2;
-  --color-sd-paper: #F7EFE6;
+  --color-sd-paper: var(--color-brand-paper);
 
   /* Ink + mute (semantic aliases of brand-purple) */
-  --color-sd-navy: #1F1F1F;
-  --color-sd-navy-soft: #4A4A4A;
+  --color-sd-navy: var(--color-brand-ink); /* retained legacy name */
+  --color-sd-navy-soft: var(--color-brand-purple-light);
   /* WCAG AA (4.5:1) for normal-size text. Brand reskin step 2 (2026-09-20):
      --color-sd-paper moved from #FAF9F6 to #F7EFE6, which dropped the
      previous #67738B below 4.5:1 on the new paper (4.19:1). Recomputed by
@@ -214,18 +216,18 @@
   --color-sd-ink-light: #626D84;
 
   /* Action colour aliases */
-  --color-sd-yellow: #FECC13;
-  --color-sd-yellow-dark: #D4A500;
+  --color-sd-yellow: var(--color-brand-yellow);
+  --color-sd-yellow-dark: var(--color-brand-yellow-dark);
   --color-sd-green: #00C247;
-  --color-sd-green-dark: #009536;
-  --color-sd-coral: #E7546C;
-  --color-sd-cyan: #2A62A8;
-  --color-sd-cyan-dark: #1F4E8C;
+  --color-sd-green-dark: #00A83D; /* charcoal labels retain AA on hover */
+  --color-sd-coral: var(--color-brand-coral);
+  --color-sd-cyan: var(--color-brand-cyan);
+  --color-sd-cyan-dark: var(--color-brand-cyan-dark);
 
   /* Tape colours */
   --color-sd-tape-yellow: rgba(254, 204, 19, 0.75);
   --color-sd-tape-coral:  rgba(231, 84, 108, 0.55);
-  --color-sd-tape-sky:    rgba(16, 194, 252, 0.55);
+  --color-sd-tape-sky:    rgba(85, 149, 220, 0.55); /* current sky, not retired cyan */
 
   /* Elevation */
   --shadow-sd-card: 0 6px 20px -12px rgba(0, 0, 0, 0.18);
@@ -259,7 +261,7 @@
      hand-written .text-body/.text-heading/.text-link colour classes
      (which had zero consumers) and free the `text-body` name for the
      type scale below. */
-  --color-ink: #1F1F1F;        /* body/heading/link ink = brand-purple */
+  --color-ink: var(--color-brand-ink); /* charcoal, with compatible brand-purple alias */
   --color-ink-muted: #64748B;  /* accessible muted grey — slate-500 ≈ 4.76:1 on white */
 
   /* ── Type scale ──────────────────────────────────────────────
@@ -380,21 +382,23 @@
   --color-action-primary: var(--color-brand-yellow);
   --color-action-primary-hover: var(--color-brand-yellow-dark);
   --color-action-cta: var(--color-brand-yellow);
-  --color-action-danger: var(--color-brand-coral);
+  --color-action-danger: var(--color-brand-coral-dark); /* white on dark coral passes AA */
 
   --color-text-body: var(--color-brand-purple);
   --color-text-heading: var(--color-brand-purple);
-  --color-text-link: var(--color-brand-purple);
+  --color-text-link: var(--color-brand-cyan); /* underline inline links, not colour alone */
   --color-text-on-action: var(--color-brand-purple);
-  --color-text-muted: theme(--color-slate-400);
+  --color-text-muted: #57677C; /* readable on both white and cream */
+  --color-text-placeholder: #90A1B9; /* placeholder/disabled only, never required copy */
 
   --color-surface-page: theme(--color-slate-50);  /* staff canvas = slate-50 (the de-facto bg); paper stays for auth/portal */
   --color-surface-card: #FFFFFF;
   --color-surface-header: var(--color-brand-purple);
 
   --color-border-default: theme(--color-stone-200);
-  --color-border-focus: var(--color-brand-yellow-dark);
-  --color-border-accent: var(--color-brand-yellow);
+  --color-border-focus: var(--color-brand-ink);
+  --color-border-accent: var(--color-brand-ink); /* meaningful selected-state outline */
+  --color-border-accent-decorative: var(--color-brand-yellow);
 
   --color-feedback-success: var(--color-brand-green);
   --color-feedback-error: var(--color-brand-red);
@@ -475,12 +479,20 @@
 
 /* ── Global focus ─────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-border-focus);
+  outline: 3px solid var(--color-border-focus);
   outline-offset: 2px;
 }
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/* On a charcoal header the inverse outline stays visible to keyboard users. */
+:is(.bg-brand-purple, .bg-brand-ink, .bg-surface-header) :focus-visible {
+  outline-color: #FFFFFF;
+}
+
+/* Inline links remain distinguishable without a mouse or hover state. */
+a:not([class]) { text-decoration: underline; text-underline-offset: 0.15em; }
 
 /* ── Body reset ───────────────────────────────────────────────── */
 body {
@@ -689,7 +701,7 @@ body {
 /* ── Text colour hierarchy ───────────────────────────────────── */
 /* Primary text: text-slate-800 */
 /* Secondary text: text-slate-600 */
-/* Muted/tertiary text: text-slate-400 */
+/* Required muted text: text-ink-muted / --color-text-muted; slate-400 only for placeholders */
 
 /* ── Standard button styles (staff dashboard) ────────────────── */
 .btn {
@@ -713,7 +725,7 @@ body {
   @apply bg-brand-yellow text-brand-purple hover:bg-brand-yellow-dark;
 }
 .btn-danger {
-  @apply bg-brand-coral text-white hover:bg-[#d14468];
+  @apply bg-brand-coral-dark text-white hover:bg-brand-coral-deep;
 }
 .btn-ghost {
   @apply bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50;
@@ -725,6 +737,16 @@ body {
   @apply bg-slate-100 text-slate-600 cursor-not-allowed;
   transform: none !important;
   box-shadow: none !important;
+}
+
+/* On coarse-pointer devices the tap area grows without shrinking the visible label. */
+@media (pointer: coarse) {
+  .btn, .btn-pill { min-height: 44px; min-width: 44px; }
+}
+
+/* The micro scale is desktop-only for dense metadata; small screens use 12px. */
+@media (width < 40rem) {
+  :root { --text-micro: 0.75rem; --text-caption: 0.75rem; }
 }
 
 /* Placeholder contrast. The browser default (~slate-400) fails WCAG AA on a

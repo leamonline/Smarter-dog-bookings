@@ -20,31 +20,31 @@ const BASE =
   "cursor-pointer select-none border whitespace-nowrap " +
   "motion-safe:transition-all motion-safe:duration-[var(--duration-base)] " +
   "motion-safe:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " +
+  "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ink " +
   "disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:active:scale-100";
 
 const VARIANTS = {
   primary:
     "bg-brand-yellow text-brand-purple border-transparent shadow-cta-yellow " +
-    "hover:bg-brand-yellow-dark focus-visible:ring-brand-yellow-dark " +
+    "hover:bg-brand-yellow-dark " +
     "disabled:bg-slate-100 disabled:text-slate-600 disabled:shadow-none",
   danger:
-    "bg-brand-coral text-white border-transparent " +
-    "hover:bg-brand-coral-dark focus-visible:ring-brand-coral-dark " +
+    "bg-brand-coral-dark text-white border-transparent " +
+    "hover:bg-brand-coral-deep " +
     "disabled:bg-slate-100 disabled:text-slate-600 disabled:shadow-none",
   ghost:
     "bg-white text-slate-700 border-[1.5px] border-slate-200 " +
-    "hover:bg-slate-50 hover:border-slate-400 focus-visible:ring-slate-400 " +
+    "hover:bg-slate-50 hover:border-slate-400 " +
     "disabled:bg-white disabled:text-slate-500 disabled:border-slate-200",
   link:
-    "bg-transparent text-ink border-transparent underline-offset-2 " +
-    "hover:underline focus-visible:ring-brand-yellow-dark " +
+    "bg-transparent text-ink border-transparent underline underline-offset-2 " +
+    "hover:underline " +
     "motion-safe:hover:translate-y-0 active:scale-100",
 };
 
 const SIZES = {
-  sm: "py-1.5 px-3 text-xs pointer-coarse:min-h-11",
-  md: "py-2 px-4 text-sm pointer-coarse:min-h-11",
+  sm: "py-1.5 px-3 text-xs pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+  md: "py-2 px-4 text-sm pointer-coarse:min-h-11 pointer-coarse:min-w-11",
 };
 
 const LINK_SIZES = {

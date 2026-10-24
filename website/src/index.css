@@ -348,7 +348,7 @@ html {
 
   button,
   a[role="button"],
-  .rounded-full {
+  a[href].rounded-full {
     min-height: 44px;
   }
 }
