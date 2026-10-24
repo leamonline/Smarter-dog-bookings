@@ -42,6 +42,9 @@
  *                                is what keeps it Utility rather than
  *                                Marketing, so don't reword it. Changed
  *                                wording needs a new _v2 template.)
+ *   - customer_enquiry_response_v1 (en_GB, 3 params — {{1}} customer first
+ *                                name, {{2}} enquiry topic, {{3}} reply.
+ *                                Approved as Utility on 2026-10-24.)
  *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
  *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
@@ -59,6 +62,8 @@ const PLACEHOLDER = {
   minutes: "[mins]",
   date: "[date]",
   time: "[time]",
+  enquiry_topic: "[enquiry topic]",
+  reply: "[your reply]",
 };
 
 export const WHATSAPP_TEMPLATES = [
@@ -166,6 +171,23 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, hope you are well. Thanks for getting in touch about an appointment. We have availability on ${values.appointment_date || PLACEHOLDER.date} at ${values.appointment_time || PLACEHOLDER.time}. Does that work for you? 🎓🐶❤️ X`,
+  },
+  {
+    // Approved in Meta on 2026-10-24 (template id 1997939067553272).
+    // Staff replies to an existing customer enquiry outside the 24-hour
+    // window. Parameter order and preview match the registered body.
+    name: "customer_enquiry_response_v1",
+    label: "Reply to Customer Enquiry",
+    description: "Reply to an existing customer enquiry after the 24-hour window",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "enquiry_topic", label: "Enquiry topic", autoFill: null },
+      { key: "reply", label: "Reply", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, thank you for your message about ${values.enquiry_topic || PLACEHOLDER.enquiry_topic}. ${values.reply || PLACEHOLDER.reply}\nThanks 🎓🐶❤️ X`,
   },
 ];
 
