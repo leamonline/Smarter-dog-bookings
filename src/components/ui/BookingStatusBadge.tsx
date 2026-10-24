@@ -184,11 +184,11 @@ export function resolveDayStatus(
     default:
       return {
         key: "unknown",
-        label: (status || "Unknown").trim() || "Unknown",
-        tint: "#F1F5F9",
-        ink: "#40506B",
-        meta: "#5A666F",
-        edge: "#94A3B8",
+        label: `Unknown: ${(status || "").trim() || "Not set"}`,
+        tint: "#FFF7DC", // unlike the quiet collected slate
+        ink: "#5C4600",
+        meta: "#5C4600",
+        edge: "#835D00",
         inStack: false,
       };
   }

@@ -19,17 +19,18 @@ values:
 | Purpose | Classes / tokens |
 |---|---|
 | Primary CTA colour | `bg-brand-yellow` / `text-brand-purple` (primary button uses this pairing — mustard-on-ink, not blue) |
-| Danger / destructive | `bg-brand-coral`, `text-brand-coral`, `border-brand-coral` |
+| Danger / destructive | `bg-brand-coral-dark text-white` (hover `bg-brand-coral-deep`); use bright coral only as an accent |
 | Success / confirmed | `bg-brand-green-*` (numbered 50–900 scale) |
 | Size semantics | `--color-size-small` (yellow), `--color-size-medium` (teal), `--color-size-large` (coral) — used by `SizeDot`/`SizeTag`, keep this mapping if you build new size UI |
-| Body ink | `text-ink` / `text-ink-muted` (aliases of brand-purple) |
+| Body ink | `text-ink` / `text-ink-muted` (charcoal and accessible staff grey). Do not use placeholder tokens for required text |
 | Card surface | `bg-white border border-slate-200 rounded-2xl shadow-card-resting` (what `<Card>` renders — reuse this recipe for any new card-like surface instead of `shadow-md`) |
 | Form-control radius | `rounded-control` (10px — the codified value for inputs/buttons; not `rounded-md`/`rounded-xl`) |
 | Motion | `duration-[var(--duration-base)]` (180ms — the standard interactive-transition speed) |
 
-Fonts: **Montserrat** is body/UI (`font-sans`), **Quicksand** is
-display/headings (`font-display`), **Caveat** is a handwriting accent
-(`font-handwriting`) — all three ship in this bundle's `fonts/`. Don't
+Fonts: **Montserrat** is body/UI (`font-sans`), **Poppins** is
+display/headings (`font-display`), **Barlow Condensed** is for selected hero lines
+(`font-hero`), and **Caveat** is an optional handwriting accent.
+Rebuild this bundle after token/font changes. Don't
 introduce a different font family for new text.
 
 **A class you invent that no existing component already uses may not be
@@ -38,6 +39,15 @@ compiled Tailwind output, not a full utility generator). Prefer the classes
 already visible in these components' own source/previews over a fresh
 arbitrary value; if you need a truly new value, expect to double-check it
 renders rather than assume every Tailwind utility is available.
+
+### Accessible interaction defaults
+
+- Use `--color-border-focus` (charcoal on light surfaces) and a white outline on dark headers. Selection must not rely on a decorative yellow line alone.
+- Inline links are underlined without hover; colour alone is insufficient. The canonical `Button` link variant is underlined.
+- On touch devices, use at least a 44px hit area for icon-only actions. Use `.tap-target` where a component does not otherwise provide that floor.
+- Use 12px or larger for useful metadata on small screens; the named micro and caption typography steps grow at narrow widths. Form controls are 16px on touch to prevent iOS focus zoom.
+- Alert chips select style by semantic `tone` (`behaviour`, `caution`, `information`), never by a specific hex value.
+- `--color-brand-purple` remains a compatibility alias for charcoal `--color-brand-ink`; do not use the old name in new work.
 
 ### Where the truth lives
 

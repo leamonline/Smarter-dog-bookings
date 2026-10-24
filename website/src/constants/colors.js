@@ -3,8 +3,8 @@
 
 export const colors = {
     // === ANCHORS (Typography & Foundations) ===
-    plum: '#1F1F1F',        // Charcoal ink; the key name predates the 2026 reskin (#896)
-    teal: '#2A6F6B',        // Primary text on light backgrounds
+    plum: '#1F1F1F',        // Charcoal ink; backwards-compatible name, not actual purple
+    teal: '#2A6F6B',        // Website-specific readable text teal; brand teal is #2D8B7A
     offWhite: '#F7EFE6',    // Cream paper
     warmBeige: '#FDFBF7',
 
@@ -16,11 +16,11 @@ export const colors = {
     // === ACTION (CTAs Only — never decorative) ===
     // If it's this colour, it must do something
     green: '#00D94A',       // Primary action button
-    yellow: '#FFCC00',      // Secondary action / accents
+    yellow: '#FECC13',      // Secondary action / accents
 
     // === JOY (Personality, Warmth) ===
     // Never stacked back-to-back. Joy must be brief to feel special.
-    pink: '#E8506A',        // Services, CTA sections (softened ~15% for warmth over urgency)
+    pink: '#E7546C',        // Services, CTA sections (softened ~15% for warmth over urgency)
     orange: '#FF6B00',      // Highlight accents only
 
     // === CARE (Natural, Gentle — Houndsly) ===
