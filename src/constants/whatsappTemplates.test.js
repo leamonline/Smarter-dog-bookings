@@ -101,6 +101,45 @@ describe("buildTemplateParams", () => {
   });
 });
 
+describe("appointment_request_reply_v1", () => {
+  const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_request_reply_v1");
+
+  it("is registered as approved en_GB", () => {
+    expect(template.status).toBe("approved");
+    expect(template.language).toBe("en_GB");
+  });
+
+  it("returns params in Meta's {{1}} name, {{2}} date, {{3}} time order", () => {
+    const values = {
+      customer_first_name: "Sarah",
+      appointment_date: "Tuesday 28 October",
+      appointment_time: "10:30am",
+    };
+    expect(buildTemplateParams(template, values)).toEqual([
+      "Sarah",
+      "Tuesday 28 October",
+      "10:30am",
+    ]);
+  });
+
+  it("preview renders the wording registered with Meta", () => {
+    const values = {
+      customer_first_name: "Sarah",
+      appointment_date: "Tuesday 28 October",
+      appointment_time: "10:30am",
+    };
+    expect(template.preview(values)).toBe(
+      "Hi Sarah, hope you are well. Thanks for getting in touch about an appointment. We have availability on Tuesday 28 October at 10:30am. Does that work for you? 🎓🐶❤️ X",
+    );
+  });
+
+  it("preview falls back to friendly placeholders for missing values", () => {
+    expect(template.preview({})).toBe(
+      "Hi [their name], hope you are well. Thanks for getting in touch about an appointment. We have availability on [date] at [time]. Does that work for you? 🎓🐶❤️ X",
+    );
+  });
+});
+
 describe("WHATSAPP_PICKER_TEMPLATES", () => {
   it("only exposes Meta-approved templates to the staff picker", () => {
     expect(WHATSAPP_PICKER_TEMPLATES.map((t) => t.name)).toEqual([
@@ -109,6 +148,7 @@ describe("WHATSAPP_PICKER_TEMPLATES", () => {
       "booking_changed_v1",
       "ready_for_collection_v1",
       "welcome_to_the_pack_v1__english",
+      "appointment_request_reply_v1",
     ]);
     expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
   });
