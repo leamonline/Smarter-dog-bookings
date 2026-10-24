@@ -43,15 +43,15 @@ describe("design system: WCAG AA text pairs", () => {
     expect(css).toContain("--color-border-accent: var(--color-brand-ink);");
     expect(contrast(literal("color-brand-ink"), "#FFFFFF")).toBeGreaterThanOrEqual(3);
     expect(css).toContain("--color-border-accent-decorative: var(--color-brand-yellow);");
-    expect(css).toMatch(/:focus-visible\\s*\\{\\s*outline: 3px solid var\\(--color-border-focus\\)/);
+    expect(css).toMatch(/:focus-visible\s*\{\s*outline: 3px solid var\(--color-border-focus\)/);
   });
 
   it("uses readable action text in all three button systems", () => {
     expect(css).toContain("@apply bg-brand-coral-dark text-white");
     expect(button).toContain("bg-brand-coral-dark text-white border-transparent");
-    expect(portal).toMatch(/\\.portal-btn--danger\\s*\\{\\s*background: var\\(--color-brand-coral-dark\\);/);
-    expect(portal).toMatch(/\\.portal-btn--cta\\s*\\{\\s*background: var\\(--sd-green\\);\\s*color: var\\(--sd-navy\\)/);
-    expect(portal).toMatch(/\\.portal-btn--whatsapp\\s*\\{\\s*background: var\\(--color-brand-whatsapp\\);\\s*color: var\\(--sd-navy\\)/);
+    expect(portal).toMatch(/\.portal-btn--danger\s*\{\s*background: var\(--color-brand-coral-dark\);/);
+    expect(portal).toMatch(/\.portal-btn--cta\s*\{\s*background: var\(--sd-green\);\s*color: var\(--sd-navy\)/);
+    expect(portal).toMatch(/\.portal-btn--whatsapp\s*\{\s*background: var\(--color-brand-whatsapp\);\s*color: var\(--sd-navy\)/);
   });
 
   it("does not hide the only inline-link cue until hover", () => {
