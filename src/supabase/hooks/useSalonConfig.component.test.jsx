@@ -32,7 +32,6 @@ const CONFIG_ROW = {
   default_pickup_offset: 4,
   pricing: null,
   enforce_capacity: true,
-  large_dog_slots: null,
   settings: null,
 };
 
@@ -583,7 +582,6 @@ describe("useSalonConfig guarded saves", () => {
         default_pickup_offset: 9,
         pricing: null,
         enforce_capacity: false,
-        large_dog_slots: null,
         settings: null,
       },
     ],

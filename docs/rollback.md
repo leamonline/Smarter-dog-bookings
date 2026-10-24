@@ -53,6 +53,32 @@ frontend runs happily against added columns and functions, but not against a
 **contract** migration that removed or renamed something it still uses. If one
 did, don't roll back past it: fix forward instead (section 3).
 
+### Minimum compatible frontend after the #1000 column drop
+
+Once `20261024110000_drop_large_dog_slots.sql` has been applied, every rollback
+or promotion must retain #1060 (merge commit
+`1c3488b7891002b2438f4147b60231819f1aaac5`) and its removal of
+`large_dog_slots` writes. This is a release requirement, not an automatic Vercel
+restriction. Do not use an older deployment even if it previously worked.
+
+Before selecting a candidate, obtain its full Git SHA from Vercel deployment
+metadata and verify ancestry in a freshly fetched repository:
+
+```bash
+git fetch origin main
+git merge-base --is-ancestor 1c3488b7891002b2438f4147b60231819f1aaac5 <candidate-sha>
+```
+
+A non-zero result (including a missing commit) blocks that candidate. An ancestry
+pass is necessary but not sufficient: also confirm the candidate has not reverted
+#1060 or reintroduced the column in settings writes. Prefer a known compatible
+production deployment and fix forward if no such candidate is available.
+
+Production deployment `7296935373` at
+`072600e6e6df0f3395038da446e35534c4dba704` was verified successful on 24 October
+2026 and includes #1060. This is a dated compatible reference, not a direction
+to roll back to it without checking subsequent schema changes.
+
 **Limits:** this only swaps the frontend. An Edge Function or migration that
 shipped in the same merge is still live.
 

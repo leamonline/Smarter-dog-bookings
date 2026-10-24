@@ -597,7 +597,6 @@ describe("dbConfigToApp", () => {
       default_pickup_offset: 90,
       pricing: { small: { "full-groom": "35" } },
       enforce_capacity: true,
-      large_dog_slots: { "12:00": { seats: 2, canShare: true } },
       settings: {
         businessName: "Bleep's Groom Room",
         businessPhone: "07507 731487",
@@ -627,7 +626,6 @@ describe("dbConfigToApp", () => {
       default_pickup_offset: null,
       pricing: null,
       enforce_capacity: null,
-      large_dog_slots: null,
     };
     const config = dbConfigToApp(row);
 
@@ -646,7 +644,6 @@ describe("dbConfigToApp", () => {
       default_pickup_offset: 60,
       pricing: {},
       enforce_capacity: false,
-      large_dog_slots: {},
     };
     const config = dbConfigToApp(row);
     expect(config!.enforceCapacity).toBe(false);
