@@ -80,11 +80,11 @@ describe("the mobile sticky booking action", () => {
   });
 
   it("survives an unrelated trusted-humans failure", () => {
-    // Bookings loaded fine; only a later request in the same chain failed.
+    // Bookings loaded fine; only the separate trusted-humans read failed.
     // The customer keeps their booking action.
     renderDashboard(
       { trustedHumans: false },
-      { loadError: new Error("permission denied") },
+      { trustedHumansError: new Error("permission denied") },
     );
     expect(screen.getAllByRole("button", { name: /Book a groom/ }).length)
       .toBeGreaterThan(0);
