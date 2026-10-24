@@ -324,11 +324,11 @@ export function getStatusDisplay(statusId: string): StatusDisplay {
 }
 
 export const ALERT_OPTIONS = [
-  { label: "Bites / Nips", color: "var(--color-brand-coral)" },
-  { label: "Reactive to dogs", color: "var(--color-brand-coral)" },
-  { label: "Kennel aggressive", color: "var(--color-brand-coral)" },
-  { label: "Nervous / Anxious", color: "#D97706" },
-  { label: "Fear of dryer", color: "#D97706" },
-  { label: "Sensitive paws", color: "#D97706" },
-  { label: "Senior (Needs breaks)", color: "#0099BD" },
+  { label: "Bites / Nips", color: "var(--color-brand-coral)", tone: "behaviour" },
+  { label: "Reactive to dogs", color: "var(--color-brand-coral)", tone: "behaviour" },
+  { label: "Kennel aggressive", color: "var(--color-brand-coral)", tone: "behaviour" },
+  { label: "Nervous / Anxious", color: "#D97706", tone: "caution" },
+  { label: "Fear of dryer", color: "#D97706", tone: "caution" },
+  { label: "Sensitive paws", color: "#D97706", tone: "caution" },
+  { label: "Senior (Needs breaks)", color: "#0099BD", tone: "information" },
 ];
