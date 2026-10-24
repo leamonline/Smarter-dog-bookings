@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   useCustomerDashboardData: vi.fn(),
   saveContactDetails: vi.fn(),
   lookupAddress: vi.fn(),
+  restoredDraft: { value: null },
 }));
 
 vi.mock("../../supabase/customerClient", () => ({
@@ -21,7 +22,7 @@ vi.mock("../../supabase/hooks/useCustomerOnboardingActions", () => ({
 }));
 
 vi.mock("../../hooks/useDraftPersistence", () => ({
-  useDraftPersistence: () => ({ restored: null, save: vi.fn(), clear: vi.fn() }),
+  useDraftPersistence: () => ({ restored: mocks.restoredDraft.value, save: vi.fn(), clear: vi.fn() }),
 }));
 
 vi.mock("./AddToCalendarButton.tsx", () => ({
@@ -123,6 +124,32 @@ describe("CustomerDashboard — saving My details", () => {
   beforeEach(() => {
     mocks.saveContactDetails.mockReset();
     mocks.lookupAddress.mockReset();
+    mocks.restoredDraft.value = null;
+  });
+
+  it("keeps a postcode-only correction from a restored draft", async () => {
+    // Same address text, corrected postcode, page left before saving. The
+    // picker must reopen on the draft, or it reports the saved postcode and
+    // silently undoes the correction. (Codex review on #1076.)
+    mocks.restoredDraft.value = {
+      name: HUMAN.name,
+      surname: HUMAN.surname,
+      address: HUMAN.address,
+      postcode: "SK14 9ZZ",
+      email: HUMAN.email,
+      whatsapp: false,
+      fb: "",
+      insta: "",
+      tiktok: "",
+    };
+    renderDashboard();
+    fireEvent.click(card().getByRole("button", { name: /edit details/i }));
+
+    await save(savedRow({ postcode: "SK14 9ZZ" }));
+
+    expect(mocks.saveContactDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ address: HUMAN.address, postcode: "SK14 9ZZ" }),
+    );
   });
 
   it("keeps the saved address and its postcode when only the name changes", async () => {

@@ -87,12 +87,16 @@ export function MyDetailsCard({
           editor={
             // The same picker as sign-up, so the address and its postcode are
             // chosen — and saved — together. It opens on the saved address; a
-            // restored draft with a different address reopens in manual entry.
+            // restored draft whose address OR postcode differs reopens in
+            // manual entry, or the picker would report the saved postcode and
+            // quietly undo a postcode-only correction.
             <AddressPicker
               existingAddress={savedAddress}
               existingPostcode={savedPostcode ?? ""}
               initialValue={
-                details.address && details.address !== savedAddress
+                details.address &&
+                (details.address !== savedAddress ||
+                  (details.postcode ?? null) !== (savedPostcode ?? null))
                   ? { address: details.address, postcode: details.postcode ?? "", keepingExisting: false }
                   : undefined
               }
