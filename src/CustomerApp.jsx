@@ -1,16 +1,11 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth";
 import { useCustomerProfileGate } from "./supabase/hooks/useCustomerProfileGate";
 import { useCustomerSignupGate } from "./supabase/hooks/useCustomerSignupGate";
 import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
-import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
-import { ProfileGate } from "./components/customer/onboarding/ProfileGate.jsx";
-import { SetPasswordGate } from "./components/customer/onboarding/SetPasswordGate.jsx";
-import { JoinThePackWelcome } from "./components/customer/onboarding/JoinThePackWelcome.jsx";
-import { JoinThePackOnboarding } from "./components/customer/onboarding/JoinThePackOnboarding.jsx";
-import { PendingApprovalGate } from "./components/customer/onboarding/PendingApprovalGate.jsx";
-import { BookingWizard } from "./components/customer/booking/BookingWizard";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen } from "./components/ui/PageShell.jsx";
@@ -18,13 +13,40 @@ import { ToastProvider } from "./contexts/ToastContext.jsx";
 import "./customer-portal.css";
 import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 
+// Keep account gates and route screens out of the sign-in download.
+const CustomerDashboard = lazy(() =>
+  import("./components/customer/CustomerDashboard.jsx").then((module) => ({ default: module.CustomerDashboard })),
+);
+const ProfileGate = lazy(() =>
+  import("./components/customer/onboarding/ProfileGate.jsx").then((module) => ({ default: module.ProfileGate })),
+);
+const SetPasswordGate = lazy(() =>
+  import("./components/customer/onboarding/SetPasswordGate.jsx").then((module) => ({ default: module.SetPasswordGate })),
+);
+const JoinThePackWelcome = lazy(() =>
+  import("./components/customer/onboarding/JoinThePackWelcome.jsx").then((module) => ({ default: module.JoinThePackWelcome })),
+);
+const JoinThePackOnboarding = lazy(() =>
+  import("./components/customer/onboarding/JoinThePackOnboarding.jsx").then((module) => ({ default: module.JoinThePackOnboarding })),
+);
+const PendingApprovalGate = lazy(() =>
+  import("./components/customer/onboarding/PendingApprovalGate.jsx").then((module) => ({ default: module.PendingApprovalGate })),
+);
+const BookingWizard = lazy(() =>
+  import("./components/customer/booking/BookingWizard").then((module) => ({ default: module.BookingWizard })),
+);
+
 export default function CustomerApp() {
   // Wrap the whole app in ToastProvider so customer-facing save flows
   // (MyDetails, dogs, trusted humans) can confirm success or surface
   // failures alongside the existing inline portal-alert--error UI.
   return (
     <ToastProvider>
-      <CustomerAppContent />
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingSpinner />}>
+          <CustomerAppContent />
+        </Suspense>
+      </ErrorBoundary>
     </ToastProvider>
   );
 }

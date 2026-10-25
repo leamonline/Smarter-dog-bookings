@@ -67,20 +67,20 @@ describe("design tokens: published contrast ratios match the CSS", () => {
     ["color-brand-teal-text", () => WHITE, 6.0],
     ["color-brand-teal-dark", () => WHITE, 6.3],
     ["color-brand-green-600", () => WHITE, 5.2],
-    ["color-brand-green-700", () => WHITE, 5.3],
+    ["color-brand-green-700", () => WHITE, 5.2],
     ["color-brand-green-800", () => resolve("color-brand-green-100"), 7.0],
     ["color-brand-whatsapp", () => WHITE, 1.98],
     ["color-brand-whatsapp-dark", () => WHITE, 6.2],
     ["color-brand-mustard", () => WHITE, 3.25],
-    ["color-ink-muted", () => WHITE, 4.76],
-    ["color-ink-muted", () => PAGE, 4.55],
+    ["color-ink-muted", () => WHITE, 5.8],
+    ["color-ink-muted", () => PAGE, 5.5],
     ["color-text-muted", () => WHITE, 5.8],
     ["color-text-muted", () => PAGE, 5.5],
     ["color-text-muted", PAPER, 5.1],
     ["color-text-placeholder", () => WHITE, 2.6],
-    ["color-sd-ink-light", PAPER, 4.57],
-    ["color-sd-ink-light", () => WHITE, 5.2],
-    ["color-sd-ink-light", () => resolve("color-sd-sky-tint"), 4.7],
+    ["color-sd-ink-light", PAPER, 5.1],
+    ["color-sd-ink-light", () => WHITE, 5.8],
+    ["color-sd-ink-light", () => resolve("color-sd-sky-tint"), 5.2],
   ];
 
   it.each(claims)("%s on %#: documented ratio holds", (fg, bg, documented) => {
@@ -96,6 +96,10 @@ describe("design tokens: one value, one canonical name", () => {
     ["color-brand-purple", "color-brand-ink"],
     ["color-sd-navy", "color-brand-ink"],
     ["color-ink", "color-brand-ink"],
+    ["color-ink-muted", "color-text-muted"],
+    ["color-sd-ink-light", "color-text-muted"],
+    ["color-brand-green-700", "color-brand-green-600"],
+    ["sd-mute", "color-text-placeholder"],
     ["sd-dark", "color-brand-dark"],
   ])("--%s and --%s resolve to the same colour", (alias, canonical) => {
     expect(resolve(alias)).toBe(resolve(canonical));
