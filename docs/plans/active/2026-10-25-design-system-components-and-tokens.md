@@ -59,10 +59,10 @@ The capacity engine exists three times (`src/engine/capacity.ts`, `supabase/func
 Portal names are still a second scheme. Measured on 2026-10-25:
 - 22 `--sd-*` shorthand names with about 349 uses, and 19 `--color-sd-*` names with about 51 uses, across 24 files.
 - The heaviest: `--sd-navy` (128), `--sd-ink-light` (47), `--sd-navy-soft` (37), `--sd-cyan-dark` and `--sd-yellow` (19 each).
-- Many are already aliases of canonical tokens (`sd-navy` → `color-brand-ink`, `sd-ink-light` → `color-text-muted`, `sd-yellow` → `color-brand-yellow`), so they carry a name, not a value.
+- Most are aliases of canonical tokens (`sd-navy` → `color-brand-ink`, `sd-yellow` → `color-brand-yellow`), so they carry a name, not a value. Two do not yet: `--sd-ink-light` is its own `#626D84` and `--sd-mute` its own `#94A3B8`, not the canonical `#57677C` (`color-text-muted`) and `#90A1B9` (`color-text-placeholder`). They only become aliases once the grey merge (#1105) lands.
 
 ### Proposal, in order
-1. **Rename by codemod, behind a ratchet.** Replace `--sd-navy` with `--color-ink`, `--sd-ink-light` with `--color-text-muted`, and so on, for every alias whose value is already identical. No pixel changes. A test counts remaining `--sd-*` names and may only go down, like the raw-control and small-text ratchets.
+1. **Rename by codemod, behind a ratchet.** Replace `--sd-navy` with `--color-ink`, `--sd-yellow` with `--color-brand-yellow`, and so on, for every alias whose value is **already identical**. Keep `--sd-ink-light` and `--sd-mute` out of the codemod until #1105 makes them identical: renaming them first would change portal text colours, which this step must not do. (Doing step 1 on top of #1105, as #1107 does, is what lets them join.) No pixel changes. A test counts remaining `--sd-*` names and may only go down, like the raw-control and small-text ratchets.
 2. **Make the surface a mode, not a naming scheme.** The portal sits on cream paper and the staff canvas on slate-50. Scope that difference with a surface attribute (for example `[data-surface="paper"]`) that re-points `--color-surface`, the border and the muted text, instead of carrying a parallel set of names.
 3. **Keep the genuinely portal-only values** (the tint washes, the washi-tape colours, the portal shadows) as `--color-sd-*` until they are used outside the portal, and document them as portal-only.
 4. **Retire the shorthand block** in `index.css` once its uses reach zero.
