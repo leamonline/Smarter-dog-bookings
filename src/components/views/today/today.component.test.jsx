@@ -392,7 +392,7 @@ describe("the day stack page — selected-date operations", () => {
     expect(action("Card £50")).toBeInTheDocument();
     fireEvent.click(action("Back"));
     fireEvent.click(action("Open full invoice"));
-    expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
+    expect(screen.getByRole("spinbutton", { name: "Base price" })).toHaveValue(50);
   });
 
   it("saves the invoice through the selected-date booking mutation", async () => {

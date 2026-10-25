@@ -34,7 +34,7 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Payment received")).toHaveValue(32);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(32);
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
@@ -67,7 +67,7 @@ describe("MiniInvoiceModal", () => {
     fireEvent.click(fleaBath);
 
     expect(fleaBath).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("Payment received")).toHaveValue(52);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(52);
     expect(screen.getAllByText("£52")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
@@ -95,8 +95,8 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Deposit received")).toHaveValue(10);
-    expect(screen.getByLabelText("Payment received")).toHaveValue(32);
+    expect(screen.getByRole("spinbutton", { name: "Deposit" })).toHaveValue(10);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(32);
     expect(screen.getByRole("radio", { name: "Card" })).toBeChecked();
 
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
@@ -131,11 +131,11 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Base groom price"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Base price" }), {
       target: { value: "46" },
     });
 
-    expect(screen.getByLabelText("Payment received")).toHaveValue(36);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(36);
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
     await waitFor(() =>
@@ -169,7 +169,7 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Payment received")).toHaveValue(32);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(32);
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -190,14 +190,14 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Base groom price"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Base price" }), {
       target: { value: "46" },
     });
     fireEvent.click(screen.getByRole("radio", { name: "Cash" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Payment could not be saved");
-    expect(screen.getByLabelText("Base groom price")).toHaveValue(46);
+    expect(screen.getByRole("spinbutton", { name: "Base price" })).toHaveValue(46);
   });
 
   it("ignores backdrop dismissal while a save is pending", async () => {
@@ -219,7 +219,7 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Base groom price"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Base price" }), {
       target: { value: "46" },
     });
     fireEvent.click(screen.getByRole("radio", { name: "Cash" }));
@@ -234,7 +234,7 @@ describe("MiniInvoiceModal", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Payment could not be saved",
     );
-    expect(screen.getByLabelText("Base groom price")).toHaveValue(46);
+    expect(screen.getByRole("spinbutton", { name: "Base price" })).toHaveValue(46);
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -250,16 +250,16 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Payment received"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Take now" }), {
       target: { value: "20" },
     });
-    fireEvent.change(screen.getByLabelText("Base groom price"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Base price" }), {
       target: { value: "46" },
     });
     fireEvent.click(screen.getByRole("radio", { name: "Cash" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
-    expect(screen.getByLabelText("Payment received")).toHaveValue(20);
+    expect(screen.getByRole("spinbutton", { name: "Take now" })).toHaveValue(20);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Enter the full £46 balance or update the deposit amount",
     );
@@ -295,7 +295,7 @@ describe("MiniInvoiceModal", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Deposit received"), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Deposit" }), {
       target: { value: "5" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -307,7 +307,7 @@ describe("MiniInvoiceModal", () => {
     // "Keep editing" backs out without losing the draft…
     fireEvent.click(within(discardDialog).getByRole("button", { name: "Keep editing" }));
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Deposit received")).toHaveValue(5);
+    expect(screen.getByRole("spinbutton", { name: "Deposit" })).toHaveValue(5);
 
     // …and "Discard changes" is the one destructive step that closes.
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
