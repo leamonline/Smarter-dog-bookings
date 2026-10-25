@@ -38,7 +38,7 @@ export function BookingCreatedCard({ action, dogNamesById }) {
     <div className="flex justify-center my-2">
       <Link
         to={href}
-        className="inline-flex items-center gap-2 max-w-[80%] px-3 py-2 rounded-full bg-brand-green-50 border border-brand-green-200 text-brand-green-900 text-[12px] font-semibold no-underline hover:bg-brand-green-100 transition-colors"
+        className="inline-flex items-center gap-2 max-w-[80%] px-3 py-2 rounded-full bg-brand-green-50 border border-brand-green-200 text-brand-green-900 text-xs font-semibold no-underline hover:bg-brand-green-100 transition-colors"
       >
         <span aria-hidden="true">✓</span>
         <span>

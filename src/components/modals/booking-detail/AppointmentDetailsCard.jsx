@@ -45,7 +45,7 @@ export function AppointmentDetailsCard({
           editNode={
             <button
               onClick={onOpenDatePicker}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border bg-white cursor-pointer flex justify-between items-center"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border bg-white cursor-pointer flex justify-between items-center"
             >
               <span className="font-semibold">{formatFullDate(editData.date)}</span>
               <span className="text-sm">{"📅"}</span>
@@ -76,7 +76,7 @@ export function AppointmentDetailsCard({
                       disabled={!isClickable}
                       title={isOverride ? "Over capacity. Save will prompt for override." : undefined}
                       aria-label={isOverride ? `${slot} — over capacity, click to override` : slot}
-                      className="py-2 rounded-lg text-[13px] font-semibold text-center"
+                      className="py-2 rounded-lg text-body font-semibold text-center"
                       style={{
                         cursor: isClickable ? "pointer" : "not-allowed",
                         background: isSelected
@@ -120,7 +120,7 @@ export function AppointmentDetailsCard({
                   );
                 })
               ) : (
-                <span className="text-[13px] text-brand-coral font-semibold col-span-full">No available slots on this date</span>
+                <span className="text-body text-brand-coral font-semibold col-span-full">No available slots on this date</span>
               )}
             </div>
           }
@@ -144,7 +144,7 @@ export function AppointmentDetailsCard({
           label={<LogisticsLabel text="Grooming Notes" />}
           value={<span style={{ whiteSpace: "pre-wrap" }}>{editData.groomNotes || "Standard groom (no specific notes)"}</span>}
           editNode={
-            <textarea value={editData.groomNotes} onChange={(e) => setEditData((prev) => ({ ...prev, groomNotes: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border resize-y min-h-[44px] text-right" />
+            <textarea value={editData.groomNotes} onChange={(e) => setEditData((prev) => ({ ...prev, groomNotes: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border resize-y min-h-[44px] text-right" />
           }
           isEditing={isEditing}
         />

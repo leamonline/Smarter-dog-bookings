@@ -33,7 +33,7 @@ const THEME = {
       heading: "text-emerald-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-emerald-700/70 text-sm font-medium",
-      cta: "text-emerald-700 hover:underline text-[12px] font-semibold",
+      cta: "text-emerald-700 hover:underline text-xs font-semibold",
     },
     active: {
       frame:
@@ -44,7 +44,7 @@ const THEME = {
       subtitle: "text-emerald-700/70",
       pill: "bg-emerald-100 text-emerald-800",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full border border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full border border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-4 py-2 text-body font-bold",
       progressTrack: "bg-emerald-100",
       progressFill: "bg-emerald-600",
     },
@@ -58,7 +58,7 @@ const THEME = {
       subtitle: "text-emerald-700/70",
       pill: "bg-brand-coral text-white",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-body font-bold",
       progressTrack: "bg-emerald-100",
       progressFill: "bg-brand-coral",
     },
@@ -69,7 +69,7 @@ const THEME = {
       heading: "text-feedback-warning-ink/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-feedback-warning-ink/70 text-sm font-medium",
-      cta: "text-feedback-warning-ink hover:underline text-[12px] font-semibold",
+      cta: "text-feedback-warning-ink hover:underline text-xs font-semibold",
     },
     active: {
       frame:
@@ -80,7 +80,7 @@ const THEME = {
       subtitle: "text-feedback-warning-ink/70",
       pill: "bg-feedback-warning-tint text-feedback-warning-ink",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full border border-brand-mustard text-feedback-warning-ink hover:bg-feedback-warning-tint px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full border border-brand-mustard text-feedback-warning-ink hover:bg-feedback-warning-tint px-4 py-2 text-body font-bold",
       progressTrack: "bg-feedback-warning-tint",
       progressFill: "bg-brand-mustard",
     },
@@ -94,7 +94,7 @@ const THEME = {
       subtitle: "text-feedback-warning-ink/70",
       pill: "bg-brand-coral text-white",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-body font-bold",
       progressTrack: "bg-feedback-warning-tint",
       progressFill: "bg-brand-coral",
     },
@@ -105,7 +105,7 @@ const THEME = {
       heading: "text-sky-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-sky-700/70 text-sm font-medium",
-      cta: "text-sky-700 hover:underline text-[12px] font-semibold",
+      cta: "text-sky-700 hover:underline text-xs font-semibold",
     },
     active: {
       frame:
@@ -116,7 +116,7 @@ const THEME = {
       subtitle: "text-sky-700/70",
       pill: "bg-sky-100 text-sky-800",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full border border-sky-600 text-sky-700 hover:bg-sky-50 px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full border border-sky-600 text-sky-700 hover:bg-sky-50 px-4 py-2 text-body font-bold",
       progressTrack: "bg-sky-100",
       progressFill: "bg-sky-600",
     },
@@ -130,7 +130,7 @@ const THEME = {
       subtitle: "text-sky-700/70",
       pill: "bg-brand-coral text-white",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full bg-brand-coral text-white hover:bg-brand-coral-dark px-4 py-2 text-body font-bold",
       progressTrack: "bg-sky-100",
       progressFill: "bg-brand-coral",
     },
@@ -141,7 +141,7 @@ const THEME = {
       heading: "text-rose-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-rose-700/70 text-sm font-medium",
-      cta: "text-rose-700 hover:underline text-[12px] font-semibold",
+      cta: "text-rose-700 hover:underline text-xs font-semibold",
     },
     active: {
       frame:
@@ -152,7 +152,7 @@ const THEME = {
       subtitle: "text-rose-700/70",
       pill: "bg-rose-100 text-rose-800",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full border border-rose-600 text-rose-700 hover:bg-rose-50 px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full border border-rose-600 text-rose-700 hover:bg-rose-50 px-4 py-2 text-body font-bold",
       progressTrack: "bg-rose-100",
       progressFill: "bg-rose-600",
     },
@@ -169,7 +169,7 @@ const THEME = {
       subtitle: "text-rose-700/70",
       pill: "bg-red-700 text-white",
       cta:
-        "inline-flex items-center justify-center gap-2 rounded-full bg-red-700 text-white hover:bg-red-800 px-4 py-2 text-[13px] font-bold",
+        "inline-flex items-center justify-center gap-2 rounded-full bg-red-700 text-white hover:bg-red-800 px-4 py-2 text-body font-bold",
       progressTrack: "bg-rose-100",
       progressFill: "bg-red-700",
     },

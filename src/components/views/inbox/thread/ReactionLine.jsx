@@ -25,7 +25,7 @@ export function ReactionLine({ message, emoji }) {
       >
         <span>Reacted</span>
         {emoji ? (
-          <span aria-hidden="true" className="text-[13px] leading-none">
+          <span aria-hidden="true" className="text-body leading-none">
             {emoji}
           </span>
         ) : (

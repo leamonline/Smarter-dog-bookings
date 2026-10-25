@@ -87,7 +87,7 @@ export function WorkflowStatusStrip({
         aria-label={ariaLabel}
         className="w-full min-h-[44px] flex items-center gap-2 px-3 py-2 rounded-2xl border border-gray-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] cursor-pointer font-[inherit] text-left"
       >
-        <span className="shrink-0 text-brand-purple font-semibold text-[13px]">
+        <span className="shrink-0 text-brand-purple font-semibold text-body">
           Workflow
         </span>
         <span
@@ -95,14 +95,14 @@ export function WorkflowStatusStrip({
           aria-hidden="true"
         >
           {active.length === 0 ? (
-            <span className="text-[12px] font-semibold text-emerald-700">All clear</span>
+            <span className="text-xs font-semibold text-emerald-700">All clear</span>
           ) : (
             active.map((it) => {
               const Icon = it.icon;
               return (
                 <span
                   key={it.id}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-bold leading-none ${HUE[it.hue]}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold leading-none ${HUE[it.hue]}`}
                 >
                   <Icon size={12} strokeWidth={2.4} aria-hidden="true" />
                   {it.count > 99 ? "99+" : it.count}

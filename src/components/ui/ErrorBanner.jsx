@@ -21,13 +21,13 @@ export function ErrorBanner({
       <span className="text-xl" aria-hidden="true">{"\u26A0\uFE0F"}</span>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-red-800">{title}</div>
-        {message && <div className="text-[13px] text-slate-800 mt-1">{message}</div>}
+        {message && <div className="text-body text-slate-800 mt-1">{message}</div>}
       </div>
       {retry && (
         <button
           type="button"
           onClick={retry}
-          className="shrink-0 px-3 h-7 flex items-center rounded-md bg-white border border-brand-red text-brand-red text-[12px] font-bold cursor-pointer transition-colors hover:bg-red-50"
+          className="shrink-0 px-3 h-7 flex items-center rounded-md bg-white border border-brand-red text-brand-red text-xs font-bold cursor-pointer transition-colors hover:bg-red-50"
         >
           {retryLabel}
         </button>

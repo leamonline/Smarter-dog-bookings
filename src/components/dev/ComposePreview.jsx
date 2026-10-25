@@ -46,7 +46,7 @@ export function ComposePreview() {
       <h2 className="text-base font-bold text-slate-800 mb-1">
         Compose bar preview
       </h2>
-      <p className="text-[13px] text-slate-500 mb-6">
+      <p className="text-body text-slate-500 mb-6">
         Resize the viewport across the <code>sm</code> (640px) breakpoint to see
         mobile stacking vs the desktop row. The reply box must keep the Send
         button on-screen at all widths.

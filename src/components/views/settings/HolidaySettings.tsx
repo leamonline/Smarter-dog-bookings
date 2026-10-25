@@ -71,12 +71,12 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
         </p>
 
         {error && (
-          <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-4">
+          <div role="alert" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-4">
             {error}
           </div>
         )}
         {message && (
-          <div role="status" className="text-[13px] text-brand-teal-dark font-semibold bg-[#E6F5F2] px-3 py-2 rounded-lg mb-4">
+          <div role="status" className="text-body text-brand-teal-dark font-semibold bg-[#E6F5F2] px-3 py-2 rounded-lg mb-4">
             {message}
           </div>
         )}
@@ -106,11 +106,11 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
                   <label htmlFor={`holiday-${key}`} className={`${SECTION_LABEL_CLS} block`}>{label}</label>
                   <input id={`holiday-${key}`} type="date" required value={draft[key]} disabled={busy || !canEdit} className={INPUT_CLS}
                     aria-describedby={`holiday-${key}-hint`} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
-                  <p id={`holiday-${key}-hint`} className="text-[12px] text-slate-500 mt-1">{hint}</p>
+                  <p id={`holiday-${key}-hint`} className="text-xs text-slate-500 mt-1">{hint}</p>
                 </div>
               ))}
             </div>
-            {orderProblem && <p className="text-[13px] text-brand-coral font-semibold">{orderProblem}</p>}
+            {orderProblem && <p className="text-body text-brand-coral font-semibold">{orderProblem}</p>}
             {draft.revision > 0 && (
               <label className="flex items-center gap-2 text-body text-slate-800">
                 <input type="checkbox" checked={draft.enabled} disabled={busy || !canEdit} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />
@@ -125,7 +125,7 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
                 <div><span className="font-semibold">From {formatHolidayDate(draft.reopens_on)}:</span> the notice disappears on its own.</div>
               </div>
             )}
-            <p className="text-[12px] text-slate-600">
+            <p className="text-xs text-slate-600">
               {draft.enabled
                 ? 'Existing appointments on closed days stay in the diary and are flagged for rearrangement. Changing the dates never reopens days from the previous range.'
                 : 'Removing the notice does not reopen any diary dates or remove rearrangement tasks.'}

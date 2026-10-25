@@ -134,3 +134,24 @@ that specific path rather than re-widening it to the repo default.
   `src/components/ui/index.js` barrel.
 - `Button` and `PageHeader` are pinned to `cardMode: "column"` in
   `cfg.overrides` (their multi-story exports render wider than a grid cell).
+
+
+## Is the design system behind the code?
+
+The design system is a snapshot. `.design-sync/token-snapshot.json` records the
+CSS custom properties (src/index.css, src/customer-portal.css) and the shared
+UI components (src/components/ui) it was last synced from, and one command
+reports the difference:
+
+```sh
+npm run check:design-sync                    # report drift; exit 1 if there is any
+npm run check:design-sync -- --update        # record the working tree
+npm run check:design-sync -- --from <sha>    # record a past commit
+```
+
+After every `/design-sync`, run the `--update` form so the record moves with it.
+The snapshot was first built from `c9c81be`, the commit the design system was
+synced from on 2026-10-25, so the first report lists everything that changed
+since. It is deliberately not part of `npm run lint` or CI: tokens change in
+feature PRs, and a red build on each would be noise. Run it before a release, or
+whenever the design system's README looks stale.

@@ -50,7 +50,7 @@ function ScopeRow({ record, isCurrent, onOpenProfile, disabled }) {
 export function ReenableScopeList({ scope, currentHumanId, onOpenProfile, disabled = false }) {
   const records = scope?.records ?? [];
   return (
-    <div className="text-[12px] leading-snug">
+    <div className="text-xs leading-snug">
       {records.length > 0 && (
         <ul className="m-0 p-0 list-none flex flex-col gap-2.5 mb-2.5">
           {records.map((record) => (

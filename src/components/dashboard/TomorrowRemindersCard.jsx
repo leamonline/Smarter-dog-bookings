@@ -52,7 +52,7 @@ function ReminderRow({ row, onOpen, busy }) {
             : "Click to choose a channel and send a reminder"
       }
       className={[
-        "w-full text-left flex flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-[12px]",
+        "w-full text-left flex flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-xs",
         sent
           ? "bg-brand-green-50/80 text-brand-green-900 hover:bg-brand-green-100/80 cursor-pointer"
           : busy

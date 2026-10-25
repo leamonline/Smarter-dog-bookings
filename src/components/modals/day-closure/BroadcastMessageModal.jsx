@@ -107,7 +107,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
         </header>
       }
     >
-      <p className="text-[13px] text-slate-600 leading-relaxed">
+      <p className="text-body text-slate-600 leading-relaxed">
         Sends every <span className="font-semibold">Booked</span> customer on this day their own private
         message (WhatsApp or SMS — never a group chat). Type the reason and preview before sending.
       </p>
@@ -137,14 +137,14 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
       </label>
 
       {error && (
-        <div role="alert" className="text-[13px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+        <div role="alert" className="text-body text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
           {error}
         </div>
       )}
 
       {result && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2">
-          <div className="text-[13px] text-slate-700">
+          <div className="text-body text-slate-700">
             {resultMode === "preview" ? (
               <>
                 <span className="font-bold text-brand-purple">{recipientCount}</span> customer{recipientCount === 1 ? "" : "s"} would be messaged.
@@ -158,13 +158,13 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           </div>
 
           {dormant && (
-            <div className="text-[12px] text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-md p-2">
+            <div className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-md p-2">
               Nothing will send yet: {!result.broadcast_enabled ? "the broadcast kill-switch is off" : "the WhatsApp template is still awaiting Meta approval"}.
             </div>
           )}
 
           {resultMode === "preview" && (result.sent ?? []).length > 0 && (
-            <div className="text-[12px] text-slate-500">
+            <div className="text-xs text-slate-500">
               Preview: <span className="italic text-slate-600">“{result.sent[0].preview}”</span>
             </div>
           )}
@@ -174,7 +174,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
               <div className="text-caption font-bold text-slate-500 uppercase tracking-wide mb-1">
                 {skipped.length} can’t be reached this way
               </div>
-              <ul className="text-[12px] text-slate-600 flex flex-col gap-0.5 max-h-32 overflow-y-auto">
+              <ul className="text-xs text-slate-600 flex flex-col gap-0.5 max-h-32 overflow-y-auto">
                 {skipped.map((s, i) => (
                   <li key={s.human_id || i} className="flex justify-between gap-2">
                     <span className="truncate">{s.name || "Customer"}</span>
@@ -192,7 +192,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           type="button"
           onClick={() => run(true)}
           disabled={busy || !reasonValid}
-          className="flex-1 py-2.5 rounded-full border border-brand-purple/30 text-brand-purple text-[13px] font-bold cursor-pointer hover:bg-brand-purple/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 rounded-full border border-brand-purple/30 text-brand-purple text-body font-bold cursor-pointer hover:bg-brand-purple/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy && resultMode !== "sent" ? "Checking…" : "Preview recipients"}
         </button>
@@ -201,7 +201,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           onClick={() => run(false)}
           disabled={busy || !reasonValid || resultMode !== "preview" || recipientCount === 0}
           title={resultMode !== "preview" ? "Preview first" : undefined}
-          className="flex-[1.4] py-2.5 rounded-full bg-brand-purple text-white text-[13px] font-bold cursor-pointer hover:bg-brand-purple-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-[1.4] py-2.5 rounded-full bg-brand-purple text-white text-body font-bold cursor-pointer hover:bg-brand-purple-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy && resultMode === "preview" ? "Sending…" : `Send to all${recipientCount ? ` (${recipientCount})` : ""}`}
         </button>

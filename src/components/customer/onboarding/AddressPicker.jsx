@@ -205,7 +205,7 @@ export function AddressPicker({
             {trimmedExisting}
             <button
               type="button"
-              className="block mt-1 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+              className="block mt-1 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
               onClick={() => setEditing(true)}
             >
               Update address
@@ -240,7 +240,7 @@ export function AddressPicker({
         />
         <button
           type="button"
-          className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          className="block mt-2 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
           onClick={() => {
             resetSearch();
             setManualMode(false);
@@ -254,7 +254,7 @@ export function AddressPicker({
   }
   return (
     <div aria-busy={lookupStatus === "searching"}>
-      <p className="text-[12px] text-slate-500 mb-1.5">
+      <p className="text-xs text-slate-500 mb-1.5">
         Enter your house number or name, street and town.
       </p>
       <div className="flex gap-2">
@@ -323,25 +323,25 @@ export function AddressPicker({
               My address isn&apos;t listed — enter it manually
             </option>
           </Select>
-          <p className="text-[12px] text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Check the house number and postcode. Some houses and flats may be
             missing; manual entry is always available.
           </p>
         </>
       )}
       {lookupStatus === "invalid" && (
-        <p role="alert" className="text-[13px] text-brand-coral mt-1.5">
+        <p role="alert" className="text-body text-brand-coral mt-1.5">
           Enter at least three characters of your address, or enter it manually.
         </p>
       )}
       {lookupStatus === "none" && (
-        <p role="status" className="text-[13px] text-brand-coral mt-1.5">
+        <p role="status" className="text-body text-brand-coral mt-1.5">
           No address suggestions found. Add your house number and street, or
           enter your address manually.
         </p>
       )}
       {lookupStatus === "error" && (
-        <p role="alert" className="text-[13px] text-brand-coral mt-1.5">
+        <p role="alert" className="text-body text-brand-coral mt-1.5">
           {lookupError ||
             "Couldn't search just now — please try again, or enter your address manually."}
         </p>
@@ -360,7 +360,7 @@ export function AddressPicker({
       ) : (
         <button
           type="button"
-          className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          className="block mt-2 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
           onClick={enterManual}
         >
           Can&apos;t find your address? Enter it manually

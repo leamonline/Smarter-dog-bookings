@@ -27,7 +27,7 @@ export function AiMessagingPanel({ human, onUpdateHuman }) {
     <PanelShell eyebrow="AI messaging" icon={MessageCircleOff} accent="sky">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[12px] font-bold text-slate-600">
+          <p className="text-xs font-bold text-slate-600">
             Allow AI-initiated WhatsApp messages
           </p>
           <p className="mt-1 text-caption leading-relaxed text-slate-400">

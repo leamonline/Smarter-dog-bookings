@@ -90,7 +90,7 @@ export function ConversationListItem({
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
           <span
-            className={`truncate text-[13px] ${
+            className={`truncate text-body ${
               unread
                 ? "font-bold text-brand-purple"
                 : isClosed
@@ -102,7 +102,7 @@ export function ConversationListItem({
           </span>
           {lastAt && (
             <span
-              className="shrink-0 tabular-nums text-[12px] text-slate-500"
+              className="shrink-0 tabular-nums text-xs text-slate-500"
               title={absoluteWhen}
               aria-label={absoluteWhen}
             >
@@ -111,12 +111,12 @@ export function ConversationListItem({
           )}
         </div>
 
-        {waitingLabel && <p className={`mt-1 text-[12px] font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-feedback-warning-ink"}`}>{waitingLabel}</p>}
+        {waitingLabel && <p className={`mt-1 text-xs font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-feedback-warning-ink"}`}>{waitingLabel}</p>}
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {preview ? (
             <span
-              className={`min-w-0 flex-1 truncate text-[12px] ${
+              className={`min-w-0 flex-1 truncate text-xs ${
                 isOurs ? "text-left" : "text-right"
               } ${unread ? "text-slate-700" : "text-slate-600"}`}
             >
@@ -129,7 +129,7 @@ export function ConversationListItem({
           <div className="flex shrink-0 items-center gap-1">
             {rowStatus && (
               <span
-                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[12px] font-semibold ${
+                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-xs font-semibold ${
                   STATUS_TONES[rowStatus.tone] ?? STATUS_TONES.neutral
                 }`}
                 title={rowStatus.title}
@@ -140,7 +140,7 @@ export function ConversationListItem({
             )}
             {windowBadge && (
               <span
-                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[12px] font-semibold ${
+                className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-xs font-semibold ${
                   windowBadge.kind === "closing_soon"
                     ? "border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink"
                     : "border-slate-200 bg-slate-100 text-slate-700"

@@ -357,7 +357,7 @@ export function BookingWizardShellPreview() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <h2 className="text-base font-bold text-slate-800 mb-1">Booking wizard shell preview</h2>
-      <p className="text-[13px] text-slate-500 mb-6">
+      <p className="text-body text-slate-500 mb-6">
         Resize the viewport across the 640px and 1024px breakpoints. Below 1024px the
         sidebar should disappear and the layout should collapse to a single column;
         above it, the sidebar should appear, stick on scroll, and fill in as state

@@ -17,7 +17,7 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
     <div
       aria-label="End of day"
       role="group"
-      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-brand-paper-line px-1 pt-2.5 text-[12px] text-slate-500"
+      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-brand-paper-line px-1 pt-2.5 text-xs text-slate-500"
     >
       {summary.arrived > 0 ? (
         <span className="whitespace-nowrap">

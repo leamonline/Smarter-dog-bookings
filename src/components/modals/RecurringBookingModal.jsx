@@ -108,7 +108,7 @@ export function RecurringBookingModal({
         </div>
       }
     >
-        <p className="text-[13px] text-slate-500 mb-4">
+        <p className="text-body text-slate-500 mb-4">
           All bookings in this recurring chain.
         </p>
 
@@ -149,10 +149,10 @@ export function RecurringBookingModal({
                     style={{ background: bTheme.primary }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-bold text-slate-800">
+                    <div className="text-body font-bold text-slate-800">
                       {formatDate(b.booking_date)}
                     </div>
-                    <div className="text-[12px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       {b.slot} — {svc?.name || b.service}
                     </div>
                   </div>

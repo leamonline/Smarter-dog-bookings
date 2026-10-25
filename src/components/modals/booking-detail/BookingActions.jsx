@@ -36,13 +36,13 @@ export function BookingActions({
             enough contrast not to be missed on small screens. */}
         <div role="status" aria-live="polite" className="flex justify-end min-h-[18px]">
           {autosaveStatus === "saving" && (
-            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-600">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" aria-hidden="true" />
               Saving…
             </span>
           )}
           {autosaveStatus === "saved" && (
-            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand-green-700">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-green-700">
               <IconTick size={13} colour="currentColor" />
               Saved
             </span>
@@ -77,7 +77,7 @@ export function BookingActions({
           <button
             onClick={onReschedule}
             aria-label="Reschedule booking"
-            className="flex-1 py-2.5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-brand-purple bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+            className="flex-1 py-2.5 rounded-full border-[1.5px] border-slate-200 text-body font-bold text-brand-purple bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
           >
             <IconReopen size={14} colour="#475569" />
             <span>Reschedule</span>
@@ -87,7 +87,7 @@ export function BookingActions({
           onClick={() => { setCancelCause(""); setCancelReason(""); setCancelError(null); setShowCancelConfirm(true); }}
           disabled={!canSoftCancel}
           aria-label="Cancel booking"
-          className="flex-1 py-2.5 rounded-full border-[1.5px] border-rose-200 text-[13px] font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+          className="flex-1 py-2.5 rounded-full border-[1.5px] border-rose-200 text-body font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="8" cy="8" r="6" />
@@ -104,7 +104,7 @@ export function BookingActions({
         <button
           onClick={() => setShowDeleteConfirm(true)}
           aria-label="Delete booking permanently"
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border-none bg-transparent text-[12px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border-none bg-transparent text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />

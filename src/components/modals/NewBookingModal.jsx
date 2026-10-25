@@ -729,7 +729,7 @@ export function NewBookingModal({
 
         {/* ─── WhatsApp context banner ─── */}
         {sourceMessageText && (
-          <div className="mx-6 mt-4 rounded-xl border border-l-4 border-brand-paper-line border-l-brand-teal bg-white px-3.5 py-2.5 text-[13px] text-slate-700">
+          <div className="mx-6 mt-4 rounded-xl border border-l-4 border-brand-paper-line border-l-brand-teal bg-white px-3.5 py-2.5 text-body text-slate-700">
             <span className="font-bold">From WhatsApp:</span> "{sourceMessageText.slice(0, 140)}"
           </div>
         )}

@@ -74,7 +74,7 @@ function ChannelPill({ channel, available, active, onSelect }) {
       title={available.ok ? `Send via ${CHANNEL_LABEL[channel]}` : available.reason}
       aria-pressed={active}
       className={[
-        "inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
+        "inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-body font-semibold font-[inherit] transition-colors",
         !available.ok
           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
           : active
@@ -207,20 +207,20 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
     >
           {/* Booking summary */}
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-            <div className="text-[14px] font-bold text-brand-purple">{row?.customerName}</div>
-            <div className="text-[12px] text-slate-600">{row?.dogNamesDisplay}</div>
-            <div className="text-[12px] text-slate-500 mt-1 tabular-nums">{whenLine}</div>
-            {serviceLine && <div className="text-[12px] text-slate-500">{serviceLine}</div>}
+            <div className="text-sm font-bold text-brand-purple">{row?.customerName}</div>
+            <div className="text-xs text-slate-600">{row?.dogNamesDisplay}</div>
+            <div className="text-xs text-slate-500 mt-1 tabular-nums">{whenLine}</div>
+            {serviceLine && <div className="text-xs text-slate-500">{serviceLine}</div>}
           </div>
 
           {error && (
-            <div role="alert" className="p-2 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-900">
+            <div role="alert" className="p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-900">
               {error}
             </div>
           )}
 
           {isSent ? (
-            <div className="p-3 rounded-lg bg-brand-green-50 border border-brand-green-200 text-[13px] text-brand-green-900">
+            <div className="p-3 rounded-lg bg-brand-green-50 border border-brand-green-200 text-body text-brand-green-900">
               Reminder already sent
               {row.reminderChannel ? ` via ${CHANNEL_LABEL[row.reminderChannel] ?? row.reminderChannel}` : ""}
               {row.reminderSentAt
@@ -229,7 +229,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
               .
             </div>
           ) : loading ? (
-            <div className="text-[12px] text-slate-500 py-4 text-center" role="status">Loading customer…</div>
+            <div className="text-xs text-slate-500 py-4 text-center" role="status">Loading customer…</div>
           ) : (
             <>
               <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
                 <EmailComposer {...composerProps} emailTo={human?.email} />
               )}
               {!selectedChannel && (
-                <div className="text-[12px] text-slate-500 py-2">
+                <div className="text-xs text-slate-500 py-2">
                   {isOrphan
                     ? "This booking isn't linked to a customer record, so there's no contact channel. Open the booking to link a customer."
                     : "No contact channel is available for this customer. Add a phone or email on their profile."}

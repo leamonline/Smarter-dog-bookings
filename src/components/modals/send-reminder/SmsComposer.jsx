@@ -18,7 +18,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
     <div className="flex flex-col gap-2 p-3 bg-sky-50 border border-sky-200 rounded-lg">
       <div className="flex items-start gap-2">
         <span aria-hidden="true" className="mt-0.5 text-sky-700">📱</span>
-        <div className="text-[12px] leading-snug text-sky-900">
+        <div className="text-xs leading-snug text-sky-900">
           <p className="font-bold m-0">SMS via Twilio</p>
           <p className="text-sky-800 m-0">
             Plain text only. Keep it to one segment where you can — longer messages
@@ -37,7 +37,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
         rows={5}
         maxLength={2000}
         aria-label="SMS message body"
-        className="w-full text-[14px] p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
+        className="w-full text-sm p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
       />
 
       <div className="flex items-center justify-between gap-2 flex-wrap text-caption">
@@ -50,7 +50,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
           type="button"
           onClick={() => onSend({ channel: "sms", sms: { text: text.trim() } })}
           disabled={!hasText || sending}
-          className="inline-flex items-center h-9 px-4 rounded-full bg-sky-600 text-white text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-700 transition-colors font-[inherit]"
+          className="inline-flex items-center h-9 px-4 rounded-full bg-sky-600 text-white text-body font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-700 transition-colors font-[inherit]"
         >
           {sending ? "Sending…" : "Send SMS"}
         </button>

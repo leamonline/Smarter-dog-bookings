@@ -31,7 +31,7 @@ export const ReenableAlert = forwardRef(function ReenableAlert({ children, actio
       ref={ref}
       role="alert"
       tabIndex={-1}
-      className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-[13px] leading-snug text-rose-800 focus:outline-none"
+      className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-body leading-snug text-rose-800 focus:outline-none"
     >
       {children}
       {action && <Button variant="ghost" size="sm" className="mt-2" onClick={onAction}>{action}</Button>}

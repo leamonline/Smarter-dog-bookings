@@ -170,7 +170,7 @@ export function MyDetailsCard({
       </div>
 
       {editing && saveError && (
-        <div role="alert" className="portal-alert portal-alert--error mb-3 text-[13px]">
+        <div role="alert" className="portal-alert portal-alert--error mb-3 text-body">
           {saveError}
         </div>
       )}

@@ -138,7 +138,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
                 className="w-full aspect-square min-h-[40px] flex items-center justify-center rounded-full border-none cursor-pointer bg-transparent transition-all hover:bg-slate-50"
               >
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black font-display leading-none transition-all ${circleStyle} ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black font-display leading-none transition-all ${circleStyle} ${
                     isToday && !isSelected ? "ring-2 ring-brand-yellow ring-offset-1" : ""
                   }`}
                 >

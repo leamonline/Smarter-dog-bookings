@@ -357,7 +357,7 @@ export function CustomerLoginPage({
           <p className="text-sm font-bold text-[var(--color-ink)] mb-1">
             Signing in is unavailable right now
           </p>
-          <p className="text-[12px] text-[var(--color-ink-muted)] leading-relaxed">
+          <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
             The security check can&apos;t load, so we can&apos;t sign you in
             just yet. Please try again shortly — or give the salon a ring and
             we&apos;ll sort you out.
@@ -383,7 +383,7 @@ export function CustomerLoginPage({
               options={{ theme: "light", size: "normal" }}
             />
           </div>
-          <p className="text-[12px] text-[var(--color-ink-muted)] text-center mt-3 leading-relaxed">
+          <p className="text-xs text-[var(--color-ink-muted)] text-center mt-3 leading-relaxed">
             Just confirms you&apos;re human — no clicks needed.
           </p>
         </>

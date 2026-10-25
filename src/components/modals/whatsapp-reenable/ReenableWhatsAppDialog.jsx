@@ -170,7 +170,7 @@ export function ReenableWhatsAppDialog({
       mobilePresentation="sheet"
       rootClassName="bm-fields"
       zIndex={1100}
-      bodyClassName="px-5 pb-4 flex flex-col gap-3 text-[13px] leading-relaxed text-slate-700"
+      bodyClassName="px-5 pb-4 flex flex-col gap-3 text-body leading-relaxed text-slate-700"
       header={
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
@@ -179,7 +179,7 @@ export function ReenableWhatsAppDialog({
             <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1">
               Switch WhatsApp back on?
             </h2>
-            <p className="m-0 mt-1 text-[13px] font-semibold text-slate-600">{shownPhone}</p>
+            <p className="m-0 mt-1 text-body font-semibold text-slate-600">{shownPhone}</p>
           </div>
           <HeaderIconButton label="Close" onClick={close}>
             <X size={16} strokeWidth={2.2} aria-hidden="true" />
@@ -280,7 +280,7 @@ export function ReenableWhatsAppDialog({
             </p>
           )}
           <div>
-            <label htmlFor={noteId} className="block text-[12px] font-bold text-slate-600 mb-1">
+            <label htmlFor={noteId} className="block text-xs font-bold text-slate-600 mb-1">
               How and when did they give permission again?
             </label>
             <textarea
@@ -294,13 +294,13 @@ export function ReenableWhatsAppDialog({
               aria-describedby={showNoteError ? `${helperId} ${errorId}` : helperId}
               className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 bg-white outline-none resize-y focus:border-brand-teal"
             />
-            <p id={helperId} className="m-0 mt-1 text-[12px] text-slate-600">
+            <p id={helperId} className="m-0 mt-1 text-xs text-slate-600">
               For example: “Rang the salon on 14 Oct and asked for WhatsApp reminders again.” At least 10 characters.
               It’s kept in the audit log and other staff can see it, so leave out health or payment details.
             </p>
             <InlineError id={errorId} message={showNoteError ? "Add a little more — at least 10 characters." : ""} />
             {hint && (
-              <p id={hintId} className="m-0 mt-1.5 text-[12px] text-slate-600">
+              <p id={hintId} className="m-0 mt-1.5 text-xs text-slate-600">
                 {hint}
               </p>
             )}

@@ -196,12 +196,12 @@ export function resolveDayStatus(
 
 const SIZES = {
   sm: "text-caption px-2 py-0.5",
-  md: "text-[12px] px-2.5 py-1",
+  md: "text-xs px-2.5 py-1",
 } as const;
 
 const BARE_SIZES = {
-  sm: "text-[12px]",
-  md: "text-[13px]",
+  sm: "text-xs",
+  md: "text-body",
 } as const;
 
 export interface BookingStatusBadgeProps {

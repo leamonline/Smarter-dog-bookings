@@ -216,7 +216,7 @@ export function SlotRowMenu({
           aria-hidden="true"
         />
         <span
-          className={`text-[13px] md:text-sm font-bold tabular-nums leading-none ${
+          className={`text-body md:text-sm font-bold tabular-nums leading-none ${
             hasBooking ? "text-brand-purple" : "text-slate-400"
           }`}
         >
@@ -373,7 +373,7 @@ const MENU_ITEM_VARIANTS = {
 
 function MenuItem({ label, onClick, icon: Icon, variant = "neutral" }) {
   const base =
-    "w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[12px] font-bold text-left cursor-pointer border-none font-[inherit] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/70 focus-visible:ring-inset";
+    "w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-bold text-left cursor-pointer border-none font-[inherit] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/70 focus-visible:ring-inset";
   return (
     <button
       type="button"

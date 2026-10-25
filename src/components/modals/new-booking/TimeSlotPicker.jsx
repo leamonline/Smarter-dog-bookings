@@ -53,7 +53,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
   // still render so staff can opt to override capacity.
   if (!hasAnyAvailable && !hasAnyOverrideEligible) {
     return (
-      <div className="text-[13px] text-slate-500 text-center py-3">
+      <div className="text-body text-slate-500 text-center py-3">
         Nothing available for this size on that day
       </div>
     );

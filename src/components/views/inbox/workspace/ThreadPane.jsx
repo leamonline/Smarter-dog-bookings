@@ -94,7 +94,7 @@ export function ThreadPane({
   if (!selectedId) {
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-[14px] text-slate-500">
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-slate-500">
           {!hasConversations
             ? "Nothing here yet — when a customer messages your WhatsApp number, the thread will open here."
             : "Pick a conversation to see the thread."}
@@ -128,7 +128,7 @@ export function ThreadPane({
       lastDayKey = dayKey;
       chronology.push(
         <div key={`day-${dayKey}`} className="my-3 flex justify-center">
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
             {formatDayToken(item.at)}
           </span>
         </div>,
@@ -166,10 +166,10 @@ export function ThreadPane({
               size={36}
             />
             <div className="min-w-0">
-              <span className="block max-w-[260px] truncate font-display text-[14px] font-bold leading-tight text-brand-purple">
+              <span className="block max-w-[260px] truncate font-display text-sm font-bold leading-tight text-brand-purple">
                 {displayName(conversation)}
               </span>
-              <div className="truncate text-[12px] text-slate-600">
+              <div className="truncate text-xs text-slate-600">
                 {formatPhoneForDisplay(conversation?.phone_e164)}
                 {customerEmail ? ` | ${customerEmail}` : ""}
               </div>
@@ -178,7 +178,7 @@ export function ThreadPane({
           <div className="flex w-full flex-wrap items-center gap-1 md:w-auto md:gap-2">
             {conversation?.closed_at && (
               <span
-                className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-500"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"
                 title={`Closed ${new Date(conversation.closed_at).toLocaleString("en-GB")}${
                   conversation.closure_reason && conversation.closure_reason !== "manual"
                     ? ` · auto-reason: ${conversation.closure_reason}`
@@ -199,7 +199,7 @@ export function ThreadPane({
               type="button"
               onClick={onOpenBooking}
               aria-label={bookingSuggested ? "Booking (suggested)" : undefined}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Booking
               {bookingSuggested ? (
@@ -210,7 +210,7 @@ export function ThreadPane({
               ref={contextTriggerRef}
               type="button"
               onClick={onOpenCustomer}
-              className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-2 text-[12px] font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Customer
             </button>
