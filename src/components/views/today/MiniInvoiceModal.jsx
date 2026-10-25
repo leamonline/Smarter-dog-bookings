@@ -10,10 +10,8 @@ import { computeBookingPricing } from "../../../engine/bookingRules";
 import { buildMiniInvoicePatch } from "../../../engine/dailyBrief";
 import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { ConfirmDialog } from "../../modals/ConfirmDialog.jsx";
+import { Input } from "../../ui/index.js";
 import { formatMoney } from "./parts.jsx";
-
-const INPUT_CLASS =
-  "min-h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-2 font-[inherit] text-base font-bold tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 sm:text-sm";
 
 const SAVE_ERROR = "Payment could not be saved. Check your connection and try again.";
 
@@ -210,7 +208,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
               >
                 £
               </span>
-              <input
+              <Input
                 aria-label="Base groom price"
                 type="number"
                 inputMode="decimal"
@@ -219,7 +217,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 value={basePrice}
                 onChange={updateBasePrice}
                 disabled={saving}
-                className={INPUT_CLASS}
+                className="pl-7 tabular-nums"
               />
             </span>
           </label>
@@ -233,7 +231,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
               >
                 £
               </span>
-              <input
+              <Input
                 aria-label="Deposit received"
                 type="number"
                 inputMode="decimal"
@@ -242,7 +240,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 value={depositAmount}
                 onChange={updateDepositAmount}
                 disabled={saving}
-                className={INPUT_CLASS}
+                className="pl-7 tabular-nums"
               />
             </span>
           </label>
@@ -304,7 +302,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
               >
                 £
               </span>
-              <input
+              <Input
                 aria-label="Payment received"
                 type="number"
                 inputMode="decimal"
@@ -313,7 +311,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 value={paymentReceived}
                 onChange={updatePaymentReceived}
                 disabled={saving}
-                className={INPUT_CLASS}
+                className="pl-7 tabular-nums"
               />
             </span>
           </label>

@@ -1,12 +1,11 @@
 import { SERVICES, DOG_SIZES } from "../../../constants/index";
 import { penceToPounds, pricePenceFromTableValue } from "../../../utils/money";
 import { Card, CardHead, CardBody, ReadOnlyNotice, SECTION_LABEL_CLS } from "./shared.jsx";
+import { Input } from "../../ui";
 
 export function PricingSettings({ config }) {
   const currentServices = config?.services || SERVICES;
   const currentPricing = config?.pricing || {};
-
-  const priceInputCls = "w-full py-2 px-2 pl-10 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 outline-none transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";
 
   return (
     <Card id="settings-pricing">
@@ -61,14 +60,15 @@ export function PricingSettings({ config }) {
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-semibold pointer-events-none">
                     from £
                   </span>
-                  <input
+                  <Input
                     type="number"
                     min="0"
                     step="0.5"
                     disabled
                     value={val}
                     readOnly
-                    className={priceInputCls}
+                    aria-label={`${s.name}, ${size} dog price`}
+                    className="pl-10"
                   />
                 </div>
               );
@@ -87,13 +87,14 @@ export function PricingSettings({ config }) {
 
         {/* Add service */}
         <div className="flex gap-2 mt-3 items-center">
-          <input
+          <Input
             type="text"
             disabled
             value=""
             readOnly
             placeholder="Service name"
-            className="flex-1 py-2 px-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+            aria-label="New service name"
+            className="flex-1"
           />
           <button
             disabled

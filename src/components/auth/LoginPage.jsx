@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
+import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { turnstileConfig, CAPTCHA_PENDING_ERROR, isCaptchaRejection } from "../../lib/turnstile";
 
@@ -19,13 +20,8 @@ const focusRing =
 const kickerClass =
   "font-bold text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-light)]";
 
-// Tailwind stand-ins for portal-input / portal-alert--error from
-// customer-portal.css, which isn't loaded on the staff app.
-const fieldInputClass =
-  "w-full px-4 py-3 min-h-[46px] sm:min-h-[52px] rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] bg-white " +
-  "text-base text-[var(--sd-navy)] placeholder:text-slate-500 placeholder:font-medium " +
-  "outline-none transition-colors focus:border-[var(--sd-navy)] " + focusRing;
-
+// Tailwind stand-in for portal-alert--error from customer-portal.css, which
+// isn't loaded on the staff app. (The inputs are the shared <Input surface="paper">.)
 const alertErrorClass =
   "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-body leading-[1.45] " +
   "bg-[var(--sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
@@ -232,7 +228,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             <label htmlFor="staff-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
               Email
             </label>
-            <input
+            <Input
               id="staff-email"
               name="email"
               type="email"
@@ -240,7 +236,8 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={email}
               onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
               placeholder="you@smarterdog.co.uk"
-              className={fieldInputClass}
+              surface="paper"
+              size="lg"
               autoFocus
             />
           </div>
@@ -248,7 +245,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             <label htmlFor="staff-password" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
               Password
             </label>
-            <input
+            <Input
               id="staff-password"
               name="password"
               type="password"
@@ -256,7 +253,8 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
               placeholder="Your password"
-              className={fieldInputClass}
+              surface="paper"
+              size="lg"
             />
           </div>
 
@@ -368,7 +366,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           <label htmlFor="reset-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
             Email
           </label>
-          <input
+          <Input
             id="reset-email"
             name="email"
             type="email"
@@ -376,7 +374,8 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             value={resetEmail}
             onChange={(e) => { setResetEmail(e.target.value); setResetError(""); }}
             placeholder="you@smarterdog.co.uk"
-            className={fieldInputClass}
+            surface="paper"
+              size="lg"
             autoFocus
           />
         </div>

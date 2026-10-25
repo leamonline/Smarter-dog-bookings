@@ -23,8 +23,7 @@
 //  - Disabled follows Button: slate-100 fill, slate-600 text, not just faded.
 
 const BASE =
-  "block w-full border-[1.5px] bg-white font-[inherit] font-semibold text-ink " +
-  "text-base pointer-fine:text-body " +
+  "block border-[1.5px] bg-white font-[inherit] font-semibold text-ink " +
   "placeholder:font-medium placeholder:text-slate-500 " +
   "motion-safe:transition-colors motion-safe:duration-[var(--duration-fast)] " +
   "hover:border-ink focus:border-ink " +
@@ -36,9 +35,14 @@ const BORDER = {
   invalid: "border-brand-coral-dark hover:border-brand-coral-deep focus:border-brand-coral-deep",
 };
 
+// Text size lives here, not in BASE, so a size can own it outright (two text
+// utilities on one element are settled by stylesheet order, not written order).
+// sm and md: 16px on touch, 13px with a mouse. lg is the sign-in screens'
+// large field: always 16px, taller, as the staff and customer login have been.
 const SIZES = {
-  sm: "px-2.5 py-1.5 pointer-coarse:min-h-11",
-  md: "px-3 py-2 pointer-coarse:min-h-11",
+  sm: "px-2.5 py-1.5 text-base pointer-fine:text-body pointer-coarse:min-h-11",
+  md: "px-3 py-2 text-base pointer-fine:text-body pointer-coarse:min-h-11",
+  lg: "px-4 py-3 text-base min-h-[46px] sm:min-h-[52px]",
 };
 
 // "page" is the staff canvas; "paper" is the cream customer portal, whose
@@ -48,9 +52,15 @@ const SURFACES = {
   paper: "rounded-sd-input",
 };
 
+// Full width is the default, but only when the caller has not chosen a width:
+// two width utilities on one element are settled by stylesheet order, not by
+// the order they are written, so `w-full w-[70px]` is a coin toss.
+const hasWidth = (className) => /(^|\s)(min-|max-)?w-/.test(className);
+
 export function controlClassName({ invalid = false, size = "md", surface = "page", className = "" } = {}) {
   return [
     BASE,
+    hasWidth(className) ? "" : "w-full",
     invalid ? BORDER.invalid : BORDER.default,
     SIZES[size] ?? SIZES.md,
     SURFACES[surface] ?? SURFACES.page,
