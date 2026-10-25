@@ -57,7 +57,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="add-dog-name" className="text-[13px] text-[var(--color-ink)] font-semibold">Name *</label>
+        <label htmlFor="add-dog-name" className="text-body text-[var(--color-ink)] font-semibold">Name *</label>
         <input
           id="add-dog-name"
           type="text"
@@ -69,7 +69,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <span id="add-dog-breed-label" className="text-[13px] text-[var(--color-ink)] font-semibold">Breed</span>
+        <span id="add-dog-breed-label" className="text-body text-[var(--color-ink)] font-semibold">Breed</span>
         <BreedCombobox
           value={breed}
           onChange={handleBreedChange}

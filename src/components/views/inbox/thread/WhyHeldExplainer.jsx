@@ -52,7 +52,7 @@ export function WhyHeldExplainer({ draft, conversation }) {
     <div
       role="note"
       aria-label="Why this draft is held"
-      className={`flex items-start gap-2 text-[12px] leading-snug border rounded-lg p-2 mt-2 ${TONE_STYLES[reason.tone]}`}
+      className={`flex items-start gap-2 text-xs leading-snug border rounded-lg p-2 mt-2 ${TONE_STYLES[reason.tone]}`}
     >
       <span className="shrink-0 mt-px" aria-hidden="true">
         <ToneIcon tone={reason.tone} />

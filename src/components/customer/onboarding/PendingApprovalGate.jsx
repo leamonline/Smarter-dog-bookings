@@ -92,7 +92,7 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
         <button
           type="button"
           onClick={onSignOut}
-          className="block mx-auto mt-3 text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
+          className="block mx-auto mt-3 text-body text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
         >
           Sign out
         </button>

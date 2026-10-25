@@ -24,7 +24,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
     <section aria-label="Awaiting deposit" className="min-w-0">
       <header className="mb-1.5 flex items-baseline gap-2 px-0.5">
         <h2 className="text-label text-slate-500">Awaiting deposit</h2>
-        <span className="text-[12px] font-bold tabular-nums text-brand-purple">{items.length}</span>
+        <span className="text-xs font-bold tabular-nums text-brand-purple">{items.length}</span>
         <span className="hidden text-caption font-medium text-slate-500 sm:inline">
           unpaid deposits release automatically when their window closes
         </span>
@@ -44,16 +44,16 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
                 <PiggyBank size={14} strokeWidth={2.4} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-bold text-slate-800">
+                <span className="block truncate text-body font-bold text-slate-800">
                   {booking.dogName} · {booking.slot}
                 </span>
-                <span className="block font-mono text-[12px] tracking-wide text-slate-500">
+                <span className="block font-mono text-xs tracking-wide text-slate-500">
                   {booking.depositReference}
                 </span>
               </span>
               <span
                 className={[
-                  "shrink-0 text-[12px] font-bold",
+                  "shrink-0 text-xs font-bold",
                   overdue ? "text-brand-coral-text" : "text-feedback-warning-ink",
                 ].join(" ")}
               >

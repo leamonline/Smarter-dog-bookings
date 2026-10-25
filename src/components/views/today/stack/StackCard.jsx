@@ -212,7 +212,7 @@ export function StackCard({
           </span>
 
           <span className="wallet-name block truncate text-[17px] font-medium">{dogName}</span>
-          <span className="wallet-status text-right text-[12px] leading-[1.3]">
+          <span className="wallet-status text-right text-xs leading-[1.3]">
             <BookingStatusBadge
               status={booking.status}
               cancelReason={booking.cancelReason}
@@ -228,7 +228,7 @@ export function StackCard({
             ) : null}
           </span>
         </button>
-        <span className="wallet-metadata text-[12px]" style={{ color: "var(--card-meta)" }}>
+        <span className="wallet-metadata text-xs" style={{ color: "var(--card-meta)" }}>
           <span className="block truncate">{row.subtitle}</span>
           <span className={`flex flex-wrap items-center gap-x-3 ${urgent ? "font-bold" : ""}`}>
             {timing && <span>{readyOverdue && <Clock size={12} aria-hidden="true" className="mr-1 inline" />}{timing}</span>}
@@ -292,14 +292,14 @@ export function StackCard({
         <div className="overflow-hidden" inert={expanded ? undefined : ""}>
           <div data-stack-details className="border-t border-black/[0.09] px-3.5 pb-3.5">
             {safetyFacts.length > 0 && (
-              <p className="mt-3 rounded bg-brand-coral-light p-3 text-[13px] text-brand-coral-text">
+              <p className="mt-3 rounded bg-brand-coral-light p-3 text-body text-brand-coral-text">
                 <strong>Safety note: </strong>{safetyFacts.join(", ")}
               </p>
             )}
             {undelivered && (
               <p
                 data-undelivered-detail
-                className="mt-3 rounded border border-current bg-white/60 p-3 text-[13px]"
+                className="mt-3 rounded border border-current bg-white/60 p-3 text-body"
                 style={{ color: "var(--card-ink)" }}
               >
                 <strong>{undelivered.chip}: </strong>
@@ -318,7 +318,7 @@ export function StackCard({
                 ) : null}
               </p>
             )}
-            <div className="my-3 text-[14px]">
+            <div className="my-3 text-sm">
               {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}
               {display.ownerPhone ? (
                 <DetailRow label="Phone">

@@ -19,7 +19,7 @@ function Pill({ label, icon, active, activeClass, onClick, ariaLabel, title, sav
       aria-pressed={onClick ? active : undefined}
       title={title}
       className={[
-        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold font-inherit border-none transition-[background-color,color,transform] duration-200",
+        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold font-inherit border-none transition-[background-color,color,transform] duration-200",
         onClick ? "cursor-pointer" : "cursor-default",
         active ? activeClass : "bg-slate-100 text-slate-500",
         saving ? "scale-110" : "scale-100",

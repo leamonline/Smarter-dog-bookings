@@ -280,12 +280,12 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
         {step === 1 && (
           <>
             {showValidation && !step1Valid && (
-              <div role="alert" className="portal-alert portal-alert--error mb-4 text-[13px]">
+              <div role="alert" className="portal-alert portal-alert--error mb-4 text-body">
                 Please check the highlighted details below before continuing.
               </div>
             )}
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Your name (required)</legend>
+              <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Your name (required)</legend>
               <div className="flex gap-2">
                 <input
                   aria-label="First name"
@@ -310,12 +310,12 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   className="portal-input"
                 />
               </div>
-              {fieldError("name") && <p id="signup-name-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.name}</p>}
-              {fieldError("surname") && <p id="signup-surname-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.surname}</p>}
+              {fieldError("name") && <p id="signup-name-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.name}</p>}
+              {fieldError("surname") && <p id="signup-surname-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.surname}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Mobile number</legend>
+              <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Mobile number</legend>
               <input
                 aria-label="Mobile number (verified)"
                 type="tel"
@@ -324,13 +324,13 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 tabIndex={-1}
                 className="portal-input w-full bg-slate-50 text-slate-500"
               />
-              <p className="text-[12px] text-slate-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 Verified by text — this is the number you&apos;ll sign in with.
               </p>
             </fieldset>
 
             <fieldset id="signup-address" className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Your address (required)</legend>
+              <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Your address (required)</legend>
               <AddressPicker
                 existingAddress={existingAddressForPicker}
                 existingPostcode={humanRecord?.postcode}
@@ -338,11 +338,11 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 validationErrorId={fieldError("address") ? "signup-address-error" : undefined}
                 onChange={setAddr}
               />
-              {fieldError("address") && <p id="signup-address-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.address}</p>}
+              {fieldError("address") && <p id="signup-address-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.address}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Email address (required)</legend>
+              <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Email address (required)</legend>
               <input
                 aria-label="Email address"
                 aria-required="true"
@@ -355,11 +355,11 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 placeholder="you@example.com"
                 className="portal-input w-full"
               />
-              {fieldError("email") && <p id="signup-email-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.email}</p>}
+              {fieldError("email") && <p id="signup-email-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.email}</p>}
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
+              <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">
                 Where did you hear about us?
               </legend>
               <select
@@ -385,7 +385,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   className="portal-input w-full mt-2"
                 />
               )}
-              {fieldError("referral") && <p id="signup-referral-error" className="text-[13px] text-brand-coral mt-1.5">{ownerErrors.referral}</p>}
+              {fieldError("referral") && <p id="signup-referral-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.referral}</p>}
             </fieldset>
 
             <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
@@ -398,7 +398,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 onChange={(e) => setPoliciesAccepted(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-brand-purple shrink-0"
               />
-              <span className="text-[13px] text-[var(--color-ink)] leading-relaxed">
+              <span className="text-body text-[var(--color-ink)] leading-relaxed">
                 I agree to Smarter Dog&apos;s{" "}
                 <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Terms</a>,{" "}
                 <a href={SALON_MATTED_COAT_POLICY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Matted Coat Policy</a>{" "}
@@ -406,7 +406,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 <a href={SALON_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Privacy Policy</a>.
               </span>
             </label>
-            {fieldError("policies") && <p id="signup-policies-error" className="text-[13px] text-brand-coral mb-3">{ownerErrors.policies}</p>}
+            {fieldError("policies") && <p id="signup-policies-error" className="text-body text-brand-coral mb-3">{ownerErrors.policies}</p>}
 
             <button type="submit" className="portal-btn portal-btn--cta w-full">
               Continue
@@ -419,14 +419,14 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             {dogs.map((dog, i) => (
               <div key={i} className="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[13px] font-semibold text-[var(--color-ink)]">
+                  <span className="text-body font-semibold text-[var(--color-ink)]">
                     Dog {i + 1}
                   </span>
                   {dogs.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeDog(i)}
-                      className="text-slate-400 hover:text-brand-coral bg-transparent border-none cursor-pointer p-1 inline-flex items-center gap-1 text-[12px] font-semibold"
+                      className="text-slate-400 hover:text-brand-coral bg-transparent border-none cursor-pointer p-1 inline-flex items-center gap-1 text-xs font-semibold"
                       aria-label={`Remove dog ${i + 1}`}
                     >
                       <Trash2 size={14} aria-hidden="true" /> Remove
@@ -502,7 +502,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 <button
                   type="button"
                   onClick={() => updateDog(i, { showOptional: !dog.showOptional })}
-                  className="inline-flex items-center gap-1 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mt-1"
+                  className="inline-flex items-center gap-1 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mt-1"
                 >
                   {dog.showOptional ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
                   Add more about {dog.name.trim() || "your dog"} (optional)
@@ -544,7 +544,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                       className="portal-input w-full"
                     />
                     <div>
-                      <span className="text-[12px] font-semibold text-slate-500 block mb-1">
+                      <span className="text-xs font-semibold text-slate-500 block mb-1">
                         Anything we should know?
                       </span>
                       <div className="flex flex-wrap gap-1.5">
@@ -555,7 +555,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                               type="button"
                               key={opt.label}
                               onClick={() => toggleAlert(i, opt.label)}
-                              className={`text-[12px] font-semibold px-2.5 py-1 rounded-full border cursor-pointer ${
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer ${
                                 active
                                   ? "bg-brand-purple text-white border-brand-purple"
                                   : "bg-white text-slate-600 border-slate-200"
@@ -583,13 +583,13 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             <button
               type="button"
               onClick={addDog}
-              className="inline-flex items-center gap-1.5 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mb-4"
+              className="inline-flex items-center gap-1.5 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mb-4"
             >
               <Plus size={16} aria-hidden="true" /> Add another dog
             </button>
 
             {error && (
-              <div role="alert" className="portal-alert portal-alert--error mb-3 text-[13px]">
+              <div role="alert" className="portal-alert portal-alert--error mb-3 text-body">
                 {error}
               </div>
             )}
@@ -612,7 +612,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
         <button
           type="button"
           onClick={onSignOut}
-          className="block mx-auto mt-3 text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
+          className="block mx-auto mt-3 text-body text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
         >
           Sign out
         </button>

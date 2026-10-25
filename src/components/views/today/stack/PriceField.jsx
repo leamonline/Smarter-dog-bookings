@@ -68,11 +68,11 @@ export function PriceField({
             if (e.key === "Enter") commit();
             if (e.key === "Escape") setEditing(false);
           }}
-          className="min-h-11 w-24 rounded border bg-white px-2 text-right text-[14px] tabular-nums"
+          className="min-h-11 w-24 rounded border bg-white px-2 text-right text-sm tabular-nums"
           style={{ borderColor: "rgba(0,0,0,0.18)", color: tone.ink }}
         />
         {hasAddons ? (
-          <span className="text-[12px]" style={{ color: "var(--card-meta)" }}>
+          <span className="text-xs" style={{ color: "var(--card-meta)" }}>
             + {moneyLabel(addonsTotal)}
           </span>
         ) : null}
@@ -96,7 +96,7 @@ export function PriceField({
       {hasAddons ? (
         <>
           {moneyLabel(subtotal)}
-          <span className="ml-1 text-[12px] font-normal" style={{ color: "var(--card-meta)" }}>
+          <span className="ml-1 text-xs font-normal" style={{ color: "var(--card-meta)" }}>
             ({moneyLabel(basePrice)} + {moneyLabel(addonsTotal)})
           </span>
         </>

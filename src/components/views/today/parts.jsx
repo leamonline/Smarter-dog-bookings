@@ -49,7 +49,7 @@ export function PrimaryButton({ onClick, children, disabled, fluid = false, ...r
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fluid ? "w-full" : ""}`}
+      className={`inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-body font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fluid ? "w-full" : ""}`}
       {...rest}
     >
       {children}
@@ -63,7 +63,7 @@ export function SecondaryButton({ onClick, children, ...rest }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center justify-center min-h-[44px] px-3.5 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+      className="inline-flex items-center justify-center min-h-[44px] px-3.5 rounded-xl bg-slate-100 text-slate-700 text-body font-semibold hover:bg-slate-200 motion-safe:transition-colors"
       {...rest}
     >
       {children}
@@ -83,7 +83,7 @@ export function TertiaryLink({ onClick, tone = "muted", children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center min-h-[44px] px-2 text-[13px] font-semibold ${toneClass} hover:underline underline-offset-2`}
+      className={`inline-flex items-center min-h-[44px] px-2 text-body font-semibold ${toneClass} hover:underline underline-offset-2`}
     >
       {children}
     </button>
@@ -125,7 +125,7 @@ export function PaymentState({ payment, actionReason = false }) {
   if (!payment) return null;
   if (payment.kind === "paid") {
     return (
-      <span className="inline-flex items-center whitespace-nowrap text-[12px] font-bold text-emerald-700">
+      <span className="inline-flex items-center whitespace-nowrap text-xs font-bold text-emerald-700">
         Paid
       </span>
     );
@@ -135,7 +135,7 @@ export function PaymentState({ payment, actionReason = false }) {
       <span
         data-action-reason={actionReason ? "payment" : undefined}
         className={`inline-flex items-center whitespace-nowrap tabular-nums ${
-          actionReason ? "text-[13px] font-bold text-brand-coral-text" : "text-[12px] font-semibold text-slate-500"
+          actionReason ? "text-body font-bold text-brand-coral-text" : "text-xs font-semibold text-slate-500"
         }`}
       >
         {formatMoney(payment.amountDue)} due
@@ -145,7 +145,7 @@ export function PaymentState({ payment, actionReason = false }) {
   return (
     <span
       data-action-reason={actionReason ? "payment" : undefined}
-      className="inline-flex items-center whitespace-nowrap text-[12px] font-semibold text-slate-500"
+      className="inline-flex items-center whitespace-nowrap text-xs font-semibold text-slate-500"
     >
       {payment.label}
     </span>

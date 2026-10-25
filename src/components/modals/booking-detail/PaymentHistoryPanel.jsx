@@ -84,7 +84,7 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
         aria-expanded={open}
         aria-controls={`payment-history-${bookingId}`}
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+        className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 text-left text-body font-bold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
       >
         <span className="flex items-center gap-2"><History size={16} aria-hidden="true" />Payment history</span>
         <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -94,23 +94,23 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
         <div id={`payment-history-${bookingId}`} className="px-2 pb-1 pt-2">
           <p className="mb-3 text-caption leading-4 text-slate-500">Recorded since 27 September 2026. This history records saved values; it does not prove that money moved.</p>
           {!history.available ? (
-            <p role="status" className="text-[12px] font-semibold text-slate-600">Payment history is unavailable in sample data.</p>
+            <p role="status" className="text-xs font-semibold text-slate-600">Payment history is unavailable in sample data.</p>
           ) : history.loading && history.events.length === 0 ? (
-            <p role="status" className="text-[12px] text-slate-500">Loading payment history…</p>
+            <p role="status" className="text-xs text-slate-500">Loading payment history…</p>
           ) : history.error ? (
-            <div role="alert" className="rounded-lg bg-red-50 p-3 text-[12px] font-semibold text-red-800">
+            <div role="alert" className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-800">
               {history.error}
               <button type="button" onClick={() => history.refresh()} className="ml-2 underline">Try again</button>
             </div>
           ) : history.events.length === 0 ? (
-            <p role="status" className="text-[12px] text-slate-500">No payment changes have been recorded for this booking.</p>
+            <p role="status" className="text-xs text-slate-500">No payment changes have been recorded for this booking.</p>
           ) : (
             <ol className="space-y-3">
               {history.events.map((item) => {
                 const changes = changesFor(item);
                 const canRestore = item.operation === "UPDATE" && item.before_values;
                 return (
-                  <li key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-[12px]">
+                  <li key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-bold text-slate-800">
@@ -140,7 +140,7 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
                         <p className="font-bold text-feedback-warning-ink">Restore the values from before this change?</p>
                         <p className="mt-1 leading-4 text-feedback-warning-ink">This corrects the booking record. It does not charge or refund anyone.</p>
                         <label className="mt-3 block font-bold text-feedback-warning-ink" htmlFor={`restore-reason-${item.id}`}>Correction reason</label>
-                        <textarea id={`restore-reason-${item.id}`} required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="What was entered incorrectly? Avoid customer or banking details." className="mt-1 min-h-20 w-full rounded-lg border border-brand-mustard-tint bg-white p-2 text-[13px] text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-teal" />
+                        <textarea id={`restore-reason-${item.id}`} required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="What was entered incorrectly? Avoid customer or banking details." className="mt-1 min-h-20 w-full rounded-lg border border-brand-mustard-tint bg-white p-2 text-body text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-teal" />
                         {restoreError && (
                           <div role="alert" className="mt-2 font-semibold text-red-700">
                             <p>{restoreError}</p>

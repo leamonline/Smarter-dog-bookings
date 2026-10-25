@@ -142,7 +142,7 @@ export function SettingsView({
       {!canEdit && (
         <div
           role="status"
-          className="mb-4 rounded-lg border border-brand-mustard-tint bg-feedback-warning-tint px-4 py-3 text-[13px] font-semibold text-feedback-warning-ink"
+          className="mb-4 rounded-lg border border-brand-mustard-tint bg-feedback-warning-tint px-4 py-3 text-body font-semibold text-feedback-warning-ink"
         >
           Staff can't edit these settings — please ask an owner to make changes
         </div>

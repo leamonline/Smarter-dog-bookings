@@ -36,7 +36,7 @@ export function BookingAlerts({
                     }));
                   }
                 }}
-                className="py-2 px-3.5 rounded-[20px] text-[13px] font-bold cursor-pointer transition-all border-2"
+                className="py-2 px-3.5 rounded-[20px] text-body font-bold cursor-pointer transition-all border-2"
                 style={{
                   background: active ? opt.color : "white",
                   color: active ? "white" : opt.color,

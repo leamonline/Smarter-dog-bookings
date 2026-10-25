@@ -201,25 +201,25 @@ export function NewClientWizard({
   const footer = (
     <div className="px-5 py-3 bg-[var(--color-brand-paper)] border-t border-slate-100 flex flex-col gap-2">
       {error && (
-        <div role="alert" className="text-[12px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
+        <div role="alert" className="text-xs text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
           {error}
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
         {step > 1 ? (
           <button type="button" onClick={() => setStep((s) => s - 1)} disabled={customerCreated}
-            className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+            className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed">
             Back
           </button>
         ) : (
           <button type="button" onClick={onClose}
-            className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[13px] font-bold">
+            className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-500 text-body font-bold">
             Cancel
           </button>
         )}
         {step === 1 ? (
           <button type="button" onClick={handleNext} disabled={!canNext}
-            className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
+            className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
             {duplicate ? "Next anyway" : "Next"}
           </button>
         ) : step === 2 ? (
@@ -229,7 +229,7 @@ export function NewClientWizard({
                 type="button"
                 onClick={() => handleCommit({ includeBooking: false })}
                 disabled={submitting}
-                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save &amp; book later
               </button>
@@ -240,7 +240,7 @@ export function NewClientWizard({
                 ? () => handleCommit({ includeBooking: false })
                 : () => setStep(3)}
               disabled={submitting}
-              className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
             >
               {submitting ? "Saving…" : dogs.length === 0 ? "Save client" : "Continue to booking"}
             </button>
@@ -251,7 +251,7 @@ export function NewClientWizard({
               type="button"
               onClick={() => handleCommit({ includeBooking: false })}
               disabled={submitting}
-              className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Save &amp; book later
             </button>
@@ -259,7 +259,7 @@ export function NewClientWizard({
               type="button"
               onClick={() => handleCommit({ includeBooking: true })}
               disabled={!confirmReady}
-              className="px-5 py-2.5 rounded-full bg-brand-green-600 text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green-700 transition-colors"
+              className="px-5 py-2.5 rounded-full bg-brand-green-600 text-white text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green-700 transition-colors"
             >
               {submitting ? "Saving…" : "Confirm booking"}
             </button>

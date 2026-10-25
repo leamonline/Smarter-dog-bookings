@@ -211,7 +211,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
 
   const askBody = (
     <div className="flex flex-col gap-4">
-      <p className="text-[13px] text-slate-700">
+      <p className="text-body text-slate-700">
         Would you like to message their humans to let them know they&apos;re nearly ready?
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -276,16 +276,16 @@ export function CollectionNoticeModal({ booking, onClose }) {
       {step === "ask" ? askBody : (
         <>
           {/* Body */}
-          <p className="text-[13px] text-slate-600 m-0">
+          <p className="text-body text-slate-600 m-0">
             Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
             {isPlural && (
-              <span className="block mt-1 text-[12px] text-slate-500">
+              <span className="block mt-1 text-xs text-slate-500">
                 One message covers all of this owner's dogs that are ready.
               </span>
             )}
           </p>
 
-          <label className="flex items-center gap-2 text-[13px] text-slate-700">
+          <label className="flex items-center gap-2 text-body text-slate-700">
             <span className="font-semibold">Ready in</span>
             <input
               type="number"
@@ -301,7 +301,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           </label>
 
           {READY_TEMPLATE && (
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-[12px] text-slate-600 italic">
+            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 italic">
               “{previewText}”
             </div>
           )}
@@ -309,7 +309,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           {contactLoadError ? (
             <div
               role="alert"
-              className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-[12px] font-semibold text-brand-coral-dark"
+              className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-xs font-semibold text-brand-coral-dark"
             >
               <p>{contactLoadError}</p>
               <button
@@ -321,13 +321,13 @@ export function CollectionNoticeModal({ booking, onClose }) {
               </button>
             </div>
           ) : contactsUnavailable ? (
-            <div className="rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-3 text-[12px] font-semibold text-feedback-warning-ink">
+            <div className="rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-3 text-xs font-semibold text-feedback-warning-ink">
               {contactsUnavailable}
             </div>
           ) : loading ? (
-            <div className="text-[12px] text-slate-500 py-4 text-center" role="status">Loading contacts…</div>
+            <div className="text-xs text-slate-500 py-4 text-center" role="status">Loading contacts…</div>
           ) : recipients.length === 0 ? (
-            <div className="text-[12px] text-slate-500 py-2">
+            <div className="text-xs text-slate-500 py-2">
               This booking isn’t linked to a customer record, so there’s no contact to notify.
             </div>
           ) : (
@@ -343,13 +343,13 @@ export function CollectionNoticeModal({ booking, onClose }) {
                     className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white p-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-brand-purple truncate">
+                      <div className="text-body font-semibold text-brand-purple truncate">
                         {displayName(r)}
                         <span className="ml-1.5 text-caption font-medium text-slate-400">
                           {r.relationship}
                         </span>
                       </div>
-                      <div className="text-[12px] text-slate-500 tabular-nums">
+                      <div className="text-xs text-slate-500 tabular-nums">
                         {avail.ok ? formatPhoneForDisplay(r.phone) : avail.reason}
                       </div>
                     </div>
@@ -359,7 +359,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                       disabled={disabled}
                       title={avail.ok ? `Send WhatsApp to ${displayName(r)}` : avail.reason}
                       className={[
-                        "shrink-0 inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
+                        "shrink-0 inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-body font-semibold font-[inherit] transition-colors",
                         isSent
                           ? "bg-emerald-100 text-emerald-700 cursor-default"
                           : disabled

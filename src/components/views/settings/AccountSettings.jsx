@@ -103,7 +103,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
         </div>
 
         {error && (
-          <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
+          <div role="alert" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
             {error}
           </div>
         )}
@@ -115,7 +115,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
         {/* Password reset */}
         <div className="border-t border-slate-200 pt-3.5 mt-3.5">
           <div className="text-sm font-semibold text-slate-800 mb-1">Password</div>
-          <div className="text-[13px] text-slate-500 mb-2.5">
+          <div className="text-body text-slate-500 mb-2.5">
             Save any changes, then sign out and choose “Forgot password?” on the staff sign-in page.
             Complete the security check there to request a reset link by email.
           </div>

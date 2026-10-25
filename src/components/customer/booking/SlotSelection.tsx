@@ -177,7 +177,7 @@ export function SlotSelection({
             </span>
           </span>
           {selectedDogs.length > 1 && (
-            <span className="text-[12px] text-[var(--color-ink-muted)]">Drop all pups together</span>
+            <span className="text-xs text-[var(--color-ink-muted)]">Drop all pups together</span>
           )}
         </span>
         <WizardTick selected={selected} />

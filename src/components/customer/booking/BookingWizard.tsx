@@ -1168,7 +1168,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           if (prices.length === 0) return null;
           const total = prices.reduce((sum, p) => sum + p, 0) / 100;
           return (
-            <div className="booking-wizard-inline-total text-[13px] font-semibold text-[var(--color-ink-muted)]">
+            <div className="booking-wizard-inline-total text-body font-semibold text-[var(--color-ink-muted)]">
               Estimated total: from {"£"}{total} (final price confirmed at your appointment)
             </div>
           );
