@@ -272,9 +272,9 @@
      steps; 12/14/16px keep the Tailwind defaults (text-xs/sm/base).
      Always reference literal utilities (text-body, text-title, …),
      never `text-${x}` — Tailwind v4 only emits classes it sees. */
-  --text-micro: 0.625rem;              /* 10px — dense metadata, chart ticks, +N */
+  --text-micro: 0.75rem;               /* 12px — dense metadata, chart ticks, +N (was 10px; raised everywhere, not only on phones) */
   --text-micro--line-height: 0.875rem; /* 14px */
-  --text-caption: 0.6875rem;           /* 11px — captions, pill text, chart legends */
+  --text-caption: 0.75rem;             /* 12px — captions, pill text, chart legends (was 11px) */
   --text-caption--line-height: 1rem;   /* 16px */
   --text-body: 0.8125rem;              /* 13px — default card/list body (the workhorse) */
   --text-body--line-height: 1.125rem;  /* 18px */
@@ -287,7 +287,7 @@
   /* Uppercase tracked section-label kicker. `text-label` carries size +
      weight + tracking, so it replaces `text-[10px] font-bold uppercase
      tracking-wider`. Pair with text-ink-muted for the accessible grey. */
-  --text-label: 0.6875rem;             /* 11px (bumped from 10px for legibility) */
+  --text-label: 0.75rem;               /* 12px (was 11px) */
   --text-label--line-height: 1rem;
   --text-label--letter-spacing: 0.06em;
   --text-label--font-weight: 700;
@@ -745,11 +745,6 @@ body {
 /* On coarse-pointer devices the tap area grows without shrinking the visible label. */
 @media (pointer: coarse) {
   .btn, .btn-pill { min-height: 44px; min-width: 44px; }
-}
-
-/* The micro scale is desktop-only for dense metadata; small screens use 12px. */
-@media (width < 40rem) {
-  :root { --text-micro: 0.75rem; --text-caption: 0.75rem; }
 }
 
 /* Placeholder contrast. The browser default (~slate-400) fails WCAG AA on a
