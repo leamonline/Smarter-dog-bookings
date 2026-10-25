@@ -203,7 +203,7 @@ export function WeeklyCashUp() {
             <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">
               Weekly cash-up
             </h2>
-            <p className="text-caption sm:text-xs font-medium text-white/80 m-0 mt-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-white/80 m-0 mt-0.5">
               Expected takings from booked dogs — not money taken.
             </p>
           </div>

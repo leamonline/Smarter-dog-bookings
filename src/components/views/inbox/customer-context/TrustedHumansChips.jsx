@@ -24,7 +24,7 @@ export function TrustedHumansChips({ contacts, onOpenHuman }) {
             type="button"
             onClick={clickable ? () => onOpenHuman(c.id) : undefined}
             disabled={!clickable}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-900 text-[11px] font-semibold transition-colors font-[inherit] ${
+            className={`inline-flex items-center px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-900 text-caption font-semibold transition-colors font-[inherit] ${
               clickable ? "cursor-pointer hover:bg-sky-100" : "cursor-default"
             }`}
           >

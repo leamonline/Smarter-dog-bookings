@@ -83,7 +83,7 @@ export function ServicesAddonsCard({
                 <span className="font-semibold">{"£"}</span>
                 <input type="number" min="0" value={editData.price} onChange={(e) => setEditData((prev) => ({ ...prev, price: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
               </div>
-              <p className={`mt-1 text-[11px] font-semibold ${isOneOffPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
+              <p className={`mt-1 text-caption font-semibold ${isOneOffPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
                 {isOneOffPrice
                   ? `One-off price for this booking — usual is £${usualPrice}`
                   : usualPrice !== guidePrice

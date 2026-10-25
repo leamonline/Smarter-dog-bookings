@@ -213,7 +213,7 @@ export function CloseTimesDialog({
               </Field>
             </div>
 
-            <p className="text-[11px] text-slate-500 -mt-2">
+            <p className="text-caption text-slate-500 -mt-2">
               {covered.length} {covered.length === 1 ? "slot" : "slots"} will be closed.
             </p>
           </>
@@ -235,7 +235,7 @@ export function CloseTimesDialog({
               key={quick}
               type="button"
               onClick={() => setReason(quick)}
-              className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-white hover:border-brand-yellow hover:bg-brand-yellow/10 cursor-pointer font-[inherit] transition-colors"
+              className="rounded-full border border-slate-200 px-2.5 py-1 text-caption font-semibold text-slate-600 bg-white hover:border-brand-yellow hover:bg-brand-yellow/10 cursor-pointer font-[inherit] transition-colors"
             >
               {quick}
             </button>
@@ -247,7 +247,7 @@ export function CloseTimesDialog({
           <div className="text-sm font-extrabold leading-tight break-words">
             {closureLabel({ reason: reason.trim() || "…" })}
           </div>
-          <div className="text-[11px] font-semibold text-white/85 tabular-nums mt-0.5">
+          <div className="text-caption font-semibold text-white/85 tabular-nums mt-0.5">
             {formatTime(from)} – {effectiveTo ? formatTime(effectiveTo) : "…"}
           </div>
         </div>

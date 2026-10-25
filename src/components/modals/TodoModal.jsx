@@ -48,7 +48,7 @@ export function RescheduleRequestTodo({
         {todo.text}
       </span>
       {todo.done ? (
-        <span className="text-[11px] font-semibold text-slate-500">
+        <span className="text-caption font-semibold text-slate-500">
           Decision recorded
         </span>
       ) : denying ? (
@@ -171,7 +171,7 @@ export function ClosureRearrangementTodo({
         {todo.text}
       </span>
       {todo.done ? (
-        <span className="text-[11px] font-semibold text-slate-500">
+        <span className="text-caption font-semibold text-slate-500">
           Rearrangement recorded
         </span>
       ) : (
@@ -204,7 +204,7 @@ export function UnavailableTypedTodo({ todo }) {
       <span className="text-xs leading-relaxed break-words text-slate-700">
         {todo.text}
       </span>
-      <span className="text-[11px] font-semibold text-slate-500">
+      <span className="text-caption font-semibold text-slate-500">
         Complete this from its linked workflow.
       </span>
     </div>

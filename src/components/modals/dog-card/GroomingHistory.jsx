@@ -181,7 +181,7 @@ export function GroomingHistory({
                     </span>
                   </div>
                   <span
-                    className="font-semibold text-[11px] shrink-0"
+                    className="font-semibold text-caption shrink-0"
                     style={{
                       color: b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? "#16A34A" : undefined,
                     }}

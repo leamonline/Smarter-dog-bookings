@@ -1,7 +1,7 @@
 // src/components/ui/SectionLabel.jsx
 //
 // The uppercase, letter-spaced kicker used above cards and sections. Replaces
-// the ~34 inline `text-[10px] font-bold text-slate-400 uppercase tracking-wider`
+// the ~34 inline `text-micro font-bold text-slate-400 uppercase tracking-wider`
 // copies with one element. `text-label` carries size + weight + tracking;
 // text-ink-muted is the accessible (AA) grey.
 //

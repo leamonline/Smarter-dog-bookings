@@ -135,7 +135,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
           </div>
           <ul className="mt-1 space-y-0.5">
             {failures.map((f, i) => (
-              <li key={`${f.trigger_type}-${i}`} className="text-[11px] text-red-700">
+              <li key={`${f.trigger_type}-${i}`} className="text-caption text-red-700">
                 <span className="font-semibold">{triggerLabel(f.trigger_type)}</span>
                 {f.channel ? ` via ${f.channel}` : ""}
                 {f.created_at ? ` · ${relativeTime(f.created_at)}` : ""}
@@ -183,7 +183,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                 </button>
               </div>
               {phoneError && (
-                <p id="delivery-phone-error" role="alert" className="mt-1 text-[11px] text-red-600 font-semibold">
+                <p id="delivery-phone-error" role="alert" className="mt-1 text-caption text-red-600 font-semibold">
                   {phoneError}
                 </p>
               )}

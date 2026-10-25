@@ -92,7 +92,7 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
 
       {open && (
         <div id={`payment-history-${bookingId}`} className="px-2 pb-1 pt-2">
-          <p className="mb-3 text-[11px] leading-4 text-slate-500">Recorded since 27 September 2026. This history records saved values; it does not prove that money moved.</p>
+          <p className="mb-3 text-caption leading-4 text-slate-500">Recorded since 27 September 2026. This history records saved values; it does not prove that money moved.</p>
           {!history.available ? (
             <p role="status" className="text-[12px] font-semibold text-slate-600">Payment history is unavailable in sample data.</p>
           ) : history.loading && history.events.length === 0 ? (
@@ -116,7 +116,7 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
                         <p className="font-bold text-slate-800">
                           {item.restored_from ? "Payment correction" : item.operation === "INSERT" ? "Initial payment state" : item.operation === "DELETE" ? "Booking deleted" : "Payment changed"}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{actorLabel(item)} · {new Date(item.recorded_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</p>
+                        <p className="mt-0.5 text-caption text-slate-500">{actorLabel(item)} · {new Date(item.recorded_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</p>
                       </div>
                       {canRestore && selectedId !== item.id && (
                         <button type="button" onClick={() => { setSelectedId(item.id); setReason(""); setRestoreError(null); }} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 font-bold text-slate-700 hover:bg-slate-50">

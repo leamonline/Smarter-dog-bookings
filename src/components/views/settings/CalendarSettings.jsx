@@ -83,7 +83,7 @@ export function CalendarSettings() {
                 type="text"
                 readOnly
                 value={feedUrl}
-                className="flex-1 bg-transparent border-none text-[11px] text-slate-600 font-mono outline-none min-w-0"
+                className="flex-1 bg-transparent border-none text-caption text-slate-600 font-mono outline-none min-w-0"
                 onClick={(e) => e.target.select()}
               />
               <button

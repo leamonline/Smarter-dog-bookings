@@ -19,7 +19,7 @@ export function ReactionLine({ message, emoji }) {
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}>
       <span
-        className="inline-flex items-center gap-1 text-[11px] text-slate-400"
+        className="inline-flex items-center gap-1 text-caption text-slate-400"
         title="Reaction to a previous message"
         aria-label={emoji ? `Reacted with ${emoji}` : "Reacted"}
       >

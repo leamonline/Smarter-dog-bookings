@@ -173,7 +173,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       {error && (
         <div
           role="alert"
-          className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mb-2"
+          className="text-caption text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mb-2"
         >
           Couldn&apos;t load reminders.
           <button
@@ -196,7 +196,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
           </li>
         ))}
         {moreCount > 0 && (
-          <li className="text-[11px] text-slate-500 font-semibold px-2.5 py-1.5 list-none">
+          <li className="text-caption text-slate-500 font-semibold px-2.5 py-1.5 list-none">
             +{moreCount} more
           </li>
         )}

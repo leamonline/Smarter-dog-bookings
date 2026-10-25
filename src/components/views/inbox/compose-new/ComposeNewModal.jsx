@@ -59,7 +59,7 @@ function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sen
         className="w-full text-[14px] p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
       />
 
-      <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+      <div className="flex items-center justify-between gap-2 flex-wrap text-caption">
         <span className="text-sky-900 tabular-nums">
           {info.length} char{info.length === 1 ? "" : "s"} · {info.segments} segment{info.segments === 1 ? "" : "s"} · {info.encoding}
         </span>
@@ -119,7 +119,7 @@ function CustomerRow({ human, onSelect }) {
     >
       <div className="text-[13px] font-semibold text-brand-purple">{full}</div>
       {human.phone && (
-        <div className="text-[11px] text-slate-500 tabular-nums">{human.phone}</div>
+        <div className="text-caption text-slate-500 tabular-nums">{human.phone}</div>
       )}
     </button>
   );
@@ -319,12 +319,12 @@ export function ComposeNewModal({
                   placeholder="Search by name, surname, phone, or dog name…"
                   className="w-full text-[13px] px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-brand-yellow font-[inherit]"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-caption text-slate-500 mt-1">
                   Type at least 2 characters. Meta only lets you send approved templates when starting a thread.
                 </p>
               </div>
               {searching && (
-                <div className="px-4 pb-2 text-[11px] text-slate-500">Searching…</div>
+                <div className="px-4 pb-2 text-caption text-slate-500">Searching…</div>
               )}
               {!searching && query.trim().length >= 2 && results.length === 0 && (
                 <div className="px-4 py-6 text-center text-[12px] text-slate-500">
@@ -391,7 +391,7 @@ export function ComposeNewModal({
                     SMS
                   </button>
                 </div>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-micro text-slate-500">
                   {channel === "whatsapp"
                     ? "Free for the first 24h after a customer replies; template required for cold contact."
                     : "Twilio-billed per segment (~£0.04 / segment in UK)."}
@@ -442,7 +442,7 @@ export function ComposeNewModal({
               )}
 
               {sending && (
-                <div className="mt-2 text-[11px] text-slate-500">Sending…</div>
+                <div className="mt-2 text-caption text-slate-500">Sending…</div>
               )}
             </div>
           )}

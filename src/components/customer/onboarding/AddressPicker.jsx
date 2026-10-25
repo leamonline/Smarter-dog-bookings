@@ -12,7 +12,7 @@ function postcodeIn(text) {
 }
 function SearchAttribution() {
   return (
-    <p className="text-[11px] text-slate-400 mt-2">
+    <p className="text-caption text-slate-400 mt-2">
       Address search:{" "}
       <a
         href="https://www.geoapify.com/"

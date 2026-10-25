@@ -60,11 +60,11 @@ export function AgentFailuresCard({ bare = false, data }) {
             {f.eventType && (
               <span className="text-red-700/70"> · {f.eventType}</span>
             )}
-            <span className="block text-[11px] text-red-600 truncate" title={f.error}>
+            <span className="block text-caption text-red-600 truncate" title={f.error}>
               {f.error}
             </span>
             {f.at && (
-              <span className="block text-[10px] text-red-400 mt-0.5">
+              <span className="block text-micro text-red-400 mt-0.5">
                 {fmtRelative(f.at)}
               </span>
             )}

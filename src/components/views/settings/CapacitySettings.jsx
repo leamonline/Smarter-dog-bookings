@@ -71,7 +71,7 @@ export function CapacitySettings() {
                 </span>
                 <span className="text-xs text-slate-600">{slotRuleText(rule)}</span>
                 {rule.conditional && (
-                  <span className="inline-flex items-center bg-slate-100 text-slate-500 px-2 py-[3px] rounded-lg text-[11px] font-semibold">
+                  <span className="inline-flex items-center bg-slate-100 text-slate-500 px-2 py-[3px] rounded-lg text-caption font-semibold">
                     conditional
                   </span>
                 )}

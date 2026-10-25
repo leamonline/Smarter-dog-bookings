@@ -63,7 +63,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
           <div className="text-[15px] md:text-base font-extrabold leading-tight break-words">
             {closureLabel(closure)}
           </div>
-          <div className="text-[11px] font-semibold text-white/85 tabular-nums mt-0.5">
+          <div className="text-caption font-semibold text-white/85 tabular-nums mt-0.5">
             {closureRangeLabel(closure)} · {count} {count === 1 ? "slot" : "slots"}
           </div>
         </div>

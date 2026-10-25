@@ -185,11 +185,11 @@ export function PhotoGalleryModal({
                     )}
                   </div>
                   <div className="px-1 pt-1.5">
-                    <div className="text-[11px] font-bold text-slate-500">
+                    <div className="text-caption font-bold text-slate-500">
                       {formatDateStr(photo.takenAt)}
                     </div>
                     {photo.notes && (
-                      <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                      <div className="text-caption text-slate-400 truncate mt-0.5">
                         {photo.notes}
                       </div>
                     )}

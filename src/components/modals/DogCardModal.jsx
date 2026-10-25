@@ -225,7 +225,7 @@ export function DogCardModal({
                   <button
                     type="button"
                     onClick={() => setPendingDelete(true)}
-                    className="text-[11px] font-semibold text-slate-400 underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral"
+                    className="text-caption font-semibold text-slate-400 underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral"
                   >
                     Delete permanently…
                   </button>

@@ -30,7 +30,7 @@ export function AiMessagingPanel({ human, onUpdateHuman }) {
           <p className="text-[12px] font-bold text-slate-600">
             Allow AI-initiated WhatsApp messages
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+          <p className="mt-1 text-caption leading-relaxed text-slate-400">
             {allowed
               ? "Allowed when the salon switch is on."
               : "Blocked for this customer. Staff can still message them manually."}

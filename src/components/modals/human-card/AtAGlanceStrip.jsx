@@ -54,14 +54,14 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
         aria-label={ariaLabel || caption}
         className={`${base} ${interactive}`}
       >
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">
+        <div className="text-micro font-bold text-slate-500 uppercase tracking-wide truncate">
           {caption}
         </div>
         <div className={`text-lg font-semibold font-display leading-tight mt-0.5 truncate ${valueClass}`}>
           {value}
         </div>
         {sub && (
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate">
+          <div className="text-micro font-semibold text-slate-400 mt-0.5 truncate">
             {sub}
           </div>
         )}
@@ -71,14 +71,14 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
 
   return (
     <div className={`${base} ${interactive}`}>
-      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">
+      <div className="text-micro font-bold text-slate-500 uppercase tracking-wide truncate">
         {caption}
       </div>
       <div className={`text-lg font-semibold font-display leading-tight mt-0.5 truncate ${valueClass}`}>
         {value}
       </div>
       {sub && (
-        <div className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate">
+        <div className="text-micro font-semibold text-slate-400 mt-0.5 truncate">
           {sub}
         </div>
       )}

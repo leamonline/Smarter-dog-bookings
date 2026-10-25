@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — customer screens load on demand (#1073)
+
+- Sign-in no longer downloads the dashboard, booking wizard or onboarding
+  screens before they are needed. Account gates and routes load their own
+  screens under the existing loading indicator and chunk-error recovery.
+- Local production-build measurements and their limits are recorded in
+  [the loading report](docs/research/2026-10-25-customer-screen-loading.md).
+
 ## Unreleased — readable error text
 
 - Inline form errors (`InlineError`) now set their text in the readable coral

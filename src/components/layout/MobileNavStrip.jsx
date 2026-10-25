@@ -58,7 +58,7 @@ export function MobileNavStrip({ currentDateStr }) {
                 </span>
               )}
             </span>
-            <span className="text-[10px] leading-none tracking-tight" aria-hidden="true">
+            <span className="text-micro leading-none tracking-tight" aria-hidden="true">
               {item.label}
             </span>
           </NavLink>

@@ -81,7 +81,7 @@ export function ReportsInsightsView({ loadError = null }) {
           <h2 className="text-base sm:text-lg font-extrabold m-0 text-slate-800 font-display leading-tight">
             Reports analytics
           </h2>
-          <p className="text-caption sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
             Open days only · showing last {activePeriod.l.toLowerCase()}
           </p>
         </div>
@@ -99,7 +99,7 @@ export function ReportsInsightsView({ loadError = null }) {
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Show last ${p.l}`}
-                className={`min-h-[44px] inline-flex items-center justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-caption sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
+                className={`min-h-[44px] inline-flex items-center justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
                   selected
                     ? "bg-white text-slate-800 shadow-sm"
                     : "bg-transparent text-slate-600 hover:text-slate-800"

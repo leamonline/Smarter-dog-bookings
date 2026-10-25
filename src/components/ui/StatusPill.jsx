@@ -34,8 +34,8 @@ export function StatusPill({ state, size = "sm" }) {
   const style = STATE_STYLES[state] ?? STATE_STYLES.ai_handling;
   const sizing =
     size === "xs"
-      ? "text-[10px] px-1.5 py-0 leading-[1.4]"
-      : "text-[11px] px-2 py-0.5";
+      ? "text-micro px-1.5 py-0 leading-[1.4]"
+      : "text-caption px-2 py-0.5";
   return (
     <span
       className={`inline-flex items-center font-bold uppercase tracking-wide rounded-full border ${sizing} ${style}`}

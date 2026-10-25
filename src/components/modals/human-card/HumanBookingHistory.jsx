@@ -65,7 +65,7 @@ export function HumanBookingHistory({
     >
       <div>
         <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-teal-text/70">
+          <h3 className="text-micro font-bold uppercase tracking-wider text-brand-teal-text/70">
             Recent bookings
             {history.length > 0 && (
               <span className="ml-1.5 text-slate-400 normal-case tracking-normal">
@@ -77,7 +77,7 @@ export function HumanBookingHistory({
             <button
               type="button"
               onClick={() => onNewBookingForHuman(human.id)}
-              className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold bg-action text-on-action px-2.5 py-1 rounded-full border-none cursor-pointer font-inherit hover:bg-brand-yellow-dark transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 text-caption font-bold bg-action text-on-action px-2.5 py-1 rounded-full border-none cursor-pointer font-inherit hover:bg-brand-yellow-dark transition-colors"
             >
               <Plus size={12} strokeWidth={2.6} aria-hidden="true" />
               New booking
@@ -108,7 +108,7 @@ export function HumanBookingHistory({
                     )}
                   </div>
                   <span
-                    className="font-semibold text-[11px] shrink-0"
+                    className="font-semibold text-caption shrink-0"
                     style={{
                       color:
                         booking.status === BOOKING_STATUS.READY_FOR_COLLECTION
@@ -152,7 +152,7 @@ export function HumanBookingHistory({
                       onClick={() => onBookAgain(booking)}
                       aria-label={`Book ${titleCase(booking.dogName)} again`}
                       title="Book again with the same dog and service"
-                      className="shrink-0 text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+                      className="shrink-0 text-caption font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
                     >
                       Book again
                     </button>

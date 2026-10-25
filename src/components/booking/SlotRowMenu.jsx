@@ -247,7 +247,7 @@ export function SlotRowMenu({
           }}
           className="rounded-2xl p-1.5 flex flex-col shadow-[0_12px_28px_rgba(45,0,75,0.45),0_4px_10px_rgba(45,0,75,0.3)] animate-[fadeIn_0.12s_ease-out]"
         >
-          <div className="px-2.5 pt-1.5 pb-2 text-[10px] font-bold text-brand-yellow uppercase tracking-wider">
+          <div className="px-2.5 pt-1.5 pb-2 text-micro font-bold text-brand-yellow uppercase tracking-wider">
             {slotLabel}
           </div>
           {canBook && (
