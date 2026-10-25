@@ -43,6 +43,17 @@ export function useControlProps({ invalid = false, ...rest }) {
   };
 }
 
+/**
+ * @param {{
+ *   label: import("react").ReactNode;
+ *   hint?: import("react").ReactNode;
+ *   error?: import("react").ReactNode;
+ *   required?: boolean;
+ *   markRequired?: boolean;
+ *   className?: string;
+ *   children: import("react").ReactNode;
+ * }} props
+ */
 export function Field({ label, hint, error, required = false, markRequired = false, className = "", children }) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;

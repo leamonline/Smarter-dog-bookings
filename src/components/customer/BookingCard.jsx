@@ -9,6 +9,7 @@ import { DepositHoldInstructions } from "./DepositHoldInstructions";
 import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
 import { groupUpcomingBookings } from "./groupUpcomingBookings";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
+import { Input, Select } from "../ui/index.js";
 
 /**
  * Upcoming appointments, grouped by the existing customer command boundary.
@@ -258,24 +259,24 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             <div className="text-sm font-semibold text-[var(--color-ink)] mb-2.5">
               Cancel the appointment for {dogName}?
             </div>
-            <select
+            <Select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="portal-input mb-2.5"
+              surface="paper" size="portal" className="mb-2.5"
             >
               <option value="">Select a reason…</option>
               <option value="Changed plans">Changed plans</option>
               <option value="Dog unwell">Dog unwell</option>
               <option value="Found another date">Found another date</option>
               <option value="Other">Other</option>
-            </select>
+            </Select>
             {reason === "Other" && (
-              <input
+              <Input
                 type="text"
                 value={otherReason}
                 onChange={(e) => setOtherReason(e.target.value)}
                 placeholder="Please tell us why…"
-                className="portal-input mb-2.5"
+                surface="paper" size="portal" className="mb-2.5"
               />
             )}
             {cancelError && (

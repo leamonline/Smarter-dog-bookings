@@ -43,6 +43,11 @@ const SIZES = {
   sm: "px-2.5 py-1.5 text-base pointer-fine:text-body pointer-coarse:min-h-11",
   md: "px-3 py-2 text-base pointer-fine:text-body pointer-coarse:min-h-11",
   lg: "px-4 py-3 text-base min-h-[46px] sm:min-h-[52px]",
+  // The customer portal's fields: always 16px (customers are mostly on phones,
+  // and iOS zooms on focus below 16px), never the 13px a mouse gets on the staff
+  // screens. "portal-sm" is the tighter variant for dense rows.
+  portal: "px-3 py-[9px] text-base",
+  "portal-sm": "px-2.5 py-[7px] text-base",
 };
 
 // "page" is the staff canvas; "paper" is the cream customer portal, whose

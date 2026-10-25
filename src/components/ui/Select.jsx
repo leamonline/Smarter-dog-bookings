@@ -8,7 +8,14 @@ import { forwardRef } from "react";
 import { controlClassName } from "./formControl.js";
 import { useControlProps } from "./Field.jsx";
 
-export const Select = forwardRef(function Select(
+/**
+ * @typedef {Omit<import("react").SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
+ *   size?: "sm" | "md" | "lg" | "portal" | "portal-sm";
+ *   surface?: "page" | "paper";
+ *   invalid?: boolean;
+ * }} SelectProps
+ */
+export const Select = /** @type {import("react").ForwardRefExoticComponent<SelectProps & import("react").RefAttributes<HTMLSelectElement>>} */ (forwardRef(function Select(
   { size = "md", surface = "page", className = "", children, ...rest },
   ref,
 ) {
@@ -22,4 +29,4 @@ export const Select = forwardRef(function Select(
       {children}
     </select>
   );
-});
+}));

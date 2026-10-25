@@ -7,7 +7,14 @@ import { forwardRef } from "react";
 import { controlClassName } from "./formControl.js";
 import { useControlProps } from "./Field.jsx";
 
-export const Textarea = forwardRef(function Textarea(
+/**
+ * @typedef {Omit<import("react").TextareaHTMLAttributes<HTMLTextAreaElement>, "size"> & {
+ *   size?: "sm" | "md" | "lg" | "portal" | "portal-sm";
+ *   surface?: "page" | "paper";
+ *   invalid?: boolean;
+ * }} TextareaProps
+ */
+export const Textarea = /** @type {import("react").ForwardRefExoticComponent<TextareaProps & import("react").RefAttributes<HTMLTextAreaElement>>} */ (forwardRef(function Textarea(
   { rows = 3, size = "md", surface = "page", className = "", ...rest },
   ref,
 ) {
@@ -20,4 +27,4 @@ export const Textarea = forwardRef(function Textarea(
       className={controlClassName({ invalid: isInvalid, size, surface, className: `resize-y ${className}`.trim() })}
     />
   );
-});
+}));
