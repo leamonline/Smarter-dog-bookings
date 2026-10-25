@@ -8,6 +8,7 @@ import {
 } from "../../constants/index";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { Field, Input, Select } from "../ui/index.js";
 import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
@@ -281,9 +282,6 @@ export function ChainBookingModal({
     onClose();
   };
 
-  const inputCls =
-    "px-3 py-2 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-semibold font-inherit bg-white text-slate-800";
-
   return (
     <>
     <ModalShell
@@ -336,7 +334,8 @@ export function ChainBookingModal({
         {/* Service & Price */}
         <SectionCard title="Service & Price">
           <div className="flex items-center gap-3 py-1">
-            <select
+            <Select
+              aria-label="Service"
               value={service}
               onChange={(e) => {
                 setService(e.target.value);
@@ -346,24 +345,25 @@ export function ChainBookingModal({
                     : getServicePriceAmount(e.target.value, dogSize);
                 setCustomPrice(newDefault);
               }}
-              className={`${inputCls} flex-1 cursor-pointer`}
+              className="flex-1 cursor-pointer"
             >
               {allowedServices.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <div className="flex items-center gap-1">
-              <span className="text-[14px] font-bold text-slate-500">
+              <span aria-hidden="true" className="text-[14px] font-bold text-slate-500">
                 {"\u00A3"}
               </span>
-              <input
+              <Input
+                aria-label="Price in pounds"
                 type="number"
                 min="0"
                 value={customPrice}
                 onChange={(e) => setCustomPrice(Number(e.target.value))}
-                className={`${inputCls} w-[70px] text-center`}
+                className="w-[70px] text-center"
               />
             </div>
           </div>
@@ -373,19 +373,18 @@ export function ChainBookingModal({
         {chain.length === 0 && (
           <SectionCard title="First Appointment">
             <div className="py-2">
-              <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
-                Date
-              </div>
-              <input
-                type="date"
-                value={firstDateStr}
-                onChange={(e) => {
-                  setFirstDateStr(e.target.value);
-                  setFirstSlot("");
-                }}
-                min={toDateStr(new Date())}
-                className={`${inputCls} w-full cursor-pointer`}
-              />
+              <Field label="Date">
+                <Input
+                  type="date"
+                  value={firstDateStr}
+                  onChange={(e) => {
+                    setFirstDateStr(e.target.value);
+                    setFirstSlot("");
+                  }}
+                  min={toDateStr(new Date())}
+                  className="cursor-pointer"
+                />
+              </Field>
             </div>
             <div className="py-2">
               <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
@@ -559,13 +558,14 @@ export function ChainBookingModal({
                 <span className="text-[13px] font-semibold text-slate-600">
                   Add another in
                 </span>
-                <input
+                <Input
+                  aria-label="Weeks until the next appointment"
                   type="number"
                   min="1"
                   max="52"
                   value={weeksGap}
                   onChange={(e) => setWeeksGap(e.target.value)}
-                  className={`${inputCls} w-[56px] text-center`}
+                  className="w-[56px] text-center"
                 />
                 <span className="text-[13px] font-semibold text-slate-600">
                   weeks

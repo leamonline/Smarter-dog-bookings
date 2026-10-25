@@ -220,6 +220,30 @@ describe("control styling", () => {
     expect(cls(screen.getByLabelText("Portal"))).toContain("rounded-sd-input");
   });
 
+  it("is full width unless the caller picks a width, never both", () => {
+    render(
+      <>
+        <Input aria-label="Default" />
+        <Input aria-label="Narrow" className="w-[70px] text-center" />
+        <Input aria-label="Capped" className="max-w-xs" />
+      </>,
+    );
+    expect(cls(screen.getByLabelText("Default"))).toContain("w-full");
+    expect(cls(screen.getByLabelText("Narrow"))).not.toContain("w-full");
+    expect(cls(screen.getByLabelText("Narrow"))).toContain("w-[70px]");
+    // A max-width is a choice about width too, so the default steps aside.
+    expect(cls(screen.getByLabelText("Capped"))).not.toContain("w-full");
+  });
+
+  it("has a large size for sign-in screens: always 16px, never the compact 13px", () => {
+    render(<Input aria-label="Email" size="lg" surface="paper" />);
+    const classes = cls(screen.getByLabelText("Email"));
+    expect(classes).toContain("text-base");
+    expect(classes).not.toContain("pointer-fine:text-body");
+    expect(classes).toContain("min-h-[46px]");
+    expect(classes).toContain("rounded-sd-input");
+  });
+
   it("merges a caller's className instead of replacing the recipe", () => {
     render(<Input aria-label="Name" className="w-20 text-right" />);
     const classes = cls(screen.getByLabelText("Name"));
