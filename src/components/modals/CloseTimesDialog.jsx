@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { AccessibleModal } from "../shared/AccessibleModal";
-import { Button } from "../ui/index.js";
+import { Button, Field, Input, Select } from "../ui/index.js";
 import {
   validateClosure,
   endTimeOptions,
@@ -152,9 +152,6 @@ export function CloseTimesDialog({
     onClose?.();
   };
 
-  const fieldClass =
-    "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-brand-purple bg-white font-[inherit]";
-
   return (
     <AccessibleModal
       onClose={onClose}
@@ -195,35 +192,25 @@ export function CloseTimesDialog({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-label text-ink-muted">From</span>
-                <select
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className={fieldClass}
-                >
+              <Field label="From">
+                <Select value={from} onChange={(e) => setFrom(e.target.value)}>
                   {activeSlots.map((slot) => (
                     <option key={slot} value={slot}>
                       {formatTime(slot)}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-label text-ink-muted">To</span>
-                <select
-                  value={effectiveTo}
-                  onChange={(e) => setTo(e.target.value)}
-                  className={fieldClass}
-                >
+              <Field label="To">
+                <Select value={effectiveTo} onChange={(e) => setTo(e.target.value)}>
                   {toOptions.map((slot) => (
                     <option key={slot} value={slot}>
                       {formatTime(slot)}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             </div>
 
             <p className="text-[11px] text-slate-500 -mt-2">
@@ -232,17 +219,15 @@ export function CloseTimesDialog({
           </>
         )}
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-label text-ink-muted">Reason</span>
-          <input
+        <Field label="Reason">
+          <Input
             type="text"
             value={reason}
             maxLength={MAX_REASON_LENGTH}
             onChange={(e) => setReason(e.target.value)}
             placeholder="doctor's appointment"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-brand-purple bg-white font-[inherit]"
           />
-        </label>
+        </Field>
 
         <div className="flex flex-wrap gap-1.5 -mt-1">
           {QUICK_REASONS.map((quick) => (
