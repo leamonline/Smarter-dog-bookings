@@ -4,7 +4,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
-import { Input, Textarea } from "../ui/index.js";
+import { Field, Input, Textarea } from "../ui/index.js";
 import { titleCase, isRealPersonName } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { validateContactPhone } from "./dog-card/helpers.js";
@@ -202,41 +202,35 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
     >
         <form id="add-human-form" onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label htmlFor="add-human-first" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
-              <Input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
+            <Field label="First name" markRequired>
+              <Input value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
                 autoComplete="off"
-                
                 autoFocus />
-            </div>
-            <div>
-              <label htmlFor="add-human-surname" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
-              <Input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
+            </Field>
+            <Field label="Surname" markRequired>
+              <Input value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
                 autoComplete="off"
-                 />
-            </div>
+              />
+            </Field>
           </div>
 
-          <div>
-            <label htmlFor="add-human-phone" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Phone *</label>
-            <Input id="add-human-phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
+          <Field label="Phone" markRequired>
+            <Input type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
               autoComplete="off"
-               />
-          </div>
+            />
+          </Field>
 
-          <div>
-            <label htmlFor="add-human-email" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Email</label>
-            <Input id="add-human-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
+          <Field label="Email">
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
               autoComplete="off"
-               />
-          </div>
+            />
+          </Field>
 
-          <div>
-            <label htmlFor="add-human-address" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Address</label>
-            <Input id="add-human-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
+          <Field label="Address">
+            <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
               autoComplete="off"
-               />
-          </div>
+            />
+          </Field>
 
           <div className="flex gap-5">
             <label className="flex items-center gap-1.5 min-h-[44px] text-body cursor-pointer font-medium">
@@ -253,11 +247,11 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
 
           {/* Link dogs */}
           {dogs && onUpdateDog && (
-            <div>
-              <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
+            <div role="group" aria-labelledby="add-human-dogs-label">
+              <div id="add-human-dogs-label" className="mb-1 block text-sm font-semibold text-ink">
                 Dogs they own
-                <span className="font-medium normal-case tracking-normal text-slate-400 ml-1.5">optional</span>
-              </label>
+                <span className="font-medium text-ink-muted ml-1.5">optional</span>
+              </div>
               {selectedDogs.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
                   {selectedDogs.map((dog) => (
@@ -325,11 +319,10 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
             </div>
           )}
 
-          <div>
-            <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Notes</label>
+          <Field label="Notes">
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes about this person..." rows={2}
-              className="resize-y" />
-          </div>
+            className="resize-y" />
+          </Field>
 
           {duplicate && (
             <div role="alert" className="p-2.5 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-xs text-feedback-warning-ink">

@@ -96,6 +96,19 @@ describe("Field", () => {
     expect(screen.getByText("*")).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("markRequired shows the star and aria-required without native validation", () => {
+    render(
+      <Field label="Dog name" markRequired>
+        <Input />
+      </Field>,
+    );
+    const input = screen.getByRole("textbox", { name: "Dog name" });
+    expect(input).toHaveAttribute("aria-required", "true");
+    // No native `required` attribute: the form validates and explains itself.
+    expect(input).not.toHaveAttribute("required");
+    expect(screen.getByText("*")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("keeps a description the caller passed and adds the field's own", () => {
     render(
       <>
