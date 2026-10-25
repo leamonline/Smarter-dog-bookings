@@ -37,7 +37,7 @@ export function PanelShell({
       className={`bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-3 flex flex-col min-h-0 ${className}`}
     >
       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-200/70">
-        <h3 className={`text-[10px] font-bold uppercase tracking-wider ${theme.eyebrow}`}>
+        <h3 className={`text-micro font-bold uppercase tracking-wider ${theme.eyebrow}`}>
           {eyebrow}
         </h3>
         <div className="flex items-center gap-1.5 shrink-0">

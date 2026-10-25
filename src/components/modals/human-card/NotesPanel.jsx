@@ -31,7 +31,7 @@ export function NotesPanel({
         onClick={onToggleExpanded}
         aria-label={expanded ? "Collapse notes" : "Expand notes"}
         aria-pressed={expanded}
-        className="text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-brand-purple cursor-pointer bg-transparent border-none px-1 transition-colors"
+        className="text-micro font-bold uppercase tracking-wide text-slate-500 hover:text-brand-purple cursor-pointer bg-transparent border-none px-1 transition-colors"
       >
         {expanded ? "Collapse" : "Expand"}
       </button>

@@ -100,7 +100,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   setSavingStatus(null);
                 }
               }}
-              className={`min-h-[44px] inline-flex items-center justify-center py-2 px-0.5 md:px-1 rounded-full text-[10px] md:text-[11px] font-bold text-center leading-tight whitespace-nowrap border-none cursor-pointer font-inherit transition-colors duration-150 ${
+              className={`min-h-[44px] inline-flex items-center justify-center py-2 px-0.5 md:px-1 rounded-full text-[10px] md:text-caption font-bold text-center leading-tight whitespace-nowrap border-none cursor-pointer font-inherit transition-colors duration-150 ${
                 isActive ? "" : "bg-slate-100 text-slate-600 hover:text-slate-700 hover:bg-slate-200"
               } ${isNext && !isActive ? "ring-1 ring-inset ring-slate-400" : ""}`}
               style={

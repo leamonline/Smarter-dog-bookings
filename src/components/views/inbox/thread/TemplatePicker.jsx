@@ -100,7 +100,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
       }`}
     >
       {!hideBanner && (
-        <p className="text-[11px] leading-snug text-amber-900">
+        <p className="text-caption leading-snug text-amber-900">
           <span aria-hidden="true">⏱ </span>
           <span className="font-bold">24-hour reply window closed.</span>{" "}
           <span className="text-amber-800">Send a template to reopen the chat.</span>
@@ -152,7 +152,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
                     htmlFor={fieldId}
                     className={`flex flex-col gap-0.5 min-w-0 ${param.autoFill ? "" : "col-span-2"}`}
                   >
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span className="text-micro font-semibold uppercase tracking-wide text-slate-500">
                       {param.label.replace(/\s*\(.+\)\s*$/, "")}
                     </span>
                     {isDogSelect ? (
@@ -190,7 +190,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
             {preview}
           </div>
 
-          {error && <p className="text-[11px] text-red-700">{error}</p>}
+          {error && <p className="text-caption text-red-700">{error}</p>}
         </>
       )}
     </div>

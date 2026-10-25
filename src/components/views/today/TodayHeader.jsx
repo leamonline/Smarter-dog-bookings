@@ -76,7 +76,7 @@ export function TodayHeader({
               <Clock3 size={15} aria-hidden="true" />
               Manage availability
             </span>
-            <span aria-hidden="true" className="pl-[21px] text-[11px] font-medium leading-tight text-slate-500">
+            <span aria-hidden="true" className="pl-[21px] text-caption font-medium leading-tight text-slate-500">
               {availabilityLabel}
             </span>
           </button>

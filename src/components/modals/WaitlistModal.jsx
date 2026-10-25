@@ -150,7 +150,7 @@ export function WaitlistModal({
                     <div className="text-[13px] font-bold text-slate-800 truncate">
                       {h.name} {h.surname}
                     </div>
-                    <div className="text-[11px] text-slate-500 truncate">
+                    <div className="text-caption text-slate-500 truncate">
                       {h.phone} · {dogNames}
                     </div>
                   </button>
@@ -165,7 +165,7 @@ export function WaitlistModal({
                     }
                     aria-label="Remove from waitlist"
                     title="Remove"
-                    className="text-[11px] font-bold text-brand-coral bg-transparent border-none cursor-pointer hover:underline shrink-0"
+                    className="text-caption font-bold text-brand-coral bg-transparent border-none cursor-pointer hover:underline shrink-0"
                   >
                     Remove
                   </button>

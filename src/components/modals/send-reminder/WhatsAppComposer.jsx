@@ -28,7 +28,7 @@ export function WhatsAppComposer({ firstName, dogNames, date, slot, onSend, send
       </div>
 
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 mb-1">
+        <div className="text-micro font-bold uppercase tracking-wider text-emerald-700/70 mb-1">
           Preview
         </div>
         {/* Chat-style read-only bubble */}

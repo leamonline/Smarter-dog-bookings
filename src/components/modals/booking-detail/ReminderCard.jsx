@@ -145,7 +145,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     >
       {/* Header — same anatomy as PanelShell: eyebrow left, icon chip right */}
       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-black/5">
-        <h3 className={`text-[10px] font-bold uppercase tracking-wider ${cfg.eyebrow}`}>
+        <h3 className={`text-micro font-bold uppercase tracking-wider ${cfg.eyebrow}`}>
           Reminder
         </h3>
         <span

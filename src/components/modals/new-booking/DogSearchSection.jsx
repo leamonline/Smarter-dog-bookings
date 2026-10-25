@@ -111,22 +111,22 @@ export function DogSearchSection({
                     {titleCase(entry.dog.name)}
                     {entry.dog.alerts?.length > 0 && <span className="ml-1.5">⚠️</span>}
                   </div>
-                  <div className="text-[11px] text-slate-800 flex items-center gap-1.5 flex-wrap">
+                  <div className="text-caption text-slate-800 flex items-center gap-1.5 flex-wrap">
                     {effectiveSize ? (
                       <span
-                        className="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-white/80"
+                        className="text-micro font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-white/80"
                         style={{ color: dogTheme.primary }}
                       >
                         {effectiveSize}
                       </span>
                     ) : (
-                      <label className="text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 text-brand-coral">
+                      <label className="text-micro font-bold uppercase tracking-wide flex items-center gap-1 text-brand-coral">
                         Size not set
                         <select
                           aria-label={`Set ${titleCase(entry.dog.name)}'s size`}
                           value=""
                           onChange={(e) => onSizeChange(entry.dog.id, e.target.value)}
-                          className="text-[10px] font-bold uppercase rounded border-[1.5px] border-brand-coral bg-white px-1 py-0.5"
+                          className="text-micro font-bold uppercase rounded border-[1.5px] border-brand-coral bg-white px-1 py-0.5"
                         >
                           <option value="" disabled>Choose…</option>
                           <option value="small">Small</option>
@@ -138,7 +138,7 @@ export function DogSearchSection({
                     <span>{titleCase(entry.dog.breed)} · {titleCase(entry.humanKey)}</span>
                   </div>
                   {entry.dog.alerts?.length > 0 && (
-                    <div className="text-[10px] text-brand-coral font-semibold mt-px">
+                    <div className="text-micro text-brand-coral font-semibold mt-px">
                       {entry.dog.alerts.join(", ")}
                     </div>
                   )}
@@ -177,7 +177,7 @@ export function DogSearchSection({
                       type="button"
                       onClick={() => onAddonsChange(entry.dog.id, addon)}
                       aria-pressed={active}
-                      className={`px-2 py-[3px] rounded-full text-[10px] font-semibold border transition-colors ${
+                      className={`px-2 py-[3px] rounded-full text-micro font-semibold border transition-colors ${
                         active
                           ? "bg-brand-cyan text-white border-brand-cyan"
                           : "bg-white text-slate-600 border-slate-200"
@@ -217,7 +217,7 @@ export function DogSearchSection({
           {/* Same-owner dog picker */}
           {addingAnotherDog && (
             <div className="bg-white border border-brand-paper-line rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="px-3 py-2 text-[11px] font-bold text-slate-500 border-b border-slate-200">
+              <div className="px-3 py-2 text-caption font-bold text-slate-500 border-b border-slate-200">
                 {titleCase(selectedHumanKey)}'s other dogs
               </div>
               {sameOwnerDogs.length === 0 ? (
@@ -249,7 +249,7 @@ export function DogSearchSection({
                 + New dog for {titleCase(selectedHumanKey)}
               </div>
               <div className="px-3 py-1.5 border-t border-slate-200">
-                <button type="button" onClick={() => setAddingAnotherDog(false)} className="bg-transparent border-none text-[11px] text-slate-500 cursor-pointer font-inherit p-0">Cancel</button>
+                <button type="button" onClick={() => setAddingAnotherDog(false)} className="bg-transparent border-none text-caption text-slate-500 cursor-pointer font-inherit p-0">Cancel</button>
               </div>
             </div>
           )}
@@ -261,7 +261,7 @@ export function DogSearchSection({
               customers: straight into the guided New Client wizard. Neither
               path reads as the afterthought. */}
           <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-[#E6F5F2] p-3 flex flex-col justify-center">
-            <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
+            <label htmlFor="dog-search-input" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
             <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
               <IconSearch size={15} colour="#6B7280" />
@@ -379,7 +379,7 @@ export function DogSearchSection({
                     client. */}
                 <button type="button" onClick={() => onOpenAddDog?.()} className="w-full py-[10px] px-3 rounded-lg border-none bg-brand-cyan text-white text-sm font-bold cursor-pointer font-inherit">+ New Dog</button>
                 <div className="mt-2 pt-2 border-t border-slate-100 text-center">
-                  <button type="button" onClick={() => onOpenNewClient?.()} className="bg-transparent border-none text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:underline">New customer</button>
+                  <button type="button" onClick={() => onOpenNewClient?.()} className="bg-transparent border-none text-brand-teal-text text-caption font-bold cursor-pointer font-inherit hover:underline">New customer</button>
                 </div>
               </div>
             )}
@@ -395,7 +395,7 @@ export function DogSearchSection({
             aria-label="New customer"
             className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
           >
-            <span className="text-[11px] font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
+            <span className="text-caption font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
             <span aria-hidden="true" className="text-[13px] text-[#5C4600]/75 block">
               Set them up & take their first booking
             </span>

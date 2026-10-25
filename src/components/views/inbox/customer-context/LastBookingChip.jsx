@@ -19,7 +19,7 @@ export function LastBookingChip({ lastBooking }) {
 
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-900 text-[11px] font-semibold"
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-900 text-caption font-semibold"
       title={`Last groom: ${dateText} — ${service}${dogName ? ` — ${dogName}` : ""}`}
     >
       <svg

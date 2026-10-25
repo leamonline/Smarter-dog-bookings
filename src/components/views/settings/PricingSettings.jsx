@@ -57,7 +57,7 @@ export function PricingSettings({ config }) {
               const val = pence != null ? String(penceToPounds(pence)) : "";
               return (
                 <div key={size} className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-semibold pointer-events-none">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-caption text-slate-500 font-semibold pointer-events-none">
                     from £
                   </span>
                   <Input

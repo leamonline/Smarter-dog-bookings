@@ -118,7 +118,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 <span className="whitespace-nowrap text-[13px] leading-none tracking-tight xl:text-sm">{item.label}</span>
                 {item.to === "/inbox" && waBadge && (
                   <span
-                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
+                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-micro font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
                     aria-hidden="true"
                   >
                     {waBadge}
@@ -126,7 +126,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 )}
                 {item.to === "/humans" && humansBadge && (
                   <span
-                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-yellow text-brand-purple text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
+                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-yellow text-brand-purple text-micro font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
                     aria-hidden="true"
                   >
                     {humansBadge}
@@ -214,9 +214,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               <div className="px-4 py-3">
                 <div className="text-label text-ink-muted mb-2">Handy shortcuts</div>
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-600">
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">N</kbd><span>New booking</span>
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">T</kbd><span>Jump to today</span>
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">&larr; &rarr;</kbd><span>Move between weeks</span>
+                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-caption font-semibold text-slate-700">N</kbd><span>New booking</span>
+                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-caption font-semibold text-slate-700">T</kbd><span>Jump to today</span>
+                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-caption font-semibold text-slate-700">&larr; &rarr;</kbd><span>Move between weeks</span>
                 </div>
               </div>
             </div>

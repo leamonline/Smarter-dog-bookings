@@ -156,7 +156,7 @@ export function RecurringBookingModal({
                       {b.slot} — {svc?.name || b.service}
                     </div>
                   </div>
-                  <div className="text-[11px] font-bold text-ink-muted uppercase shrink-0">
+                  <div className="text-caption font-bold text-ink-muted uppercase shrink-0">
                     {isCurrent
                       ? "Current"
                       : isPast

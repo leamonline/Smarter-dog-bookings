@@ -20,7 +20,7 @@ export function BookingCapacityPreview({ date, slot, size }) {
 
   if (!ready) {
     return (
-      <p className="mt-2 text-[11px] text-slate-500 italic">
+      <p className="mt-2 text-caption text-slate-500 italic">
         Capacity preview will appear once date, slot and size are set.
       </p>
     );
@@ -28,7 +28,7 @@ export function BookingCapacityPreview({ date, slot, size }) {
 
   if (preview.loading) {
     return (
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-caption text-slate-500">
         Checking that slot…
       </p>
     );
@@ -36,7 +36,7 @@ export function BookingCapacityPreview({ date, slot, size }) {
 
   if (preview.error) {
     return (
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-caption text-slate-500">
         Couldn&apos;t check capacity ({preview.error}). The diary will reject the apply if it doesn&apos;t fit.
       </p>
     );
@@ -80,7 +80,7 @@ export function BookingCapacityPreview({ date, slot, size }) {
         <div className="font-semibold">
           {formatBookingDate(date)}, {slot} — {size}
         </div>
-        <div className="text-[11px] opacity-90">{preview.summary}</div>
+        <div className="text-caption opacity-90">{preview.summary}</div>
       </div>
     </div>
   );

@@ -62,7 +62,7 @@ export function StepDogs({ dogs, onAddDog, onRemoveDog }) {
               className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200">
               <div className="min-w-0">
                 <div className="text-[13px] font-bold text-brand-purple truncate">{d.name}</div>
-                <div className="text-[11px] text-slate-500 truncate">
+                <div className="text-caption text-slate-500 truncate">
                   {[d.breed, d.size].filter(Boolean).join(" · ")}
                 </div>
               </div>

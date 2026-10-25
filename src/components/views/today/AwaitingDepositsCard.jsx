@@ -25,7 +25,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
       <header className="mb-1.5 flex items-baseline gap-2 px-0.5">
         <h2 className="text-label text-slate-500">Awaiting deposit</h2>
         <span className="text-[12px] font-bold tabular-nums text-brand-purple">{items.length}</span>
-        <span className="hidden text-[11px] font-medium text-slate-500 sm:inline">
+        <span className="hidden text-caption font-medium text-slate-500 sm:inline">
           unpaid deposits release automatically when their window closes
         </span>
       </header>

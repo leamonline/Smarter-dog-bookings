@@ -33,7 +33,7 @@ export function NotifyRecipientsDialog({ owner, trusted, onConfirm, onCancel }) 
           <span className="block text-[13px] font-semibold text-slate-800 truncate">
             {titleCase(label)}
           </span>
-          {sub && <span className="block text-[11px] text-slate-400">{sub}</span>}
+          {sub && <span className="block text-caption text-slate-400">{sub}</span>}
         </span>
       </label>
     );

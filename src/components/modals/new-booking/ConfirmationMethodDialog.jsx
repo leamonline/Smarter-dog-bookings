@@ -36,7 +36,7 @@ export function ConfirmationMethodDialog({ onConfirm, onCancel }) {
         />
         <span className="flex-1 min-w-0">
           <span className="block text-[13px] font-semibold text-slate-800 truncate">{label}</span>
-          <span className="block text-[11px] text-slate-400">{sub}</span>
+          <span className="block text-caption text-slate-400">{sub}</span>
         </span>
       </label>
     );

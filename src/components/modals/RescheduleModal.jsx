@@ -194,7 +194,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
         </div>
         <div className="grid grid-cols-7 gap-1 mb-1" aria-hidden="true">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="text-center text-[10px] font-bold text-slate-400">{d}</div>
+            <div key={d} className="text-center text-micro font-bold text-slate-400">{d}</div>
           ))}
         </div>
         <div role="grid" aria-label="Choose a day" className="grid grid-cols-7 gap-1">

@@ -76,10 +76,10 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   return (
     <div className="px-4 pt-3 pb-2 bg-brand-yellow/10 border-t border-brand-yellow/30">
       <div className="flex items-center gap-2 flex-wrap mb-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-purple">
+        <span className="text-micro font-bold uppercase tracking-wider text-brand-purple">
           Booking proposal
         </span>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-yellow/20 text-brand-purple border border-brand-yellow/60">
+        <span className="inline-flex items-center gap-1 text-micro font-bold px-2 py-0.5 rounded-full bg-brand-yellow/20 text-brand-purple border border-brand-yellow/60">
           <span aria-hidden="true" className="text-[8px]">●</span>
           Proposed · awaiting your OK
         </span>
@@ -156,7 +156,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
               )}
 
               {action.payload?.notes && !isRejecting && (
-                <div className="mt-1.5 text-[11px] text-slate-500 line-clamp-2">
+                <div className="mt-1.5 text-caption text-slate-500 line-clamp-2">
                   {action.payload.notes}
                 </div>
               )}
@@ -213,7 +213,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
 function FieldDate({ label, value, onChange }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-0.5">
+      <span className="block text-micro font-bold uppercase tracking-wider text-ink-muted mb-0.5">
         {label}
       </span>
       <input
@@ -229,7 +229,7 @@ function FieldDate({ label, value, onChange }) {
 function FieldSelect({ label, value, onChange, options, placeholder }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-0.5">
+      <span className="block text-micro font-bold uppercase tracking-wider text-ink-muted mb-0.5">
         {label}
       </span>
       <select

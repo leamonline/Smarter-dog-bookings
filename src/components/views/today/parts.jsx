@@ -31,7 +31,7 @@ export function Chip({ className = "", style, dot = false, icon = null, title, a
     <span
       data-today-status-pill
       aria-label={ariaLabel}
-      className={`inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-bold ${className}`}
+      className={`inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-caption font-bold ${className}`}
       style={style}
       title={title}
     >

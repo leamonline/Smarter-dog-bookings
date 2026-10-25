@@ -278,7 +278,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-caption font-semibold italic"
           >
             (large dog)
           </div>
@@ -302,7 +302,7 @@ export function SlotGrid({
               <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
               <line x1="6" y1="6" x2="18" y2="18" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            <span className="text-[10px] font-semibold text-slate-600">Closed</span>
+            <span className="text-micro font-semibold text-slate-600">Closed</span>
           </div>
         );
       }
@@ -331,7 +331,7 @@ export function SlotGrid({
         ].filter(Boolean).join(" ")}
       >
         {isDraftTarget && (
-          <span className={`absolute ${index === 0 ? "top-1" : "-top-2"} left-16 md:left-20 z-[1] inline-flex items-center rounded-full bg-brand-teal text-white text-[10px] font-bold px-2 py-0.5 shadow-sm pointer-events-none`}>
+          <span className={`absolute ${index === 0 ? "top-1" : "-top-2"} left-16 md:left-20 z-[1] inline-flex items-center rounded-full bg-brand-teal text-white text-micro font-bold px-2 py-0.5 shadow-sm pointer-events-none`}>
             Booking here
           </span>
         )}

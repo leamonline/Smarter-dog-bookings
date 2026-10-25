@@ -340,7 +340,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               )}
 
               {displayBreed && (
-                <span className="truncate text-[10px] sm:text-[11px] font-semibold text-slate-400 ml-1">
+                <span className="truncate text-[10px] sm:text-caption font-semibold text-slate-400 ml-1">
                   {displayBreed}
                 </span>
               )}
@@ -350,19 +350,19 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             <div className="shrink-0 text-right font-display text-xs sm:text-[13px] font-black tabular-nums flex items-center gap-1.5">
               <span className="text-slate-800">£{pricing.subtotal}</span>
               {isAwaitingDeposit(booking) ? (
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded leading-none">
                   Awaiting deposit
                 </span>
               ) : needsPayment ? (
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
                   £{pricing.amountDue} due
                 </span>
               ) : pricing.isDepositPaid ? (
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
                   £{pricing.amountDue} due
                 </span>
               ) : pricing.isPaidInFull ? (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded leading-none">
                   Paid
                 </span>
               ) : null}
@@ -470,7 +470,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
                       {s.label}
                     </span>
-                    {isCurrent && <span className="text-[10px]">Active</span>}
+                    {isCurrent && <span className="text-micro">Active</span>}
                   </button>
                 );
               })}
@@ -482,13 +482,13 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               className="flex items-center gap-1.5 flex-wrap border-t border-slate-100 pt-1.5"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-[10px] font-bold text-slate-500">Pay:</span>
+              <span className="text-micro font-bold text-slate-500">Pay:</span>
               {PAYMENT_METHODS.map((m) => (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => markPaid(m.id)}
-                  className="text-[10px] font-bold py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:brightness-95 cursor-pointer touch-manipulation min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                  className="text-micro font-bold py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:brightness-95 cursor-pointer touch-manipulation min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 >
                   {m.label}
                 </button>
@@ -496,7 +496,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               <button
                 type="button"
                 onClick={() => setPayChooserOpen(false)}
-                className="text-[10px] text-slate-500 underline ml-auto cursor-pointer"
+                className="text-micro text-slate-500 underline ml-auto cursor-pointer"
               >
                 Cancel
               </button>

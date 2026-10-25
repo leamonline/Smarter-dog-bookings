@@ -27,7 +27,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
         </div>
       </div>
 
-      <label className="text-[11px] font-semibold text-sky-900">
+      <label className="text-caption font-semibold text-sky-900">
         To <span className="font-normal text-sky-700 tabular-nums">{phoneDisplay}</span>
       </label>
 
@@ -40,7 +40,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
         className="w-full text-[14px] p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
       />
 
-      <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+      <div className="flex items-center justify-between gap-2 flex-wrap text-caption">
         <span className={`tabular-nums ${overOneSegment ? "text-amber-700 font-semibold" : "text-sky-900"}`}>
           {info.length} char{info.length === 1 ? "" : "s"} · {info.segments} segment
           {info.segments === 1 ? "" : "s"} · {info.encoding}

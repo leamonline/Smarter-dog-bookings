@@ -195,7 +195,7 @@ export function resolveDayStatus(
 }
 
 const SIZES = {
-  sm: "text-[11px] px-2 py-0.5",
+  sm: "text-caption px-2 py-0.5",
   md: "text-[12px] px-2.5 py-1",
 } as const;
 

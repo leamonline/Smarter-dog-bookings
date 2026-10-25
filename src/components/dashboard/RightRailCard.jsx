@@ -251,7 +251,7 @@ export function RightRailCard({
               </div>
             )}
             {subtitle && (
-              <div className={`text-[11px] font-semibold ${theme.subtitle}`}>
+              <div className={`text-caption font-semibold ${theme.subtitle}`}>
                 {subtitle}
               </div>
             )}

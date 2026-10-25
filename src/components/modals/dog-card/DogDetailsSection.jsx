@@ -163,7 +163,7 @@ export function DogDetailsSection({
         <>
           <a
             href={telLink(owner.phone)}
-            className="text-[11px] text-slate-400 no-underline hover:text-brand-teal"
+            className="text-caption text-slate-400 no-underline hover:text-brand-teal"
             onClick={(e) => e.stopPropagation()}
           >
             {owner.phone}
@@ -172,7 +172,7 @@ export function DogDetailsSection({
             href={waLink(owner.phone)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[10px] font-bold text-green-600 no-underline hover:text-green-700"
+            className="text-micro font-bold text-green-600 no-underline hover:text-green-700"
             onClick={(e) => e.stopPropagation()}
             title="WhatsApp"
           >
@@ -199,7 +199,7 @@ export function DogDetailsSection({
               className={`${INPUT_CLS} cursor-pointer flex justify-between items-center ${showOwnerSearch ? "bg-blue-50" : "bg-white"}`}
             >
               <span className="font-semibold">{editOwnerLabel || "Select owner..."}</span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-caption text-slate-500">
                 {showOwnerSearch ? "\u25b2" : "\u25bc"}
               </span>
             </div>
@@ -255,7 +255,7 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5 flex items-center gap-1.5`}>
               <span>Size</span>
               {sizeAutoSet && !sizeOverridden && (
-                <span className="font-medium normal-case tracking-normal text-brand-green text-[11px]">
+                <span className="font-medium normal-case tracking-normal text-brand-green text-caption">
                   auto
                 </span>
               )}

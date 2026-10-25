@@ -48,7 +48,7 @@ function DogRow({ dog, lastGroom, onClose, onOpenDog }) {
           )}
         </span>
         {lastGroom && (
-          <span className="block text-[11px] text-slate-400 truncate">
+          <span className="block text-caption text-slate-400 truncate">
             Last groom {lastGroom}
           </span>
         )}

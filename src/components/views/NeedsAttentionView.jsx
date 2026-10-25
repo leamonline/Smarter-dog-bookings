@@ -64,7 +64,7 @@ function AttentionRow({ item, dogs, humans, onOpenBooking }) {
           </div>
           <div className="mt-1 flex items-center gap-1.5">
             <span
-              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold ${
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-caption font-bold ${
                 item.isStale
                   ? "bg-brand-coral-light text-brand-coral-dark"
                   : "bg-slate-100 text-slate-500"
@@ -73,14 +73,14 @@ function AttentionRow({ item, dogs, humans, onOpenBooking }) {
               {ageLabel(item.ageDays)}
             </span>
             {item.isStale && (
-              <span className="text-[11px] font-semibold text-brand-coral-dark">
+              <span className="text-caption font-semibold text-brand-coral-dark">
                 Needs chasing
               </span>
             )}
           </div>
         </div>
         <span
-          className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold"
+          className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold"
           style={{ background: status.bg, color: status.color }}
         >
           {status.label}

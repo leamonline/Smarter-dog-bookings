@@ -50,7 +50,7 @@ export function ConfirmReportedSize({ dog, onUpdateDog, onConfirmed, onFailed })
       <p className="m-0 min-w-0 flex-1 text-[12px] font-semibold text-slate-700">
         No size recorded. The owner thinks <strong className="text-brand-purple">{reported}</strong>
         {breed ? <> for a {breed}</> : null}.
-        <span className="block text-[11px] font-medium text-ink-muted">
+        <span className="block text-caption font-medium text-ink-muted">
           They can’t book online until it’s set. Use Edit to choose a different size.
         </span>
       </p>

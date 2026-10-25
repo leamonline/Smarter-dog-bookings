@@ -50,7 +50,7 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
           )}
         </div>
         <div className="flex items-center gap-1 flex-wrap mt-1.5">
-          <span className="text-[11px] font-semibold text-slate-500 mr-0.5">Fits:</span>
+          <span className="text-caption font-semibold text-slate-500 mr-0.5">Fits:</span>
           {sizes.map((s) => (
             <SizeChip key={s} label={s} />
           ))}

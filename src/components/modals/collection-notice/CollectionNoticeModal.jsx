@@ -345,7 +345,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold text-brand-purple truncate">
                         {displayName(r)}
-                        <span className="ml-1.5 text-[11px] font-medium text-slate-400">
+                        <span className="ml-1.5 text-caption font-medium text-slate-400">
                           {r.relationship}
                         </span>
                       </div>
