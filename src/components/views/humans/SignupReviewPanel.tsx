@@ -33,7 +33,7 @@ export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: Sign
         <button type="button" onClick={close} disabled={state.busy} className={`${button} px-3`} aria-label="Close review"><X size={20} /></button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-        {confirmClose && <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+        {confirmClose && <div className="mb-5 rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint p-4" role="alert">
           <p className="text-sm font-semibold">Discard your unsaved size choices?</p>
           <p className="mt-1 text-sm">Sizes already saved will be kept.</p>
           <div className="mt-3 flex flex-wrap gap-2">

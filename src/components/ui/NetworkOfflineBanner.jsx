@@ -7,7 +7,7 @@ export function NetworkOfflineBanner() {
   return (
     <div
       role="alert"
-      className="bg-amber-100 border-y-2 border-amber-400 text-amber-900 px-4 py-2 text-sm font-semibold text-center font-sans"
+      className="bg-feedback-warning-tint border-y-2 border-brand-mustard text-feedback-warning-ink px-4 py-2 text-sm font-semibold text-center font-sans"
     >
       You&apos;re offline — changes won&apos;t save until your connection comes back.
     </div>

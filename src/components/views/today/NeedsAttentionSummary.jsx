@@ -23,7 +23,7 @@ function segmentLabel(reason, count, dueNow) {
 
 const SEGMENT_TONE = {
   late: "text-brand-coral-text",
-  toConfirm: "text-amber-800",
+  toConfirm: "text-feedback-warning-ink",
   waiting: "text-brand-purple",
   unpaid: "text-brand-coral-text",
 };

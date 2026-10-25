@@ -37,7 +37,7 @@ export function BookingGridControls({
   // colourful badge. Desktop (lg+) has the full RightWorkflowSidebar, so these
   // are mobile/tablet only (lg:hidden) to avoid doubling up.
   const notifications = [
-    { id: "reminders", count: reminderCount, onOpen: onOpenReminders, Icon: BellRing, cls: "bg-amber-50 text-amber-700 hover:bg-amber-100", one: "reminder to send", many: "reminders to send" },
+    { id: "reminders", count: reminderCount, onOpen: onOpenReminders, Icon: BellRing, cls: "bg-feedback-warning-tint text-feedback-warning-ink hover:bg-feedback-warning-tint", one: "reminder to send", many: "reminders to send" },
     { id: "waitlist", count: waitlistCount, onOpen: onOpenWaitlist, Icon: Clock3, cls: "bg-sky-50 text-sky-700 hover:bg-sky-100", one: "on the waitlist", many: "on the waitlist" },
     { id: "tasks", count: todoCount, onOpen: onOpenTodos, Icon: ListChecks, cls: "bg-rose-50 text-rose-700 hover:bg-rose-100", one: "open task", many: "open tasks" },
   ].filter((n) => n.count > 0 && n.onOpen);

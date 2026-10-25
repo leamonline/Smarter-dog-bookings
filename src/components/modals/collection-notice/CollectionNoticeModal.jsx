@@ -321,7 +321,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
               </button>
             </div>
           ) : contactsUnavailable ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-[12px] font-semibold text-amber-900">
+            <div className="rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-3 text-[12px] font-semibold text-feedback-warning-ink">
               {contactsUnavailable}
             </div>
           ) : loading ? (

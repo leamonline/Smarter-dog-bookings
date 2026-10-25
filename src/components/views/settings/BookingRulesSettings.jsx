@@ -302,7 +302,7 @@ export function BookingRulesSettings({
           bookingPolicyError ? (
             <p
               role="alert"
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+              className="rounded-lg border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-2.5 text-xs font-semibold text-feedback-warning-ink"
             >
               {bookingPolicyError}
             </p>
@@ -400,7 +400,7 @@ export function BookingRulesSettings({
             {legacyError && (
               <div
                 role="alert"
-                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+                className="rounded-lg border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-2.5 text-xs font-semibold text-feedback-warning-ink"
               >
                 {legacyError}
               </div>
@@ -445,7 +445,7 @@ export function BookingRulesSettings({
               {visibleAlert && (
                 <div
                   role="alert"
-                  className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+                  className="mt-4 rounded-lg border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-2.5 text-xs font-semibold text-feedback-warning-ink"
                 >
                   {visibleAlert}
                 </div>

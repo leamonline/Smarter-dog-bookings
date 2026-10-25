@@ -12,7 +12,7 @@ export function CustomerRanking({ topCusts, uniqueCusts, revPerCust }) {
             {top.map((c, i) => (
               <div key={c.name} className="flex items-center justify-between py-1.5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-micro font-black flex items-center justify-center shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-feedback-warning-tint text-feedback-warning-ink text-micro font-black flex items-center justify-center shrink-0">
                     {i + 1}
                   </span>
                   <div className="min-w-0">

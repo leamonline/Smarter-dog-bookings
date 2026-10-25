@@ -14,7 +14,7 @@
 const ACCENTS = {
   slate: { chipBg: "bg-slate-100", chipFg: "text-slate-600", eyebrow: "text-slate-400" },
   teal: { chipBg: "bg-[#E6F5F2]", chipFg: "text-brand-teal-text", eyebrow: "text-brand-teal-text/70" },
-  amber: { chipBg: "bg-amber-100", chipFg: "text-amber-700", eyebrow: "text-amber-700/70" },
+  amber: { chipBg: "bg-feedback-warning-tint", chipFg: "text-feedback-warning-ink", eyebrow: "text-feedback-warning-ink/70" },
   emerald: { chipBg: "bg-emerald-100", chipFg: "text-emerald-700", eyebrow: "text-emerald-700/70" },
   sky: { chipBg: "bg-sky-100", chipFg: "text-sky-700", eyebrow: "text-sky-700/70" },
   rose: { chipBg: "bg-rose-100", chipFg: "text-rose-700", eyebrow: "text-rose-700/70" },

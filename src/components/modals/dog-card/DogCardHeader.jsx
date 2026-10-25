@@ -65,7 +65,7 @@ export function DogCardHeader({
           )}
           {incomplete && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-feedback-warning-tint text-feedback-warning-ink border border-brand-mustard-tint"
               title="Missing size, breed or owner — please complete this profile"
             >
               Incomplete profile

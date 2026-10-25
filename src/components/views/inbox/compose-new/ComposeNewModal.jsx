@@ -340,7 +340,7 @@ export function ComposeNewModal({
           ) : (
             <div className="p-3">
               {!selectedHuman.phone && (
-                <div role="alert" className="mb-3 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
+                <div role="alert" className="mb-3 p-2 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-[12px] text-feedback-warning-ink">
                   No phone number on file for this customer. Add one on their profile first, then come back.
                 </div>
               )}

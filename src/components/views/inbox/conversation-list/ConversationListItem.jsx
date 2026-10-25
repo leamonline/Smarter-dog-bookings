@@ -16,7 +16,7 @@ import { previewMessageText } from "../thread/messageContent";
 
 const STATUS_TONES = {
   danger: "border-rose-200 bg-rose-50 text-rose-800",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  warning: "border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink",
   success: "border-emerald-200 bg-emerald-50 text-emerald-800",
   info: "border-brand-purple/20 bg-brand-purple/5 text-brand-purple",
   neutral: "border-slate-200 bg-slate-100 text-slate-700",
@@ -111,7 +111,7 @@ export function ConversationListItem({
           )}
         </div>
 
-        {waitingLabel && <p className={`mt-1 text-[12px] font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-amber-900"}`}>{waitingLabel}</p>}
+        {waitingLabel && <p className={`mt-1 text-[12px] font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-feedback-warning-ink"}`}>{waitingLabel}</p>}
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {preview ? (
@@ -142,7 +142,7 @@ export function ConversationListItem({
               <span
                 className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-[12px] font-semibold ${
                   windowBadge.kind === "closing_soon"
-                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    ? "border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink"
                     : "border-slate-200 bg-slate-100 text-slate-700"
                 }`}
                 title={windowBadge.title}

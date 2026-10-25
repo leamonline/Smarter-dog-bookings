@@ -158,7 +158,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           </div>
 
           {dormant && (
-            <div className="text-[12px] text-amber-900 bg-amber-50 border border-amber-200 rounded-md p-2">
+            <div className="text-[12px] text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-md p-2">
               Nothing will send yet: {!result.broadcast_enabled ? "the broadcast kill-switch is off" : "the WhatsApp template is still awaiting Meta approval"}.
             </div>
           )}

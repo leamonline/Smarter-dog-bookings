@@ -209,6 +209,13 @@
   --color-brand-mustard: #B8860B;
   --color-brand-mustard-tint: #F5E6C8;
   --color-brand-mustard-paper: #FFFBF2;
+  /* Warnings are NOT the action yellow (see docs/ux/warm-colours.md): mustard for
+     edges, dots and icons; the tint and ink for the notice itself (8.4:1). Always
+     with a sentence saying what is wrong. In @theme so Tailwind generates
+     bg-feedback-warning-tint, text-feedback-warning-ink and friends. */
+  --color-feedback-warning: var(--color-brand-mustard);
+  --color-feedback-warning-tint: #FFF7DC;
+  --color-feedback-warning-ink: #5C4600;
 
   /* Customer portal palette */
   --color-brand-ink: #1F1F1F;
@@ -419,9 +426,6 @@
      reads as something to press. Mustard is the edge/icon colour, the tint
      and ink are for the notice itself (ink on tint 8.4:1). Always with a
      sentence saying what is wrong. See docs/ux/warm-colours.md. */
-  --color-feedback-warning: var(--color-brand-mustard);
-  --color-feedback-warning-tint: #FFF7DC;
-  --color-feedback-warning-ink: #5C4600;
 }
 
 /* ── Usage-locking classes ────────────────────────────────────── */

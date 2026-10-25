@@ -16,7 +16,7 @@ function Chip({ label, onClick, hue }) {
   // at a glance even at this compact size.
   const colour = {
     emerald: "text-emerald-700 hover:bg-emerald-50",
-    amber: "text-amber-700 hover:bg-amber-50",
+    amber: "text-feedback-warning-ink hover:bg-feedback-warning-tint",
     sky: "text-sky-700 hover:bg-sky-50",
     rose: "text-rose-700 hover:bg-rose-50",
   }[hue];

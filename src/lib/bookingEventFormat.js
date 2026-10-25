@@ -110,8 +110,8 @@ export const EVENT_TONE = {
     label: "Booked",
   },
   rescheduled: {
-    dot: "bg-amber-500",
-    pill: "text-amber-700",
+    dot: "bg-brand-mustard",
+    pill: "text-feedback-warning-ink",
     label: "Moved",
   },
   cancelled: {
@@ -130,8 +130,8 @@ export const EVENT_TONE = {
     label: "Completed",
   },
   completion_reopened: {
-    dot: "bg-amber-500",
-    pill: "text-amber-700",
+    dot: "bg-brand-mustard",
+    pill: "text-feedback-warning-ink",
     label: "Reopened",
   },
 };

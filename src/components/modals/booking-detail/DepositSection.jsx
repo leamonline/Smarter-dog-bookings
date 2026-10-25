@@ -64,13 +64,13 @@ export function DepositSection({ booking, onMarkReceived }) {
   return (
     <section
       aria-label="Deposit"
-      className="rounded-xl px-3 py-3 mb-3 bg-amber-50 border border-amber-200"
+      className="rounded-xl px-3 py-3 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint"
     >
-      <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-amber-700 m-0">
+      <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-feedback-warning-ink m-0">
         <PiggyBank size={13} strokeWidth={2.4} aria-hidden="true" />
         Awaiting deposit
       </p>
-      <p className="text-[14px] font-bold text-amber-900 mt-1.5 mb-0">
+      <p className="text-[14px] font-bold text-feedback-warning-ink mt-1.5 mb-0">
         £{amount} · reference{" "}
         <span className="font-mono tracking-wide">{booking.depositReference}</span>
         {dueLabel ? <span className="font-semibold"> · due {dueLabel}</span> : null}
@@ -79,7 +79,7 @@ export function DepositSection({ booking, onMarkReceived }) {
         <button
           type="button"
           onClick={copyLine}
-          className="min-h-11 px-3 rounded-lg border border-amber-300 bg-white text-[12px] font-bold text-amber-800 cursor-pointer transition-all hover:bg-amber-100 font-[inherit]"
+          className="min-h-11 px-3 rounded-lg border border-brand-mustard-tint bg-white text-[12px] font-bold text-feedback-warning-ink cursor-pointer transition-all hover:bg-feedback-warning-tint font-[inherit]"
         >
           {copied ? "Copied!" : "Copy WhatsApp message"}
         </button>
