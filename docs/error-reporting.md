@@ -75,6 +75,25 @@ Never put the DSN in `.env` in the repository, and never give a `VITE_`
 variable a service-role or provider secret — anything `VITE_` prefixed is
 visible to every browser that loads the app.
 
+## Releases and readable stack traces
+
+Production errors are tagged with the commit that built the bundle (`release`), and the build uploads
+that commit's source maps to Sentry, so a stack trace names real files and lines instead of minified
+chunks. Events also carry a `mount` tag (`staff`, `customer`, …), which is the entrance, not customer data.
+
+It switches on only when the Vercel **Production** environment holds `SENTRY_AUTH_TOKEN` (sensitive),
+`SENTRY_ORG` and `SENTRY_PROJECT`. Without any one of them (previews, local builds, CI, E2E) nothing
+changes: no maps are generated and there is no network call. The logic is in
+[`vite.sentry.js`](../vite.sentry.js) and is covered by `src/test/sentryBuild.test.js`.
+
+- **Visitors never receive a `.map` file.** Maps are generated `hidden` (no `sourceMappingURL` in any
+  bundle), uploaded, then deleted from `dist/`. The deletion runs even if the upload fails.
+- **Sentry being down never fails a deploy.** An upload error is a build-log warning
+  (`[sentry] source map upload did not complete`), and that deploy's errors simply stay minified.
+- **Never prefix the token `VITE_`.** That would ship it to every browser.
+- To prove it works after a deploy: trigger one deliberate test error on production and confirm the
+  event in Sentry shows source file names and the commit as its release.
+
 ## What gets sent, and what does not
 
 [`sentryBeforeSend`](../src/lib/sentry.js) runs on every event before it

@@ -7,7 +7,7 @@ import { supabaseConfigError } from "./supabase/client";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
 import { DevConnectionBanner } from "./components/dev/DevConnectionBanner.jsx";
-import { initSentry } from "./lib/sentry.js";
+import { initSentry, tagMount } from "./lib/sentry.js";
 import { installChunkReloadHandler } from "./lib/chunkReload.js";
 import { suppressIOSFocusZoom } from "./lib/iosFocusZoom.js";
 import { resolveLegacyRedirect, resolveMount } from "./routing/entrypoints";
@@ -37,6 +37,7 @@ if (legacyRedirect) {
   // resolveLegacyRedirect returns null only for paths resolveMount can place,
   // which entrypoints.test.ts pins.
   const { mount, basename } = resolveMount(pathname);
+  tagMount(mount);
 
   const screen = () => {
     if (supabaseConfigError) {

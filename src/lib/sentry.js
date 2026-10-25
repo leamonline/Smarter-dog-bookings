@@ -114,12 +114,23 @@ export function initSentry() {
   Sentry.init({
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
+    // The commit that built this bundle; pairs events with their source maps.
+    release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
     enabled: import.meta.env.PROD,
     tracesSampleRate: 0,
     sendDefaultPii: false,
     beforeSend: sentryBeforeSend,
   });
   initialized = true;
+}
+
+/**
+ * Which entrance (staff, customer, ...) this page belongs to, as a tag, so an
+ * error can be filtered by the app it happened in. Not customer data.
+ */
+export function tagMount(mount) {
+  if (!initialized) return;
+  Sentry.setTag("mount", mount);
 }
 
 export function captureException(error, context) {
