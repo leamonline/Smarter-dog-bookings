@@ -108,6 +108,27 @@ describe("design tokens: one value, one canonical name", () => {
   });
 });
 
+describe("fonts: Montserrat faces", () => {
+  // A ranged weight (`font-weight: 400 700`) matches every weight exactly and,
+  // declared last, outranks the static faces, so ordinary text silently falls
+  // back to the system font. Only visible on Linux, where the fallback is wide:
+  // it broke the phone inbox layout test on CI while passing on a Mac.
+  it("declares every face with a single weight", () => {
+    const faces = [...css.matchAll(/@font-face\s*\{[^}]*font-family:\s*"Montserrat"[^}]*\}/g)].map((m) => m[0]);
+    expect(faces.length).toBeGreaterThanOrEqual(8);
+    for (const face of faces) {
+      expect(face).toMatch(/font-weight:\s*(400|500|600|700);/);
+    }
+  });
+
+  it("covers every weight with a latin-ext face", () => {
+    for (const weight of [400, 500, 600, 700]) {
+      const ext = new RegExp(`font-weight:\\s*${weight};[^}]*montserrat-latin-ext\\.woff2`);
+      expect(css, `latin-ext face for weight ${weight}`).toMatch(ext);
+    }
+  });
+});
+
 describe("design tokens: deprecated names may not spread", () => {
   function sourceFiles(dir: string, out: string[] = []): string[] {
     for (const entry of readdirSync(dir)) {
