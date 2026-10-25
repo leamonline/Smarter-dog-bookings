@@ -89,7 +89,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
           aria-label="Closure actions"
           className={[
             "absolute right-3 z-30 w-52 rounded-xl bg-white p-1.5",
-            "shadow-[0_12px_28px_rgba(45,0,75,0.35)] flex flex-col",
+            "shadow-[0_12px_28px_rgba(31,31,31,0.35)] flex flex-col",
             menuBottomUp ? "bottom-3" : "top-12",
           ].join(" ")}
         >

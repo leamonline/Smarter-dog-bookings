@@ -374,7 +374,7 @@ export function BookingPane({
       </div>
 
       {onClear ? (
-        <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 shadow-[0_-5px_20px_rgba(45,0,75,0.08)]">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 shadow-[0_-5px_20px_rgba(31,31,31,0.08)]">
           <DraftOffer
             choices={choices}
             onClear={onClear}

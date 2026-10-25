@@ -5,6 +5,7 @@ import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { BREED_LIST } from "../../constants/breeds";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
+import { Input, Select, Textarea } from "../ui/index.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase, normaliseSurname, isRealPersonName } from "../../utils/text";
 import { validateContactPhone } from "./dog-card/helpers.js";
@@ -297,14 +298,14 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-dog-name" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Dog Name *</label>
-              <input
+              <Input
                 id="add-dog-name"
                 value={name}
                 onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
                 placeholder="Bella"
                 aria-invalid={Boolean(fieldErrors.name)}
                 aria-describedby={fieldErrors.name ? "add-dog-name-error" : undefined}
-                className={`w-full px-3.5 py-2.5 rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal ${fieldErrors.name ? "border-brand-coral" : "border-slate-200"}`}
+                invalid={Boolean(fieldErrors.name)}
                 autoFocus
               />
               {fieldErrors.name && (
@@ -313,19 +314,19 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
             </div>
             <div>
               <label htmlFor="add-dog-gender" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
-              <select id="add-dog-gender" value={gender} onChange={(e) => setGender(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+              <Select id="add-dog-gender" value={gender} onChange={(e) => setGender(e.target.value)}
+                className="cursor-pointer">
                 <option value="">Select</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-              </select>
+              </Select>
             </div>
           </div>
           {/* Breed & Size */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-dog-breed" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Breed *</label>
-              <select
+              <Select
                 id="add-dog-breed"
                 value={breed}
                 onChange={(e) => {
@@ -345,20 +346,20 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 }}
                 aria-invalid={Boolean(fieldErrors.breed)}
                 aria-describedby={fieldErrors.breed ? "add-dog-breed-error" : undefined}
-                className={`w-full px-3.5 py-2.5 rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer ${fieldErrors.breed ? "border-brand-coral" : "border-slate-200"}`}>
+                invalid={Boolean(fieldErrors.breed)} className="cursor-pointer">
                 <option value="">Select breed</option>
                 {SORTED_BREEDS.map(b => (
                   <option key={b.name} value={b.name}>{b.name}</option>
                 ))}
                 <option value="__other__">Other</option>
-              </select>
+              </Select>
               {isOtherBreed && (
-                <input
+                <Input
                   value={customBreed}
                   onChange={(e) => { setCustomBreed(e.target.value); clearFieldError("breed"); }}
                   placeholder="Enter breed..."
                   aria-label="Custom breed"
-                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                  className="mt-1.5"
                   autoFocus
                 />
               )}
@@ -378,7 +379,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                   )}
                 </span>
               </label>
-              <select
+              <Select
                 id="add-dog-size"
                 value={size}
                 onChange={(e) => {
@@ -389,7 +390,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 }}
                 aria-invalid={Boolean(fieldErrors.size)}
                 aria-describedby={fieldErrors.size ? "add-dog-size-error" : undefined}
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
+                className="cursor-pointer"
                 style={{
                   borderColor: fieldErrors.size ? "var(--color-brand-coral)" : sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "var(--color-brand-coral)" : undefined,
                 }}>
@@ -397,7 +398,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
-              </select>
+              </Select>
               {fieldErrors.size && (
                 <p id="add-dog-size-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.size}</p>
               )}
@@ -408,20 +409,20 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           <div>
             <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Date of Birth</label>
             <div className="flex gap-1.5">
-              <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
-                className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+              <Select aria-label="Month of birth" value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
+                className="flex-1 cursor-pointer">
                 <option value="">Month</option>
                 {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
                   <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
                 ))}
-              </select>
-              <select value={dobYear} onChange={(e) => setDobYear(e.target.value)}
-                className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+              </Select>
+              <Select aria-label="Year of birth" value={dobYear} onChange={(e) => setDobYear(e.target.value)}
+                className="flex-1 cursor-pointer">
                 <option value="">Year</option>
                 {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                   <option key={y} value={String(y)}>{y}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -429,21 +430,21 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-dog-colour" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Colour / Markings</label>
-              <input
+              <Input
                 id="add-dog-colour"
                 value={colour}
                 onChange={(e) => setColour(e.target.value)}
                 placeholder="Black &amp; tan"
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+                 />
             </div>
             <div>
               <label htmlFor="add-dog-neutered" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Neutered</label>
-              <select id="add-dog-neutered" value={neutered} onChange={(e) => setNeutered(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+              <Select id="add-dog-neutered" value={neutered} onChange={(e) => setNeutered(e.target.value)}
+                className="cursor-pointer">
                 <option value="">Select</option>
                 <option value="yes">Neutered</option>
                 <option value="no">Not neutered</option>
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -451,21 +452,21 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-dog-microchip" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Microchip</label>
-              <input
+              <Input
                 id="add-dog-microchip"
                 value={microchip}
                 onChange={(e) => setMicrochip(e.target.value)}
                 placeholder="985..."
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+                 />
             </div>
             <div>
               <label htmlFor="add-dog-vet" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Vet</label>
-              <input
+              <Input
                 id="add-dog-vet"
                 value={vet}
                 onChange={(e) => setVet(e.target.value)}
                 placeholder="Vet practice"
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+                 />
             </div>
           </div>
 
@@ -493,14 +494,14 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
                     <IconSearch size={14} colour="#6B7280" />
                   </div>
-                  <input
+                  <Input
                     id="add-dog-owner"
                     value={ownerQuery}
                     onChange={(e) => { setOwnerQuery(e.target.value); clearFieldError("owner"); }}
                     placeholder="Search by name or phone..."
                     aria-invalid={Boolean(fieldErrors.owner)}
                     aria-describedby={fieldErrors.owner ? "add-dog-owner-error" : undefined}
-                    className={`w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal ${fieldErrors.owner ? "border-brand-coral" : "border-slate-200"}`}
+                    invalid={Boolean(fieldErrors.owner)} className="pl-[34px]"
                   />
                   {ownerResults.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
@@ -555,25 +556,25 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide mb-2">New Owner</div>
                 <div className="flex gap-2 mb-2">
-                  <input
+                  <Input
                     type="text" placeholder="First name" value={newOwnerName}
                     onChange={(e) => { setNewOwnerName(e.target.value); clearFieldError("owner"); }}
                     autoFocus
                     aria-label="Owner first name"
-                    className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                    className="flex-1"
                   />
-                  <input
+                  <Input
                     type="text" placeholder="Surname" value={newOwnerSurname}
                     onChange={(e) => { setNewOwnerSurname(e.target.value); clearFieldError("owner"); }}
                     aria-label="Owner surname"
-                    className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                    className="flex-1"
                   />
                 </div>
-                <input
+                <Input
                   type="tel" placeholder="Phone number" value={newOwnerPhone}
                   onChange={(e) => { setNewOwnerPhone(e.target.value); clearFieldError("owner"); }}
                   aria-label="Owner phone number"
-                  className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal mb-2"
+                  className="mb-2"
                 />
                 <button type="button" onClick={() => {
                   setShowNewOwner(false);
@@ -593,9 +594,9 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           {/* Groom Notes */}
           <div>
             <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Groom Notes</label>
-            <textarea value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
+            <Textarea aria-label="Groom notes" value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
               placeholder="Teddy bear cut, short on ears..." rows={2}
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
+              className="resize-y" />
           </div>
 
           {/* Alerts */}
@@ -637,12 +638,14 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               </button>
             </div>
             {hasAllergy && (
-              <input
+              <Input
                 type="text"
                 placeholder="Allergic to..."
+                aria-label="Allergic to"
                 value={allergyInput}
                 onChange={(e) => setAllergyInput(e.target.value)}
-                className="w-full mt-1.5 px-3.5 py-2.5 rounded-lg border-[1.5px] border-brand-coral text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-coral"
+                className="mt-1.5"
+                style={{ borderColor: "var(--color-brand-coral)" }}
               />
             )}
           </div>
