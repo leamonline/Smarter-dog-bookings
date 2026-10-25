@@ -116,6 +116,8 @@ These files remain authoritative for their bounded topics:
 - [`.design-sync/`](../.design-sync/) — design system evidence. The early rebrand spec
   ([`archive/DESIGN.md`](archive/DESIGN.md)) is superseded; `src/index.css` and
   [`modal-standard.md`](modal-standard.md) are canonical.
+- [`ux/warm-colours.md`](ux/warm-colours.md) — which job each yellow, gold and
+  mustard token does, and why warnings must not use the action yellow. Draft.
 
 ## Document status vocabulary
 

@@ -7,16 +7,16 @@
    ============================================== */
 
 :root {
-  --sd-cyan-light: #10C2FC;
+  /* --sd-cyan-light, --sd-teal and --sd-coral-light were removed: pre-reskin
+     literals with no consumers (their near-twins live on as
+     --color-brand-cyan-light, --color-brand-teal-text, --color-sd-coral-tint). */
   --sd-cyan: var(--color-sd-cyan);
   --sd-cyan-dark: var(--color-sd-cyan-dark);
   --sd-navy: var(--color-sd-navy);
   --sd-navy-soft: var(--color-sd-navy-soft);
-  --sd-teal: #2A6F6B;
   --sd-yellow: var(--color-sd-yellow);
   --sd-yellow-dark: var(--color-sd-yellow-dark);
   --sd-coral: var(--color-sd-coral);
-  --sd-coral-light: #FFF0F3;
   --sd-sky-tint: var(--color-sd-sky-tint);
   --sd-buttercup-tint: var(--color-sd-buttercup-tint);
   --sd-mint-tint: var(--color-sd-mint-tint);
@@ -24,7 +24,7 @@
   --sd-lavender-tint: var(--color-sd-cloud-tint); /* past appointments — brand reskin step 2: promoted from a purple-derived literal to a neutral token */
   --sd-paper: var(--color-sd-paper);
   --sd-white: #FFFFFF;
-  --sd-dark: #2A1810;
+  --sd-dark: var(--color-brand-dark);
   --sd-green: var(--color-sd-green);
   --sd-green-dark: var(--color-sd-green-dark);
   --sd-mute: #94A3B8;
