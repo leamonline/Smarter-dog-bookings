@@ -285,7 +285,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               </div>
             )}
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your name (required)</legend>
+              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Your name (required)</legend>
               <div className="flex gap-2">
                 <input
                   aria-label="First name"
@@ -315,7 +315,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Mobile number</legend>
+              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Mobile number</legend>
               <input
                 aria-label="Mobile number (verified)"
                 type="tel"
@@ -330,7 +330,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             </fieldset>
 
             <fieldset id="signup-address" className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your address (required)</legend>
+              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Your address (required)</legend>
               <AddressPicker
                 existingAddress={existingAddressForPicker}
                 existingPostcode={humanRecord?.postcode}
@@ -342,7 +342,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Email address (required)</legend>
+              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">Email address (required)</legend>
               <input
                 aria-label="Email address"
                 aria-required="true"
@@ -359,7 +359,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">
+              <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
                 Where did you hear about us?
               </legend>
               <select
@@ -398,7 +398,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 onChange={(e) => setPoliciesAccepted(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-brand-purple shrink-0"
               />
-              <span className="text-[13px] text-[var(--sd-navy)] leading-relaxed">
+              <span className="text-[13px] text-[var(--color-ink)] leading-relaxed">
                 I agree to Smarter Dog&apos;s{" "}
                 <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Terms</a>,{" "}
                 <a href={SALON_MATTED_COAT_POLICY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Matted Coat Policy</a>{" "}
@@ -419,7 +419,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             {dogs.map((dog, i) => (
               <div key={i} className="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[13px] font-semibold text-[var(--sd-navy)]">
+                  <span className="text-[13px] font-semibold text-[var(--color-ink)]">
                     Dog {i + 1}
                   </span>
                   {dogs.length > 1 && (

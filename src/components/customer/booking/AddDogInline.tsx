@@ -52,12 +52,12 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
 
   return (
     <div className="wizard-card flex flex-col gap-3">
-      <div className="font-display font-bold text-[15px] text-[var(--sd-navy)]">
+      <div className="font-display font-bold text-[15px] text-[var(--color-ink)]">
         Add a new pup
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="add-dog-name" className="text-[13px] text-[var(--sd-navy)] font-semibold">Name *</label>
+        <label htmlFor="add-dog-name" className="text-[13px] text-[var(--color-ink)] font-semibold">Name *</label>
         <input
           id="add-dog-name"
           type="text"
@@ -69,7 +69,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <span id="add-dog-breed-label" className="text-[13px] text-[var(--sd-navy)] font-semibold">Breed</span>
+        <span id="add-dog-breed-label" className="text-[13px] text-[var(--color-ink)] font-semibold">Breed</span>
         <BreedCombobox
           value={breed}
           onChange={handleBreedChange}
@@ -79,7 +79,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           inputStyle={{}}
         />
         {breed && getSizeForBreed(breed) && (
-          <span className="text-xs text-[var(--sd-cyan-dark)]">
+          <span className="text-xs text-[var(--color-brand-cyan-dark)]">
             Estimated size: {getSizeForBreed(breed)} — we’ll confirm this before online booking.
           </span>
         )}

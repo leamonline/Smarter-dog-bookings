@@ -200,7 +200,7 @@ export function AddressPicker({
             className="text-slate-400 mt-0.5 shrink-0"
             aria-hidden="true"
           />
-          <div className="flex-1 text-sm text-[var(--sd-navy)]">
+          <div className="flex-1 text-sm text-[var(--color-ink)]">
             {trimmedExisting}
             <button
               type="button"

@@ -34,7 +34,7 @@ function Frame({ title, children, wide }) {
       <h3 className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">{title}</h3>
       <div
         style={{
-          background: "var(--sd-paper)",
+          background: "var(--color-brand-paper)",
           padding: 20,
           borderRadius: 16,
           maxWidth: wide ? 1080 : 380,
@@ -71,7 +71,7 @@ export function CustomerDashboardCardsPreview() {
             <div className="portal-card-header">
               <h2 className="portal-card-title">Tall sibling card</h2>
             </div>
-            <p style={{ fontSize: 13, color: "var(--sd-navy-soft)" }}>
+            <p style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
               Standing in for My details / My dogs, which are usually taller
               than an empty Trusted humans card.
             </p>

@@ -6,30 +6,10 @@
    Tightened grid + densified cards for better flow.
    ============================================== */
 
-:root {
-  /* --sd-cyan-light, --sd-teal and --sd-coral-light were removed: pre-reskin
-     literals with no consumers (their near-twins live on as
-     --color-brand-cyan-light, --color-brand-teal-text, --color-sd-coral-tint). */
-  --sd-cyan: var(--color-sd-cyan);
-  --sd-cyan-dark: var(--color-sd-cyan-dark);
-  --sd-navy: var(--color-sd-navy);
-  --sd-navy-soft: var(--color-sd-navy-soft);
-  --sd-yellow: var(--color-sd-yellow);
-  --sd-yellow-dark: var(--color-sd-yellow-dark);
-  --sd-coral: var(--color-sd-coral);
-  --sd-sky-tint: var(--color-sd-sky-tint);
-  --sd-buttercup-tint: var(--color-sd-buttercup-tint);
-  --sd-mint-tint: var(--color-sd-mint-tint);
-  --sd-coral-tint: var(--color-sd-coral-tint);
-  --sd-lavender-tint: var(--color-sd-cloud-tint); /* past appointments — brand reskin step 2: promoted from a purple-derived literal to a neutral token */
-  --sd-paper: var(--color-sd-paper);
-  --sd-white: #FFFFFF;
-  --sd-dark: var(--color-brand-dark);
-  --sd-green: var(--color-sd-green);
-  --sd-green-dark: var(--color-sd-green-dark);
-  --sd-mute: var(--color-text-placeholder); /* was #94A3B8, four points from the placeholder grey */
-  --sd-ink-light: var(--color-sd-ink-light);
-}
+/* The portal's old --sd-* shorthand names are gone: every one was an alias of a
+   canonical token (--color-ink, --color-ink-muted, --color-brand-yellow, the
+   --color-sd-* tints and so on), now used directly. --sd-cyan-light, --sd-teal
+   and --sd-coral-light were removed earlier as unused pre-reskin literals. */
 
 /* --- Portal Wrapper --- */
 .customer-portal {
@@ -40,8 +20,8 @@
   background:
     radial-gradient(900px 280px at 12% -80px, rgba(85, 149, 220, 0.15), transparent 70%),
     radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%),
-    var(--sd-paper);
-  color: var(--sd-navy);
+    var(--color-brand-paper);
+  color: var(--color-ink);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -52,7 +32,7 @@
 .portal-topnav {
   position: relative;
   z-index: 3;
-  background: var(--sd-white);
+  background: var(--color-surface-card);
   border-bottom: 1px solid #EEF1F6;
 }
 
@@ -77,7 +57,7 @@
 
 .portal-topnav-links a,
 .portal-topnav-links button {
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
   text-decoration: none;
   background: transparent;
   border: none;
@@ -90,8 +70,8 @@
 
 .portal-topnav-links a:hover,
 .portal-topnav-links button:hover {
-  color: var(--sd-navy);
-  border-bottom-color: var(--sd-yellow);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-brand-yellow);
 }
 
 .portal-topnav-logo {
@@ -99,7 +79,7 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: var(--sd-navy);
+  color: var(--color-ink);
 }
 
 .portal-topnav-logo img {
@@ -142,7 +122,7 @@
   font-family: var(--font-display);
   font-size: clamp(26px, 5.4vw, 34px);
   font-weight: 700;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   margin: 0;
   line-height: 1.1;
   letter-spacing: -0.5px;
@@ -162,7 +142,7 @@
   width: 104%;
   height: 12px;
   pointer-events: none;
-  color: var(--sd-yellow);
+  color: var(--color-brand-yellow);
 }
 
 .portal-tagline {
@@ -171,7 +151,7 @@
   font-style: italic;
   font-weight: 600;
   font-size: 14px;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
   letter-spacing: 0.1px;
 }
 
@@ -188,9 +168,9 @@
   align-items: center;
   gap: 6px;
 }
-.portal-status-line--neutral { color: var(--sd-navy); }
+.portal-status-line--neutral { color: var(--color-ink); }
 .portal-status-line--amber   { color: #8A6300; }
-.portal-status-line--mute    { color: var(--sd-ink-light); font-weight: 500; }
+.portal-status-line--mute    { color: var(--color-ink-muted); font-weight: 500; }
 
 /* CTA in header — declared after .portal-btn--cta so overrides win. */
 @media (min-width: 640px) {
@@ -260,7 +240,7 @@
 /* --- Cards --- */
 .portal-card {
   position: relative;
-  background: var(--sd-white);
+  background: var(--color-surface-card);
   border: 1px solid rgba(45, 0, 75, 0.06);
   border-radius: 18px;
   padding: 18px 20px 16px;
@@ -278,11 +258,11 @@
   padding-top: 14px;
 }
 
-.portal-card--sky      { background: var(--sd-sky-tint); }
-.portal-card--coral    { background: var(--sd-coral-tint); }
-.portal-card--buttercup{ background: var(--sd-buttercup-tint); }
-.portal-card--mint     { background: var(--sd-mint-tint); }
-.portal-card--lavender { background: var(--sd-lavender-tint); }
+.portal-card--sky      { background: var(--color-sd-sky-tint); }
+.portal-card--coral    { background: var(--color-sd-coral-tint); }
+.portal-card--buttercup{ background: var(--color-sd-buttercup-tint); }
+.portal-card--mint     { background: var(--color-sd-mint-tint); }
+.portal-card--lavender { background: var(--color-sd-cloud-tint); }
 .portal-card--paper    { background: #FAF7EF; }
 
 .portal-card-header {
@@ -299,23 +279,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--sd-white);
-  color: var(--sd-navy);
+  background: var(--color-surface-card);
+  color: var(--color-ink);
   box-shadow: 0 2px 6px rgba(45, 0, 75, 0.08);
   flex-shrink: 0;
 }
 
-.portal-card-iconbadge--sky      { background: #CDEBFF; color: var(--sd-cyan-dark); }
+.portal-card-iconbadge--sky      { background: #CDEBFF; color: var(--color-brand-cyan-dark); }
 .portal-card-iconbadge--coral    { background: #FFD8E0; color: var(--color-brand-coral-text); }
 .portal-card-iconbadge--buttercup{ background: #FFE9A8; color: #8A6300; }
-.portal-card-iconbadge--mint     { background: #BFF0CE; color: var(--sd-green-dark); }
-.portal-card-iconbadge--lavender { background: #E5D8F4; color: var(--sd-navy); }
+.portal-card-iconbadge--mint     { background: #BFF0CE; color: var(--color-sd-green-dark); }
+.portal-card-iconbadge--lavender { background: #E5D8F4; color: var(--color-ink); }
 
 .portal-card-title {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   letter-spacing: -0.2px;
   flex: 1;
   margin: 0;
@@ -370,44 +350,44 @@
 }
 
 .portal-btn--primary {
-  background: var(--sd-navy);
-  color: var(--sd-white);
+  background: var(--color-ink);
+  color: var(--color-surface-card);
   padding: 10px 20px;
   font-size: 14px;
 }
-.portal-btn--primary:hover { background: var(--sd-navy-soft); }
+.portal-btn--primary:hover { background: var(--color-ink-soft); }
 
 .portal-btn--secondary {
-  background: var(--sd-white);
-  color: var(--sd-navy);
+  background: var(--color-surface-card);
+  color: var(--color-ink);
   border: 1.5px solid rgba(45, 0, 75, 0.18);
   padding: 8px 16px;
   font-size: 13px;
 }
-.portal-btn--secondary:hover { border-color: var(--sd-navy); }
+.portal-btn--secondary:hover { border-color: var(--color-ink); }
 
 .portal-btn--ghost {
   background: transparent;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
 }
 .portal-btn--ghost:hover {
-  color: var(--sd-navy);
+  color: var(--color-ink);
   background: rgba(45, 0, 75, 0.05);
 }
 
 .portal-btn--cta {
-  background: var(--sd-green);
-  color: var(--sd-navy); /* readable on bright green */
+  background: var(--color-sd-green);
+  color: var(--color-ink); /* readable on bright green */
   padding: 14px 26px;
   font-size: 16px;
   width: 100%;
   letter-spacing: 0.2px;
   box-shadow: 0 8px 18px -8px rgba(0, 194, 71, 0.55);
 }
-.portal-btn--cta:hover { background: var(--sd-green-dark); box-shadow: 0 12px 24px -8px rgba(0, 149, 54, 0.55); }
+.portal-btn--cta:hover { background: var(--color-sd-green-dark); box-shadow: 0 12px 24px -8px rgba(0, 149, 54, 0.55); }
 .portal-btn--cta .portal-btn-arrow { transition: transform 250ms ease; }
 .portal-btn--cta:hover .portal-btn-arrow { transform: translateX(4px); }
 
@@ -436,7 +416,7 @@
 
 .portal-btn--whatsapp {
   background: var(--color-brand-whatsapp);
-  color: var(--sd-navy); /* readable on bright green */
+  color: var(--color-ink); /* readable on bright green */
   padding: 10px 16px;
   font-size: 13px;
 }
@@ -444,16 +424,16 @@
 
 .portal-btn--phone {
   background: transparent;
-  color: var(--sd-navy);
-  border: 1.5px solid var(--sd-navy);
+  color: var(--color-ink);
+  border: 1.5px solid var(--color-ink);
   padding: 9px 16px;
   font-size: 13px;
 }
-.portal-btn--phone:hover { background: var(--sd-navy); color: var(--sd-white); }
+.portal-btn--phone:hover { background: var(--color-ink); color: var(--color-surface-card); }
 
 .portal-btn--danger {
   background: var(--color-brand-coral-dark);
-  color: var(--sd-white);
+  color: var(--color-surface-card);
   padding: 10px 20px;
   font-size: 13px;
 }
@@ -465,7 +445,7 @@
 
 /* Inline "add" link (legacy — used by portal-detail-row empty values) */
 .portal-add-prompt {
-  color: var(--sd-cyan-dark);
+  color: var(--color-brand-cyan-dark);
   font-weight: 700;
   text-decoration: none;
   border-bottom: 1.5px dashed rgba(0, 89, 134, 0.4);
@@ -478,8 +458,8 @@
   font: inherit;
 }
 .portal-add-prompt:hover {
-  color: var(--sd-navy);
-  border-bottom-color: var(--sd-navy);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-ink);
 }
 
 /* Ghost "+ Add x" pill — softer affordance than .portal-add-prompt for
@@ -491,7 +471,7 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
   background: rgba(45, 0, 75, 0.04);
   border: 1px dashed rgba(45, 0, 75, 0.18);
   border-radius: 9999px;
@@ -501,8 +481,8 @@
 }
 .portal-ghost-add:hover {
   background: rgba(45, 0, 75, 0.08);
-  border-color: var(--sd-navy);
-  color: var(--sd-navy);
+  border-color: var(--color-ink);
+  color: var(--color-ink);
 }
 
 /* --- Detail rows --- */
@@ -529,7 +509,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
   min-width: 70px;
 }
 
@@ -537,7 +517,7 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   text-align: right;
   flex: 1;
   word-break: break-word;
@@ -583,7 +563,7 @@
   align-items: center;
   justify-content: center;
   background: repeating-linear-gradient(45deg, #E6F0FB 0 10px, #DBE9F8 10px 20px);
-  color: var(--sd-cyan-dark);
+  color: var(--color-brand-cyan-dark);
 }
 
 .portal-polaroid-caption {
@@ -595,21 +575,21 @@
   font-family: var(--font-display);
   font-style: italic;
   font-size: 11px;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
 }
 
 .portal-empty-title {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 15px;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   margin: 2px 0 4px;
   text-align: center;
 }
 
 .portal-empty-body {
   font-size: 13px;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
   text-align: center;
   margin: 0 auto 10px;
   max-width: 280px;
@@ -646,7 +626,7 @@
   padding: 9px 12px;
   border-radius: 10px;
   border: 1.5px solid rgba(45, 0, 75, 0.14);
-  background: var(--sd-white);
+  background: var(--color-surface-card);
   font-family: 'Montserrat', sans-serif;
   /* 16px is the threshold below which iOS Safari auto-zooms the viewport
      when a field is focused. Keep all portal fields at 16px so focusing
@@ -654,19 +634,19 @@
      a couple of px rather than reflowing). */
   font-size: 16px;
   font-weight: 500;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   outline: none;
   transition: border-color 150ms ease;
   box-sizing: border-box;
 }
 
-.portal-input::placeholder { color: var(--sd-mute); font-weight: 500; }
-.portal-input:focus { border-color: var(--sd-navy); }
+.portal-input::placeholder { color: var(--color-text-placeholder); font-weight: 500; }
+.portal-input:focus { border-color: var(--color-ink); }
 
 .portal-inline-error {
   font-size: 13px;
   font-weight: 600;
-  color: var(--sd-coral);
+  color: var(--color-brand-coral);
   background: #FFEEF1;
   border: 1px solid #FBC7D1;
   padding: 8px 10px;
@@ -695,17 +675,17 @@
   line-height: 1.45;
 }
 .portal-alert--error {
-  background: var(--sd-coral-tint);
+  background: var(--color-sd-coral-tint);
   color: var(--color-brand-coral-text);
   border: 1px solid rgba(231, 84, 108, 0.30);
 }
 .portal-alert--info {
-  background: var(--sd-sky-tint);
-  color: var(--sd-cyan-dark);
+  background: var(--color-sd-sky-tint);
+  color: var(--color-brand-cyan-dark);
   border: 1px solid rgba(0, 122, 171, 0.22);
 }
 .portal-alert--success {
-  background: var(--sd-mint-tint);
+  background: var(--color-sd-mint-tint);
   color: #0F6B3A;
   border: 1px solid rgba(0, 194, 71, 0.30);
 }
@@ -772,18 +752,18 @@
   align-items: center;
   justify-content: center;
   font-family: 'Montserrat', sans-serif;
-  background: var(--sd-paper);
+  background: var(--color-brand-paper);
 }
 
 .portal-loading-text {
   font-size: 16px;
   font-weight: 600;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   animation: portalPulse 1.5s ease-in-out infinite;
 }
 
 .portal-loading-icon {
-  color: var(--sd-cyan);
+  color: var(--color-brand-cyan);
   margin-bottom: 12px;
   animation: portalBounce 1s ease-in-out infinite;
 }
@@ -794,8 +774,8 @@
   left: -9999px;
   top: 8px;
   z-index: 100;
-  background: var(--sd-yellow);
-  color: var(--sd-navy);
+  background: var(--color-brand-yellow);
+  color: var(--color-ink);
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 13px;
@@ -810,7 +790,7 @@
   border-top: 1px solid rgba(45, 0, 75, 0.08);
   padding: 22px 16px 28px;
   margin-top: 32px;
-  background: var(--sd-white);
+  background: var(--color-surface-card);
 }
 
 .portal-footer-inner {
@@ -831,7 +811,7 @@
   justify-content: center;
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
 }
 
 .portal-footer-tagline {
@@ -839,7 +819,7 @@
   font-style: italic;
   font-weight: 600;
   font-size: 16px;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   margin: 0;
 }
 
@@ -847,8 +827,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--sd-yellow);
-  color: var(--sd-navy);
+  background: var(--color-brand-yellow);
+  color: var(--color-ink);
   font-weight: 800;
   font-size: 14px;
   padding: 9px 18px;
@@ -856,7 +836,7 @@
   text-decoration: none;
   box-shadow: 0 6px 14px -8px rgba(254, 204, 19, 0.8);
 }
-.portal-footer-phone:hover { background: var(--sd-yellow-dark); }
+.portal-footer-phone:hover { background: var(--color-brand-yellow-dark); }
 .portal-footer-contact {
   display: flex;
   flex-wrap: wrap;
@@ -869,9 +849,9 @@
   align-items: center;
   gap: 6px;
   font-weight: 600;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
 }
-.portal-footer-meta svg { color: var(--sd-navy-soft); }
+.portal-footer-meta svg { color: var(--color-ink-soft); }
 
 .portal-footer-links {
   display: flex;
@@ -881,7 +861,7 @@
   align-items: center;
   font-size: 12px;
   font-weight: 600;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
 }
 .portal-footer-links a {
   color: inherit;
@@ -890,8 +870,8 @@
   transition: color 150ms ease, border-color 150ms ease;
 }
 .portal-footer-links a:hover {
-  color: var(--sd-navy);
-  border-bottom-color: var(--sd-yellow);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-brand-yellow);
 }
 .portal-footer-links-sep { color: rgba(45, 0, 75, 0.20); }
 
@@ -910,7 +890,7 @@
 /* --- Booking card (single source of truth for the next-action block) --- */
 .portal-booking-card {
   position: relative;
-  background: var(--sd-white);
+  background: var(--color-surface-card);
   border: 1px solid rgba(45, 0, 75, 0.06);
   border-radius: 18px;
   padding: 22px 22px 20px;
@@ -919,21 +899,21 @@
   flex-direction: column;
   gap: 14px;
 }
-.portal-booking-card--booked { background: var(--sd-mint-tint); border-color: rgba(0, 194, 71, 0.20); }
-.portal-booking-card--empty  { background: var(--sd-white); }
+.portal-booking-card--booked { background: var(--color-sd-mint-tint); border-color: rgba(0, 194, 71, 0.20); }
+.portal-booking-card--empty  { background: var(--color-surface-card); }
 
 .portal-booking-card-title {
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   letter-spacing: -0.2px;
   margin: 0;
 }
 .portal-booking-card-body {
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
   margin: 0;
   line-height: 1.5;
 }
@@ -973,8 +953,8 @@
   padding: 9px 8px;
   border-radius: 999px;
   border: 1.5px solid rgba(45, 0, 75, 0.16);
-  background: var(--sd-white);
-  color: var(--sd-navy);
+  background: var(--color-surface-card);
+  color: var(--color-ink);
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
   font-size: 13px;
@@ -984,7 +964,7 @@
   transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 .portal-booking-action:hover:not(:disabled) {
-  border-color: var(--sd-navy);
+  border-color: var(--color-ink);
   transform: translateY(-1px);
 }
 .portal-booking-action:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -994,7 +974,7 @@
 }
 .portal-booking-action--danger:hover:not(:disabled) {
   border-color: var(--color-brand-coral-text);
-  background: var(--sd-coral-tint);
+  background: var(--color-sd-coral-tint);
   transform: translateY(-1px);
 }
 .portal-booking-card-secondary {
@@ -1008,11 +988,11 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
   padding: 6px 4px;
   text-decoration: none;
 }
-.portal-booking-card-secondary:hover { color: var(--sd-navy); }
+.portal-booking-card-secondary:hover { color: var(--color-ink); }
 .portal-booking-card-secondary--danger { color: var(--color-brand-coral-text); }
 .portal-booking-card-secondary--danger:hover { color: #8E2438; }
 
@@ -1028,14 +1008,14 @@
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   letter-spacing: 0.02em;
   user-select: none;
 }
 /* Four deterministic palette tints — pick by hash(id) % 4 in JSX. */
-.portal-avatar--sky      { background: #CDEBFF; color: var(--sd-cyan-dark); }
+.portal-avatar--sky      { background: #CDEBFF; color: var(--color-brand-cyan-dark); }
 .portal-avatar--buttercup{ background: #FFE9A8; color: #8A6300; }
-.portal-avatar--mint     { background: #BFF0CE; color: var(--sd-green-dark); }
+.portal-avatar--mint     { background: #BFF0CE; color: var(--color-sd-green-dark); }
 .portal-avatar--coral    { background: #FFD8E0; color: var(--color-brand-coral-text); }
 
 /* --- Compact entity row (dog / trusted human) --- */
@@ -1052,7 +1032,7 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 700;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   margin: 0;
   line-height: 1.2;
 }
@@ -1060,7 +1040,7 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
   margin: 2px 0 0;
   line-height: 1.3;
 }
@@ -1075,12 +1055,12 @@
   border-bottom: 1px solid rgba(45, 0, 75, 0.06);
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
-  color: var(--sd-navy-soft);
+  color: var(--color-ink-soft);
 }
 .portal-past-row:last-of-type { border-bottom: none; }
-.portal-past-row-date { font-weight: 700; color: var(--sd-navy); }
-.portal-past-row-service { color: var(--sd-navy-soft); flex: 1; }
-.portal-past-row-price { color: var(--sd-ink-light); font-weight: 600; }
+.portal-past-row-date { font-weight: 700; color: var(--color-ink); }
+.portal-past-row-service { color: var(--color-ink-soft); flex: 1; }
+.portal-past-row-price { color: var(--color-ink-muted); font-weight: 600; }
 
 /* Chevron rotates 180° when its parent disclosure is open */
 .portal-chevron { transition: transform 220ms ease; }
@@ -1094,10 +1074,10 @@
 .wizard-btn--primary:focus-visible {
   outline: 3px solid white;
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--sd-navy);
+  box-shadow: 0 0 0 5px var(--color-ink);
 }
 .portal-btn--primary:focus-visible {
-  outline: 3px solid var(--sd-navy);
+  outline: 3px solid var(--color-ink);
   outline-offset: 2px;
 }
 
@@ -1110,7 +1090,7 @@
   font-weight: 700;
   font-size: clamp(24px, 5vw, 34px);
   letter-spacing: -0.4px;
-  color: var(--sd-navy);
+  color: var(--color-ink);
   line-height: 1.1;
 }
 .portal-text-card-title {
@@ -1118,27 +1098,27 @@
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -0.2px;
-  color: var(--sd-navy);
+  color: var(--color-ink);
 }
 .portal-text-subhead {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
-  color: var(--sd-navy);
+  color: var(--color-ink);
 }
 .portal-text-body {
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
   font-size: 14px;
   line-height: 1.5;
-  color: var(--sd-navy);
+  color: var(--color-ink);
 }
 .portal-text-help {
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
 }
 .portal-text-kicker {
   font-family: 'Montserrat', sans-serif;
@@ -1146,7 +1126,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--sd-ink-light);
+  color: var(--color-ink-muted);
 }
 
 /* --- Sticky mobile CTA bar --- */

@@ -190,7 +190,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
         <p className="portal-booking-card-body">
           Booked for {dogName}. Please ring the doorbell on arrival. We&apos;ll text you when your {bookings.length > 1 ? "dogs are" : "dog is"} ready.
         </p>
-        <ul className="mb-3 space-y-2 text-sm text-[var(--sd-ink-light)]">
+        <ul className="mb-3 space-y-2 text-sm text-[var(--color-ink-muted)]">
           {bookings.map((booking) => (
             <li key={booking.id}>
               <strong>{booking.dog?.name || "Your dog"}</strong>
@@ -205,7 +205,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             key={booking.id}
             role="status"
             aria-label="Deposit needed"
-            className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--sd-navy)]"
+            className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--color-ink)]"
           >
             <strong>Deposit needed to hold this booking.</strong>
             <p>For {booking.dog?.name || "your dog"}.</p>
@@ -255,7 +255,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             role="region"
             aria-label="Cancel booking"
           >
-            <div className="text-sm font-semibold text-[var(--sd-navy)] mb-2.5">
+            <div className="text-sm font-semibold text-[var(--color-ink)] mb-2.5">
               Cancel the appointment for {dogName}?
             </div>
             <select

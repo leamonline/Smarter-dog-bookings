@@ -61,12 +61,12 @@ export function AppointmentsSection({
         </div>
         {isEmpty ? (
           showEmptyCopy ? (
-            <span className="text-[12px] text-[var(--sd-ink-light)] font-semibold">
+            <span className="text-[12px] text-[var(--color-ink-muted)] font-semibold">
               Nothing yet
             </span>
           ) : null
         ) : (
-          <span className="text-[13px] text-[var(--sd-navy-soft)] font-semibold flex items-center gap-1.5">
+          <span className="text-[13px] text-[var(--color-ink-soft)] font-semibold flex items-center gap-1.5">
             {pastExpanded ? "Hide" : "Show"}
             <ChevronDown size={16} aria-hidden="true" className="portal-chevron" />
           </span>
@@ -84,7 +84,7 @@ export function AppointmentsSection({
                 <span className="portal-past-row-date">{formatDate(b.bookingDate)}</span>
                 <span className="portal-past-row-service">
                   {service}
-                  <span className="text-[var(--sd-ink-light)] font-normal"> · {dogName}</span>
+                  <span className="text-[var(--color-ink-muted)] font-normal"> · {dogName}</span>
                 </span>
                 {price && <span className="portal-past-row-price">{price}</span>}
               </div>
@@ -107,7 +107,7 @@ export function AppointmentsSection({
               <button
                 type="button"
                 onClick={onSubscribe}
-                className="text-[12px] text-[var(--sd-navy-soft)] font-semibold cursor-pointer bg-transparent border-none hover:text-[var(--sd-navy)]"
+                className="text-[12px] text-[var(--color-ink-soft)] font-semibold cursor-pointer bg-transparent border-none hover:text-[var(--color-ink)]"
               >
                 Sync upcoming bookings to your calendar
               </button>
