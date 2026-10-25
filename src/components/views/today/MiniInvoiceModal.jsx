@@ -209,7 +209,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Base groom price"
                 type="number"
                 inputMode="decimal"
                 min="0.01"
@@ -232,7 +231,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Deposit received"
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -303,7 +301,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Payment received"
                 type="number"
                 inputMode="decimal"
                 min="0"
