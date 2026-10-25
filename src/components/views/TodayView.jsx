@@ -513,14 +513,14 @@ export function TodayView({
         ) : null}
 
         {attentionReason ? (
-          <p role="status" className="-mb-2 px-1 text-[12px] font-semibold text-brand-purple">
+          <p role="status" className="-mb-2 px-1 text-xs font-semibold text-brand-purple">
             Highlighting {new Set(attention.reasons[attentionReason]).size}{" "}
             {ATTENTION_STATUS_COPY[attentionReason]} — every other dog is dimmed, not hidden.
           </p>
         ) : null}
 
         {bookingsError && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-body text-brand-coral-dark">
             <span>Couldn&apos;t load bookings for this date.</span>
             {onRefresh && <button type="button" onClick={onRefresh} className="min-h-11 font-bold underline">Retry</button>}
           </div>
@@ -532,7 +532,7 @@ export function TodayView({
           <>
             <div className="px-4 py-14 text-center">
               <p className="font-display text-[17px] font-bold text-brand-purple">No bookings on this date</p>
-              <p className="mt-1 text-[13px] text-slate-500">
+              <p className="mt-1 text-body text-slate-500">
                 Choose another day from the date above, or open slots with Manage availability.
               </p>
             </div>
@@ -575,7 +575,7 @@ export function TodayView({
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
-              <p className="text-center text-[12px] text-slate-500">Sample data preview — changes won&apos;t save.</p>
+              <p className="text-center text-xs text-slate-500">Sample data preview — changes won&apos;t save.</p>
             )}
           </>
         )}

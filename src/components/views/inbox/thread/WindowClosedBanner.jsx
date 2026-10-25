@@ -32,7 +32,7 @@ export function WindowClosedBanner({ conversation }) {
   return (
     <div
       role="status"
-      className="shrink-0 flex items-start gap-2 px-4 py-2 bg-feedback-warning-tint border-b border-brand-mustard-tint text-[12px] leading-snug text-feedback-warning-ink"
+      className="shrink-0 flex items-start gap-2 px-4 py-2 bg-feedback-warning-tint border-b border-brand-mustard-tint text-xs leading-snug text-feedback-warning-ink"
     >
       <span aria-hidden="true" className="mt-px">⏱</span>
       <p className="m-0">

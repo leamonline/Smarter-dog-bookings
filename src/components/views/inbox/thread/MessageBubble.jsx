@@ -58,7 +58,7 @@ export function MessageBubble({ message, onRetry }) {
         <div className="inline-flex items-center gap-2 max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 shadow-sm">
           <span aria-hidden="true" className="text-[20px] leading-none">🐾</span>
           <div className="min-w-0">
-            <div className="text-[14px] font-bold text-emerald-900 leading-snug">
+            <div className="text-sm font-bold text-emerald-900 leading-snug">
               I&apos;ll be there, see you soon!
             </div>
             <div className="text-micro text-emerald-800 font-semibold mt-0.5">
@@ -115,7 +115,7 @@ export function MessageBubble({ message, onRetry }) {
           a 40-character customer link pushed bubbles off a phone screen.
           min-w-0 is the belt to that brace. */}
       <div
-        className={`min-w-0 max-w-[75%] wrap-anywhere rounded-2xl px-3 py-2 text-[14px] whitespace-pre-wrap ${
+        className={`min-w-0 max-w-[75%] wrap-anywhere rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
           isInbound
             ? "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
             : isFailed

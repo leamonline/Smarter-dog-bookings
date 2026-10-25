@@ -332,7 +332,7 @@ export function DateSelection({
               <Zap size={16} aria-hidden="true" className="text-[var(--color-brand-cyan-dark)]" />
               <span className="font-display text-[15px] font-bold">Today — last minute</span>
             </span>
-            <span className="text-[12px] text-[var(--color-ink-muted)]">A time has come free today — book up to 30 minutes before</span>
+            <span className="text-xs text-[var(--color-ink-muted)]">A time has come free today — book up to 30 minutes before</span>
           </span>
           <WizardTick selected={selectedDate === immediate.date} />
         </button>

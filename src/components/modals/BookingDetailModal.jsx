@@ -323,7 +323,7 @@ export function BookingDetailModal({
           {booking._groupId && (
             <button
               onClick={() => setShowSeries(true)}
-              className="w-full mb-3 px-3 py-2 rounded-full text-[12px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-2 border-[1.5px] border-slate-200 text-brand-purple transition-colors bg-white hover:bg-slate-50"
+              className="w-full mb-3 px-3 py-2 rounded-full text-xs font-bold cursor-pointer font-inherit flex items-center justify-center gap-2 border-[1.5px] border-slate-200 text-brand-purple transition-colors bg-white hover:bg-slate-50"
             >
               <span className="text-sm">{"🔁"}</span>
               Part of recurring series — View all
@@ -422,7 +422,7 @@ export function BookingDetailModal({
           />
 
           {saveError && (
-            <div className="px-3 py-2.5 bg-white text-brand-coral rounded-xl text-[13px] font-bold mb-3 shadow-sm">
+            <div className="px-3 py-2.5 bg-white text-brand-coral rounded-xl text-body font-bold mb-3 shadow-sm">
               {saveError}
             </div>
           )}

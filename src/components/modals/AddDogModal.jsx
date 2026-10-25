@@ -309,7 +309,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 autoFocus
               />
               {fieldErrors.name && (
-                <p id="add-dog-name-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.name}</p>
+                <p id="add-dog-name-error" role="alert" className="text-xs text-brand-coral font-semibold mt-1">{fieldErrors.name}</p>
               )}
             </div>
             <div>
@@ -364,7 +364,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 />
               )}
               {fieldErrors.breed && (
-                <p id="add-dog-breed-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.breed}</p>
+                <p id="add-dog-breed-error" role="alert" className="text-xs text-brand-coral font-semibold mt-1">{fieldErrors.breed}</p>
               )}
             </div>
             <div>
@@ -400,7 +400,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 <option value="large">Large</option>
               </Select>
               {fieldErrors.size && (
-                <p id="add-dog-size-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.size}</p>
+                <p id="add-dog-size-error" role="alert" className="text-xs text-brand-coral font-semibold mt-1">{fieldErrors.size}</p>
               )}
             </div>
           </div>
@@ -520,7 +520,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                             onClick={selectOwner}
                             className="w-full text-left bg-white px-3.5 py-2.5 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-[#E6F5F2] focus:outline-none focus-visible:bg-[#E6F5F2]"
                           >
-                            <div className="text-[13px] font-semibold text-slate-800">{titleCase(fullName)}</div>
+                            <div className="text-body font-semibold text-slate-800">{titleCase(fullName)}</div>
                             {h.phone && <div className="text-xs text-slate-500">{h.phone}</div>}
                           </button>
                         );
@@ -533,7 +533,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                     the form to add a brand-new human. */}
                 {onAddHuman && ownerQuery.trim().length >= 2 && ownerResults.length === 0 && (
                   <div className="mt-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-                    <div className="text-[12px] text-slate-500 mb-1.5">
+                    <div className="text-xs text-slate-500 mb-1.5">
                       No humans found matching "{ownerQuery.trim()}".
                     </div>
                     <button
@@ -587,7 +587,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               </div>
             )}
             {fieldErrors.owner && (
-              <p id="add-dog-owner-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.owner}</p>
+              <p id="add-dog-owner-error" role="alert" className="text-xs text-brand-coral font-semibold mt-1">{fieldErrors.owner}</p>
             )}
           </div>
 

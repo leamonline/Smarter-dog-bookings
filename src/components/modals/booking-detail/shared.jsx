@@ -5,7 +5,7 @@
 
 /** Tailwind class string equivalent of the old modalInputStyle object */
 export const MODAL_INPUT_CLS =
-  "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
+  "w-full px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border";
 
 // Structural labels share one calm, muted tone (slate). Saturated colour is
 // reserved for *state* — status pills, alerts, the reminder card — so the
@@ -14,7 +14,7 @@ export const MODAL_INPUT_CLS =
 // for call-site readability; they render identically.
 export function LogisticsLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide">
+    <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
       {text}
     </span>
   );
@@ -22,7 +22,7 @@ export function LogisticsLabel({ text }) {
 
 export function FinanceLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide">
+    <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
       {text}
     </span>
   );
@@ -34,7 +34,7 @@ export function SectionCard({ title, children }) {
     <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 overflow-hidden">
       {title && (
         <div className="px-4 pt-3.5 pb-1">
-          <span className="text-[13px] font-extrabold text-slate-700">
+          <span className="text-body font-extrabold text-slate-700">
             {title}
           </span>
         </div>
@@ -52,9 +52,9 @@ export function CardRow({ label, value, onClick, last }) {
         last ? "" : "border-b border-slate-100"
       }`}
     >
-      <span className="text-[13px] text-slate-400 shrink-0 pr-3">{label}</span>
+      <span className="text-body text-slate-400 shrink-0 pr-3">{label}</span>
       <span
-        className={`text-[13px] font-semibold text-right break-words ${
+        className={`text-body font-semibold text-right break-words ${
           onClick
             ? "text-brand-teal-text cursor-pointer"
             : "text-slate-800"
@@ -89,7 +89,7 @@ export function DetailRow({
         }`}
       >
         <span
-          className={`text-[13px] text-slate-500 shrink-0 pr-3 max-[480px]:pr-0 ${
+          className={`text-body text-slate-500 shrink-0 pr-3 max-[480px]:pr-0 ${
             inlineEdit ? "max-[480px]:pt-0" : "pt-0.5"
           }`}
         >
@@ -100,7 +100,7 @@ export function DetailRow({
             {editNode}
           </div>
         ) : (
-          <span className="text-[13px] font-semibold text-slate-800 text-right max-[480px]:text-left break-words">
+          <span className="text-body font-semibold text-slate-800 text-right max-[480px]:text-left break-words">
             {value}
           </span>
         )}
@@ -128,7 +128,7 @@ export function Row({ label, value, last = false, onClick }) {
         {label}
       </span>
       <span
-        className={`text-[14px] font-semibold text-slate-900 text-right max-[480px]:text-left break-words leading-snug ${onClick ? "cursor-pointer hover:underline decoration-slate-300 underline-offset-2" : ""}`}
+        className={`text-sm font-semibold text-slate-900 text-right max-[480px]:text-left break-words leading-snug ${onClick ? "cursor-pointer hover:underline decoration-slate-300 underline-offset-2" : ""}`}
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
         onClick={onClick}

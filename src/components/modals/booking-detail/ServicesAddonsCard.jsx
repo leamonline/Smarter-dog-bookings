@@ -69,7 +69,7 @@ export function ServicesAddonsCard({
           <div className="mb-2"><LogisticsLabel text="Add-ons" /></div>
           <div className="flex flex-wrap gap-2">
             {AVAILABLE_ADDONS.map((addon) => (
-              <label key={addon} className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium">
+              <label key={addon} className="flex items-center gap-1.5 text-body cursor-pointer font-medium">
                 <input type="checkbox" className="w-[18px] h-[18px] cursor-pointer" style={{ accentColor: sizeTheme.primary }} checked={editData.addons.includes(addon)} onChange={(e) => { if (e.target.checked) { setEditData((prev) => ({ ...prev, addons: [...prev.addons, addon] })); } else { setEditData((prev) => ({ ...prev, addons: prev.addons.filter((a) => a !== addon) })); } }} />{" "}{addon}
               </label>
             ))}
@@ -81,7 +81,7 @@ export function ServicesAddonsCard({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-semibold">{"£"}</span>
-                <input type="number" min="0" value={editData.price} onChange={(e) => setEditData((prev) => ({ ...prev, price: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+                <input type="number" min="0" value={editData.price} onChange={(e) => setEditData((prev) => ({ ...prev, price: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border" />
               </div>
               <p className={`mt-1 text-caption font-semibold ${isOneOffPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
                 {isOneOffPrice
@@ -93,7 +93,7 @@ export function ServicesAddonsCard({
               {/* One-off by default: a matting surcharge today must not
                   silently become the dog's price forever. Staff opt in. */}
               {isOneOffPrice && (
-                <label className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-slate-600 cursor-pointer">
+                <label className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer">
                   <input
                     type="checkbox"
                     className="w-[16px] h-[16px] cursor-pointer"
@@ -113,17 +113,17 @@ export function ServicesAddonsCard({
     content = (
       <>
         <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
+          <span className="text-xs font-bold tracking-[0.08em] uppercase text-slate-500">
             {serviceObj?.name || currentService}
           </span>
-          <span className="text-[14px] text-slate-700 tabular-nums">{"£"}{activePrice}</span>
+          <span className="text-sm text-slate-700 tabular-nums">{"£"}{activePrice}</span>
         </div>
         {activeAddons.map((addon) => (
           <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
-            <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
+            <span className="text-xs font-bold tracking-[0.08em] uppercase text-slate-500">
               {addon} <span className="text-slate-400 font-semibold normal-case tracking-normal">{"— Add-on"}</span>
             </span>
-            <span className="text-[14px] text-slate-700 tabular-nums">
+            <span className="text-sm text-slate-700 tabular-nums">
               {getAddonPrice(addon) > 0 ? `£${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
             </span>
           </div>

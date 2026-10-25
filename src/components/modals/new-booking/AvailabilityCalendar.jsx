@@ -156,7 +156,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
               disabled={!isClickable}
               aria-label={`${d} ${monthName}, ${statusWord}`}
               title={isClickable ? undefined : statusWord.charAt(0).toUpperCase() + statusWord.slice(1)}
-              className="w-full aspect-square rounded-lg text-[13px] font-inherit transition-all flex items-center justify-center"
+              className="w-full aspect-square rounded-lg text-body font-inherit transition-all flex items-center justify-center"
               style={{ background: bg, color, border, cursor, opacity, fontWeight }}
               onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = sizeTheme.light; e.currentTarget.style.color = sizeTheme.gradient[0]; } }}
               onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = "#DCFCE7"; e.currentTarget.style.color = "#16A34A"; } }}

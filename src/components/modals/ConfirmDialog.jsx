@@ -17,8 +17,8 @@ export function ConfirmDialog({
 }) {
   const titleId = useId();
   const confirmClass = tone === "danger"
-    ? "min-h-11 rounded-control bg-brand-coral px-4 text-[13px] font-bold text-white hover:bg-brand-coral-dark"
-    : "min-h-11 rounded-control bg-brand-yellow px-4 text-[13px] font-bold text-brand-purple hover:bg-brand-yellow-dark";
+    ? "min-h-11 rounded-control bg-brand-coral px-4 text-body font-bold text-white hover:bg-brand-coral-dark"
+    : "min-h-11 rounded-control bg-brand-yellow px-4 text-body font-bold text-brand-purple hover:bg-brand-yellow-dark";
 
   return (
     <ModalShell
@@ -41,7 +41,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-control px-4 text-[13px] font-bold text-slate-600 hover:bg-slate-100"
+            className="min-h-11 rounded-control px-4 text-body font-bold text-slate-600 hover:bg-slate-100"
           >
             {cancelLabel}
           </button>
@@ -52,7 +52,7 @@ export function ConfirmDialog({
       )}
     >
       {body ? (
-        <p className="px-5 py-4 text-[14px] leading-6 text-slate-700">{body}</p>
+        <p className="px-5 py-4 text-sm leading-6 text-slate-700">{body}</p>
       ) : null}
     </ModalShell>
   );

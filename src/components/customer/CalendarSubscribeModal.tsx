@@ -119,7 +119,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               type="text"
               readOnly
               value={feedUrl}
-              className="flex-1 bg-transparent border-none text-[16px] text-[var(--color-ink-soft)] font-mono outline-none min-w-0"
+              className="flex-1 bg-transparent border-none text-base text-[var(--color-ink-soft)] font-mono outline-none min-w-0"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button
@@ -133,21 +133,21 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
 
           {/* Platform instructions */}
           <div className="space-y-3 mb-4">
-            <div className="text-[12px] text-[var(--color-ink-soft)]">
+            <div className="text-xs text-[var(--color-ink-soft)]">
               <span className="font-bold">Apple Calendar (iPhone/Mac):</span>{" "}
               Tap the link below to subscribe automatically.
             </div>
             <a
               href={feedUrl}
-              className="block text-center py-2 px-4 rounded-lg bg-[var(--color-sd-sky-tint)] text-[var(--color-brand-cyan-dark)] text-[13px] font-semibold no-underline hover:bg-[rgba(0,122,171,0.10)] transition-colors"
+              className="block text-center py-2 px-4 rounded-lg bg-[var(--color-sd-sky-tint)] text-[var(--color-brand-cyan-dark)] text-body font-semibold no-underline hover:bg-[rgba(0,122,171,0.10)] transition-colors"
             >
               Open in Calendar App
             </a>
-            <div className="text-[12px] text-[var(--color-ink-soft)]">
+            <div className="text-xs text-[var(--color-ink-soft)]">
               <span className="font-bold">Google Calendar:</span>{" "}
               Copy the URL above, go to Google Calendar Settings {"\u2192"} Add calendar {"\u2192"} From URL, and paste it.
             </div>
-            <div className="text-[12px] text-[var(--color-ink-soft)]">
+            <div className="text-xs text-[var(--color-ink-soft)]">
               <span className="font-bold">Outlook:</span>{" "}
               Copy the URL, go to Outlook Calendar {"\u2192"} Add calendar {"\u2192"} Subscribe from web, and paste it.
             </div>
@@ -159,7 +159,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               type="button"
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="inline-flex items-center min-h-[44px] bg-transparent border-none text-[12px] text-[var(--color-ink-muted)] cursor-pointer hover:text-[var(--color-ink)] transition-colors disabled:opacity-50"
+              className="inline-flex items-center min-h-[44px] bg-transparent border-none text-xs text-[var(--color-ink-muted)] cursor-pointer hover:text-[var(--color-ink)] transition-colors disabled:opacity-50"
             >
               {regenerating ? "Regenerating\u2026" : "Regenerate URL (invalidates old link)"}
             </button>

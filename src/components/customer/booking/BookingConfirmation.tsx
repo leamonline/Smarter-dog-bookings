@@ -124,7 +124,7 @@ export function BookingConfirmation({
                     {getPriceLabel(serviceId, size)}
                   </>
                 )}
-                <div className="text-[12px] font-medium text-[var(--color-ink-muted)] mt-0.5">
+                <div className="text-xs font-medium text-[var(--color-ink-muted)] mt-0.5">
                   {rawDog?.breed || "—"}
                   {" · "}
                   {sizeLabel}
@@ -158,7 +158,7 @@ export function BookingConfirmation({
             <span className="portal-detail-label">Deposit</span>
             <span className="portal-detail-value">
               <strong>{"£"}{depositTotal}</strong> to hold this appointment
-              <div className="text-[12px] font-medium text-[var(--color-ink-muted)] mt-0.5">
+              <div className="text-xs font-medium text-[var(--color-ink-muted)] mt-0.5">
                 {selectedDogs.length > 1
                   ? `£${DEPOSIT_PER_DOG_PENCE / 100} per pup · the rest is paid at pick-up`
                   : "The rest is paid at pick-up"}
@@ -170,7 +170,7 @@ export function BookingConfirmation({
 
       {changeAlreadyClosed ? (
         <p
-          className="text-[13px] text-[var(--color-brand-dark)] rounded-xl px-4 py-3 text-center"
+          className="text-body text-[var(--color-brand-dark)] rounded-xl px-4 py-3 text-center"
           style={{
             alignSelf: "center",
             background: "var(--color-sd-buttercup-tint)",
@@ -183,7 +183,7 @@ export function BookingConfirmation({
         </p>
       ) : (
         changeDeadlineNote && (
-          <p className="text-[12px] text-[var(--color-ink-muted)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
+          <p className="text-xs text-[var(--color-ink-muted)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
             <PawPrint size={12} aria-hidden="true" />
             {changeDeadlineNote}
           </p>

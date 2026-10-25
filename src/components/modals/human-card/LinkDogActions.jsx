@@ -56,7 +56,7 @@ export function LinkDogActions({
           <button
             type="button"
             onClick={onAddOwnedDog}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] text-[13px] font-bold cursor-pointer font-inherit transition-all bg-white"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] text-body font-bold cursor-pointer font-inherit transition-all bg-white"
             style={{ borderColor: ACCENT, color: ACCENT }}
           >
             <Plus size={14} strokeWidth={2.6} aria-hidden="true" />
@@ -68,7 +68,7 @@ export function LinkDogActions({
             type="button"
             onClick={() => setShowSearch((v) => !v)}
             aria-expanded={showSearch}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] border-dashed text-[13px] font-bold cursor-pointer font-inherit transition-all"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] border-dashed text-body font-bold cursor-pointer font-inherit transition-all"
             style={{
               borderColor: ACCENT,
               background: showSearch ? ACCENT : "#FFFFFF",
@@ -93,7 +93,7 @@ export function LinkDogActions({
               autoFocus
               placeholder="Search a dog by name or breed…"
               aria-label="Search for a dog to link this person to"
-              className="w-full px-3 py-2 pl-8 rounded-lg border text-[13px] outline-none font-inherit text-slate-800 box-border"
+              className="w-full px-3 py-2 pl-8 rounded-lg border text-body outline-none font-inherit text-slate-800 box-border"
               style={{ borderColor: ACCENT }}
             />
           </div>
@@ -110,7 +110,7 @@ export function LinkDogActions({
                     onClick={() => handlePick(d)}
                     className="w-full text-left bg-white px-3 py-2 cursor-pointer border-x-0 border-t-0 border-b border-slate-100 transition-colors hover:bg-slate-50 disabled:opacity-50 focus:outline-none focus-visible:bg-slate-50"
                   >
-                    <div className="text-[13px] font-semibold text-slate-800">
+                    <div className="text-body font-semibold text-slate-800">
                       {titleCase(d.name)}
                       {d.breed && (
                         <span className="text-xs font-medium text-slate-500 ml-1.5">
@@ -129,7 +129,7 @@ export function LinkDogActions({
             </div>
           )}
           {query.trim() && results.length === 0 && (
-            <div className="mt-1 text-[12px] text-slate-400 italic px-1">
+            <div className="mt-1 text-xs text-slate-400 italic px-1">
               No matching dogs.
             </div>
           )}

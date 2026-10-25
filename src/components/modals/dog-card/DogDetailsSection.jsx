@@ -8,7 +8,7 @@ import { alertTint } from "../shell/alertTints.js";
 import { Input, Select, Textarea } from "../../ui/index.js";
 
 const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-ink-muted";
-const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
+const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border";
 
 // "YYYY-MM-DD" → "Mon 1 Jun 2026" (noon-anchored to dodge TZ rollover).
 function formatGroomDate(iso) {
@@ -237,7 +237,7 @@ export function DogDetailsSection({
                           }}
                           className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-blue-50"
                         >
-                          <div className="text-[13px] font-semibold text-slate-800">{fullName}</div>
+                          <div className="text-body font-semibold text-slate-800">{fullName}</div>
                           {candidate.phone && (
                             <div className="text-xs text-slate-500">{candidate.phone}</div>
                           )}

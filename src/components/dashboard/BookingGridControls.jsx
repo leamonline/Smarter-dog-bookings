@@ -54,7 +54,7 @@ export function BookingGridControls({
     // answer followed by two actions.
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-2 sm:p-2.5">
       <span
-        className={`inline-flex items-center justify-center min-w-16 md:min-w-20 h-8 px-3 rounded-full text-[13px] font-bold ${STATUS[dayStatus].cls}`}
+        className={`inline-flex items-center justify-center min-w-16 md:min-w-20 h-8 px-3 rounded-full text-body font-bold ${STATUS[dayStatus].cls}`}
       >
         {STATUS[dayStatus].label}
       </span>
@@ -91,7 +91,7 @@ export function BookingGridControls({
             onClick={onOpen}
             aria-label={`${count} ${count === 1 ? one : many}`}
             title={`${count} ${count === 1 ? one : many}`}
-            className={`xl:hidden inline-flex items-center justify-center gap-1 min-h-[40px] px-2.5 rounded-full text-[12px] font-bold border-none cursor-pointer font-[inherit] transition-colors ${cls}`}
+            className={`xl:hidden inline-flex items-center justify-center gap-1 min-h-[40px] px-2.5 rounded-full text-xs font-bold border-none cursor-pointer font-[inherit] transition-colors ${cls}`}
           >
             <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
             {count > 99 ? "99+" : count}
@@ -104,7 +104,7 @@ export function BookingGridControls({
             onClick={onMessageDay}
             aria-label="Message this day's customers"
             title="Send every booked customer a message about this day"
-            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
           >
             <MessageSquare size={13} strokeWidth={2.2} aria-hidden="true" />
             <span className="hidden sm:inline">Message day</span>
@@ -115,7 +115,7 @@ export function BookingGridControls({
           type="button"
           onClick={onOpenDaySettings}
           aria-label="Day settings"
-          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
         >
           <SettingsIcon size={13} strokeWidth={2.2} aria-hidden="true" />
           <span className="hidden sm:inline">Day settings</span>

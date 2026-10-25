@@ -53,7 +53,7 @@ export function BookingFormFields({
               sizeTheme={primaryTheme}
             />
           ) : (
-            <div role="status" aria-live="polite" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
+            <div role="status" aria-live="polite" className="text-body font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
               We're closed that day. Pick another date from the calendar, or open the day in day view first.
             </div>
           )}
@@ -76,7 +76,7 @@ export function BookingFormFields({
             <option value={8}>Every 8 weeks</option>
           </select>
           {recurringWeeks > 0 && (
-            <div className="mt-2 text-[13px] text-brand-teal-text font-semibold">
+            <div className="mt-2 text-body text-brand-teal-text font-semibold">
               This will generate bookings for the rest of the year. If a day is full, that slot will be skipped.
             </div>
           )}

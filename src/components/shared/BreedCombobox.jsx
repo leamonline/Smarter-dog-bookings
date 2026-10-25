@@ -182,7 +182,7 @@ export function BreedCombobox({
                   inputRef.current?.focus();
                 }}
                 onMouseEnter={() => setActiveIndex(idx)}
-                className={`px-3 py-1.5 text-[13px] cursor-pointer ${
+                className={`px-3 py-1.5 text-body cursor-pointer ${
                   isActive ? "bg-[#E6F5F2] text-brand-teal" : ""
                 }`}
               >

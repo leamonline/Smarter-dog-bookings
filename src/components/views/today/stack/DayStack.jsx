@@ -76,7 +76,7 @@ export function DayStack({
 
   if (rows.length === 0) {
     return (
-      <p className="px-4 py-10 text-center text-[14px] text-slate-500">{emptyMessage}</p>
+      <p className="px-4 py-10 text-center text-sm text-slate-500">{emptyMessage}</p>
     );
   }
 

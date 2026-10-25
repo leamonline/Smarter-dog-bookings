@@ -65,7 +65,7 @@ export function ServiceSelection({
         <div className="wizard-card wizard-card--mint">
           <div className="flex items-start gap-2">
             <Sparkles size={16} aria-hidden="true" style={{ color: "#0F6B3A", marginTop: 2, flexShrink: 0 }} />
-            <span className="text-[13px] font-semibold" style={{ color: "#0F6B3A" }}>
+            <span className="text-body font-semibold" style={{ color: "#0F6B3A" }}>
               Same service for all pups? Tap to apply to everyone.
             </span>
           </div>
@@ -107,9 +107,9 @@ export function ServiceSelection({
                     <div className="wizard-service-body">
                       <span className="font-display text-[15px] font-bold">{svc.name}</span>
                       {SERVICE_DESCRIPTIONS[svc.id] && (
-                        <span className="text-[12px] text-[var(--color-ink-muted)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
+                        <span className="text-xs text-[var(--color-ink-muted)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
                       )}
-                      <span className="price text-[13px]">From {getPriceLabel(svc.id, dog.size)}</span>
+                      <span className="price text-body">From {getPriceLabel(svc.id, dog.size)}</span>
                     </div>
                     <WizardTick selected={selected} />
                   </button>

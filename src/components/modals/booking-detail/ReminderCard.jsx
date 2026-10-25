@@ -112,7 +112,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     <button
       type="button"
       onClick={onSendReminder}
-      className="inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+      className="inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-body font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
     >
       <Send size={13} aria-hidden="true" />
       Send reminder
@@ -126,7 +126,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
       )}`}
       aria-label={`Send pickup-ready SMS to ${pickupName}`}
       data-priority={isReady ? "primary" : "secondary"}
-      className={`inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full text-[13px] font-bold no-underline cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+      className={`inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full text-body font-bold no-underline cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
         isReady
           ? "border-none bg-brand-purple text-white hover:bg-brand-purple-light focus-visible:ring-brand-purple"
           : "border-[1.5px] border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-300"
@@ -161,7 +161,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
           the meaning. */}
       <div role="status" className={`flex items-center gap-2 ${cfg.statusTone}`}>
         <StatusIcon size={16} strokeWidth={2.4} className="shrink-0" aria-hidden="true" />
-        <span className="text-[13px] font-bold leading-snug">{statusText}</span>
+        <span className="text-body font-bold leading-snug">{statusText}</span>
       </div>
 
       {/* Actions — reminder action (state-driven) kept distinct from the

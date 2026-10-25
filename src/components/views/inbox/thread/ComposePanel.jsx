@@ -154,7 +154,7 @@ export function ComposePanel({
   return (
     <div className="compose-fields shrink-0 p-3 bg-white border-t border-slate-200">
       {error && (
-        <div role="alert" className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
+        <div role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
           {error}
         </div>
       )}
@@ -176,7 +176,7 @@ export function ComposePanel({
           disabled={inFlight}
           rows={1}
           maxLength={2000}
-          className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
+          className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-sm p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <div className="flex min-h-9 gap-2 justify-end shrink-0 sm:self-stretch">
           <GenerateReplyButton
@@ -188,7 +188,7 @@ export function ComposePanel({
           <button
             onClick={handleSend}
             disabled={inFlight || !value.trim()}
-            className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
+            className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-purple text-body font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
           >
             Send
           </button>

@@ -64,7 +64,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
       <div className="flex flex-col gap-3">
         <CancellationHistoryPanel key={human?.id} humanId={human?.id} />
         <div>
-          <p className="text-[12px] font-bold text-slate-600 mb-1">Preferred times</p>
+          <p className="text-xs font-bold text-slate-600 mb-1">Preferred times</p>
           <p className="text-caption text-slate-400 mb-1.5">
             Starred for them in the portal — a gentle steer, never enforced.
           </p>
@@ -78,7 +78,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
         </div>
 
         <div>
-          <p className="text-[12px] font-bold text-slate-600 mb-1">Blocked times</p>
+          <p className="text-xs font-bold text-slate-600 mb-1">Blocked times</p>
           <p className="text-caption text-slate-400 mb-1.5">
             They can't book these themselves — you still can, deliberately.
           </p>
@@ -93,7 +93,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
 
         <div className="flex items-start justify-between gap-2 pt-1 border-t border-slate-200/70">
           <div>
-            <p className="text-[12px] font-bold text-slate-600">Deposit required</p>
+            <p className="text-xs font-bold text-slate-600">Deposit required</p>
             <p className="text-caption text-slate-400">
               Every booking holds its slot awaiting a £10 bank transfer (unique
               reference, 12-hour window) and is released if it doesn't arrive.

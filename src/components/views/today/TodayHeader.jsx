@@ -72,7 +72,7 @@ export function TodayHeader({
             aria-label={`Manage availability — ${availabilityLabel}`}
             className="inline-flex min-h-11 shrink-0 flex-col items-start justify-center gap-0 rounded-control border border-slate-300 bg-white px-3.5 py-1 text-left outline-none transition-colors hover:border-brand-purple/40 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 max-md:ml-auto"
           >
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold leading-tight text-brand-purple">
+            <span className="inline-flex items-center gap-1.5 text-body font-bold leading-tight text-brand-purple">
               <Clock3 size={15} aria-hidden="true" />
               Manage availability
             </span>
@@ -85,7 +85,7 @@ export function TodayHeader({
         <div
           role="region"
           aria-label="Day status"
-          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-slate-600"
+          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 text-body text-slate-600"
         >
           <NeedsAttentionSummary
             summary={attention}

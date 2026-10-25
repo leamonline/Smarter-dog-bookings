@@ -52,6 +52,23 @@ describe("small text ratchet", () => {
     ).toBeLessThanOrEqual(CEILING);
   });
 
+  // The sizes the named scale already has (text-xs 12, text-body 13, text-sm 14,
+  // text-base 16) should be those names, not hand-written pixels: the named
+  // sizes carry a line-height and one place to change them. 15px stays spelled
+  // out because text-title also forces a bold weight.
+  it("has no hand-written 12, 13, 14 or 16px sizes where a named size exists", () => {
+    const perFile = new Map<string, number>();
+    let total = 0;
+    for (const file of sourceFiles(srcDir)) {
+      const found = [...readFileSync(file, "utf8").matchAll(/text-\[(?:12|13|14|16)px\]/g)].length;
+      if (!found) continue;
+      total += found;
+      perFile.set(relative(srcDir, file), found);
+    }
+    const where = [...perFile].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([f, n]) => `${f} (${n})`).join(", ");
+    expect(total, `${total} hand-written sizes. Use text-xs (12), text-body (13), text-sm (14) or text-base (16). Most: ${where}`).toBe(0);
+  });
+
   it("counts only sizes under 12px", () => {
     expect(belowFloor('className="text-[11px] text-[12px] text-[13px] text-[9px] text-[11.5px]"')).toEqual([
       "text-[11px]",

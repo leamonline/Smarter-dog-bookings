@@ -94,7 +94,7 @@ export function WaitlistModal({
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="self-start inline-flex items-center min-h-[44px] text-[12px] font-bold text-emerald-700 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-full px-4 py-1.5 cursor-pointer transition-colors"
+            className="self-start inline-flex items-center min-h-[44px] text-xs font-bold text-emerald-700 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-full px-4 py-1.5 cursor-pointer transition-colors"
           >
             + Add Person
           </button>
@@ -147,7 +147,7 @@ export function WaitlistModal({
                     onClick={() => onOpenHuman && onOpenHuman(h.id)}
                     className="min-w-0 flex-1 text-left bg-transparent border-none cursor-pointer p-0 font-[inherit]"
                   >
-                    <div className="text-[13px] font-bold text-slate-800 truncate">
+                    <div className="text-body font-bold text-slate-800 truncate">
                       {h.name} {h.surname}
                     </div>
                     <div className="text-caption text-slate-500 truncate">

@@ -292,7 +292,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
                 tabIndex={searchDimmed ? -1 : 0}
                 aria-label={`Open booking for ${displayDogName}`}
-                className="text-xs sm:text-[13px] md:text-sm font-bold font-display text-brand-purple truncate text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded hover:underline shrink-0 max-w-[50%]"
+                className="text-xs sm:text-body md:text-sm font-bold font-display text-brand-purple truncate text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded hover:underline shrink-0 max-w-[50%]"
               >
                 {displayDogName}
               </button>
@@ -347,7 +347,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             </div>
 
             {/* Price or amount due aligned right */}
-            <div className="shrink-0 text-right font-display text-xs sm:text-[13px] font-black tabular-nums flex items-center gap-1.5">
+            <div className="shrink-0 text-right font-display text-xs sm:text-body font-black tabular-nums flex items-center gap-1.5">
               <span className="text-slate-800">£{pricing.subtotal}</span>
               {isAwaitingDeposit(booking) ? (
                 <span className="text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded leading-none">
@@ -374,7 +374,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             {/* On a phone the owner and service wrap onto a second line rather than
                 being cut off ("Sarah Jo… · Full Gro…"); from tablet width up there is
                 room, so they stay on one tidy line with an ellipsis. */}
-            <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 min-w-0 flex-1 flex flex-wrap items-center gap-x-1.5 sm:flex-nowrap sm:truncate">
+            <div className="text-[11px] sm:text-xs font-medium text-slate-500 min-w-0 flex-1 flex flex-wrap items-center gap-x-1.5 sm:flex-nowrap sm:truncate">
               <span className="min-w-0 break-words font-semibold text-slate-600 sm:truncate">{displayOwner || "No owner"}</span>
               <span className="text-slate-300 font-normal max-sm:hidden">·</span>
               <span className="min-w-0 break-words text-slate-500 sm:truncate">{service?.name || booking.service || "—"}</span>
@@ -417,7 +417,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 aria-haspopup="listbox"
                 aria-expanded={statusOpen}
                 aria-label={`Change status, currently ${statusObj.label}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] sm:text-[12px] font-extrabold rounded-lg border cursor-pointer transition-all hover:brightness-95 min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 touch-manipulation"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] sm:text-xs font-extrabold rounded-lg border cursor-pointer transition-all hover:brightness-95 min-h-[32px] md:min-h-0 pointer-coarse:min-h-11 touch-manipulation"
                 style={{ background: statusObj.bg, color: statusObj.color, borderColor: statusObj.border }}
               >
                 <span>{statusObj.label}</span>

@@ -101,7 +101,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
                 setMenuOpen(false);
                 onEditReason();
               }}
-              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-bold text-left cursor-pointer border-none bg-transparent text-brand-purple hover:bg-slate-100 font-[inherit]"
+              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-bold text-left cursor-pointer border-none bg-transparent text-brand-purple hover:bg-slate-100 font-[inherit]"
             >
               <Pencil size={13} strokeWidth={2.4} aria-hidden="true" />
               Edit reason
@@ -115,7 +115,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
                 setMenuOpen(false);
                 onReopen();
               }}
-              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-bold text-left cursor-pointer border-none bg-transparent text-brand-coral hover:bg-brand-coral-light font-[inherit]"
+              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-bold text-left cursor-pointer border-none bg-transparent text-brand-coral hover:bg-brand-coral-light font-[inherit]"
             >
               <Undo2 size={13} strokeWidth={2.4} aria-hidden="true" />
               Reopen these times
