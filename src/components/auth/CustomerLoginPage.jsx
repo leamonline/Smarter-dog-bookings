@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { Eye, EyeOff } from "lucide-react";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
+import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
 import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
@@ -570,7 +571,7 @@ export function CustomerLoginPage({
                   Password
                 </label>
                 <div className="relative">
-                  <input
+                  <Input
                     ref={passwordInputRef}
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -584,7 +585,9 @@ export function CustomerLoginPage({
                     placeholder="Your password"
                     aria-invalid={Boolean(errorText)}
                     aria-describedby="login-instruction"
-                    className={`portal-input text-base min-h-[52px] pr-11 ${focusRing}`}
+                    surface="paper"
+                    size="lg"
+                    className="pr-11"
                   />
                   <button
                     type="button"
@@ -631,7 +634,7 @@ export function CustomerLoginPage({
                 <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--color-ink)]">
                   6-digit code
                 </label>
-                <input
+                <Input
                   ref={codeInputRef}
                   id="code"
                   type="text"
@@ -648,7 +651,9 @@ export function CustomerLoginPage({
                   placeholder="123456"
                   aria-invalid={Boolean(errorText)}
                   aria-describedby="login-instruction"
-                  className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
+                  surface="paper"
+                  size="lg"
+                  className="tracking-widest text-center"
                 />
               </div>
               {/*

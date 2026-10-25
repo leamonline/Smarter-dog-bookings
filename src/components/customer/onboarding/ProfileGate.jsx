@@ -12,6 +12,7 @@ import {
   SALON_PRIVACY_URL,
   POLICIES_VERSION,
 } from "../../../constants/salonPolicies.ts";
+import { Input } from "../../ui/index.js";
 
 /**
  * Blocking onboarding screen. Shown after login when a customer's profile is
@@ -101,21 +102,21 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
             Your name
           </legend>
           <div className="flex gap-2">
-            <input
+            <Input
               aria-label="First name"
               autoComplete="given-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="First name"
-              className="portal-input"
+              surface="paper" size="portal"
             />
-            <input
+            <Input
               aria-label="Surname"
               autoComplete="family-name"
               value={surname}
               onChange={(e) => setSurname(e.target.value)}
               placeholder="Surname"
-              className="portal-input"
+              surface="paper" size="portal"
             />
           </div>
         </fieldset>

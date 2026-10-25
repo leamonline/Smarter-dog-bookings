@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useCustomerOnboardingActions } from "../../../supabase/hooks/useCustomerOnboardingActions";
 import { MapPin, Loader2, Search } from "lucide-react";
+import { Input, Select, Textarea } from "../../ui/index.js";
 
 function postcodeIn(text) {
   const match = text
@@ -218,7 +219,7 @@ export function AddressPicker({
   if (manualMode) {
     return (
       <>
-        <textarea
+        <Textarea
           aria-label="Full address"
           aria-required="true"
           aria-invalid={Boolean(validationErrorId)}
@@ -227,15 +228,15 @@ export function AddressPicker({
           onChange={(e) => setManualAddress(e.target.value)}
           placeholder={"Your full address\ne.g. 6 Back Lane, Mottram, Hyde"}
           rows={3}
-          className="portal-input w-full resize-y"
+          surface="paper" size="portal" className="w-full resize-y"
         />
-        <input
+        <Input
           aria-label="Postcode"
           autoComplete="postal-code"
           value={manualPostcode}
           onChange={(e) => setManualPostcode(e.target.value)}
           placeholder="Postcode"
-          className="portal-input uppercase mt-2"
+          surface="paper" size="portal" className="uppercase mt-2"
         />
         <button
           type="button"
@@ -257,7 +258,7 @@ export function AddressPicker({
         Enter your house number or name, street and town.
       </p>
       <div className="flex gap-2">
-        <input
+        <Input
           aria-label="Search for your address"
           autoComplete="off"
           value={query}
@@ -275,7 +276,7 @@ export function AddressPicker({
             }
           }}
           placeholder="e.g. 6 Back Lane, Mottram"
-          className="portal-input min-w-0 flex-1"
+          surface="paper" size="portal" className="min-w-0 flex-1"
         />
         <button
           type="button"
@@ -297,7 +298,7 @@ export function AddressPicker({
       </div>
       {lookupStatus === "results" && (
         <>
-          <select
+          <Select
             aria-label="Select your address"
             aria-required="true"
             aria-invalid={Boolean(validationErrorId)}
@@ -307,7 +308,7 @@ export function AddressPicker({
               if (e.target.value === "__manual__") enterManual();
               else setSelectedIndex(e.target.value);
             }}
-            className="portal-input mt-2.5 w-full"
+            surface="paper" size="portal" className="mt-2.5 w-full"
           >
             <option value="">
               {results.length} suggestion{results.length === 1 ? "" : "s"} —
@@ -321,7 +322,7 @@ export function AddressPicker({
             <option value="__manual__">
               My address isn&apos;t listed — enter it manually
             </option>
-          </select>
+          </Select>
           <p className="text-[12px] text-slate-400 mt-1">
             Check the house number and postcode. Some houses and flats may be
             missing; manual entry is always available.

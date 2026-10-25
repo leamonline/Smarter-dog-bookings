@@ -35,6 +35,7 @@ import "../customer/booking/booking-wizard.css";
 // together ("TotalFrom £80") and the preview misrepresents the real screen.
 // CustomerDashboardCardsPreview imports it for the same reason.
 import "../../customer-portal.css";
+import { Textarea } from "../ui/index.js";
 
 function SuccessScreenMock() {
   // Static mock of the "All booked in!" screen — its real markup lives
@@ -157,12 +158,12 @@ function ShellFrame({ title, state }) {
             <label className="wizard-helper" htmlFor={`continuity-note-${title}`}>
               In-progress booking note
             </label>
-            <textarea
+            <Textarea
               id={`continuity-note-${title}`}
               aria-label="In-progress booking note"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              className="portal-input min-h-24 resize-y"
+              surface="paper" size="portal" className="min-h-24 resize-y"
             />
           </div>
           <BookingSummarySidebar dogs={DOGS} {...state} />

@@ -22,7 +22,7 @@ import { describe, expect, it } from "vitest";
 
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 
-const CEILINGS = { input: 88, textarea: 20, select: 30 } as const;
+const CEILINGS = { input: 61, textarea: 17, select: 19 } as const;
 
 type Kind = keyof typeof CEILINGS;
 
