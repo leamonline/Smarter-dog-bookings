@@ -146,11 +146,11 @@ const STEP_TITLES = [
 // Five paw prints scattered around the success screen, gently floating.
 // Decorative — purely a one-time joy moment, hidden from screen readers.
 const CONFETTI_PAWS: Array<{ top: string; left: string; size: number; color: string; rot: number; delay: string }> = [
-  { top: "8%",  left: "10%", size: 22, color: "var(--sd-yellow)",      rot: -18, delay: "0s"   },
-  { top: "22%", left: "82%", size: 18, color: "var(--sd-cyan-dark)",   rot:  12, delay: "0.4s" },
-  { top: "55%", left: "6%",  size: 16, color: "var(--sd-coral)",       rot:  -8, delay: "0.8s" },
-  { top: "70%", left: "88%", size: 20, color: "var(--sd-yellow-dark)", rot:  22, delay: "1.2s" },
-  { top: "85%", left: "20%", size: 14, color: "var(--sd-cyan-dark)",   rot:  -6, delay: "1.6s" },
+  { top: "8%",  left: "10%", size: 22, color: "var(--color-brand-yellow)",      rot: -18, delay: "0s"   },
+  { top: "22%", left: "82%", size: 18, color: "var(--color-brand-cyan-dark)",   rot:  12, delay: "0.4s" },
+  { top: "55%", left: "6%",  size: 16, color: "var(--color-brand-coral)",       rot:  -8, delay: "0.8s" },
+  { top: "70%", left: "88%", size: 20, color: "var(--color-brand-yellow-dark)", rot:  22, delay: "1.2s" },
+  { top: "85%", left: "20%", size: 14, color: "var(--color-brand-cyan-dark)",   rot:  -6, delay: "1.6s" },
 ];
 
 function ConfettiPaws() {
@@ -973,7 +973,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </div>
             <h1 className="booking-success-title">
               Request sent
-              <ScribbleUnderline color="var(--sd-coral)" />
+              <ScribbleUnderline color="var(--color-brand-coral)" />
             </h1>
             <p className="booking-success-subtitle">
               We&apos;ve sent your preferred time for {dogNameStr} on{" "}
@@ -1004,7 +1004,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </div>
             <h1 className="booking-success-title">
               You&apos;re on the waitlist!
-              <ScribbleUnderline color="var(--sd-coral)" />
+              <ScribbleUnderline color="var(--color-brand-coral)" />
             </h1>
             <p className="booking-success-subtitle">
               We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll be in touch as soon as a slot opens up.
@@ -1168,7 +1168,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           if (prices.length === 0) return null;
           const total = prices.reduce((sum, p) => sum + p, 0) / 100;
           return (
-            <div className="booking-wizard-inline-total text-[13px] font-semibold text-[var(--sd-ink-light)]">
+            <div className="booking-wizard-inline-total text-[13px] font-semibold text-[var(--color-ink-muted)]">
               Estimated total: from {"£"}{total} (final price confirmed at your appointment)
             </div>
           );

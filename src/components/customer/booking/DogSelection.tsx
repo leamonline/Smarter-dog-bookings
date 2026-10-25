@@ -125,19 +125,19 @@ export function DogSelection({
               >
                 <div className="flex flex-col items-start gap-0.5 min-w-0">
                   <span className="font-display text-[15px] font-bold">{titleCase(dog.name)}</span>
-                  <span className="text-[12px] font-medium text-[var(--sd-ink-light)]">
+                  <span className="text-[12px] font-medium text-[var(--color-ink-muted)]">
                     {dog.breed ? titleCase(dog.breed) : "Breed not set"}
                     {sizeLabel ? ` · ${sizeLabel}` : ""}
                   </span>
                   {!sizeKnown && (
-                    <span className="text-[12px] font-semibold text-[var(--sd-coral)]">
+                    <span className="text-[12px] font-semibold text-[var(--color-brand-coral)]">
                       {sizeCheckRequested.has(dog.id)
                         ? "We're confirming their size"
                         : "Size not confirmed — message us first"}
                     </span>
                   )}
                   {dog.isPregnant && (
-                    <span className="text-[12px] font-semibold text-[var(--sd-coral)]">
+                    <span className="text-[12px] font-semibold text-[var(--color-brand-coral)]">
                       Pregnant — message us below
                     </span>
                   )}
@@ -153,7 +153,7 @@ export function DogSelection({
           {unsizedDogs.length > 0 && (
             <p
               role="note"
-              className="m-0 px-1 text-[12px] font-semibold text-[var(--sd-coral)]"
+              className="m-0 px-1 text-[12px] font-semibold text-[var(--color-brand-coral)]"
             >
               {allSizeChecksRequested ? (
                 <>
@@ -179,7 +179,7 @@ export function DogSelection({
           {dogs.some((dog) => dog.isPregnant) && (
             <p
               role="note"
-              className="m-0 px-1 text-[12px] font-semibold text-[var(--sd-coral)]"
+              className="m-0 px-1 text-[12px] font-semibold text-[var(--color-brand-coral)]"
             >
               Pregnant dogs need a quick chat first —{" "}
               <a
@@ -207,7 +207,7 @@ export function DogSelection({
         </div>
 
         {selectedDogs.length >= 4 && (
-          <div className="mt-3 text-[12px] text-[var(--sd-ink-light)] text-center">
+          <div className="mt-3 text-[12px] text-[var(--color-ink-muted)] text-center">
             Four pups per booking max. Need more? Message us on WhatsApp.
           </div>
         )}

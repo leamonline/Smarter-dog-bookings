@@ -88,7 +88,7 @@ export function ServiceSelection({
         const allowed = getAllowedServicesForSize(dog.size);
         return (
           <div key={dog.dogId} className="wizard-card">
-            <div className="font-display text-[15px] font-bold text-[var(--sd-navy)] mb-2.5">
+            <div className="font-display text-[15px] font-bold text-[var(--color-ink)] mb-2.5">
               {dog.name}
             </div>
             <div className="flex flex-col gap-2">
@@ -103,11 +103,11 @@ export function ServiceSelection({
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
                     className={`wizard-option wizard-service-tile${selected ? " is-selected" : ""}`}
                   >
-                    <ServiceIcon name={iconName} color={selected ? "var(--sd-navy)" : "var(--sd-cyan-dark)"} />
+                    <ServiceIcon name={iconName} color={selected ? "var(--color-ink)" : "var(--color-brand-cyan-dark)"} />
                     <div className="wizard-service-body">
                       <span className="font-display text-[15px] font-bold">{svc.name}</span>
                       {SERVICE_DESCRIPTIONS[svc.id] && (
-                        <span className="text-[12px] text-[var(--sd-ink-light)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
+                        <span className="text-[12px] text-[var(--color-ink-muted)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
                       )}
                       <span className="price text-[13px]">From {getPriceLabel(svc.id, dog.size)}</span>
                     </div>

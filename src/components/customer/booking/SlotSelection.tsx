@@ -168,16 +168,16 @@ export function SlotSelection({
         <span className="inline-flex flex-col items-start gap-0.5 min-w-0">
           <span className="inline-flex items-center gap-2">
             {starred ? (
-              <Star size={16} aria-hidden="true" className="text-[var(--sd-yellow-dark)] fill-current" />
+              <Star size={16} aria-hidden="true" className="text-[var(--color-brand-yellow-dark)] fill-current" />
             ) : (
-              <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+              <Clock size={16} aria-hidden="true" className="text-[var(--color-brand-cyan-dark)]" />
             )}
             <span className="font-display text-[15px] font-bold">
               {formatSlot(allocation.dropOffTime)}
             </span>
           </span>
           {selectedDogs.length > 1 && (
-            <span className="text-[12px] text-[var(--sd-ink-light)]">Drop all pups together</span>
+            <span className="text-[12px] text-[var(--color-ink-muted)]">Drop all pups together</span>
           )}
         </span>
         <WizardTick selected={selected} />
@@ -213,7 +213,7 @@ export function SlotSelection({
         )}
 
         {!loading && !loadError && totalSlots === 0 && (
-          <div className="wizard-empty-slots" style={{ background: "var(--sd-coral-tint)", borderRadius: "var(--radius-sd-card)", padding: 20 }}>
+          <div className="wizard-empty-slots" style={{ background: "var(--color-sd-coral-tint)", borderRadius: "var(--radius-sd-card)", padding: 20 }}>
             <div className="portal-polaroid">
               <div className="portal-polaroid-frame">
                 <div className="portal-polaroid-photo">

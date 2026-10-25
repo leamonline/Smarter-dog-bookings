@@ -15,7 +15,7 @@ const PHONE_FORMAT_ERROR = "That number doesn't look quite right. Try a UK mobil
 // Focus ring driven by token, not a bespoke colour. Used on every interactive
 // control on the page so keyboard navigation reads as one consistent thing.
 const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--sd-navy)]";
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-ink)]";
 
 // Page background mirrors the customer dashboard — same sky + buttercup
 // radial gradients on paper, so signing in feels like it's already inside the
@@ -27,7 +27,7 @@ const pageBackground =
   "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.16), transparent 70%), " +
   "radial-gradient(820px 240px at 100% 0%, rgba(254, 204, 19, 0.14), transparent 65%), " +
   "radial-gradient(760px 360px at 50% 118%, rgba(232, 86, 127, 0.10), transparent 72%), " +
-  "var(--sd-paper)";
+  "var(--color-brand-paper)";
 
 /**
  * Phone-first customer sign-in.
@@ -320,8 +320,8 @@ export function CustomerLoginPage({
 
   // Yellow CTA is reserved for non-booking primary actions across the portal;
   // green stays the booking-only colour.
-  const submitButtonClass = `w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--sd-yellow)] text-[var(--sd-navy)] hover:bg-[var(--sd-yellow-dark)] disabled:opacity-70 transition-colors ${focusRing}`;
-  const linkButtonClass = `w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`;
+  const submitButtonClass = `w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--color-brand-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-brand-yellow-dark)] disabled:opacity-70 transition-colors ${focusRing}`;
+  const linkButtonClass = `w-full text-sm font-semibold no-underline rounded text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] py-2 ${focusRing}`;
 
   const heading =
     stage === "code"
@@ -350,13 +350,13 @@ export function CustomerLoginPage({
   // that always passes is worse than none, because it invites the assumption
   // of safety.
   const turnstilePanel = (
-    <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+    <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-4">
       {captchaUnavailable ? (
         <div role="alert" className="text-center">
-          <p className="text-sm font-bold text-[var(--sd-navy)] mb-1">
+          <p className="text-sm font-bold text-[var(--color-ink)] mb-1">
             Signing in is unavailable right now
           </p>
-          <p className="text-[12px] text-[var(--sd-ink-light)] leading-relaxed">
+          <p className="text-[12px] text-[var(--color-ink-muted)] leading-relaxed">
             The security check can&apos;t load, so we can&apos;t sign you in
             just yet. Please try again shortly — or give the salon a ring and
             we&apos;ll sort you out.
@@ -382,7 +382,7 @@ export function CustomerLoginPage({
               options={{ theme: "light", size: "normal" }}
             />
           </div>
-          <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+          <p className="text-[12px] text-[var(--color-ink-muted)] text-center mt-3 leading-relaxed">
             Just confirms you&apos;re human — no clicks needed.
           </p>
         </>
@@ -407,7 +407,7 @@ export function CustomerLoginPage({
         <div
           aria-hidden="true"
           className="absolute top-0 left-0 right-0 h-1.5"
-          style={{ background: "linear-gradient(90deg, var(--sd-cyan), var(--sd-yellow) 55%, var(--sd-coral))" }}
+          style={{ background: "linear-gradient(90deg, var(--color-brand-cyan), var(--color-brand-yellow) 55%, var(--color-brand-coral))" }}
         />
         {/* Decorative scatter of the brand dog silhouette behind the form,
             drifting gently. */}
@@ -430,18 +430,18 @@ export function CustomerLoginPage({
 
           {/* aria-live wrapper announces the stage change to screen readers. */}
           <div aria-live="polite">
-            <h1 className="font-display font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+            <h1 className="font-display font-bold text-3xl mb-4 text-center text-[var(--color-ink)]">
               <span className="relative inline-block">
                 {heading}
                 <ScribbleUnderline />
               </span>
             </h1>
             {stage === "phone" && (
-              <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-4 leading-relaxed">
+              <p className="text-sm text-center text-[var(--color-ink-soft)] mb-4 leading-relaxed">
                 Book grooms, see past visits, and keep your details up to date.
               </p>
             )}
-            <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
+            <p id="login-instruction" className="text-sm text-center text-[var(--color-ink-muted)] mb-8 leading-relaxed">
               {instruction}
             </p>
           </div>
@@ -459,15 +459,15 @@ export function CustomerLoginPage({
           {stage === "phone" && (
             <form onSubmit={handlePhoneSubmit} className="space-y-6" noValidate>
               <div>
-                <label htmlFor="phone" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                <label htmlFor="phone" className="block text-sm font-bold mb-2 text-[var(--color-ink)]">
                   Mobile number
                 </label>
                 {/* Locked +44 prefix on the left, digits-only input on the right. */}
-                <div className="flex items-stretch rounded-xl border-[1.5px] border-[rgba(31,31,31,0.14)] focus-within:border-[var(--sd-navy)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--sd-navy)] overflow-hidden bg-white">
+                <div className="flex items-stretch rounded-xl border-[1.5px] border-[rgba(31,31,31,0.14)] focus-within:border-[var(--color-ink)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--color-ink)] overflow-hidden bg-white">
                   <span
                     aria-hidden="true"
-                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(31,31,31,0.14)] select-none text-[var(--sd-navy)]"
-                    style={{ background: "var(--sd-buttercup-tint)" }}
+                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(31,31,31,0.14)] select-none text-[var(--color-ink)]"
+                    style={{ background: "var(--color-sd-buttercup-tint)" }}
                   >
                     +44
                   </span>
@@ -493,7 +493,7 @@ export function CustomerLoginPage({
                     title={PHONE_FORMAT_ERROR}
                     aria-invalid={Boolean(errorText)}
                     aria-describedby="login-instruction"
-                    className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
+                    className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--color-ink)]"
                   />
                 </div>
               </div>
@@ -566,7 +566,7 @@ export function CustomerLoginPage({
                 className="sr-only"
               />
               <div>
-                <label htmlFor="password" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                <label htmlFor="password" className="block text-sm font-bold mb-2 text-[var(--color-ink)]">
                   Password
                 </label>
                 <div className="relative">
@@ -590,7 +590,7 @@ export function CustomerLoginPage({
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] bg-transparent border-none cursor-pointer p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] bg-transparent border-none cursor-pointer p-1"
                   >
                     {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                   </button>
@@ -628,7 +628,7 @@ export function CustomerLoginPage({
           {stage === "code" && (
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div>
-                <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--color-ink)]">
                   6-digit code
                 </label>
                 <input
@@ -701,7 +701,7 @@ export function CustomerLoginPage({
       {/* Back link sits beneath the card as an exit ramp. */}
       <a
         href="https://smarterdog.co.uk"
-        className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+        className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] ${focusRing}`}
       >
         <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
         Back to Smarter Dog website

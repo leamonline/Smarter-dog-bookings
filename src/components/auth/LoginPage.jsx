@@ -12,27 +12,27 @@ import { turnstileConfig, CAPTCHA_PENDING_ERROR, isCaptchaRejection } from "../.
 const pageBackground =
   "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.15), transparent 70%), " +
   "radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%), " +
-  "var(--sd-paper)";
+  "var(--color-brand-paper)";
 
 const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--sd-navy)]";
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-ink)]";
 
 const kickerClass =
-  "font-bold text-caption uppercase tracking-[0.08em] text-[var(--sd-ink-light)]";
+  "font-bold text-caption uppercase tracking-[0.08em] text-[var(--color-ink-muted)]";
 
 // Tailwind stand-in for portal-alert--error from customer-portal.css, which
 // isn't loaded on the staff app. (The inputs are the shared <Input surface="paper">.)
 const alertErrorClass =
   "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-body leading-[1.45] " +
-  "bg-[var(--sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
+  "bg-[var(--color-sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
 
 // Yellow CTA matches the customer portal — primary, non-booking action.
 const submitButtonClass =
-  "w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--sd-yellow)] text-[var(--sd-navy)] " +
-  "hover:bg-[var(--sd-yellow-dark)] disabled:opacity-70 transition-colors " + focusRing;
+  "w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--color-brand-yellow)] text-[var(--color-ink)] " +
+  "hover:bg-[var(--color-brand-yellow-dark)] disabled:opacity-70 transition-colors " + focusRing;
 
 const linkButtonClass =
-  "w-full text-sm font-semibold rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 " +
+  "w-full text-sm font-semibold rounded text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] py-2 " +
   "bg-transparent border-none cursor-pointer " + focusRing;
 
 function PortalShell({ children }) {
@@ -60,7 +60,7 @@ function PortalShell({ children }) {
       </div>
       <a
         href="https://smarterdog.co.uk"
-        className={`group mt-3 sm:mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+        className={`group mt-3 sm:mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] ${focusRing}`}
       >
         <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
         Back to Smarter Dog website
@@ -79,10 +79,10 @@ function PortalShell({ children }) {
 function CaptchaUnavailable() {
   return (
     <div role="alert" className="text-center">
-      <p className="text-sm font-bold text-[var(--sd-navy)] mb-1">
+      <p className="text-sm font-bold text-[var(--color-ink)] mb-1">
         Sign-in is unavailable right now
       </p>
-      <p className="text-xs text-[var(--sd-ink-light)] leading-relaxed">
+      <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
         The security check can&apos;t load, so we can&apos;t sign anyone in
         until it&apos;s sorted. Please try again shortly.
       </p>
@@ -184,13 +184,13 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   if (isOffline) {
     return (
       <PortalShell>
-        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
           <span className="relative inline-block">
             Sample data
             <ScribbleUnderline />
           </span>
         </h1>
-        <p className="text-sm text-center text-[var(--sd-ink-light)] leading-relaxed">
+        <p className="text-sm text-center text-[var(--color-ink-muted)] leading-relaxed">
           Supabase isn't set up yet, so you're seeing sample data. No authentication right now.
         </p>
       </PortalShell>
@@ -204,13 +204,13 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
             <span className="relative inline-block">
               Hello again
               <ScribbleUnderline />
             </span>
           </h1>
-          <p className="text-sm text-center text-[var(--sd-ink-light)] mb-3 sm:mb-8 leading-relaxed hidden sm:block">
+          <p className="text-sm text-center text-[var(--color-ink-muted)] mb-3 sm:mb-8 leading-relaxed hidden sm:block">
             Sign in to get started.
           </p>
         </div>
@@ -225,7 +225,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
         <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-6">
           <div>
-            <label htmlFor="staff-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
+            <label htmlFor="staff-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--color-ink)]">
               Email
             </label>
             <Input
@@ -242,7 +242,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
           <div>
-            <label htmlFor="staff-password" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
+            <label htmlFor="staff-password" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--color-ink)]">
               Password
             </label>
             <Input
@@ -258,7 +258,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
 
-          <div className="rounded-xl border border-transparent sm:border-[rgba(31,31,31,0.08)] bg-transparent sm:bg-[var(--sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
+          <div className="rounded-xl border border-transparent sm:border-[rgba(31,31,31,0.08)] bg-transparent sm:bg-[var(--color-sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
             {captchaUnavailable ? (
               <CaptchaUnavailable />
             ) : (
@@ -276,7 +276,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                     options={{ theme: "light", size: "normal" }}
                   />
                 </div>
-                <p className="text-xs text-[var(--sd-ink-light)] text-center mt-2 sm:mt-3 leading-relaxed hidden sm:block">
+                <p className="text-xs text-[var(--color-ink-muted)] text-center mt-2 sm:mt-3 leading-relaxed hidden sm:block">
                   Just confirms you&apos;re human — no clicks needed.
                 </p>
               </>
@@ -302,9 +302,9 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </button>
         </form>
 
-        <div className="mt-3 sm:mt-6 rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
-          <p className="text-xs text-[var(--sd-navy-soft)] leading-relaxed">
-            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite — the link in their email sets your password up.
+        <div className="mt-3 sm:mt-6 rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
+          <p className="text-xs text-[var(--color-ink-soft)] leading-relaxed">
+            <strong className="text-[var(--color-ink)]">Need an account?</strong> Ask the salon owner to send you an invite — the link in their email sets your password up.
           </p>
         </div>
       </PortalShell>
@@ -316,15 +316,15 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
             <span className="relative inline-block">
               Check your inbox
               <ScribbleUnderline />
             </span>
           </h1>
-          <p className="text-sm text-center text-[var(--sd-ink-light)] mb-3 sm:mb-8 leading-relaxed">
+          <p className="text-sm text-center text-[var(--color-ink-muted)] mb-3 sm:mb-8 leading-relaxed">
             We've sent a password reset link to{" "}
-            <strong className="text-[var(--sd-navy)]">{resetEmail}</strong>.
+            <strong className="text-[var(--color-ink)]">{resetEmail}</strong>.
           </p>
         </div>
         <button
@@ -342,13 +342,13 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   return (
     <PortalShell>
       <div aria-live="polite">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
           <span className="relative inline-block">
             Reset your password
             <ScribbleUnderline />
           </span>
         </h1>
-        <p className="text-sm text-center text-[var(--sd-ink-light)] mb-3 sm:mb-8 leading-relaxed">
+        <p className="text-sm text-center text-[var(--color-ink-muted)] mb-3 sm:mb-8 leading-relaxed">
           Enter your email and we'll send you a link.
         </p>
       </div>
@@ -363,7 +363,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
       <form onSubmit={handleResetPassword} className="space-y-6">
         <div>
-          <label htmlFor="reset-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--sd-navy)]">
+          <label htmlFor="reset-email" className="block text-sm font-bold mb-1 sm:mb-2 text-[var(--color-ink)]">
             Email
           </label>
           <Input
@@ -380,7 +380,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           />
         </div>
 
-        <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-2 sm:py-4">
+        <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-2 sm:py-4">
           {captchaUnavailable ? (
             <CaptchaUnavailable />
           ) : (

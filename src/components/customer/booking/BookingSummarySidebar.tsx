@@ -56,7 +56,7 @@ export function BookingSummarySidebar({
       <div className="wizard-card wizard-summary-card">
         <h2 className="wizard-summary-title">
           Your booking so far
-          <ScribbleUnderline color="var(--sd-yellow)" />
+          <ScribbleUnderline color="var(--color-brand-yellow)" />
         </h2>
 
         {selectedDogs.length === 0 ? (

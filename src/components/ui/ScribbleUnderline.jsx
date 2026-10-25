@@ -1,4 +1,4 @@
-export function ScribbleUnderline({ color = "var(--sd-yellow)", className = "" }) {
+export function ScribbleUnderline({ color = "var(--color-brand-yellow)", className = "" }) {
   return (
     <svg
       viewBox="0 0 200 14"

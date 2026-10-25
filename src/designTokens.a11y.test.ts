@@ -50,8 +50,8 @@ describe("design system: WCAG AA text pairs", () => {
     expect(css).toContain("@apply bg-brand-coral-dark text-white");
     expect(button).toContain("bg-brand-coral-dark text-white border-transparent");
     expect(portal).toMatch(/\.portal-btn--danger\s*\{\s*background: var\(--color-brand-coral-dark\);/);
-    expect(portal).toMatch(/\.portal-btn--cta\s*\{\s*background: var\(--sd-green\);\s*color: var\(--sd-navy\)/);
-    expect(portal).toMatch(/\.portal-btn--whatsapp\s*\{\s*background: var\(--color-brand-whatsapp\);\s*color: var\(--sd-navy\)/);
+    expect(portal).toMatch(/\.portal-btn--cta\s*\{\s*background: var\(--color-sd-green\);\s*color: var\(--color-ink\)/);
+    expect(portal).toMatch(/\.portal-btn--whatsapp\s*\{\s*background: var\(--color-brand-whatsapp\);\s*color: var\(--color-ink\)/);
   });
 
   it("does not hide the only inline-link cue until hover", () => {

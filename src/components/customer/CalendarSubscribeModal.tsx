@@ -91,13 +91,13 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       className="bg-white rounded-2xl shadow-xl max-w-md w-[90vw] p-6"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 id="calendar-subscribe-title" className="font-display text-lg font-bold text-[var(--sd-navy)] m-0">
+        <h2 id="calendar-subscribe-title" className="font-display text-lg font-bold text-[var(--color-ink)] m-0">
           Sync to Calendar
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="tap-target inline-flex items-center justify-center bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
+          className="tap-target inline-flex items-center justify-center bg-transparent border-none text-[var(--color-ink-muted)] text-xl cursor-pointer p-1 hover:text-[var(--color-ink)]"
           aria-label="Close"
         >
           <span aria-hidden="true">{"\u2715"}</span>
@@ -119,13 +119,13 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               type="text"
               readOnly
               value={feedUrl}
-              className="flex-1 bg-transparent border-none text-[16px] text-[var(--sd-navy-soft)] font-mono outline-none min-w-0"
+              className="flex-1 bg-transparent border-none text-[16px] text-[var(--color-ink-soft)] font-mono outline-none min-w-0"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button
               type="button"
               onClick={handleCopy}
-              className="shrink-0 inline-flex items-center justify-center min-h-[44px] py-1.5 px-3 rounded-md bg-[var(--sd-navy)] text-white text-xs font-semibold border-none cursor-pointer hover:bg-[var(--sd-navy-soft)]"
+              className="shrink-0 inline-flex items-center justify-center min-h-[44px] py-1.5 px-3 rounded-md bg-[var(--color-ink)] text-white text-xs font-semibold border-none cursor-pointer hover:bg-[var(--color-ink-soft)]"
             >
               {copied ? "Copied!" : "Copy"}
             </button>
@@ -133,21 +133,21 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
 
           {/* Platform instructions */}
           <div className="space-y-3 mb-4">
-            <div className="text-[12px] text-[var(--sd-navy-soft)]">
+            <div className="text-[12px] text-[var(--color-ink-soft)]">
               <span className="font-bold">Apple Calendar (iPhone/Mac):</span>{" "}
               Tap the link below to subscribe automatically.
             </div>
             <a
               href={feedUrl}
-              className="block text-center py-2 px-4 rounded-lg bg-[var(--sd-sky-tint)] text-[var(--sd-cyan-dark)] text-[13px] font-semibold no-underline hover:bg-[rgba(0,122,171,0.10)] transition-colors"
+              className="block text-center py-2 px-4 rounded-lg bg-[var(--color-sd-sky-tint)] text-[var(--color-brand-cyan-dark)] text-[13px] font-semibold no-underline hover:bg-[rgba(0,122,171,0.10)] transition-colors"
             >
               Open in Calendar App
             </a>
-            <div className="text-[12px] text-[var(--sd-navy-soft)]">
+            <div className="text-[12px] text-[var(--color-ink-soft)]">
               <span className="font-bold">Google Calendar:</span>{" "}
               Copy the URL above, go to Google Calendar Settings {"\u2192"} Add calendar {"\u2192"} From URL, and paste it.
             </div>
-            <div className="text-[12px] text-[var(--sd-navy-soft)]">
+            <div className="text-[12px] text-[var(--color-ink-soft)]">
               <span className="font-bold">Outlook:</span>{" "}
               Copy the URL, go to Outlook Calendar {"\u2192"} Add calendar {"\u2192"} Subscribe from web, and paste it.
             </div>
@@ -159,7 +159,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               type="button"
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="inline-flex items-center min-h-[44px] bg-transparent border-none text-[12px] text-[var(--sd-ink-light)] cursor-pointer hover:text-[var(--sd-navy)] transition-colors disabled:opacity-50"
+              className="inline-flex items-center min-h-[44px] bg-transparent border-none text-[12px] text-[var(--color-ink-muted)] cursor-pointer hover:text-[var(--color-ink)] transition-colors disabled:opacity-50"
             >
               {regenerating ? "Regenerating\u2026" : "Regenerate URL (invalidates old link)"}
             </button>

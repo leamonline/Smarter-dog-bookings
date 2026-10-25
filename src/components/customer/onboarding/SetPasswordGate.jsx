@@ -133,7 +133,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
           <div className="mb-4">
             <label
               htmlFor="customer-username"
-              className="text-[13px] font-semibold text-[var(--sd-navy)] block mb-1.5"
+              className="text-[13px] font-semibold text-[var(--color-ink)] block mb-1.5"
             >
               You&apos;re setting a password for
             </label>
@@ -151,7 +151,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
         )}
 
         <fieldset className="mb-4">
-          <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">
+          <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
             {isReset ? "New password" : "Password"}
           </legend>
 
@@ -173,7 +173,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
               type="button"
               onClick={() => setShow((s) => !s)}
               aria-label={show ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[var(--sd-navy)] bg-transparent border-none cursor-pointer p-1"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[var(--color-ink)] bg-transparent border-none cursor-pointer p-1"
             >
               {show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
             </button>
