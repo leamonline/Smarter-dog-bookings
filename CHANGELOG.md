@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — readable error text
+
+- Inline form errors (`InlineError`) now set their text in the readable coral
+  (`--color-brand-coral-text`, 4.6:1 on the coral wash) instead of plain coral
+  (2.9:1).
+- The `ErrorBanner` title is dark red (6.8:1 on the pale red panel) instead of
+  the bright red (3.95:1). Panel, border, buttons, wording and behaviour are
+  unchanged.
+- No migration. Colour only.
+
 ## Unreleased — readable colours, focus and tap targets (#1079)
 
 - Danger buttons (`<Button variant="danger">`, `.btn-danger` and the portal's

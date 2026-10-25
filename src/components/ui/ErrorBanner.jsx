@@ -20,7 +20,7 @@ export function ErrorBanner({
     >
       <span className="text-xl" aria-hidden="true">{"\u26A0\uFE0F"}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-brand-red">{title}</div>
+        <div className="text-sm font-bold text-red-800">{title}</div>
         {message && <div className="text-[13px] text-slate-800 mt-1">{message}</div>}
       </div>
       {retry && (
