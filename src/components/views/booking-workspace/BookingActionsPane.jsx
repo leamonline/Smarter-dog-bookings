@@ -150,7 +150,7 @@ export function BookingActionsPane({
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-5px_20px_rgba(45,0,75,0.08)]">
+      <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-5px_20px_rgba(31, 31, 31, 0.08)]">
         <p
           role="status"
           aria-live="polite"

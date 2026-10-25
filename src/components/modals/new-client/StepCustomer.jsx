@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { isRealPersonName } from "../../../utils/text";
+import { Input, Textarea } from "../../ui/index.js";
 
-const INPUT =
-  "w-full px-3 py-2.5 rounded-lg border border-slate-200 text-[14px] outline-none font-[inherit] text-slate-800 box-border focus:border-brand-teal";
 const LABEL = "block text-[12px] font-bold text-brand-teal-text mb-1";
 
 // Step 1 — customer details. Controlled by the wizard shell; phone format
@@ -14,7 +13,7 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={LABEL} htmlFor="nc-name">First name *</label>
-          <input id="nc-name" className={INPUT} value={human.name} placeholder="Amanda"
+          <Input id="nc-name" value={human.name} placeholder="Amanda"
             onChange={(e) => onChange("name", e.target.value)} autoFocus />
           {/* Explains the disabled Next button: canAdvanceCustomer rejects
               placeholder names ("?", "-", "n/a"…) so no mystery customer can
@@ -27,14 +26,14 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
         </div>
         <div>
           <label className={LABEL} htmlFor="nc-surname">Surname *</label>
-          <input id="nc-surname" className={INPUT} value={human.surname} placeholder="Booth"
+          <Input id="nc-surname" value={human.surname} placeholder="Booth"
             onChange={(e) => onChange("surname", e.target.value)} />
         </div>
       </div>
 
       <div>
         <label className={LABEL} htmlFor="nc-phone">Phone *</label>
-        <input id="nc-phone" type="tel" className={INPUT} value={human.phone} placeholder="07985 630521"
+        <Input id="nc-phone" type="tel" value={human.phone} placeholder="07985 630521"
           onChange={(e) => onChange("phone", e.target.value)} />
         {phoneError && (
           <div role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{phoneError}</div>
@@ -57,12 +56,12 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
         <div className="flex flex-col gap-3">
           <div>
             <label className={LABEL} htmlFor="nc-email">Email</label>
-            <input id="nc-email" type="email" className={INPUT} value={human.email}
+            <Input id="nc-email" type="email" value={human.email}
               onChange={(e) => onChange("email", e.target.value)} placeholder="you@example.com" />
           </div>
           <div>
             <label className={LABEL} htmlFor="nc-address">Address</label>
-            <input id="nc-address" className={INPUT} value={human.address}
+            <Input id="nc-address" value={human.address}
               onChange={(e) => onChange("address", e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-4">
@@ -77,7 +76,7 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
           </div>
           <div>
             <label className={LABEL} htmlFor="nc-notes">Notes</label>
-            <textarea id="nc-notes" rows={2} className={`${INPUT} resize-y`} value={human.notes}
+            <Textarea id="nc-notes" rows={2} value={human.notes}
               onChange={(e) => onChange("notes", e.target.value)} />
           </div>
         </div>

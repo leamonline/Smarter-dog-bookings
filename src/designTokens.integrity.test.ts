@@ -149,6 +149,12 @@ describe("design tokens: deprecated names may not spread", () => {
   const count = (pattern: RegExp) =>
     files.reduce((total, text) => total + (text.match(pattern) ?? []).length, 0);
 
+  // The plum brand (rgb 45, 0, 75) was retired in the reskin; its faint tints
+  // lingered in ~100 borders and shadows. The charcoal ink replaces them.
+  it("has no retired plum tints left", () => {
+    expect(count(/rgba?\(\s*45\s*,\s*0\s*,\s*75\b/g)).toBe(0);
+  });
+
   // Ratchets, not bans: the existing uses are fine, new ones are not. Lower
   // the ceiling as call sites move to brand-ink / text-ink. Never raise it.
   it.each([

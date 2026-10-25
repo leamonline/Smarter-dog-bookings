@@ -43,7 +43,7 @@ export function DrawerShell({
   side = "right",
   widthClass = "max-w-md",
   panelClassName = "",
-  backdropClass = "bg-[rgba(45,0,75,0.45)] animate-overlay-fade",
+  backdropClass = "bg-[rgba(31, 31, 31, 0.45)] animate-overlay-fade",
   zIndex = 1000,
   dismissOnEscape = true,
   modal = true,
@@ -56,7 +56,7 @@ export function DrawerShell({
       dismissOnEscape={dismissOnEscape}
       backdropClass={backdropClass}
       overlayClassName={side === "left" ? "flex justify-start" : "flex justify-end"}
-      className={`relative h-full w-full ${widthClass} max-sm:max-w-none bg-[var(--color-brand-paper)] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] flex flex-col overflow-hidden animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)] ${panelClassName}`}
+      className={`relative h-full w-full ${widthClass} max-sm:max-w-none bg-[var(--color-brand-paper)] shadow-[0_18px_50px_-12px_rgba(31, 31, 31, 0.28)] flex flex-col overflow-hidden animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)] ${panelClassName}`}
       modal={modal}
     >
       {children}

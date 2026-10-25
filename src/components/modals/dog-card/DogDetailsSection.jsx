@@ -5,6 +5,7 @@ import { titleCase, waLink, telLink } from "./helpers.js";
 import { CardRow } from "../booking-detail/shared.jsx";
 import { PanelShell } from "../shell/index.js";
 import { alertTint } from "../shell/alertTints.js";
+import { Input, Select, Textarea } from "../../ui/index.js";
 
 const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-ink-muted";
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
@@ -128,12 +129,14 @@ export function DogDetailsSection({
       </div>
       {hasAllergy && (
         <div className="mt-2.5 flex justify-center">
-          <input
+          <Input
             type="text"
             placeholder="Allergic to..."
+            aria-label="Allergic to"
             value={allergyInput}
             onChange={(e) => setAllergyInput(e.target.value)}
-            className={`${INPUT_CLS} text-center border-2 border-brand-coral`}
+            className="text-center"
+            style={{ borderColor: "var(--color-brand-coral)", borderWidth: 2 }}
           />
         </div>
       )}
@@ -209,13 +212,15 @@ export function DogDetailsSection({
                   <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex">
                     <IconSearch size={14} colour="#6B7280" />
                   </div>
-                  <input
+                  <Input
                     type="text"
                     placeholder="Search by name or phone..."
+                    aria-label="Search owners"
                     value={ownerSearchQuery}
                     onChange={(e) => setOwnerSearchQuery(e.target.value)}
                     autoFocus
-                    className={`${INPUT_CLS} pl-8 border-brand-cyan`}
+                    className="pl-8"
+                    style={{ borderColor: "var(--color-brand-cyan)" }}
                   />
                 </div>
                 {ownerSearchResults.length > 0 && (
@@ -260,46 +265,46 @@ export function DogDetailsSection({
                 </span>
               )}
             </div>
-            <select
+            <Select
               value={editSize}
               onChange={(e) => setEditSize(e.target.value)}
               aria-label="Dog size"
-              className={`${INPUT_CLS} cursor-pointer w-[140px]`}
+              className="cursor-pointer w-[140px]"
             >
               {!editSize && <option value="">Select size</option>}
               <option value="small">Small</option>
               <option value="medium">Medium</option>
               <option value="large">Large</option>
-            </select>
+            </Select>
           </div>
 
           {/* Sex & Neutered edit */}
           <div className="py-2.5 border-b border-slate-100 grid grid-cols-2 gap-2.5">
             <div>
               <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Sex</div>
-              <select
+              <Select
                 value={editSex}
                 onChange={(e) => setEditSex(e.target.value)}
                 aria-label="Dog sex"
-                className={`${INPUT_CLS} cursor-pointer`}
+                className="cursor-pointer"
               >
                 <option value="">Select</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-              </select>
+              </Select>
             </div>
             <div>
               <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Neutered</div>
-              <select
+              <Select
                 value={editNeutered}
                 onChange={(e) => setEditNeutered(e.target.value)}
                 aria-label="Neutered"
-                className={`${INPUT_CLS} cursor-pointer`}
+                className="cursor-pointer"
               >
                 <option value="">Select</option>
                 <option value="yes">Neutered</option>
                 <option value="no">Not neutered</option>
-              </select>
+              </Select>
             </div>
           </div>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -317,12 +322,12 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Colour / Markings
             </div>
-            <input
+            <Input
               type="text"
               value={editColour}
               onChange={(e) => setEditColour(e.target.value)}
               placeholder="Black &amp; tan"
-              className={INPUT_CLS}
+              
             />
           </div>
 
@@ -331,12 +336,12 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Microchip
             </div>
-            <input
+            <Input
               type="text"
               value={editMicrochip}
               onChange={(e) => setEditMicrochip(e.target.value)}
               placeholder="985..."
-              className={INPUT_CLS}
+              
             />
           </div>
 
@@ -345,12 +350,12 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Vet
             </div>
-            <input
+            <Input
               type="text"
               value={editVet}
               onChange={(e) => setEditVet(e.target.value)}
               placeholder="Vet practice"
-              className={INPUT_CLS}
+              
             />
           </div>
 
@@ -359,10 +364,10 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Groom Notes
             </div>
-            <textarea
+            <Textarea
               value={editNotes}
               onChange={(e) => setEditNotes(e.target.value)}
-              className={`${INPUT_CLS} resize-y min-h-[60px]`}
+              className="resize-y min-h-[60px]"
             />
           </div>
 
@@ -371,14 +376,14 @@ export function DogDetailsSection({
             <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Custom Price ({"\u00a3"})
             </div>
-            <input
+            <Input
               type="number"
               min="0"
               step="1"
               value={editPrice}
               onChange={(e) => setEditPrice(e.target.value)}
               placeholder="e.g. 42"
-              className={`${INPUT_CLS} w-[120px]`}
+              className="w-[120px]"
             />
           </div>
         </PanelShell>
