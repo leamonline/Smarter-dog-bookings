@@ -144,7 +144,7 @@
   --color-brand-teal-dark: #1E6B5C;
   /* Lighter teal — gradient companion for the canonical brand-teal. */
   --color-brand-teal-light: #3BA594;
-  --color-brand-green: #00D94A;
+  --color-brand-green: var(--color-brand-green-500); /* one value, two names: prefer the numbered step in new work */
   /* Numbered success scale (green == confirmed/done). 500 == --color-brand-green. */
   --color-brand-green-50: #ECFDF3;
   --color-brand-green-100: #CFF8DE;
@@ -172,7 +172,9 @@
 
   /* Customer portal palette */
   --color-brand-ink: #1F1F1F;
-  --color-brand-purple: var(--color-brand-ink); /* backwards-compatible pre-reskin name */
+  /* DEPRECATED: pre-reskin name for --color-brand-ink. Existing uses keep
+     working; src/designTokens.integrity.test.ts stops the count growing. */
+  --color-brand-purple: var(--color-brand-ink);
   --color-brand-purple-light: #4A4A4A;
   --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
@@ -205,7 +207,8 @@
   --color-sd-paper: var(--color-brand-paper);
 
   /* Ink + mute (semantic aliases of brand-purple) */
-  --color-sd-navy: var(--color-brand-ink); /* retained legacy name */
+  /* DEPRECATED: pre-reskin name for --color-brand-ink (same guard as brand-purple). */
+  --color-sd-navy: var(--color-brand-ink);
   --color-sd-navy-soft: var(--color-brand-purple-light);
   /* WCAG AA (4.5:1) for normal-size text. Brand reskin step 2 (2026-09-20):
      --color-sd-paper moved from #FAF9F6 to #F7EFE6, which dropped the
