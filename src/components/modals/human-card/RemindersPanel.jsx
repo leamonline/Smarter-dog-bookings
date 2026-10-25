@@ -40,7 +40,7 @@ export function RemindersPanel({ human, onUpdateHuman }) {
               onClick={() => toggleChannel(key)}
               title={`${label} ${active ? "on" : "off"}`}
               className={[
-                "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] font-bold font-inherit border-none cursor-pointer transition-colors",
+                "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold font-inherit border-none cursor-pointer transition-colors",
                 active
                   ? "bg-feedback-warning-ink text-white"
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200",

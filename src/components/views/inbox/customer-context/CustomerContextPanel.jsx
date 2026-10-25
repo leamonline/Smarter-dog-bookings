@@ -61,7 +61,7 @@ export function CustomerContextPanel({
       <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
         <h3
           id={titleId}
-          className="text-[14px] font-bold text-brand-purple font-display leading-tight m-0 truncate"
+          className="text-sm font-bold text-brand-purple font-display leading-tight m-0 truncate"
         >
           {loading
             ? "Loading customer details..."
@@ -87,7 +87,7 @@ export function CustomerContextPanel({
               under the name — that's what staff glance at first. Both are
               available only once a matched customer has loaded. */}
           {!loading && !error && displayHuman && summary && (
-            <p className="text-[12px] text-slate-700 leading-snug">{summary}</p>
+            <p className="text-xs text-slate-700 leading-snug">{summary}</p>
           )}
 
           {/* Owner notes — the durable profile notes (humans.notes),
@@ -98,7 +98,7 @@ export function CustomerContextPanel({
               <div className="text-micro font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Notes
               </div>
-              <div className="text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
+              <div className="text-xs text-slate-700 leading-snug whitespace-pre-wrap">
                 {displayHuman.notes}
               </div>
             </div>
@@ -119,7 +119,7 @@ export function CustomerContextPanel({
           {loading ? (
             <div className="py-6"><LoadingSpinner label="Loading customer…" /></div>
           ) : error ? (
-            <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
+            <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
               Couldn't load customer details: {error}
             </div>
           ) : !displayHuman ? (
@@ -176,7 +176,7 @@ export function CustomerContextPanel({
                 </div>
               )}
 
-              <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+              <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 Booking from Inbox is not available yet. Use the diary to make a booking.
               </p>
 
@@ -270,7 +270,7 @@ function Section({ title, children }) {
 }
 
 function DetailLine({ label, value, href, multiline, accent }) {
-  const valueClass = `text-[12px] text-brand-purple ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
+  const valueClass = `text-xs text-brand-purple ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
   return (
     <div className="mb-1.5 last:mb-0">
       <div className="text-micro font-bold uppercase tracking-wider text-ink-muted">
@@ -292,7 +292,7 @@ function DetailLine({ label, value, href, multiline, accent }) {
 
 function UnmatchedEmptyState({ phone }) {
   return (
-    <div className="text-[13px] text-slate-600 leading-snug bg-feedback-warning-tint border border-brand-mustard-tint rounded-lg p-3">
+    <div className="text-body text-slate-600 leading-snug bg-feedback-warning-tint border border-brand-mustard-tint rounded-lg p-3">
       <p className="font-bold text-feedback-warning-ink mb-1">No customer match yet</p>
       <p className="text-feedback-warning-ink/80">
         We haven&apos;t linked {phone || "this number"} to a customer record. Adding a quick profile means the AI can personalise replies and the diary stays accurate.

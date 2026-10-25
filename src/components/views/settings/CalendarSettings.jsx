@@ -68,7 +68,7 @@ export function CalendarSettings() {
       {/* Staff Calendar Feed */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
         <h3 className="text-[15px] font-bold text-slate-800 mb-1">Staff Calendar Feed</h3>
-        <p className="text-[13px] text-slate-500 mb-4 leading-relaxed">
+        <p className="text-body text-slate-500 mb-4 leading-relaxed">
           Subscribe to this URL in your calendar app to see all salon bookings.
           The feed auto-updates so new bookings, changes, and cancellations will appear automatically.
         </p>
@@ -97,7 +97,7 @@ export function CalendarSettings() {
             {/* Open directly */}
             <a
               href={feedUrl}
-              className="inline-block py-2 px-4 rounded-lg bg-brand-teal/5 border border-brand-teal/20 text-brand-teal text-[13px] font-semibold no-underline hover:bg-brand-teal/10 transition-colors mb-3"
+              className="inline-block py-2 px-4 rounded-lg bg-brand-teal/5 border border-brand-teal/20 text-brand-teal text-body font-semibold no-underline hover:bg-brand-teal/10 transition-colors mb-3"
             >
               Open in Calendar App
             </a>
@@ -123,7 +123,7 @@ export function CalendarSettings() {
       {/* Platform instructions */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
         <h3 className="text-[15px] font-bold text-slate-800 mb-3">How to Subscribe</h3>
-        <div className="space-y-3 text-[13px] text-slate-600 leading-relaxed">
+        <div className="space-y-3 text-body text-slate-600 leading-relaxed">
           <div>
             <span className="font-bold">Apple Calendar (iPhone/Mac):</span>{" "}
             Tap "Open in Calendar App" above, or go to Settings {"\u2192"} Calendar {"\u2192"} Accounts {"\u2192"} Add Account {"\u2192"} Other {"\u2192"} Add Subscribed Calendar, and paste the URL.
@@ -143,7 +143,7 @@ export function CalendarSettings() {
       {/* Customer info */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
         <h3 className="text-[15px] font-bold text-slate-800 mb-1">Customer Calendar Sync</h3>
-        <p className="text-[13px] text-slate-500 leading-relaxed">
+        <p className="text-body text-slate-500 leading-relaxed">
           Customers can add appointments to their personal calendar from the booking confirmation screen
           and their dashboard. Each customer gets their own feed URL that only shows their appointments.
         </p>

@@ -118,7 +118,7 @@ export function BookingHeader({
         </div>
 
         {(subtitleParts.length > 0 || ownerName) && (
-          <div className="text-[13px] text-slate-500 font-semibold mt-1.5 min-w-0">
+          <div className="text-body text-slate-500 font-semibold mt-1.5 min-w-0">
             {subtitleParts.join(" · ")}
             {ownerName && (
               <>
@@ -127,7 +127,7 @@ export function BookingHeader({
                   <button
                     type="button"
                     onClick={() => onOpenHuman(primaryHuman.id || ownerName)}
-                    className="text-brand-teal-text font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-[13px] hover:underline underline-offset-2"
+                    className="text-brand-teal-text font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-body hover:underline underline-offset-2"
                   >
                     {titleCase(ownerName)}
                   </button>
@@ -141,7 +141,7 @@ export function BookingHeader({
                       type="button"
                       onClick={() => onMessageOwner(primaryHuman.id)}
                       aria-label={`Message ${titleCase(ownerName)}`}
-                      className="inline-flex items-center gap-1 text-brand-whatsapp-dark font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-[13px] hover:underline underline-offset-2"
+                      className="inline-flex items-center gap-1 text-brand-whatsapp-dark font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-body hover:underline underline-offset-2"
                     >
                       <MessageCircle size={13} strokeWidth={2.4} aria-hidden="true" />
                       Message
@@ -170,7 +170,7 @@ export function BookingHeader({
               }));
               setSaveError("");
             }}
-            className="mt-2 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800 focus:border-brand-teal focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1"
+            className="mt-2 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-body font-semibold outline-none cursor-pointer font-inherit text-slate-800 focus:border-brand-teal focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1"
           >
             {allowedServices.map((service) => (
               <option key={service.id} value={service.id}>

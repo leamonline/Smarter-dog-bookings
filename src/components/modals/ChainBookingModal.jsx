@@ -354,7 +354,7 @@ export function ChainBookingModal({
               ))}
             </Select>
             <div className="flex items-center gap-1">
-              <span aria-hidden="true" className="text-[14px] font-bold text-slate-500">
+              <span aria-hidden="true" className="text-sm font-bold text-slate-500">
                 {"\u00A3"}
               </span>
               <Input
@@ -387,7 +387,7 @@ export function ChainBookingModal({
               </Field>
             </div>
             <div className="py-2">
-              <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+              <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
                 Time
               </div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5">
@@ -410,7 +410,7 @@ export function ChainBookingModal({
                           ? `${slot} — over capacity, click to override`
                           : slot
                       }
-                      className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] transition-colors"
+                      className="py-2 rounded-lg text-body font-semibold text-center border-[1.5px] transition-colors"
                       style={{
                         cursor: isClickable ? "pointer" : "not-allowed",
                         background: selected
@@ -447,7 +447,7 @@ export function ChainBookingModal({
             <button
               onClick={addFirstAppointment}
               disabled={!firstSlot}
-              className="w-full mt-2 py-3 rounded-xl border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-2 py-3 rounded-xl border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: firstSlot
                   ? sizeTheme.gradient[0]
@@ -476,14 +476,14 @@ export function ChainBookingModal({
                       : ""
                   }`}
                 >
-                  <span className="text-[13px] font-extrabold text-slate-300 w-5">
+                  <span className="text-body font-extrabold text-slate-300 w-5">
                     {idx + 1}.
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-bold text-slate-800">
+                    <div className="text-body font-bold text-slate-800">
                       {formatDate(link.date)}
                     </div>
-                    <div className="text-[12px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       {link.slot} — {svc?.name || link.service}
                     </div>
                   </div>
@@ -505,7 +505,7 @@ export function ChainBookingModal({
           <SectionCard
             title={`Pick a time — ${formatDate(slotPickerFor.date)}`}
           >
-            <div className="text-[12px] text-slate-500 mb-2">
+            <div className="text-xs text-slate-500 mb-2">
               Preferred time isn't available. Choose from:
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5">
@@ -513,7 +513,7 @@ export function ChainBookingModal({
                 <button
                   key={slot}
                   onClick={() => pickAlternativeSlot(slot, false)}
-                  className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] cursor-pointer transition-colors bg-white"
+                  className="py-2 rounded-lg text-body font-semibold text-center border-[1.5px] cursor-pointer transition-colors bg-white"
                   style={{
                     color: sizeTheme.primary,
                     borderColor: sizeTheme.primary,
@@ -528,7 +528,7 @@ export function ChainBookingModal({
                   onClick={() => pickAlternativeSlot(slot, true)}
                   title="Over capacity. Click to override."
                   aria-label={`${slot} — over capacity, click to override`}
-                  className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] cursor-pointer transition-colors"
+                  className="py-2 rounded-lg text-body font-semibold text-center border-[1.5px] cursor-pointer transition-colors"
                   style={{
                     background: "#FFFBEB",
                     color: "#92400E",
@@ -542,7 +542,7 @@ export function ChainBookingModal({
             </div>
             <button
               onClick={() => setSlotPickerFor(null)}
-              className="w-full mt-2 py-2 rounded-lg border border-slate-200 bg-white text-slate-500 text-[12px] font-bold cursor-pointer font-inherit"
+              className="w-full mt-2 py-2 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-bold cursor-pointer font-inherit"
             >
               Skip this date
             </button>
@@ -555,7 +555,7 @@ export function ChainBookingModal({
           !slotPickerFor && (
             <div className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)] mb-3 px-4 py-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[13px] font-semibold text-slate-600">
+                <span className="text-body font-semibold text-slate-600">
                   Add another in
                 </span>
                 <Input
@@ -567,14 +567,14 @@ export function ChainBookingModal({
                   onChange={(e) => setWeeksGap(e.target.value)}
                   className="w-[56px] text-center"
                 />
-                <span className="text-[13px] font-semibold text-slate-600">
+                <span className="text-body font-semibold text-slate-600">
                   weeks
                 </span>
               </div>
               {weeksGap &&
                 parseInt(weeksGap, 10) > 0 &&
                 chain.length > 0 && (
-                  <div className="text-[12px] text-slate-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     {"\u2192"}{" "}
                     {formatDate(
                       addWeeks(
@@ -587,7 +587,7 @@ export function ChainBookingModal({
               <button
                 onClick={addNextAppointment}
                 disabled={!weeksGap || parseInt(weeksGap, 10) < 1}
-                className="w-full mt-2.5 py-2.5 rounded-xl border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-2.5 py-2.5 rounded-xl border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background:
                     weeksGap && parseInt(weeksGap, 10) > 0

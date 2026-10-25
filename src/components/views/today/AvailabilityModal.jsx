@@ -39,14 +39,14 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
       <span className="font-bold text-slate-800 text-[15px] tabular-nums w-14 shrink-0">{row.slot}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] font-semibold text-slate-700">{seatsLabel(row.seatsFree)}</span>
+          <span className="text-body font-semibold text-slate-700">{seatsLabel(row.seatsFree)}</span>
           {row.isOnline ? (
             <Chip dot className="bg-brand-teal/15 text-brand-teal-text">Online</Chip>
           ) : (
             <Chip dot className="bg-slate-100 text-slate-600">Hidden</Chip>
           )}
           {pastCutoff && (
-            <span className="text-[12px] text-slate-500">past today&apos;s cutoff</span>
+            <span className="text-xs text-slate-500">past today&apos;s cutoff</span>
           )}
         </div>
         <div className="flex items-center gap-1 flex-wrap mt-1.5">
@@ -113,14 +113,14 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
     >
       <div className="px-5 pb-5">
         <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
-          <p className="text-[13px] text-slate-700">
+          <p className="text-body text-slate-700">
             <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
             {" · "}
             <span className="font-bold text-slate-800">{unbookedSlots}</span> unbooked {unbookedSlots === 1 ? "slot" : "slots"}
             {" · "}
             <span className="font-bold text-slate-800">{onlineCount}</span> online
           </p>
-          <p className="text-[13px] text-slate-600 mt-0.5">
+          <p className="text-body text-slate-600 mt-0.5">
             Next online slot:{" "}
             {nextOnlineSlot ? (
               <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
@@ -130,13 +130,13 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
           </p>
         </div>
 
-        <p className="text-[12px] text-slate-500 mb-2.5">
+        <p className="text-xs text-slate-500 mb-2.5">
           Online slots let customers book themselves today, up to 30 minutes before the start. Hidden slots
           stay yours to fill.
         </p>
 
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-[13px] text-slate-600">
+          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
             No free slots left today.
           </p>
         ) : (

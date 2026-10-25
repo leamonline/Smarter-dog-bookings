@@ -133,7 +133,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
           <div className="mb-4">
             <label
               htmlFor="customer-username"
-              className="text-[13px] font-semibold text-[var(--color-ink)] block mb-1.5"
+              className="text-body font-semibold text-[var(--color-ink)] block mb-1.5"
             >
               You&apos;re setting a password for
             </label>
@@ -151,7 +151,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
         )}
 
         <fieldset className="mb-4">
-          <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
+          <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">
             {isReset ? "New password" : "Password"}
           </legend>
 
@@ -194,7 +194,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
         </fieldset>
 
         {error && (
-          <div role="alert" className="portal-alert portal-alert--error mb-3 text-[13px]">
+          <div role="alert" className="portal-alert portal-alert--error mb-3 text-body">
             {error}
           </div>
         )}
@@ -211,7 +211,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
         <button
           type="button"
           onClick={onSignOut}
-          className="block mx-auto mt-3 text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
+          className="block mx-auto mt-3 text-body text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
         >
           Sign out
         </button>

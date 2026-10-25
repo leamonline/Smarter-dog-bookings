@@ -41,7 +41,7 @@ export function JoinThePackWelcome({ onStart, onSignOut }) {
         </p>
 
         {error && (
-          <div role="alert" className="portal-alert portal-alert--error my-3 text-[13px]">
+          <div role="alert" className="portal-alert portal-alert--error my-3 text-body">
             {error}
           </div>
         )}
@@ -55,7 +55,7 @@ export function JoinThePackWelcome({ onStart, onSignOut }) {
           {starting ? "Setting up…" : "Join the Pack"}
         </button>
 
-        <p className="text-[13px] text-slate-500 mt-4 leading-relaxed">
+        <p className="text-body text-slate-500 mt-4 leading-relaxed">
           Already a customer? Your number may be stored differently —{" "}
           <a
             href={SALON_WHATSAPP_URL}
@@ -71,7 +71,7 @@ export function JoinThePackWelcome({ onStart, onSignOut }) {
         <button
           type="button"
           onClick={onSignOut}
-          className="block mx-auto mt-3 text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
+          className="block mx-auto mt-3 text-body text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
         >
           Sign out
         </button>

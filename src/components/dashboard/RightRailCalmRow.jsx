@@ -24,7 +24,7 @@ function Chip({ label, onClick, hue }) {
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-transparent border-none cursor-pointer font-[inherit] text-[12px] font-semibold ${colour}`}
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-transparent border-none cursor-pointer font-[inherit] text-xs font-semibold ${colour}`}
     >
       {label}
       <ArrowRight size={11} strokeWidth={2.5} aria-hidden="true" />

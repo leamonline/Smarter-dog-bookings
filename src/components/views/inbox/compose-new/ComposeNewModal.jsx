@@ -40,7 +40,7 @@ function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sen
     <div className="flex flex-col gap-2 p-3 bg-sky-50 border border-sky-200 rounded-lg">
       <div className="flex items-start gap-2">
         <span aria-hidden="true" className="mt-0.5 text-sky-700">📱</span>
-        <div className="text-[12px] leading-snug text-sky-900">
+        <div className="text-xs leading-snug text-sky-900">
           <p className="font-bold">Sending as SMS via Twilio</p>
           <p className="text-sky-800">
             Free-form text — no template gate. Plain text only (no bold,
@@ -56,7 +56,7 @@ function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sen
         placeholder={placeholder}
         rows={5}
         maxLength={2000}
-        className="w-full text-[14px] p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
+        className="w-full text-sm p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
       />
 
       <div className="flex items-center justify-between gap-2 flex-wrap text-caption">
@@ -67,7 +67,7 @@ function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sen
           type="button"
           onClick={onSend}
           disabled={!hasText || sending}
-          className="inline-flex items-center h-9 px-4 rounded-full bg-sky-600 text-white text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-700 transition-colors font-[inherit]"
+          className="inline-flex items-center h-9 px-4 rounded-full bg-sky-600 text-white text-body font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-700 transition-colors font-[inherit]"
         >
           {sending ? "Sending…" : "Send SMS"}
         </button>
@@ -84,7 +84,7 @@ function WindowOpenPanel({ firstName, countdown, onOpenChat }) {
     <div className="flex flex-col gap-2.5 p-3 bg-brand-green-50 border border-brand-green-200 rounded-lg">
       <div className="flex items-start gap-2">
         <span aria-hidden="true" className="mt-0.5">✅</span>
-        <div className="text-[12px] leading-snug text-brand-green-800">
+        <div className="text-xs leading-snug text-brand-green-800">
           <p className="font-bold">
             {firstName ? `${firstName} is` : "This customer is"} still inside the
             24-hour reply window.
@@ -98,7 +98,7 @@ function WindowOpenPanel({ firstName, countdown, onOpenChat }) {
       <button
         type="button"
         onClick={onOpenChat}
-        className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full bg-brand-green-600 text-white text-[13px] font-bold cursor-pointer hover:bg-brand-green-700 transition-colors font-[inherit]"
+        className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full bg-brand-green-600 text-white text-body font-bold cursor-pointer hover:bg-brand-green-700 transition-colors font-[inherit]"
       >
         Open chat to reply
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -117,7 +117,7 @@ function CustomerRow({ human, onSelect }) {
       onClick={() => onSelect(human)}
       className="w-full text-left px-3 py-2 border-b border-slate-100 hover:bg-brand-yellow/10 transition-colors cursor-pointer font-[inherit]"
     >
-      <div className="text-[13px] font-semibold text-brand-purple">{full}</div>
+      <div className="text-body font-semibold text-brand-purple">{full}</div>
       {human.phone && (
         <div className="text-caption text-slate-500 tabular-nums">{human.phone}</div>
       )}
@@ -317,7 +317,7 @@ export function ComposeNewModal({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search by name, surname, phone, or dog name…"
-                  className="w-full text-[13px] px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-brand-yellow font-[inherit]"
+                  className="w-full text-body px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-brand-yellow font-[inherit]"
                 />
                 <p className="text-caption text-slate-500 mt-1">
                   Type at least 2 characters. Meta only lets you send approved templates when starting a thread.
@@ -327,7 +327,7 @@ export function ComposeNewModal({
                 <div className="px-4 pb-2 text-caption text-slate-500">Searching…</div>
               )}
               {!searching && query.trim().length >= 2 && results.length === 0 && (
-                <div className="px-4 py-6 text-center text-[12px] text-slate-500">
+                <div className="px-4 py-6 text-center text-xs text-slate-500">
                   No customers found.
                 </div>
               )}
@@ -340,12 +340,12 @@ export function ComposeNewModal({
           ) : (
             <div className="p-3">
               {!selectedHuman.phone && (
-                <div role="alert" className="mb-3 p-2 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-[12px] text-feedback-warning-ink">
+                <div role="alert" className="mb-3 p-2 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-xs text-feedback-warning-ink">
                   No phone number on file for this customer. Add one on their profile first, then come back.
                 </div>
               )}
               {error && (
-                <div role="alert" className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-900">
+                <div role="alert" className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-900">
                   {error}
                 </div>
               )}
@@ -367,7 +367,7 @@ export function ComposeNewModal({
                     onClick={() => setChannel("whatsapp")}
                     title="Send via WhatsApp. Meta requires an approved template for first contact."
                     className={[
-                      "inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer font-[inherit]",
+                      "inline-flex items-center h-7 px-3 rounded-full text-xs font-semibold cursor-pointer font-[inherit]",
                       channel === "whatsapp"
                         ? "bg-white text-emerald-700 shadow-sm"
                         : "bg-transparent text-slate-600 hover:text-emerald-700",
@@ -382,7 +382,7 @@ export function ComposeNewModal({
                     onClick={() => setChannel("sms")}
                     title="Send via SMS (Twilio). Free-form text, no template gate. Each segment ≤ 160 GSM chars; longer messages are billed per segment."
                     className={[
-                      "inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer font-[inherit]",
+                      "inline-flex items-center h-7 px-3 rounded-full text-xs font-semibold cursor-pointer font-[inherit]",
                       channel === "sms"
                         ? "bg-white text-sky-700 shadow-sm"
                         : "bg-transparent text-slate-600 hover:text-sky-700",

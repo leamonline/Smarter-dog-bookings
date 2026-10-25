@@ -58,7 +58,7 @@ export function UtilityTabs({
               id={`utility-tab-${t.id}`}
               type="button"
               onClick={() => setActive(t.id)}
-              className={`flex-1 min-w-0 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-1.5 py-2 text-[12px] font-semibold transition-all border-none cursor-pointer font-[inherit] relative ${
+              className={`flex-1 min-w-0 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-1.5 py-2 text-xs font-semibold transition-all border-none cursor-pointer font-[inherit] relative ${
                 isActive
                   ? "text-brand-purple bg-white"
                   : "text-slate-500 bg-transparent hover:text-brand-purple hover:bg-white/60"

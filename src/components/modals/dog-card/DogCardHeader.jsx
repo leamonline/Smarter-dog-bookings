@@ -89,7 +89,7 @@ export function DogCardHeader({
                 ariaLabel="Breed"
                 placeholder="Select or search breed"
                 wrapperClassName="flex-1"
-                inputClassName="text-[13px] bg-white border border-slate-200 rounded-md px-2 py-1 w-full outline-none font-inherit text-slate-700 focus:border-brand-teal"
+                inputClassName="text-body bg-white border border-slate-200 rounded-md px-2 py-1 w-full outline-none font-inherit text-slate-700 focus:border-brand-teal"
               />
               <span className="text-xs text-slate-400">Born</span>
               <select
@@ -125,7 +125,7 @@ export function DogCardHeader({
               {titleCase(resolvedDog.name)}
             </h2>
             {(subtitleParts.length > 0 || ownerLabel) && (
-              <div className="text-[13px] text-slate-500 font-semibold mt-1.5 min-w-0">
+              <div className="text-body text-slate-500 font-semibold mt-1.5 min-w-0">
                 {subtitleParts.join(" · ")}
                 {ownerLabel && (
                   <>
@@ -134,7 +134,7 @@ export function DogCardHeader({
                       <button
                         type="button"
                         onClick={onOpenOwner}
-                        className="text-brand-teal-text font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-[13px] hover:underline underline-offset-2"
+                        className="text-brand-teal-text font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-body hover:underline underline-offset-2"
                       >
                         {titleCase(ownerLabel)}
                       </button>

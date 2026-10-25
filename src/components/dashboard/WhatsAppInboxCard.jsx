@@ -31,16 +31,16 @@ function InboxAiSummary({ aiSummary, awaitingReply }) {
   return (
     <div className="bg-white rounded-xl p-3 border border-emerald-100 min-h-[44px]">
       {aiSummary?.loading && !aiSummary?.text ? (
-        <div className="flex items-center gap-2 text-[12px] text-emerald-700/60 italic">
+        <div className="flex items-center gap-2 text-xs text-emerald-700/60 italic">
           <RefreshCw size={12} className="animate-spin" aria-hidden="true" />
           Summarising…
         </div>
       ) : aiSummary?.text ? (
-        <p className="text-[12px] text-slate-700 leading-relaxed">
+        <p className="text-xs text-slate-700 leading-relaxed">
           {aiSummary.text}
         </p>
       ) : (
-        <p className="text-[12px] text-slate-500 italic">
+        <p className="text-xs text-slate-500 italic">
           {awaitingReply === 0
             ? "All sorted right now"
             : aiSummary?.error
@@ -59,7 +59,7 @@ function InboxActionableRow({ conv, onOpen }) {
         <span className="text-brand-purple font-extrabold">{conv.displayName}</span>
         <span className="text-slate-400 tabular-nums">{formatTimeWaiting(conv.lastAt)}</span>
       </div>
-      <p className="text-[12px] text-slate-700 italic truncate max-w-full">
+      <p className="text-xs text-slate-700 italic truncate max-w-full">
         &ldquo;{conv.lastText}&rdquo;
       </p>
       <button

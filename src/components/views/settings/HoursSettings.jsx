@@ -105,7 +105,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
             return (
               <div key={day}>
                 <div className="grid grid-cols-[80px_1fr_1fr_32px] gap-2 items-center py-1 min-w-[320px]">
-                  <span className={`text-[13px] font-bold ${d.closed ? "text-brand-red" : "text-slate-800"}`}>
+                  <span className={`text-body font-bold ${d.closed ? "text-brand-red" : "text-slate-800"}`}>
                     {day}
                   </span>
                   {d.closed ? (
@@ -137,7 +137,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
                     onClick={() => toggleClosed(day)}
                     disabled={!canEdit}
                     aria-label={`${d.closed ? "Open" : "Close"} ${day}`}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center text-[13px] transition-all ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center text-body transition-all ${
                       canEdit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
                     } ${
                       d.closed
@@ -207,7 +207,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
         </div>
 
         {error && (
-          <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mt-3.5 mb-1">
+          <div role="alert" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mt-3.5 mb-1">
             {error}
           </div>
         )}

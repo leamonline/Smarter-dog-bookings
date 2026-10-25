@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node-tests.json",
     "lint": "eslint . && node scripts/check-import-extensions.mjs && node scripts/check-duplicate-files.mjs && node scripts/check-lockfile-platform.mjs && node scripts/check-hosted-supabase-targets.mjs && node scripts/check-icons.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
+    "check:design-sync": "node scripts/design-sync-snapshot.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "icons:build": "node scripts/build-app-icon-svg.mjs && node scripts/render-icons.mjs",
     "check:icons": "node scripts/check-icons.mjs",
@@ -77,6 +78,7 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@sentry/vite-plugin": "^11.9.0",

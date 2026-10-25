@@ -55,7 +55,7 @@ export function ConfirmDeleteModal({
       <div className="text-sm text-slate-600 leading-relaxed">{message}</div>
 
       {cascadeWarning && (
-        <div className="mt-3 p-3 rounded-lg bg-brand-coral/10 border border-brand-coral/30 text-[13px] text-brand-coral font-semibold leading-snug">
+        <div className="mt-3 p-3 rounded-lg bg-brand-coral/10 border border-brand-coral/30 text-body text-brand-coral font-semibold leading-snug">
           {cascadeWarning}
         </div>
       )}
@@ -68,7 +68,7 @@ export function ConfirmDeleteModal({
             onChange={(e) => setAcknowledged(e.target.checked)}
             className="mt-0.5 w-4 h-4 cursor-pointer accent-brand-coral"
           />
-          <span className="text-[13px] text-slate-700 select-none">
+          <span className="text-body text-slate-700 select-none">
             I understand and want to delete anyway.
           </span>
         </label>

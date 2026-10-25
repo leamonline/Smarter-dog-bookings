@@ -100,7 +100,7 @@ export function PaymentStateSection({
                         paidAmount: event.target.value === "" ? null : Number(event.target.value),
                       }))
                     }
-                    className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                    className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   />
                 </div>
               }
@@ -131,11 +131,11 @@ export function PaymentStateSection({
                         depositAmount: Number(event.target.value),
                       }))
                     }
-                    className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                    className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-body outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   />
                 </div>
                 {depositValidationError && (
-                  <p id="deposit-amount-error" className="text-[12px] font-semibold text-brand-coral text-right">
+                  <p id="deposit-amount-error" className="text-xs font-semibold text-brand-coral text-right">
                     {depositValidationError}
                   </p>
                 )}
@@ -195,7 +195,7 @@ export function PaymentStateSection({
       className={`rounded-xl px-3 py-3 ${isPaid ? "bg-emerald-50" : "bg-feedback-warning-tint"}`}
     >
       {isPaid ? (
-        <p className="text-[14px] font-bold text-emerald-800">
+        <p className="text-sm font-bold text-emerald-800">
           {paidAmount != null ? `Paid £${paidAmount}` : "Paid in full"}
           {paymentMethodLabel(booking.paymentMethod)
             ? ` · ${paymentMethodLabel(booking.paymentMethod)}`
@@ -203,7 +203,7 @@ export function PaymentStateSection({
         </p>
       ) : (
         <>
-          <p className="text-[14px] font-bold text-feedback-warning-ink">
+          <p className="text-sm font-bold text-feedback-warning-ink">
             {hasRecordedDeposit && !hasBalanceToCollect
               ? `£${depositPaid} deposit paid · no balance to collect`
               : hasRecordedDeposit
@@ -219,7 +219,7 @@ export function PaymentStateSection({
                   aria-label={`Record £${amountToCollect} ${method.label.toLowerCase()} payment`}
                   disabled={Boolean(savingMethod)}
                   onClick={() => markPaid(method.id)}
-                  className="min-h-11 px-2 rounded-lg border border-emerald-300 bg-white text-[12px] font-bold text-emerald-800 cursor-pointer transition-all hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 font-[inherit]"
+                  className="min-h-11 px-2 rounded-lg border border-emerald-300 bg-white text-xs font-bold text-emerald-800 cursor-pointer transition-all hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 font-[inherit]"
                 >
                   {savingMethod === method.id ? "Recording…" : method.label}
                 </button>

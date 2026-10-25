@@ -39,7 +39,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
 
   if (!draft) {
     return (
-      <div className="p-4 bg-slate-50 border-t border-slate-200 text-[13px] text-slate-500 italic">
+      <div className="p-4 bg-slate-50 border-t border-slate-200 text-body text-slate-500 italic">
         No pending AI draft for this conversation.
       </div>
     );
@@ -75,16 +75,16 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-3">
       <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[12px] font-bold uppercase tracking-wide text-feedback-warning-ink">
+          <span className="text-xs font-bold uppercase tracking-wide text-feedback-warning-ink">
             AI Draft
           </span>
-          <span className="text-[12px] text-feedback-warning-ink">
+          <span className="text-xs text-feedback-warning-ink">
             {draft.intent} · {confidenceLabel(draft.confidence)} confidence
           </span>
           <RiskPill risk={draft.risk_level} />
           {draft.handoff_required && (
             <span
-              className="text-[12px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-red-100 text-red-800 border-red-200"
+              className="text-xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-red-100 text-red-800 border-red-200"
               title="Conversation must be handled by a human"
             >
               Needs human review
@@ -92,14 +92,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
           )}
           {draft.auto_send_eligible && (
             <span
-              className="text-[12px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-sky-100 text-sky-800 border-sky-200"
+              className="text-xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-sky-100 text-sky-800 border-sky-200"
               title="Met all auto-send gates. Whether it actually sent automatically depends on AI_AUTO_SEND_LOW_RISK and the conversation's auto_send_enabled flag."
             >
               Auto-send eligible
             </span>
           )}
         </div>
-        <span className="text-[12px] text-slate-500">{draft.model}</span>
+        <span className="text-xs text-slate-500">{draft.model}</span>
       </div>
 
       {editing ? (
@@ -107,11 +107,11 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
           value={editedText}
           onChange={(e) => setEditedText(e.target.value)}
           aria-label="Edit the suggested reply"
-          className="w-full text-[14px] p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
+          className="w-full text-sm p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
           rows={4}
         />
       ) : (
-        <div className="text-[14px] text-slate-800 whitespace-pre-wrap mb-2">
+        <div className="text-sm text-slate-800 whitespace-pre-wrap mb-2">
           {draft.proposed_text}
         </div>
       )}
@@ -124,7 +124,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       )}
 
       {attachedActions.length > 0 && !rejecting && (
-        <div className="mt-2 p-2 bg-feedback-warning-tint border border-brand-mustard-tint rounded text-[12px] text-feedback-warning-ink">
+        <div className="mt-2 p-2 bg-feedback-warning-tint border border-brand-mustard-tint rounded text-xs text-feedback-warning-ink">
           <div className="font-bold mb-1">📋 Booking attached:</div>
           {attachedActions.map((action) => (
             <div key={action.id}>
@@ -147,14 +147,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
 
       {rejecting && (
         <div className="mt-2">
-          <label className="block text-[12px] font-bold uppercase tracking-wide text-feedback-warning-ink mb-1">
+          <label className="block text-xs font-bold uppercase tracking-wide text-feedback-warning-ink mb-1">
             Why are you rejecting? (optional — helps us tune the AI)
           </label>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="e.g. tone too formal, should have offered a slot, wrong info about the dog…"
-            className="w-full text-[14px] p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
+            className="w-full text-sm p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
             rows={3}
             maxLength={500}
             autoFocus
@@ -163,7 +163,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       )}
 
       {error && (
-        <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 my-2">
+        <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 my-2">
           {error}
         </div>
       )}
@@ -175,7 +175,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             <button
               onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-body"
             >
               Cancel edit
             </button>
@@ -186,14 +186,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             <button
               onClick={() => handleApprove(true)}
               disabled={inFlight || !editedText.trim()}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-body font-bold disabled:opacity-50"
             >
               Send edit
             </button>
             <button
               onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-body"
             >
               Cancel edit
             </button>
@@ -204,14 +204,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             <button
               onClick={handleConfirmReject}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-red-600 text-white text-[13px] font-bold disabled:opacity-50"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-red-600 text-white text-body font-bold disabled:opacity-50"
             >
               Confirm reject
             </button>
             <button
               onClick={() => { setRejecting(false); setRejectReason(""); }}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-body"
             >
               Cancel
             </button>
@@ -222,7 +222,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             <button
               onClick={() => setRejecting(true)}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-body"
             >
               Reject draft
             </button>
@@ -233,21 +233,21 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             <button
               onClick={() => handleApprove(false)}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-body font-bold disabled:opacity-50"
             >
               Approve &amp; send
             </button>
             <button
               onClick={() => setEditing(true)}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-body"
             >
               Edit first
             </button>
             <button
               onClick={() => setRejecting(true)}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-[13px]"
+              className="min-h-11 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-body"
             >
               Reject
             </button>

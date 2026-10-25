@@ -25,7 +25,7 @@ export function CapacitySettings() {
         desc="The 2-2-1 rule is a seat-capacity pattern across neighbouring slots"
       />
       <CardBody>
-        <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-700 leading-relaxed">
+        <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-700 leading-relaxed">
           <p className="m-0 mb-1.5 font-semibold text-slate-800">
             What the 2-2-1 rule means
           </p>
@@ -83,7 +83,7 @@ export function CapacitySettings() {
           back-to-back full-takeover slots are only allowed at 12:30 + 13:00.
         </p>
 
-        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-600 leading-relaxed">
+        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-600 leading-relaxed">
           These rules are fixed in the app and the database together, so they
           can't drift out of sync or get switched off by accident. Changing
           them is a code change — all the copies are updated at once (the doc

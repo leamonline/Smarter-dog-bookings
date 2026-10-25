@@ -16,7 +16,7 @@ const CATEGORIES = [
 
 function Notice({ children }) {
   return (
-    <div className="text-[13px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 leading-relaxed">
+    <div className="text-body text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 leading-relaxed">
       {children}
     </div>
   );
@@ -83,7 +83,7 @@ export function DeviceNotifications({ user }) {
   } else if (!push.isSubscribed) {
     content = (
       <div>
-        <div className="text-[13px] text-slate-600 mb-3 leading-relaxed">
+        <div className="text-body text-slate-600 mb-3 leading-relaxed">
           Get a push to this device when a booking, message, cancellation,
           signup or waitlist join comes in.
         </div>
@@ -91,7 +91,7 @@ export function DeviceNotifications({ user }) {
           type="button"
           onClick={handleEnable}
           disabled={push.busy}
-          className={`px-[18px] py-[9px] rounded-control border text-[13px] font-bold font-inherit transition-all ${
+          className={`px-[18px] py-[9px] rounded-control border text-body font-bold font-inherit transition-all ${
             push.busy
               ? "bg-white text-slate-500 border-slate-200 cursor-default"
               : "bg-brand-teal text-white border-brand-teal cursor-pointer hover:opacity-90"
@@ -105,14 +105,14 @@ export function DeviceNotifications({ user }) {
     content = (
       <div>
         <div className="flex items-center justify-between mb-1">
-          <div className="text-[13px] text-brand-teal font-semibold">
+          <div className="text-body text-brand-teal font-semibold">
             ✓ Enabled on this device
           </div>
           <button
             type="button"
             onClick={handleDisable}
             disabled={push.busy}
-            className="text-[13px] font-semibold text-brand-coral hover:underline disabled:opacity-60 disabled:cursor-default bg-transparent border-none cursor-pointer p-0"
+            className="text-body font-semibold text-brand-coral hover:underline disabled:opacity-60 disabled:cursor-default bg-transparent border-none cursor-pointer p-0"
           >
             {push.busy ? "Working…" : "Disable"}
           </button>

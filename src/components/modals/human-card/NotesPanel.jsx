@@ -47,7 +47,7 @@ export function NotesPanel({
       bodyClassName={compact ? "" : "flex-1 flex flex-col min-h-0"}
     >
       {flag && !isEditing && (
-        <div className="mb-2 text-[12px] font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-3 py-2 rounded-control shrink-0">
+        <div className="mb-2 text-xs font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-3 py-2 rounded-control shrink-0">
           <span aria-hidden="true">{"⚠️ "}</span>
           {flag}
         </div>

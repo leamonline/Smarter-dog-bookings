@@ -27,7 +27,7 @@ export function BookingActions({
     <div className="shrink-0 px-6 pt-3 pb-5 border-t border-brand-paper-line bg-[var(--color-brand-paper)] max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
       {/* ─── Error — stays pinned by the action, never off-screen ─── */}
       {error && (
-        <div role="status" aria-live="polite" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-3">
+        <div role="status" aria-live="polite" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-3">
           {error}
         </div>
       )}

@@ -45,7 +45,7 @@ export function AgentFailuresCard({ bare = false, data }) {
   const tone = count > 0 ? "attention" : "calm";
 
   const rowClass =
-    "text-[12px] bg-white/70 border border-red-100 rounded-lg px-2 py-1.5";
+    "text-xs bg-white/70 border border-red-100 rounded-lg px-2 py-1.5";
 
   const list = (
     <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">

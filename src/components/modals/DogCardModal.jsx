@@ -216,7 +216,7 @@ export function DogCardModal({
                       toast.show(`Archived ${resolvedDog.name}`, "success");
                       onClose?.();
                     }}
-                    className="text-[12px] font-bold text-brand-purple underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+                    className="text-xs font-bold text-brand-purple underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
                   >
                     Archive this dog
                   </button>
@@ -314,7 +314,7 @@ export function DogCardModal({
         {lastBooking && !isEditing && (
           <button
             onClick={() => setShowChainBooking(true)}
-            className="w-full py-2.5 rounded-full border-[1.5px] border-slate-200 bg-white text-brand-purple text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 mb-2"
+            className="w-full py-2.5 rounded-full border-[1.5px] border-slate-200 bg-white text-brand-purple text-body font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 mb-2"
           >
             Recurring Bookings
           </button>
