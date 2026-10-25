@@ -21,11 +21,13 @@ borrowed.
 
 ## Warnings are not yellow
 
-`color-feedback-warning` currently resolves to `color-brand-yellow`. That is the
-one place the rule above is broken: a warning that is the same yellow as the
-Book button reads as something to press. Until it is replaced, do not fill a
-warning with `color-brand-yellow`. Use `status-unknown-tint` with
-`status-unknown-ink` and a warning triangle, and say what is wrong in words.
+`color-feedback-warning` used to resolve to `color-brand-yellow`, which broke
+the rule above: a warning that is the same yellow as the Book button reads as
+something to press. It now resolves to `color-brand-mustard` (edges and icons),
+with `color-feedback-warning-tint` and `color-feedback-warning-ink` for the
+notice itself. Never fill a warning with `color-brand-yellow`; add a warning
+triangle and say what is wrong in words. The app's existing amber warnings are
+a separate clean-up.
 
 ## Picking quickly
 
