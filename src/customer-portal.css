@@ -27,7 +27,7 @@
   --sd-dark: var(--color-brand-dark);
   --sd-green: var(--color-sd-green);
   --sd-green-dark: var(--color-sd-green-dark);
-  --sd-mute: #94A3B8;
+  --sd-mute: var(--color-text-placeholder); /* was #94A3B8, four points from the placeholder grey */
   --sd-ink-light: var(--color-sd-ink-light);
 }
 

@@ -10,7 +10,7 @@
 // literal string in the maps below — never interpolated.
 //
 // Decisions worth knowing:
-//  - Border is `border-ink-muted` (#64748B, 4.76:1 on white). The old
+//  - Border is `border-ink-muted` (the one muted grey, #57677C, 5.8:1 on white). The old
 //    `border-slate-200` is about 1.2:1, which does not meet the 3:1 WCAG 1.4.11
 //    asks of a control's outline.
 //  - Text is 16px on touch screens (below that iOS Safari zooms the page on
