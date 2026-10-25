@@ -4,6 +4,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
+import { Input, Textarea } from "../ui/index.js";
 import { titleCase, isRealPersonName } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { validateContactPhone } from "./dog-card/helpers.js";
@@ -203,38 +204,38 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-human-first" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
-              <input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
+              <Input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
                 autoComplete="off"
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                
                 autoFocus />
             </div>
             <div>
               <label htmlFor="add-human-surname" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
-              <input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
+              <Input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
                 autoComplete="off"
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+                 />
             </div>
           </div>
 
           <div>
             <label htmlFor="add-human-phone" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Phone *</label>
-            <input id="add-human-phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
+            <Input id="add-human-phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
               autoComplete="off"
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+               />
           </div>
 
           <div>
             <label htmlFor="add-human-email" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Email</label>
-            <input id="add-human-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
+            <Input id="add-human-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
               autoComplete="off"
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+               />
           </div>
 
           <div>
             <label htmlFor="add-human-address" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Address</label>
-            <input id="add-human-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
+            <Input id="add-human-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
               autoComplete="off"
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+               />
           </div>
 
           <div className="flex gap-5">
@@ -281,14 +282,14 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
                   <IconSearch size={14} colour="#6B7280" />
                 </div>
-                <input
+                <Input
                   type="text"
                   value={dogQuery}
                   onChange={(e) => setDogQuery(e.target.value)}
                   placeholder="Search dogs by name or breed..."
                   aria-label="Search dogs to link"
                   autoComplete="off"
-                  className="w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                  className="pl-[34px]"
                 />
                 {dogSearchResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
@@ -326,8 +327,8 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
 
           <div>
             <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes about this person..." rows={2}
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes about this person..." rows={2}
+              className="resize-y" />
           </div>
 
           {duplicate && (

@@ -778,15 +778,15 @@ textarea::placeholder {
    single dog, a mixed-size composition, or a useful empty state. */
 .human-directory-card {
   --pack-colour: var(--color-brand-purple);
-  --pack-soft: rgba(45, 0, 75, 0.05);
+  --pack-soft: rgba(31, 31, 31, 0.05);
   position: relative;
   box-sizing: border-box;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(45, 0, 75, 0.12);
+  border: 1px solid rgba(31, 31, 31, 0.12);
   border-radius: 14px;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(45, 0, 75, 0.07);
+  box-shadow: 0 8px 22px rgba(31, 31, 31, 0.07);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -835,8 +835,8 @@ textarea::placeholder {
 }
 
 .human-directory-card--none {
-  --pack-colour: rgba(45, 0, 75, 0.42);
-  --pack-soft: rgba(45, 0, 75, 0.05);
+  --pack-colour: rgba(31, 31, 31, 0.42);
+  --pack-soft: rgba(31, 31, 31, 0.05);
 }
 
 .human-pack-spectrum {
@@ -873,7 +873,7 @@ textarea::placeholder {
 }
 
 .human-pack-spectrum__part--none {
-  background: rgba(45, 0, 75, 0.22);
+  background: rgba(31, 31, 31, 0.22);
 }
 
 .human-directory-card__inner {
@@ -914,7 +914,7 @@ textarea::placeholder {
   flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  border: 1px solid rgba(45, 0, 75, 0.08);
+  border: 1px solid rgba(31, 31, 31, 0.08);
   border-radius: 14px;
   background: var(--pack-soft);
   color: var(--color-brand-purple);
@@ -951,7 +951,7 @@ textarea::placeholder {
   min-width: 0;
   align-items: center;
   gap: 0 8px;
-  color: rgba(45, 0, 75, 0.55);
+  color: rgba(31, 31, 31, 0.55);
   font-size: 10px;
   font-weight: 500;
   line-height: 1.3;
@@ -968,7 +968,7 @@ textarea::placeholder {
 }
 
 .human-directory-card__contact-strip a {
-  color: rgba(45, 0, 75, 0.48);
+  color: rgba(31, 31, 31, 0.48);
   font-size: 9px;
   transition: color 140ms ease;
 }
@@ -992,7 +992,7 @@ textarea::placeholder {
   height: 44px;
   place-items: center;
   border-radius: 12px;
-  color: rgba(45, 0, 75, 0.58);
+  color: rgba(31, 31, 31, 0.58);
   text-decoration: none;
   transition:
     background-color 140ms ease,
@@ -1000,7 +1000,7 @@ textarea::placeholder {
 }
 
 .human-directory-card__contact-actions a:hover {
-  background: rgba(45, 0, 75, 0.05);
+  background: rgba(31, 31, 31, 0.05);
   color: var(--color-brand-purple);
 }
 
@@ -1024,7 +1024,7 @@ textarea::placeholder {
   min-height: 0;
   align-self: stretch;
   overflow: hidden;
-  border: 1px solid rgba(45, 0, 75, 0.1);
+  border: 1px solid rgba(31, 31, 31, 0.1);
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -1035,7 +1035,7 @@ textarea::placeholder {
   min-width: 0;
   min-height: 84px;
   overflow: hidden;
-  border-right: 1px solid rgba(45, 0, 75, 0.08);
+  border-right: 1px solid rgba(31, 31, 31, 0.08);
   background: var(--pack-soft);
 }
 
@@ -1050,7 +1050,7 @@ textarea::placeholder {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 10px 7px 6px;
-  scrollbar-color: rgba(45, 0, 75, 0.18) transparent;
+  scrollbar-color: rgba(31, 31, 31, 0.18) transparent;
   scrollbar-width: thin;
 }
 
@@ -1062,7 +1062,7 @@ textarea::placeholder {
   bottom: 7px;
   height: 9px;
   border-radius: 50%;
-  background: rgba(45, 0, 75, 0.08);
+  background: rgba(31, 31, 31, 0.08);
   content: "";
   transform: translateX(-50%);
 }
@@ -1073,7 +1073,7 @@ textarea::placeholder {
 
 .human-pack-stage--multiple::after {
   width: 86%;
-  background: rgba(45, 0, 75, 0.12);
+  background: rgba(31, 31, 31, 0.12);
   filter: blur(0.5px);
 }
 
@@ -1088,7 +1088,7 @@ textarea::placeholder {
   display: block;
   flex: 0 0 auto;
   background: currentColor;
-  filter: drop-shadow(0 5px 6px rgba(45, 0, 75, 0.12));
+  filter: drop-shadow(0 5px 6px rgba(31, 31, 31, 0.12));
   mask: url("/app/logos/smarter-dog-silhouette.svg") center bottom / contain no-repeat;
   -webkit-mask: url("/app/logos/smarter-dog-silhouette.svg") center bottom / contain no-repeat;
   transform-origin: bottom center;
@@ -1107,7 +1107,7 @@ textarea::placeholder {
   height: calc(100% - 2px);
   min-height: 64px;
   max-height: 112px;
-  filter: drop-shadow(0 8px 8px rgba(45, 0, 75, 0.16));
+  filter: drop-shadow(0 8px 8px rgba(31, 31, 31, 0.16));
   transform: none;
 }
 
@@ -1141,7 +1141,7 @@ textarea::placeholder {
   top: 50%;
   width: 34px;
   height: 34px;
-  color: rgba(45, 0, 75, 0.24);
+  color: rgba(31, 31, 31, 0.24);
   transform: translate(-50%, -38%);
 }
 
@@ -1180,7 +1180,7 @@ textarea::placeholder {
   padding: 0 4px 0 0;
   overflow-y: auto;
   list-style: none;
-  scrollbar-color: rgba(45, 0, 75, 0.18) transparent;
+  scrollbar-color: rgba(31, 31, 31, 0.18) transparent;
   scrollbar-width: thin;
 }
 
@@ -1257,7 +1257,7 @@ button.human-empty-pack:hover {
 
 .human-empty-pack small {
   margin-top: 3px;
-  color: rgba(45, 0, 75, 0.52);
+  color: rgba(31, 31, 31, 0.52);
   font-size: 8px;
   line-height: 1.3;
 }
@@ -1271,7 +1271,7 @@ button.human-empty-pack:hover {
 
 .human-empty-pack--archived {
   justify-content: flex-start;
-  color: rgba(45, 0, 75, 0.54);
+  color: rgba(31, 31, 31, 0.54);
 }
 
 .human-directory-card__profile {
@@ -1280,7 +1280,7 @@ button.human-empty-pack:hover {
 }
 
 .human-directory-card__profile > button {
-  border-top: 1px solid rgba(45, 0, 75, 0.08);
+  border-top: 1px solid rgba(31, 31, 31, 0.08);
   border-radius: 0;
   color: var(--color-brand-purple);
   font-family: var(--font-display);
@@ -1348,7 +1348,7 @@ button.human-empty-pack:hover {
   align-items: flex-start;
   gap: 3px;
   margin-top: 6px;
-  color: rgba(45, 0, 75, 0.58);
+  color: rgba(31, 31, 31, 0.58);
   font-size: 11px;
   line-height: 1.2;
 }
@@ -1361,7 +1361,7 @@ button.human-empty-pack:hover {
 .human-directory-card--list .human-directory-card__email {
   max-width: 100%;
   overflow: hidden;
-  color: rgba(45, 0, 75, 0.52);
+  color: rgba(31, 31, 31, 0.52);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1395,14 +1395,14 @@ button.human-empty-pack:hover {
   min-height: 56px;
   align-items: center;
   padding: 6px 14px;
-  border-top: 1px solid rgba(45, 0, 75, 0.08);
-  background: rgba(45, 0, 75, 0.025);
+  border-top: 1px solid rgba(31, 31, 31, 0.08);
+  background: rgba(31, 31, 31, 0.025);
 }
 
 @media (hover: hover) {
   .human-directory-card:hover {
-    border-color: rgba(45, 0, 75, 0.34);
-    box-shadow: 0 14px 30px rgba(45, 0, 75, 0.12);
+    border-color: rgba(31, 31, 31, 0.34);
+    box-shadow: 0 14px 30px rgba(31, 31, 31, 0.12);
     transform: translateY(-2px);
   }
 }
@@ -1502,7 +1502,7 @@ button.human-empty-pack:hover {
     height: 44px;
     justify-content: space-between;
     padding: 7px 2px 0;
-    border-top: 1px solid rgba(45, 0, 75, 0.08);
+    border-top: 1px solid rgba(31, 31, 31, 0.08);
     border-radius: 0;
   }
 

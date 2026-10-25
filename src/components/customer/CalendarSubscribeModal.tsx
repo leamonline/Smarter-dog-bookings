@@ -114,7 +114,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       ) : feedUrl ? (
         <>
           {/* URL display + copy */}
-          <div className="flex items-center gap-2 bg-[rgba(45,0,75,0.04)] rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 bg-[rgba(31,31,31,0.04)] rounded-lg p-3 mb-4">
             <input
               type="text"
               readOnly
@@ -154,7 +154,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
           </div>
 
           {/* Regenerate */}
-          <div className="border-t border-[rgba(45,0,75,0.07)] pt-3">
+          <div className="border-t border-[rgba(31,31,31,0.07)] pt-3">
             <button
               type="button"
               onClick={handleRegenerate}

@@ -241,10 +241,10 @@
 .portal-card {
   position: relative;
   background: var(--color-surface-card);
-  border: 1px solid rgba(45, 0, 75, 0.06);
+  border: 1px solid rgba(31, 31, 31, 0.06);
   border-radius: 18px;
   padding: 18px 20px 16px;
-  box-shadow: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
+  box-shadow: 0 6px 20px -12px rgba(31, 31, 31, 0.18);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -281,7 +281,7 @@
   justify-content: center;
   background: var(--color-surface-card);
   color: var(--color-ink);
-  box-shadow: 0 2px 6px rgba(45, 0, 75, 0.08);
+  box-shadow: 0 2px 6px rgba(31, 31, 31, 0.08);
   flex-shrink: 0;
 }
 
@@ -311,7 +311,7 @@
   justify-content: center;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid rgba(45, 0, 75, 0.07);
+  border-top: 1px solid rgba(31, 31, 31, 0.07);
 }
 
 /* --- Buttons --- */
@@ -333,7 +333,7 @@
 
 .portal-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px -8px rgba(45, 0, 75, 0.25);
+  box-shadow: 0 8px 18px -8px rgba(31, 31, 31, 0.25);
 }
 
 .portal-btn:active {
@@ -360,7 +360,7 @@
 .portal-btn--secondary {
   background: var(--color-surface-card);
   color: var(--color-ink);
-  border: 1.5px solid rgba(45, 0, 75, 0.18);
+  border: 1.5px solid rgba(31, 31, 31, 0.18);
   padding: 8px 16px;
   font-size: 13px;
 }
@@ -375,7 +375,7 @@
 }
 .portal-btn--ghost:hover {
   color: var(--color-ink);
-  background: rgba(45, 0, 75, 0.05);
+  background: rgba(31, 31, 31, 0.05);
 }
 
 .portal-btn--cta {
@@ -472,15 +472,15 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-ink-soft);
-  background: rgba(45, 0, 75, 0.04);
-  border: 1px dashed rgba(45, 0, 75, 0.18);
+  background: rgba(31, 31, 31, 0.04);
+  border: 1px dashed rgba(31, 31, 31, 0.18);
   border-radius: 9999px;
   padding: 4px 10px;
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .portal-ghost-add:hover {
-  background: rgba(45, 0, 75, 0.08);
+  background: rgba(31, 31, 31, 0.08);
   border-color: var(--color-ink);
   color: var(--color-ink);
 }
@@ -492,7 +492,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 0;
-  border-bottom: 1px solid rgba(45, 0, 75, 0.07);
+  border-bottom: 1px solid rgba(31, 31, 31, 0.07);
 }
 .portal-detail-row:last-child { border-bottom: none; }
 /* An editor too wide to share the row with its label (the address picker's
@@ -535,7 +535,7 @@
   background: #FFFFFF;
   padding: 10px 10px 24px;
   border-radius: 4px;
-  box-shadow: 0 8px 22px -10px rgba(45, 0, 75, 0.28);
+  box-shadow: 0 8px 22px -10px rgba(31, 31, 31, 0.28);
   transform: rotate(-3deg);
   position: relative;
   width: 130px;
@@ -552,7 +552,7 @@
   height: 18px;
   background: rgba(254, 204, 19, 0.75);
   border-radius: 2px;
-  box-shadow: 0 2px 4px rgba(45, 0, 75, 0.12);
+  box-shadow: 0 2px 4px rgba(31, 31, 31, 0.12);
 }
 
 .portal-polaroid-photo {
@@ -605,7 +605,7 @@
   padding: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(45, 0, 75, 0.08);
+  border: 1px solid rgba(31, 31, 31, 0.08);
 }
 
 .portal-inline-form-row {
@@ -625,7 +625,9 @@
   width: 100%;
   padding: 9px 12px;
   border-radius: 10px;
-  border: 1.5px solid rgba(45, 0, 75, 0.14);
+  /* #64748B (4.76:1 on white), the same border the shared <Input> uses; the old
+     14% plum line was about 1.2:1, under the 3:1 WCAG 1.4.11 asks of a control. */
+  border: 1.5px solid var(--color-ink-muted);
   background: var(--color-surface-card);
   font-family: 'Montserrat', sans-serif;
   /* 16px is the threshold below which iOS Safari auto-zooms the viewport
@@ -640,7 +642,7 @@
   box-sizing: border-box;
 }
 
-.portal-input::placeholder { color: var(--color-text-placeholder); font-weight: 500; }
+.portal-input::placeholder { color: var(--color-ink-muted); font-weight: 500; }
 .portal-input:focus { border-color: var(--color-ink); }
 
 .portal-inline-error {
@@ -787,7 +789,7 @@
 
 /* --- Footer --- */
 .portal-footer {
-  border-top: 1px solid rgba(45, 0, 75, 0.08);
+  border-top: 1px solid rgba(31, 31, 31, 0.08);
   padding: 22px 16px 28px;
   margin-top: 32px;
   background: var(--color-surface-card);
@@ -873,7 +875,7 @@
   color: var(--color-ink);
   border-bottom-color: var(--color-brand-yellow);
 }
-.portal-footer-links-sep { color: rgba(45, 0, 75, 0.20); }
+.portal-footer-links-sep { color: rgba(31, 31, 31, 0.20); }
 
 @media (min-width: 768px) {
   .portal-footer-inner {
@@ -891,10 +893,10 @@
 .portal-booking-card {
   position: relative;
   background: var(--color-surface-card);
-  border: 1px solid rgba(45, 0, 75, 0.06);
+  border: 1px solid rgba(31, 31, 31, 0.06);
   border-radius: 18px;
   padding: 22px 22px 20px;
-  box-shadow: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
+  box-shadow: 0 6px 20px -12px rgba(31, 31, 31, 0.18);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -952,7 +954,7 @@
   width: 100%;
   padding: 9px 8px;
   border-radius: 999px;
-  border: 1.5px solid rgba(45, 0, 75, 0.16);
+  border: 1.5px solid rgba(31, 31, 31, 0.16);
   background: var(--color-surface-card);
   color: var(--color-ink);
   font-family: 'Montserrat', sans-serif;
@@ -1024,7 +1026,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(45, 0, 75, 0.07);
+  border-bottom: 1px solid rgba(31, 31, 31, 0.07);
 }
 .portal-entity-row:last-of-type { border-bottom: none; }
 .portal-entity-row-body { min-width: 0; flex: 1; }
@@ -1052,7 +1054,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(45, 0, 75, 0.06);
+  border-bottom: 1px solid rgba(31, 31, 31, 0.06);
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
   color: var(--color-ink-soft);

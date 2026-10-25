@@ -350,7 +350,7 @@ export function CustomerLoginPage({
   // that always passes is worse than none, because it invites the assumption
   // of safety.
   const turnstilePanel = (
-    <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-4">
+    <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-4">
       {captchaUnavailable ? (
         <div role="alert" className="text-center">
           <p className="text-sm font-bold text-[var(--color-ink)] mb-1">
@@ -396,10 +396,10 @@ export function CustomerLoginPage({
       style={{ background: pageBackground }}
     >
       <div
-        className="w-full max-w-md bg-white rounded-3xl px-10 py-12 border border-[rgba(45,0,75,0.07)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]"
+        className="w-full max-w-md bg-white rounded-3xl px-10 py-12 border border-[rgba(31,31,31,0.07)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]"
         style={{
           boxShadow:
-            "0 2px 4px rgba(45,0,75,0.05), 0 16px 40px -14px rgba(45,0,75,0.15), 0 34px 72px -28px rgba(16,194,252,0.24)",
+            "0 2px 4px rgba(31, 31, 31, 0.05), 0 16px 40px -14px rgba(31, 31, 31, 0.15), 0 34px 72px -28px rgba(16,194,252,0.24)",
         }}
       >
         {/* Brand-gradient ribbon along the very top edge for a polished,
@@ -463,10 +463,10 @@ export function CustomerLoginPage({
                   Mobile number
                 </label>
                 {/* Locked +44 prefix on the left, digits-only input on the right. */}
-                <div className="flex items-stretch rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] focus-within:border-[var(--color-ink)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--color-ink)] overflow-hidden bg-white">
+                <div className="flex items-stretch rounded-xl border-[1.5px] border-[rgba(31,31,31,0.14)] focus-within:border-[var(--color-ink)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--color-ink)] overflow-hidden bg-white">
                   <span
                     aria-hidden="true"
-                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(45,0,75,0.14)] select-none text-[var(--color-ink)]"
+                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(31,31,31,0.14)] select-none text-[var(--color-ink)]"
                     style={{ background: "var(--color-sd-buttercup-tint)" }}
                   >
                     +44
