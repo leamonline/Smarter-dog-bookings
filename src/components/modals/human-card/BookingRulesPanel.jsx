@@ -25,7 +25,7 @@ function SlotRow({ kind, selected, onToggle, disabled, activeClasses }) {
             disabled={disabled}
             onClick={() => onToggle(slot)}
             className={[
-              "px-2 py-1 rounded-full text-[11px] font-bold font-inherit border-none transition-colors",
+              "px-2 py-1 rounded-full text-caption font-bold font-inherit border-none transition-colors",
               disabled ? "cursor-default" : "cursor-pointer",
               on ? activeClasses : "bg-slate-100 text-slate-500 hover:bg-slate-200",
             ].join(" ")}
@@ -65,7 +65,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
         <CancellationHistoryPanel key={human?.id} humanId={human?.id} />
         <div>
           <p className="text-[12px] font-bold text-slate-600 mb-1">Preferred times</p>
-          <p className="text-[11px] text-slate-400 mb-1.5">
+          <p className="text-caption text-slate-400 mb-1.5">
             Starred for them in the portal — a gentle steer, never enforced.
           </p>
           <SlotRow
@@ -79,7 +79,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
 
         <div>
           <p className="text-[12px] font-bold text-slate-600 mb-1">Blocked times</p>
-          <p className="text-[11px] text-slate-400 mb-1.5">
+          <p className="text-caption text-slate-400 mb-1.5">
             They can't book these themselves — you still can, deliberately.
           </p>
           <SlotRow
@@ -94,7 +94,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
         <div className="flex items-start justify-between gap-2 pt-1 border-t border-slate-200/70">
           <div>
             <p className="text-[12px] font-bold text-slate-600">Deposit required</p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-caption text-slate-400">
               Every booking holds its slot awaiting a £10 bank transfer (unique
               reference, 12-hour window) and is released if it doesn't arrive.
             </p>

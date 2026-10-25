@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component {
             We couldn&apos;t load this part of the dashboard. Try again, or reload the page if the problem continues.
           </div>
           {this.state.errorId ? (
-            <div className="text-slate-500 text-[11px] font-mono mb-4">
+            <div className="text-slate-500 text-caption font-mono mb-4">
               Reference: {this.state.errorId}
             </div>
           ) : null}

@@ -94,7 +94,7 @@ export function DatePickerModal({
         {/* Day headers */}
         <div className="grid grid-cols-7 px-3 pt-2.5 pb-1">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div key={d} className="text-center text-[11px] font-bold text-slate-500 py-1">{d}</div>
+            <div key={d} className="text-center text-caption font-bold text-slate-500 py-1">{d}</div>
           ))}
         </div>
 

@@ -197,11 +197,11 @@ export function ComposePanel({
       <div className="flex justify-between items-center gap-2 mt-1">
         {/* Keyboard hint is desktop-only guidance — hide on touch so the
             countdown has room and never clips on a phone. */}
-        <span className="hidden sm:inline text-[11px] text-slate-500">
+        <span className="hidden sm:inline text-caption text-slate-500">
           Enter to send · Shift+Enter for new line
         </span>
         {countdown && (
-          <span className="ml-auto shrink-0 text-[11px] text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
+          <span className="ml-auto shrink-0 text-caption text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
             {countdown}
           </span>
         )}

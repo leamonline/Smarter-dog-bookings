@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -61,8 +61,12 @@ function renderAgain(repeatFrom: unknown) {
 
 describe("BookingWizard book the same groom again", () => {
   afterEach(() => {
-    mocks.rpc.mockReset();
-    mocks.listForHuman.mockReset();
+    // Unmount before changing test state. DateSelection may still have reads
+    // in flight, so preserve valid async responses during teardown; arrange()
+    // replaces them for the next test. Clearing calls is sufficient here.
+    cleanup();
+    mocks.rpc.mockClear();
+    mocks.listForHuman.mockClear();
     mocks.restored = null;
   });
 

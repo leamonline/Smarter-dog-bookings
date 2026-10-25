@@ -24,7 +24,7 @@ export function BookingFormFields({
       {/* ─── STEP 2: Date Selection ─── */}
       {hasDogs && (
         <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
-          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
+          <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
           <AvailabilityCalendar
             bookingsByDate={bookingsByDate}
             dayOpenState={dayOpenState}
@@ -39,7 +39,7 @@ export function BookingFormFields({
       {/* ─── STEP 3: Time Slot Selection ─── */}
       {selectedDateStr && hasDogs && (
         <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
-          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
+          <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
           </label>
           {selectedDayOpen ? (
@@ -63,7 +63,7 @@ export function BookingFormFields({
       {/* ─── STEP 4: Recurring (Optional) ─── */}
       {hasDogs && selectedDateStr && selectedSlot && (
         <div>
-          <label htmlFor="recurring-weeks-select" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
+          <label htmlFor="recurring-weeks-select" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
           <select
             id="recurring-weeks-select"
             value={recurringWeeks}

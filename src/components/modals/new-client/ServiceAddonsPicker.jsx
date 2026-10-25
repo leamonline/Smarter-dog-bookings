@@ -35,7 +35,7 @@ export function ServiceAddonsPicker({ dogName, size, service, addons, onServiceC
               type="button"
               onClick={() => onAddonsChange(addon)}
               aria-pressed={active}
-              className={`px-2 py-[3px] rounded-full text-[10px] font-semibold border transition-colors ${
+              className={`px-2 py-[3px] rounded-full text-micro font-semibold border transition-colors ${
                 active
                   ? "bg-brand-cyan text-white border-brand-cyan"
                   : "bg-white text-slate-600 border-slate-200"

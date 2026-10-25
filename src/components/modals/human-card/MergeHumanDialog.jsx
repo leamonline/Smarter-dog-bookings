@@ -56,7 +56,7 @@ function CompareColumn({ human, dogs, dogsByHumanId, bookingsByDate, role }) {
       }`}
     >
       <div
-        className={`text-[10px] font-bold uppercase tracking-wider ${
+        className={`text-micro font-bold uppercase tracking-wider ${
           isWinner ? "text-brand-teal-text" : "text-brand-coral-text"
         }`}
       >
@@ -68,7 +68,7 @@ function CompareColumn({ human, dogs, dogsByHumanId, bookingsByDate, role }) {
       <dl className="mt-2 flex flex-col gap-1">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-2">
-            <dt className="text-[10px] font-bold uppercase tracking-wide text-ink-muted shrink-0">
+            <dt className="text-micro font-bold uppercase tracking-wide text-ink-muted shrink-0">
               {label}
             </dt>
             <dd className="text-xs text-slate-600 truncate text-right">{value}</dd>
@@ -190,7 +190,7 @@ export function MergeHumanDialog({
           {!other ? (
             <div>
               <label className="block">
-                <span className="text-[11px] font-semibold text-slate-500">
+                <span className="text-caption font-semibold text-slate-500">
                   Find the duplicate record to merge in
                 </span>
                 <div className="relative mt-1.5">

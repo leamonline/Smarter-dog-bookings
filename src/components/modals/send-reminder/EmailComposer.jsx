@@ -22,11 +22,11 @@ export function EmailComposer({ firstName, dogNames, date, slot, service, emailT
         </div>
       </div>
 
-      <label className="text-[11px] font-semibold text-violet-900">
+      <label className="text-caption font-semibold text-violet-900">
         To <span className="font-normal text-violet-700">{emailTo}</span>
       </label>
 
-      <label htmlFor="reminder-email-subject" className="text-[11px] font-semibold text-violet-900">
+      <label htmlFor="reminder-email-subject" className="text-caption font-semibold text-violet-900">
         Subject
       </label>
       <input
@@ -37,7 +37,7 @@ export function EmailComposer({ firstName, dogNames, date, slot, service, emailT
         className="w-full text-[14px] px-2 py-1.5 bg-white border border-violet-300 rounded-lg font-[inherit]"
       />
 
-      <label htmlFor="reminder-email-body" className="text-[11px] font-semibold text-violet-900">
+      <label htmlFor="reminder-email-body" className="text-caption font-semibold text-violet-900">
         Message
       </label>
       <textarea

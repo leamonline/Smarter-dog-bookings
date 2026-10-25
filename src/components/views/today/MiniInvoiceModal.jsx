@@ -150,7 +150,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
         <header className="px-4 pb-2.5 pt-3.5 sm:px-5 sm:pt-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+              <p className="text-caption font-bold uppercase tracking-wide text-slate-500">
                 Mini invoice
               </p>
               <h2
@@ -209,7 +209,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Base groom price"
                 type="number"
                 inputMode="decimal"
                 min="0.01"
@@ -232,7 +231,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Deposit received"
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -260,7 +258,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                   aria-pressed={selected}
                   onClick={() => toggleAddon(addon)}
                   disabled={saving}
-                  className={`min-h-11 rounded-lg border px-1.5 py-1 text-center text-[11px] font-bold leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 ${
+                  className={`min-h-11 rounded-lg border px-1.5 py-1 text-center text-caption font-bold leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 ${
                     selected
                       ? "border-brand-purple bg-brand-purple text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -303,7 +301,6 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 £
               </span>
               <Input
-                aria-label="Payment received"
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -324,7 +321,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                 return (
                   <label
                     key={method.id}
-                    className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 text-center text-[11px] font-bold leading-tight outline-none transition-colors focus-within:ring-2 focus-within:ring-brand-teal focus-within:ring-offset-1 ${
+                    className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 text-center text-caption font-bold leading-tight outline-none transition-colors focus-within:ring-2 focus-within:ring-brand-teal focus-within:ring-offset-1 ${
                       selected
                         ? "border-brand-purple bg-brand-purple text-white"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"

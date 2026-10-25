@@ -61,7 +61,7 @@ export function MessageBubble({ message, onRetry }) {
             <div className="text-[14px] font-bold text-emerald-900 leading-snug">
               I&apos;ll be there, see you soon!
             </div>
-            <div className="text-[10px] text-emerald-800 font-semibold mt-0.5">
+            <div className="text-micro text-emerald-800 font-semibold mt-0.5">
               Confirmed · {formatWhen(message.sent_at)}
             </div>
           </div>
@@ -135,7 +135,7 @@ export function MessageBubble({ message, onRetry }) {
                 </svg>
                 Template
               </span>
-              <span className="text-[11px] font-semibold text-slate-600">
+              <span className="text-caption font-semibold text-slate-600">
                 {template.label}
               </span>
             </div>
@@ -169,7 +169,7 @@ export function MessageBubble({ message, onRetry }) {
         ) : (
           message.content ?? <span className="italic text-slate-500">(non-text message)</span>
         )}
-        <div className="mt-1 text-right text-[10px] text-slate-600">
+        <div className="mt-1 text-right text-micro text-slate-600">
           {metaParts}
           {!isInbound && message.status && message.status !== "sent" && (
             <span className={isFailed ? "font-bold text-rose-700" : ""}>
@@ -180,7 +180,7 @@ export function MessageBubble({ message, onRetry }) {
         {isFailed && retryState === "succeeded" && (
           <div
             role="status"
-            className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800"
+            className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-caption font-semibold leading-snug text-emerald-800"
           >
             Original send failed · Sent again successfully
           </div>
@@ -188,7 +188,7 @@ export function MessageBubble({ message, onRetry }) {
         {isFailed && retryState !== "succeeded" && (
           <div
             role="alert"
-            className="mt-2 rounded-lg border border-rose-200 bg-white/80 px-2 py-1.5 text-[11px] leading-snug text-rose-800"
+            className="mt-2 rounded-lg border border-rose-200 bg-white/80 px-2 py-1.5 text-caption leading-snug text-rose-800"
           >
             <div>
               <span className="font-bold">Message failed</span>

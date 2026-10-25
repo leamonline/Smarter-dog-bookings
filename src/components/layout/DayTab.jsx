@@ -71,7 +71,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
     >
       {/* Day name — neutral label; the circle carries the status colour. */}
       <span
-        className={`text-[10px] font-bold uppercase tracking-wide leading-none ${
+        className={`text-micro font-bold uppercase tracking-wide leading-none ${
           isActive
             ? "text-brand-purple"
             : "text-slate-500"

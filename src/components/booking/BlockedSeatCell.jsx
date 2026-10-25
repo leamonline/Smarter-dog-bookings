@@ -15,7 +15,7 @@ export function BlockedSeatCell({ onClick, span }) {
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
         <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className="text-[10px] font-semibold">
+      <span className="text-micro font-semibold">
         <span className="group-hover:hidden">Blocked</span>
         <span className="hidden group-hover:inline">Unblock</span>
       </span>
