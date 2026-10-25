@@ -53,10 +53,17 @@ test.describe("Fonts", () => {
     for (const nodeId of nodeIds) {
       const { fonts } = await client.send("CSS.getPlatformFontsForNode", { nodeId });
       const names = fonts.map((f) => f.familyName);
+      const { attributes } = await client.send("DOM.getAttributes", { nodeId });
+      const label = attributes[attributes.indexOf("data-font-probe") + 1];
       if (!names.length || !names.every((n) => BRAND.test(n))) {
-        const { attributes } = await client.send("DOM.getAttributes", { nodeId });
-        wrong.push(`${attributes[attributes.indexOf("data-font-probe") + 1]}: ${names.join(", ") || "(none)"}`);
+        wrong.push(`${label}: ${names.join(", ") || "(none)"}`);
+        continue;
       }
+      // A bold or semibold element must be painted in a face that really is
+      // bold, not the regular face with a bold smear added by the browser.
+      const faces = fonts.map((f) => f.postScriptName ?? "").join(" ");
+      if (label.startsWith("bold-") && !/(?<!semi)bold|black|heavy/i.test(faces)) wrong.push(`${label}: no bold face (${faces})`);
+      if (label.startsWith("semibold-") && !/semibold|bold|black|heavy/i.test(faces)) wrong.push(`${label}: no semibold face (${faces})`);
     }
     expect(wrong, `text painted in a non-brand font:\n  ${wrong.join("\n  ")}`).toEqual([]);
   });
