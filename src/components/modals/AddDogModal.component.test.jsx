@@ -33,9 +33,9 @@ function renderAddDog(overrides = {}) {
 // depend on the breed list; size is set manually.
 function fillDog(name) {
   fireEvent.change(screen.getByLabelText(/dog name/i), { target: { value: name } });
-  fireEvent.change(document.getElementById("add-dog-breed"), { target: { value: "__other__" } });
+  fireEvent.change(screen.getByLabelText(/^breed/i), { target: { value: "__other__" } });
   fireEvent.change(screen.getByLabelText(/custom breed/i), { target: { value: "Mixed" } });
-  fireEvent.change(document.getElementById("add-dog-size"), { target: { value: "small" } });
+  fireEvent.change(screen.getByLabelText(/^size/i), { target: { value: "small" } });
 }
 
 function fillInlineOwner() {
