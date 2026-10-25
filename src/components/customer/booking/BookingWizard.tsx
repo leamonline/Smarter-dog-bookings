@@ -1196,24 +1196,24 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
         {repeatMode === "ask" && (
           <div role="group" aria-labelledby="repeat-choice-title" className="wizard-card">
-            <h2 id="repeat-choice-title" className="wizard-step-title">
+            <h2 id="repeat-choice-title" className="font-bold">
               You have a booking half-finished
             </h2>
             <p className="wizard-helper">
               Carry on with it, or start again from the dogs and services of your last visit?
               Starting again replaces what you picked.
             </p>
-            <div className="wizard-nav">
+            <div className="wizard-actions">
               <button
                 type="button"
-                className="portal-btn portal-btn--cta"
+                className="wizard-btn wizard-btn--primary"
                 onClick={() => setRepeatMode("done")}
               >
                 Carry on with my booking
               </button>
               <button
                 type="button"
-                className="portal-btn portal-btn--secondary"
+                className="wizard-btn wizard-btn--back"
                 onClick={() => setRepeatMode("apply")}
               >
                 Start from my last visit
