@@ -1196,14 +1196,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
         {repeatMode === "ask" && (
           <div role="group" aria-labelledby="repeat-choice-title" className="wizard-card">
-            <h2 id="repeat-choice-title" className="font-bold">
+            <h2 id="repeat-choice-title" className="font-bold mb-2">
               You have a booking half-finished
             </h2>
             <p className="wizard-helper">
               Carry on with it, or start again from the dogs and services of your last visit?
               Starting again replaces what you picked.
             </p>
-            <div className="wizard-actions">
+            <div className="wizard-actions" style={{ flexDirection: "column" }}>
               <button
                 type="button"
                 className="wizard-btn wizard-btn--primary"
