@@ -24,7 +24,7 @@ import { DeliveryFailuresCard } from "./DeliveryFailuresCard.jsx";
 // card hues so a category stays identifiable across surfaces.
 const HUE = {
   cyan: "bg-cyan-50 text-cyan-700",
-  amber: "bg-amber-50 text-amber-700",
+  amber: "bg-feedback-warning-tint text-feedback-warning-ink",
   sky: "bg-sky-50 text-sky-700",
   rose: "bg-rose-50 text-rose-700",
 };

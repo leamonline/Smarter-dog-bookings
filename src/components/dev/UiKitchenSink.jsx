@@ -89,7 +89,7 @@ const REV = [
   { label: "Sun", pct: 0, amt: "£0" },
 ];
 const revColour = (pct) =>
-  pct >= 90 ? "bg-emerald-500" : pct >= 50 ? "bg-brand-teal" : pct > 0 ? "bg-amber-400" : "bg-slate-200";
+  pct >= 90 ? "bg-emerald-500" : pct >= 50 ? "bg-brand-teal" : pct > 0 ? "bg-brand-mustard" : "bg-slate-200";
 
 function TrendMini() {
   const max = Math.max(...REV.map((d) => d.pct));

@@ -127,7 +127,7 @@ export function MessageBubble({ message, onRetry }) {
           <>
             <div className="flex items-center gap-1.5 mb-1">
               <span
-                className="inline-flex items-center gap-1 px-1 rounded text-[9px] font-bold tracking-wide bg-amber-200 text-amber-900"
+                className="inline-flex items-center gap-1 px-1 rounded text-[9px] font-bold tracking-wide bg-brand-mustard-tint text-feedback-warning-ink"
                 title="Automated message sent from a saved template"
               >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

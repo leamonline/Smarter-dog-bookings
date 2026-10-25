@@ -32,12 +32,12 @@ export function WindowClosedBanner({ conversation }) {
   return (
     <div
       role="status"
-      className="shrink-0 flex items-start gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-[12px] leading-snug text-amber-900"
+      className="shrink-0 flex items-start gap-2 px-4 py-2 bg-feedback-warning-tint border-b border-brand-mustard-tint text-[12px] leading-snug text-feedback-warning-ink"
     >
       <span aria-hidden="true" className="mt-px">⏱</span>
       <p className="m-0">
         <span className="font-bold">24-hour reply window closed.</span>{" "}
-        <span className="text-amber-800">
+        <span className="text-feedback-warning-ink">
           Choose an approved template below to reopen the chat.
         </span>
       </p>

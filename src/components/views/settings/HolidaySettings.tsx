@@ -118,7 +118,7 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
               </label>
             )}
             {valid && draft.enabled && (
-              <div className="rounded-control bg-amber-50 border border-amber-200 p-4 text-body text-slate-800 space-y-2">
+              <div className="rounded-control bg-feedback-warning-tint border border-brand-mustard-tint p-4 text-body text-slate-800 space-y-2">
                 <div className="font-bold">What customers will see</div>
                 <div><span className="font-semibold">From {formatHolidayDate(draft.notice_from)}:</span> “{holidayCopy({ ...draft, phase: 'upcoming' }).title}” — {holidayCopy({ ...draft, phase: 'upcoming' }).text}</div>
                 <div><span className="font-semibold">From {formatHolidayDate(draft.closed_from)}:</span> “{holidayCopy({ ...draft, phase: 'away' }).title}” — {holidayCopy({ ...draft, phase: 'away' }).text}</div>

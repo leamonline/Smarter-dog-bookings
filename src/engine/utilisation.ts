@@ -43,7 +43,7 @@ export interface NextAvailable {
 export function utilisationColor(pct: number, over = false): string {
   if (over) return "bg-rose-500";
   if (pct >= 70) return "bg-emerald-500";
-  if (pct >= 40) return "bg-amber-400";
+  if (pct >= 40) return "bg-brand-mustard";
   return "bg-sky-400";
 }
 

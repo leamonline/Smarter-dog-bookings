@@ -71,14 +71,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
     // stays — but a filled amber ground competed with the conversation
     // itself for the eye. A plain surface with just the top rule reads as
     // "one more thing in the thread," not a second focal point.
-    <div className="flex min-h-0 flex-col bg-white border-t-2 border-amber-300">
+    <div className="flex min-h-0 flex-col bg-white border-t-2 border-brand-mustard-tint">
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-3">
       <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[12px] font-bold uppercase tracking-wide text-amber-700">
+          <span className="text-[12px] font-bold uppercase tracking-wide text-feedback-warning-ink">
             AI Draft
           </span>
-          <span className="text-[12px] text-amber-700">
+          <span className="text-[12px] text-feedback-warning-ink">
             {draft.intent} · {confidenceLabel(draft.confidence)} confidence
           </span>
           <RiskPill risk={draft.risk_level} />
@@ -107,7 +107,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
           value={editedText}
           onChange={(e) => setEditedText(e.target.value)}
           aria-label="Edit the suggested reply"
-          className="w-full text-[14px] p-2 bg-white border border-amber-300 rounded-lg font-[inherit] resize-y"
+          className="w-full text-[14px] p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
           rows={4}
         />
       ) : (
@@ -124,7 +124,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       )}
 
       {attachedActions.length > 0 && !rejecting && (
-        <div className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded text-[12px] text-amber-900">
+        <div className="mt-2 p-2 bg-feedback-warning-tint border border-brand-mustard-tint rounded text-[12px] text-feedback-warning-ink">
           <div className="font-bold mb-1">📋 Booking attached:</div>
           {attachedActions.map((action) => (
             <div key={action.id}>
@@ -138,7 +138,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
           <div
             role="note"
             aria-label="Safe booking and reply order"
-            className="mt-2 pt-2 border-t border-amber-300 font-semibold"
+            className="mt-2 pt-2 border-t border-brand-mustard-tint font-semibold"
           >
             Apply or reject the booking below first. Check the diary, then come back here to send this reply.
           </div>
@@ -147,14 +147,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
 
       {rejecting && (
         <div className="mt-2">
-          <label className="block text-[12px] font-bold uppercase tracking-wide text-amber-800 mb-1">
+          <label className="block text-[12px] font-bold uppercase tracking-wide text-feedback-warning-ink mb-1">
             Why are you rejecting? (optional — helps us tune the AI)
           </label>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="e.g. tone too formal, should have offered a slot, wrong info about the dog…"
-            className="w-full text-[14px] p-2 bg-white border border-amber-300 rounded-lg font-[inherit] resize-y"
+            className="w-full text-[14px] p-2 bg-white border border-brand-mustard-tint rounded-lg font-[inherit] resize-y"
             rows={3}
             maxLength={500}
             autoFocus

@@ -14,7 +14,7 @@ const WEEK_REVENUE_TARGET = DAY_REVENUE_TARGET * 6; // 6 open days/week
 function revenueColour(pct) {
   if (pct >= 90) return "bg-emerald-500";
   if (pct >= 50) return "bg-brand-teal";
-  if (pct > 0) return "bg-amber-400";
+  if (pct > 0) return "bg-brand-mustard";
   return "bg-transparent";
 }
 

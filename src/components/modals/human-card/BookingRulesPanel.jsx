@@ -109,7 +109,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
             className={[
               "relative w-9 h-5 rounded-full border-none shrink-0 transition-colors mt-0.5",
               disabled ? "cursor-default" : "cursor-pointer",
-              depositRequired ? "bg-amber-500" : "bg-slate-200",
+              depositRequired ? "bg-brand-mustard" : "bg-slate-200",
             ].join(" ")}
           >
             <span

@@ -72,7 +72,7 @@ export function HumanHeader({
               Human profile
             </span>
             {isPendingSignup && (
-              <span className="inline-flex items-center gap-1 text-micro font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                 <Clock size={10} strokeWidth={2.6} aria-hidden="true" />
                 Pending approval
               </span>
@@ -80,7 +80,7 @@ export function HumanHeader({
             {human?.depositRequired && (
               <span
                 title="Every booking for this customer awaits a bank-transfer deposit"
-                className="inline-flex items-center gap-1 text-micro font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                className="inline-flex items-center gap-1 text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded-md uppercase tracking-wider"
               >
                 <PiggyBank size={10} strokeWidth={2.6} aria-hidden="true" />
                 Deposit customer

@@ -30,19 +30,19 @@ export function BookingHealth({
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             {/* Confirmed no-show callout */}
-            <div className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200/60">
+            <div className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-feedback-warning-tint border border-brand-mustard-tint/60">
               <div className="text-center">
-                <div className="text-xl font-black text-amber-600 leading-none">
+                <div className="text-xl font-black text-brand-mustard leading-none">
                   {noShowRate.toFixed(0)}%
                 </div>
-                <div className="text-micro font-bold text-amber-600 uppercase tracking-wide mt-0.5">
+                <div className="text-micro font-bold text-brand-mustard uppercase tracking-wide mt-0.5">
                   Confirmed no-shows
                 </div>
               </div>
-              <div className="text-caption text-amber-700 font-medium leading-snug">
+              <div className="text-caption text-feedback-warning-ink font-medium leading-snug">
                 {noShowN} of {denom} dogs due in
                 {prevNoShowRate > 0 && (
-                  <div className="text-micro text-amber-600/80">
+                  <div className="text-micro text-brand-mustard/80">
                     was {prevNoShowRate.toFixed(0)}%
                   </div>
                 )}

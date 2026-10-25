@@ -159,6 +159,17 @@ describe("design tokens: deprecated names may not spread", () => {
     expect(count(/rgba?\(\s*45\s*,\s*0\s*,\s*75\b/g)).toBe(0);
   });
 
+  // Warnings use the feedback-warning tokens and mustard, never Tailwind's amber,
+  // which is a second, unrelated yellow-orange. See docs/ux/warm-colours.md.
+  // The one exception is the `caution` safety-alert tint in alertTints.js: dog
+  // safety colours are operational and frozen (design system, "Colours that
+  // carry meaning are frozen"), so it keeps its amber.
+  it("has no Tailwind amber left, apart from the frozen caution safety tint", () => {
+    expect(count(/\bamber-\d+\b/g)).toBe(3);
+    const tints = readFileSync(join(srcDir, "components", "modals", "shell", "alertTints.js"), "utf8");
+    expect(tints.match(/\bamber-\d+\b/g)).toHaveLength(3);
+  });
+
   // A space inside a Tailwind arbitrary value splits the class in two, so the
   // utility silently never applies (the modal backdrops went transparent once).
   // `bg-[rgba(31, 31, 31, 0.45)]` is wrong; `bg-[rgba(31,31,31,0.45)]` is right.

@@ -15,9 +15,9 @@ const FILTER_CHIP_PALETTES = {
     idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-purple/40 hover:text-brand-purple",
   },
   amber: {
-    dot: "bg-amber-500",
-    active: "bg-amber-100 border-amber-300 text-amber-900",
-    idle: "bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-800",
+    dot: "bg-brand-mustard",
+    active: "bg-feedback-warning-tint border-brand-mustard-tint text-feedback-warning-ink",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-mustard-tint hover:text-feedback-warning-ink",
   },
   emerald: {
     dot: "bg-emerald-500",

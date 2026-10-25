@@ -42,7 +42,7 @@ export function RemindersPanel({ human, onUpdateHuman }) {
               className={[
                 "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] font-bold font-inherit border-none cursor-pointer transition-colors",
                 active
-                  ? "bg-amber-500 text-white"
+                  ? "bg-feedback-warning-ink text-white"
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200",
               ].join(" ")}
             >

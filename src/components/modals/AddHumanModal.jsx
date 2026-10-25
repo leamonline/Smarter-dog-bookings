@@ -332,7 +332,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           </div>
 
           {duplicate && (
-            <div role="alert" className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
+            <div role="alert" className="p-2.5 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-[12px] text-feedback-warning-ink">
               A customer called{" "}
               <strong>{duplicate.fullName || `${duplicate.name} ${duplicate.surname}`.trim()}</strong>
               {duplicate.phone ? ` (${formatPhoneForDisplay(duplicate.phone)})` : ""} already exists.

@@ -292,9 +292,9 @@ function DetailLine({ label, value, href, multiline, accent }) {
 
 function UnmatchedEmptyState({ phone }) {
   return (
-    <div className="text-[13px] text-slate-600 leading-snug bg-amber-50 border border-amber-200 rounded-lg p-3">
-      <p className="font-bold text-amber-900 mb-1">No customer match yet</p>
-      <p className="text-amber-900/80">
+    <div className="text-[13px] text-slate-600 leading-snug bg-feedback-warning-tint border border-brand-mustard-tint rounded-lg p-3">
+      <p className="font-bold text-feedback-warning-ink mb-1">No customer match yet</p>
+      <p className="text-feedback-warning-ink/80">
         We haven&apos;t linked {phone || "this number"} to a customer record. Adding a quick profile means the AI can personalise replies and the diary stays accurate.
       </p>
     </div>

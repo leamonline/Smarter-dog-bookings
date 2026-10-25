@@ -12,7 +12,7 @@ import { useRetentionData } from "../../../hooks/useRetentionData";
 function Note({ tone, onClick, children }) {
   const toneClass =
     tone === "amber"
-      ? "bg-amber-50 text-amber-800 border-l-amber-400"
+      ? "bg-feedback-warning-tint text-feedback-warning-ink border-l-brand-mustard"
       : "bg-white text-slate-700 border-l-brand-paper-line";
   return (
     <button

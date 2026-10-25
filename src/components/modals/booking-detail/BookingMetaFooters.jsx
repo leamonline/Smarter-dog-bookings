@@ -92,7 +92,7 @@ function OverrideAuditFooter({ by, at }) {
   })();
 
   return (
-    <div className="px-3 py-2.5 mb-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
+    <div className="px-3 py-2.5 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint text-feedback-warning-ink rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
       <span className="uppercase text-micro font-extrabold tracking-wider mr-1">Override</span>
       Capacity overridden by {who}{when}.
     </div>

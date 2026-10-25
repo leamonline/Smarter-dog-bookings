@@ -56,8 +56,8 @@ function ReminderRow({ row, onOpen, busy }) {
         sent
           ? "bg-brand-green-50/80 text-brand-green-900 hover:bg-brand-green-100/80 cursor-pointer"
           : busy
-            ? "bg-amber-100 text-amber-900"
-            : "bg-white/70 hover:bg-white border border-amber-100 text-amber-900 cursor-pointer",
+            ? "bg-feedback-warning-tint text-feedback-warning-ink"
+            : "bg-white/70 hover:bg-white border border-brand-mustard-tint text-feedback-warning-ink cursor-pointer",
       ].join(" ")}
     >
       <span className="w-full sm:w-auto flex items-center gap-2 min-w-0">
@@ -78,21 +78,21 @@ function ReminderRow({ row, onOpen, busy }) {
             )}
           </>
         ) : busy ? (
-          <Send size={14} className="text-amber-600 animate-pulse" aria-label="Sending" />
+          <Send size={14} className="text-brand-mustard animate-pulse" aria-label="Sending" />
         ) : (
-          <Circle size={16} className="text-amber-400" aria-label="No reminder sent yet" />
+          <Circle size={16} className="text-brand-mustard" aria-label="No reminder sent yet" />
         )}
       </span>
       <span className="flex-1 min-w-0 break-words sm:truncate">
         <span className="font-semibold">{row.customerName}</span>
-        <span className="text-amber-800/70"> · {row.dogNamesDisplay}</span>
+        <span className="text-feedback-warning-ink/70"> · {row.dogNamesDisplay}</span>
       </span>
       </span>
-      <span className="shrink-0 pl-6 sm:pl-0 tabular-nums text-amber-800/70">
+      <span className="shrink-0 pl-6 sm:pl-0 tabular-nums text-feedback-warning-ink/70">
         {formatSlot(row.slot)}
         {row.multiSlot && (
           <span
-            className="text-amber-500"
+            className="text-brand-mustard"
             title={row.slots.map(formatSlot).join(", ")}
           >
             {" "}

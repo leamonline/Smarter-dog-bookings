@@ -205,7 +205,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             key={booking.id}
             role="status"
             aria-label="Deposit needed"
-            className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--sd-navy)]"
+            className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-brand-mustard bg-feedback-warning-tint text-[13px] text-[var(--sd-navy)]"
           >
             <strong>Deposit needed to hold this booking.</strong>
             <p>For {booking.dog?.name || "your dog"}.</p>
