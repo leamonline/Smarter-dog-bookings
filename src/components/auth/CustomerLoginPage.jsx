@@ -256,7 +256,7 @@ export function CustomerLoginPage({
   };
 
   // Resending keeps the current phone and reset/signup intent. The existing
-  // hook owns shouldCreateUser; this must not repeat the phone lookup.
+  // hook sends to the already-checked phone; this must not repeat the lookup.
   const handleResendOtp = async () => {
     if (submitting || resendInFlight.current || otpCooldown > 0) return;
     if (!captchaTokenRef.current) {

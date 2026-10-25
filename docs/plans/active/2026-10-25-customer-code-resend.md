@@ -28,8 +28,9 @@ rate-limit, password, notification or database changes. No real SMS is sent by t
 ## Relevant code and architecture
 
 `src/components/auth/CustomerLoginPage.jsx` owns the stage, reset intent,
-CAPTCHA token and 60-second cooldown. `useCustomerAuth.sendOtp` owns the checked
-phone and signup permission. Reuse that callback; do not repeat the phone lookup.
+CAPTCHA token and 60-second cooldown. `useCustomerAuth.sendOtp` sends a code to the
+already-checked phone; it carries no signup or reset intent of its own (reset is the
+page's `otpIsReset` flag, used at verify). Reuse that callback; do not repeat the phone lookup.
 The server retains authentication and throttling authority.
 
 ## Data/database and API changes
