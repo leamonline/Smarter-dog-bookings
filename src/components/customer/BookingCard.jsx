@@ -46,7 +46,7 @@ export function BookingCard(props) {
   ));
 }
 
-function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookingChanged, isNext }) {
+function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext }) {
   const navigate = useNavigate();
   const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
@@ -97,6 +97,11 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookingCh
             Book a groom
             <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
           </button>
+          {onBookAgain && (
+            <button className="portal-btn portal-btn--secondary" onClick={onBookAgain}>
+              Book the same groom again
+            </button>
+          )}
         </div>
       </div>
     );
