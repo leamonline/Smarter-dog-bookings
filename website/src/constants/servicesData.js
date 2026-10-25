@@ -13,17 +13,17 @@ export const services = [
         bgColor: 'white'
     },
     {
-        title: "Maintenance Groom",
-        price: "From £32",
-        description: "Perfect between full grooms to keep your dog tidy. Includes bath, dry, and trimming of face, feet, and hygiene areas, plus nail trim.",
+        title: "Bath & Brush",
+        price: "From £38",
+        description: "A bath, blow-dry and thorough brush-out to keep your dog fresh between full grooms.",
         bestFor: "Regulars between full grooms",
         color: colors.orange,
         bgColor: 'white'
     },
     {
-        title: "De-shedding Groom",
-        price: "From £35",
-        description: "Ideal for double-coated breeds. A deep cleaning bath, thorough undercoat removal with high-velocity drying, full brush out, and nail trim.",
+        title: "Bath & De-shed",
+        price: "From £38",
+        description: "A bath, blow-dry and de-shedding treatment for double coats and heavy shedders.",
         bestFor: "Double coats and heavy shedders",
         color: colors.yellow,
         bgColor: 'white'
@@ -41,8 +41,8 @@ export const timeline = [
 
 export const additionalServices = {
     puppyIntro: {
-        title: "Puppy Intro",
-        price: "£35",
+        title: "Puppy Groom",
+        price: "£38",
         description: "A gentle first experience for puppies under 6 months. We focus on positive association with grooming sounds and sensations. Includes a gentle bath, slow dry, and lots of reassurance.",
         tagline: "No rushing. Plenty of cuddles."
     },

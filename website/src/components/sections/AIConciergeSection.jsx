@@ -48,14 +48,14 @@ const TEMPERAMENT_LABELS = TEMPERAMENT_OPTIONS.reduce((acc, option) => ({
 }), {});
 
 const getRecommendedService = ({ goal }) => {
-    if (goal === 'first-groom') return 'Puppy Intro';
-    if (goal === 'de-shed') return 'De-shedding Groom';
-    if (goal === 'tidy-up') return 'Maintenance Groom';
+    if (goal === 'first-groom') return 'Puppy Groom';
+    if (goal === 'de-shed') return 'Bath & De-shed';
+    if (goal === 'tidy-up') return 'Bath & Brush';
     return 'Full Groom';
 };
 
 const getAutoVisitPlan = ({ coatType, goal, service }) => {
-    if (service === 'Puppy Intro') return 'every-6-weeks';
+    if (service === 'Puppy Groom') return 'every-6-weeks';
     if (goal === 'de-shed' || coatType === 'double') return 'every-8-weeks';
     if (coatType === 'curly' || goal === 'tidy-up') return 'every-6-weeks';
     return 'one-off';
