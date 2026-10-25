@@ -41,7 +41,7 @@ function PortalShell({ children }) {
       className="min-h-dvh flex flex-col items-center justify-center px-4 py-3 sm:py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-6 py-4 sm:px-10 sm:py-12 border border-[rgba(31, 31, 31, 0.06)] relative overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-6 py-4 sm:px-10 sm:py-12 border border-[rgba(31,31,31,0.06)] relative overflow-hidden">
         <DogSilhouetteScatter mobileSparse />
         <div className="relative">
           <div className="flex justify-center mb-2 sm:mb-4">
@@ -258,7 +258,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
 
-          <div className="rounded-xl border border-transparent sm:border-[rgba(31, 31, 31, 0.08)] bg-transparent sm:bg-[var(--sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
+          <div className="rounded-xl border border-transparent sm:border-[rgba(31,31,31,0.08)] bg-transparent sm:bg-[var(--sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
             {captchaUnavailable ? (
               <CaptchaUnavailable />
             ) : (
@@ -302,7 +302,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </button>
         </form>
 
-        <div className="mt-3 sm:mt-6 rounded-xl border border-[rgba(31, 31, 31, 0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
+        <div className="mt-3 sm:mt-6 rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
           <p className="text-xs text-[var(--sd-navy-soft)] leading-relaxed">
             <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite — the link in their email sets your password up.
           </p>
@@ -380,7 +380,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           />
         </div>
 
-        <div className="rounded-xl border border-[rgba(31, 31, 31, 0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-2 sm:py-4">
+        <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-2 sm:py-4">
           {captchaUnavailable ? (
             <CaptchaUnavailable />
           ) : (

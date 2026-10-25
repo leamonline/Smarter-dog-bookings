@@ -18,7 +18,7 @@ export function ModalShell({
   children,
   widthClass = "w-[min(820px,95vw)]",
   maxHeightClass = "max-h-[min(90vh,760px)]",
-  backdropClass = "bg-[rgba(31, 31, 31, 0.45)] animate-overlay-fade",
+  backdropClass = "bg-[rgba(31,31,31,0.45)] animate-overlay-fade",
   dismissOnEscape = true,
   zIndex,
   bodyClassName = "",
@@ -45,7 +45,7 @@ export function ModalShell({
       zIndex={zIndex}
       backdropClass={backdropClass}
       overlayClassName={overlayClassName}
-      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(31, 31, 31, 0.28)] ${widthClass} ${maxHeightClass} ${mobileClass} ${rootClassName}`}
+      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)] ${widthClass} ${maxHeightClass} ${mobileClass} ${rootClassName}`}
     >
       {accent ? (
         <div aria-hidden="true" className="h-1 shrink-0" style={{ background: accent }} />
