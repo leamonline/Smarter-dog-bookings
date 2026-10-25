@@ -5,6 +5,7 @@ import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { friendlySaveError } from "../../../utils/friendlyError";
+import { Input } from "../../ui/index.js";
 
 interface AddDogInlineProps {
   humanId: string;
@@ -58,13 +59,13 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
 
       <div className="flex flex-col gap-1">
         <label htmlFor="add-dog-name" className="text-body text-[var(--color-ink)] font-semibold">Name *</label>
-        <input
+        <Input
           id="add-dog-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Biscuit"
-          className="portal-input portal-input--sm"
+          surface="paper" size="portal-sm"
         />
       </div>
 

@@ -6,6 +6,7 @@ import { AddDogInline } from "./booking/AddDogInline.tsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Pencil, Plus, X } from "lucide-react";
 import { titleCase } from "../../utils/text";
+import { Input, Select } from "../ui/index.js";
 
 const ERR_LABEL = {
   not_authenticated: "Please sign in again.",
@@ -124,48 +125,48 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
   if (editing) {
     return (
       <form className="portal-inline-form" onSubmit={handleSubmit} noValidate>
-        <input
+        <Input
           required
           aria-label="Dog name"
           placeholder="Name"
           value={form.name}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          className="portal-input"
+          surface="paper" size="portal"
         />
-        <input
+        <Input
           aria-label="Breed"
           placeholder="Breed (e.g. Boston Terrier)"
           value={form.breed}
           onChange={e => handleBreedChange(e.target.value)}
-          className="portal-input"
+          surface="paper" size="portal"
         />
         <div className="portal-inline-form-row">
-          <select
+          <Select
             aria-label="Size"
             value={form.size}
             onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
-            className="portal-input"
+            surface="paper" size="portal"
           >
             {SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <select
+          </Select>
+          <Select
             aria-label="Birth month"
             value={form.dob.slice(5, 7)}
             onChange={e => setForm(f => ({ ...f, dob: composeDob(e.target.value, f.dob.slice(0, 4)) }))}
-            className="portal-input"
+            surface="paper" size="portal"
           >
             <option value="">Birth month</option>
             {MONTHS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-          </select>
-          <select
+          </Select>
+          <Select
             aria-label="Birth year"
             value={form.dob.slice(0, 4)}
             onChange={e => setForm(f => ({ ...f, dob: composeDob(f.dob.slice(5, 7), e.target.value) }))}
-            className="portal-input"
+            surface="paper" size="portal"
           >
             <option value="">Year</option>
             {DOB_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </Select>
         </div>
         {error && <div role="alert" className="portal-inline-error">{error}</div>}
         <div className="portal-inline-form-actions">

@@ -4,6 +4,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { isPasswordPwned } from "../../../utils/pwnedPassword";
 import { PawPrint, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Input } from "../../ui/index.js";
 
 // Minimum we ask customers for. Kept gentle for a non-technical, mostly
 // mobile audience (staff use 12). The Supabase project's own
@@ -156,7 +157,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
           </legend>
 
           <div className="relative">
-            <input
+            <Input
               aria-label={isReset ? "New password" : "Password"}
               type={show ? "text" : "password"}
               autoComplete="new-password"
@@ -166,7 +167,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
                 setError(null);
               }}
               placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-              className="portal-input w-full pr-11"
+              surface="paper" size="portal" className="w-full pr-11"
               autoFocus
             />
             <button
@@ -179,7 +180,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
             </button>
           </div>
 
-          <input
+          <Input
             aria-label="Confirm password"
             type={show ? "text" : "password"}
             autoComplete="new-password"
@@ -189,7 +190,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
               setError(null);
             }}
             placeholder="Type it again"
-            className="portal-input w-full mt-2"
+            surface="paper" size="portal" className="w-full mt-2"
           />
         </fieldset>
 

@@ -244,6 +244,23 @@ describe("control styling", () => {
     expect(classes).toContain("rounded-sd-input");
   });
 
+  it("has portal sizes that are always 16px, never the compact 13px a mouse gets", () => {
+    render(
+      <>
+        <Input aria-label="Portal" size="portal" surface="paper" />
+        <Input aria-label="Portal small" size="portal-sm" surface="paper" />
+      </>,
+    );
+    for (const name of ["Portal", "Portal small"]) {
+      const classes = cls(screen.getByLabelText(name));
+      expect(classes).toContain("text-base");
+      expect(classes).not.toContain("pointer-fine:text-body");
+      expect(classes).toContain("rounded-sd-input");
+    }
+    expect(cls(screen.getByLabelText("Portal"))).toContain("py-[9px]");
+    expect(cls(screen.getByLabelText("Portal small"))).toContain("py-[7px]");
+  });
+
   it("merges a caller's className instead of replacing the recipe", () => {
     render(<Input aria-label="Name" className="w-20 text-right" />);
     const classes = cls(screen.getByLabelText("Name"));

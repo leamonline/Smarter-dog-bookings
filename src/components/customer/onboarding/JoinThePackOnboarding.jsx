@@ -18,6 +18,7 @@ import {
   SALON_PRIVACY_URL,
   POLICIES_VERSION,
 } from "../../../constants/salonPolicies.ts";
+import { Input, Select, Textarea } from "../../ui/index.js";
 
 // Flat, de-duped, alphabetically-sorted breed list for the dropdown.
 const BREED_OPTIONS = Array.from(
@@ -287,7 +288,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             <fieldset className="mb-5">
               <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Your name (required)</legend>
               <div className="flex gap-2">
-                <input
+                <Input
                   aria-label="First name"
                   aria-required="true"
                   aria-invalid={Boolean(fieldError("name"))}
@@ -296,9 +297,9 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="First name"
-                  className="portal-input"
+                  surface="paper" size="portal"
                 />
-                <input
+                <Input
                   aria-label="Surname"
                   aria-required="true"
                   aria-invalid={Boolean(fieldError("surname"))}
@@ -307,7 +308,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   value={surname}
                   onChange={(e) => setSurname(e.target.value)}
                   placeholder="Surname"
-                  className="portal-input"
+                  surface="paper" size="portal"
                 />
               </div>
               {fieldError("name") && <p id="signup-name-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.name}</p>}
@@ -343,7 +344,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
             <fieldset className="mb-5">
               <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">Email address (required)</legend>
-              <input
+              <Input
                 aria-label="Email address"
                 aria-required="true"
                 aria-invalid={Boolean(fieldError("email"))}
@@ -353,7 +354,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="portal-input w-full"
+                surface="paper" size="portal" className="w-full"
               />
               {fieldError("email") && <p id="signup-email-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.email}</p>}
             </fieldset>
@@ -362,19 +363,19 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">
                 Where did you hear about us?
               </legend>
-              <select
+              <Select
                 aria-label="Where did you hear about us?"
                 value={heardAboutUs}
                 onChange={(e) => setHeardAboutUs(e.target.value)}
-                className="portal-input w-full"
+                surface="paper" size="portal" className="w-full"
               >
                 <option value="">Choose one (optional)</option>
                 {REFERRAL_SOURCES.map((source) => (
                   <option key={source} value={source}>{source}</option>
                 ))}
-              </select>
+              </Select>
               {referralOtherSelected && (
-                <input
+                <Input
                   aria-label="Tell us where you heard about us"
                   aria-required="true"
                   aria-invalid={Boolean(fieldError("referral"))}
@@ -382,7 +383,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   value={heardAboutUsOther}
                   onChange={(e) => setHeardAboutUsOther(e.target.value)}
                   placeholder="Tell us where…"
-                  className="portal-input w-full mt-2"
+                  surface="paper" size="portal" className="w-full mt-2"
                 />
               )}
               {fieldError("referral") && <p id="signup-referral-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.referral}</p>}
@@ -434,69 +435,69 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   )}
                 </div>
 
-                <input
+                <Input
                   aria-label="Dog's name"
                   value={dog.name}
                   onChange={(e) => updateDog(i, { name: e.target.value })}
                   placeholder="Dog's name"
-                  className="portal-input w-full mb-2"
+                  surface="paper" size="portal" className="w-full mb-2"
                 />
 
-                <select
+                <Select
                   aria-label="Breed"
                   value={dog.breed}
                   onChange={(e) => updateDog(i, { breed: e.target.value })}
-                  className="portal-input w-full mb-2"
+                  surface="paper" size="portal" className="w-full mb-2"
                 >
                   <option value="">Select breed</option>
                   {BREED_OPTIONS.map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
                   <option value="__other__">Other / not listed</option>
-                </select>
+                </Select>
                 {dog.breed === "__other__" && (
-                  <input
+                  <Input
                     aria-label="Breed"
                     value={dog.customBreed}
                     onChange={(e) => updateDog(i, { customBreed: e.target.value })}
                     placeholder="Enter breed"
-                    className="portal-input w-full mb-2"
+                    surface="paper" size="portal" className="w-full mb-2"
                   />
                 )}
 
                 <div className="flex gap-2 mb-2">
-                  <select
+                  <Select
                     aria-label="Sex"
                     value={dog.sex}
                     onChange={(e) => updateDog(i, { sex: e.target.value })}
-                    className="portal-input flex-1"
+                    surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Sex</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                  </select>
-                  <select
+                  </Select>
+                  <Select
                     aria-label="Birth month"
                     value={dog.dobMonth}
                     onChange={(e) => updateDog(i, { dobMonth: e.target.value })}
-                    className="portal-input flex-1"
+                    surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Birth month</option>
                     {MONTHS.map(([v, label]) => (
                       <option key={v} value={v}>{label}</option>
                     ))}
-                  </select>
-                  <select
+                  </Select>
+                  <Select
                     aria-label="Birth year"
                     value={dog.dobYear}
                     onChange={(e) => updateDog(i, { dobYear: e.target.value })}
-                    className="portal-input flex-1"
+                    surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Year</option>
                     {YEARS.map((y) => (
                       <option key={y} value={y}>{y}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
 
                 <button
@@ -511,37 +512,37 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 {dog.showOptional && (
                   <div className="mt-3 space-y-2">
                     <div className="flex gap-2">
-                      <input
+                      <Input
                         aria-label="Colour / markings"
                         value={dog.colour}
                         onChange={(e) => updateDog(i, { colour: e.target.value })}
                         placeholder="Colour / markings"
-                        className="portal-input flex-1"
+                        surface="paper" size="portal" className="flex-1"
                       />
-                      <select
+                      <Select
                         aria-label="Neutered"
                         value={dog.neutered}
                         onChange={(e) => updateDog(i, { neutered: e.target.value })}
-                        className="portal-input flex-1"
+                        surface="paper" size="portal" className="flex-1"
                       >
                         <option value="">Neutered?</option>
                         <option value="yes">Neutered</option>
                         <option value="no">Not neutered</option>
-                      </select>
+                      </Select>
                     </div>
-                    <input
+                    <Input
                       aria-label="Microchip number"
                       value={dog.microchip}
                       onChange={(e) => updateDog(i, { microchip: e.target.value })}
                       placeholder="Microchip number"
-                      className="portal-input w-full"
+                      surface="paper" size="portal" className="w-full"
                     />
-                    <input
+                    <Input
                       aria-label="Vet"
                       value={dog.vet}
                       onChange={(e) => updateDog(i, { vet: e.target.value })}
                       placeholder="Your vet (practice name)"
-                      className="portal-input w-full"
+                      surface="paper" size="portal" className="w-full"
                     />
                     <div>
                       <span className="text-xs font-semibold text-slate-500 block mb-1">
@@ -567,13 +568,13 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                         })}
                       </div>
                     </div>
-                    <textarea
+                    <Textarea
                       aria-label="Grooming notes"
                       value={dog.groomNotes}
                       onChange={(e) => updateDog(i, { groomNotes: e.target.value })}
                       placeholder="Grooming notes (e.g. teddy bear cut, short on ears)"
                       rows={2}
-                      className="portal-input w-full resize-y"
+                      surface="paper" size="portal" className="w-full resize-y"
                     />
                   </div>
                 )}

@@ -9,7 +9,14 @@ import { forwardRef } from "react";
 import { controlClassName } from "./formControl.js";
 import { useControlProps } from "./Field.jsx";
 
-export const Input = forwardRef(function Input(
+/**
+ * @typedef {Omit<import("react").InputHTMLAttributes<HTMLInputElement>, "size"> & {
+ *   size?: "sm" | "md" | "lg" | "portal" | "portal-sm";
+ *   surface?: "page" | "paper";
+ *   invalid?: boolean;
+ * }} InputProps
+ */
+export const Input = /** @type {import("react").ForwardRefExoticComponent<InputProps & import("react").RefAttributes<HTMLInputElement>>} */ (forwardRef(function Input(
   { type = "text", size = "md", surface = "page", className = "", ...rest },
   ref,
 ) {
@@ -22,4 +29,4 @@ export const Input = forwardRef(function Input(
       className={controlClassName({ invalid: isInvalid, size, surface, className })}
     />
   );
-});
+}));

@@ -2,6 +2,7 @@ import { cardAnim } from "./dashboardConstants.js";
 import { User, Plus, Pencil, X } from "lucide-react";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 import { AddressPicker } from "./onboarding/AddressPicker.jsx";
+import { Input } from "../ui/index.js";
 
 function DetailRow({ label, value, editing, editor, addPrompt, onAdd, stackWhenEditing = false }) {
   const stacked = editing && stackWhenEditing;
@@ -57,21 +58,21 @@ export function MyDetailsCard({
           editing={editing}
           editor={
             <div className="flex gap-2">
-              <input
+              <Input
                 aria-label="First name"
                 autoComplete="given-name"
                 value={details.name}
                 onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
                 placeholder="First name"
-                className="portal-input"
+                surface="paper" size="portal"
               />
-              <input
+              <Input
                 aria-label="Surname"
                 autoComplete="family-name"
                 value={details.surname}
                 onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
                 placeholder="Surname"
-                className="portal-input"
+                surface="paper" size="portal"
               />
             </div>
           }
@@ -112,14 +113,14 @@ export function MyDetailsCard({
           value={details.email}
           editing={editing}
           editor={
-            <input
+            <Input
               type="email"
               aria-label="Email address"
               autoComplete="email"
               value={details.email}
               onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
               placeholder="you@example.com"
-              className="portal-input"
+              surface="paper" size="portal"
             />
           }
           addPrompt="Add email"
@@ -151,18 +152,18 @@ export function MyDetailsCard({
           <>
             <div className="portal-detail-row">
               <span className="portal-detail-label">Facebook</span>
-              <input aria-label="Facebook profile URL" value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
-                className="portal-input flex-1 ml-3 text-right" />
+              <Input aria-label="Facebook profile URL" value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
+                surface="paper" size="portal" className="flex-1 ml-3 text-right" />
             </div>
             <div className="portal-detail-row">
               <span className="portal-detail-label">Instagram</span>
-              <input aria-label="Instagram handle" value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
-                className="portal-input flex-1 ml-3 text-right" />
+              <Input aria-label="Instagram handle" value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
+                surface="paper" size="portal" className="flex-1 ml-3 text-right" />
             </div>
             <div className="portal-detail-row">
               <span className="portal-detail-label">TikTok</span>
-              <input aria-label="TikTok handle" value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
-                className="portal-input flex-1 ml-3 text-right" />
+              <Input aria-label="TikTok handle" value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
+                surface="paper" size="portal" className="flex-1 ml-3 text-right" />
             </div>
           </>
         )}
