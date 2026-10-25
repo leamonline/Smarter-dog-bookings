@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — readable colours, focus and tap targets (#1079)
+
+- Danger buttons (`<Button variant="danger">`, `.btn-danger` and the portal's
+  `.portal-btn--danger`) fill with the darker coral so their white label passes
+  AA, and hover goes deeper still (`--color-brand-coral-deep`).
+- Focus outlines are a 3px charcoal ring on light surfaces and white on the
+  charcoal header; meaningful selected-state borders are charcoal, not yellow.
+- The portal's green and WhatsApp buttons use charcoal labels. Solid success
+  badges, WhatsApp links and semantic muted text use darker shades that pass
+  AA on white and cream.
+- Inline links without a class, and the `Button` link variant, are underlined
+  before hover; `--color-text-link` is the deep sky blue.
+- An unrecognised booking status reads "Unknown: …" on its own warm tint
+  instead of looking Collected.
+- Safety-alert tints are chosen by meaning (`behaviour`, `caution`,
+  `information`) rather than by matching a colour string.
+- Under 640px the 10–11px metadata steps grow to 12px; on touch screens buttons
+  get a 44px tap area.
+- `--color-brand-ink` is the canonical charcoal; `--color-brand-purple` and the
+  other old names keep working. The website's yellow and coral now match the
+  booking app.
+- No migration.
+
 ## Unreleased — PostHog mirror of the booking-wizard funnel
 
 - The customer booking wizard can now send its existing funnel steps, blockers
