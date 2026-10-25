@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { resolveSentryBuild } from "./vite.sentry.js";
+
+const sentry = resolveSentryBuild();
 
 // The booking app shares an origin with the marketing site, where "/" is the
 // marketing page. So the booking shell also gets a home of its own that no
@@ -24,6 +27,11 @@ function emitNamespacedShell() {
 }
 
 export default defineConfig({
+  // The release the browser SDK tags events with. Same value the upload used,
+  // so Sentry can pair an event with its source maps. Empty = untagged.
+  define: {
+    "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(sentry.release),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -38,6 +46,10 @@ export default defineConfig({
       manifest: false, // use public/app/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // vite-plugin-pwa otherwise follows build.sourcemap, which is "hidden"
+        // for the Sentry upload; the worker is not uploaded, so it gets none
+        // (no dangling sourceMappingURL once the maps are deleted).
+        sourcemap: false,
         // PostHog only ever loads in the customer booking wizard, and only when
         // VITE_POSTHOG_KEY is set (src/lib/analytics.ts). Precaching it would
         // make every staff install download it for nothing.
@@ -78,6 +90,9 @@ export default defineConfig({
         ],
       },
     }),
+    // Last, so the upload sees the finished bundle. Empty unless the Sentry
+    // credentials are all present (the Vercel production build).
+    ...sentry.plugins,
   ],
   server: {
     host: "0.0.0.0",
@@ -85,6 +100,9 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
+    // Hidden maps exist only for the Sentry upload (see vite.sentry.js), and are
+    // deleted from dist/ before anything is served.
+    sourcemap: sentry.sourcemap,
     // Every file this build emits lives under /app/ so the booking app can be
     // served from the same origin as the public marketing pages without either
     // one overwriting the other's output. Static files come from public/app/;
