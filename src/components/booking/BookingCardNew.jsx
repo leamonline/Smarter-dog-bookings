@@ -371,10 +371,13 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
           {/* Row 2: Owner and service | Compact status control aligned right */}
           <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 truncate flex-1 flex items-center gap-1.5">
-              <span className="truncate font-semibold text-slate-600">{displayOwner || "No owner"}</span>
-              <span className="text-slate-300 font-normal">·</span>
-              <span className="truncate text-slate-500">{service?.name || booking.service || "—"}</span>
+            {/* On a phone the owner and service wrap onto a second line rather than
+                being cut off ("Sarah Jo… · Full Gro…"); from tablet width up there is
+                room, so they stay on one tidy line with an ellipsis. */}
+            <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 min-w-0 flex-1 flex flex-wrap items-center gap-x-1.5 sm:flex-nowrap sm:truncate">
+              <span className="min-w-0 break-words font-semibold text-slate-600 sm:truncate">{displayOwner || "No owner"}</span>
+              <span className="text-slate-300 font-normal max-sm:hidden">·</span>
+              <span className="min-w-0 break-words text-slate-500 sm:truncate">{service?.name || booking.service || "—"}</span>
               {booking.reminderConfirmedAt && (
                 <span
                   data-reminder-confirmation
