@@ -60,7 +60,8 @@ describe("design system: WCAG AA text pairs", () => {
   });
 
   it("grows meaningful micro text and tappable controls on touch/small screens", () => {
-    expect(css).toContain("--text-micro: 0.75rem; --text-caption: 0.75rem");
+    expect(css).toContain("--text-micro: 0.75rem;");
+    expect(css).toContain("--text-caption: 0.75rem;");
     expect(css).toContain(".btn, .btn-pill { min-height: 44px; min-width: 44px; }");
     expect(portal).toContain(".portal-btn { min-height: 44px; min-width: 44px; }");
     expect(button).toContain("pointer-coarse:min-h-11 pointer-coarse:min-w-11");
