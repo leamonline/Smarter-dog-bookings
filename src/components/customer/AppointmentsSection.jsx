@@ -103,7 +103,7 @@ export function AppointmentsSection({
           )}
 
           {onSubscribe && (
-            <div className="mt-3 pt-3 border-t border-[rgba(31, 31, 31, 0.07)] text-center">
+            <div className="mt-3 pt-3 border-t border-[rgba(31,31,31,0.07)] text-center">
               <button
                 type="button"
                 onClick={onSubscribe}

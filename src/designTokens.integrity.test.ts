@@ -166,6 +166,13 @@ describe("design tokens: deprecated names may not spread", () => {
     expect(tints.match(/\bamber-\d+\b/g)).toHaveLength(3);
   });
 
+  // A space inside a Tailwind arbitrary value splits the class in two, so the
+  // utility silently never applies (the modal backdrops went transparent once).
+  // `bg-[rgba(31, 31, 31, 0.45)]` is wrong; `bg-[rgba(31,31,31,0.45)]` is right.
+  it("has no spaces inside Tailwind arbitrary rgba() values", () => {
+    expect(count(/-\[[^\]"'`\n]*rgba\(\s*\d+\s*,\s/g)).toBe(0);
+  });
+
   // Ratchets, not bans: the existing uses are fine, new ones are not. Lower
   // the ceiling as call sites move to brand-ink / text-ink. Never raise it.
   it.each([

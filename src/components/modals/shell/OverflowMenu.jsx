@@ -44,7 +44,7 @@ export function OverflowMenu({ items }) {
       {menuOpen && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 z-20 min-w-[220px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(31, 31, 31, 0.12)] py-1"
+          className="absolute right-0 top-full mt-1 z-20 min-w-[220px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(31,31,31,0.12)] py-1"
         >
           {items.map((item) => (
             <button
