@@ -405,7 +405,13 @@
 
   --color-feedback-success: var(--color-brand-green);
   --color-feedback-error: var(--color-brand-red);
-  --color-feedback-warning: var(--color-brand-yellow);
+  /* Warnings are NOT the action yellow: a warning in the Book-button colour
+     reads as something to press. Mustard is the edge/icon colour, the tint
+     and ink are for the notice itself (ink on tint 8.4:1). Always with a
+     sentence saying what is wrong. See docs/ux/warm-colours.md. */
+  --color-feedback-warning: var(--color-brand-mustard);
+  --color-feedback-warning-tint: #FFF7DC;
+  --color-feedback-warning-ink: #5C4600;
 }
 
 /* ── Usage-locking classes ────────────────────────────────────── */

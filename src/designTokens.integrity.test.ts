@@ -101,6 +101,13 @@ describe("design tokens: one value, one canonical name", () => {
     expect(resolve(alias)).toBe(resolve(canonical));
   });
 
+  it("keeps warnings off the action yellow, with a readable ink", () => {
+    expect(resolve("color-feedback-warning")).not.toBe(resolve("color-brand-yellow"));
+    expect(
+      contrast(resolve("color-feedback-warning-ink"), resolve("color-feedback-warning-tint")),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("does not bring back the unused pre-reskin portal literals", () => {
     for (const dead of ["sd-cyan-light", "sd-teal", "sd-coral-light"]) {
       expect(definitions(portal).has(dead), `--${dead} was removed as unused`).toBe(false);
