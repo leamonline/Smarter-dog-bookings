@@ -73,7 +73,9 @@ export function CustomerLoginPage({
   const [otpIsReset, setOtpIsReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpCooldown, setOtpCooldown] = useState(otpSent ? OTP_RESEND_SECONDS : 0);
+  const [resendStatus, setResendStatus] = useState("");
+  const resendInFlight = useRef(false);
 
   const phoneInputRef = useRef(null);
   const passwordInputRef = useRef(null);
@@ -113,6 +115,10 @@ export function CustomerLoginPage({
           ? passwordInputRef.current
           : phoneInputRef.current;
     target?.focus();
+  }, [stage]);
+
+  useEffect(() => {
+    captchaTokenRef.current = null;
   }, [stage]);
 
   const resetCaptcha = () => {
@@ -249,6 +255,37 @@ export function CustomerLoginPage({
     }
   };
 
+  // Resending keeps the current phone and reset/signup intent. The existing
+  // hook owns shouldCreateUser; this must not repeat the phone lookup.
+  const handleResendOtp = async () => {
+    if (submitting || resendInFlight.current || otpCooldown > 0) return;
+    if (!captchaTokenRef.current) {
+      setLocalError(CAPTCHA_PENDING_ERROR);
+      return;
+    }
+    const token = captchaTokenRef.current;
+    resendInFlight.current = true;
+    setSubmitting(true);
+    setLocalError("");
+    setResendStatus("");
+    // Turnstile tokens are single-use, including after an uncertain failure.
+    resetCaptcha();
+    try {
+      const result = await onSendOtp(token);
+      if (!result?.error) {
+        setCode("");
+        setOtpCooldown(OTP_RESEND_SECONDS);
+        setResendStatus("A new code has been sent.");
+        codeInputRef.current?.focus();
+      }
+    } catch {
+      setLocalError("We couldn't send another code. Please try again.");
+    } finally {
+      resendInFlight.current = false;
+      setSubmitting(false);
+    }
+  };
+
   // Stage "code": verify the 6-digit code.
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
@@ -273,6 +310,7 @@ export function CustomerLoginPage({
     setOtpIsReset(false);
     setPassword("");
     setCode("");
+    setResendStatus("");
     setLocalDigits("");
     setLocalError("");
     resetCaptcha();
@@ -329,6 +367,7 @@ export function CustomerLoginPage({
           <p className="portal-text-kicker text-center mb-3">Quick security check</p>
           <div className="flex justify-center">
             <Turnstile
+              key={stage}
               ref={turnstileRef}
               siteKey={turnstileConfig.siteKey}
               onSuccess={(token) => {
@@ -624,9 +663,8 @@ export function CustomerLoginPage({
                 names only "sign-in, sign-up and password reset forms" and
                 enumerates no endpoints, so there is no contract to cite.
 
-                Why it stays ungated: this stage renders no Turnstile panel and
-                has no resend, so gating it would strand a customer holding a
-                valid texted code with no way forward. If /verify ever DID
+                Why it stays ungated: verification must still accept an already
+                received code when the separate resend CAPTCHA cannot load. If /verify ever DID
                 enforce, gating the button would not help them — it would just
                 fail earlier.
 
@@ -642,6 +680,16 @@ export function CustomerLoginPage({
               >
                 {submitting ? "Checking…" : "Sign in"}
               </button>
+              {turnstilePanel}
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={submitting || otpCooldown > 0 || captchaUnavailable}
+                className={linkButtonClass}
+              >
+                {otpCooldown > 0 ? `Resend code in ${otpCooldown}s` : "Resend code"}
+              </button>
+              <p role="status" className="text-sm text-center">{resendStatus}</p>
               <button type="button" onClick={handleUseDifferentNumber} className={linkButtonClass}>
                 Use a different number
               </button>
