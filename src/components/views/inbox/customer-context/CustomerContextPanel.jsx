@@ -95,7 +95,7 @@ export function CustomerContextPanel({
               Staff edit them on the full profile. */}
           {!loading && !error && displayHuman && displayHuman.notes && (
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+              <div className="text-micro font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Notes
               </div>
               <div className="text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
@@ -141,7 +141,7 @@ export function CustomerContextPanel({
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
-                      <span className="text-[10px] font-semibold">Call</span>
+                      <span className="text-micro font-semibold">Call</span>
                     </a>
                   )}
                   {waMe && (
@@ -156,7 +156,7 @@ export function CustomerContextPanel({
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                       </svg>
-                      <span className="text-[10px] font-semibold">WhatsApp</span>
+                      <span className="text-micro font-semibold">WhatsApp</span>
                     </a>
                   )}
                   {displayHuman.email && (
@@ -170,7 +170,7 @@ export function CustomerContextPanel({
                         <rect x="2" y="4" width="20" height="16" rx="2" />
                         <path d="m22 7-10 6L2 7" />
                       </svg>
-                      <span className="text-[10px] font-semibold">Email</span>
+                      <span className="text-micro font-semibold">Email</span>
                     </a>
                   )}
                 </div>
@@ -188,7 +188,7 @@ export function CustomerContextPanel({
                       onClick={() => onOpenHuman(displayHuman.id)}
                       title="Open full profile"
                       aria-label="Open full profile"
-                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-[11px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -203,7 +203,7 @@ export function CustomerContextPanel({
                       onClick={handleUpdateNotes}
                       disabled={updatingNotes}
                       title="Have the AI read this chat and save any durable customer notes and dog grooming requests to their records. Nothing is sent to the customer."
-                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-[11px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
                     >
                       {updatingNotes ? (
                         <>
@@ -261,7 +261,7 @@ export function CustomerContextPanel({
 function Section({ title, children }) {
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+      <div className="text-micro font-bold uppercase tracking-wider text-ink-muted mb-1.5">
         {title}
       </div>
       {children}
@@ -273,7 +273,7 @@ function DetailLine({ label, value, href, multiline, accent }) {
   const valueClass = `text-[12px] text-brand-purple ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
   return (
     <div className="mb-1.5 last:mb-0">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+      <div className="text-micro font-bold uppercase tracking-wider text-ink-muted">
         {label}
       </div>
       {href ? (

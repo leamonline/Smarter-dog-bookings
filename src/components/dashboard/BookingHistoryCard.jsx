@@ -47,7 +47,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            <h2 className="text-micro font-bold text-slate-500 uppercase tracking-wider">
               Recent booking activity
             </h2>
             {!isExpanded && (
@@ -72,7 +72,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
         </div>
 
         {error && (
-          <div role="alert" className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
+          <div role="alert" className="text-caption text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
             Couldn&apos;t load activity — give it another go.
             <button type="button" onClick={refresh} className="ml-2 underline font-semibold cursor-pointer bg-transparent border-none">
               Retry
@@ -103,7 +103,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-slate-700">{eventSentence(e)}</p>
-                      <p className={`text-[10px] mt-0.5 ${tone.pill}`}>
+                      <p className={`text-micro mt-0.5 ${tone.pill}`}>
                         <span className="font-semibold uppercase tracking-wide">{tone.label}</span>
                         <span className="text-slate-400 font-normal"> · {formatRelative(e.occurred_at)}</span>
                       </p>

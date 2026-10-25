@@ -113,7 +113,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
       </p>
 
       <label className="block">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Day</span>
+        <span className="text-caption font-bold text-slate-500 uppercase tracking-wide block mb-1">Day</span>
         <input
           type="date"
           value={date}
@@ -123,7 +123,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
       </label>
 
       <label className="block">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Reason / message</span>
+        <span className="text-caption font-bold text-slate-500 uppercase tracking-wide block mb-1">Reason / message</span>
         <textarea
           value={reason}
           onChange={(e) => { setReason(e.target.value); setResult(null); }}
@@ -131,7 +131,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           placeholder="e.g. we’re closed Monday for a burst pipe — we’ll be in touch to rebook"
           className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none resize-y focus:border-brand-purple"
         />
-        <span className="text-[11px] text-slate-400 mt-1 block">
+        <span className="text-caption text-slate-400 mt-1 block">
           This fills the approved template: “Hi [name], an important update about your grooming appointment at Smarter Dog Grooming Salon: [your reason]. Please reply to this message and we’ll help with whatever you need.”
         </span>
       </label>
@@ -171,7 +171,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
 
           {skipped.length > 0 && (
             <div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+              <div className="text-caption font-bold text-slate-500 uppercase tracking-wide mb-1">
                 {skipped.length} can’t be reached this way
               </div>
               <ul className="text-[12px] text-slate-600 flex flex-col gap-0.5 max-h-32 overflow-y-auto">

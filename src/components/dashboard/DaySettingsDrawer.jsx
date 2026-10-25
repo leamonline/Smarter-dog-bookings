@@ -88,7 +88,7 @@ export function DaySettingsDrawer({
                 <div className="text-sm font-bold text-brand-purple">
                   {isOpen ? "Close this day" : "Open this day"}
                 </div>
-                <div className="text-[11px] text-slate-500">
+                <div className="text-caption text-slate-500">
                   {isOpen
                     ? bookingCount > 0
                       ? `${bookingCount} ${bookingCount === 1 ? "booking" : "bookings"} would need rearranging`
@@ -113,7 +113,7 @@ export function DaySettingsDrawer({
                   <div className="text-sm font-bold text-brand-purple">
                     Close part of the day
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-caption text-slate-500">
                     A late start or early finish, in half-hour steps
                   </div>
                 </div>
@@ -137,7 +137,7 @@ export function DaySettingsDrawer({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-brand-purple">Add an extra slot</div>
-                  <div className="text-[11px] text-slate-500">Add 30 minutes to the end of the day</div>
+                  <div className="text-caption text-slate-500">Add 30 minutes to the end of the day</div>
                 </div>
               </button>
 
@@ -154,7 +154,7 @@ export function DaySettingsDrawer({
                     <div className="text-sm font-bold text-brand-coral">
                       Remove {formatDisplay(lastSlot)} slot
                     </div>
-                    <div className="text-[11px] text-slate-500">Drop the last extra slot</div>
+                    <div className="text-caption text-slate-500">Drop the last extra slot</div>
                   </div>
                 </button>
               )}
@@ -176,7 +176,7 @@ export function DaySettingsDrawer({
               </span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-brand-purple">Print day sheet</div>
-                <div className="text-[11px] text-slate-500">Today's schedule for the salon</div>
+                <div className="text-caption text-slate-500">Today's schedule for the salon</div>
               </div>
             </button>
           </section>

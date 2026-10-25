@@ -80,7 +80,7 @@ export function BookingHeader({
             Appointment
           </span>
           <span
-            className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+            className="inline-flex items-center text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
             style={{ background: statusObj.bg, color: statusObj.color }}
           >
             {statusObj.label}
@@ -187,13 +187,13 @@ export function BookingHeader({
               .map((alertLabel) => (
                 <span
                   key={alertLabel}
-                  className={`py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap ${alertTint(alertLabel)}`}
+                  className={`py-1 px-2.5 rounded-full text-micro font-extrabold whitespace-nowrap ${alertTint(alertLabel)}`}
                 >
                   {alertLabel}
                 </span>
               ))}
             {allergyText && (
-              <span className="py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap bg-rose-50 text-[#B83A4F] border border-rose-200">
+              <span className="py-1 px-2.5 rounded-full text-micro font-extrabold whitespace-nowrap bg-rose-50 text-[#B83A4F] border border-rose-200">
                 Allergic to {allergyText}
               </span>
             )}

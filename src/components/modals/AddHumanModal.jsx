@@ -202,14 +202,14 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
         <form id="add-human-form" onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="add-human-first" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
+              <label htmlFor="add-human-first" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
               <input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                 autoFocus />
             </div>
             <div>
-              <label htmlFor="add-human-surname" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
+              <label htmlFor="add-human-surname" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
               <input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
@@ -217,21 +217,21 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           </div>
 
           <div>
-            <label htmlFor="add-human-phone" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Phone *</label>
+            <label htmlFor="add-human-phone" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Phone *</label>
             <input id="add-human-phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
-            <label htmlFor="add-human-email" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Email</label>
+            <label htmlFor="add-human-email" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Email</label>
             <input id="add-human-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
-            <label htmlFor="add-human-address" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Address</label>
+            <label htmlFor="add-human-address" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Address</label>
             <input id="add-human-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
@@ -253,7 +253,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           {/* Link dogs */}
           {dogs && onUpdateDog && (
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
+              <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
                 Dogs they own
                 <span className="font-medium normal-case tracking-normal text-slate-400 ml-1.5">optional</span>
               </label>
@@ -269,7 +269,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                         type="button"
                         onClick={() => removeDog(dog.id || dog.name)}
                         aria-label={`Remove ${dog.name}`}
-                        className="w-4 h-4 flex items-center justify-center rounded-full bg-brand-cyan-dark/10 hover:bg-brand-cyan-dark/25 text-brand-cyan-dark text-[11px] font-bold cursor-pointer border-none"
+                        className="w-4 h-4 flex items-center justify-center rounded-full bg-brand-cyan-dark/10 hover:bg-brand-cyan-dark/25 text-brand-cyan-dark text-caption font-bold cursor-pointer border-none"
                       >
                         {"\u00D7"}
                       </button>
@@ -311,7 +311,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                             )}
                           </div>
                           {ownerLabel && (
-                            <div className="text-[11px] text-brand-coral font-semibold">
+                            <div className="text-caption text-brand-coral font-semibold">
                               {titleCase(ownerLabel)}'s dog — we'll move them over if you want.
                             </div>
                           )}
@@ -325,7 +325,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           )}
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Notes</label>
+            <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes about this person..." rows={2}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
           </div>

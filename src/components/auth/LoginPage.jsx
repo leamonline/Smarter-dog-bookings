@@ -18,7 +18,7 @@ const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--sd-navy)]";
 
 const kickerClass =
-  "font-bold text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-light)]";
+  "font-bold text-caption uppercase tracking-[0.08em] text-[var(--sd-ink-light)]";
 
 // Tailwind stand-in for portal-alert--error from customer-portal.css, which
 // isn't loaded on the staff app. (The inputs are the shared <Input surface="paper">.)

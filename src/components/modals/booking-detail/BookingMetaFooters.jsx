@@ -59,7 +59,7 @@ function CreatedByFooter({ name, role, at }) {
   const when = formatWhen(at);
   return (
     <div className="px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-[12px] font-semibold leading-snug">
-      <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1 text-ink-muted">Booked</span>
+      <span className="uppercase text-micro font-extrabold tracking-wider mr-1 text-ink-muted">Booked</span>
       Booked by {name}{roleSuffix}{when ? ` on ${when}` : ""}.
     </div>
   );
@@ -93,7 +93,7 @@ function OverrideAuditFooter({ by, at }) {
 
   return (
     <div className="px-3 py-2.5 mb-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
-      <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Override</span>
+      <span className="uppercase text-micro font-extrabold tracking-wider mr-1">Override</span>
       Capacity overridden by {who}{when}.
     </div>
   );
@@ -122,7 +122,7 @@ function ConfirmedFooter({ at, by }) {
 
   return (
     <div className="px-3 py-2.5 mb-3 bg-brand-green-50 border border-brand-green-200 text-brand-green-800 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
-      <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Confirmed</span>
+      <span className="uppercase text-micro font-extrabold tracking-wider mr-1">Confirmed</span>
       {by === "staff"
         ? `Confirmed by staff on ${when}.`
         : `Customer confirmed via WhatsApp on ${when}.`}

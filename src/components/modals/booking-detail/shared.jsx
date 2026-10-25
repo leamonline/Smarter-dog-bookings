@@ -124,7 +124,7 @@ export function DetailRow({
 export function Row({ label, value, last = false, onClick }) {
   return (
     <div className={`flex max-[480px]:flex-col justify-between items-start gap-3 max-[480px]:gap-0.5 py-3 ${last ? "" : "border-b border-slate-100"}`}>
-      <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500 shrink-0 pt-0.5 max-[480px]:pt-0">
+      <span className="text-caption font-bold tracking-[0.08em] uppercase text-slate-500 shrink-0 pt-0.5 max-[480px]:pt-0">
         {label}
       </span>
       <span

@@ -296,7 +296,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           {/* Name, Gender & Breed */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="add-dog-name" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Dog Name *</label>
+              <label htmlFor="add-dog-name" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Dog Name *</label>
               <input
                 id="add-dog-name"
                 value={name}
@@ -312,7 +312,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               )}
             </div>
             <div>
-              <label htmlFor="add-dog-gender" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
+              <label htmlFor="add-dog-gender" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
               <select id="add-dog-gender" value={gender} onChange={(e) => setGender(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                 <option value="">Select</option>
@@ -324,7 +324,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           {/* Breed & Size */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="add-dog-breed" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Breed *</label>
+              <label htmlFor="add-dog-breed" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Breed *</label>
               <select
                 id="add-dog-breed"
                 value={breed}
@@ -367,7 +367,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               )}
             </div>
             <div>
-              <label htmlFor="add-dog-size" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
+              <label htmlFor="add-dog-size" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
                 Size
                 <span role="status" aria-live="polite" aria-atomic="true">
                   {sizeAutoSet && !sizeOverridden && (
@@ -406,7 +406,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
 
           {/* DOB */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Date of Birth</label>
+            <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Date of Birth</label>
             <div className="flex gap-1.5">
               <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
                 className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
@@ -428,7 +428,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           {/* Colour & Neutered */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="add-dog-colour" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Colour / Markings</label>
+              <label htmlFor="add-dog-colour" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Colour / Markings</label>
               <input
                 id="add-dog-colour"
                 value={colour}
@@ -437,7 +437,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
             <div>
-              <label htmlFor="add-dog-neutered" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Neutered</label>
+              <label htmlFor="add-dog-neutered" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Neutered</label>
               <select id="add-dog-neutered" value={neutered} onChange={(e) => setNeutered(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                 <option value="">Select</option>
@@ -450,7 +450,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           {/* Microchip & Vet */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="add-dog-microchip" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Microchip</label>
+              <label htmlFor="add-dog-microchip" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Microchip</label>
               <input
                 id="add-dog-microchip"
                 value={microchip}
@@ -459,7 +459,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
             <div>
-              <label htmlFor="add-dog-vet" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Vet</label>
+              <label htmlFor="add-dog-vet" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Vet</label>
               <input
                 id="add-dog-vet"
                 value={vet}
@@ -471,7 +471,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
 
           {/* Owner */}
           <div>
-            <label htmlFor="add-dog-owner" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Owner *</label>
+            <label htmlFor="add-dog-owner" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Owner *</label>
             {selectedOwner && !showNewOwner ? (
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-[#E6F5F2] px-3.5 py-2.5 rounded-lg">
@@ -553,7 +553,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               </div>
             ) : (
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide mb-2">New Owner</div>
+                <div className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide mb-2">New Owner</div>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text" placeholder="First name" value={newOwnerName}
@@ -592,7 +592,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
 
           {/* Groom Notes */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Groom Notes</label>
+            <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Groom Notes</label>
             <textarea value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
               placeholder="Teddy bear cut, short on ears..." rows={2}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
@@ -600,7 +600,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
 
           {/* Alerts */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Alerts</label>
+            <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Alerts</label>
             <div className="flex flex-wrap gap-1.5">
               {ALERT_OPTIONS.map((opt) => {
                 const active = alerts.includes(opt.label);
@@ -612,7 +612,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                       if (active) setAlerts(alerts.filter((a) => a !== opt.label));
                       else setAlerts([...alerts, opt.label]);
                     }}
-                    className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
+                    className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
                     style={{
                       background: active ? opt.color : "#FFFFFF",
                       color: active ? "#FFFFFF" : opt.color,
@@ -626,7 +626,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               <button
                 type="button"
                 onClick={() => setHasAllergy(!hasAllergy)}
-                className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
+                className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
                 style={{
                   background: hasAllergy ? "var(--color-brand-coral)" : "#FFFFFF",
                   color: hasAllergy ? "#FFFFFF" : "var(--color-brand-coral)",

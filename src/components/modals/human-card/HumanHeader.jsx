@@ -72,7 +72,7 @@ export function HumanHeader({
               Human profile
             </span>
             {isPendingSignup && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-micro font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                 <Clock size={10} strokeWidth={2.6} aria-hidden="true" />
                 Pending approval
               </span>
@@ -80,7 +80,7 @@ export function HumanHeader({
             {human?.depositRequired && (
               <span
                 title="Every booking for this customer awaits a bank-transfer deposit"
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                className="inline-flex items-center gap-1 text-micro font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
               >
                 <PiggyBank size={10} strokeWidth={2.6} aria-hidden="true" />
                 Deposit customer
@@ -89,7 +89,7 @@ export function HumanHeader({
             {(human?.blockedSlots?.length ?? 0) > 0 && (
               <span
                 title={`Blocked times: ${human.blockedSlots.join(", ")}`}
-                className="inline-flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                className="inline-flex items-center text-micro font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
               >
                 {human.blockedSlots.length} blocked {human.blockedSlots.length === 1 ? "time" : "times"}
               </span>
@@ -98,14 +98,14 @@ export function HumanHeader({
               (human.whatsappOptedOutReason === STOP_REASON ? (
                 <span
                   title={`Said STOP on WhatsApp · ${optOutTimeLabel(human.whatsappOptedOutAt)}`}
-                  className="inline-flex items-center text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                  className="inline-flex items-center text-micro font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
                 >
                   WhatsApp stopped
                 </span>
               ) : (
                 <span
                   title={`WhatsApp switched off · ${optOutReasonLabel(human.whatsappOptedOutReason)} · since ${optOutTimeLabel(human.whatsappOptedOutAt)}`}
-                  className="inline-flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                  className="inline-flex items-center text-micro font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
                 >
                   WhatsApp off
                 </span>
@@ -188,7 +188,7 @@ export function HumanHeader({
                         onClick={(e) => e.stopPropagation()}
                         aria-label={`Message ${human.phone} on WhatsApp`}
                         title="Open in WhatsApp"
-                        className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 max-sm:min-h-[44px] max-sm:px-3 rounded-md no-underline hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        className="inline-flex items-center text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 max-sm:min-h-[44px] max-sm:px-3 rounded-md no-underline hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                       >
                         WA
                       </a>

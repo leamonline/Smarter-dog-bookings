@@ -119,7 +119,7 @@ export function LinkDogActions({
                       )}
                     </div>
                     {ownerLabel && (
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-caption text-slate-400">
                         Owner: {titleCase(ownerLabel)}
                       </div>
                     )}

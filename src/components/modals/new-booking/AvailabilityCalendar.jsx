@@ -81,7 +81,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-0.5 mb-1">
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
-          <div key={d} className="text-center text-[10px] font-bold text-slate-500 py-0.5">{d}</div>
+          <div key={d} className="text-center text-micro font-bold text-slate-500 py-0.5">{d}</div>
         ))}
       </div>
 
@@ -169,7 +169,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
 
       {/* Legend — closed and fully-booked days are both unbookable but mean
           different things, so map the colours rather than leaving staff to guess. */}
-      <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-semibold text-slate-500">
+      <div className="mt-2.5 flex items-center justify-center gap-3 text-micro font-semibold text-slate-500">
         <span className="inline-flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#DCFCE7", border: "1px solid #16A34A" }} aria-hidden="true" />
           Available

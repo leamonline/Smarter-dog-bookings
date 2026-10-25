@@ -109,7 +109,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
                     {day}
                   </span>
                   {d.closed ? (
-                    <div className="col-span-2 text-center text-[11px] font-bold text-brand-red bg-red-100 py-2 rounded-lg">
+                    <div className="col-span-2 text-center text-caption font-bold text-brand-red bg-red-100 py-2 rounded-lg">
                       CLOSED
                     </div>
                   ) : (

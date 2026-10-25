@@ -49,7 +49,7 @@ export function DogCardHeader({
           </span>
           {resolvedDog.size && (
             <span
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              className="inline-flex items-center gap-1.5 text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
               style={{
                 background: sizeTheme.light,
                 color: SIZE_PILL_TEXT[resolvedDog.size] || "#475569",
@@ -65,7 +65,7 @@ export function DogCardHeader({
           )}
           {incomplete && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300"
               title="Missing size, breed or owner — please complete this profile"
             >
               Incomplete profile

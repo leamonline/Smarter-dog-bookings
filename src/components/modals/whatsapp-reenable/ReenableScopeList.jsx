@@ -21,7 +21,7 @@ function ScopeRow({ record, isCurrent, onOpenProfile, disabled }) {
             {recordDisplayName(record)}
           </span>
           {isCurrent && (
-            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-teal-text bg-[#E6F5F2] px-1.5 py-0.5 rounded-md">
+            <span className="text-micro font-bold uppercase tracking-wider text-brand-teal-text bg-[#E6F5F2] px-1.5 py-0.5 rounded-md">
               This customer
             </span>
           )}

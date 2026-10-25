@@ -243,7 +243,7 @@ export function StackCard({
               aria-expanded={expanded}
               aria-controls={drawerId}
               onClick={() => { if (!expanded) onToggle(); }}
-              className="flex h-11 min-w-0 max-w-full items-center gap-1 text-left text-[11px] font-semibold text-brand-coral-text"
+              className="flex h-11 min-w-0 max-w-full items-center gap-1 text-left text-caption font-semibold text-brand-coral-text"
             >
               <AlertTriangle size={14} className="shrink-0" aria-hidden="true" />
               <span className="truncate rounded bg-brand-coral-light px-1.5 py-1">
@@ -259,7 +259,7 @@ export function StackCard({
               aria-expanded={expanded}
               aria-controls={drawerId}
               onClick={() => { if (!expanded) onToggle(); }}
-              className="flex h-11 min-w-0 items-center gap-1 text-left text-[11px] font-semibold"
+              className="flex h-11 min-w-0 items-center gap-1 text-left text-caption font-semibold"
               style={{ color: "var(--card-ink)" }}
             >
               <PhoneOff size={14} className="shrink-0" aria-hidden="true" />
