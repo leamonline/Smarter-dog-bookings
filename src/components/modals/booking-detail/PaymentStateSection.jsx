@@ -192,7 +192,7 @@ export function PaymentStateSection({
       data-testid="payment-state"
       data-priority={isReady && !isPaid ? "high" : "normal"}
       aria-busy={savingMethod ? "true" : undefined}
-      className={`rounded-xl px-3 py-3 ${isPaid ? "bg-emerald-50" : "bg-amber-50"}`}
+      className={`rounded-xl px-3 py-3 ${isPaid ? "bg-emerald-50" : "bg-feedback-warning-tint"}`}
     >
       {isPaid ? (
         <p className="text-[14px] font-bold text-emerald-800">
@@ -203,7 +203,7 @@ export function PaymentStateSection({
         </p>
       ) : (
         <>
-          <p className="text-[14px] font-bold text-amber-900">
+          <p className="text-[14px] font-bold text-feedback-warning-ink">
             {hasRecordedDeposit && !hasBalanceToCollect
               ? `£${depositPaid} deposit paid · no balance to collect`
               : hasRecordedDeposit

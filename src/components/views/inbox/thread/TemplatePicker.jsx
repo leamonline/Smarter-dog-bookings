@@ -96,14 +96,14 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
         // When the notice has been hoisted above the thread (inbox), keep
         // the control surface neutral so there's a single amber alert, not
         // two. Standalone (compose-new) it stays amber and self-explains.
-        hideBanner ? "bg-white border-slate-200" : "bg-amber-50 border-amber-200"
+        hideBanner ? "bg-white border-slate-200" : "bg-feedback-warning-tint border-brand-mustard-tint"
       }`}
     >
       {!hideBanner && (
-        <p className="text-caption leading-snug text-amber-900">
+        <p className="text-caption leading-snug text-feedback-warning-ink">
           <span aria-hidden="true">⏱ </span>
           <span className="font-bold">24-hour reply window closed.</span>{" "}
-          <span className="text-amber-800">Send a template to reopen the chat.</span>
+          <span className="text-feedback-warning-ink">Send a template to reopen the chat.</span>
         </p>
       )}
 

@@ -41,7 +41,7 @@ export function SmsComposer({ firstName, dogNames, date, slot, service, phoneDis
       />
 
       <div className="flex items-center justify-between gap-2 flex-wrap text-caption">
-        <span className={`tabular-nums ${overOneSegment ? "text-amber-700 font-semibold" : "text-sky-900"}`}>
+        <span className={`tabular-nums ${overOneSegment ? "text-feedback-warning-ink font-semibold" : "text-sky-900"}`}>
           {info.length} char{info.length === 1 ? "" : "s"} · {info.segments} segment
           {info.segments === 1 ? "" : "s"} · {info.encoding}
           {overOneSegment ? " — over 1 segment" : ""}

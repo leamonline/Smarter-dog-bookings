@@ -185,20 +185,20 @@ export function ConversationPane({
         {loadingList ? (
           <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
         ) : listError ? (
-          <div role="alert" className="m-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <h2 className="text-sm font-bold text-amber-900">We can&apos;t load your messages right now</h2>
-            <p className="mt-1 text-xs text-amber-800">
+          <div role="alert" className="m-4 rounded-2xl border border-brand-mustard-tint bg-feedback-warning-tint p-4">
+            <h2 className="text-sm font-bold text-feedback-warning-ink">We can&apos;t load your messages right now</h2>
+            <p className="mt-1 text-xs text-feedback-warning-ink">
               The inbox is temporarily unavailable. This usually clears within a minute. If it keeps happening, the dashboard&apos;s WhatsApp widget may still show recent threads.
             </p>
             <button
               type="button"
               onClick={refreshList}
-              className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1.5 text-xs font-bold text-amber-50 hover:bg-amber-950"
+              className="mt-3 inline-flex items-center gap-1 rounded-full bg-feedback-warning-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-purple"
             >
               Try again
             </button>
             {import.meta.env.DEV && (
-              <details className="mt-3 text-micro text-amber-700">
+              <details className="mt-3 text-micro text-feedback-warning-ink">
                 <summary>Dev: error details</summary>
                 <pre className="mt-1 whitespace-pre-wrap">{String(listError?.message || listError)}</pre>
               </details>

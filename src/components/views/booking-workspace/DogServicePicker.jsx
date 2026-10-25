@@ -64,7 +64,7 @@ function DogRow({
           ) : null}
         </span>
         {!selectable ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-micro font-bold text-amber-900">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-feedback-warning-tint px-2 py-1 text-micro font-bold text-feedback-warning-ink">
             <CircleAlert aria-hidden="true" size={12} />
             Size needed
           </span>

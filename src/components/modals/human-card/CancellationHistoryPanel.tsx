@@ -25,7 +25,7 @@ export function CancellationHistoryPanel({ humanId }: { humanId: string }) {
     <h3 className="text-sm font-bold">Late cancellations</h3>
     {error ? <p role="alert">Couldn’t load or update cancellation history. <button type="button" onClick={() => setRefresh((n) => n + 1)}>Try again</button></p> : !history ? <p role="status">Loading cancellation history…</p> : <>
       <p>{history.count} in the last 12 months</p>
-      {history.reviewRequired && <p className="text-amber-800 font-semibold">Review deposits: three or more late cancellations. Use the Deposit required switch if appropriate.</p>}
+      {history.reviewRequired && <p className="text-feedback-warning-ink font-semibold">Review deposits: three or more late cancellations. Use the Deposit required switch if appropriate.</p>}
       <p className="text-xs text-slate-500">Latest 50 records shown. One record per appointment. Waived records do not count. Deposits remain a staff decision.</p>
       {!history.items.length ? <p>No late cancellations recorded.</p> : <ul>{history.items.map((item) => <li key={item.id} className="border-t py-2 text-sm">
         <p>Appointment: {item.bookingDate} · Cancelled {new Date(item.requestedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })}</p>

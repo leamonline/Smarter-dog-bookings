@@ -10,7 +10,7 @@ function statusChip(c) {
   if (c.status === "overdue") {
     return <span className="text-micro font-bold text-brand-coral-dark bg-brand-coral/15 rounded-full px-1.5 py-0.5">{c.overdueDays}d overdue</span>;
   }
-  return <span className="text-micro font-bold text-amber-700 bg-amber-100 rounded-full px-1.5 py-0.5">due in {c.dueInDays}d</span>;
+  return <span className="text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint rounded-full px-1.5 py-0.5">due in {c.dueInDays}d</span>;
 }
 
 export function RetentionReport() {

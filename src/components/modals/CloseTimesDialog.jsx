@@ -255,7 +255,7 @@ export function CloseTimesDialog({
         {/* Only worth warning about before the closure exists. Afterwards the
             bookings are already flagged on the card itself. */}
         {!timesLocked && clashes.length > 0 && (
-          <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          <p className="text-[12px] text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-xl px-3 py-2">
             {clashes.length} {clashes.length === 1 ? "booking sits" : "bookings sit"} in these
             times. {clashes.length === 1 ? "It'll be flagged" : "They'll be flagged"} NEEDS
             ATTENTION on the calendar until you move or cancel{" "}

@@ -136,11 +136,11 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
                     )}
                     {item.reason && <p className="mt-2 rounded-lg bg-sky-50 px-2 py-1.5 text-sky-900"><span className="font-bold">Reason:</span> {item.reason}</p>}
                     {selectedId === item.id && (
-                      <form onSubmit={submitRestore} className="mt-3 rounded-lg bg-amber-50 p-3">
-                        <p className="font-bold text-amber-950">Restore the values from before this change?</p>
-                        <p className="mt-1 leading-4 text-amber-900">This corrects the booking record. It does not charge or refund anyone.</p>
-                        <label className="mt-3 block font-bold text-amber-950" htmlFor={`restore-reason-${item.id}`}>Correction reason</label>
-                        <textarea id={`restore-reason-${item.id}`} required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="What was entered incorrectly? Avoid customer or banking details." className="mt-1 min-h-20 w-full rounded-lg border border-amber-300 bg-white p-2 text-[13px] text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-teal" />
+                      <form onSubmit={submitRestore} className="mt-3 rounded-lg bg-feedback-warning-tint p-3">
+                        <p className="font-bold text-feedback-warning-ink">Restore the values from before this change?</p>
+                        <p className="mt-1 leading-4 text-feedback-warning-ink">This corrects the booking record. It does not charge or refund anyone.</p>
+                        <label className="mt-3 block font-bold text-feedback-warning-ink" htmlFor={`restore-reason-${item.id}`}>Correction reason</label>
+                        <textarea id={`restore-reason-${item.id}`} required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="What was entered incorrectly? Avoid customer or banking details." className="mt-1 min-h-20 w-full rounded-lg border border-brand-mustard-tint bg-white p-2 text-[13px] text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-teal" />
                         {restoreError && (
                           <div role="alert" className="mt-2 font-semibold text-red-700">
                             <p>{restoreError}</p>

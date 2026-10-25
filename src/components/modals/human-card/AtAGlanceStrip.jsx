@@ -27,7 +27,7 @@ function formatShortDate(iso) {
 function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel, highlight }) {
   const valueClass =
     tone === "amber"
-      ? "text-amber-700"
+      ? "text-feedback-warning-ink"
       : tone === "teal"
         ? "text-brand-teal-text"
         : tone === "muted"

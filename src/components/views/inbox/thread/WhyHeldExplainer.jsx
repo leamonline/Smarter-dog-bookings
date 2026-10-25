@@ -13,7 +13,7 @@ export { whyHeld };
 
 const TONE_STYLES = {
   high: "bg-red-50 border-red-200 text-red-900",
-  medium: "bg-amber-50 border-amber-300 text-amber-900",
+  medium: "bg-feedback-warning-tint border-brand-mustard-tint text-feedback-warning-ink",
   info: "bg-slate-50 border-slate-200 text-slate-700",
 };
 

@@ -275,7 +275,7 @@ export function BookingPane({
           The salon is closed on this date. Existing appointments remain visible for context.
         </div>
       ) : atLimit ? (
-        <div role="status" className="m-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div role="status" className="m-3 flex items-start gap-2 rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-2 text-xs text-feedback-warning-ink">
           <CircleAlert aria-hidden="true" size={17} className="mt-0.5 shrink-0" />
           Three draft times are already selected. Remove one before choosing another.
         </div>

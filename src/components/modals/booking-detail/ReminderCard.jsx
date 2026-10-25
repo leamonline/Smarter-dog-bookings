@@ -45,10 +45,10 @@ const STATE_CONFIG = {
     status: () => "No reminder sent yet",
   },
   sent: {
-    card: "bg-amber-50 border-amber-200",
-    chip: "bg-amber-100 text-amber-700",
-    eyebrow: "text-amber-700/80",
-    statusTone: "text-amber-900",
+    card: "bg-feedback-warning-tint border-brand-mustard-tint",
+    chip: "bg-feedback-warning-tint text-feedback-warning-ink",
+    eyebrow: "text-feedback-warning-ink/80",
+    statusTone: "text-feedback-warning-ink",
     StatusIcon: Check,
     action: null, // read-only once sent — reminder-send is idempotent (no resend)
     status: (ctx) =>

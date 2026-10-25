@@ -39,7 +39,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
             >
               <span
                 aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-feedback-warning-tint text-feedback-warning-ink"
               >
                 <PiggyBank size={14} strokeWidth={2.4} />
               </span>
@@ -54,7 +54,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
               <span
                 className={[
                   "shrink-0 text-[12px] font-bold",
-                  overdue ? "text-brand-coral-text" : "text-amber-700",
+                  overdue ? "text-brand-coral-text" : "text-feedback-warning-ink",
                 ].join(" ")}
               >
                 {timeLeftLabel(minutesLeft, overdue)}

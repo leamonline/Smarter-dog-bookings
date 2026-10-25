@@ -324,7 +324,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                   role="img"
                   aria-label="Capacity overridden by staff"
                   title="Capacity overridden by staff"
-                  className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-100 shrink-0"
+                  className="w-2 h-2 rounded-full bg-brand-mustard ring-2 ring-brand-mustard-tint shrink-0"
                 />
               )}
 
@@ -350,15 +350,15 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             <div className="shrink-0 text-right font-display text-xs sm:text-[13px] font-black tabular-nums flex items-center gap-1.5">
               <span className="text-slate-800">£{pricing.subtotal}</span>
               {isAwaitingDeposit(booking) ? (
-                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded leading-none">
                   Awaiting deposit
                 </span>
               ) : needsPayment ? (
-                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded leading-none">
                   £{pricing.amountDue} due
                 </span>
               ) : pricing.isDepositPaid ? (
-                <span className="text-micro font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none">
+                <span className="text-micro font-bold text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint px-1.5 py-0.5 rounded leading-none">
                   £{pricing.amountDue} due
                 </span>
               ) : pricing.isPaidInFull ? (

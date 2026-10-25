@@ -319,7 +319,7 @@ export function TodoModal({ onClose, onOpenClosureVisit }) {
             {todos.map((todo, i) => (
               <li
                 key={todo.id}
-                className={`group py-1.5 px-2 rounded-lg transition-colors hover:bg-amber-100/40 ${todo.done ? "opacity-50" : ""}`}
+                className={`group py-1.5 px-2 rounded-lg transition-colors hover:bg-feedback-warning-tint/40 ${todo.done ? "opacity-50" : ""}`}
               >
                 {todo.kind === "reschedule_request" &&
                 todo.booking_change_request_id ? (
