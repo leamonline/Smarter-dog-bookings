@@ -43,6 +43,13 @@ import { BookingSummarySidebar } from "./BookingSummarySidebar";
 import { AddToCalendarButton } from "../AddToCalendarButton";
 import { DepositHoldInstructions } from "../DepositHoldInstructions";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
+import { SERVICES } from "../../../constants/salon";
+import {
+  readRepeatEntries,
+  repeatLandingStep,
+  resolveRepeatSeed,
+  type RepeatEntry,
+} from "../../../engine/repeatBooking";
 import { Clipboard, PawPrint, Check, ChevronLeft, ArrowRight } from "lucide-react";
 import "./booking-wizard.css";
 
@@ -225,6 +232,22 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const draft = restored as unknown as BookingDraft | null;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => draft?.step ?? 1);
+
+  // "Book the same groom again" (#1073). The dashboard names dogs and services
+  // from the last visit in route state; nothing is trusted until the fresh dog
+  // list arrives (see the effect below). Never during a reschedule, and never
+  // over a draft the customer hasn't agreed to replace: with a draft in hand
+  // the customer chooses, and carrying on with the draft is the safe default.
+  const [repeatEntries] = useState<RepeatEntry[]>(() => {
+    if (rescheduleFrom) return [];
+    if (new URLSearchParams(location.search).get("again") !== "1") return [];
+    return readRepeatEntries((location.state as { repeatFrom?: unknown } | null)?.repeatFrom);
+  });
+  const draftHasDogs = (draft?.selectedDogs?.length ?? 0) > 0;
+  const [repeatMode, setRepeatMode] = useState<"off" | "ask" | "apply" | "done">(() =>
+    repeatEntries.length === 0 ? "off" : draftHasDogs ? "ask" : "apply",
+  );
+  const [repeatSkipped, setRepeatSkipped] = useState<number | null>(null);
   const [dogs, setDogs] = useState<CustomerDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [dogsError, setDogsError] = useState<string | null>(null);
@@ -420,6 +443,20 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     fetchDogs();
     return () => dogsFetchControllerRef.current?.abort();
   }, [fetchDogs]);
+
+  useEffect(() => {
+    if (repeatMode !== "apply" || dogsLoading) return;
+    setRepeatMode("done");
+    if (dogsError) return;
+    const seed = resolveRepeatSeed(repeatEntries, dogs);
+    if (seed.selectedDogs.length === 0) return;
+    setSelectedDogs(seed.selectedDogs);
+    setServices(seed.services);
+    setSelectedDate(null);
+    setSlotAllocation(null);
+    setRepeatSkipped(repeatEntries.length - seed.selectedDogs.length);
+    setStep(repeatLandingStep(seed));
+  }, [repeatMode, dogsLoading, dogsError, dogs, repeatEntries]);
 
   const toggleDog = (dog: WizardDog) => {
     setSelectedDogs((prev) => {
@@ -1157,8 +1194,60 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           </div>
         )}
 
+        {repeatMode === "ask" && (
+          <div role="group" aria-labelledby="repeat-choice-title" className="wizard-card">
+            <h2 id="repeat-choice-title" className="wizard-step-title">
+              You have a booking half-finished
+            </h2>
+            <p className="wizard-helper">
+              Carry on with it, or start again from the dogs and services of your last visit?
+              Starting again replaces what you picked.
+            </p>
+            <div className="wizard-nav">
+              <button
+                type="button"
+                className="portal-btn portal-btn--cta"
+                onClick={() => setRepeatMode("done")}
+              >
+                Carry on with my booking
+              </button>
+              <button
+                type="button"
+                className="portal-btn portal-btn--secondary"
+                onClick={() => setRepeatMode("apply")}
+              >
+                Start from my last visit
+              </button>
+            </div>
+          </div>
+        )}
+
+        {repeatSkipped !== null && (step === 2 || step === 3) && (
+          <div role="status" className="portal-alert portal-alert--info" style={{ justifyContent: "space-between" }}>
+            <span>
+              <strong>Booking the same again:</strong>{" "}
+              {selectedDogs
+                .map((d) => {
+                  const service = SERVICES.find((s) => s.id === services[d.dogId]);
+                  return service ? `${d.name} (${service.name})` : `${d.name} (pick a service)`;
+                })
+                .join(", ")}
+              .
+              {repeatSkipped > 0 &&
+                " Some dogs from last time couldn't be added, so check the list."}
+            </span>
+            <button
+              type="button"
+              className="portal-btn portal-btn--small"
+              onClick={() => setStep(1)}
+            >
+              Change dogs or services
+            </button>
+          </div>
+        )}
+
         {/* Step content */}
-        {step === 1 && (
+        {repeatMode !== "ask" && step === 1 && (
           <DogSelection
             dogs={dogs}
             selectedDogs={selectedDogs}
@@ -1174,7 +1263,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           />
         )}
 
-        {step === 2 && (
+        {repeatMode !== "ask" && step === 2 && (
           <ServiceSelection
             selectedDogs={selectedDogs}
             services={services}
@@ -1187,7 +1276,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           />
         )}
 
-        {step === 3 && (
+        {repeatMode !== "ask" && step === 3 && (
           <DateSelection
             bookingHorizonDays={bookingHorizonDays}
             selectedDogs={selectedDogs}
@@ -1205,7 +1294,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           />
         )}
 
-        {step === 4 && (
+        {repeatMode !== "ask" && step === 4 && (
           <SlotSelection
             selectedDogs={selectedDogs}
             selectedDate={selectedDate}
@@ -1222,7 +1311,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           />
         )}
 
-        {step === 5 && (
+        {repeatMode !== "ask" && step === 5 && (
           <BookingConfirmation
             selectedDogs={selectedDogs}
             services={services}

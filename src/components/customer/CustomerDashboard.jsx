@@ -14,6 +14,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
+import { lastVisitEntries } from "../../engine/repeatBooking";
 import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
@@ -237,6 +238,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     return map;
   }, [pastBookings]);
 
+  // "Book the same groom again": the dogs and services of the last visit that
+  // actually happened. The wizard re-checks every one against fresh dog data.
+  const repeatEntries = useMemo(
+    () => lastVisitEntries(pastBookings.filter(b => b.status !== BOOKING_STATUS.NO_SHOW)),
+    [pastBookings]
+  );
+
   if (loading) {
     return (
       <div className="portal-loading">
@@ -252,6 +260,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   };
   const firstName = (savedProfile.name || humanName || "there").trim().split(" ")[0];
   const handleBook = () => navigate("/new");
+  const handleBookAgain = () =>
+    navigate("/new?again=1", { state: { repeatFrom: repeatEntries } });
 
 
   return (
@@ -334,6 +344,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             dogs={dogs}
             dataLoaded={loaded.bookings}
             onBook={handleBook}
+            onBookAgain={repeatEntries.length > 0 ? handleBookAgain : undefined}
             onBookingChanged={refreshBookings}
           />
 
