@@ -77,6 +77,7 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@sentry/vite-plugin": "^11.9.0",
