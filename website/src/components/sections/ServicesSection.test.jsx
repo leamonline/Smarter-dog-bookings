@@ -13,9 +13,9 @@ describe('ServicesSection', () => {
     render(<ServicesSection />);
 
     expect(screen.getByText('Full Groom')).toBeInTheDocument();
-    expect(screen.getByText('Maintenance Groom')).toBeInTheDocument();
-    expect(screen.getByText('De-shedding Groom')).toBeInTheDocument();
-    expect(screen.getByText('Puppy Intro')).toBeInTheDocument();
+    expect(screen.getByText('Bath & Brush')).toBeInTheDocument();
+    expect(screen.getByText('Bath & De-shed')).toBeInTheDocument();
+    expect(screen.getByText('Puppy Groom')).toBeInTheDocument();
   });
 
   it('renders additional services', () => {

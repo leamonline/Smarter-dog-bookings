@@ -13,7 +13,7 @@ const ROUTE_SEO = {
   },
   '/services': {
     canonical: '/services',
-    description: 'Explore full groom, maintenance groom, de-shedding, and puppy intro services at Smarter Dog Grooming Salon in Ashton-under-Lyne, Greater Manchester.',
+    description: 'Explore our Full Groom, Bath & Brush, Bath & De-shed and Puppy Groom services at Smarter Dog Grooming Salon in Ashton-under-Lyne, Greater Manchester.',
     robots: 'index,follow',
   },
   '/approach': {

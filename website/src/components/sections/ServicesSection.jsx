@@ -26,7 +26,7 @@ const ServicesSection = () => {
                                 <img src="/assets/icons/full-groom.jpg" alt="" width="128" height="128" loading="lazy" className="w-full h-full rounded-full object-cover" style={{ filter: 'grayscale(100%) brightness(2)' }} />
                             </picture>
                         </div>
-                        {/* Puppy Intro Icon */}
+                        {/* Puppy Groom Icon */}
                         <div className="absolute top-60 left-10 w-24 h-24 opacity-10 animate-float" style={{ animationDelay: '1s' }}>
                             <picture>
                                 <source srcSet="/assets/icons/puppy-intro.webp" type="image/webp" />
@@ -87,10 +87,10 @@ const ServicesSection = () => {
                                 icon={
                                     <picture>
                                         <source srcSet="/assets/icons/maintenance-groom.webp" type="image/webp" />
-                                        <img src="/assets/icons/maintenance-groom.jpg" alt="Maintenance Groom" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
+                                        <img src="/assets/icons/maintenance-groom.jpg" alt="Bath & Brush" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                                     </picture>
                                 }
-                                title="Maintenance Groom"
+                                title="Bath & Brush"
                                 desc="Not due a full groom but looking a bit scruffy? This keeps them fresh and tidy in between."
                                 bestFor="regulars between full grooms"
                                 bgColor={'white'}
@@ -105,7 +105,7 @@ const ServicesSection = () => {
                                         <img src="/assets/icons/deshedding.jpg" alt="De-Shedding" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                                     </picture>
                                 }
-                                title="De-shedding Groom"
+                                title="Bath & De-shed"
                                 desc="For the fluffier breeds who like to redecorate your house with fur. A proper deep clean and undercoat blowout."
                                 bestFor="double coats and heavy shedders"
                                 bgColor={'white'}
@@ -117,10 +117,10 @@ const ServicesSection = () => {
                                 icon={
                                     <picture>
                                         <source srcSet="/assets/icons/puppy-intro.webp" type="image/webp" />
-                                        <img src="/assets/icons/puppy-intro.jpg" alt="Puppy Intro" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
+                                        <img src="/assets/icons/puppy-intro.jpg" alt="Puppy Groom" width="96" height="96" loading="lazy" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                                     </picture>
                                 }
-                                title="Puppy Intro"
+                                title="Puppy Groom"
                                 desc="First salon visit? We take it nice and slow — no rushing, no drama. Just gentle introductions for pups under six months."
                                 bestFor="puppies under six months or nervous first-timers"
                                 bgColor={'white'}

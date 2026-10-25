@@ -37,7 +37,7 @@ const FAQPage = ({ onBookClick }) => {
         },
         {
             question: "How much does a typical visit cost?",
-            answer: "It depends on breed, size, coat condition, and what you'd like done. A full groom for a medium-sized dog typically starts around £35–45. We're happy to give you an estimate when you get in touch — no surprises."
+            answer: "It depends on breed, size, coat condition, and what you'd like done. Full Grooms start from £42. We're happy to give you an estimate when you get in touch — no surprises."
         },
         {
             question: "How should I prepare my dog before their appointment?",

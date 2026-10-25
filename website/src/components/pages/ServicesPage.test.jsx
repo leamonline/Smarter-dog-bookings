@@ -22,8 +22,8 @@ describe('ServicesPage', () => {
     renderPage();
 
     expect(screen.getByText('Full Groom')).toBeInTheDocument();
-    expect(screen.getByText('Maintenance Groom')).toBeInTheDocument();
-    expect(screen.getByText('De-shedding Groom')).toBeInTheDocument();
+    expect(screen.getByText('Bath & Brush')).toBeInTheDocument();
+    expect(screen.getByText('Bath & De-shed')).toBeInTheDocument();
   });
 
   it('renders process timeline section', () => {
