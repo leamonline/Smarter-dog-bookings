@@ -97,7 +97,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
 
         {/* Your details */}
         <fieldset className="mb-5">
-          <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
+          <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">
             Your name
           </legend>
           <div className="flex gap-2">
@@ -122,7 +122,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
 
         {/* Address */}
         <fieldset className="mb-5">
-          <legend className="text-[13px] font-semibold text-[var(--color-ink)] mb-2">
+          <legend className="text-body font-semibold text-[var(--color-ink)] mb-2">
             Your address
           </legend>
           <AddressPicker existingAddress={existingAddress} onChange={setAddr} />
@@ -136,7 +136,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
             onChange={(e) => setPoliciesAccepted(e.target.checked)}
             className="mt-0.5 w-4 h-4 accent-brand-purple shrink-0"
           />
-          <span className="text-[13px] text-[var(--color-ink)] leading-relaxed">
+          <span className="text-body text-[var(--color-ink)] leading-relaxed">
             I agree to Smarter Dog&apos;s{" "}
             <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">
               Terms
@@ -154,7 +154,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
         </label>
 
         {error && (
-          <div role="alert" className="portal-alert portal-alert--error mb-3 text-[13px]">
+          <div role="alert" className="portal-alert portal-alert--error mb-3 text-body">
             {error}
           </div>
         )}
@@ -166,7 +166,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
         <button
           type="button"
           onClick={onSignOut}
-          className="block mx-auto mt-3 text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
+          className="block mx-auto mt-3 text-body text-slate-500 bg-transparent border-none cursor-pointer font-semibold"
         >
           Sign out
         </button>

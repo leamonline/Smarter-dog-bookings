@@ -228,7 +228,7 @@ export function GroomingHistory({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="w-full text-left text-[12px] font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 hover:text-brand-teal transition-colors"
+              className="w-full text-left text-xs font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 hover:text-brand-teal transition-colors"
             >
               {expanded ? "Show fewer" : `Show all ${history.length} \u2192`}
             </button>

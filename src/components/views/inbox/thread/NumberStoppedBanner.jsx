@@ -61,7 +61,7 @@ export function NumberStoppedBanner({ conversation, onReenabled, onOpenHuman }) 
       {lead && (
         <div
           role="status"
-          className={`shrink-0 flex items-start gap-2 px-4 py-2 border-b text-[12px] leading-snug ${
+          className={`shrink-0 flex items-start gap-2 px-4 py-2 border-b text-xs leading-snug ${
             numberStopped ? "bg-rose-50 border-rose-200 text-rose-900" : "bg-slate-50 border-slate-200 text-slate-800"
           }`}
         >

@@ -86,7 +86,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
       </div>
 
       {error && (
-        <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 mb-2">
+        <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 mb-2">
           {error}
         </div>
       )}
@@ -116,7 +116,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Reason for rejecting (optional)"
-                  className="w-full text-[13px] p-2 bg-white border border-slate-200 rounded-lg font-[inherit] resize-y mb-2"
+                  className="w-full text-body p-2 bg-white border border-slate-200 rounded-lg font-[inherit] resize-y mb-2"
                   rows={2}
                   maxLength={500}
                   autoFocus
@@ -171,14 +171,14 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                     <button
                       onClick={() => handleReject(action.id)}
                       disabled={inFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-coral text-white text-[12px] font-bold cursor-pointer disabled:opacity-50 font-[inherit]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-coral text-white text-xs font-bold cursor-pointer disabled:opacity-50 font-[inherit]"
                     >
                       Confirm reject
                     </button>
                     <button
                       onClick={() => { setRejectingId(null); setReason(""); }}
                       disabled={inFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-700 text-[12px] font-semibold cursor-pointer disabled:opacity-50 font-[inherit]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-semibold cursor-pointer disabled:opacity-50 font-[inherit]"
                     >
                       Cancel
                     </button>
@@ -188,14 +188,14 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                     <button
                       onClick={() => handleApply(action)}
                       disabled={inFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-xs font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
                     >
                       Add to diary
                     </button>
                     <button
                       onClick={() => setRejectingId(action.id)}
                       disabled={inFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-600 text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-coral/60 hover:text-brand-coral transition-colors font-[inherit]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-coral/60 hover:text-brand-coral transition-colors font-[inherit]"
                     >
                       Reject
                     </button>
@@ -220,7 +220,7 @@ function FieldDate({ label, value, onChange }) {
         type="date"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-[13px] font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+        className="w-full text-body font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
       />
     </label>
   );
@@ -235,7 +235,7 @@ function FieldSelect({ label, value, onChange, options, placeholder }) {
       <select
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-[13px] font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+        className="w-full text-body font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
       >
         {placeholder && !value && <option value="">{placeholder}…</option>}
         {options.map((opt) => (

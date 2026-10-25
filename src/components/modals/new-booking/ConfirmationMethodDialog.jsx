@@ -35,7 +35,7 @@ export function ConfirmationMethodDialog({ onConfirm, onCancel }) {
           className="w-4 h-4 accent-brand-teal cursor-pointer"
         />
         <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-slate-800 truncate">{label}</span>
+          <span className="block text-body font-semibold text-slate-800 truncate">{label}</span>
           <span className="block text-caption text-slate-400">{sub}</span>
         </span>
       </label>

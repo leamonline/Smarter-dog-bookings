@@ -38,7 +38,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
   return (
     <details data-collected-summary className="mt-5 border-t border-slate-200 pt-3">
       <summary
-        className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-0.5 text-[14px] text-slate-600 [&::-webkit-details-marker]:hidden"
+        className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-0.5 text-sm text-slate-600 [&::-webkit-details-marker]:hidden"
       >
         <span>Collected today</span>
         <span className="flex flex-wrap items-center justify-end gap-x-2 text-right">
@@ -58,12 +58,12 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
       </summary>
 
       {rows.length === 0 ? (
-        <p className="px-0.5 py-2 text-[14px] text-slate-400">Nothing collected yet.</p>
+        <p className="px-0.5 py-2 text-sm text-slate-400">Nothing collected yet.</p>
       ) : (
         <>
           {/* The split first: it is what the end of the day is actually for. */}
           {byMethod.length > 1 ? (
-            <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-200 px-0.5 py-2 text-[13px] text-slate-600">
+            <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-200 px-0.5 py-2 text-body text-slate-600">
               {byMethod.map((entry) => (
                 <span key={entry.method}>
                   {entry.label}{" "}
@@ -87,7 +87,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
                   key={String(row.booking.id)}
                   data-collected-row
                   data-settled={row.settled ? "true" : "false"}
-                  className="flex items-center justify-between gap-3 border-t border-slate-200 px-0.5 py-[7px] text-[14px] text-slate-600"
+                  className="flex items-center justify-between gap-3 border-t border-slate-200 px-0.5 py-[7px] text-sm text-slate-600"
                 >
                   <span className="truncate text-brand-purple">{name}</span>
                   <span

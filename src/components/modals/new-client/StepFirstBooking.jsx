@@ -29,7 +29,7 @@ export function StepFirstBooking({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-[12px] font-bold text-brand-teal-text mb-1.5">Who's coming in?</div>
+        <div className="text-xs font-bold text-brand-teal-text mb-1.5">Who's coming in?</div>
         <ul className="flex flex-col gap-2">
           {dogs.map((d) => {
             const sel = selections[d.clientKey] || {};
@@ -37,7 +37,7 @@ export function StepFirstBooking({
               <li key={d.clientKey} className="rounded-lg border border-slate-200 bg-white p-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={!!sel.booked} onChange={() => onToggleBooked(d.clientKey)} />
-                  <span className="text-[13px] font-bold text-brand-purple">{d.name}</span>
+                  <span className="text-body font-bold text-brand-purple">{d.name}</span>
                   <span className="text-caption text-slate-500">
                     {[d.breed, d.size].filter(Boolean).join(" · ")}
                   </span>
@@ -59,7 +59,7 @@ export function StepFirstBooking({
           })}
         </ul>
         {booked.length === 0 && (
-          <div className="text-[12px] text-slate-500 mt-1.5">
+          <div className="text-xs text-slate-500 mt-1.5">
             Pick at least one dog to book now. Unticked dogs are still saved — you can book them later.
           </div>
         )}
@@ -67,7 +67,7 @@ export function StepFirstBooking({
 
       {booked.length > 0 && (
         <div>
-          <div className="text-[12px] font-bold text-brand-teal-text mb-1.5">Choose a date</div>
+          <div className="text-xs font-bold text-brand-teal-text mb-1.5">Choose a date</div>
           <AvailabilityCalendar
             bookingsByDate={bookingsByDate}
             dayOpenState={dayOpenState}
@@ -81,7 +81,7 @@ export function StepFirstBooking({
 
       {booked.length > 0 && dateStr && (
         <div>
-          <div className="text-[12px] font-bold text-brand-teal-text mb-1.5">Available times</div>
+          <div className="text-xs font-bold text-brand-teal-text mb-1.5">Available times</div>
           {dayOpen ? (
             <TimeSlotPicker
               dateStr={dateStr}
@@ -93,7 +93,7 @@ export function StepFirstBooking({
               sizeTheme={theme}
             />
           ) : (
-            <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3 py-2 rounded-lg">
+            <div role="status" className="text-body font-semibold text-brand-coral bg-brand-coral-light px-3 py-2 rounded-lg">
               The salon's closed that day — pick an open day above.
             </div>
           )}

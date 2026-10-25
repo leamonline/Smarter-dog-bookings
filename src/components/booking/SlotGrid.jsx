@@ -450,7 +450,7 @@ export function SlotGrid({
                 key={slot}
                 className="flex-1 min-h-[160px] md:min-h-[76px] lg:min-h-[80px] flex items-center justify-center rounded-xl border border-brand-coral/30 bg-white/70 px-1 py-1.5"
               >
-                <span className="text-[13px] md:text-sm font-bold tabular-nums leading-none text-brand-coral-text">
+                <span className="text-body md:text-sm font-bold tabular-nums leading-none text-brand-coral-text">
                   {formatSlotLabel(slot)}
                 </span>
               </div>

@@ -232,7 +232,7 @@ export function DogSearchSection({
                     onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                   >
-                    <span className="text-[13px] font-bold text-slate-800">{titleCase(dog.name)}</span>
+                    <span className="text-body font-bold text-slate-800">{titleCase(dog.name)}</span>
                     <span className="text-xs text-slate-500 ml-1.5">
                       {titleCase(dog.breed)} · {dog.size || "size not set"}
                     </span>
@@ -277,7 +277,7 @@ export function DogSearchSection({
 
             {/* Searching indicator — only when no local results */}
             {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-body text-slate-500 italic">
                 Looking for matches…
               </div>
             )}
@@ -311,7 +311,7 @@ export function DogSearchSection({
                       <span className="text-sm font-bold text-slate-800">{titleCase(entry.dog.name)}</span>
                       <span className="text-xs text-slate-400">—</span>
                       <span className="text-xs text-slate-500">{titleCase(entry.dog.breed)}</span>
-                      {entry.hasAlerts && <span className="text-[13px]" aria-label="Has alerts">⚠️</span>}
+                      {entry.hasAlerts && <span className="text-body" aria-label="Has alerts">⚠️</span>}
                     </button>
 
                     {/* Humans — each row is clickable to pick that (dog, human) pair */}
@@ -370,7 +370,7 @@ export function DogSearchSection({
             {/* No results + add buttons */}
             {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
-                <div className="text-[13px] text-slate-500 mb-2.5">
+                <div className="text-body text-slate-500 mb-2.5">
                   Can't find anyone with "{dogQuery}" — try another name
                 </div>
                 {/* Two create paths: "+ New Dog" is the quick single-dog add
@@ -396,7 +396,7 @@ export function DogSearchSection({
             className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
           >
             <span className="text-caption font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
-            <span aria-hidden="true" className="text-[13px] text-[#5C4600]/75 block">
+            <span aria-hidden="true" className="text-body text-[#5C4600]/75 block">
               Set them up & take their first booking
             </span>
           </button>

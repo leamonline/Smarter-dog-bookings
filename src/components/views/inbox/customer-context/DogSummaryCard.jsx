@@ -37,7 +37,7 @@ export function DogSummaryCard({ dog, onOpenDog }) {
         {dog.size && <SizeTag size={dog.size} />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[14px] font-bold text-brand-purple truncate">
+            <span className="text-sm font-bold text-brand-purple truncate">
               {name}
             </span>
             {dog.alerts?.length > 0 && (
@@ -65,7 +65,7 @@ export function DogSummaryCard({ dog, onOpenDog }) {
       )}
 
       {groomNotes && (
-        <p className="text-[12px] text-slate-600 mt-1.5 leading-snug whitespace-pre-wrap">
+        <p className="text-xs text-slate-600 mt-1.5 leading-snug whitespace-pre-wrap">
           {groomNotes}
         </p>
       )}

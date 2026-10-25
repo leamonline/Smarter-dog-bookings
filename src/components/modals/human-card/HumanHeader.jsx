@@ -136,7 +136,7 @@ export function HumanHeader({
                 placeholder="Phone"
                 type="tel"
                 aria-label="Phone"
-                className="mt-2 text-[13px] bg-white border border-slate-200 rounded-md px-2.5 py-1 w-full max-w-[280px] box-border outline-none font-inherit text-slate-700 focus:border-brand-teal"
+                className="mt-2 text-body bg-white border border-slate-200 rounded-md px-2.5 py-1 w-full max-w-[280px] box-border outline-none font-inherit text-slate-700 focus:border-brand-teal"
               />
             </>
           ) : (
@@ -153,7 +153,7 @@ export function HumanHeader({
                     <a
                       href={telLink(human.phone)}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-purple transition-colors whitespace-nowrap"
+                      className="text-body text-slate-500 font-semibold no-underline hover:text-brand-purple transition-colors whitespace-nowrap"
                     >
                       {human.phone}
                     </a>
@@ -195,11 +195,11 @@ export function HumanHeader({
                     )}
                   </>
                 ) : (
-                  <span className="text-[13px] text-slate-400 italic">No phone</span>
+                  <span className="text-body text-slate-400 italic">No phone</span>
                 )}
               </div>
               {isPendingSignup && claimedHuman && (
-                <p className="mt-3 text-[13px] text-slate-600 leading-snug">
+                <p className="mt-3 text-body text-slate-600 leading-snug">
                   Says they&apos;re an existing customer:{" "}
                   <span className="font-bold text-brand-purple">{claimedName}</span>.
                   Linking moves this number and login onto that record.
@@ -212,7 +212,7 @@ export function HumanHeader({
                       type="button"
                       onClick={onLinkClaimedSignup}
                       disabled={signupBusy}
-                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-body font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Link2 size={14} strokeWidth={2.6} aria-hidden="true" />
                       {signupBusy ? "Linking…" : `Link to ${claimedName}`}
@@ -222,7 +222,7 @@ export function HumanHeader({
                       type="button"
                       onClick={onApproveSignup}
                       disabled={signupBusy}
-                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-body font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Check size={14} strokeWidth={2.6} aria-hidden="true" />
                       {signupBusy ? "Approving…" : "Approve"}
@@ -232,7 +232,7 @@ export function HumanHeader({
                     type="button"
                     onClick={onRejectSignup}
                     disabled={signupBusy}
-                    className="inline-flex items-center py-1.5 px-3.5 rounded-full border-[1.5px] border-brand-coral/40 bg-white text-brand-coral-text text-[13px] font-bold font-inherit cursor-pointer transition-colors hover:bg-brand-coral-light disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center py-1.5 px-3.5 rounded-full border-[1.5px] border-brand-coral/40 bg-white text-brand-coral-text text-body font-bold font-inherit cursor-pointer transition-colors hover:bg-brand-coral-light disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Reject…
                   </button>

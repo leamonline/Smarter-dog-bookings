@@ -182,7 +182,7 @@ export function CloseTimesDialog({
 
       <div className="p-5 flex flex-col gap-4">
         {timesLocked ? (
-          <p className="text-[12px] text-slate-600">
+          <p className="text-xs text-slate-600">
             Changing the reason on the{" "}
             <span className="font-bold tabular-nums text-brand-purple">
               {formatTime(from)} – {formatTime(effectiveTo)}
@@ -255,7 +255,7 @@ export function CloseTimesDialog({
         {/* Only worth warning about before the closure exists. Afterwards the
             bookings are already flagged on the card itself. */}
         {!timesLocked && clashes.length > 0 && (
-          <p className="text-[12px] text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-xl px-3 py-2">
+          <p className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-xl px-3 py-2">
             {clashes.length} {clashes.length === 1 ? "booking sits" : "bookings sit"} in these
             times. {clashes.length === 1 ? "It'll be flagged" : "They'll be flagged"} NEEDS
             ATTENTION on the calendar until you move or cancel{" "}
@@ -264,13 +264,13 @@ export function CloseTimesDialog({
         )}
 
         {visibleError && (
-          <p role="alert" className="text-[12px] text-brand-coral-text font-semibold">
+          <p role="alert" className="text-xs text-brand-coral-text font-semibold">
             {visibleError}
           </p>
         )}
 
         {saveError && (
-          <p role="alert" className="text-[12px] text-brand-coral-text font-semibold">
+          <p role="alert" className="text-xs text-brand-coral-text font-semibold">
             {saveError}
           </p>
         )}

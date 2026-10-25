@@ -122,7 +122,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
       <div className="flex items-start gap-2">
         <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold text-red-800">
+          <div className="text-body font-bold text-red-800">
             {/* "Didn't reach" is a claim only a reported failure supports. A
                 Twilio accept with no receipt is unknown, not failed (#1017). */}
             {failures.every((f) => isDeliveryUnconfirmed(f.error_message))
@@ -147,7 +147,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
           </ul>
 
           {/* Current number + inline fix */}
-          <div className="mt-2 text-[12px] text-slate-700">
+          <div className="mt-2 text-xs text-slate-700">
             <span className="font-semibold">Number on file:</span>{" "}
             {currentPhone ? formatPhoneForDisplay(currentPhone) : "none"}
           </div>
@@ -167,7 +167,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                   aria-invalid={phoneError ? "true" : "false"}
                   aria-describedby={phoneError ? "delivery-phone-error" : undefined}
                   autoFocus
-                  className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-[13px] outline-none font-inherit text-slate-800 box-border ${
+                  className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-body outline-none font-inherit text-slate-800 box-border ${
                     phoneError
                       ? "border-red-400 bg-red-50 focus:border-red-500"
                       : "border-slate-300 focus:border-brand-teal"
@@ -177,7 +177,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                   type="button"
                   onClick={handleSavePhone}
                   disabled={savingPhone}
-                  className="shrink-0 px-3 py-2 rounded-lg border-none bg-brand-teal text-white text-[12px] font-bold cursor-pointer font-inherit disabled:opacity-60"
+                  className="shrink-0 px-3 py-2 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit disabled:opacity-60"
                 >
                   {savingPhone ? "Saving…" : "Save number"}
                 </button>
@@ -192,7 +192,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
             <button
               type="button"
               onClick={startEdit}
-              className="mt-1 text-[12px] font-bold text-brand-teal underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+              className="mt-1 text-xs font-bold text-brand-teal underline cursor-pointer bg-transparent border-none p-0 font-inherit"
             >
               Fix the number
             </button>
@@ -204,7 +204,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
               type="button"
               onClick={handleResend}
               disabled={resending}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border-[1.5px] border-red-300 bg-white text-red-700 text-[12px] font-bold cursor-pointer font-inherit hover:bg-red-100 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border-[1.5px] border-red-300 bg-white text-red-700 text-xs font-bold cursor-pointer font-inherit hover:bg-red-100 transition-colors disabled:opacity-60"
             >
               <Send size={13} className={resending ? "animate-pulse" : ""} aria-hidden="true" />
               {resending

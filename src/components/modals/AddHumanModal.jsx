@@ -239,12 +239,12 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           </div>
 
           <div className="flex gap-5">
-            <label className="flex items-center gap-1.5 min-h-[44px] text-[13px] cursor-pointer font-medium">
+            <label className="flex items-center gap-1.5 min-h-[44px] text-body cursor-pointer font-medium">
               <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)}
                 className="accent-brand-teal w-[18px] h-[18px] cursor-pointer" />
               SMS
             </label>
-            <label className="flex items-center gap-1.5 min-h-[44px] text-[13px] cursor-pointer font-medium">
+            <label className="flex items-center gap-1.5 min-h-[44px] text-body cursor-pointer font-medium">
               <input type="checkbox" checked={whatsapp} onChange={e => setWhatsapp(e.target.checked)}
                 className="accent-brand-teal w-[18px] h-[18px] cursor-pointer" />
               WhatsApp
@@ -263,7 +263,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                   {selectedDogs.map((dog) => (
                     <span
                       key={dog.id || dog.name}
-                      className="inline-flex items-center gap-1.5 bg-brand-cyan-light/20 text-brand-cyan-dark border border-brand-cyan-light px-2 py-1 rounded-full text-[12px] font-bold"
+                      className="inline-flex items-center gap-1.5 bg-brand-cyan-light/20 text-brand-cyan-dark border border-brand-cyan-light px-2 py-1 rounded-full text-xs font-bold"
                     >
                       {titleCase(dog.name)}
                       <button
@@ -303,7 +303,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                           onClick={() => addDog(dog)}
                           className="w-full text-left bg-white px-3.5 py-2 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-50"
                         >
-                          <div className="text-[13px] font-semibold text-slate-800">
+                          <div className="text-body font-semibold text-slate-800">
                             {titleCase(dog.name)}
                             {dog.breed && (
                               <span className="font-normal text-slate-400 ml-1">
@@ -332,7 +332,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           </div>
 
           {duplicate && (
-            <div role="alert" className="p-2.5 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-[12px] text-feedback-warning-ink">
+            <div role="alert" className="p-2.5 rounded-lg bg-feedback-warning-tint border border-brand-mustard-tint text-xs text-feedback-warning-ink">
               A customer called{" "}
               <strong>{duplicate.fullName || `${duplicate.name} ${duplicate.surname}`.trim()}</strong>
               {duplicate.phone ? ` (${formatPhoneForDisplay(duplicate.phone)})` : ""} already exists.

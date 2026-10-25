@@ -19,7 +19,7 @@ export function NewClientPreview() {
   return (
     <div className="p-4 max-w-3xl mx-auto">
       <h2 className="text-base font-bold text-slate-800 mb-1">New client wizard — preview</h2>
-      <p className="text-[13px] text-slate-500 mb-4">
+      <p className="text-body text-slate-500 mb-4">
         Dev harness with mocked write functions and a weekday-default calendar
         (Mon–Wed open). Tick the box, then reach the booking step, to see the
         in-modal capacity error.
@@ -28,11 +28,11 @@ export function NewClientPreview() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="px-4 py-2 rounded-full bg-brand-teal text-white text-[13px] font-bold"
+          className="px-4 py-2 rounded-full bg-brand-teal text-white text-body font-bold"
         >
           Open wizard
         </button>
-        <label className="flex items-center gap-2 text-[13px] text-slate-700">
+        <label className="flex items-center gap-2 text-body text-slate-700">
           <input type="checkbox" checked={failBooking} onChange={(e) => setFailBooking(e.target.checked)} />
           Force booking failure
         </label>

@@ -168,7 +168,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
         </div>
       }
     >
-        <p className="text-[13px] text-slate-500 mb-4">
+        <p className="text-body text-slate-500 mb-4">
           Pick an available day, then a time. Fully-booked times can be overbooked.
         </p>
 
@@ -217,7 +217,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
                 aria-pressed={isSelected}
                 aria-label={`${date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}${stateWord ? `, ${stateWord}` : ""}`}
                 onClick={() => pickDay(dateStr)}
-                className={`aspect-square rounded-lg text-[13px] font-bold flex items-center justify-center border transition-colors ${
+                className={`aspect-square rounded-lg text-body font-bold flex items-center justify-center border transition-colors ${
                   isSelected
                     ? "border-transparent"
                     : selectable
@@ -235,13 +235,13 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
         {/* Times for the chosen day */}
         {selectedDateStr && (
           <div className="mt-5">
-            <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-2">
+            <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-2">
               Times — {formatDayLong(selectedDateStr)}
             </div>
             {slotsLoading ? (
-              <div className="text-[13px] text-slate-400 py-2" role="status">Checking availability…</div>
+              <div className="text-body text-slate-400 py-2" role="status">Checking availability…</div>
             ) : slotStates.length === 0 ? (
-              <p className="text-[13px] text-brand-coral font-semibold py-1">No times available on this day.</p>
+              <p className="text-body text-brand-coral font-semibold py-1">No times available on this day.</p>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-1.5">
                 {slotStates.map(({ slot, state }) => {
@@ -254,7 +254,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
                       aria-pressed={isSel}
                       aria-label={`${slot}${overbook ? ", fully booked, select to overbook" : ""}`}
                       onClick={() => setSelectedSlot({ slot, overbook })}
-                      className={`min-h-[44px] py-2 px-1 rounded-lg text-[13px] font-semibold border-[1.5px] inline-flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                      className={`min-h-[44px] py-2 px-1 rounded-lg text-body font-semibold border-[1.5px] inline-flex flex-col items-center justify-center cursor-pointer transition-colors ${
                         isSel && overbook
                           ? "bg-red-50 text-red-700 border-red-400"
                           : isSel

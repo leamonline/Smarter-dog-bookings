@@ -156,7 +156,7 @@ function ShellSpecimenHeader({ onClose }) {
           >
             Sample Human
           </h2>
-          <div className="text-[13px] text-slate-500 font-semibold mt-1">07712 345 678</div>
+          <div className="text-body text-slate-500 font-semibold mt-1">07712 345 678</div>
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">

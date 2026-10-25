@@ -83,11 +83,11 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
         {isExpanded && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-pop-in">
             {loading && events.length === 0 && (
-              <p className="text-[12px] text-slate-500 italic" role="status">Loading…</p>
+              <p className="text-xs text-slate-500 italic" role="status">Loading…</p>
             )}
 
             {!loading && events.length === 0 && !error && (
-              <p className="text-[12px] text-slate-500 italic">
+              <p className="text-xs text-slate-500 italic">
                 Nothing booked yet.
               </p>
             )}
@@ -96,7 +96,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
               {events.map((e) => {
                 const tone = EVENT_TONE[e.event_type] ?? EVENT_TONE.created;
                 return (
-                  <li key={e.id} className="flex gap-2 text-[12px] leading-snug">
+                  <li key={e.id} className="flex gap-2 text-xs leading-snug">
                     <span
                       aria-hidden="true"
                       className={`mt-1 shrink-0 w-1.5 h-1.5 rounded-full ${tone.dot}`}

@@ -165,7 +165,7 @@ export function HumanBookingHistory({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="w-full text-left text-[12px] font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 px-1 -mx-1 hover:text-brand-teal transition-colors"
+              className="w-full text-left text-xs font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 px-1 -mx-1 hover:text-brand-teal transition-colors"
             >
               {expanded ? "Show fewer" : `Show all ${history.length} →`}
             </button>

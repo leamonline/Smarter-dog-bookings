@@ -61,12 +61,12 @@ export function AppointmentsSection({
         </div>
         {isEmpty ? (
           showEmptyCopy ? (
-            <span className="text-[12px] text-[var(--color-ink-muted)] font-semibold">
+            <span className="text-xs text-[var(--color-ink-muted)] font-semibold">
               Nothing yet
             </span>
           ) : null
         ) : (
-          <span className="text-[13px] text-[var(--color-ink-soft)] font-semibold flex items-center gap-1.5">
+          <span className="text-body text-[var(--color-ink-soft)] font-semibold flex items-center gap-1.5">
             {pastExpanded ? "Hide" : "Show"}
             <ChevronDown size={16} aria-hidden="true" className="portal-chevron" />
           </span>
@@ -94,7 +94,7 @@ export function AppointmentsSection({
           {hasMorePast && (
             <button
               type="button"
-              className="portal-btn portal-btn--secondary w-full mt-3 text-[13px]"
+              className="portal-btn portal-btn--secondary w-full mt-3 text-body"
               onClick={onLoadMore}
               disabled={loadingMore}
             >
@@ -107,7 +107,7 @@ export function AppointmentsSection({
               <button
                 type="button"
                 onClick={onSubscribe}
-                className="text-[12px] text-[var(--color-ink-soft)] font-semibold cursor-pointer bg-transparent border-none hover:text-[var(--color-ink)]"
+                className="text-xs text-[var(--color-ink-soft)] font-semibold cursor-pointer bg-transparent border-none hover:text-[var(--color-ink)]"
               >
                 Sync upcoming bookings to your calendar
               </button>

@@ -50,7 +50,7 @@ export function CustomerDashboardCardsPreview() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <h2 className="text-base font-bold text-slate-800 mb-1">Customer dashboard cards preview</h2>
-      <p className="text-[13px] text-slate-500 mb-6">
+      <p className="text-body text-slate-500 mb-6">
         Resize wide to check the BookingCard empty-state CTA doesn&apos;t leave
         dead space next to the button, and that the TrustedHumans empty
         state centres in the card rather than sitting at the top with a gap.

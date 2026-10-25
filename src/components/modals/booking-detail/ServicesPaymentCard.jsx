@@ -41,7 +41,7 @@ export function ServicesPaymentCard({
       />
       {!isEditing && (
         <div className="flex items-center justify-between py-3 border-t border-slate-200">
-          <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-slate-500">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
             Total
           </span>
           <span className="text-[20px] font-extrabold text-brand-purple tabular-nums">
