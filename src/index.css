@@ -193,7 +193,7 @@
   --color-brand-green-400: #1ECF64;
   --color-brand-green-500: #00D94A;
   --color-brand-green-600: #0F7D39; /* white on fill: AA at 5.2:1 */
-  --color-brand-green-700: #0A7D30;
+  --color-brand-green-700: var(--color-brand-green-600); /* was #0A7D30, three points of hex from 600 */
   --color-brand-green-800: #0B5C26;
   --color-brand-green-900: #08401C;
   /* WhatsApp brand green — Inbox nav accent + unread badges. Lifts the two
@@ -250,13 +250,11 @@
   /* DEPRECATED: pre-reskin name for --color-brand-ink (same guard as brand-purple). */
   --color-sd-navy: var(--color-brand-ink);
   --color-sd-navy-soft: var(--color-brand-purple-light);
-  /* WCAG AA (4.5:1) for normal-size text. Brand reskin step 2 (2026-09-20):
-     --color-sd-paper moved from #FAF9F6 to #F7EFE6, which dropped the
-     previous #67738B below 4.5:1 on the new paper (4.19:1). Recomputed by
-     the same method as before — preserve hue/saturation (220.6°/14.8% vs.
-     220.0°/14.9%), drop only lightness (47.5%→45.1%) — to #626D84: 4.57:1 on
-     --sd-paper, 5.20:1 on white. */
-  --color-sd-ink-light: #626D84;
+  /* The portal's muted grey is the one muted grey: --color-text-muted (#57677C,
+     5.1:1 on --sd-paper, 5.8:1 on white). It used to be its own #626D84 because
+     the staff grey (#64748B) fell to 4.18:1 on the cream paper; one grey that
+     passes on both retires the pair. Kept as a name so the ~50 portal uses work. */
+  --color-sd-ink-light: var(--color-text-muted);
 
   /* Action colour aliases */
   --color-sd-yellow: var(--color-brand-yellow);
@@ -305,7 +303,7 @@
      (which had zero consumers) and free the `text-body` name for the
      type scale below. */
   --color-ink: var(--color-brand-ink); /* charcoal, with compatible brand-purple alias */
-  --color-ink-muted: #64748B;  /* accessible muted grey — slate-500 ≈ 4.76:1 on white */
+  --color-ink-muted: var(--color-text-muted); /* the one muted grey: 5.8:1 on white, 5.5:1 on the staff canvas, 5.1:1 on paper */
 
   /* ── Type scale ──────────────────────────────────────────────
      rem-based (16px root). Folds the text-[9–15px] one-offs into named
