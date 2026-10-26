@@ -36,6 +36,12 @@ const VARIANTS = {
     "bg-white text-slate-700 border-[1.5px] border-slate-200 " +
     "hover:bg-slate-50 hover:border-slate-400 " +
     "disabled:bg-white disabled:text-slate-500 disabled:border-slate-200",
+  // Borderless and fill-less until hovered: a dismiss, "Show more", a toolbar
+  // action that should not compete with the screen's one primary button.
+  quiet:
+    "bg-transparent text-slate-700 border-transparent " +
+    "hover:bg-slate-100 " +
+    "disabled:bg-transparent disabled:text-slate-500 disabled:hover:bg-transparent",
   link:
     "bg-transparent text-ink border-transparent underline underline-offset-2 " +
     "hover:underline " +
@@ -52,7 +58,20 @@ const LINK_SIZES = {
   md: "p-0 text-sm",
 };
 
-export const Button = forwardRef(function Button(
+/**
+ * @typedef {Omit<import("react").ButtonHTMLAttributes<HTMLButtonElement>, "type"> & {
+ *   variant?: "primary" | "danger" | "ghost" | "quiet" | "link";
+ *   size?: "sm" | "md";
+ *   as?: "button" | "a";
+ *   type?: "button" | "submit" | "reset";
+ *   loading?: boolean;
+ *   iconLeft?: import("react").ReactNode;
+ *   iconRight?: import("react").ReactNode;
+ *   fullWidth?: boolean;
+ *   href?: string;
+ * }} ButtonProps
+ */
+export const Button = /** @type {import("react").ForwardRefExoticComponent<ButtonProps & import("react").RefAttributes<HTMLElement>>} */ (forwardRef(function Button(
   {
     variant = "primary",
     size = "md",
@@ -122,4 +141,4 @@ export const Button = forwardRef(function Button(
       {content}
     </button>
   );
-});
+}));

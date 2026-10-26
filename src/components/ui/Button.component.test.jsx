@@ -20,3 +20,19 @@ describe("Button danger variant keeps its white label readable", () => {
     expect(cls).not.toMatch(/(^|\s)(hover:)?bg-brand-coral(\s|$)/);
   });
 });
+
+describe("Button quiet variant", () => {
+  it("has no fill or border until hovered, and a readable disabled state", () => {
+    const { getByRole } = render(<Button variant="quiet">Show more</Button>);
+    const cls = getByRole("button").className;
+    expect(cls).toMatch(/(^|\s)bg-transparent(\s|$)/);
+    expect(cls).toMatch(/(^|\s)border-transparent(\s|$)/);
+    expect(cls).toMatch(/(^|\s)hover:bg-slate-100(\s|$)/);
+    expect(cls).toMatch(/(^|\s)disabled:text-slate-500(\s|$)/);
+  });
+
+  it("keeps the touch-size floor of the other variants", () => {
+    const { getByRole } = render(<Button variant="quiet">Show more</Button>);
+    expect(getByRole("button").className).toMatch(/pointer-coarse:min-h-11/);
+  });
+});
