@@ -21,6 +21,7 @@ export default [
       "docs/**",
       "coverage/**",
       ".ds-sync/**",
+      ".design-sync/**",
       "ds-bundle/**",
       ".firecrawl/**",
       ".claude/**",
