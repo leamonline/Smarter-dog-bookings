@@ -96,7 +96,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
           const isClickable = status === "available";
 
           let bg = "transparent";
-          let color = "#E5E7EB";
+          let color = "var(--color-slate-200)";
           let border = "2px solid transparent";
           let cursor = "not-allowed";
           let opacity = 0.4;

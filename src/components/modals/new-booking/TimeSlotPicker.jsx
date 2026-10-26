@@ -80,12 +80,12 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
             ? sizeTheme.gradient[0]
             : isOverrideEligible
               ? "#F59E0B"
-              : "#E5E7EB",
+              : "var(--color-slate-200)",
           background: isSelected
             ? sizeTheme.gradient[0]
             : isOverrideEligible
               ? "#FFFBEB"
-              : "#FFFFFF",
+              : "var(--color-surface-card)",
           color: isSelected
             ? sizeTheme.headerText
             : isAvailable
@@ -130,8 +130,8 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
             }}
             onMouseLeave={(e) => {
               if (isAvailable && !isSelected) {
-                e.currentTarget.style.borderColor = "#E5E7EB";
-                e.currentTarget.style.background = "#FFFFFF";
+                e.currentTarget.style.borderColor = "var(--color-slate-200)";
+                e.currentTarget.style.background = "var(--color-surface-card)";
               } else if (isOverrideEligible && !isSelected) {
                 e.currentTarget.style.background = "#FFFBEB";
               }

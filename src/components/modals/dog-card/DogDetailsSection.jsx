@@ -105,8 +105,8 @@ export function DogDetailsSection({
               }}
               className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
               style={{
-                background: active ? opt.color : "#FFFFFF",
-                color: active ? "#FFFFFF" : opt.color,
+                background: active ? opt.color : "var(--color-surface-card)",
+                color: active ? "var(--color-surface-card)" : opt.color,
                 border: `2px solid ${opt.color}`,
               }}
             >
@@ -119,8 +119,8 @@ export function DogDetailsSection({
           onClick={() => setHasAllergy(!hasAllergy)}
           className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
           style={{
-            background: hasAllergy ? "var(--color-brand-coral)" : "#FFFFFF",
-            color: hasAllergy ? "#FFFFFF" : "var(--color-brand-coral)",
+            background: hasAllergy ? "var(--color-brand-coral)" : "var(--color-surface-card)",
+            color: hasAllergy ? "var(--color-surface-card)" : "var(--color-brand-coral)",
             border: "2px solid var(--color-brand-coral)",
           }}
         >
@@ -210,7 +210,7 @@ export function DogDetailsSection({
               <div className="mt-1.5">
                 <div className="relative">
                   <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex">
-                    <IconSearch size={14} colour="#6B7280" />
+                    <IconSearch size={14} />
                   </div>
                   <Input
                     type="text"

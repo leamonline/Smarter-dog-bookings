@@ -184,6 +184,9 @@
   --color-brand-teal-dark: #1E6B5C;
   /* Lighter teal — gradient companion for the canonical brand-teal. */
   --color-brand-teal-light: #3BA594;
+  /* The pale teal wash behind teal chips, selected rows and avatars. Was typed as
+     #E6F5F2 in 15 places; available as bg-brand-teal-tint. */
+  --color-brand-teal-tint: #E6F5F2;
   --color-brand-green: var(--color-brand-green-500); /* one value, two names: prefer the numbered step in new work */
   /* Numbered success scale (green == confirmed/done). 500 == --color-brand-green. */
   --color-brand-green-50: #ECFDF3;

@@ -21,8 +21,10 @@ export function IconMessage({ size = S, colour = "var(--color-brand-teal)" }) {
   return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h12v8H5l-3 3z" /></svg>);
 }
 
-export function IconSearch({ size = S, colour = "#6B7280" }) {
-  return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5" /><line x1="10.5" y1="10.5" x2="14" y2="14" /></svg>);
+// The search glyph follows the muted text token. Set through `style`, not the
+// stroke attribute, because a CSS variable is only reliable in a style property.
+export function IconSearch({ size = S, colour = "var(--color-ink-muted)" }) {
+  return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ stroke: colour }} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5" /><line x1="10.5" y1="10.5" x2="14" y2="14" /></svg>);
 }
 
 export function IconCamera({ size = S, colour = "#10C2FC" }) {

@@ -76,7 +76,7 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
           </div>
         )}
         {message && (
-          <div role="status" className="text-body text-brand-teal-dark font-semibold bg-[#E6F5F2] px-3 py-2 rounded-lg mb-4">
+          <div role="status" className="text-body text-brand-teal-dark font-semibold bg-brand-teal-tint px-3 py-2 rounded-lg mb-4">
             {message}
           </div>
         )}
