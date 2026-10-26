@@ -24,6 +24,7 @@ const script = readFileSync(
   "utf8",
 );
 const gate = readFileSync(join(root, ".github/workflows/check-migrations-applied.yml"), "utf8");
+const migrationSource = readFileSync(join(root, "scripts/release/migration-source.mjs"), "utf8");
 const provenance = readFileSync(join(root, "scripts/production-ref-provenance.sh"), "utf8");
 const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
 const guardPath = join(root, ".claude/hooks/guard-supabase-apply-migration.sh");
@@ -388,7 +389,7 @@ describe("local release evidence in the migration merge gate", () => {
   it("requires the latest local release attempt to have completed its postcondition", () => {
     expect(gate).toContain("with ordinality as entry(s, position)");
     expect(gate).toContain("order by position desc limit 1");
-    expect(gate).toContain("printf '%s' \"$rows\" | node scripts/release/merge-gate.mjs");
+    expect(gate).toContain("printf '%s' \"$rows\" | node \"$GITHUB_WORKSPACE/scripts/release/merge-gate.mjs\"");
     expect(gate).toContain("node-version: 24");
     expect(gate).toContain("s like '-- applied to production % verification-actions-v1 %'");
     expect(gate).toContain("  actions: read");
@@ -466,13 +467,13 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   });
 
   it("refuses deleting or renaming an applied migration, and editing any migration the base branch carries", () => {
-    expect(gate).toContain(`deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
-    expect(gate).toContain(`added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
+    expect(migrationSource).toContain("[['files','A'], ['deleted','D'], ['modified','MT']]");
+    expect(migrationSource).toContain("'--name-only', '-z', '--no-renames'");
     // A type change (a file turned into a symbolic link) counts as an edit, and
     // no migration entry in the tree may be anything but a regular file.
-    expect(gate).toContain(`modified=$(git diff --name-only --no-renames --diff-filter=MT "$range" -- supabase/migrations/ | grep '\\.sql$' || true)`);
-    expect(gate).toContain(`irregular=$(git ls-files -s -- 'supabase/migrations/*.sql' | awk '$1 != "100644" && $1 != "100755" { print $1, $4 }')`);
-    expect(gate.indexOf("irregular=$(git ls-files -s")).toBeLessThan(gate.indexOf('if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then'));
+    expect(migrationSource).toContain("/^(100644|100755) blob");
+    expect(migrationSource).toContain("Migration tree contains a symlink, unsupported entry or invalid filename");
+    expect(gate.indexOf('node scripts/release/migration-source.mjs')).toBeLessThan(gate.indexOf('if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then'));
     expect(gate).toContain("          MODIFIED_FILES: ${{ steps.added.outputs.modified }}");
     expect(gate).toMatch(/echo "✗ REMOVED BUT APPLIED: \$base"\n(?: {14}.*\n)* {14}problems\+=\("\$base"\)/);
     // Every edit to a base-branch migration is refused, applied to prod or
@@ -487,7 +488,7 @@ describe("check-migrations-applied.yml binds the applied content", () => {
   });
 
   it("requires the very file the production workflow applied from this pull request to stay in the tree", () => {
-    expect(gate).toContain(`            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##')`);
+    expect(gate).toContain(`            tree=$(find supabase/migrations -type f -name '*.sql' | sed 's#.*/##')`);
     expect(gate).toContain(`jq -r '.[] | .provenance | select(. != null)'`);
     expect(gate).toContain(`applied_file=$(printf '%s' "$line" | sed -n 's/.* (file \\([0-9]\\{14\\}_[a-z0-9_]*\\.sql\\))$/\\1/p')`);
     expect(gate).toMatch(/echo "✗ UNREADABLE PROVENANCE: \$line"\n {16}problems\+=\("provenance"\)/);
@@ -495,7 +496,7 @@ describe("check-migrations-applied.yml binds the applied content", () => {
     expect(gate).toMatch(/echo "✗ APPLIED FROM THIS PULL REQUEST BUT GONE: \$applied_file"\n(?: {16}.*\n)* {16}problems\+=\("\$applied_file"\)/);
     // Every pull request is verified (an applied file may have been dropped),
     // while a run with neither token nor migration changes (Dependabot) skips.
-    expect(gate).toContain("        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'");
+    expect(gate).toContain("        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request_target'");
     // Without the token, only a fork's or a bot's pull request may pass with
     // nothing touched (the production workflow never applies from those); a
     // same-repository pull request by a person without the token fails closed.

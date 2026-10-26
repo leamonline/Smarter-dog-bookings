@@ -31,7 +31,7 @@ name: Migration Drift Audit
 # live. Timestamps are unique per file, so it cannot produce a false positive.
 #
 # Secret required:
-#   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
+#   SUPABASE_AUTOMATION_TOKEN in the main-only supabase-automation environment.
 
 on:
   schedule:
@@ -40,19 +40,34 @@ on:
     - cron: '17 7 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   migration-drift:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    environment: supabase-automation
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
       - name: Check out repo
         uses: actions/checkout@v7
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Verify automation credential protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/automation-environment.mjs
+
       - name: Reconcile every committed migration against prod
         shell: bash
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_AUTOMATION_TOKEN }}
         run: |
           set -euo pipefail
 
