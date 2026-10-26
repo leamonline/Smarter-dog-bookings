@@ -286,6 +286,11 @@
      (12px). Codifies the 45 inline rounded-[10px] uses. Available as
      rounded-control via Tailwind v4's @theme. */
   --radius-control: 10px;
+  /* Card and panel radius: the one value for a surface that holds content.
+     Available as rounded-card. Cards were split between rounded-xl (12px) and
+     rounded-2xl (16px); this names the choice so it is one edit to change. See
+     docs/ux/radius-and-elevation.md. */
+  --radius-card: 16px;
 
   /* Motion durations — three speeds for the whole UI. */
   --duration-fast: 80ms;

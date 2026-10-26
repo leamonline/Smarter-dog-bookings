@@ -141,7 +141,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     <section
       data-state={state}
       aria-label="Reminder"
-      className={`mb-3 rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-3 ${cfg.card}`}
+      className={`mb-3 rounded-2xl border shadow-card-resting p-3 ${cfg.card}`}
     >
       {/* Header — same anatomy as PanelShell: eyebrow left, icon chip right */}
       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-black/5">
