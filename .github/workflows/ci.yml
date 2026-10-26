@@ -63,6 +63,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+      # Workflow security fixtures parse YAML using the locked dev dependencies.
+      # This credential-free job does not need package lifecycle scripts.
+      - run: npm ci --ignore-scripts
       - run: npm run test:release
       - name: Exercise the shared engine on disposable PostgreSQL
         run: |
