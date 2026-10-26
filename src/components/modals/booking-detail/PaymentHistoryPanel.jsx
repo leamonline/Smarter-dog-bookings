@@ -110,7 +110,7 @@ export function PaymentHistoryPanel({ bookingId, onRestored }) {
                 const changes = changesFor(item);
                 const canRestore = item.operation === "UPDATE" && item.before_values;
                 return (
-                  <li key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-xs">
+                  <li key={item.id} className="rounded-tile border border-slate-200 bg-white p-3 text-xs">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-bold text-slate-800">

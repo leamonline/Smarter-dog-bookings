@@ -117,7 +117,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
   return (
     <div
       role="alert"
-      className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3"
+      className="mb-3 rounded-tile border border-red-200 bg-red-50 p-3"
     >
       <div className="flex items-start gap-2">
         <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" aria-hidden="true" />

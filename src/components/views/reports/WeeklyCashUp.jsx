@@ -49,7 +49,7 @@ function BreakdownChips({ breakdown }) {
 function CashUpDayCard({ day, meta }) {
   const { dogs, humans, rows, dayTotal, dueTotal, statusBreakdown } = day;
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
+    <div className="rounded-tile border border-slate-200 overflow-hidden">
       <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2 border-b border-slate-100">
         <h3 className="text-sm font-extrabold text-slate-800 m-0">{meta.full}</h3>
         <span className="text-caption font-semibold text-ink-muted">
@@ -257,7 +257,7 @@ export function WeeklyCashUp() {
             ))}
 
             {/* Week grand total */}
-            <div className="rounded-xl bg-brand-purple/5 border border-brand-purple/15 px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="rounded-tile bg-brand-purple/5 border border-brand-purple/15 px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div>
                 <SectionLabel className="mb-1">Expected this week</SectionLabel>
                 <div className="flex items-baseline gap-2 flex-wrap">

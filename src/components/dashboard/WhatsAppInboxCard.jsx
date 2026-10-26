@@ -29,7 +29,7 @@ function formatTimeWaiting(isoStr) {
 
 function InboxAiSummary({ aiSummary, awaitingReply }) {
   return (
-    <div className="bg-white rounded-xl p-3 border border-emerald-100 min-h-[44px]">
+    <div className="bg-white rounded-tile p-3 border border-emerald-100 min-h-[44px]">
       {aiSummary?.loading && !aiSummary?.text ? (
         <div className="flex items-center gap-2 text-xs text-emerald-700/60 italic">
           <RefreshCw size={12} className="animate-spin" aria-hidden="true" />
@@ -54,7 +54,7 @@ function InboxAiSummary({ aiSummary, awaitingReply }) {
 
 function InboxActionableRow({ conv, onOpen }) {
   return (
-    <div className="bg-white rounded-xl p-3 border border-slate-100 flex flex-col gap-1 shadow-sm">
+    <div className="bg-white rounded-tile p-3 border border-slate-100 flex flex-col gap-1 shadow-sm">
       <div className="flex items-center justify-between text-caption font-bold text-slate-500">
         <span className="text-brand-purple font-extrabold">{conv.displayName}</span>
         <span className="text-slate-400 tabular-nums">{formatTimeWaiting(conv.lastAt)}</span>

@@ -118,7 +118,7 @@ export function DayCard({
       data-booking-id={id}
       data-status-key={tone.key}
       data-urgent={urgent ? "true" : "false"}
-      className={`wallet-appointment overflow-hidden rounded-xl ${
+      className={`wallet-appointment overflow-hidden rounded-tile ${
         dimmed ? "opacity-50" : "opacity-100"
       }`}
       style={{

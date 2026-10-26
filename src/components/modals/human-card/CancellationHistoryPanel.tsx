@@ -21,7 +21,7 @@ export function CancellationHistoryPanel({ humanId }: { humanId: string }) {
     catch { setError(true); }
     finally { setSaving(false); }
   };
-  return <section aria-label="Late cancellations" className="rounded-xl border border-slate-200 p-3">
+  return <section aria-label="Late cancellations" className="rounded-tile border border-slate-200 p-3">
     <h3 className="text-sm font-bold">Late cancellations</h3>
     {error ? <p role="alert">Couldn’t load or update cancellation history. <button type="button" onClick={() => setRefresh((n) => n + 1)}>Try again</button></p> : !history ? <p role="status">Loading cancellation history…</p> : <>
       <p>{history.count} in the last 12 months</p>

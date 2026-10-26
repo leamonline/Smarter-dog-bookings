@@ -98,7 +98,7 @@ export function DogSearchSection({
             return (
             <div
               key={entry.dog.id}
-              className="rounded-xl p-2.5 px-3.5 border-[1.5px]"
+              className="rounded-tile p-2.5 px-3.5 border-[1.5px]"
               style={{ background: dogTheme.light, borderColor: dogTheme.gradient[0] }}
             >
               <div className="flex items-center gap-2.5">
@@ -216,7 +216,7 @@ export function DogSearchSection({
 
           {/* Same-owner dog picker */}
           {addingAnotherDog && (
-            <div className="bg-white border border-brand-paper-line rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+            <div className="bg-white border border-brand-paper-line rounded-tile shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
               <div className="px-3 py-2 text-caption font-bold text-slate-500 border-b border-slate-200">
                 {titleCase(selectedHumanKey)}'s other dogs
               </div>
@@ -277,14 +277,14 @@ export function DogSearchSection({
 
             {/* Searching indicator — only when no local results */}
             {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-body text-slate-500 italic">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-body text-slate-500 italic">
                 Looking for matches…
               </div>
             )}
 
             {/* Dropdown results — one card per dog, humans nested inside */}
             {filteredEntries.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
                 {filteredEntries.map((entry, idx) => {
                   const primaryHuman = entry.humans[0];
                   const selectPrimary = () =>
@@ -369,7 +369,7 @@ export function DogSearchSection({
 
             {/* No results + add buttons */}
             {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
                 <div className="text-body text-slate-500 mb-2.5">
                   Can't find anyone with "{dogQuery}" — try another name
                 </div>

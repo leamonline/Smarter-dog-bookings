@@ -243,7 +243,7 @@ export function CloseTimesDialog({
         </div>
 
         {/* Exactly what the calendar will show, so there are no surprises. */}
-        <div className="rounded-xl bg-brand-coral text-white px-3 py-2.5">
+        <div className="rounded-tile bg-brand-coral text-white px-3 py-2.5">
           <div className="text-sm font-extrabold leading-tight break-words">
             {closureLabel({ reason: reason.trim() || "…" })}
           </div>
@@ -255,7 +255,7 @@ export function CloseTimesDialog({
         {/* Only worth warning about before the closure exists. Afterwards the
             bookings are already flagged on the card itself. */}
         {!timesLocked && clashes.length > 0 && (
-          <p className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-xl px-3 py-2">
+          <p className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-tile px-3 py-2">
             {clashes.length} {clashes.length === 1 ? "booking sits" : "bookings sit"} in these
             times. {clashes.length === 1 ? "It'll be flagged" : "They'll be flagged"} NEEDS
             ATTENTION on the calendar until you move or cancel{" "}

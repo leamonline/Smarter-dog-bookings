@@ -73,7 +73,7 @@ export function DaySettingsDrawer({
             <button
               type="button"
               onClick={onToggleDayOpen}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+              className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
             >
               <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                 isOpen ? "bg-emerald-100 text-emerald-700" : "bg-brand-coral-light text-brand-coral"
@@ -104,7 +104,7 @@ export function DaySettingsDrawer({
               <button
                 type="button"
                 onClick={onCloseTimes}
-                className="w-full mt-2 flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-coral/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+                className="w-full mt-2 flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-coral/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
               >
                 <span className="w-9 h-9 rounded-full bg-brand-coral-light text-brand-coral flex items-center justify-center shrink-0">
                   <Clock size={16} strokeWidth={2.2} />
@@ -130,7 +130,7 @@ export function DaySettingsDrawer({
               <button
                 type="button"
                 onClick={onAddSlot}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
               >
                 <span className="w-9 h-9 rounded-full bg-brand-yellow/15 text-brand-purple flex items-center justify-center shrink-0">
                   <Plus size={16} strokeWidth={2.5} />
@@ -145,7 +145,7 @@ export function DaySettingsDrawer({
                 <button
                   type="button"
                   onClick={onRemoveSlot}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-coral/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-coral/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
                 >
                   <span className="w-9 h-9 rounded-full bg-brand-coral-light text-brand-coral flex items-center justify-center shrink-0">
                     <Minus size={16} strokeWidth={2.5} />
@@ -169,7 +169,7 @@ export function DaySettingsDrawer({
             <button
               type="button"
               onClick={onPrintDaySheet}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
+              className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
             >
               <span className="w-9 h-9 rounded-full bg-brand-purple/5 text-brand-purple flex items-center justify-center shrink-0">
                 <Printer size={16} strokeWidth={2.2} />

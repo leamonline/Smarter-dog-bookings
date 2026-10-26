@@ -48,7 +48,7 @@ const fixtures = {
       ariaLabel: "WhatsApp inbox, 3 messages waiting",
       cta: { label: "Open inbox", onClick: noop },
       aiBlock: (
-        <div className="bg-white rounded-xl p-3 border border-emerald-100 text-xs text-slate-700 leading-relaxed">
+        <div className="bg-white rounded-tile p-3 border border-emerald-100 text-xs text-slate-700 leading-relaxed">
           Helen asked if she can switch Bertie's Thursday slot to the morning, and Tom needs a quote for two cocker spaniels.
         </div>
       ),
@@ -64,7 +64,7 @@ const fixtures = {
       ariaLabel: "WhatsApp inbox, 5 messages need reply, oldest 4 hours ago",
       cta: { label: "Open inbox", onClick: noop },
       aiBlock: (
-        <div className="bg-white rounded-xl p-3 border border-emerald-100 text-xs text-slate-700 leading-relaxed">
+        <div className="bg-white rounded-tile p-3 border border-emerald-100 text-xs text-slate-700 leading-relaxed">
           Two clients haven't had a reply since this morning — Tom's quote and Helen's reschedule are still waiting.
         </div>
       ),

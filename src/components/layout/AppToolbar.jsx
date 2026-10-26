@@ -104,7 +104,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 end={item.to === "/"}
                 aria-label={ariaLabel}
                 className={({ isActive }) =>
-                  `group relative inline-flex shrink-0 items-center gap-1 h-10 px-0.5 xl:px-2.5 rounded-xl no-underline transition-all duration-150 ${
+                  `group relative inline-flex shrink-0 items-center gap-1 h-10 px-0.5 xl:px-2.5 rounded-tile no-underline transition-all duration-150 ${
                     isActive
                       ? "bg-brand-purple/[0.07] text-brand-purple font-bold"
                       : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-brand-purple font-semibold"
@@ -181,7 +181,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             aria-expanded={openMenu === "tools"}
             aria-haspopup="menu"
             title="Tools and settings"
-            className={`tap-target w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors ${
+            className={`tap-target w-10 h-10 rounded-tile flex items-center justify-center cursor-pointer transition-colors ${
               openMenu === "tools"
                 ? "bg-slate-100 text-brand-purple"
                 : "text-slate-500 hover:bg-slate-100 hover:text-brand-purple"
@@ -194,7 +194,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             <div
               role="menu"
               aria-label="Tools and settings"
-              className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[230px] overflow-hidden animate-[fadeIn_0.12s_ease-out]"
+              className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-tile shadow-elevated min-w-[230px] overflow-hidden animate-[fadeIn_0.12s_ease-out]"
             >
               <button
                 onClick={() => { navigate("/needs-attention"); setOpenMenu(null); }}
@@ -246,7 +246,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           </button>
 
           {openMenu === "account" && (
-            <div role="menu" className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
+            <div role="menu" className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-tile shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               <a
                 href="/book"
                 target="_blank"
@@ -311,14 +311,14 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             aria-label="Menu"
             aria-expanded={openMenu === "mobile"}
             aria-haspopup="menu"
-            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-colors ${
+            className={`w-10 h-10 rounded-tile flex items-center justify-center cursor-pointer transition-colors ${
               openMenu === "mobile" ? "bg-slate-100 text-brand-purple" : "text-slate-500 hover:bg-slate-100 hover:text-brand-purple"
             }`}
           >
             <Menu size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
           {openMenu === "mobile" && (
-            <div role="menu" className="absolute top-12 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[210px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
+            <div role="menu" className="absolute top-12 right-0 z-50 bg-white border border-slate-200 rounded-tile shadow-elevated min-w-[210px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               {onNewClient && (
                 <button
                   onClick={() => { onNewClient(); setOpenMenu(null); }}

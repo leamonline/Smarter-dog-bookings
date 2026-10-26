@@ -29,7 +29,7 @@ export function CardGridSkeleton({ rows = 3, cols = 3 }) {
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
     >
       {Array.from({ length: cells }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden h-[140px] flex flex-col">
+        <div key={i} className="bg-white rounded-tile border border-slate-200 overflow-hidden h-[140px] flex flex-col">
           <Block className="h-[3px] rounded-none" />
           <div className="p-3.5 px-4 flex-1 flex flex-col gap-2">
             <Block className="h-4 w-2/3" />

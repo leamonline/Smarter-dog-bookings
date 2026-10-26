@@ -64,7 +64,7 @@ export function DepositSection({ booking, onMarkReceived }) {
   return (
     <section
       aria-label="Deposit"
-      className="rounded-xl px-3 py-3 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint"
+      className="rounded-tile px-3 py-3 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint"
     >
       <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-feedback-warning-ink m-0">
         <PiggyBank size={13} strokeWidth={2.4} aria-hidden="true" />

@@ -413,7 +413,7 @@ export function BookingRulesSettings({
 
         <section
           aria-labelledby="booking-policy-section"
-          className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4"
+          className="mt-5 rounded-tile border border-slate-200 bg-slate-50 p-4"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>

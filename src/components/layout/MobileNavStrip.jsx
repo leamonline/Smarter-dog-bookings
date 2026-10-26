@@ -41,7 +41,7 @@ export function MobileNavStrip({ currentDateStr }) {
             end={item.to === "/"}
             aria-label={ariaLabel}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[52px] px-0.5 rounded-xl no-underline motion-safe:transition-colors duration-150 ${
+              `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[52px] px-0.5 rounded-tile no-underline motion-safe:transition-colors duration-150 ${
                 isActive
                   ? "bg-brand-purple/[0.07] text-brand-purple font-bold"
                   : "text-slate-600 hover:bg-slate-100 hover:text-brand-purple font-semibold"

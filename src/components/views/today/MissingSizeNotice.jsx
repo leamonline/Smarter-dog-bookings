@@ -50,7 +50,7 @@ export function MissingSizeNotice({ dogs, onOpenDog }) {
         {dogs.map((dog) => (
           <li
             key={dog.dogId}
-            className="flex min-w-0 items-center gap-2 rounded-xl border border-brand-paper-line bg-brand-paper/60 px-3 py-2"
+            className="flex min-w-0 items-center gap-2 rounded-tile border border-brand-paper-line bg-brand-paper/60 px-3 py-2"
           >
             <span className="min-w-0 flex-1 text-xs font-semibold text-slate-700">
               <strong className="text-brand-purple">{titleCase(dog.dogName)}</strong>
@@ -62,7 +62,7 @@ export function MissingSizeNotice({ dogs, onOpenDog }) {
               type="button"
               aria-label={`Set ${titleCase(dog.dogName)}'s size`}
               onClick={() => onOpenDog?.(dog.dogId)}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-brand-purple/30 bg-white px-3 text-xs font-bold text-brand-purple outline-none hover:bg-brand-purple hover:text-white focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-tile border border-brand-purple/30 bg-white px-3 text-xs font-bold text-brand-purple outline-none hover:bg-brand-purple hover:text-white focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
             >
               Set size
             </button>

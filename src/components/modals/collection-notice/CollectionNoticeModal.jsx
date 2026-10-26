@@ -301,7 +301,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           </label>
 
           {READY_TEMPLATE && (
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 italic">
+            <div className="rounded-tile bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 italic">
               “{previewText}”
             </div>
           )}
@@ -309,7 +309,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           {contactLoadError ? (
             <div
               role="alert"
-              className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-xs font-semibold text-brand-coral-dark"
+              className="rounded-tile border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-xs font-semibold text-brand-coral-dark"
             >
               <p>{contactLoadError}</p>
               <button
@@ -321,7 +321,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
               </button>
             </div>
           ) : contactsUnavailable ? (
-            <div className="rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-3 text-xs font-semibold text-feedback-warning-ink">
+            <div className="rounded-tile border border-brand-mustard-tint bg-feedback-warning-tint px-3 py-3 text-xs font-semibold text-feedback-warning-ink">
               {contactsUnavailable}
             </div>
           ) : loading ? (
@@ -340,7 +340,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                 return (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white p-2.5"
+                    className="flex items-center justify-between gap-3 rounded-tile border border-slate-100 bg-white p-2.5"
                   >
                     <div className="min-w-0">
                       <div className="text-body font-semibold text-brand-purple truncate">

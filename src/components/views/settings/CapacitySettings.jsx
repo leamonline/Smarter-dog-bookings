@@ -66,7 +66,7 @@ export function CapacitySettings() {
                 key={time}
                 className="flex items-center gap-2.5 py-2 border-b border-slate-100 last:border-b-0"
               >
-                <span className="inline-flex items-center bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold tabular-nums">
+                <span className="inline-flex items-center bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-tile text-xs font-bold tabular-nums">
                   {time}
                 </span>
                 <span className="text-xs text-slate-600">{slotRuleText(rule)}</span>

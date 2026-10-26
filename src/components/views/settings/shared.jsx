@@ -16,7 +16,7 @@ const CARD_HEAD_THEMES = {
 
 export function Card({ id, children }) {
   return (
-    <div id={id} className="bg-white border border-slate-200 rounded-xl mb-4 shadow-card-resting overflow-hidden">
+    <div id={id} className="bg-white border border-slate-200 rounded-tile mb-4 shadow-card-resting overflow-hidden">
       {children}
     </div>
   );
@@ -80,7 +80,7 @@ export function Toggle({ on, onToggle, disabled = false, ...rest }) {
       disabled={disabled}
       onClick={disabled ? undefined : onToggle}
       {...rest}
-      className={`w-11 h-6 rounded-xl relative transition-colors duration-200 border-none p-0 ${
+      className={`w-11 h-6 rounded-tile relative transition-colors duration-200 border-none p-0 ${
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
       } ${on ? "bg-brand-green" : "bg-slate-200"}`}
     >

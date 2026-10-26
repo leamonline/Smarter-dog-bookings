@@ -206,7 +206,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
       }
     >
           {/* Booking summary */}
-          <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+          <div className="rounded-tile bg-slate-50 border border-slate-100 p-3">
             <div className="text-sm font-bold text-brand-purple">{row?.customerName}</div>
             <div className="text-xs text-slate-600">{row?.dogNamesDisplay}</div>
             <div className="text-xs text-slate-500 mt-1 tabular-nums">{whenLine}</div>
