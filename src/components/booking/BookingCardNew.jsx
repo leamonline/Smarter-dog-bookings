@@ -340,7 +340,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               )}
 
               {displayBreed && (
-                <span className="truncate text-[10px] sm:text-caption font-semibold text-slate-400 ml-1">
+                <span className="truncate text-[10px] sm:text-caption font-semibold text-ink-muted ml-1">
                   {displayBreed}
                 </span>
               )}

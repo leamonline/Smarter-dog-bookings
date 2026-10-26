@@ -85,14 +85,14 @@ export function AppointmentDetailsCard({
                             ? "#FEF3C7"
                             : isStaffOpened
                               ? sizeTheme.light
-                              : "#FFFFFF",
+                              : "var(--color-surface-card)",
                         color: isSelected
                           ? sizeTheme.headerText
                           : allowed
                             ? "#1F2937"
                             : isOverride
                               ? "#78350F"
-                              : "#6B7280",
+                              : "var(--color-ink-muted)",
                         border: `1.5px solid ${
                           isSelected
                             ? sizeTheme.primary
@@ -100,7 +100,7 @@ export function AppointmentDetailsCard({
                               ? "#FBBF24"
                               : isStaffOpened
                                 ? sizeTheme.primary
-                                : "#E5E7EB"
+                                : "var(--color-slate-200)"
                         }`,
                         opacity: isClickable ? 1 : 0.5,
                       }}

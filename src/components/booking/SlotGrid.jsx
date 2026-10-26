@@ -342,7 +342,7 @@ export function SlotGrid({
               className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-brand-teal"
               aria-hidden="true"
             />
-            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal-dark px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
               Now
             </span>
           </>
@@ -433,7 +433,7 @@ export function SlotGrid({
               className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-brand-teal z-[1]"
               aria-hidden="true"
             />
-            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal-dark px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
               Now
             </span>
           </>

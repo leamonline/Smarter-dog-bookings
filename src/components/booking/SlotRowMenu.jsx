@@ -217,7 +217,7 @@ export function SlotRowMenu({
         />
         <span
           className={`text-body md:text-sm font-bold tabular-nums leading-none ${
-            hasBooking ? "text-brand-purple" : "text-slate-400"
+            hasBooking ? "text-brand-purple" : "text-ink-muted"
           }`}
         >
           {slotLabel}

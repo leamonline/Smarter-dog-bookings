@@ -113,7 +113,7 @@ export function HumanBookingHistory({
                       color:
                         booking.status === BOOKING_STATUS.READY_FOR_COLLECTION
                           ? "#16A34A"
-                          : "#6B7280",
+                          : "var(--color-ink-muted)",
                     }}
                   >
                     {booking.status}

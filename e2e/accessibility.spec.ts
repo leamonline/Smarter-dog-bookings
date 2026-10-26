@@ -21,13 +21,13 @@ import { expect, test } from "@playwright/test";
 type Ceilings = Record<string, number>;
 
 const SCREENS: Array<{ name: string; path: string; ceilings: Ceilings }> = [
-  { name: "Daily Brief", path: "/staff/today?date=2026-10-26", ceilings: { "color-contrast": 4 } },
-  { name: "Calendar", path: "/staff?date=2026-10-26", ceilings: { "color-contrast": 33 } },
-  { name: "Dogs", path: "/staff/dogs", ceilings: { "color-contrast": 2 } },
-  { name: "Humans", path: "/staff/humans", ceilings: { "color-contrast": 13 } },
-  { name: "Inbox", path: "/staff/inbox", ceilings: { "color-contrast": 5, "nested-interactive": 4 } },
-  { name: "Settings", path: "/staff/settings", ceilings: { "color-contrast": 2 } },
-  { name: "Reports", path: "/staff/reports", ceilings: { "color-contrast": 1 } },
+  { name: "Daily Brief", path: "/staff/today?date=2026-10-26", ceilings: {} },
+  { name: "Calendar", path: "/staff?date=2026-10-26", ceilings: {} },
+  { name: "Dogs", path: "/staff/dogs", ceilings: {} },
+  { name: "Humans", path: "/staff/humans", ceilings: {} },
+  { name: "Inbox", path: "/staff/inbox", ceilings: { "nested-interactive": 4 } },
+  { name: "Settings", path: "/staff/settings", ceilings: {} },
+  { name: "Reports", path: "/staff/reports", ceilings: {} },
   // The customer sign-in is clean today, so it must stay clean.
   { name: "Customer sign-in", path: "/book", ceilings: {} },
 ];

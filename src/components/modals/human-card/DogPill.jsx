@@ -1,7 +1,7 @@
 import { SIZE_THEME, getSizeForBreed } from "../../../constants/index";
 import { titleCase } from "../../../utils/text";
 
-const PILL_FALLBACK = { light: "#E5E7EB", primary: "#6B7280" };
+const PILL_FALLBACK = { light: "var(--color-slate-200)", primary: "var(--color-ink-muted)" };
 
 // Compact owner-modal pill that links out to a dog's profile.
 // onClose runs first (so the human modal closes before the dog modal

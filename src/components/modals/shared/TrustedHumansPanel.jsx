@@ -306,7 +306,7 @@ export function TrustedHumansPanel({
                   "w-full mt-3 py-2 rounded-control border-[1.5px] border-dashed text-xs font-bold cursor-pointer font-inherit transition-colors inline-flex items-center justify-center gap-1.5",
                   showAdd
                     ? "border-brand-teal bg-brand-teal text-white"
-                    : "border-brand-teal/60 bg-transparent text-brand-teal-text hover:bg-[#E6F5F2]",
+                    : "border-brand-teal/60 bg-transparent text-brand-teal-text hover:bg-brand-teal-tint",
                 ].join(" ")}
               >
                 {showAdd ? (
@@ -341,7 +341,7 @@ export function TrustedHumansPanel({
           <div className="mt-3">
             <div className="relative">
               <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex pointer-events-none">
-                <IconSearch size={14} colour="#6B7280" />
+                <IconSearch size={14} />
               </div>
               <input
                 type="text"
@@ -385,7 +385,7 @@ export function TrustedHumansPanel({
               <button
                 type="button"
                 onClick={() => setShowNewForm(true)}
-                className="w-full mt-2 py-2 rounded-control border-[1.5px] border-dashed border-brand-teal/60 bg-transparent text-brand-teal-text text-xs font-bold cursor-pointer font-inherit transition-colors hover:bg-[#E6F5F2]"
+                className="w-full mt-2 py-2 rounded-control border-[1.5px] border-dashed border-brand-teal/60 bg-transparent text-brand-teal-text text-xs font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-teal-tint"
               >
                 + Create new human
               </button>

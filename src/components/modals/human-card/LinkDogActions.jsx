@@ -71,8 +71,8 @@ export function LinkDogActions({
             className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] border-dashed text-body font-bold cursor-pointer font-inherit transition-all"
             style={{
               borderColor: ACCENT,
-              background: showSearch ? ACCENT : "#FFFFFF",
-              color: showSearch ? "#FFFFFF" : ACCENT,
+              background: showSearch ? ACCENT : "var(--color-surface-card)",
+              color: showSearch ? "var(--color-surface-card)" : ACCENT,
             }}
           >
             <DogIcon size={14} strokeWidth={2.4} aria-hidden="true" />
@@ -85,7 +85,7 @@ export function LinkDogActions({
         <div>
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
-              <IconSearch size={14} colour="#6B7280" />
+              <IconSearch size={14} />
             </div>
             <input
               value={query}

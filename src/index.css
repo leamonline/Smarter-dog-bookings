@@ -184,6 +184,9 @@
   --color-brand-teal-dark: #1E6B5C;
   /* Lighter teal — gradient companion for the canonical brand-teal. */
   --color-brand-teal-light: #3BA594;
+  /* The pale teal wash behind teal chips, selected rows and avatars. Was typed as
+     #E6F5F2 in 15 places; available as bg-brand-teal-tint. */
+  --color-brand-teal-tint: #E6F5F2;
   --color-brand-green: var(--color-brand-green-500); /* one value, two names: prefer the numbered step in new work */
   /* Numbered success scale (green == confirmed/done). 500 == --color-brand-green. */
   --color-brand-green-50: #ECFDF3;
@@ -960,7 +963,7 @@ textarea::placeholder {
   min-width: 0;
   align-items: center;
   gap: 0 8px;
-  color: rgba(31, 31, 31, 0.55);
+  color: var(--color-text-muted);
   font-size: 10px;
   font-weight: 500;
   line-height: 1.3;
@@ -977,7 +980,7 @@ textarea::placeholder {
 }
 
 .human-directory-card__contact-strip a {
-  color: rgba(31, 31, 31, 0.48);
+  color: var(--color-text-muted);
   font-size: 9px;
   transition: color 140ms ease;
 }
@@ -1357,7 +1360,7 @@ button.human-empty-pack:hover {
   align-items: flex-start;
   gap: 3px;
   margin-top: 6px;
-  color: rgba(31, 31, 31, 0.58);
+  color: var(--color-text-muted);
   font-size: 11px;
   line-height: 1.2;
 }
@@ -1370,7 +1373,7 @@ button.human-empty-pack:hover {
 .human-directory-card--list .human-directory-card__email {
   max-width: 100%;
   overflow: hidden;
-  color: rgba(31, 31, 31, 0.52);
+  color: var(--color-text-muted);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -773,7 +773,7 @@ export function HumansView({
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="text-body font-semibold text-slate-500 hover:text-brand-purple bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
+              className="text-body font-semibold text-ink-muted hover:text-brand-purple bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
             >
               {showArchived ? "← Back to active" : "Show archived"}
             </button>

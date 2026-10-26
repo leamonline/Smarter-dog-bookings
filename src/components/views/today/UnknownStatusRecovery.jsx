@@ -32,7 +32,7 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
         {bookings.length === 1
           ? "1 booking needs its status fixed"
           : `${bookings.length} bookings need their status fixed`}
-        <span className="font-medium text-slate-500">— it has no place in the day</span>
+        <span className="font-medium text-ink-muted">— it has no place in the day</span>
       </h2>
       <ul className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
         {bookings.map((booking) => {
@@ -47,7 +47,7 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-bold text-brand-purple underline decoration-brand-purple/30 underline-offset-2 outline-none transition-colors hover:bg-white/70 hover:decoration-brand-purple focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
               >
                 {dogName}
-                <span aria-hidden="true" className="font-medium text-slate-500">{time}</span>
+                <span aria-hidden="true" className="font-medium text-ink-muted">{time}</span>
               </button>
             </li>
           );
