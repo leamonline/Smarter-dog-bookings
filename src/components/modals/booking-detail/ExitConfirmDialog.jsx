@@ -1,5 +1,4 @@
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
-import { Button } from "../../ui";
+import { AccessibleModal, Button } from "../../ui";
 
 export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
   return (

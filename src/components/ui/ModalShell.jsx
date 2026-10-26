@@ -1,4 +1,4 @@
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
+import { AccessibleModal } from "./AccessibleModal";
 
 // Shared visual shell for the three entity modals (human / dog /
 // booking). AccessibleModal keeps owning behaviour (focus trap, Escape,

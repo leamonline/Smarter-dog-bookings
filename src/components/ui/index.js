@@ -20,6 +20,10 @@ export { StatusPill } from "./StatusPill.jsx";
 // WhatsApp conversation state.
 export { BookingStatusBadge, resolveDayStatus } from "./BookingStatusBadge";
 export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
+// Dialogs. AccessibleModal owns behaviour (focus trap, Escape, scroll lock, stacking);
+// ModalShell adds the chrome (accent bar, pinned header/footer, mobile sheet).
+export { AccessibleModal } from "./AccessibleModal";
+export { ModalShell } from "./ModalShell.jsx";
 // One dog on the day list: fixed header, drawer as children. Data in, no hooks.
 export { DayCard } from "./DayCard.jsx";
 export {

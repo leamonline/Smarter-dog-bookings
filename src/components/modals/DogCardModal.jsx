@@ -5,7 +5,6 @@
 // modals that only mount when staff open them.
 import { useState, useMemo, useEffect } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
-import { ModalShell } from "./shell/index.js";
 import { getHumanByIdOrName, looksLikeUuid } from "../../engine/bookingRules";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import {
@@ -26,6 +25,7 @@ import {
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { ModalShell } from "../ui";
 
 export function DogCardModal({
   dogId,

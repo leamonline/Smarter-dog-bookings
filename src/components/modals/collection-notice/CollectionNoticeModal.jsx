@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "../shell/index.js";
+import { HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
@@ -26,7 +26,7 @@ import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/what
 import { joinNames } from "../../../lib/reminders/templates.js";
 import { titleCase } from "../../../utils/text";
 import { BOOKING_STATUS } from "../../../constants/index";
-import { Button } from "../../ui";
+import { Button, ModalShell } from "../../ui";
 
 const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v1");
 

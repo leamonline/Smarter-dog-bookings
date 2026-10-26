@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { InlineError } from "../ui/InlineError.jsx";
 import { logger } from "../../lib/logger";
+import { ModalShell } from "../ui";
 
 export function WaitlistModal({
   onClose,

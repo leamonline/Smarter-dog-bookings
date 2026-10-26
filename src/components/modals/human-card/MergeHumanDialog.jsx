@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Search, X } from "lucide-react";
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { titleCase } from "../../../utils/text";
 import { getDogsForHuman } from "../../../utils/directorySearch";
 import { logger } from "../../../lib/logger";
+import { AccessibleModal } from "../../ui";
 
 // Merge-duplicate flow for the HumanCardModal. Pick the other record with
 // the same debounced search the trusted-contacts picker uses, eyeball a

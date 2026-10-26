@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { toDateStr } from "../../supabase/transforms";
 import { isDateOpen } from "../../engine/utils";
+import { ModalShell } from "../ui";
 
 export function DatePickerModal({
   currentDate,

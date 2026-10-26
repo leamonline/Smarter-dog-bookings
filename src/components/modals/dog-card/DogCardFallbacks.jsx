@@ -1,6 +1,5 @@
-import { ModalShell } from "../shell/index.js";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
-import { Button } from "../../ui";
+import { Button, ModalShell } from "../../ui";
 
 /** Shown while useResolvedDog is fetching a dog beyond the loaded page. */
 export function DogCardLoading({ onClose }) {

@@ -4,8 +4,7 @@
 // between rejections. While `busy`, dismissal is blocked so the in-flight
 // reject can't be orphaned.
 import { useState } from "react";
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
-import { Button } from "../../ui";
+import { AccessibleModal, Button } from "../../ui";
 
 export function RejectSignupDialog({ busy, onCancel, onConfirm }) {
   const [reason, setReason] = useState("");

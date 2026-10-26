@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { IconCamera } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
+import { ModalShell } from "../ui";
 
 /**
  * Modal for capturing/uploading a groom photo with optional notes.

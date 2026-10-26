@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { MiniInvoiceModal } from "./MiniInvoiceModal.jsx";
+import { ModalShell } from "../../ui";
 
 const bookingFixture = {
   id: "b1",

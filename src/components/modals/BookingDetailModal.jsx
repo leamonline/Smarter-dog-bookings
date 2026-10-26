@@ -1,5 +1,4 @@
 import { useMemo, useEffect, useCallback, useState, lazy, Suspense } from "react";
-import { ModalShell } from "./shell/index.js";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import { useBookingSave } from "../../hooks/useBookingSave.ts";
@@ -36,6 +35,7 @@ import { useReminderSentOverride } from "./booking-detail/useReminderSentOverrid
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
+import { ModalShell } from "../ui";
 
 // Lazy so the channel composers don't load until staff first send from here.
 const SendReminderModal = lazy(() =>

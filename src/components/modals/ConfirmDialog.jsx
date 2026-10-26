@@ -3,7 +3,7 @@
 // step?" question speaks in the product's voice, traps focus, and keeps its
 // destructive/primary option visually ranked.
 import { useId } from "react";
-import { ModalShell } from "./shell/ModalShell.jsx";
+import { ModalShell } from "../ui";
 
 export function ConfirmDialog({
   title,

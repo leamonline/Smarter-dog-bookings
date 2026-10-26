@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "../shell/index.js";
+import { HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
@@ -23,6 +23,7 @@ import { SERVICES } from "../../../constants/salon.ts";
 import { WhatsAppComposer } from "./WhatsAppComposer.jsx";
 import { SmsComposer } from "./SmsComposer.jsx";
 import { EmailComposer } from "./EmailComposer.jsx";
+import { ModalShell } from "../../ui";
 
 const CHANNEL_LABEL = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
 

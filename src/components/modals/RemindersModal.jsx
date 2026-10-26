@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { TomorrowRemindersCard } from "../dashboard/TomorrowRemindersCard.jsx";
+import { ModalShell } from "../ui";
 
 // Lightweight modal home for tomorrow's reminders on mobile/tablet, opened
 // from the bell badge on the day's controls bar. Reuses the same reminders

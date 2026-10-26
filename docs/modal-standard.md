@@ -13,14 +13,15 @@ Build on **`ModalShell`** (which wraps **`AccessibleModal`**). `AccessibleModal`
 *behaviour* (focus trap, ESC, scroll-lock, portal, role/aria); `ModalShell` owns the *chrome*
 (accent bar, paper surface, pinned header/body/footer, mobile sheet, animation). You supply a
 `header`, an optional `footer`, the scrolling body as `children`, a `titleId`, and an `accent`
-colour. Never hand-roll a `fixed inset-0` overlay.
+colour. Never hand-roll a `fixed inset-0` overlay (a ratchet, `handRolledDialogs`, holds the count
+at zero). Both live in the shared kit, `src/components/ui`, and import from `components/ui`.
 
 ---
 
 ## 1. The backbone primitives
 
 ### `AccessibleModal` — behaviour (do not duplicate this yourself)
-[`src/components/shared/AccessibleModal.tsx`](../src/components/shared/AccessibleModal.tsx)
+[`src/components/ui/AccessibleModal.tsx`](../src/components/ui/AccessibleModal.tsx)
 
 - `react-aria` `useDialog` → `role="dialog"` + `aria-labelledby={titleId}`.
 - `<FocusScope contain restoreFocus autoFocus>` → focus trap + focus restore on close.
@@ -32,7 +33,7 @@ colour. Never hand-roll a `fixed inset-0` overlay.
 - Props: `children, onClose, titleId, className, backdropClass, zIndex, dismissOnEscape`.
 
 ### `ModalShell` — chrome (the standard wrapper)
-[`src/components/modals/shell/ModalShell.jsx`](../src/components/modals/shell/ModalShell.jsx)
+[`src/components/ui/ModalShell.jsx`](../src/components/ui/ModalShell.jsx)
 
 - 4px **accent bar** (`<div className="h-1 shrink-0" style={{ background: accent }}>`).
 - Paper surface `bg-[var(--color-brand-paper)]` (**`#FAF9F6`**, not pure white).

@@ -11,8 +11,7 @@
  *     onCancel={() => setShowConfirm(false)}
  *   />
  */
-import { AccessibleModal } from "./AccessibleModal.tsx";
-import { Button } from "../ui";
+import { AccessibleModal, Button } from "../ui";
 
 export function ConfirmDialog({
   title,

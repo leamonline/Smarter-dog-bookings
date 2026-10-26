@@ -27,6 +27,7 @@ export const CEILINGS = {
   hardCodedColours: { literals: 90 },
   offScale: { shadow: 37, radius: 6, card16: 0, tile12: 0 },
   smallText: { underFloor: 27, namedSizes: 0 },
+  handRolledDialogs: { overlays: 0 },
 } as const;
 
 export type RatchetId = keyof typeof CEILINGS;
@@ -306,6 +307,29 @@ export function lowerCeilingsInSource(
   return { text: source.slice(0, start) + rewritten + source.slice(end), changes };
 }
 
+// ------------------------------------------------------------ 6. hand-rolled dialogs
+
+// A dialog written by hand skips the focus trap, Escape stacking, reference-counted
+// scroll lock and screen-reader isolation that AccessibleModal and ModalShell give
+// every other dialog. Each marker below is a sign someone rebuilt them: the dialog
+// roles, `aria-modal` as a JSX attribute (a leading space keeps selector strings
+// such as '[aria-modal="true"]' out), or a full-screen `fixed inset-0` overlay.
+const HAND_ROLLED_DIALOG = /\brole=["']?(?:alert)?dialog\b|\saria-modal=|\bfixed inset-0\b/g;
+
+export function countHandRolledDialogs(source: string): number {
+  return (source.match(HAND_ROLLED_DIALOG) ?? []).length;
+}
+
+export function measureHandRolledDialogs(srcDir: string = SRC_DIR): Measurement {
+  const m = emptyMeasurement(Object.keys(CEILINGS.handRolledDialogs));
+  const kit = join(srcDir, "components", "ui") + "/";
+  for (const file of sourceFiles(srcDir)) {
+    if (file.startsWith(kit)) continue;
+    add(m, "overlays", relative(srcDir, file), countHandRolledDialogs(readFileSync(file, "utf8")));
+  }
+  return m;
+}
+
 // --------------------------------------------------------------------- registry
 
 export const RATCHETS: ReadonlyArray<{
@@ -349,5 +373,11 @@ export const RATCHETS: ReadonlyArray<{
     title: "Small and hand-written text sizes (use a named size)",
     keys: { underFloor: "text-[Npx] under 12px", namedSizes: "text-[12|13|14|16px] where a name exists" },
     measure: measureSmallText,
+  },
+  {
+    id: "handRolledDialogs",
+    title: "Hand-rolled dialogs (use ModalShell or AccessibleModal from the kit)",
+    keys: { overlays: "role=dialog, aria-modal or fixed inset-0 outside the kit" },
+    measure: measureHandRolledDialogs,
   },
 ];

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
-import { Button } from "../../ui";
+import { AccessibleModal, Button } from "../../ui";
 
 // Shown after staff press "Confirm booking" (always — every new booking). Asks
 // whether to send the customer a confirmation and over which method. Returns one

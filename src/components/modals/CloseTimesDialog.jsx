@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { AccessibleModal } from "../shared/AccessibleModal";
-import { Button, Field, Input, Select } from "../ui/index.js";
+import { AccessibleModal, Button, Field, Input, Select } from "../ui";
 import {
   validateClosure,
   endTimeOptions,
