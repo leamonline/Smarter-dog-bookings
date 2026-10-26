@@ -1,4 +1,5 @@
 import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
+import { Button } from "../../ui";
 
 export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
   return (
@@ -18,21 +19,21 @@ export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
         You have unsaved changes. Are you sure you want to close?
       </p>
       <div className="flex gap-2 justify-end">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={onKeepEditing}
           autoFocus
-          className="btn btn-ghost"
         >
           Keep editing
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="danger"
           type="button"
           onClick={onDiscard}
-          className="btn btn-danger"
         >
           Discard
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );

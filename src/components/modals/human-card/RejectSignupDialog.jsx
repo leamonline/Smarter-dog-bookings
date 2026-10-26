@@ -5,6 +5,7 @@
 // reject can't be orphaned.
 import { useState } from "react";
 import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
+import { Button } from "../../ui";
 
 export function RejectSignupDialog({ busy, onCancel, onConfirm }) {
   const [reason, setReason] = useState("");
@@ -35,22 +36,22 @@ export function RejectSignupDialog({ busy, onCancel, onConfirm }) {
         className="w-full text-sm bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 mb-4 outline-none font-inherit text-slate-700 resize-none focus:border-brand-teal"
       />
       <div className="flex gap-2 justify-end">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="btn btn-ghost"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="danger"
           type="button"
           onClick={() => onConfirm(reason.trim() || null)}
           disabled={busy}
-          className="btn btn-danger"
         >
           {busy ? "Rejecting…" : "Reject signup"}
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );
