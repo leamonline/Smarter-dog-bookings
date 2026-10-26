@@ -66,7 +66,7 @@ export function CalendarSettings() {
   return (
     <div className="space-y-6 animate-[fadeIn_0.2s_ease-in]">
       {/* Staff Calendar Feed */}
-      <div className="bg-white border border-slate-200 rounded-tile p-5 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-card p-5 shadow-sm">
         <h3 className="text-[15px] font-bold text-slate-800 mb-1">Staff Calendar Feed</h3>
         <p className="text-body text-slate-500 mb-4 leading-relaxed">
           Subscribe to this URL in your calendar app to see all salon bookings.
@@ -121,7 +121,7 @@ export function CalendarSettings() {
       </div>
 
       {/* Platform instructions */}
-      <div className="bg-white border border-slate-200 rounded-tile p-5 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-card p-5 shadow-sm">
         <h3 className="text-[15px] font-bold text-slate-800 mb-3">How to Subscribe</h3>
         <div className="space-y-3 text-body text-slate-600 leading-relaxed">
           <div>
@@ -141,7 +141,7 @@ export function CalendarSettings() {
       </div>
 
       {/* Customer info */}
-      <div className="bg-slate-50 border border-slate-200 rounded-tile p-5">
+      <div className="bg-slate-50 border border-slate-200 rounded-card p-5">
         <h3 className="text-[15px] font-bold text-slate-800 mb-1">Customer Calendar Sync</h3>
         <p className="text-body text-slate-500 leading-relaxed">
           Customers can add appointments to their personal calendar from the booking confirmation screen
