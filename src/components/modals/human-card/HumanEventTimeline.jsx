@@ -27,7 +27,7 @@ export function HumanEventTimeline({ human, dogs, dogsByHumanId }) {
   return (
     <section
       aria-label="Booking activity"
-      className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden"
+      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
     >
       <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
         <h3 className="text-micro font-bold uppercase tracking-wider text-brand-teal-text/70">
