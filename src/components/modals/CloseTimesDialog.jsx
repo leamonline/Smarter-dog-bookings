@@ -156,7 +156,7 @@ export function CloseTimesDialog({
     <AccessibleModal
       onClose={onClose}
       titleId={TITLE_ID}
-      className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden"
+      className="bg-white rounded-card w-full max-w-md shadow-xl overflow-hidden"
     >
       <header className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)]">
         <div>

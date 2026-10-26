@@ -260,7 +260,7 @@ export function DogSearchSection({
               search (auto-focused, results only once staff type). Brand-new
               customers: straight into the guided New Client wizard. Neither
               path reads as the afterthought. */}
-          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-brand-teal-tint p-3 flex flex-col justify-center">
+          <div className="min-h-[104px] rounded-card border border-brand-teal/30 bg-brand-teal-tint p-3 flex flex-col justify-center">
             <label htmlFor="dog-search-input" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
             <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
@@ -393,7 +393,7 @@ export function DogSearchSection({
             type="button"
             onClick={() => onOpenNewClient?.()}
             aria-label="New customer"
-            className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
+            className="w-full min-h-[104px] text-left rounded-card border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
           >
             <span className="text-caption font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
             <span aria-hidden="true" className="text-body text-[#5C4600]/75 block">

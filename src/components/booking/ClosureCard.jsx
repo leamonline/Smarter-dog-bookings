@@ -52,7 +52,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
   return (
     <div
       ref={wrapRef}
-      className="relative h-full rounded-2xl bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.35)] px-4 py-3 flex flex-col gap-2"
+      className="relative h-full rounded-card bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.35)] px-4 py-3 flex flex-col gap-2"
     >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">

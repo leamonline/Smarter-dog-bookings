@@ -29,7 +29,7 @@ export function DogSummaryCard({ dog, onOpenDog }) {
     <button
       type="button"
       onClick={onOpenDog ? () => onOpenDog(dog.id) : undefined}
-      className={`w-full text-left rounded-2xl border border-slate-200 bg-white px-3 py-2.5 transition-colors font-[inherit] ${
+      className={`w-full text-left rounded-card border border-slate-200 bg-white px-3 py-2.5 transition-colors font-[inherit] ${
         onOpenDog ? "cursor-pointer hover:border-brand-yellow/60 hover:bg-brand-yellow/5" : "cursor-default"
       }`}
     >

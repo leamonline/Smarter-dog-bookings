@@ -194,7 +194,7 @@ export function WeeklyCashUp() {
   return (
     <section
       aria-label="Weekly cash-up"
-      className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-card-resting"
+      className="bg-white border border-slate-200 rounded-card overflow-hidden shadow-card-resting"
     >
       {/* Header + week navigation */}
       <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light px-4 sm:px-6 py-3">

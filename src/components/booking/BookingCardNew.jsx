@@ -99,7 +99,7 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
       ref={popRef}
       onClick={(e) => e.stopPropagation()}
       style={{ position: "fixed", top, left, width: POPUP_WIDTH, zIndex: 1100 }}
-      className="bg-white border border-red-300 rounded-2xl shadow-elevated p-3 animate-pop-in"
+      className="bg-white border border-red-300 rounded-card shadow-elevated p-3 animate-pop-in"
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-label text-red-700">
@@ -274,7 +274,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[76px] lg:min-h-[80px] h-auto ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-card flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[76px] lg:min-h-[80px] h-auto ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.03), 0 2px 8px ${sizeTheme.glow}0.06)` }}
       >
         {/* Top accent bar */}

@@ -35,7 +35,7 @@ export function MissingSizeNotice({ dogs, onOpenDog }) {
   return (
     <section
       aria-label="Dogs booked this week with no size recorded"
-      className="rounded-2xl border border-brand-paper-line bg-white px-3 py-3 sm:px-4"
+      className="rounded-card border border-brand-paper-line bg-white px-3 py-3 sm:px-4"
     >
       <h2 className="text-body font-extrabold text-brand-purple">
         {dogs.length === 1

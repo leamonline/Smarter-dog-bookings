@@ -61,7 +61,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       id={id}
       onClick={onClick}
       className={[
-        "flex flex-col items-center gap-1 py-2 px-2 sm:px-2.5 rounded-2xl cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[52px]",
+        "flex flex-col items-center gap-1 py-2 px-2 sm:px-2.5 rounded-card cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[52px]",
         isActive
           ? "bg-brand-purple/10"
           : !isOpen

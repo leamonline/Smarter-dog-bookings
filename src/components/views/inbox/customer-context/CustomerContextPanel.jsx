@@ -94,7 +94,7 @@ export function CustomerContextPanel({
               shown read-only here above the dog card(s) as a titled card.
               Staff edit them on the full profile. */}
           {!loading && !error && displayHuman && displayHuman.notes && (
-            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+            <div className="rounded-card border border-slate-200 bg-white px-3 py-2.5">
               <div className="text-micro font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Notes
               </div>

@@ -33,7 +33,7 @@ function Frame({ title, children }) {
       </h3>
       {/* Mimic the inbox card: overflow-hidden so any compose overflow would
           clip at this edge exactly as it does in the real layout. */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-card border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">{children}</div>
       </div>
     </section>

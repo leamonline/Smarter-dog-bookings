@@ -61,7 +61,7 @@ export function HumanBookingHistory({
   return (
     <section
       aria-label="Recent bookings"
-      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
+      className="bg-white rounded-card border border-gray-100 shadow-card-resting overflow-hidden"
     >
       <div>
         <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
