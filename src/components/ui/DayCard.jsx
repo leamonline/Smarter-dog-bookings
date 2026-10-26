@@ -88,14 +88,13 @@ export function DayCard({
   const ruleWidth = readyOverdue ? RULE_OVERDUE : urgent ? RULE_URGENT : RULE_CALM;
   const drawerId = `stack-drawer-${id}`;
 
-  // One sentence gives the disclosure its complete accessible name. The
-  // separate safety button also names every warning for direct navigation.
+  // Keep the visible time, name, status and balance together so speech
+  // controls can match the heading. Append the extra spoken context.
+  // The separate safety button also names every warning for direct navigation.
   const spoken = [
-    spokenTime,
+    time || "--:--",
     dogName,
-    subtitle,
     tone.label,
-    timing,
     balance?.kind === "due"
       ? `${balance.text} due`
       : balance?.kind === "paid"
@@ -103,6 +102,9 @@ export function DayCard({
         : balance?.kind === "unknown"
           ? "Payment not known"
           : null,
+    subtitle,
+    timing,
+    spokenTime && spokenTime !== time ? `Appointment time ${spokenTime}` : null,
     onTheWay ? "Owner on the way" : null,
     ownerName ? `owner ${ownerName}` : null,
     safetyFacts.length ? `Safety note: ${safetyFacts.join(". ")}` : null,
@@ -155,16 +157,16 @@ export function DayCard({
         >
           <span className="wallet-time text-[19px] font-bold tabular-nums tracking-[-0.01em]">
             {time || "--:--"}
-          </span>
+          </span>{" "}
 
-          <span className="wallet-name block truncate text-[17px] font-medium">{dogName}</span>
+          <span className="wallet-name block truncate text-[17px] font-medium">{dogName}</span>{" "}
           <span className="wallet-status text-right text-xs leading-[1.3]">
             <BookingStatusBadge
               status={status}
               cancelReason={cancelReason}
               variant="onTint"
               className="block font-medium"
-            />
+            />{" "}
             {balance?.kind === "due" ? (
               <span className="block font-bold tabular-nums">{balance.text} due</span>
             ) : balance?.kind === "paid" ? (
