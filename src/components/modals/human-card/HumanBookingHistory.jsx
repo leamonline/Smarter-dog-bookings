@@ -3,6 +3,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { titleCase } from "../../../utils/text";
 import { getDogsForHuman } from "../../../utils/directorySearch";
+import { resolveDayStatus } from "../../ui";
 
 const COLLAPSED_ROWS = 5;
 
@@ -112,7 +113,7 @@ export function HumanBookingHistory({
                     style={{
                       color:
                         booking.status === BOOKING_STATUS.READY_FOR_COLLECTION
-                          ? "#16A34A"
+                          ? resolveDayStatus(booking.status).ink
                           : "var(--color-ink-muted)",
                     }}
                   >

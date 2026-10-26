@@ -27,7 +27,7 @@ import { describe, expect, it } from "vitest";
 
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 
-const CEILING = 93;
+const CEILING = 90;
 
 /** Files where a colour literal is the design, not drift. Keep this short. */
 const ALLOWED: Record<string, string> = {

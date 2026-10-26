@@ -378,7 +378,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 }}
                 className="cursor-pointer"
                 style={{
-                  borderColor: fieldErrors.size ? "var(--color-brand-coral)" : sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "var(--color-brand-coral)" : undefined,
+                  borderColor: fieldErrors.size ? "var(--color-brand-coral)" : sizeAutoSet && !sizeOverridden ? "var(--color-brand-green-600)" : !size && breed.trim() ? "var(--color-brand-coral)" : undefined,
                 }}>
                 <option value="">Select size</option>
                 <option value="small">Small</option>
