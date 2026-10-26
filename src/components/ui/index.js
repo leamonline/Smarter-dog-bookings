@@ -3,6 +3,7 @@
 
 // New primitives
 export { Button } from "./Button.jsx";
+export { IconButton } from "./IconButton.jsx";
 export { Card, CardStripe } from "./Card.jsx";
 export { Badge } from "./Badge.jsx";
 // Form controls. Wrap a control in <Field> for its label, hint and error.
