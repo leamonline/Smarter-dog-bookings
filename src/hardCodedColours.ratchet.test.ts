@@ -48,8 +48,29 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+// Drops block comments, whole-line comments and trailing `// …` comments. A `//`
+// inside a string ("https://…") is not a comment, so each line is walked with
+// the quote state tracked rather than cut with a regex.
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => {
+      let quote: string | null = null;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (quote) {
+          if (ch === "\\") i++;
+          else if (ch === quote) quote = null;
+        } else if (ch === '"' || ch === "'" || ch === "`") {
+          quote = ch;
+        } else if (ch === "/" && line[i + 1] === "/") {
+          return line.slice(0, i);
+        }
+      }
+      return line;
+    })
+    .join("\n");
 }
 
 // A `#abc` right after `href="`, `to="`, `id="` and similar is an anchor, not a colour.
@@ -112,6 +133,16 @@ describe("colour literal scanner", () => {
 
   it("ignores comments", () => {
     expect(countColourLiterals("// #ff0000\n/* rgba(0,0,0,1) and #fff */\nconst a = 1;")).toBe(0);
+  });
+
+  it("ignores a trailing line comment but still counts code before it", () => {
+    expect(countColourLiterals("const a = 1; // previous colour #fff")).toBe(0);
+    expect(countColourLiterals('const a = "#fff"; // was #000')).toBe(1);
+  });
+
+  it("does not mistake // inside a string for a comment", () => {
+    expect(countColourLiterals('const u = "https://x.test/", c = "#fff";')).toBe(1);
+    expect(countColourLiterals("const c = `//${x}`, d = \"#000\";")).toBe(1);
   });
 
   it("ignores anchors and ids", () => {
