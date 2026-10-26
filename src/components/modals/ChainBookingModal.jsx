@@ -416,19 +416,19 @@ export function ChainBookingModal({
                         background: selected
                           ? sizeTheme.primary
                           : isOverride
-                            ? "#FFFBEB"
+                            ? "var(--color-feedback-warning-tint)"
                             : "var(--color-surface-card)",
                         color: selected
                           ? sizeTheme.headerText
                           : available
-                            ? "#1F2937"
+                            ? "var(--color-ink)"
                             : isOverride
-                              ? "#92400E"
-                              : "#9CA3AF",
+                              ? "var(--color-feedback-warning-ink)"
+                              : "var(--color-ink-muted)",
                         borderColor: selected
                           ? sizeTheme.primary
                           : isOverride
-                            ? "#F59E0B"
+                            ? "var(--color-feedback-warning)"
                             : "var(--color-slate-200)",
                         opacity: isClickable ? 1 : 0.5,
                       }}
@@ -530,9 +530,9 @@ export function ChainBookingModal({
                   aria-label={`${slot} — over capacity, click to override`}
                   className="py-2 rounded-lg text-body font-semibold text-center border-[1.5px] cursor-pointer transition-colors"
                   style={{
-                    background: "#FFFBEB",
-                    color: "#92400E",
-                    borderColor: "#F59E0B",
+                    background: "var(--color-feedback-warning-tint)",
+                    color: "var(--color-feedback-warning-ink)",
+                    borderColor: "var(--color-feedback-warning)",
                   }}
                 >
                   {slot}

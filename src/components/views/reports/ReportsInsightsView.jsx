@@ -168,7 +168,7 @@ export function ReportsInsightsView({ loadError = null }) {
               cur={stats.curN}
               prev={stats.prevN}
               hideDelta={isLowN}
-              color="#10C2FC"
+              color="var(--color-brand-cyan)"
             />
             <Kpi
               label="Avg per Dog"
