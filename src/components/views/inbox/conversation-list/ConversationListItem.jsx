@@ -102,7 +102,7 @@ export function ConversationListItem({
           </span>
           {lastAt && (
             <span
-              className="shrink-0 tabular-nums text-xs text-slate-500"
+              className="shrink-0 tabular-nums text-xs text-ink-muted"
               title={absoluteWhen}
               aria-label={absoluteWhen}
             >
@@ -111,7 +111,7 @@ export function ConversationListItem({
           )}
         </div>
 
-        {waitingLabel && <p className={`mt-1 text-xs font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-slate-500" : "text-feedback-warning-ink"}`}>{waitingLabel}</p>}
+        {waitingLabel && <p className={`mt-1 text-xs font-semibold ${waitingLabel === "Waiting time unavailable" ? "text-ink-muted" : "text-feedback-warning-ink"}`}>{waitingLabel}</p>}
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {preview ? (
