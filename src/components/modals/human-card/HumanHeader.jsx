@@ -62,7 +62,7 @@ export function HumanHeader({
       <div className="flex items-start gap-3 flex-1 min-w-0">
         <div
           aria-hidden="true"
-          className="w-[46px] h-[46px] rounded-full bg-[#E6F5F2] text-brand-purple font-display font-bold text-base flex items-center justify-center shrink-0 mt-0.5"
+          className="w-[46px] h-[46px] rounded-full bg-brand-teal-tint text-brand-purple font-display font-bold text-base flex items-center justify-center shrink-0 mt-0.5"
         >
           {getInitials(human, humanFullName)}
         </div>

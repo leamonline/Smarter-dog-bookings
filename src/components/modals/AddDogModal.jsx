@@ -451,7 +451,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
             <label htmlFor="add-dog-owner" className="mb-1 block text-sm font-semibold text-ink">Owner<span aria-hidden="true" className="text-brand-coral-text"> *</span></label>
             {selectedOwner && !showNewOwner ? (
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-[#E6F5F2] px-3.5 py-2.5 rounded-lg">
+                <div className="flex-1 bg-brand-teal-tint px-3.5 py-2.5 rounded-lg">
                   <div className="text-sm font-bold text-brand-teal">{titleCase(selectedOwner.label)}</div>
                   {selectedOwner.phone && (
                     <div className="text-xs text-slate-500 mt-0.5">{selectedOwner.phone}</div>
@@ -468,7 +468,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               <div>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
-                    <IconSearch size={14} colour="#6B7280" />
+                    <IconSearch size={14} />
                   </div>
                   <Input
                     id="add-dog-owner"
@@ -494,7 +494,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                             key={h.id || fullName}
                             onMouseDown={selectOwner}
                             onClick={selectOwner}
-                            className="w-full text-left bg-white px-3.5 py-2.5 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-[#E6F5F2] focus:outline-none focus-visible:bg-[#E6F5F2]"
+                            className="w-full text-left bg-white px-3.5 py-2.5 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-brand-teal-tint focus:outline-none focus-visible:bg-brand-teal-tint"
                           >
                             <div className="text-body font-semibold text-slate-800">{titleCase(fullName)}</div>
                             {h.phone && <div className="text-xs text-slate-500">{h.phone}</div>}
@@ -588,8 +588,8 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                     }}
                     className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
                     style={{
-                      background: active ? opt.color : "#FFFFFF",
-                      color: active ? "#FFFFFF" : opt.color,
+                      background: active ? opt.color : "var(--color-surface-card)",
+                      color: active ? "var(--color-surface-card)" : opt.color,
                       border: `1.5px solid ${opt.color}`,
                     }}
                   >
@@ -602,8 +602,8 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 onClick={() => setHasAllergy(!hasAllergy)}
                 className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
                 style={{
-                  background: hasAllergy ? "var(--color-brand-coral)" : "#FFFFFF",
-                  color: hasAllergy ? "#FFFFFF" : "var(--color-brand-coral)",
+                  background: hasAllergy ? "var(--color-brand-coral)" : "var(--color-surface-card)",
+                  color: hasAllergy ? "var(--color-surface-card)" : "var(--color-brand-coral)",
                   border: "1.5px solid var(--color-brand-coral)",
                 }}
               >

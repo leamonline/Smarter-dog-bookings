@@ -274,7 +274,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
               )}
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
-                  <IconSearch size={14} colour="#6B7280" />
+                  <IconSearch size={14} />
                 </div>
                 <Input
                   type="text"

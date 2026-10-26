@@ -201,7 +201,7 @@ export function DogSearchSection({
               className="flex-1 py-2 px-3 rounded-lg border-[1.5px] border-dashed bg-white text-xs font-bold cursor-pointer font-inherit transition-all"
               style={{ borderColor: primaryTheme.gradient[0], color: primaryTheme.gradient[0] }}
               onMouseEnter={(e) => { e.currentTarget.style.background = primaryTheme.light; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-surface-card)"; }}
             >
               + Add another dog
             </button>
@@ -230,7 +230,7 @@ export function DogSearchSection({
                     onMouseDown={() => onAddAnotherDog(dog)}
                     className="px-3 py-2.5 cursor-pointer border-b border-slate-200 transition-colors"
                     onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-surface-card)")}
                   >
                     <span className="text-body font-bold text-slate-800">{titleCase(dog.name)}</span>
                     <span className="text-xs text-slate-500 ml-1.5">
@@ -244,7 +244,7 @@ export function DogSearchSection({
                 className="px-3 py-2.5 cursor-pointer text-xs font-bold transition-colors"
                 style={{ color: primaryTheme.gradient[0] }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-surface-card)")}
               >
                 + New dog for {titleCase(selectedHumanKey)}
               </div>
@@ -260,11 +260,11 @@ export function DogSearchSection({
               search (auto-focused, results only once staff type). Brand-new
               customers: straight into the guided New Client wizard. Neither
               path reads as the afterthought. */}
-          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-[#E6F5F2] p-3 flex flex-col justify-center">
+          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-brand-teal-tint p-3 flex flex-col justify-center">
             <label htmlFor="dog-search-input" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
             <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
-              <IconSearch size={15} colour="#6B7280" />
+              <IconSearch size={15} />
             </div>
             <input
               ref={searchRef}
@@ -299,7 +299,7 @@ export function DogSearchSection({
                   <div
                     key={entry.dog.id}
                     className="px-3.5 py-2.5"
-                    style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid #E5E7EB" : "none" }}
+                    style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid var(--color-slate-200)" : "none" }}
                   >
                     {/* Dog header — clickable, picks the primary owner by default */}
                     <button
@@ -326,9 +326,9 @@ export function DogSearchSection({
                     ) : (
                       <div className="flex flex-col gap-1">
                         {entry.humans.map((human) => {
-                          const labelBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
+                          const labelBg = human.isTrusted ? "var(--color-brand-teal-tint)" : "#E0F7FC";
                           const labelColor = human.isTrusted ? "var(--color-brand-teal)" : "#0099BD";
-                          const hoverBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
+                          const hoverBg = human.isTrusted ? "var(--color-brand-teal-tint)" : "#E0F7FC";
                           // When the humans map hasn't loaded yet, the entry is
                           // marked missing. Show a shimmer instead of the
                           // misleading "Unknown owner" text — the row will

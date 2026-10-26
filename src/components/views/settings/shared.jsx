@@ -8,7 +8,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 export const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s ?? "").trim());
 
 const CARD_HEAD_THEMES = {
-  teal:   { bg: "bg-[#E6F5F2]", color: "text-brand-teal-dark" },
+  teal:   { bg: "bg-brand-teal-tint", color: "text-brand-teal-dark" },
   blue:   { bg: "bg-blue-50",    color: "text-brand-cyan-dark" },
   yellow: { bg: "bg-feedback-warning-tint",   color: "text-feedback-warning-ink" },
   coral:  { bg: "bg-brand-coral-light", color: "text-brand-coral" },

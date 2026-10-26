@@ -417,7 +417,7 @@ export function ChainBookingModal({
                           ? sizeTheme.primary
                           : isOverride
                             ? "#FFFBEB"
-                            : "#FFFFFF",
+                            : "var(--color-surface-card)",
                         color: selected
                           ? sizeTheme.headerText
                           : available
@@ -429,7 +429,7 @@ export function ChainBookingModal({
                           ? sizeTheme.primary
                           : isOverride
                             ? "#F59E0B"
-                            : "#E5E7EB",
+                            : "var(--color-slate-200)",
                         opacity: isClickable ? 1 : 0.5,
                       }}
                     >
@@ -451,8 +451,8 @@ export function ChainBookingModal({
               style={{
                 background: firstSlot
                   ? sizeTheme.gradient[0]
-                  : "#E5E7EB",
-                color: firstSlot ? sizeTheme.headerText : "#6B7280",
+                  : "var(--color-slate-200)",
+                color: firstSlot ? sizeTheme.headerText : "var(--color-ink-muted)",
               }}
             >
               Book First Appointment
@@ -592,11 +592,11 @@ export function ChainBookingModal({
                   background:
                     weeksGap && parseInt(weeksGap, 10) > 0
                       ? sizeTheme.gradient[0]
-                      : "#E5E7EB",
+                      : "var(--color-slate-200)",
                   color:
                     weeksGap && parseInt(weeksGap, 10) > 0
                       ? sizeTheme.headerText
-                      : "#6B7280",
+                      : "var(--color-ink-muted)",
                 }}
               >
                 Add Appointment
