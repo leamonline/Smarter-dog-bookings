@@ -15,87 +15,22 @@
  * and inputs that are not text-like (checkbox, radio, hidden, file, range,
  * colour, and button types), which have no shared control yet.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { CEILINGS, countRawFormControls as countInSource, measureRawFormControls, topFiles } from "./designSystemHealth/ratchets";
 
-const srcDir = fileURLToPath(new URL(".", import.meta.url));
-
-const CEILINGS = { input: 61, textarea: 17, select: 19 } as const;
-
-type Kind = keyof typeof CEILINGS;
-
-const NON_TEXT_TYPE = /\btype\s*=\s*\{?\s*["'](?:checkbox|radio|hidden|file|range|color|submit|button|image|reset)["']/;
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) sourceFiles(full, out);
-    else if (/\.(jsx|tsx)$/.test(entry) && !/\.test\.[jt]sx?$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
-// The text of a JSX opening tag, from `<name` to its closing `>`. A `>` inside
-// `{…}` (an arrow function, a comparison) or inside a quoted string does not end it.
-function openingTag(source: string, start: number): string {
-  let depth = 0;
-  let quote: string | null = null;
-  for (let i = start; i < source.length; i++) {
-    const ch = source[i];
-    if (quote) {
-      if (ch === "\\") i++;
-      else if (ch === quote) quote = null;
-    } else if (ch === '"' || ch === "'" || (ch === "`" && depth > 0)) {
-      quote = ch;
-    } else if (ch === "{") depth++;
-    else if (ch === "}") depth--;
-    else if (ch === ">" && depth === 0) return source.slice(start, i + 1);
-  }
-  return source.slice(start);
-}
-
-function countInSource(source: string): Record<Kind, number> {
-  const counts: Record<Kind, number> = { input: 0, textarea: 0, select: 0 };
-  for (const match of source.matchAll(/<(input|textarea|select)\b/g)) {
-    if (match[1] === "input" && NON_TEXT_TYPE.test(openingTag(source, match.index!))) continue;
-    counts[match[1] as Kind]++;
-  }
-  return counts;
-}
-
-function countRawControls() {
-  const totals: Record<Kind, number> = { input: 0, textarea: 0, select: 0 };
-  const perFile: Record<Kind, Map<string, number>> = { input: new Map(), textarea: new Map(), select: new Map() };
-  const sharedControls = join(srcDir, "components", "ui") + "/";
-  for (const file of sourceFiles(srcDir)) {
-    if (file.startsWith(sharedControls)) continue;
-    const counts = countInSource(readFileSync(file, "utf8"));
-    for (const kind of Object.keys(counts) as Kind[]) {
-      if (!counts[kind]) continue;
-      totals[kind] += counts[kind];
-      perFile[kind].set(relative(srcDir, file), counts[kind]);
-    }
-  }
-  return { totals, perFile };
-}
+const ceilings = CEILINGS.rawFormControls;
+type Kind = keyof typeof ceilings;
 
 describe("raw form controls ratchet", () => {
-  const { totals, perFile } = countRawControls();
+  const { totals, perFile } = measureRawFormControls();
 
-  for (const kind of Object.keys(CEILINGS) as Kind[]) {
-    it(`raw <${kind}> stays at or below ${CEILINGS[kind]}`, () => {
-      const biggest = [...perFile[kind]]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([f, n]) => `${f} (${n})`)
-        .join(", ");
+  for (const kind of Object.keys(ceilings) as Kind[]) {
+    it(`raw <${kind}> stays at or below ${ceilings[kind]}`, () => {
       expect(
         totals[kind],
-        `${totals[kind]} raw <${kind}> found (ceiling ${CEILINGS[kind]}). Use the shared ` +
-          `Input, Textarea or Select from components/ui, inside a Field. Most: ${biggest}`,
-      ).toBeLessThanOrEqual(CEILINGS[kind]);
+        `${totals[kind]} raw <${kind}> found (ceiling ${ceilings[kind]}). Use the shared ` +
+          `Input, Textarea or Select from components/ui, inside a Field. Most: ${topFiles(perFile[kind]!)}`,
+      ).toBeLessThanOrEqual(ceilings[kind]!);
     });
   }
 });

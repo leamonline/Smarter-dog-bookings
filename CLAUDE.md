@@ -62,6 +62,7 @@ npm run e2e            # Playwright; builds+previews OFFLINE on :4173 with sampl
                        #   (sandbox: PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium)
 npm run check:migrations  # validate migration filenames/order
 npm run check:sentry   # is browser error reporting actually live on prod? (ACTIVE/INACTIVE)
+npm run check:design-system  # every design-system ratchet count vs its ceiling; -- --lower writes lower ceilings
 npm run check:advisors # diff the hosted Supabase advisors against supabase/advisors/baseline.json
                        #   (needs SUPABASE_ACCESS_TOKEN; --update rewrites the baseline)
 ```

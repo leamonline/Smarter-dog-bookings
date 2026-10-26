@@ -28,6 +28,7 @@
     "lint": "eslint . && node scripts/check-import-extensions.mjs && node scripts/check-duplicate-files.mjs && node scripts/check-lockfile-platform.mjs && node scripts/check-hosted-supabase-targets.mjs && node scripts/check-icons.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "check:design-sync": "node scripts/design-sync-snapshot.mjs",
+    "check:design-system": "node scripts/design-system-health.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "icons:build": "node scripts/build-app-icon-svg.mjs && node scripts/render-icons.mjs",
     "check:icons": "node scripts/check-icons.mjs",

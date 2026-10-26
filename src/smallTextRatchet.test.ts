@@ -14,42 +14,19 @@
  * clipped labels became 16). They are counted so the list can only shrink. Lower the ceiling as one is resolved; never raise it. If new text
  * must be small, use a named size.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { CEILINGS, belowFloor, measureSmallText, topFiles } from "./designSystemHealth/ratchets";
 
-const srcDir = fileURLToPath(new URL(".", import.meta.url));
-const CEILING = 27;
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) sourceFiles(full, out);
-    else if (/\.(jsx|tsx)$/.test(entry) && !/\.test\.[jt]sx?$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
-function belowFloor(source: string): string[] {
-  return [...source.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)].filter((m) => Number(m[1]) < 12).map((m) => m[0]);
-}
+const ceilings = CEILINGS.smallText;
 
 describe("small text ratchet", () => {
-  it(`hand-written text sizes under 12px stay at or below ${CEILING}`, () => {
-    const perFile = new Map<string, number>();
-    let total = 0;
-    for (const file of sourceFiles(srcDir)) {
-      const found = belowFloor(readFileSync(file, "utf8")).length;
-      if (!found) continue;
-      total += found;
-      perFile.set(relative(srcDir, file), found);
-    }
-    const where = [...perFile].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([f, n]) => `${f} (${n})`).join(", ");
+  const { totals, perFile } = measureSmallText();
+
+  it(`hand-written text sizes under 12px stay at or below ${ceilings.underFloor}`, () => {
     expect(
-      total,
-      `${total} text-[Npx] sizes under 12px (ceiling ${CEILING}). Use text-micro, text-caption or text-xs. Most: ${where}`,
-    ).toBeLessThanOrEqual(CEILING);
+      totals.underFloor,
+      `${totals.underFloor} text-[Npx] sizes under 12px (ceiling ${ceilings.underFloor}). Use text-micro, text-caption or text-xs. Most: ${topFiles(perFile.underFloor!)}`,
+    ).toBeLessThanOrEqual(ceilings.underFloor);
   });
 
   // The sizes the named scale already has (text-xs 12, text-body 13, text-sm 14,
@@ -57,16 +34,10 @@ describe("small text ratchet", () => {
   // sizes carry a line-height and one place to change them. 15px stays spelled
   // out because text-title also forces a bold weight.
   it("has no hand-written 12, 13, 14 or 16px sizes where a named size exists", () => {
-    const perFile = new Map<string, number>();
-    let total = 0;
-    for (const file of sourceFiles(srcDir)) {
-      const found = [...readFileSync(file, "utf8").matchAll(/text-\[(?:12|13|14|16)px\]/g)].length;
-      if (!found) continue;
-      total += found;
-      perFile.set(relative(srcDir, file), found);
-    }
-    const where = [...perFile].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([f, n]) => `${f} (${n})`).join(", ");
-    expect(total, `${total} hand-written sizes. Use text-xs (12), text-body (13), text-sm (14) or text-base (16). Most: ${where}`).toBe(0);
+    expect(
+      totals.namedSizes,
+      `${totals.namedSizes} hand-written sizes. Use text-xs (12), text-body (13), text-sm (14) or text-base (16). Most: ${topFiles(perFile.namedSizes!)}`,
+    ).toBeLessThanOrEqual(ceilings.namedSizes);
   });
 
   it("counts only sizes under 12px", () => {
