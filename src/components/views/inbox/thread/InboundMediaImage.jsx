@@ -36,7 +36,7 @@ export function InboundMediaImage({ path, mediaType = "image" }) {
         src={url}
         alt="Photo from customer"
         loading="lazy"
-        className="rounded-xl max-w-full max-h-72 w-auto border border-slate-200"
+        className="rounded-tile max-w-full max-h-72 w-auto border border-slate-200"
       />
     </a>
   );

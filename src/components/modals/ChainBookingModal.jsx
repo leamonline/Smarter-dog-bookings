@@ -447,7 +447,7 @@ export function ChainBookingModal({
             <button
               onClick={addFirstAppointment}
               disabled={!firstSlot}
-              className="w-full mt-2 py-3 rounded-xl border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-2 py-3 rounded-tile border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: firstSlot
                   ? sizeTheme.gradient[0]
@@ -553,7 +553,7 @@ export function ChainBookingModal({
         {chain.length > 0 &&
           chain.length < MAX_CHAIN &&
           !slotPickerFor && (
-            <div className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)] mb-3 px-4 py-3">
+            <div className="bg-white rounded-tile shadow-[0_1px_4px_rgba(0,0,0,0.06)] mb-3 px-4 py-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-body font-semibold text-slate-600">
                   Add another in
@@ -587,7 +587,7 @@ export function ChainBookingModal({
               <button
                 onClick={addNextAppointment}
                 disabled={!weeksGap || parseInt(weeksGap, 10) < 1}
-                className="w-full mt-2.5 py-2.5 rounded-xl border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-2.5 py-2.5 rounded-tile border-none text-body font-bold cursor-pointer font-inherit transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background:
                     weeksGap && parseInt(weeksGap, 10) > 0

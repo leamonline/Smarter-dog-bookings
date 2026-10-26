@@ -18,7 +18,7 @@ function Note({ tone, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border border-l-4 border-brand-paper-line px-3.5 py-2.5 text-body leading-relaxed min-h-[44px] hover:brightness-[0.98] motion-safe:transition ${toneClass}`}
+      className={`w-full text-left rounded-tile border border-l-4 border-brand-paper-line px-3.5 py-2.5 text-body leading-relaxed min-h-[44px] hover:brightness-[0.98] motion-safe:transition ${toneClass}`}
     >
       {children}
     </button>
@@ -35,7 +35,7 @@ export function TodayBriefNotes({ todayStr, onOpenReports }) {
   if (count === 0) return null;
 
   return (
-    <details className="group rounded-xl border border-slate-200/80 bg-white/65">
+    <details className="group rounded-tile border border-slate-200/80 bg-white/65">
       <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-body font-bold text-slate-700 marker:content-none [&::-webkit-details-marker]:hidden">
         Later
         <span className="text-xs font-medium text-slate-500">

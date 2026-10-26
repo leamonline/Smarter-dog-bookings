@@ -21,7 +21,7 @@ export function NeedsAttentionFrame({
       >
         NEEDS ATTENTION
       </span>
-      <div className="relative rounded-xl overflow-hidden bg-white">{children}</div>
+      <div className="relative rounded-tile overflow-hidden bg-white">{children}</div>
     </div>
   );
 }

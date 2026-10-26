@@ -13,7 +13,7 @@ function submittedLabel(value: string) {
   if (days === 1) return "Waiting 1 day";
   return `Waiting ${days} days`;
 }
-const action = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50";
+const action = "inline-flex min-h-11 items-center justify-center gap-2 rounded-tile px-3 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50";
 
 export function SignupApprovalQueue({ enabled, onApprove }: { enabled: boolean; onApprove: ApproveSignup }) {
   const queue = useSignupApprovalQueue(enabled);

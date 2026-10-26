@@ -115,7 +115,7 @@ export function ReportsInsightsView({ loadError = null }) {
       {isLowN && (
         <div
           role="status"
-          className="rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink text-xs font-medium px-3 py-2"
+          className="rounded-tile border border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink text-xs font-medium px-3 py-2"
         >
           Not enough bookings to compare periods just yet — showing numbers only.
           Comparisons hidden until there are {LOW_N_THRESHOLD}+ bookings.

@@ -10,7 +10,7 @@ const MIN_N_FOR_RATE = 5;
 function Stat({ label, value, tone = "slate" }) {
   const color = tone === "coral" ? "var(--color-brand-coral)" : "var(--color-brand-purple)";
   return (
-    <div className="bg-slate-50 rounded-xl px-3 py-2">
+    <div className="bg-slate-50 rounded-tile px-3 py-2">
       <div className="text-lg font-black font-display leading-none" style={{ color }}>{value}</div>
       <div className="text-micro text-ink-muted font-semibold mt-0.5">{label}</div>
     </div>

@@ -192,7 +192,7 @@ export function PaymentStateSection({
       data-testid="payment-state"
       data-priority={isReady && !isPaid ? "high" : "normal"}
       aria-busy={savingMethod ? "true" : undefined}
-      className={`rounded-xl px-3 py-3 ${isPaid ? "bg-emerald-50" : "bg-feedback-warning-tint"}`}
+      className={`rounded-tile px-3 py-3 ${isPaid ? "bg-emerald-50" : "bg-feedback-warning-tint"}`}
     >
       {isPaid ? (
         <p className="text-sm font-bold text-emerald-800">

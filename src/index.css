@@ -285,15 +285,19 @@
   --radius-sd-input: 12px;
   --radius-sd-card: 18px;
   --radius-sd-pill: 9999px;
-  /* Form-control radius — sits between rounded-md (6px) and rounded-xl
+  /* Form-control radius — sits between rounded-md (6px) and rounded-tile
      (12px). Codifies the 45 inline rounded-[10px] uses. Available as
      rounded-control via Tailwind v4's @theme. */
   --radius-control: 10px;
   /* Card and panel radius: the one value for a surface that holds content.
-     Available as rounded-card. Cards were split between rounded-xl (12px) and
+     Available as rounded-card. Cards were split between rounded-tile (12px) and
      rounded-2xl (16px); this names the choice so it is one edit to change. See
      docs/ux/radius-and-elevation.md. */
   --radius-card: 16px;
+  /* Tile radius: a compact row, an inner panel or a list item sitting inside a
+     card or on the page. One step under a card (16px) so nested corners stay
+     visibly nested. Available as rounded-tile. Was rounded-xl, the same 12px. */
+  --radius-tile: 12px;
 
   /* Motion durations — three speeds for the whole UI. */
   --duration-fast: 80ms;
@@ -662,7 +666,7 @@ body {
 }
 
 .card-glass {
-  @apply bg-white/60 backdrop-blur-sm border border-white/50 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer;
+  @apply bg-white/60 backdrop-blur-sm border border-white/50 rounded-tile shadow-sm hover:shadow-md transition-all cursor-pointer;
 }
 
 .card-solid {

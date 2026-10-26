@@ -64,7 +64,7 @@ function StackSkeleton() {
       className="flex flex-col gap-2 motion-safe:animate-pulse"
     >
       {[0, 1, 2].map((index) => (
-        <div key={index} className="flex min-h-14 items-center gap-3 rounded-xl bg-slate-200/50 px-3">
+        <div key={index} className="flex min-h-14 items-center gap-3 rounded-tile bg-slate-200/50 px-3">
           <div className="h-3.5 w-12 rounded bg-slate-200/90" />
           <div className="h-3 w-28 rounded bg-slate-200/80" />
           <div className="ml-auto h-2.5 w-16 rounded bg-slate-200/60" />
@@ -520,7 +520,7 @@ export function TodayView({
         ) : null}
 
         {bookingsError && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-body text-brand-coral-dark">
+          <div className="flex items-center justify-between gap-3 rounded-tile border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-body text-brand-coral-dark">
             <span>Couldn&apos;t load bookings for this date.</span>
             {onRefresh && <button type="button" onClick={onRefresh} className="min-h-11 font-bold underline">Retry</button>}
           </div>

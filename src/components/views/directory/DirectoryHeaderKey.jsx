@@ -18,7 +18,7 @@ export function DirectoryHeaderKey() {
         <Info aria-hidden="true" size={19} strokeWidth={2.4} />
       </summary>
 
-      <div className="absolute left-4 right-4 top-[calc(100%+0.5rem)] z-40 w-auto rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl sm:left-auto sm:right-0 sm:w-[min(22rem,calc(100vw-2rem))]">
+      <div className="absolute left-4 right-4 top-[calc(100%+0.5rem)] z-40 w-auto rounded-tile border border-slate-200 bg-white p-4 text-left shadow-xl sm:left-auto sm:right-0 sm:w-[min(22rem,calc(100vw-2rem))]">
         <h2 className="text-sm font-extrabold text-brand-purple">Directory key</h2>
         <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
           Colours and symbols help you scan profiles quickly.

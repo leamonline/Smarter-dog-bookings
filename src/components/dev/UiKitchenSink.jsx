@@ -444,7 +444,7 @@ export function UiKitchenSink() {
               </Row>
             </Spec>
             <Spec label="LoadingSpinner (route fallback)">
-              <div className="border border-dashed border-slate-200 rounded-xl"><LoadingSpinner /></div>
+              <div className="border border-dashed border-slate-200 rounded-tile"><LoadingSpinner /></div>
             </Spec>
           </div>
         </Block>

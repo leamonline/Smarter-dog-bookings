@@ -30,7 +30,7 @@ export function BookingHealth({
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             {/* Confirmed no-show callout */}
-            <div className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-feedback-warning-tint border border-brand-mustard-tint/60">
+            <div className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-tile bg-feedback-warning-tint border border-brand-mustard-tint/60">
               <div className="text-center">
                 <div className="text-xl font-black text-brand-mustard leading-none">
                   {noShowRate.toFixed(0)}%
@@ -91,7 +91,7 @@ export function BookingHealth({
             <button
               type="button"
               onClick={() => navigate("/needs-attention")}
-              className="flex items-center justify-between gap-3 w-full text-left px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 transition-colors"
+              className="flex items-center justify-between gap-3 w-full text-left px-3 py-2 rounded-tile bg-slate-50 border border-slate-200/80 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 transition-colors"
             >
               <span className="text-caption text-slate-600 leading-snug">
                 Not counted above — these finished days were never closed off, so

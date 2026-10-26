@@ -176,7 +176,7 @@ export function ComposePanel({
           disabled={inFlight}
           rows={1}
           maxLength={2000}
-          className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-sm p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
+          className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-sm p-2 bg-white border border-slate-200 rounded-tile font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <div className="flex min-h-9 gap-2 justify-end shrink-0 sm:self-stretch">
           <GenerateReplyButton

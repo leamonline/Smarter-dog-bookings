@@ -167,9 +167,9 @@ export function PhotoGalleryModal({
                   key={photo.id}
                   type="button"
                   onClick={() => setSelectedPhoto(photo)}
-                  className="bg-transparent border-none p-0 cursor-pointer text-left rounded-xl overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="bg-transparent border-none p-0 cursor-pointer text-left rounded-tile overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden">
+                  <div className="relative aspect-square bg-slate-100 rounded-tile overflow-hidden">
                     {photo.signedUrl && !failedIds.has(photo.id) ? (
                       <img
                         src={photo.signedUrl}

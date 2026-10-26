@@ -10,7 +10,7 @@ export interface SignupReviewPanelProps {
   onClose: () => void;
   enabled: boolean;
 }
-const button = "min-h-11 rounded-xl px-4 py-2 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50 disabled:cursor-not-allowed";
+const button = "min-h-11 rounded-tile px-4 py-2 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50 disabled:cursor-not-allowed";
 
 export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: SignupReviewPanelProps) {
   const titleId = useId();
@@ -33,7 +33,7 @@ export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: Sign
         <button type="button" onClick={close} disabled={state.busy} className={`${button} px-3`} aria-label="Close review"><X size={20} /></button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-        {confirmClose && <div className="mb-5 rounded-xl border border-brand-mustard-tint bg-feedback-warning-tint p-4" role="alert">
+        {confirmClose && <div className="mb-5 rounded-tile border border-brand-mustard-tint bg-feedback-warning-tint p-4" role="alert">
           <p className="text-sm font-semibold">Discard your unsaved size choices?</p>
           <p className="mt-1 text-sm">Sizes already saved will be kept.</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -71,15 +71,15 @@ export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: Sign
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {DOG_SIZES.map(size => <label key={size} className="relative cursor-pointer">
                     <input type="radio" className="peer sr-only" name={`size-${dog.id}`} value={size} checked={state.sizes[dog.id] === size} onChange={() => state.chooseSize(dog.id, size)} aria-label={`${dog.name}: ${size}`} />
-                    <span className="flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-2 text-sm font-bold capitalize text-slate-600 peer-checked:border-brand-purple peer-checked:bg-brand-purple peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-teal peer-disabled:opacity-50">{size}</span>
+                    <span className="flex min-h-12 items-center justify-center rounded-tile border border-slate-200 bg-white px-2 text-sm font-bold capitalize text-slate-600 peer-checked:border-brand-purple peer-checked:bg-brand-purple peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-teal peer-disabled:opacity-50">{size}</span>
                   </label>)}
                 </div>
               </fieldset>)}
             </div>
-            {state.review.activeDogs.length === 0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-600">No active dogs linked to this signup.</p>}
+            {state.review.activeDogs.length === 0 && <p className="rounded-tile bg-white p-4 text-sm text-slate-600">No active dogs linked to this signup.</p>}
           </>
         ) : null}
-        {state.error && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        {state.error && <div role="alert" className="mt-4 rounded-tile border border-red-200 bg-red-50 p-4 text-sm text-red-900">
           <p>{state.error}</p>
           <button className={`${button} mt-2 bg-white`} disabled={state.busy || !enabled} onClick={() => { setConfirmClose(false); void state.reload(); }}>Reload review</button>
           {state.dirty && <p className="mt-2 text-xs">Reloading replaces unsaved choices with the latest saved sizes.</p>}

@@ -23,7 +23,7 @@ const kickerClass =
 // Tailwind stand-in for portal-alert--error from customer-portal.css, which
 // isn't loaded on the staff app. (The inputs are the shared <Input surface="paper">.)
 const alertErrorClass =
-  "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-body leading-[1.45] " +
+  "flex items-start gap-2.5 px-3.5 py-3 rounded-tile font-semibold text-body leading-[1.45] " +
   "bg-[var(--color-sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
 
 // Yellow CTA matches the customer portal — primary, non-booking action.
@@ -258,7 +258,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
 
-          <div className="rounded-xl border border-transparent sm:border-[rgba(31,31,31,0.08)] bg-transparent sm:bg-[var(--color-sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
+          <div className="rounded-tile border border-transparent sm:border-[rgba(31,31,31,0.08)] bg-transparent sm:bg-[var(--color-sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
             {captchaUnavailable ? (
               <CaptchaUnavailable />
             ) : (
@@ -302,7 +302,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </button>
         </form>
 
-        <div className="mt-3 sm:mt-6 rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
+        <div className="mt-3 sm:mt-6 rounded-tile border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-buttercup-tint)]/50 px-4 py-2 sm:py-3 hidden sm:block">
           <p className="text-xs text-[var(--color-ink-soft)] leading-relaxed">
             <strong className="text-[var(--color-ink)]">Need an account?</strong> Ask the salon owner to send you an invite — the link in their email sets your password up.
           </p>
@@ -380,7 +380,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           />
         </div>
 
-        <div className="rounded-xl border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-2 sm:py-4">
+        <div className="rounded-tile border border-[rgba(31,31,31,0.08)] bg-[var(--color-sd-sky-tint)]/40 px-4 py-2 sm:py-4">
           {captchaUnavailable ? (
             <CaptchaUnavailable />
           ) : (
