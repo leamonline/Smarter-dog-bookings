@@ -15,6 +15,23 @@ const require = createRequire(import.meta.url);
 const yaml = require('js-yaml');
 const parsed = yaml.load(workflow);
 
+test('credential probe accepts 201 and 200 only with the expected body and cross-project 403', () => {
+  const probe=yaml.load(readFileSync(join(project,'.github/workflows/verify-supabase-credential-isolation.yml'),'utf8'));
+  assert.deepEqual(Object.keys(probe.on),['workflow_dispatch']);
+  assert.match(probe.jobs.verify.if,/github.ref == 'refs\/heads\/main'/);
+  assert.equal(probe.jobs.verify.steps[0].with.ref,'${{ github.sha }}');
+  const shell=probe.jobs.verify.steps.at(-1).run;
+  assert.equal(spawnSync('bash',['-n'],{input:shell}).status,0);
+  const root=mkdtempSync(join(tmpdir(),'credential-probe-test-'));
+  try {
+    writeFileSync(join(root,'curl'),`#!${process.execPath}\nconst fs=require('node:fs');const a=process.argv.slice(2);const url=a.find(x=>x.startsWith('https://'));const forbidden=url.includes(process.env.FORBIDDEN_PROJECT);const kind=process.env.PROBE_CASE;const status=forbidden?(kind==='leak'?200:kind==='leak201'?201:403):(kind==='bad-allowed'?403:kind.startsWith('created')?201:200);fs.writeFileSync(a[a.indexOf('--output')+1],JSON.stringify([{credential_probe:['bad-shape','created-bad-shape'].includes(kind)?0:1}]));process.stdout.write(String(status));`,{mode:0o700});
+    for(const [kind,token,passes] of [['good','synthetic',true],['created','synthetic',true],['leak','synthetic',false],['leak201','synthetic',false],['bad-allowed','synthetic',false],['bad-shape','synthetic',false],['created-bad-shape','synthetic',false],['missing','',false]]) {
+      const result=spawnSync('bash',['-c',shell],{encoding:'utf8',env:{...process.env,PATH:`${root}:${process.env.PATH}`,TOKEN:token,ALLOWED_PROJECT:'allowed-fixture',FORBIDDEN_PROJECT:'forbidden-fixture',PROBE_CASE:kind}});
+      assert.equal(result.status===0,passes,`${kind}: ${result.stdout}${result.stderr}`);
+    }
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
 test('credential-bearing workflows execute trusted main; staging has a separate credential', () => {
   assert.ok(parsed.on.pull_request_target); assert.equal(parsed.on.pull_request, undefined);
   const job = parsed.jobs['migrations-applied'];
