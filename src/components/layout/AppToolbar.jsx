@@ -126,7 +126,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 <span className="transition-transform duration-150 group-hover:scale-110 shrink-0" aria-hidden="true">
                   {item.icon}
                 </span>
-                <span className="whitespace-nowrap text-body leading-none tracking-tight xl:text-sm">{item.label}</span>
+                <span className="whitespace-nowrap text-body leading-none tracking-tight xl:text-sm">{item.label}</span>{" "}
                 {item.to === "/inbox" && waBadge && (
                   <span
                     className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral-dark text-white text-micro font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"

@@ -75,7 +75,7 @@ export function TodayHeader({
             <span className="inline-flex items-center gap-1.5 text-body font-bold leading-tight text-brand-purple">
               <Clock3 size={15} aria-hidden="true" />
               Manage availability
-            </span>
+            </span>{" "}
             <span aria-hidden="true" className="pl-[21px] text-caption font-medium leading-tight text-slate-500">
               {availabilityLabel}
             </span>

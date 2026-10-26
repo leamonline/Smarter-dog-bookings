@@ -80,6 +80,13 @@ describe("DayCard states", () => {
     expect(container.querySelector("[data-stack-card]").style.borderLeftWidth).toBe("14px");
   });
 
+  it("keeps the visible heading together before extra spoken context", () => {
+    const { container } = renderCard({ status: "Ready for collection", balance: { kind: "paid" } });
+    expect(container.querySelector("[data-stack-head]")).toHaveAccessibleName(
+      /^09:00[. ]+Biscuit[. ]+Ready[. ]+Paid[. ]+Full Groom/,
+    );
+  });
+
   it("names the whole card in one accessible sentence", () => {
     const { container } = renderCard({ onTheWay: true, safetyFacts: ["Bites"] });
     const label = container.querySelector("[data-stack-head]").getAttribute("aria-label");

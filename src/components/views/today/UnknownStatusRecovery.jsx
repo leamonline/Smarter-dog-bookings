@@ -42,11 +42,11 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
             <li key={booking.id}>
               <button
                 type="button"
-                aria-label={`Fix ${dogName}'s ${time} booking`}
+                aria-label={`${dogName} ${time} — fix booking status`}
                 onClick={() => onOpenBooking?.(booking.id)}
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-bold text-brand-purple underline decoration-brand-purple/30 underline-offset-2 outline-none transition-colors hover:bg-white/70 hover:decoration-brand-purple focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
               >
-                {dogName}
+                {dogName}{" "}
                 <span aria-hidden="true" className="font-medium text-ink-muted">{time}</span>
               </button>
             </li>
