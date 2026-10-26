@@ -1,5 +1,6 @@
 import { ModalShell } from "../shell/index.js";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
+import { Button } from "../../ui";
 
 /** Shown while useResolvedDog is fetching a dog beyond the loaded page. */
 export function DogCardLoading({ onClose }) {
@@ -39,13 +40,13 @@ export function DogCardNotFound({ onClose }) {
         <div className="text-sm text-slate-500 mb-5">
           This dog may have been deleted or the link is broken.
         </div>
-        <button
+        <Button
+          variant="strong"
           type="button"
           onClick={onClose}
-          className="px-4 py-2 rounded-full bg-brand-purple text-white text-sm font-bold cursor-pointer font-inherit border-none"
         >
           Close
-        </button>
+        </Button>
       </div>
     </ModalShell>
   );

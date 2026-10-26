@@ -2,6 +2,7 @@ import { Bell, Check, CheckCheck, CircleCheck, Send } from "lucide-react";
 import { BOOKING_STATUS } from "../../../constants/salon";
 import { titleCase } from "../../../utils/text";
 import { IconMessage } from "../../icons/index.jsx";
+import { Button } from "../../ui";
 
 /**
  * Card 3 of the booking detail surface: the "are you still coming?" reminder.
@@ -109,14 +110,15 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
   const isReady = booking.status === BOOKING_STATUS.READY_FOR_COLLECTION;
 
   const reminderAction = cfg.action === "send" && (
-    <button
+    <Button
+      variant="strong"
+      className="min-h-11 max-sm:w-full"
       type="button"
       onClick={onSendReminder}
-      className="inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-body font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
     >
       <Send size={13} aria-hidden="true" />
       Send reminder
-    </button>
+    </Button>
   );
 
   const pickupMessage = showPickupMessage && (

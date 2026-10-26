@@ -26,6 +26,7 @@ import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/what
 import { joinNames } from "../../../lib/reminders/templates.js";
 import { titleCase } from "../../../utils/text";
 import { BOOKING_STATUS } from "../../../constants/index";
+import { Button } from "../../ui";
 
 const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v1");
 
@@ -215,20 +216,24 @@ export function CollectionNoticeModal({ booking, onClose }) {
         Would you like to message their humans to let them know they&apos;re nearly ready?
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <button
+        <Button
+          className="min-h-11"
+          variant="strong"
+          fullWidth
           type="button"
-          className="min-h-11 rounded-full bg-brand-purple px-4 font-bold text-white"
           onClick={() => setStep("compose")}
         >
           Send message
-        </button>
-        <button
+        </Button>
+        <Button
+          className="min-h-11"
+          variant="ghost"
+          fullWidth
           type="button"
-          className="min-h-11 rounded-full border border-slate-200 px-4 font-bold text-slate-700"
           onClick={() => onClose?.()}
         >
           Not now
-        </button>
+        </Button>
       </div>
     </div>
   );
