@@ -28,6 +28,14 @@ const VARIANTS = {
     "bg-brand-yellow text-brand-purple border-transparent shadow-cta-yellow " +
     "hover:bg-brand-yellow-dark " +
     "disabled:bg-slate-100 disabled:text-slate-600 disabled:shadow-none",
+  // The strong secondary: charcoal fill, white label. For a confirm or a main
+  // action that matters but is not THE call to action; primary (yellow) is the one
+  // a screen leads with, and strong sits beside or below it. Never both as the
+  // lead on one screen. See docs/ux/buttons.md.
+  strong:
+    "bg-ink text-white border-transparent " +
+    "hover:bg-ink-soft " +
+    "disabled:bg-slate-100 disabled:text-slate-600",
   danger:
     "bg-brand-coral-dark text-white border-transparent " +
     "hover:bg-brand-coral-deep " +
@@ -60,7 +68,7 @@ const LINK_SIZES = {
 
 /**
  * @typedef {Omit<import("react").ButtonHTMLAttributes<HTMLButtonElement>, "type"> & {
- *   variant?: "primary" | "danger" | "ghost" | "quiet" | "link";
+ *   variant?: "primary" | "strong" | "danger" | "ghost" | "quiet" | "link";
  *   size?: "sm" | "md";
  *   as?: "button" | "a";
  *   type?: "button" | "submit" | "reset";

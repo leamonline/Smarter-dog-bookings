@@ -36,3 +36,26 @@ describe("Button quiet variant", () => {
     expect(getByRole("button").className).toMatch(/pointer-coarse:min-h-11/);
   });
 });
+
+describe("Button strong variant", () => {
+  it("is a charcoal fill with a white label, and softens on hover", () => {
+    const { getByRole } = render(<Button variant="strong">Confirm</Button>);
+    const cls = getByRole("button").className;
+    expect(cls).toMatch(/(^|\s)bg-ink(\s|$)/);
+    expect(cls).toMatch(/(^|\s)text-white(\s|$)/);
+    expect(cls).toMatch(/(^|\s)hover:bg-ink-soft(\s|$)/);
+  });
+
+  it("is never the yellow primary", () => {
+    const { getByRole } = render(<Button variant="strong">Confirm</Button>);
+    expect(getByRole("button").className).not.toMatch(/bg-brand-yellow/);
+  });
+
+  it("keeps a readable disabled state and the touch floor", () => {
+    const { getByRole } = render(<Button variant="strong" disabled>Confirm</Button>);
+    const cls = getByRole("button").className;
+    expect(cls).toMatch(/disabled:bg-slate-100/);
+    expect(cls).toMatch(/disabled:text-slate-600/);
+    expect(cls).toMatch(/pointer-coarse:min-h-11/);
+  });
+});
