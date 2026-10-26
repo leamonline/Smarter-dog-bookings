@@ -10,7 +10,7 @@ export function FunnelReport({ days }) {
 
   if (loading || !available) {
     return (
-      <Section title="Booking funnel" accent="#10C2FC">
+      <Section title="Booking funnel" accent="var(--color-brand-cyan-light)">
         <div className="text-caption text-ink-muted font-medium">
           {loading ? "Loading the booking funnel…" : "This needs live portal telemetry — none is loaded right now."}
         </div>
@@ -30,7 +30,7 @@ export function FunnelReport({ days }) {
   );
   if (stats.totalSessions === 0) {
     return (
-      <Section title="Booking funnel" accent="#10C2FC">
+      <Section title="Booking funnel" accent="var(--color-brand-cyan-light)">
         <p className="text-caption text-ink-muted font-medium">
           No booking attempts with a recorded start in this period.
         </p>
@@ -44,7 +44,7 @@ export function FunnelReport({ days }) {
   const biggestDrop = stats.steps.slice(1).reduce((worst, s) => (s.dropFromPrev > worst.dropFromPrev ? s : worst), stats.steps[1] ?? null);
 
   return (
-    <Section title="Booking funnel" accent="#10C2FC" insight={insight}>
+    <Section title="Booking funnel" accent="var(--color-brand-cyan-light)" insight={insight}>
       <p className="text-caption text-ink-muted font-medium m-0 mb-3">
         Portal attempts with a recorded start in this period, by furthest step reached. Intermediate reach is inferred. An unfinished attempt is not proof of abandonment. Dates use UTC and include today so far.
         {biggestDrop && biggestDrop.dropFromPrev > 0 ? ` Biggest fall-off is at "${biggestDrop.label}".` : ""}

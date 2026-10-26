@@ -5,7 +5,7 @@ export function ServiceMix({ svcs, maxSvcRev, insight }) {
   const inactive = svcs.filter((s) => s.n === 0);
 
   return (
-    <Section title="Service Mix" accent="#10C2FC" insight={insight}>
+    <Section title="Service Mix" accent="var(--color-brand-cyan-light)" insight={insight}>
       {active.length === 0 ? (
         <div className="text-body text-ink-muted">No services booked in this period</div>
       ) : (

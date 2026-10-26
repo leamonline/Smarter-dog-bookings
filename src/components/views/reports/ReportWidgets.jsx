@@ -3,7 +3,7 @@
 import { useState, useEffect, useContext, createContext } from "react";
 import { ChevronDown } from "lucide-react";
 import { formatDelta } from "../../../utils/intl.js";
-import { SectionLabel } from "../../ui/index.js";
+import { SectionLabel, resolveDayStatus } from "../../ui/index.js";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { BOOKING_STATUS } from "../../../constants/salon";
 
@@ -135,7 +135,14 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
 
 // Display-level constants shared across report sub-components
 export const SIZE_COLORS = { small: "var(--color-size-small)", medium: "var(--color-brand-teal)", large: "var(--color-brand-coral)" };
-export const STATUS_COLORS = { [BOOKING_STATUS.BOOKED]: "#475569", [BOOKING_STATUS.ARRIVED]: "#16A34A", [BOOKING_STATUS.READY_FOR_COLLECTION]: "#7C3AED" };
+// Arrived and Ready take the colour the day screen shows for the same status
+// (the edge rule from resolveDayStatus), so a status is one colour everywhere. Booked
+// here means "nobody closed it off", not "expected", so it stays a neutral slate.
+export const STATUS_COLORS = {
+  [BOOKING_STATUS.BOOKED]: "var(--color-slate-600)",
+  [BOOKING_STATUS.ARRIVED]: resolveDayStatus(BOOKING_STATUS.ARRIVED).edge,
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: resolveDayStatus(BOOKING_STATUS.READY_FOR_COLLECTION).edge,
+};
 // The status mix is built from PAST bookings only, so a row still on "Booked"
 // is one nobody closed off — not an inferred absence. It must never be labelled
 // as a no-show; a confirmed no-show is a Cancelled row carrying that reason.

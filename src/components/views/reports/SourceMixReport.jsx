@@ -6,9 +6,9 @@ import { Section } from "./ReportWidgets.jsx";
 const ROLE_COLOR = {
   staff: "var(--color-brand-purple)",
   customer: "var(--color-brand-teal)",
-  ai: "#10C2FC",
-  system: "#94A3B8",
-  unknown: "#CBD5E1",
+  ai: "var(--color-brand-cyan-light)",
+  system: "var(--color-slate-400)",
+  unknown: "var(--color-slate-300)",
 };
 
 export function SourceMixReport({ sourceMix }) {
@@ -20,7 +20,7 @@ export function SourceMixReport({ sourceMix }) {
       : undefined;
 
   return (
-    <Section title="Booking source" accent="#10C2FC" insight={insight}>
+    <Section title="Booking source" accent="var(--color-brand-cyan-light)" insight={insight}>
       {totalCountable === 0 ? (
         <div className="text-caption text-ink-muted font-medium">No bookings in this period.</div>
       ) : (
@@ -32,7 +32,7 @@ export function SourceMixReport({ sourceMix }) {
                 <span className="text-xs font-black text-slate-800 font-display">{s.pct.toFixed(0)}%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${s.label}: ${s.pct.toFixed(0)}%`}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(s.pct, 100)}%`, background: ROLE_COLOR[s.role] || "#CBD5E1" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(s.pct, 100)}%`, background: ROLE_COLOR[s.role] || "var(--color-slate-300)" }} />
               </div>
               <div className="flex gap-3 mt-1 text-micro text-ink-muted font-medium">
                 <span>{s.n} booking{s.n !== 1 ? "s" : ""}</span>

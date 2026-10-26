@@ -79,20 +79,20 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
           borderColor: isSelected
             ? sizeTheme.gradient[0]
             : isOverrideEligible
-              ? "#F59E0B"
+              ? "var(--color-feedback-warning)"
               : "var(--color-slate-200)",
           background: isSelected
             ? sizeTheme.gradient[0]
             : isOverrideEligible
-              ? "#FFFBEB"
+              ? "var(--color-feedback-warning-tint)"
               : "var(--color-surface-card)",
           color: isSelected
             ? sizeTheme.headerText
             : isAvailable
-              ? "#1F2937"
+              ? "var(--color-ink)"
               : isOverrideEligible
-                ? "#92400E"
-                : "#94A3B8",
+                ? "var(--color-feedback-warning-ink)"
+                : "var(--color-ink-muted)",
           opacity: isClickable || isSelected ? 1 : 0.7,
           cursor: isClickable ? "pointer" : "not-allowed",
         };
@@ -125,7 +125,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
                 e.currentTarget.style.borderColor = sizeTheme.gradient[0];
                 e.currentTarget.style.background = sizeTheme.light;
               } else if (isOverrideEligible && !isSelected) {
-                e.currentTarget.style.background = "#FEF3C7";
+                e.currentTarget.style.background = "var(--color-brand-mustard-tint)";
               }
             }}
             onMouseLeave={(e) => {
@@ -133,7 +133,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
                 e.currentTarget.style.borderColor = "var(--color-slate-200)";
                 e.currentTarget.style.background = "var(--color-surface-card)";
               } else if (isOverrideEligible && !isSelected) {
-                e.currentTarget.style.background = "#FFFBEB";
+                e.currentTarget.style.background = "var(--color-feedback-warning-tint)";
               }
             }}
           >

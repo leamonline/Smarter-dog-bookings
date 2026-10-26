@@ -103,15 +103,15 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
           let fontWeight = 500;
 
           if (status === "available") {
-            bg = "#DCFCE7";
-            color = "#16A34A";
-            border = "2px solid #16A34A";
+            bg = "var(--color-brand-green-50)";
+            color = "var(--color-brand-green-800)";
+            border = "2px solid var(--color-brand-green-600)";
             cursor = "pointer";
             opacity = 1;
             fontWeight = 700;
           }
           if (status === "closed") {
-            bg = "#FDE8EE";
+            bg = "var(--color-brand-coral-light)";
             color = "var(--color-brand-coral)";
             border = "2px solid #FDE8EE";
             cursor = "not-allowed";
@@ -122,9 +122,9 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
             // Slate, not the closed-day pink — "fully booked" and "closed" used
             // to be the same colour. Slate reads as "no space left" and is
             // clearly distinct from a closed (pink) day.
-            bg = "#F1F5F9";
-            color = "#64748B";
-            border = "2px solid #E2E8F0";
+            bg = "var(--color-slate-100)";
+            color = "var(--color-ink-muted)";
+            border = "2px solid var(--color-slate-200)";
             cursor = "not-allowed";
             opacity = 1;
             fontWeight = 600;
@@ -159,7 +159,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
               className="w-full aspect-square rounded-lg text-body font-inherit transition-all flex items-center justify-center"
               style={{ background: bg, color, border, cursor, opacity, fontWeight }}
               onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = sizeTheme.light; e.currentTarget.style.color = sizeTheme.gradient[0]; } }}
-              onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = "#DCFCE7"; e.currentTarget.style.color = "#16A34A"; } }}
+              onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = "var(--color-brand-green-50)"; e.currentTarget.style.color = "var(--color-brand-green-800)"; } }}
             >
               {d}
             </button>
@@ -171,15 +171,15 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
           different things, so map the colours rather than leaving staff to guess. */}
       <div className="mt-2.5 flex items-center justify-center gap-3 text-micro font-semibold text-slate-500">
         <span className="inline-flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#DCFCE7", border: "1px solid #16A34A" }} aria-hidden="true" />
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--color-brand-green-50)", border: "1px solid var(--color-brand-green-600)" }} aria-hidden="true" />
           Available
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }} aria-hidden="true" />
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--color-slate-100)", border: "1px solid var(--color-slate-200)" }} aria-hidden="true" />
           Fully booked
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FDE8EE", border: "1px solid #FDE8EE" }} aria-hidden="true" />
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--color-brand-coral-light)", border: "1px solid #FDE8EE" }} aria-hidden="true" />
           Closed
         </span>
       </div>
