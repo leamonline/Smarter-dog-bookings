@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { SIZE_FALLBACK } from "../../constants/index";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
@@ -10,6 +10,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
+import { ModalShell } from "../ui";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 

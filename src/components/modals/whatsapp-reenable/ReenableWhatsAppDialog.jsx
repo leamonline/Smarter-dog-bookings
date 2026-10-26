@@ -6,8 +6,8 @@
 // and the inbox thread (context "profile" | "inbox").
 import { useId, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { HeaderIconButton, ModalShell, PanelShell } from "../shell/index.js";
-import { Button, InlineError } from "../../ui/index.js";
+import { HeaderIconButton, PanelShell } from "../shell/index.js";
+import { Button, InlineError, ModalShell } from "../../ui";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { useWhatsappNumberReenable } from "../../../supabase/hooks/useWhatsappNumberReenable";
 import { isPermissionNoteLongEnough, optOutTimeLabel } from "../../../engine/whatsappReenable";

@@ -11,7 +11,7 @@
 
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "../shell/index.js";
+import { HeaderIconButton } from "../shell/index.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { validateContactPhone } from "../../../utils/phone";
 import { toDateStr } from "../../../supabase/transforms";
@@ -22,6 +22,7 @@ import { StepDogs } from "./StepDogs.jsx";
 import { StepFirstBooking } from "./StepFirstBooking.jsx";
 import { commitNewClient } from "./commitNewClient.js";
 import { canAdvanceCustomer, canConfirm } from "./wizardValidation.js";
+import { ModalShell } from "../../ui";
 
 const STEP_TITLES = ["Customer", "Their dogs (optional)", "First booking"];
 const DEFAULT_SERVICE = SERVICES[0]?.id ?? "full-groom";

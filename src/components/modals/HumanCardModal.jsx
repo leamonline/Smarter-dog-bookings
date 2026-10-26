@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ModalShell } from "./shell/index.js";
 import {
   HumanBookingHistory,
   HumanEventTimeline,
@@ -29,6 +28,7 @@ import {
   WhatsAppStopNotice,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
+import { ModalShell } from "../ui";
 
 export function HumanCardModal({
   humanId,

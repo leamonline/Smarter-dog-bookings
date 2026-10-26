@@ -8,9 +8,8 @@ import {
 } from "../../../constants/salon";
 import { computeBookingPricing } from "../../../engine/bookingRules";
 import { buildMiniInvoicePatch } from "../../../engine/dailyBrief";
-import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { ConfirmDialog } from "../../modals/ConfirmDialog.jsx";
-import { Input } from "../../ui/index.js";
+import { Input, ModalShell } from "../../ui";
 import { formatMoney } from "./parts.jsx";
 import { Button } from "../../ui";
 

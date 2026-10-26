@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
 import { titleCase } from "../../../utils/text";
-import { Button } from "../../ui";
+import { AccessibleModal, Button } from "../../ui";
 
 // Shown at booking time when the dog's owner has trusted humans. The owner is
 // pre-ticked as the default recipient; trusted humans are opt-in. Returns the

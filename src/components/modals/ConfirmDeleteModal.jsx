@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { Button } from "../ui";
+import { AccessibleModal, Button } from "../ui";
 
 /**
  * ConfirmDeleteModal — small confirm dialog for destructive actions.

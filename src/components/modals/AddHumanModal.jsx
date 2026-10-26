@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
-import { Field, Input, Textarea } from "../ui/index.js";
+import { Field, Input, ModalShell, Textarea } from "../ui";
 import { titleCase, isRealPersonName } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { validateContactPhone } from "./dog-card/helpers.js";

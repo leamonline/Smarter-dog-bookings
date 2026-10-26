@@ -7,8 +7,8 @@ import {
   SIZE_FALLBACK,
 } from "../../constants/index";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
-import { Field, Input, Select } from "../ui/index.js";
+import { HeaderIconButton } from "./shell/index.js";
+import { Field, Input, ModalShell, Select } from "../ui";
 import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";

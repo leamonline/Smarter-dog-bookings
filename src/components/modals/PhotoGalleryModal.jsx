@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { IconGallery } from "../icons/index.jsx";
 import { PhotoLightbox } from "./PhotoLightbox.jsx";
 import { titleCase, formatDateStr } from "../../utils/text";
+import { ModalShell } from "../ui";
 
 /**
  * Chronological photo gallery for a dog.

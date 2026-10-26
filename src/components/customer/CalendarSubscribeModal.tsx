@@ -3,9 +3,9 @@
 // Displays the webcal:// URL with copy-to-clipboard and platform instructions.
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal";
 import { useCustomerCalendarFeed } from "../../supabase/hooks/useCustomerCalendarFeed";
 import { logger } from "../../lib/logger";
+import { AccessibleModal } from "../ui";
 
 interface CalendarSubscribeModalProps {
   onClose: () => void;

@@ -7,8 +7,9 @@
 // rows they head, so they can never disagree.
 import { useId } from "react";
 import { X } from "lucide-react";
-import { ModalShell, HeaderIconButton } from "../../modals/shell/index.js";
+import { HeaderIconButton } from "../../modals/shell/index.js";
 import { Chip, PrimaryButton, SecondaryButton, TertiaryLink } from "./parts.jsx";
+import { ModalShell } from "../../ui";
 
 /** "Slots 1 & 2 free" / "Slot 1 free" — nods to the two physical seats. */
 function seatsLabel(seatsFree) {

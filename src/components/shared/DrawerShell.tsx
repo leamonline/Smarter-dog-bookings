@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AccessibleModal } from "./AccessibleModal";
+import { AccessibleModal } from "../ui";
 
 interface DrawerShellProps {
   children: ReactNode;

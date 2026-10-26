@@ -1,4 +1,4 @@
-// src/components/shared/AccessibleModal.tsx
+// src/components/ui/AccessibleModal.tsx
 import { useRef, useEffect, useState, type ReactNode } from "react";
 import {
   FocusScope,

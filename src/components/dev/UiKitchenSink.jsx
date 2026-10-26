@@ -14,29 +14,9 @@
 import { useState } from "react";
 import { Plus, ArrowRight, Trash2, Check, Search, Pencil, X, MapPin, Bell } from "lucide-react";
 import { SIZE_THEME } from "../../constants/index";
-import { ModalShell, HeaderIconButton, OverflowMenu, PanelShell } from "../modals/shell/index.js";
+import { HeaderIconButton, OverflowMenu, PanelShell } from "../modals/shell/index.js";
 import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
-import {
-  Button,
-  Card,
-  Badge,
-  SectionLabel,
-  EmptyState,
-  Spinner,
-  StatusPill,
-  SizeDot,
-  SizeTag,
-  LoadingSpinner,
-  ErrorBanner,
-  InlineError,
-  SkeletonBlock,
-  SkeletonText,
-  SkeletonCircle,
-  CardGridSkeleton,
-  ThreadSkeleton,
-  SkeletonKpiRow,
-  SkeletonChart,
-} from "../ui/index.js";
+import { Badge, Button, Card, CardGridSkeleton, EmptyState, ErrorBanner, InlineError, LoadingSpinner, ModalShell, SectionLabel, SizeDot, SizeTag, SkeletonBlock, SkeletonChart, SkeletonCircle, SkeletonKpiRow, SkeletonText, Spinner, StatusPill, ThreadSkeleton } from "../ui";
 
 function noop() {}
 

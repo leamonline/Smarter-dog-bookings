@@ -23,10 +23,11 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { X, ChevronLeft } from "lucide-react";
 import { useStaffContacts } from "../../../../supabase/hooks/useStaffContacts";
 import { logger } from "../../../../lib/logger";
-import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
+import { HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
+import { ModalShell } from "../../../ui";
 
 function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
   const info = smsSegmentInfo(value);

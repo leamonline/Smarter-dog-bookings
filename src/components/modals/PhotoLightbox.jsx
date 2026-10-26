@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { IconGallery } from "../icons/index.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
 import { formatDateStr } from "../../utils/text";
+import { AccessibleModal } from "../ui";
 
 /**
  * Full-screen lightbox for viewing a single groom photo.

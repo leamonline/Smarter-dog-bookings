@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index";
-import { ModalShell, HeaderIconButton } from "./shell/index.js";
+import { HeaderIconButton } from "./shell/index.js";
 import { BREED_LIST } from "../../constants/breeds";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
-import { Field, Input, Select, Textarea } from "../ui/index.js";
+import { Field, Input, ModalShell, Select, Textarea } from "../ui";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase, normaliseSurname, isRealPersonName } from "../../utils/text";
 import { validateContactPhone } from "./dog-card/helpers.js";
