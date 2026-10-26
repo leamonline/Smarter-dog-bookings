@@ -19,7 +19,7 @@ export function WeekOverviewCard({
   return (
     <section
       aria-label="Week overview"
-      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting p-4"
+      className="bg-white rounded-card border border-gray-100 shadow-card-resting p-4"
     >
       <h2 className="text-label text-ink-muted mb-3">
         Week overview

@@ -23,7 +23,7 @@ function SectionSkeleton() {
   return (
     <div aria-label="Loading needs attention" className="grid gap-4 motion-safe:animate-pulse">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-2xl border border-brand-paper-line bg-white p-4">
+        <div key={i} className="rounded-card border border-brand-paper-line bg-white p-4">
           <div className="mb-3 h-5 w-48 rounded bg-slate-100" />
           <div className="mb-2 h-14 rounded-xl bg-slate-50" />
           <div className="h-14 rounded-xl bg-slate-50" />
@@ -94,7 +94,7 @@ function AttentionSection({ section, dogs, humans, onOpenBooking }) {
   return (
     <section
       aria-label={`${section.title} — ${section.items.length} ${section.items.length === 1 ? "item" : "items"}`}
-      className="rounded-2xl border border-brand-paper-line bg-white p-4"
+      className="rounded-card border border-brand-paper-line bg-white p-4"
     >
       <div className="flex items-center gap-2">
         <h2 className="text-base font-bold text-brand-purple m-0">{section.title}</h2>
@@ -174,7 +174,7 @@ export function NeedsAttentionContent({
       {loading ? (
         <SectionSkeleton />
       ) : !available ? null : summary.total === 0 ? (
-        <div className="rounded-2xl border border-brand-paper-line bg-white p-6 text-center">
+        <div className="rounded-card border border-brand-paper-line bg-white p-6 text-center">
           <p className="m-0 text-base font-bold text-brand-teal-dark">All clear</p>
           <p className="mt-1 mb-0 text-sm text-slate-500">
             Nothing from previous days needs resolving.

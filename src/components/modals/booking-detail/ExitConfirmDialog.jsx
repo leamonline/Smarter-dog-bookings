@@ -6,7 +6,7 @@ export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
     <AccessibleModal
       onClose={onKeepEditing}
       titleId="exit-confirm-title"
-      className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full animate-[toastIn_0.15s_ease-out]"
+      className="bg-white rounded-card shadow-xl mx-4 p-5 max-w-sm w-full animate-[toastIn_0.15s_ease-out]"
       zIndex={1100}
       // Unsaved-changes guard: Escape must NOT silently dismiss — the user
       // has to choose Discard or Keep editing explicitly.

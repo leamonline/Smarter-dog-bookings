@@ -52,7 +52,7 @@ export function BookingGridControls({
     // full is it — and they used to be set in 11-12px next to two buttons of
     // equal prominence, so the row read as three controls rather than an
     // answer followed by two actions.
-    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting p-2 sm:p-2.5">
+    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-card border border-gray-100 shadow-card-resting p-2 sm:p-2.5">
       <span
         className={`inline-flex items-center justify-center min-w-16 md:min-w-20 h-8 px-3 rounded-full text-body font-bold ${STATUS[dayStatus].cls}`}
       >

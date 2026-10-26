@@ -42,7 +42,7 @@ export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: Sign
           </div>
         </div>}
         {state.loading ? <p role="status">Loading customer and dogs…</p> : state.outcome?.ok ? (
-          <div role="status" className="rounded-2xl border border-brand-teal/30 bg-white p-5">
+          <div role="status" className="rounded-card border border-brand-teal/30 bg-white p-5">
             <Check className="mb-3 text-brand-teal" size={28} aria-hidden="true" />
             <h3 className="font-bold text-brand-purple">{state.review?.name} is approved</h3>
             <p className="mt-2 text-sm text-slate-600">The dog sizes have been saved.</p>
@@ -63,7 +63,7 @@ export function SignupReviewPanel({ humanId, onApprove, onClose, enabled }: Sign
             <h3 className="mb-2 flex items-center gap-2 font-bold text-brand-purple"><PawPrint size={18} aria-hidden="true" />Confirm booking sizes</h3>
             <p className="mb-4 text-sm text-slate-600">Check each dog's size for booking. Customer-reported sizes are a guide for your review.</p>
             <div className="space-y-4">
-              {state.review.activeDogs.map(dog => <fieldset key={dog.id} disabled={state.busy || state.needsReload || !enabled} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
+              {state.review.activeDogs.map(dog => <fieldset key={dog.id} disabled={state.busy || state.needsReload || !enabled} className="min-w-0 rounded-card border border-slate-200 bg-white p-4">
                 <legend className="max-w-full break-words px-1 font-bold text-brand-purple">{dog.name}</legend>
                 <p className="break-words text-sm text-slate-600">{dog.breed || "Breed not provided"}</p>
                 <p className="mt-2 text-xs text-slate-600">{dog.size ? `Current booking size: ${dog.size}` : "Needs size confirmation"}</p>

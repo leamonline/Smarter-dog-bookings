@@ -31,7 +31,7 @@ export function FinanceLabel({ text }) {
 /** White card wrapper for grouped sections */
 export function SectionCard({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 overflow-hidden">
+    <div className="bg-white rounded-card border-[1.5px] border-slate-200 mb-3 overflow-hidden">
       {title && (
         <div className="px-4 pt-3.5 pb-1">
           <span className="text-body font-extrabold text-slate-700">

@@ -67,7 +67,7 @@ export function DashboardShell({ left, main, right }) {
           scrolled content fades into a rounded edge instead of a hard clip —
           matches the booking grid card in the middle column. */}
       {right && (
-        <div className={`order-2 lg:order-3 hidden xl:block ${COLUMN_FILL} lg:overflow-y-auto lg:rounded-b-2xl`}>
+        <div className={`order-2 lg:order-3 hidden xl:block ${COLUMN_FILL} lg:overflow-y-auto lg:rounded-b-card`}>
           {right}
         </div>
       )}

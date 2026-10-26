@@ -23,7 +23,7 @@ export function BookingFormFields({
 
       {/* ─── STEP 2: Date Selection ─── */}
       {hasDogs && (
-        <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
+        <div className="rounded-card border border-brand-paper-line bg-white p-3">
           <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
           <AvailabilityCalendar
             bookingsByDate={bookingsByDate}
@@ -38,7 +38,7 @@ export function BookingFormFields({
 
       {/* ─── STEP 3: Time Slot Selection ─── */}
       {selectedDateStr && hasDogs && (
-        <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
+        <div className="rounded-card border border-brand-paper-line bg-white p-3">
           <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
           </label>

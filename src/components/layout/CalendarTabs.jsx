@@ -58,7 +58,7 @@ export function CalendarTabs({
       className={`grid grid-cols-7 items-center gap-x-0.5 px-2 overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2 ${
         bare
           ? "py-2"
-          : "py-3 bg-white rounded-2xl border border-gray-100 shadow-card-resting"
+          : "py-3 bg-white rounded-card border border-gray-100 shadow-card-resting"
       }`}
     >
       {dates.map((d, i) => {

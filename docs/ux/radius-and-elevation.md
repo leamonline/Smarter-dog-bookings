@@ -18,8 +18,9 @@ already existed. This names the scale so a surface has one right answer.
 | Pill, chip, avatar, icon button | `rounded-full` | 9999px | `Button` and `IconButton` are pills. |
 
 Not on the scale for new code: `rounded-md` (6px), `rounded-lg` (8px),
-`rounded-xl` (12px), `rounded-2xl` (16px, use `rounded-card`), a bare `rounded`
-(4px) and `rounded-[…]`. A small inner element (a tag inside a card) may
+`rounded-xl` (12px), a bare `rounded` (4px) and `rounded-[…]`. `rounded-2xl` is
+exactly 16px, so it is written `rounded-card`; the ratchet enforces that outside
+the customer portal. A small inner element (a tag inside a card) may
 legitimately be smaller than its card; if so, say why in a comment.
 
 The customer portal keeps its own `--radius-sd-*` names. Do not merge the two
@@ -42,7 +43,8 @@ the three fits, that is a design question to raise, not a value to invent.
 ## How this is held
 
 `src/offScaleRadiusShadow.ratchet.test.ts` counts the hand-typed `shadow-[…]` and
-`rounded-[…]` utilities in components and fails if either rises. Lower a ceiling
+`rounded-[…]` utilities, and any stock `rounded-2xl`, in components and fails if
+any rises. Lower a ceiling
 when you replace one with a token; never raise it.
 
 Migrating the stock `rounded-xl` / `rounded-2xl` cards to `rounded-card` and the

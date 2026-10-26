@@ -264,7 +264,7 @@ export function WeekCalendarView({
         {monthExpanded ? (
           /* Expanded month grid in its own card. Tapping a day collapses back
              to the week; a slim footer button does the same explicitly. */
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden">
+          <div className="bg-white rounded-card border border-gray-100 shadow-card-resting overflow-hidden">
             <MiniCalendarCard
               bare
               currentDateObj={currentDateObj}
@@ -288,7 +288,7 @@ export function WeekCalendarView({
              calendar icon opens the month. "Today" = tap today's pill. This
              drops the separate Today/Week/Month switcher row, so the schedule
              sits ~a control-row higher on a phone. */
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting flex items-center gap-0.5 px-1">
+          <div className="bg-white rounded-card border border-gray-100 shadow-card-resting flex items-center gap-0.5 px-1">
             <button
               type="button"
               onClick={goToPrevWeek}

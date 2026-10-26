@@ -47,7 +47,7 @@ export function ConfirmationMethodDialog({ onConfirm, onCancel }) {
     <AccessibleModal
       onClose={onCancel}
       titleId="confirmation-method-title"
-      className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full max-h-[90vh] overflow-auto animate-[toastIn_0.15s_ease-out]"
+      className="bg-white rounded-card shadow-xl mx-4 p-5 max-w-sm w-full max-h-[90vh] overflow-auto animate-[toastIn_0.15s_ease-out]"
       zIndex={1100}
     >
       <h2

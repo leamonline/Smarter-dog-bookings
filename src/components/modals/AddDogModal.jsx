@@ -586,7 +586,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                       if (active) setAlerts(alerts.filter((a) => a !== opt.label));
                       else setAlerts([...alerts, opt.label]);
                     }}
-                    className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
+                    className="px-2.5 py-1.5 rounded-card text-caption font-bold cursor-pointer transition-all"
                     style={{
                       background: active ? opt.color : "var(--color-surface-card)",
                       color: active ? "var(--color-surface-card)" : opt.color,
@@ -600,7 +600,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               <button
                 type="button"
                 onClick={() => setHasAllergy(!hasAllergy)}
-                className="px-2.5 py-1.5 rounded-2xl text-caption font-bold cursor-pointer transition-all"
+                className="px-2.5 py-1.5 rounded-card text-caption font-bold cursor-pointer transition-all"
                 style={{
                   background: hasAllergy ? "var(--color-brand-coral)" : "var(--color-surface-card)",
                   color: hasAllergy ? "var(--color-surface-card)" : "var(--color-brand-coral)",

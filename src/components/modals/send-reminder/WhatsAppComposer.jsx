@@ -33,7 +33,7 @@ export function WhatsAppComposer({ firstName, dogNames, date, slot, onSend, send
         </div>
         {/* Chat-style read-only bubble */}
         <div className="flex justify-end">
-          <div className="max-w-[85%] bg-[#dcf8c6] text-slate-800 rounded-2xl rounded-tr-sm px-3 py-2 text-body whitespace-pre-wrap shadow-sm">
+          <div className="max-w-[85%] bg-[#dcf8c6] text-slate-800 rounded-card rounded-tr-sm px-3 py-2 text-body whitespace-pre-wrap shadow-sm">
             {preview}
           </div>
         </div>

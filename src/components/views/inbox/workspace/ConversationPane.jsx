@@ -185,7 +185,7 @@ export function ConversationPane({
         {loadingList ? (
           <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
         ) : listError ? (
-          <div role="alert" className="m-4 rounded-2xl border border-brand-mustard-tint bg-feedback-warning-tint p-4">
+          <div role="alert" className="m-4 rounded-card border border-brand-mustard-tint bg-feedback-warning-tint p-4">
             <h2 className="text-sm font-bold text-feedback-warning-ink">We can&apos;t load your messages right now</h2>
             <p className="mt-1 text-xs text-feedback-warning-ink">
               The inbox is temporarily unavailable. This usually clears within a minute. If it keeps happening, the dashboard&apos;s WhatsApp widget may still show recent threads.
