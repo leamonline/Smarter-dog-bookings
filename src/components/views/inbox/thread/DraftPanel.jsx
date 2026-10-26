@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { confidenceLabel, formatShortDate } from "../helpers.js";
 import { RiskPill } from "../RiskPill.jsx";
 import { WhyHeldExplainer } from "./WhyHeldExplainer.jsx";
+import { Button } from "../../../ui";
 
 export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onReject, inFlight }) {
   const [editing, setEditing] = useState(false);
@@ -183,13 +184,15 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
         )}
         {mode === "editing" && !hasAttached && (
           <>
-            <button
+            <Button
+              className="min-h-11"
+              variant="strong"
+              size="sm"
               onClick={() => handleApprove(true)}
               disabled={inFlight || !editedText.trim()}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-body font-bold disabled:opacity-50"
             >
               Send edit
-            </button>
+            </Button>
             <button
               onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
               disabled={inFlight}
@@ -230,13 +233,15 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
         )}
         {mode === "idle" && !hasAttached && (
           <>
-            <button
+            <Button
+              className="min-h-11"
+              variant="strong"
+              size="sm"
               onClick={() => handleApprove(false)}
               disabled={inFlight}
-              className="min-h-11 px-3 py-1.5 rounded-md bg-brand-purple text-white text-body font-bold disabled:opacity-50"
             >
               Approve &amp; send
-            </button>
+            </Button>
             <button
               onClick={() => setEditing(true)}
               disabled={inFlight}

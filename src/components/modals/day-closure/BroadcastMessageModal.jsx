@@ -19,6 +19,7 @@ import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
+import { Button } from "../../ui";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -196,15 +197,16 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
         >
           {busy && resultMode !== "sent" ? "Checking…" : "Preview recipients"}
         </button>
-        <button
+        <Button
+          variant="strong"
+          className="flex-[1.4]"
           type="button"
           onClick={() => run(false)}
           disabled={busy || !reasonValid || resultMode !== "preview" || recipientCount === 0}
           title={resultMode !== "preview" ? "Preview first" : undefined}
-          className="flex-[1.4] py-2.5 rounded-full bg-brand-purple text-white text-body font-bold cursor-pointer hover:bg-brand-purple-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy && resultMode === "preview" ? "Sending…" : `Send to all${recipientCount ? ` (${recipientCount})` : ""}`}
-        </button>
+        </Button>
       </div>
     </ModalShell>
   );

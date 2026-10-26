@@ -4,6 +4,17 @@ import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink, Clipboa
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount";
 import { navTargetFor, PRIMARY_NAV } from "./navConfig.jsx";
+import { Button } from "../ui";
+
+// The plus in front of "New booking": drawn once, used by the desktop and mobile buttons.
+function PlusGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
 
 // Two-letter initials for the account avatar — prefers a display name,
 // falls back to the email local-part. Empty string → generic glyph.
@@ -143,33 +154,30 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             solid purple, no glow, so the board below keeps gold for "the
             next thing to do". */}
         {onNewBooking && (
-          <button
-            type="button"
+          <Button
+            variant="strong"
             onClick={onNewBooking}
-            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-brand-purple text-white cursor-pointer transition-colors hover:bg-brand-purple-light font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
+            className="h-10 shrink-0"
             aria-label="New booking (press N)"
+            iconLeft={<PlusGlyph />}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
             <span className="xl:hidden">New</span>
             <span className="hidden xl:inline">New booking</span>
-          </button>
+          </Button>
         )}
 
         {/* Secondary CTA — set up a brand-new customer + dog(s) + first
             booking in one guided wizard. Quieter than New booking. */}
         {onNewClient && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={onNewClient}
-            className="inline-flex shrink-0 items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border border-slate-200 bg-white text-slate-700 cursor-pointer transition-colors hover:border-brand-purple/30 hover:text-brand-purple font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
+            className="h-10 shrink-0 px-3.5"
             aria-label="New client"
+            iconLeft={<UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />}
           >
-            <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
             <span className="hidden xl:inline">Client</span>
-          </button>
+          </Button>
         )}
 
         {/* Tools & settings — quieter menu holding Settings + the
@@ -290,20 +298,17 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         {/* The one persistent booking entry point on mobile — every screen,
             same spot. New client lives in the menu sheet below. */}
         {onNewBooking && (
-          <button
-            type="button"
+          <Button
+            variant="strong"
             onClick={onNewBooking}
             aria-label="New booking"
-            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-bold bg-brand-purple text-white cursor-pointer transition-colors hover:bg-brand-purple-light shrink-0 focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
+            className="h-11 shrink-0 px-3.5"
+            iconLeft={<PlusGlyph />}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
             {/* On the very narrowest phones the label would push the bar past
                 the viewport edge — the aria-label keeps the name for AT. */}
             <span className="max-[359px]:hidden">New booking</span>
-          </button>
+          </Button>
         )}
         <div ref={mobileMenuRef} className="relative shrink-0">
           <button

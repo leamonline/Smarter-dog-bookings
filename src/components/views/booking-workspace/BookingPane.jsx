@@ -16,6 +16,7 @@ import { buildSlotGrid } from "../../../engine/slotGrid";
 import { isDateOpen } from "../../../engine/utils";
 import { seatOccupancy } from "./bookingComposerModel.js";
 import { slotChoiceKey } from "./bookingWorkspaceModel.js";
+import { Button } from "../../ui";
 
 export function parseDate(dateStr) {
   const [year, month, day] = String(dateStr).split("-").map(Number);
@@ -119,13 +120,15 @@ export function DraftOffer({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {showInsertAction ? (
           choices.length > 0 ? (
-            <button
+            <Button
+              className="min-h-10"
+              variant="strong"
+              size="sm"
               type="button"
               onClick={onInsertIntoReply}
-              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-brand-purple px-4 text-xs font-bold text-white hover:bg-brand-purple-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
             >
               <CornerUpLeft aria-hidden="true" size={14} /> Insert into reply
-            </button>
+            </Button>
           ) : null
         ) : (
           <>
