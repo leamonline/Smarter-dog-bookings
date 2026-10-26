@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { Button } from "../ui";
 
 /**
  * ConfirmDeleteModal — small confirm dialog for destructive actions.
@@ -75,22 +76,22 @@ export function ConfirmDeleteModal({
       )}
 
       <div className="mt-5 flex items-center justify-end gap-2">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="btn btn-ghost"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="danger"
           type="button"
           onClick={handleConfirm}
           disabled={!canConfirm}
-          className="btn btn-danger"
         >
           {submitting ? "Deleting..." : confirmLabel}
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );

@@ -12,6 +12,7 @@
  *   />
  */
 import { AccessibleModal } from "./AccessibleModal.tsx";
+import { Button } from "../ui";
 
 export function ConfirmDialog({
   title,
@@ -46,23 +47,23 @@ export function ConfirmDialog({
       )}
 
       <div className="flex gap-2 justify-end" aria-busy={pending}>
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="btn btn-ghost"
         >
           {cancelLabel}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={isDanger ? "danger" : "primary"}
           type="button"
           onClick={onConfirm}
           disabled={pending}
           autoFocus
-          className={`btn ${isDanger ? "btn-danger" : "btn-primary"}`}
         >
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );

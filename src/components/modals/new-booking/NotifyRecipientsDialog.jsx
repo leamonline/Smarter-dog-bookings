@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
 import { titleCase } from "../../../utils/text";
+import { Button } from "../../ui";
 
 // Shown at booking time when the dog's owner has trusted humans. The owner is
 // pre-ticked as the default recipient; trusted humans are opt-in. Returns the
@@ -65,20 +66,20 @@ export function NotifyRecipientsDialog({ owner, trusted, onConfirm, onCancel }) 
       </div>
 
       <div className="flex gap-2 justify-end mt-4">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={onCancel}
-          className="btn btn-ghost"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="primary"
           type="button"
           onClick={() => onConfirm([...selected])}
-          className="btn btn-primary"
         >
           Confirm booking
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );

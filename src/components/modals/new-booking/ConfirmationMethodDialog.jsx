@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
+import { Button } from "../../ui";
 
 // Shown after staff press "Confirm booking" (always — every new booking). Asks
 // whether to send the customer a confirmation and over which method. Returns one
@@ -66,12 +67,12 @@ export function ConfirmationMethodDialog({ onConfirm, onCancel }) {
       </div>
 
       <div className="flex gap-2 justify-end mt-4">
-        <button type="button" onClick={onCancel} className="btn btn-ghost">
+        <Button variant="ghost" type="button" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="button" onClick={() => onConfirm(choice)} className="btn btn-primary">
+        </Button>
+        <Button variant="primary" type="button" onClick={() => onConfirm(choice)}>
           Confirm booking
-        </button>
+        </Button>
       </div>
     </AccessibleModal>
   );

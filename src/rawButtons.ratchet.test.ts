@@ -28,7 +28,7 @@ import { describe, expect, it } from "vitest";
 
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 
-const CEILINGS = { raw: 475, legacy: 12 } as const;
+const CEILINGS = { raw: 463, legacy: 0 } as const;
 
 type Kind = keyof typeof CEILINGS;
 
