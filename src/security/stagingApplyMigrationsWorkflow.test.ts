@@ -87,7 +87,7 @@ describe("staging apply-migrations workflow", () => {
       workflow.matchAll(/\$\{\{\s*secrets\.([A-Z0-9_]+)\s*}}/g),
       (match) => match[1],
     );
-    expect([...new Set(secretNames)]).toEqual(["SUPABASE_ACCESS_TOKEN"]);
+    expect([...new Set(secretNames)]).toEqual(["STAGING_SUPABASE_ACCESS_TOKEN"]);
     expect(workflow).not.toMatch(
       /SUPABASE_DB_PASSWORD|DATABASE_URL|SERVICE_ROLE|--password\b/i,
     );

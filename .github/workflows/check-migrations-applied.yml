@@ -1,4 +1,6 @@
 name: Migrations Applied Check
+run-name: >-
+  ${{ github.event_name == 'pull_request_target' && format('Migration verification: PR #{0} at {1}', github.event.pull_request.number, github.event.pull_request.head.sha) || format('Migration verification: main at {0}', github.sha) }}
 
 # Why this exists:
 # Vercel deploys the front-end on merge to main, and deploy-edge-functions.yml
@@ -48,11 +50,13 @@ name: Migrations Applied Check
 # rename it.
 #
 # Secret required:
-#   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
+#   SUPABASE_AUTOMATION_TOKEN in the main-only supabase-automation environment.
+# Never keep this credential at repository scope. See docs/migrations.md.
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
 
@@ -62,27 +66,45 @@ on:
 permissions:
   contents: read
   actions: read
+  checks: write # publish the trusted result on the exact PR head, not base
 
 concurrency:
-  group: migrations-applied-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: migrations-applied-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 jobs:
   migrations-applied:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    environment: supabase-automation
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
-      - name: Check out repo
+      - name: Check out trusted base tooling
         uses: actions/checkout@v7
         with:
-          # Need history to diff this change against its base.
+          # The event SHA is trusted main for both target PRs and main pushes.
+          # PR content is fetched as Git objects below, never checked out.
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Set up Node for local release evidence
         uses: actions/setup-node@v7
         with:
           node-version: 24
+
+      - name: Start exact-head migration check
+        id: check
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/migration-check.mjs start >> "$GITHUB_OUTPUT"
+
+      - name: Verify automation credential protection
+        if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/automation-environment.mjs
 
       - name: Work out which migrations this change ADDS, REMOVES or EDITS
         id: added
@@ -91,60 +113,50 @@ jobs:
           # Pass GitHub context through env (never interpolate ${{ }} straight
           # into run: — injection risk), matching deploy-edge-functions.yml.
           EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
+          TRUSTED_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
 
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            git fetch --no-tags origin "$BASE_REF"
-            range="origin/${BASE_REF}...HEAD"
+          if [[ ! "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::Expected an exact source commit SHA."
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "pull_request_target" ]; then
+            git fetch --no-tags origin "$SOURCE_SHA"
+            BASE_SHA="$TRUSTED_SHA"
           else
             if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-              range="$(git rev-parse HEAD^ 2>/dev/null || echo HEAD)...HEAD"
+              BASE_SHA="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
             else
-              range="${BEFORE_SHA}...HEAD"
+              BASE_SHA="$BEFORE_SHA"
             fi
           fi
 
-          # Renames are read as a removal plus an addition: both sides matter.
-          added=$(git diff --name-only --no-renames --diff-filter=A "$range" -- supabase/migrations/ | grep '\.sql$' || true)
-          deleted=$(git diff --name-only --no-renames --diff-filter=D "$range" -- supabase/migrations/ | grep '\.sql$' || true)
-          # A type change (a file turned into a symbolic link, say) is an edit too.
-          modified=$(git diff --name-only --no-renames --diff-filter=MT "$range" -- supabase/migrations/ | grep '\.sql$' || true)
-          echo "Migration files added in $range:"
-          echo "${added:-  (none)}"
-          echo "Migration files removed in $range:"
-          echo "${deleted:-  (none)}"
-          echo "Migration files edited in $range:"
-          echo "${modified:-  (none)}"
-
-          {
-            echo "files<<EOF"
-            echo "$added"
-            echo "EOF"
-            echo "deleted<<EOF"
-            echo "$deleted"
-            echo "EOF"
-            echo "modified<<EOF"
-            echo "$modified"
-            echo "EOF"
-            if [ -n "$added$deleted$modified" ]; then echo "touched=yes"; else echo "touched="; fi
-          } >> "$GITHUB_OUTPUT"
+          export BASE_SHA
+          # Validates regular blob modes/names, decodes exact SQL as UTF-8 and
+          # writes only migration DATA into a new private temporary directory.
+          # Workflow, helper, package and import files from the PR never run.
+          node scripts/release/migration-source.mjs >> "$GITHUB_OUTPUT"
 
       - name: No migrations touched
-        if: steps.added.outputs.touched == '' && github.event_name != 'pull_request'
+        if: steps.added.outputs.touched == '' && github.event_name != 'pull_request_target'
         run: echo "This change touches no migrations — nothing to verify. ✅"
 
       - name: Verify migrations against prod
         # Every pull request is checked, even one touching no migration file:
         # a migration the production workflow applied from an earlier head of
         # this pull request must still be in the tree.
-        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request'
+        if: steps.added.outputs.touched != '' || github.event_name == 'pull_request_target'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          # Target events also have secrets on forks/bots; explicitly retain
+          # their previous no-credential behaviour. Environment scope alone
+          # is not this caller-eligibility decision.
+          SUPABASE_ACCESS_TOKEN: ${{ (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot')) && secrets.SUPABASE_AUTOMATION_TOKEN || '' }}
+          MIGRATION_SOURCE_DIR: ${{ steps.added.outputs.directory }}
           ADDED_FILES: ${{ steps.added.outputs.files }}
           DELETED_FILES: ${{ steps.added.outputs.deleted }}
           MODIFIED_FILES: ${{ steps.added.outputs.modified }}
@@ -154,14 +166,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Every migration in the tree must be a regular file: a symbolic link
-          # would be followed by every reader of the path, so it could stand in
-          # for an applied migration's content. Needs no token, so it runs first.
-          irregular=$(git ls-files -s -- 'supabase/migrations/*.sql' | awk '$1 != "100644" && $1 != "100755" { print $1, $4 }')
-          if [ -n "$irregular" ]; then
-            echo "::error::These migration entries are not regular files (mode, path): $irregular"
-            exit 1
-          fi
+          # The trusted extractor has already rejected symlinks/type changes
+          # and validated names. Only inert SQL data is present at this path.
+          cd "$MIGRATION_SOURCE_DIR"
 
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
             if [ -n "$ADDED_FILES$DELETED_FILES$MODIFIED_FILES" ]; then
@@ -239,7 +246,7 @@ jobs:
           # A populated ledger cannot make a failed release postcondition green.
           # Check the latest local attempt or exact new Actions run attempt;
           # missing/unknown evidence refuses merge. Historical rows remain compatible.
-          printf '%s' "$rows" | node scripts/release/merge-gate.mjs
+          printf '%s' "$rows" | node "$GITHUB_WORKSPACE/scripts/release/merge-gate.mjs"
 
           applied_versions=$(echo "$rows" | jq -r '.[].version // empty')
           applied_names=$(echo "$rows" | jq -r '.[].name // empty')
@@ -327,7 +334,7 @@ jobs:
           # ends with "(file <basename>)"; one without it cannot be judged and
           # fails.
           if [ -n "$PR_NUMBER" ]; then
-            tree=$(git ls-files -- 'supabase/migrations/*.sql' | sed 's#.*/##')
+            tree=$(find supabase/migrations -type f -name '*.sql' | sed 's#.*/##')
             while IFS= read -r line; do
               [ -z "$line" ] && continue
               applied_file=$(printf '%s' "$line" | sed -n 's/.* (file \([0-9]\{14\}_[a-z0-9_]*\.sql\))$/\1/p')
@@ -357,3 +364,11 @@ jobs:
 
           echo
           echo "All migrations in this change match prod as applied. ✅"
+
+      - name: Complete exact-head migration check
+        if: always() && github.event_name == 'pull_request_target' && steps.check.outputs.id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_ID: ${{ steps.check.outputs.id }}
+          VERIFICATION_STATUS: ${{ job.status }}
+        run: node scripts/release/migration-check.mjs complete

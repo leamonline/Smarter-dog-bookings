@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonical, REPOSITORY, STAGING } from './manifest.mjs';
 import { sha256 } from './engine.mjs';
+import { assertTrustedMigrationRun } from './migration-check.mjs';
 
 export function command(exe, args, options = {}) {
   return execFileSync(exe, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'], ...options });
@@ -39,11 +40,21 @@ export function githubSnapshot(pr) {
     const c = candidates[0];
     if (!c || c.head_sha !== pull.head.sha || c.status !== 'completed' || (c.conclusion !== 'success' && !(c.name === 'migrations-applied' && c.conclusion === 'failure'))) throw Error(`Required check unavailable or red: ${req.context}`);
     const url = new URL(c.details_url);
-    const match = new RegExp(`^/${REPOSITORY}/actions/runs/([0-9]+)(?:/|$)`).exec(url.pathname);
+    const match = new RegExp(`^/${REPOSITORY}/actions/runs/([0-9]+)(?:/attempts/([0-9]+))?(?:/|$)`).exec(url.pathname);
     if (url.origin !== 'https://github.com' || !match) throw Error('Required check has no verifiable Actions run identity');
     const runId = Number(match[1]);
-    const run = api(`${repo}/actions/runs/${runId}`);
-    if (run.head_sha !== pull.head.sha || run.repository.full_name !== REPOSITORY || run.status !== 'completed') throw Error('Stale check run');
+    const attempt = match[2] ? Number(match[2]) : null;
+    const run = api(`${repo}/actions/runs/${runId}${attempt ? `/attempts/${attempt}` : ''}`);
+    if (c.name === 'migrations-applied') {
+      // An unrelated merge must not invalidate a check of this exact PR head.
+      // Prove an older base is actually in protected main's history instead.
+      let historicalBaseVerified = false;
+      if (/^[a-f0-9]{40}$/.test(run.head_sha ?? '') && run.head_sha !== main) {
+        const comparison = api(`${repo}/compare/${run.head_sha}...${main}`);
+        historicalBaseVerified = ['ahead','identical'].includes(comparison.status) && comparison.base_commit?.sha === run.head_sha && comparison.merge_base_commit?.sha === run.head_sha;
+      }
+      assertTrustedMigrationRun(run, c, {pr, source:pull.head.sha, main, runId, attempt, historicalBaseVerified});
+    } else if (run.head_sha !== pull.head.sha || run.repository.full_name !== REPOSITORY || run.status !== 'completed') throw Error('Stale check run');
     checks.push({ name: c.name, id: c.id, runId, head: c.head_sha, conclusion: c.conclusion, appId: c.app.id });
   }
   checks.sort((a, b) => a.name.localeCompare(b.name));

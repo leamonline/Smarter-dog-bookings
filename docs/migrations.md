@@ -1054,3 +1054,79 @@ hook that fails to run is non-blocking in Claude Code, and an allow rule would
 then have stood for every project, production included, whereas with the hook
 as the only grant a failure falls back to the prompt. Production migrations go
 through the workflow above, not through the MCP tool.
+
+## Automation credential isolation
+
+Production verification runs from trusted `main` tooling. For a pull request,
+`check-migrations-applied.yml` uses `pull_request_target`, fetches the exact head
+as Git objects and extracts only validated regular SQL blobs into a private
+temporary directory. It never checks out or executes PR workflow/helper/package
+files. The SQL comparisons, append-only history checks and release-postcondition
+verification still apply. Fork and bot PRs retain their no-production-credential
+behaviour: migration changes fail; a change without migrations can pass without
+a production query.
+
+The target workflow publishes `migrations-applied` on the exact PR head, with an
+Actions run-attempt URL. Its run name binds the PR number and head SHA. Local
+release preparation checks the trusted base, workflow, event, attempt, head and
+matching outcome; a successful base check cannot substitute for a PR check.
+An unrelated later merge does not invalidate the exact-head result: the adapter
+proves an older base is an ancestor of current `main` through GitHub's compare
+API. A divergent or unverifiable base is rejected. Existing current-main source
+and migration compatibility checks still run during release preparation.
+
+Credential placement is part of the fix, not optional hardening:
+
+| Consumer | Environment | Secret |
+| --- | --- | --- |
+| Migration gate, Edge deployment and drift audits | `supabase-automation` | `SUPABASE_AUTOMATION_TOKEN` |
+| Named staging migration workflow | Existing `staging` | `STAGING_SUPABASE_ACCESS_TOKEN`, with no production authority |
+| Manual production migration and backup workflows | Existing production environments | Existing `PRODUCTION_SUPABASE_ACCESS_TOKEN` |
+
+An owner must configure `supabase-automation` with **selected branches and tags**,
+exactly one **branch** rule named `main`, and no tag/wildcard rules. The automated
+jobs verify this configuration through the GitHub API before using Supabase
+credentials. Keep the secret only in that environment: GitHub enforces the
+deployment branch policy before a job receives environment secrets. A missing
+environment, policy or credential fails closed. No reviewer gate is added to
+normal automated verification; the existing human-controlled production apply
+and staging approval contracts stay in place.
+
+The old repository-level `SUPABASE_ACCESS_TOKEN` must be deleted and revoked or
+rotated. Renaming it while leaving a usable repository copy would still let a
+new same-repository PR workflow request it. Do not put either replacement secret
+at repository or organisation scope. Confirm the staging credential cannot reach
+production; a differently named copy of the same broad token does not isolate it.
+
+### Owner-controlled rollout
+
+1. Prepare the protected environment and its narrowly permitted credential;
+   configure a separate staging-only credential in the existing staging
+   environment. Review GitHub's Actions event policy for `pull_request_target`.
+2. Review the exact patch and coordinate first installation with the required
+   check. Before installation, the default branch still has the old workflow;
+   this PR cannot self-test its new target workflow. Removing the old token
+   early will deliberately fail the legacy gate for human PRs. Any temporary
+   ruleset/bootstrap action requires a separate explicit owner decision; this
+   change does not authorise or automate one.
+3. Install the reviewed code, remove/revoke the repository credential and clear
+   superseded credential-bearing runs as one controlled transition. Do not
+   declare the boundary fixed while an old usable repository token remains.
+4. Check one normal synthetic PR and one PR changing the gate/helper: only
+   trusted tools should run, the head check must match its exact SHA and run
+   attempt, and unsuccessful migration evidence must still block. Confirm the
+   local release adapter accepts that real hosted metadata. Exercise the
+   verification paths only; do not apply a schema or contact customers for this
+   check. The next authorised Edge deployment/staging operation must confirm
+   its replacement credential before those consumers are declared released.
+
+Until those external settings and hosted checks are verified, the patch is a
+locally tested preparation, not a claim that production is remediated. If setup
+fails, stop the affected automation and correct forward; do not restore a broad
+repository secret or PR-controlled privileged execution as a rollback.
+
+See [the implementation plan](plans/active/2026-10-26-ci-credential-isolation.md).
+Platform contracts:
+[trusted target-event use](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target),
+[exact-commit check runs](https://docs.github.com/en/rest/checks/runs), and
+[environment protection](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).

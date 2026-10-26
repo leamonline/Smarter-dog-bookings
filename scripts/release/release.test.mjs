@@ -93,6 +93,29 @@ test('real gh adapter rejects unavailable, stale, red, foreign and changed-revie
     process.env.PATH=`${dir}:${oldPath}`;
     const save = value => writeFileSync(join(dir,'fixture.json'), JSON.stringify(value));
     save(initial); assert.equal(githubSnapshot(1).checks.length,2);
+    const trusted=structuredClone(initial);
+    const targetCheck={...check,name:'migrations-applied',external_id:`migration-check:21:2:${source}`,details_url:`https://github.com/${repo}/actions/runs/21/attempts/2`};
+    trusted[`${prefix}/rules/branches/main`][0].parameters.required_status_checks=[{context:'migrations-applied',integration_id:15368}];
+    trusted[`${prefix}/commits/${source}/check-runs?per_page=100`][0].check_runs=[targetCheck,{...check,name:'db-tests',id:12,details_url:`https://github.com/${repo}/actions/runs/22/job/32`}];
+    trusted[`${prefix}/actions/runs/22`]=run;
+    trusted[`${prefix}/actions/runs/21/attempts/2`]={...run,id:21,run_attempt:2,event:'pull_request_target',head_sha:'b'.repeat(40),head_branch:'main',path:'.github/workflows/check-migrations-applied.yml',display_title:`Migration verification: PR #1 at ${source}`,conclusion:'success'};
+    save(trusted);assert.equal(githubSnapshot(1).checks.length,2);
+    const advanced=structuredClone(trusted), originalMain='b'.repeat(40), laterMain='c'.repeat(40);
+    advanced[`${prefix}/git/ref/heads/main`].object.sha=laterMain;
+    advanced[`${prefix}/compare/${originalMain}...${laterMain}`]={status:'ahead',base_commit:{sha:originalMain},merge_base_commit:{sha:originalMain}};
+    save(advanced);assert.equal(githubSnapshot(1).checks.length,2);
+    advanced[`${prefix}/compare/${originalMain}...${laterMain}`].status='diverged';
+    save(advanced);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/);
+    const wrongHead=structuredClone(trusted);wrongHead[`${prefix}/actions/runs/21/attempts/2`].display_title=`Migration verification: PR #1 at ${'f'.repeat(40)}`;
+    save(wrongHead);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/);
+    for(const event of ['pull_request','push','workflow_dispatch']) {
+      const forged=structuredClone(trusted);
+      forged[`${prefix}/actions/runs/21/attempts/2`]={...forged[`${prefix}/actions/runs/21/attempts/2`],event,head_sha:source,head_branch:'untrusted',path:'.github/workflows/untrusted.yml',display_title:'forged'};
+      forged[`${prefix}/commits/${source}/check-runs?per_page=100`][0].check_runs[0].external_id='untrusted';
+      forged[`${prefix}/compare/${source}...${originalMain}`]={status:'ahead',base_commit:{sha:source},merge_base_commit:{sha:source}};
+      save(forged);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/,`Reject PR-controlled migration check from ${event}`);
+    }
+    save(initial);
     const mutations = [
       f => f[`${prefix}/pulls/1`].draft=true,
       f => f[`${prefix}/pulls/1`].state='closed',

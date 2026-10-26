@@ -13,8 +13,8 @@ name: Advisor Drift Audit
 # A failed scheduled run emails the repo admins. To run it by hand:
 #   SUPABASE_ACCESS_TOKEN=… npm run check:advisors
 #
-# Secret required: SUPABASE_ACCESS_TOKEN (the same Management API token the
-# migration workflows use).
+# Secret required: SUPABASE_AUTOMATION_TOKEN in the main-only
+# supabase-automation environment. No repository-level management credential.
 
 on:
   schedule:
@@ -24,10 +24,13 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   advisors:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    environment: supabase-automation
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
@@ -36,7 +39,12 @@ jobs:
         with:
           node-version: 24
       # No npm ci: the script uses only Node built-ins.
+      - name: Verify automation credential protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/automation-environment.mjs
+
       - name: Diff the hosted advisors against the committed baseline
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_AUTOMATION_TOKEN }}
         run: node scripts/check-advisors.mjs

@@ -87,7 +87,7 @@ function listUnder(lines: string[], key: string): string[] | null {
 
 type Trigger = { paths: string[] | null; pathsIgnore: string[] | null };
 
-function trigger(source: string, event: "push" | "pull_request"): Trigger | null {
+function trigger(source: string, event: "push" | "pull_request" | "pull_request_target"): Trigger | null {
   const on = topLevelBlock(source, "on");
   const hasEvent = on.some((line) => new RegExp(`^ {2}${event}:`).test(line));
   if (!hasEvent) return null;
@@ -111,7 +111,7 @@ function globToRegExp(glob: string): RegExp {
 }
 
 /** Does GitHub run this workflow for `event` given these changed files? */
-function workflowRuns(source: string, event: "push" | "pull_request", changed: string[]): boolean {
+function workflowRuns(source: string, event: "push" | "pull_request" | "pull_request_target", changed: string[]): boolean {
   const filter = trigger(source, event);
   if (!filter) return false;
   if (filter.paths) {
@@ -317,11 +317,11 @@ describe("CI change selection preserves required checks and release isolation", 
   });
 
   it("all required workflows report for every PR without path filters", () => {
-    for (const source of [ci, migrations]) {
-      for (const event of ["push", "pull_request"] as const) {
+    for (const [source, prEvent] of [[ci, "pull_request"], [migrations, "pull_request_target"]] as const) {
+      for (const event of ["push", prEvent] as const) {
         expect(trigger(source, event)).toEqual({ paths: null, pathsIgnore: null });
       }
-      expect(workflowRuns(source, "pull_request", ["website/src/App.jsx"])).toBe(true);
+      expect(workflowRuns(source, prEvent, ["website/src/App.jsx"])).toBe(true);
     }
   });
 
@@ -333,7 +333,7 @@ describe("CI change selection preserves required checks and release isolation", 
       // No display-name override: the ruleset requires these exact contexts.
       expect(body, name).not.toMatch(/^ {4}name:/m);
       const condition = body.match(/^ {4}if:\s*(.+)$/m)?.[1];
-      expect(condition, name).toBe(name === "pr-production-smoke" ? "github.event_name == 'pull_request'" : undefined);
+      expect(condition, name).toBe(name === "pr-production-smoke" ? "github.event_name == 'pull_request'" : name === "migrations-applied" ? "github.ref == 'refs/heads/main'" : undefined);
     }
   });
 
