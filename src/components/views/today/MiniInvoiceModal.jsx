@@ -12,6 +12,7 @@ import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { ConfirmDialog } from "../../modals/ConfirmDialog.jsx";
 import { Input } from "../../ui/index.js";
 import { formatMoney } from "./parts.jsx";
+import { Button } from "../../ui";
 
 const SAVE_ERROR = "Payment could not be saved. Check your connection and try again.";
 
@@ -185,14 +186,15 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
             >
               Cancel
             </button>
-            <button
+            <Button
+              className="min-h-11"
+              variant="strong"
               type="submit"
               form="mini-invoice-form"
               disabled={saving}
-              className="min-h-11 rounded-full bg-brand-purple font-bold text-white disabled:cursor-wait disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save payment"}
-            </button>
+            </Button>
           </div>
         </div>
       }
