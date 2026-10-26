@@ -45,7 +45,7 @@ export function githubSnapshot(pr) {
     const runId = Number(match[1]);
     const attempt = match[2] ? Number(match[2]) : null;
     const run = api(`${repo}/actions/runs/${runId}${attempt ? `/attempts/${attempt}` : ''}`);
-    if (c.name === 'migrations-applied' && run.event === 'pull_request_target') {
+    if (c.name === 'migrations-applied') {
       // An unrelated merge must not invalidate a check of this exact PR head.
       // Prove an older base is actually in protected main's history instead.
       let historicalBaseVerified = false;

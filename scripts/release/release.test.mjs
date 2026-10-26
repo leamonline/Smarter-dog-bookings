@@ -108,6 +108,13 @@ test('real gh adapter rejects unavailable, stale, red, foreign and changed-revie
     save(advanced);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/);
     const wrongHead=structuredClone(trusted);wrongHead[`${prefix}/actions/runs/21/attempts/2`].display_title=`Migration verification: PR #1 at ${'f'.repeat(40)}`;
     save(wrongHead);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/);
+    for(const event of ['pull_request','push','workflow_dispatch']) {
+      const forged=structuredClone(trusted);
+      forged[`${prefix}/actions/runs/21/attempts/2`]={...forged[`${prefix}/actions/runs/21/attempts/2`],event,head_sha:source,head_branch:'untrusted',path:'.github/workflows/untrusted.yml',display_title:'forged'};
+      forged[`${prefix}/commits/${source}/check-runs?per_page=100`][0].check_runs[0].external_id='untrusted';
+      forged[`${prefix}/compare/${source}...${originalMain}`]={status:'ahead',base_commit:{sha:source},merge_base_commit:{sha:source}};
+      save(forged);assert.throws(()=>githubSnapshot(1),/Untrusted or stale/,`Reject PR-controlled migration check from ${event}`);
+    }
     save(initial);
     const mutations = [
       f => f[`${prefix}/pulls/1`].draft=true,
