@@ -1,4 +1,4 @@
-Status: Proposed
+Status: Active (Part C step 1 done; Part A in review; Part B not started)
 Issue: None yet
 Base: main, 2026-10-25
 Last verified: 2026-10-25
@@ -55,6 +55,14 @@ The capacity engine exists three times (`src/engine/capacity.ts`, `supabase/func
 
 ## Part C: one token vocabulary
 
+> **Update 2026-10-26.** Step 1 was already finished by the time this plan was
+> checked: no `--sd-*` shorthand name remains in `src`, and the integrity test
+> holds the count at zero (`["--sd-* shorthand", /var\(--sd-/g, 0]`). The
+> measurements below are from before that work and are kept as history. What is
+> left of Part C is steps 2 to 4: the `[data-surface="paper"]` mode, documenting
+> the portal-only `--color-sd-*` values, and removing any leftover shorthand
+> block. Part A shipped as `DayCard` in `src/components/ui/`.
+
 ### Where it stands
 Portal names are still a second scheme. Measured on 2026-10-25:
 - 22 `--sd-*` shorthand names with about 349 uses, and 19 `--color-sd-*` names with about 51 uses, across 24 files.
@@ -73,7 +81,7 @@ Portal names are still a second scheme. Measured on 2026-10-25:
 - The contrast-claims test still passes with no edits to its numbers.
 
 ## Order, and what it needs from you
-1. Part C step 1 first: mechanical, zero visual change, shrinks the surface for everything else.
+1. Part C step 1 first: mechanical, zero visual change. **Done.**
 2. Part A: biggest daily benefit, and the test net (617 lines) is the strongest of the three.
 3. Part B last: the most delicate, because of the capacity engine next door.
 

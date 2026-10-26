@@ -19,6 +19,8 @@ export { StatusPill } from "./StatusPill.jsx";
 // WhatsApp conversation state.
 export { BookingStatusBadge, resolveDayStatus } from "./BookingStatusBadge";
 export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
+// One dog on the day list: fixed header, drawer as children. Data in, no hooks.
+export { DayCard } from "./DayCard.jsx";
 export {
   PageHeader,
   PageHeaderSearch,
