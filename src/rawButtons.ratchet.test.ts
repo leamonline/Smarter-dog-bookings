@@ -21,92 +21,22 @@
  * Not counted: the shared kit itself (src/components/ui), test files, and the
  * customer portal's `portal-btn` buttons, which are a separate system on purpose.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { CEILINGS, countRawButtons as countInSource, measureRawButtons, topFiles } from "./designSystemHealth/ratchets";
 
-const srcDir = fileURLToPath(new URL(".", import.meta.url));
-
-const CEILINGS = { raw: 451, legacy: 0 } as const;
-
-type Kind = keyof typeof CEILINGS;
-
-// `btn`, `btn-primary` and friends as whole class tokens. `portal-btn` must not
-// match: it is a different system, and `-` is not a word character.
-const LEGACY_CLASS = /(?:^|[\s"'`{])btn(?:-(?:primary|danger|ghost|sm|pill))?(?=[\s"'`}]|$)/;
-const PORTAL_CLASS = /(?:^|[\s"'`{])portal-btn/;
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) sourceFiles(full, out);
-    else if (/\.(jsx|tsx)$/.test(entry) && !/\.test\.[jt]sx?$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
-// The text of a JSX opening tag, from `<button` to its closing `>`. A `>` inside
-// `{…}` (an arrow function, a comparison) or inside a quoted string does not end it.
-function openingTag(source: string, start: number): string {
-  let depth = 0;
-  let quote: string | null = null;
-  for (let i = start; i < source.length; i++) {
-    const ch = source[i];
-    if (quote) {
-      if (ch === "\\") i++;
-      else if (ch === quote) quote = null;
-    } else if (ch === '"' || ch === "'" || (ch === "`" && depth > 0)) {
-      quote = ch;
-    } else if (ch === "{") depth++;
-    else if (ch === "}") depth--;
-    else if (ch === ">" && depth === 0) return source.slice(start, i + 1);
-  }
-  return source.slice(start);
-}
-
-function countInSource(source: string): Record<Kind, number> {
-  const counts: Record<Kind, number> = { raw: 0, legacy: 0 };
-  for (const match of source.matchAll(/<button\b/g)) {
-    const tag = openingTag(source, match.index!);
-    if (PORTAL_CLASS.test(tag)) continue;
-    counts.raw++;
-    if (LEGACY_CLASS.test(tag)) counts.legacy++;
-  }
-  return counts;
-}
-
-function countRawButtons() {
-  const totals: Record<Kind, number> = { raw: 0, legacy: 0 };
-  const perFile: Record<Kind, Map<string, number>> = { raw: new Map(), legacy: new Map() };
-  const sharedKit = join(srcDir, "components", "ui") + "/";
-  for (const file of sourceFiles(srcDir)) {
-    if (file.startsWith(sharedKit)) continue;
-    const counts = countInSource(readFileSync(file, "utf8"));
-    for (const kind of Object.keys(counts) as Kind[]) {
-      if (!counts[kind]) continue;
-      totals[kind] += counts[kind];
-      perFile[kind].set(relative(srcDir, file), counts[kind]);
-    }
-  }
-  return { totals, perFile };
-}
+const ceilings = CEILINGS.rawButtons;
+type Kind = keyof typeof ceilings;
 
 describe("raw buttons ratchet", () => {
-  const { totals, perFile } = countRawButtons();
+  const { totals, perFile } = measureRawButtons();
 
-  for (const kind of Object.keys(CEILINGS) as Kind[]) {
-    it(`${kind === "raw" ? "hand-written <button>" : "<button> using .btn classes"} stays at or below ${CEILINGS[kind]}`, () => {
-      const biggest = [...perFile[kind]]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([f, n]) => `${f} (${n})`)
-        .join(", ");
+  for (const kind of Object.keys(ceilings) as Kind[]) {
+    it(`${kind === "raw" ? "hand-written <button>" : "<button> using .btn classes"} stays at or below ${ceilings[kind]}`, () => {
       expect(
         totals[kind],
-        `${totals[kind]} found (ceiling ${CEILINGS[kind]}). Use Button, or IconButton for an ` +
-          `icon-only one, from components/ui. Most: ${biggest}`,
-      ).toBeLessThanOrEqual(CEILINGS[kind]);
+        `${totals[kind]} found (ceiling ${ceilings[kind]}). Use Button, or IconButton for an ` +
+          `icon-only one, from components/ui. Most: ${topFiles(perFile[kind]!)}`,
+      ).toBeLessThanOrEqual(ceilings[kind]!);
     });
   }
 });

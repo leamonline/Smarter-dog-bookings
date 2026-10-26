@@ -118,6 +118,8 @@ These files remain authoritative for their bounded topics:
   [`modal-standard.md`](modal-standard.md) are canonical.
 - [`ux/warm-colours.md`](ux/warm-colours.md) — which job each yellow, gold and
   mustard token does, and why warnings must not use the action yellow. Draft.
+- [`ux/design-system-health.md`](ux/design-system-health.md) — the five ratchet counts,
+  the one command that shows them, and the rule that ceilings only go down.
 - [`ux/buttons.md`](ux/buttons.md) — which button for which job: yellow primary,
   charcoal strong secondary, and the rest.
 - [`ux/radius-and-elevation.md`](ux/radius-and-elevation.md) — the one scale for
