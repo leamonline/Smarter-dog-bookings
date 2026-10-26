@@ -58,7 +58,7 @@ function CreatedByFooter({ name, role, at }) {
     role === "staff" ? " (staff)" : role === "customer" ? " (customer)" : "";
   const when = formatWhen(at);
   return (
-    <div className="px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold leading-snug">
+    <div className="px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-tile text-xs font-semibold leading-snug">
       <span className="uppercase text-micro font-extrabold tracking-wider mr-1 text-ink-muted">Booked</span>
       Booked by {name}{roleSuffix}{when ? ` on ${when}` : ""}.
     </div>
@@ -92,7 +92,7 @@ function OverrideAuditFooter({ by, at }) {
   })();
 
   return (
-    <div className="px-3 py-2.5 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint text-feedback-warning-ink rounded-xl text-xs font-semibold leading-snug shadow-sm">
+    <div className="px-3 py-2.5 mb-3 bg-feedback-warning-tint border border-brand-mustard-tint text-feedback-warning-ink rounded-tile text-xs font-semibold leading-snug shadow-sm">
       <span className="uppercase text-micro font-extrabold tracking-wider mr-1">Override</span>
       Capacity overridden by {who}{when}.
     </div>
@@ -121,7 +121,7 @@ function ConfirmedFooter({ at, by }) {
   })();
 
   return (
-    <div className="px-3 py-2.5 mb-3 bg-brand-green-50 border border-brand-green-200 text-brand-green-800 rounded-xl text-xs font-semibold leading-snug shadow-sm">
+    <div className="px-3 py-2.5 mb-3 bg-brand-green-50 border border-brand-green-200 text-brand-green-800 rounded-tile text-xs font-semibold leading-snug shadow-sm">
       <span className="uppercase text-micro font-extrabold tracking-wider mr-1">Confirmed</span>
       {by === "staff"
         ? `Confirmed by staff on ${when}.`

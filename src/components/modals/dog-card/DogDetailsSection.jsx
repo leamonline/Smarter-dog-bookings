@@ -103,7 +103,7 @@ export function DogDetailsSection({
                   setEditAlerts(editAlerts.filter((a) => a !== opt.label));
                 else setEditAlerts([...editAlerts, opt.label]);
               }}
-              className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
+              className="px-3 py-1.5 rounded-card text-xs font-bold cursor-pointer transition-all"
               style={{
                 background: active ? opt.color : "var(--color-surface-card)",
                 color: active ? "var(--color-surface-card)" : opt.color,
@@ -117,7 +117,7 @@ export function DogDetailsSection({
         <button
           type="button"
           onClick={() => setHasAllergy(!hasAllergy)}
-          className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
+          className="px-3 py-1.5 rounded-card text-xs font-bold cursor-pointer transition-all"
           style={{
             background: hasAllergy ? "var(--color-brand-coral)" : "var(--color-surface-card)",
             color: hasAllergy ? "var(--color-surface-card)" : "var(--color-brand-coral)",

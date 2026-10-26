@@ -35,7 +35,7 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
   const pastCutoff = row.isOnline && !row.customerReachable;
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+    <li className="flex items-center gap-3 rounded-tile border border-slate-200 bg-white px-3 py-2.5">
       <span className="font-bold text-slate-800 text-[15px] tabular-nums w-14 shrink-0">{row.slot}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
@@ -112,7 +112,7 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
       }
     >
       <div className="px-5 pb-5">
-        <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
+        <div className="rounded-card bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
           <p className="text-body text-slate-700">
             <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
             {" · "}
@@ -136,7 +136,7 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
         </p>
 
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
+          <p className="rounded-card border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
             No free slots left today.
           </p>
         ) : (

@@ -38,7 +38,7 @@ export function UtilityTabs({
   return (
     <section
       aria-label="Workflow tools"
-      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
+      className="bg-white rounded-card border border-gray-100 shadow-card-resting overflow-hidden"
     >
       <div
         role="tablist"

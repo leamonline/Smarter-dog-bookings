@@ -55,7 +55,7 @@ export function MessageBubble({ message, onRetry }) {
   if (isInbound && isReminderConfirm(message.content)) {
     return (
       <div className="flex justify-start mb-2">
-        <div className="inline-flex items-center gap-2 max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 shadow-sm">
+        <div className="inline-flex items-center gap-2 max-w-[75%] rounded-card rounded-bl-sm px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 shadow-sm">
           <span aria-hidden="true" className="text-[20px] leading-none">🐾</span>
           <div className="min-w-0">
             <div className="text-sm font-bold text-emerald-900 leading-snug">
@@ -115,7 +115,7 @@ export function MessageBubble({ message, onRetry }) {
           a 40-character customer link pushed bubbles off a phone screen.
           min-w-0 is the belt to that brace. */}
       <div
-        className={`min-w-0 max-w-[75%] wrap-anywhere rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+        className={`min-w-0 max-w-[75%] wrap-anywhere rounded-card px-3 py-2 text-sm whitespace-pre-wrap ${
           isInbound
             ? "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
             : isFailed

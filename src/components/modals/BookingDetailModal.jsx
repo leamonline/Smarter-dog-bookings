@@ -422,7 +422,7 @@ export function BookingDetailModal({
           />
 
           {saveError && (
-            <div className="px-3 py-2.5 bg-white text-brand-coral rounded-xl text-body font-bold mb-3 shadow-sm">
+            <div className="px-3 py-2.5 bg-white text-brand-coral rounded-tile text-body font-bold mb-3 shadow-sm">
               {saveError}
             </div>
           )}

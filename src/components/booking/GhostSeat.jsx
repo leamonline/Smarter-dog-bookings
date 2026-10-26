@@ -45,7 +45,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`group border-[1.5px] border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1 text-ink-muted cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[76px] lg:min-h-[80px] font-[inherit] hover:border-slate-300 hover:text-brand-purple hover:bg-slate-50/50 ${spanClass} ${dropClass}`}
+        className={`group border-[1.5px] border-dashed border-slate-200 rounded-tile flex items-center justify-center gap-1 text-ink-muted cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[76px] lg:min-h-[80px] font-[inherit] hover:border-slate-300 hover:text-brand-purple hover:bg-slate-50/50 ${spanClass} ${dropClass}`}
       >
         <span className="text-sm font-extrabold transition-transform duration-150 group-hover:scale-110">+</span>
         <span className="text-xs font-bold">Book</span>
@@ -59,7 +59,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={`border-[1.5px] border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 min-h-[76px] lg:min-h-[80px] relative px-1.5 hover:border-slate-300 ${spanClass} ${dropClass}`}
+      className={`border-[1.5px] border-dashed border-slate-200 rounded-tile flex items-center justify-center gap-1.5 transition-all duration-150 min-h-[76px] lg:min-h-[80px] relative px-1.5 hover:border-slate-300 ${spanClass} ${dropClass}`}
     >
       {/* Book button — calm layout */}
       <button

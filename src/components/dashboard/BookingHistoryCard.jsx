@@ -42,7 +42,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
   return (
     <section
       aria-label="Recent booking activity"
-      className="rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden bg-white transition-all duration-200"
+      className="rounded-card border border-slate-200 shadow-card-resting overflow-hidden bg-white transition-all duration-200"
     >
       <div className="p-4">
         <div className="flex items-center justify-between">

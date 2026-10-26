@@ -156,7 +156,7 @@ export function CloseTimesDialog({
     <AccessibleModal
       onClose={onClose}
       titleId={TITLE_ID}
-      className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden"
+      className="bg-white rounded-card w-full max-w-md shadow-xl overflow-hidden"
     >
       <header className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)]">
         <div>
@@ -243,7 +243,7 @@ export function CloseTimesDialog({
         </div>
 
         {/* Exactly what the calendar will show, so there are no surprises. */}
-        <div className="rounded-xl bg-brand-coral text-white px-3 py-2.5">
+        <div className="rounded-tile bg-brand-coral text-white px-3 py-2.5">
           <div className="text-sm font-extrabold leading-tight break-words">
             {closureLabel({ reason: reason.trim() || "…" })}
           </div>
@@ -255,7 +255,7 @@ export function CloseTimesDialog({
         {/* Only worth warning about before the closure exists. Afterwards the
             bookings are already flagged on the card itself. */}
         {!timesLocked && clashes.length > 0 && (
-          <p className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-xl px-3 py-2">
+          <p className="text-xs text-feedback-warning-ink bg-feedback-warning-tint border border-brand-mustard-tint rounded-tile px-3 py-2">
             {clashes.length} {clashes.length === 1 ? "booking sits" : "bookings sit"} in these
             times. {clashes.length === 1 ? "It'll be flagged" : "They'll be flagged"} NEEDS
             ATTENTION on the calendar until you move or cancel{" "}

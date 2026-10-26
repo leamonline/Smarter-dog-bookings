@@ -118,7 +118,7 @@ export function PhotoUploadModal({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-full aspect-square max-h-60 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-slate-400 hover:bg-slate-100"
+            className="w-full aspect-square max-h-60 rounded-tile border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-slate-400 hover:bg-slate-100"
           >
             <IconCamera size={40} colour="#94A3B8" />
             <span className="text-sm font-semibold text-slate-400">
@@ -130,7 +130,7 @@ export function PhotoUploadModal({
             <img
               src={preview}
               alt="Preview"
-              className="w-full max-h-60 object-cover rounded-xl"
+              className="w-full max-h-60 object-cover rounded-tile"
             />
             <button
               type="button"

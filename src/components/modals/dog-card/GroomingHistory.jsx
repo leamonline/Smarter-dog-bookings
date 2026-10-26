@@ -3,6 +3,7 @@ import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
 import { ChevronRight, Scissors } from "lucide-react";
 import { PanelShell } from "../shell/index.js";
+import { resolveDayStatus } from "../../ui";
 
 const COLLAPSED_ROWS = 5;
 
@@ -183,7 +184,8 @@ export function GroomingHistory({
                   <span
                     className="font-semibold text-caption shrink-0"
                     style={{
-                      color: b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? "#16A34A" : undefined,
+                      // Ready reads in the status ink the day screen uses, not green.
+                      color: b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? resolveDayStatus(b.status).ink : undefined,
                     }}
                   >
                     {b.status === BOOKING_STATUS.READY_FOR_COLLECTION ? "Finished" : b.status}

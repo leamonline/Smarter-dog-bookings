@@ -28,7 +28,7 @@ export function PageHeader({
       data-testid="page-header"
       className={classes(
         "relative -mx-[var(--app-gutter)] mb-4 flex min-h-[76px] flex-wrap items-center gap-3",
-        "rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm",
+        "rounded-b-card border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm",
         className,
       )}
     >

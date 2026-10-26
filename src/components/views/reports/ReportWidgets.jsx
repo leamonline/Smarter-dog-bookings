@@ -17,7 +17,7 @@ export function DetailedReportsDisclosure({ children }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-card-resting overflow-hidden">
+    <div className="rounded-card border border-slate-200 bg-white shadow-card-resting overflow-hidden">
       <button
         type="button"
         aria-expanded={expanded}
@@ -61,7 +61,7 @@ export function Trend({ cur, prev, invert }) {
 
 export function Kpi({ label, value, sub, cur, prev, color = "var(--color-brand-teal)", invert, hideDelta }) {
   return (
-    <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-card-resting">
+    <div className="bg-white p-3 md:p-5 rounded-card border border-slate-200 shadow-card-resting">
       <SectionLabel className="mb-1">{label}</SectionLabel>
       <div className="flex items-baseline gap-1.5 flex-wrap">
         <span className="text-xl sm:text-2xl md:text-display font-black leading-none font-display" style={{ color }}>{value}</span>
@@ -101,7 +101,7 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden">
+    <div className="bg-white rounded-card border border-slate-200 shadow-card-resting overflow-hidden">
       <div className="h-[3px]" style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 53%, transparent))` }} />
       {collapsible ? (
         <>

@@ -16,7 +16,7 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
   return (
     <div
       data-testid="page-header"
-      className="relative -mx-[var(--app-gutter)] mb-4 short:mb-2 flex min-h-[56px] short:min-h-0 items-center justify-center rounded-b-2xl border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 short:py-1.5 shadow-sm"
+      className="relative -mx-[var(--app-gutter)] mb-4 short:mb-2 flex min-h-[56px] short:min-h-0 items-center justify-center rounded-b-card border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 short:py-1.5 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 w-full max-w-xl">
         <div className="flex items-center gap-1 sm:gap-2">

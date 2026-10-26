@@ -39,11 +39,11 @@ export function BookingActions({
           onClick={onConfirm}
           disabled={!ready}
           aria-describedby={hint ? hintId : undefined}
-          className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
+          className="flex-1 py-[13px] rounded-tile border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
         >
           {label}
         </button>
-        <button onClick={onClose} className="py-[13px] px-5 rounded-xl border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit transition-colors active:scale-[0.98] motion-safe:transition-transform hover:border-slate-300 hover:text-slate-700">Cancel</button>
+        <button onClick={onClose} className="py-[13px] px-5 rounded-tile border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit transition-colors active:scale-[0.98] motion-safe:transition-transform hover:border-slate-300 hover:text-slate-700">Cancel</button>
       </div>
     </div>
   );

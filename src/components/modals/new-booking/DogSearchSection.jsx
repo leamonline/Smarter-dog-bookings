@@ -98,7 +98,7 @@ export function DogSearchSection({
             return (
             <div
               key={entry.dog.id}
-              className="rounded-xl p-2.5 px-3.5 border-[1.5px]"
+              className="rounded-tile p-2.5 px-3.5 border-[1.5px]"
               style={{ background: dogTheme.light, borderColor: dogTheme.gradient[0] }}
             >
               <div className="flex items-center gap-2.5">
@@ -216,7 +216,7 @@ export function DogSearchSection({
 
           {/* Same-owner dog picker */}
           {addingAnotherDog && (
-            <div className="bg-white border border-brand-paper-line rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+            <div className="bg-white border border-brand-paper-line rounded-tile shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
               <div className="px-3 py-2 text-caption font-bold text-slate-500 border-b border-slate-200">
                 {titleCase(selectedHumanKey)}'s other dogs
               </div>
@@ -260,7 +260,7 @@ export function DogSearchSection({
               search (auto-focused, results only once staff type). Brand-new
               customers: straight into the guided New Client wizard. Neither
               path reads as the afterthought. */}
-          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-brand-teal-tint p-3 flex flex-col justify-center">
+          <div className="min-h-[104px] rounded-card border border-brand-teal/30 bg-brand-teal-tint p-3 flex flex-col justify-center">
             <label htmlFor="dog-search-input" className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
             <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
@@ -277,14 +277,14 @@ export function DogSearchSection({
 
             {/* Searching indicator — only when no local results */}
             {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-body text-slate-500 italic">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-body text-slate-500 italic">
                 Looking for matches…
               </div>
             )}
 
             {/* Dropdown results — one card per dog, humans nested inside */}
             {filteredEntries.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
                 {filteredEntries.map((entry, idx) => {
                   const primaryHuman = entry.humans[0];
                   const selectPrimary = () =>
@@ -369,7 +369,7 @@ export function DogSearchSection({
 
             {/* No results + add buttons */}
             {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-tile shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
                 <div className="text-body text-slate-500 mb-2.5">
                   Can't find anyone with "{dogQuery}" — try another name
                 </div>
@@ -393,7 +393,7 @@ export function DogSearchSection({
             type="button"
             onClick={() => onOpenNewClient?.()}
             aria-label="New customer"
-            className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
+            className="w-full min-h-[104px] text-left rounded-card border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
           >
             <span className="text-caption font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
             <span aria-hidden="true" className="text-body text-[#5C4600]/75 block">

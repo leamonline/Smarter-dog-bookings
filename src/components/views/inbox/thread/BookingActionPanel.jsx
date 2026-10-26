@@ -109,7 +109,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
           return (
             <div
               key={action.id}
-              className="bg-white border border-brand-yellow/30 rounded-2xl px-3 py-2.5 shadow-card-resting"
+              className="bg-white border border-brand-yellow/30 rounded-card px-3 py-2.5 shadow-card-resting"
             >
               {isRejecting ? (
                 <textarea

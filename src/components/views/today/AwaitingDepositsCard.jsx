@@ -35,7 +35,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
             <button
               type="button"
               onClick={() => onOpenBooking?.(booking)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-brand-paper-line bg-white px-3 py-2 text-left font-[inherit] outline-none transition-colors hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-tile border border-brand-paper-line bg-white px-3 py-2 text-left font-[inherit] outline-none transition-colors hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
             >
               <span
                 aria-hidden="true"

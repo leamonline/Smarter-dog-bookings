@@ -1,7 +1,7 @@
 // src/components/ui/Card.jsx
 //
 // White surface card primitive. Encapsulates the staff-dashboard card look
-// (rounded-2xl, slate-200 border, resting shadow) plus the established gradient
+// (rounded-card, slate-200 border, resting shadow) plus the established gradient
 // top-accent stripe (h-[3px]) and an interactive variant for clickable cards
 // (hover lift + focus ring + optional button semantics).
 //
@@ -70,7 +70,7 @@ export const Card = forwardRef(function Card(
     : onKeyDown;
 
   const cls = [
-    "bg-white rounded-2xl border border-slate-200 overflow-hidden font-[inherit]",
+    "bg-white rounded-card border border-slate-200 overflow-hidden font-[inherit]",
     ELEVATION[elevation] || ELEVATION.resting,
     interactiveCls,
     className,

@@ -23,10 +23,10 @@ function SectionSkeleton() {
   return (
     <div aria-label="Loading needs attention" className="grid gap-4 motion-safe:animate-pulse">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-2xl border border-brand-paper-line bg-white p-4">
+        <div key={i} className="rounded-card border border-brand-paper-line bg-white p-4">
           <div className="mb-3 h-5 w-48 rounded bg-slate-100" />
-          <div className="mb-2 h-14 rounded-xl bg-slate-50" />
-          <div className="h-14 rounded-xl bg-slate-50" />
+          <div className="mb-2 h-14 rounded-tile bg-slate-50" />
+          <div className="h-14 rounded-tile bg-slate-50" />
         </div>
       ))}
     </div>
@@ -46,7 +46,7 @@ function AttentionRow({ item, dogs, humans, onOpenBooking }) {
       <button
         type="button"
         onClick={() => onOpenBooking?.(item.booking.id, item.booking)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-brand-paper-line bg-white text-left cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2 font-[inherit]"
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-tile border border-brand-paper-line bg-white text-left cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2 font-[inherit]"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
@@ -94,7 +94,7 @@ function AttentionSection({ section, dogs, humans, onOpenBooking }) {
   return (
     <section
       aria-label={`${section.title} — ${section.items.length} ${section.items.length === 1 ? "item" : "items"}`}
-      className="rounded-2xl border border-brand-paper-line bg-white p-4"
+      className="rounded-card border border-brand-paper-line bg-white p-4"
     >
       <div className="flex items-center gap-2">
         <h2 className="text-base font-bold text-brand-purple m-0">{section.title}</h2>
@@ -164,7 +164,7 @@ export function NeedsAttentionContent({
             onClick={onRefresh}
             disabled={loading}
             aria-label="Refresh"
-            className="tap-target shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer border border-brand-paper-line bg-white text-brand-purple hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="tap-target shrink-0 w-10 h-10 rounded-tile flex items-center justify-center cursor-pointer border border-brand-paper-line bg-white text-brand-purple hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} strokeWidth={2.2} aria-hidden="true" />
           </button>
@@ -174,7 +174,7 @@ export function NeedsAttentionContent({
       {loading ? (
         <SectionSkeleton />
       ) : !available ? null : summary.total === 0 ? (
-        <div className="rounded-2xl border border-brand-paper-line bg-white p-6 text-center">
+        <div className="rounded-card border border-brand-paper-line bg-white p-6 text-center">
           <p className="m-0 text-base font-bold text-brand-teal-dark">All clear</p>
           <p className="mt-1 mb-0 text-sm text-slate-500">
             Nothing from previous days needs resolving.

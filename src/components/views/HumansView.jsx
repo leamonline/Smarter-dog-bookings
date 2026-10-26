@@ -595,7 +595,7 @@ export function HumansView({
 
         {/* Less frequent filters and sorting stay below the primary toolbar. */}
         {showRailAndSort && (
-        <div className="mb-4 rounded-xl border border-brand-paper-line bg-white px-5 py-3 md:px-6">
+        <div className="mb-4 rounded-tile border border-brand-paper-line bg-white px-5 py-3 md:px-6">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>

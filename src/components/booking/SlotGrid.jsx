@@ -278,7 +278,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-caption font-semibold italic"
+            className="border-[1.5px] border-slate-200 rounded-tile min-h-[76px] lg:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-caption font-semibold italic"
           >
             (large dog)
           </div>
@@ -296,7 +296,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[76px] lg:min-h-[80px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
+            className="border-[1.5px] border-slate-200 rounded-tile min-h-[76px] lg:min-h-[80px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
@@ -448,7 +448,7 @@ export function SlotGrid({
             {slots.map((slot) => (
               <div
                 key={slot}
-                className="flex-1 min-h-[160px] md:min-h-[76px] lg:min-h-[80px] flex items-center justify-center rounded-xl border border-brand-coral/30 bg-white/70 px-1 py-1.5"
+                className="flex-1 min-h-[160px] md:min-h-[76px] lg:min-h-[80px] flex items-center justify-center rounded-tile border border-brand-coral/30 bg-white/70 px-1 py-1.5"
               >
                 <span className="text-body md:text-sm font-bold tabular-nums leading-none text-brand-coral-text">
                   {formatSlotLabel(slot)}

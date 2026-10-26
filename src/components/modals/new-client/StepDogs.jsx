@@ -73,7 +73,7 @@ export function StepDogs({ dogs, onAddDog, onRemoveDog }) {
         </ul>
       )}
 
-      <div className="rounded-xl border border-dashed border-slate-300 bg-brand-paper p-3 flex flex-col gap-3">
+      <div className="rounded-tile border border-dashed border-slate-300 bg-brand-paper p-3 flex flex-col gap-3">
         <div className="text-xs font-bold text-brand-teal-text">
           {dogs.length ? "Add another dog" : "Add their dog"}
         </div>

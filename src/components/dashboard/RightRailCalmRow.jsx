@@ -45,7 +45,7 @@ export function RightRailCalmRow({ chips }) {
     <div
       role="status"
       aria-label={summaryLabel}
-      className="rounded-2xl bg-neutral-50 border border-neutral-200/60 px-3 py-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-neutral-600"
+      className="rounded-card bg-neutral-50 border border-neutral-200/60 px-3 py-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-neutral-600"
     >
       {chips.map((chip, i) => (
         <Fragment key={chip.key}>

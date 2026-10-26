@@ -29,7 +29,7 @@ export function CardGridSkeleton({ rows = 3, cols = 3 }) {
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
     >
       {Array.from({ length: cells }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden h-[140px] flex flex-col">
+        <div key={i} className="bg-white rounded-tile border border-slate-200 overflow-hidden h-[140px] flex flex-col">
           <Block className="h-[3px] rounded-none" />
           <div className="p-3.5 px-4 flex-1 flex flex-col gap-2">
             <Block className="h-4 w-2/3" />
@@ -50,7 +50,7 @@ export function ThreadSkeleton({ bubbles = 5 }) {
         return (
           <div key={i} className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
             <Block
-              className="rounded-2xl"
+              className="rounded-card"
               style={{ width: `${50 + ((i * 13) % 30)}%`, height: 36 + (i % 3) * 8 }}
             />
           </div>
@@ -91,7 +91,7 @@ export function SkeletonKpiRow({ count = 4 }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-3 md:p-5 flex flex-col gap-2"
+          className="bg-white rounded-card border border-slate-200 shadow-card-resting p-3 md:p-5 flex flex-col gap-2"
         >
           <Block className="h-2.5 w-2/3" />
           <Block className="h-7 w-1/2" />
@@ -107,7 +107,7 @@ export function SkeletonChart({ bars = 7 }) {
     <div
       role="status"
       aria-label="Loading chart"
-      className="bg-white rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden"
+      className="bg-white rounded-card border border-slate-200 shadow-card-resting overflow-hidden"
     >
       <Block className="h-[3px] rounded-none" />
       <div className="p-5">

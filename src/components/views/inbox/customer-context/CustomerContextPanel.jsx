@@ -94,7 +94,7 @@ export function CustomerContextPanel({
               shown read-only here above the dog card(s) as a titled card.
               Staff edit them on the full profile. */}
           {!loading && !error && displayHuman && displayHuman.notes && (
-            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+            <div className="rounded-card border border-slate-200 bg-white px-3 py-2.5">
               <div className="text-micro font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Notes
               </div>
@@ -136,7 +136,7 @@ export function CustomerContextPanel({
                       href={tel}
                       aria-label={`Call ${displayPhone}`}
                       title={`Call ${displayPhone}`}
-                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -151,7 +151,7 @@ export function CustomerContextPanel({
                       rel="noopener noreferrer"
                       aria-label={`Open WhatsApp Web for ${displayPhone}`}
                       title={`Open WhatsApp Web for ${displayPhone}`}
-                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 text-[#108444] no-underline hover:bg-[#25D366]/20 transition-colors"
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-[#25D366]/40 bg-[#25D366]/10 text-[#108444] no-underline hover:bg-[#25D366]/20 transition-colors"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -164,7 +164,7 @@ export function CustomerContextPanel({
                       href={`mailto:${displayHuman.email}`}
                       aria-label={`Email ${displayHuman.email}`}
                       title={`Email ${displayHuman.email}`}
-                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <rect x="2" y="4" width="20" height="16" rx="2" />

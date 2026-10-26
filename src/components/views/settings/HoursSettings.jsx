@@ -159,7 +159,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
             {closures.map((c, i) => (
               <span
                 key={`${c.date}-${i}`}
-                className="inline-flex items-center gap-1.5 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-tile text-xs font-semibold"
               >
                 {c.date}
                 {c.label ? ` — ${c.label}` : ""}

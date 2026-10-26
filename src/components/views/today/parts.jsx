@@ -49,7 +49,7 @@ export function PrimaryButton({ onClick, children, disabled, fluid = false, ...r
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-body font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fluid ? "w-full" : ""}`}
+      className={`inline-flex items-center justify-center min-h-[44px] px-4 rounded-tile bg-brand-teal text-white text-body font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fluid ? "w-full" : ""}`}
       {...rest}
     >
       {children}
@@ -63,7 +63,7 @@ export function SecondaryButton({ onClick, children, ...rest }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center justify-center min-h-[44px] px-3.5 rounded-xl bg-slate-100 text-slate-700 text-body font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+      className="inline-flex items-center justify-center min-h-[44px] px-3.5 rounded-tile bg-slate-100 text-slate-700 text-body font-semibold hover:bg-slate-200 motion-safe:transition-colors"
       {...rest}
     >
       {children}

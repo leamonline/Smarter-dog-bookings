@@ -211,7 +211,7 @@ export function UiKitchenSink() {
 
         {/* ── Type scale ───────────────────────────────────────── */}
         <Block title="Type scale" hint="Named steps replace the text-[9–15px] one-offs. 12/14/16px keep Tailwind defaults.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-3">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-3">
             {TYPE_STEPS.map(([cls, label, extra]) => (
               <div key={cls} className="flex items-baseline gap-4">
                 <code className="text-micro text-ink-muted w-28 shrink-0">{cls}</code>
@@ -228,7 +228,7 @@ export function UiKitchenSink() {
 
         {/* ── Ink + muted ─────────────────────────────────────── */}
         <Block title="Ink colours" hint="text-ink (= brand purple) and text-ink-muted (slate-500, ≈4.76:1 — passes AA where the old slate-400 failed).">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-2">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-2">
             <p className="text-ink text-sm font-semibold">text-ink — primary text, headings, links</p>
             <p className="text-ink-muted text-sm">text-ink-muted — captions, owner lines, footnotes (accessible)</p>
             <p className="text-slate-400 text-sm">text-slate-400 — decoration only now (icons, separators)</p>
@@ -237,7 +237,7 @@ export function UiKitchenSink() {
 
         {/* ── Buttons ─────────────────────────────────────────── */}
         <Block title="Button" hint="primary / danger / ghost / link · sizes sm + md · loading, icons, disabled, full-width.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-6">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-6">
             <Spec label="variants (md)">
               <Row>
                 <Button variant="primary">Book this seat</Button>
@@ -326,7 +326,7 @@ export function UiKitchenSink() {
 
         {/* ── Badges ──────────────────────────────────────────── */}
         <Block title="Badge" hint="Generic chips. tone × variant (soft / solid / outline) × size.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-5">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-5">
             {["soft", "solid", "outline"].map((variant) => (
               <Spec key={variant} label={variant}>
                 <Row>
@@ -350,7 +350,7 @@ export function UiKitchenSink() {
 
         {/* ── StatusPill ──────────────────────────────────────── */}
         <Block title="StatusPill" hint="Semantic conversation states (shared from the inbox).">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
             <Spec label="sm">
               <Row>{STATES.map((s) => <StatusPill key={s} state={s} />)}</Row>
             </Spec>
@@ -362,7 +362,7 @@ export function UiKitchenSink() {
 
         {/* ── Size dots ───────────────────────────────────────── */}
         <Block title="SizeDot / SizeTag" hint="Colour + letter (colour-blind safe). small=yellow, medium=green, large=pink.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
             <Spec label="SizeDot (with letter)">
               <Row>
                 <SizeDot size="small" />
@@ -384,7 +384,7 @@ export function UiKitchenSink() {
 
         {/* ── SectionLabel ────────────────────────────────────── */}
         <Block title="SectionLabel" hint="Render as h2/h3 when it introduces a region; div for decoration.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-2">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-2">
             <SectionLabel as="h2">Heading two</SectionLabel>
             <SectionLabel as="h3">Heading three</SectionLabel>
             <SectionLabel>Decorative kicker</SectionLabel>
@@ -394,7 +394,7 @@ export function UiKitchenSink() {
         {/* ── Skeletons ───────────────────────────────────────── */}
         <Block title="Skeletons" hint="Shaped placeholders that mirror the final layout.">
           <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
+            <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-4">
               <Spec label="Block / Text / Circle">
                 <div className="flex items-center gap-6">
                   <SkeletonCircle size={48} />
@@ -407,7 +407,7 @@ export function UiKitchenSink() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Spec label="SkeletonChart"><SkeletonChart /></Spec>
               <Spec label="ThreadSkeleton">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting"><ThreadSkeleton bubbles={4} /></div>
+                <div className="bg-white rounded-card border border-slate-200 shadow-card-resting"><ThreadSkeleton bubbles={4} /></div>
               </Spec>
             </div>
             <Spec label="CardGridSkeleton (1 row)"><CardGridSkeleton rows={1} cols={3} /></Spec>
@@ -434,7 +434,7 @@ export function UiKitchenSink() {
 
         {/* ── Spinners ────────────────────────────────────────── */}
         <Block title="Spinner" hint="Inline (currentColor) + the full-page LoadingSpinner.">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 flex flex-col gap-5">
+          <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 flex flex-col gap-5">
             <Spec label="inline sizes (adapt to text colour)">
               <Row className="text-brand-teal">
                 <Spinner size="sm" />
@@ -444,7 +444,7 @@ export function UiKitchenSink() {
               </Row>
             </Spec>
             <Spec label="LoadingSpinner (route fallback)">
-              <div className="border border-dashed border-slate-200 rounded-xl"><LoadingSpinner /></div>
+              <div className="border border-dashed border-slate-200 rounded-tile"><LoadingSpinner /></div>
             </Spec>
           </div>
         </Block>
@@ -454,7 +454,7 @@ export function UiKitchenSink() {
           <div className="flex flex-col gap-4">
             <ErrorBanner title="Couldn't load reports right now" message="The booking data didn't come through. Refresh to try again." retry={noop} />
             <ErrorBanner title="Heads up" message="With a dismiss button." onClose={noop} />
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-6 max-w-sm">
+            <div className="bg-white rounded-card border border-slate-200 shadow-card-resting p-6 max-w-sm">
               <label className="text-body font-semibold text-slate-700">Email</label>
               <input className="mt-1 w-full rounded-control border border-slate-200 px-3 py-2 text-sm" defaultValue="not-an-email" />
               <InlineError message="Please enter a valid email address." />

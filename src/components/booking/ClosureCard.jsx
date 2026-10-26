@@ -52,7 +52,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
   return (
     <div
       ref={wrapRef}
-      className="relative h-full rounded-2xl bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.35)] px-4 py-3 flex flex-col gap-2"
+      className="relative h-full rounded-card bg-brand-coral text-white shadow-[0_2px_8px_rgba(231,84,108,0.35)] px-4 py-3 flex flex-col gap-2"
     >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -88,7 +88,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
           role="menu"
           aria-label="Closure actions"
           className={[
-            "absolute right-3 z-30 w-52 rounded-xl bg-white p-1.5",
+            "absolute right-3 z-30 w-52 rounded-tile bg-white p-1.5",
             "shadow-[0_12px_28px_rgba(31,31,31,0.35)] flex flex-col",
             menuBottomUp ? "bottom-3" : "top-12",
           ].join(" ")}

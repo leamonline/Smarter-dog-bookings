@@ -118,6 +118,8 @@ These files remain authoritative for their bounded topics:
   [`modal-standard.md`](modal-standard.md) are canonical.
 - [`ux/warm-colours.md`](ux/warm-colours.md) — which job each yellow, gold and
   mustard token does, and why warnings must not use the action yellow. Draft.
+- [`ux/buttons.md`](ux/buttons.md) — which button for which job: yellow primary,
+  charcoal strong secondary, and the rest.
 - [`ux/radius-and-elevation.md`](ux/radius-and-elevation.md) — the one scale for
   corner radius and shadow, and the ratchet that holds it.
 - [`ux/message-voice.md`](ux/message-voice.md) — how customer messages are

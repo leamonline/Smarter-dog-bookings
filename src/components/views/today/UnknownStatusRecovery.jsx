@@ -25,7 +25,7 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
   return (
     <section
       role="alert"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-brand-coral/25 bg-brand-coral/[0.05] px-3 py-1.5"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-tile border border-brand-coral/25 bg-brand-coral/[0.05] px-3 py-1.5"
     >
       <h2 className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-coral-text">
         <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />

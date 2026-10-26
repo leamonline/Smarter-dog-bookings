@@ -13,14 +13,14 @@ function submittedLabel(value: string) {
   if (days === 1) return "Waiting 1 day";
   return `Waiting ${days} days`;
 }
-const action = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50";
+const action = "inline-flex min-h-11 items-center justify-center gap-2 rounded-tile px-3 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple disabled:opacity-50";
 
 export function SignupApprovalQueue({ enabled, onApprove }: { enabled: boolean; onApprove: ApproveSignup }) {
   const queue = useSignupApprovalQueue(enabled);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   return (
-    <section aria-label="Awaiting approval" className="mb-5 overflow-hidden rounded-2xl border border-brand-teal/25 bg-white shadow-sm">
+    <section aria-label="Awaiting approval" className="mb-5 overflow-hidden rounded-card border border-brand-teal/25 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 bg-brand-teal/5 px-4 py-3 sm:px-5">
         <button type="button" aria-label={!queue.error && enabled && !queue.loading ? `Awaiting approval, ${queue.total} customers` : "Awaiting approval"} aria-expanded={expanded} onClick={() => setExpanded(value => !value)} className={`${action} -ml-3 text-brand-purple`}>
           <Clock size={19} aria-hidden="true" /> Awaiting approval

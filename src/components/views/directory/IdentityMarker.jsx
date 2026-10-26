@@ -10,7 +10,7 @@ export function HumanInitials({ fullName, className = "" }) {
     <span
       data-testid="human-initials"
       aria-hidden="true"
-      className={`grid size-13 shrink-0 place-items-center rounded-2xl bg-brand-purple/10 font-extrabold text-brand-purple ${className}`}
+      className={`grid size-13 shrink-0 place-items-center rounded-card bg-brand-purple/10 font-extrabold text-brand-purple ${className}`}
     >
       {initials}
     </span>

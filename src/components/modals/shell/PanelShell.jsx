@@ -34,7 +34,7 @@ export function PanelShell({
   return (
     <section
       aria-label={ariaLabel || eyebrow}
-      className={`bg-white rounded-2xl border border-gray-100 shadow-card-resting p-3 flex flex-col min-h-0 ${className}`}
+      className={`bg-white rounded-card border border-gray-100 shadow-card-resting p-3 flex flex-col min-h-0 ${className}`}
     >
       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-200/70">
         <h3 className={`text-micro font-bold uppercase tracking-wider ${theme.eyebrow}`}>

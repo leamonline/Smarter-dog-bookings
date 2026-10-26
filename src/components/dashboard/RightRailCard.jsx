@@ -29,7 +29,7 @@ const THEME = {
   emerald: {
     calm: {
       frame:
-        "rounded-2xl border border-transparent bg-emerald-50/30 p-3",
+        "rounded-card border border-transparent bg-emerald-50/30 p-3",
       heading: "text-emerald-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-emerald-700/70 text-sm font-medium",
@@ -37,7 +37,7 @@ const THEME = {
     },
     active: {
       frame:
-        "rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-[0_2px_8px_rgba(34,197,94,0.08)]",
+        "rounded-card border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-[0_2px_8px_rgba(34,197,94,0.08)]",
       heading: "text-emerald-700",
       iconWrap: "bg-emerald-100 text-emerald-700",
       primaryNumber: "text-emerald-700",
@@ -50,7 +50,7 @@ const THEME = {
     },
     attention: {
       frame:
-        "rounded-2xl border-2 border-brand-coral bg-gradient-to-br from-emerald-50 to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
+        "rounded-card border-2 border-brand-coral bg-gradient-to-br from-emerald-50 to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
       heading: "text-emerald-700",
       iconWrap: "bg-emerald-100 text-emerald-700",
       iconDot: "bg-brand-coral",
@@ -65,7 +65,7 @@ const THEME = {
   },
   amber: {
     calm: {
-      frame: "rounded-2xl border border-transparent bg-feedback-warning-tint/30 p-3",
+      frame: "rounded-card border border-transparent bg-feedback-warning-tint/30 p-3",
       heading: "text-feedback-warning-ink/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-feedback-warning-ink/70 text-sm font-medium",
@@ -73,7 +73,7 @@ const THEME = {
     },
     active: {
       frame:
-        "rounded-2xl border border-brand-mustard-tint bg-gradient-to-br from-feedback-warning-tint to-white p-4 shadow-[0_2px_8px_rgba(245,158,11,0.08)]",
+        "rounded-card border border-brand-mustard-tint bg-gradient-to-br from-feedback-warning-tint to-white p-4 shadow-[0_2px_8px_rgba(245,158,11,0.08)]",
       heading: "text-feedback-warning-ink",
       iconWrap: "bg-feedback-warning-tint text-feedback-warning-ink",
       primaryNumber: "text-feedback-warning-ink",
@@ -86,7 +86,7 @@ const THEME = {
     },
     attention: {
       frame:
-        "rounded-2xl border-2 border-brand-coral bg-gradient-to-br from-feedback-warning-tint to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
+        "rounded-card border-2 border-brand-coral bg-gradient-to-br from-feedback-warning-tint to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
       heading: "text-feedback-warning-ink",
       iconWrap: "bg-feedback-warning-tint text-feedback-warning-ink",
       iconDot: "bg-brand-coral",
@@ -101,7 +101,7 @@ const THEME = {
   },
   sky: {
     calm: {
-      frame: "rounded-2xl border border-transparent bg-sky-50/30 p-3",
+      frame: "rounded-card border border-transparent bg-sky-50/30 p-3",
       heading: "text-sky-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-sky-700/70 text-sm font-medium",
@@ -109,7 +109,7 @@ const THEME = {
     },
     active: {
       frame:
-        "rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 shadow-[0_2px_8px_rgba(14,165,233,0.08)]",
+        "rounded-card border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 shadow-[0_2px_8px_rgba(14,165,233,0.08)]",
       heading: "text-sky-700",
       iconWrap: "bg-sky-100 text-sky-700",
       primaryNumber: "text-sky-700",
@@ -122,7 +122,7 @@ const THEME = {
     },
     attention: {
       frame:
-        "rounded-2xl border-2 border-brand-coral bg-gradient-to-br from-sky-50 to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
+        "rounded-card border-2 border-brand-coral bg-gradient-to-br from-sky-50 to-white p-4 shadow-[0_2px_12px_rgba(231,84,108,0.18)]",
       heading: "text-sky-700",
       iconWrap: "bg-sky-100 text-sky-700",
       iconDot: "bg-brand-coral",
@@ -137,7 +137,7 @@ const THEME = {
   },
   rose: {
     calm: {
-      frame: "rounded-2xl border border-transparent bg-rose-50/30 p-3",
+      frame: "rounded-card border border-transparent bg-rose-50/30 p-3",
       heading: "text-rose-700/50",
       iconWrap: "bg-neutral-100 text-neutral-400",
       primary: "text-rose-700/70 text-sm font-medium",
@@ -145,7 +145,7 @@ const THEME = {
     },
     active: {
       frame:
-        "rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-white p-4 shadow-[0_2px_8px_rgba(244,63,94,0.08)]",
+        "rounded-card border border-rose-200 bg-gradient-to-br from-rose-50 to-white p-4 shadow-[0_2px_8px_rgba(244,63,94,0.08)]",
       heading: "text-rose-700",
       iconWrap: "bg-rose-100 text-rose-700",
       primaryNumber: "text-rose-700",
@@ -161,7 +161,7 @@ const THEME = {
     // "warning" and contrasts cleanly with the rose interior.
     attention: {
       frame:
-        "rounded-2xl border-2 border-red-700 bg-gradient-to-br from-rose-50 to-white p-4 shadow-[0_2px_12px_rgba(185,28,28,0.22)]",
+        "rounded-card border-2 border-red-700 bg-gradient-to-br from-rose-50 to-white p-4 shadow-[0_2px_12px_rgba(185,28,28,0.22)]",
       heading: "text-rose-700",
       iconWrap: "bg-rose-100 text-rose-700",
       iconDot: "bg-red-700",

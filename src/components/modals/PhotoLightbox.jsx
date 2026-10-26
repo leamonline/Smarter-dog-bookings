@@ -44,20 +44,20 @@ export function PhotoLightbox({
       <AccessibleModal
         onClose={onClose}
         titleId="photo-lightbox-title"
-        className="bg-white rounded-2xl w-[min(440px,95vw)] max-h-[92vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.22)]"
+        className="bg-white rounded-card w-[min(440px,95vw)] max-h-[92vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.22)]"
         zIndex={1200}
       >
         {/* Image */}
-        <div className="relative bg-slate-900 rounded-t-2xl">
+        <div className="relative bg-slate-900 rounded-t-card">
           {!imgFailed ? (
             <img
               src={photo.signedUrl}
               alt="Groom photo"
-              className="w-full max-h-[55vh] object-contain rounded-t-2xl"
+              className="w-full max-h-[55vh] object-contain rounded-t-card"
               onError={() => setImgFailed(true)}
             />
           ) : (
-            <div className="w-full h-[200px] flex flex-col items-center justify-center text-slate-400 rounded-t-2xl">
+            <div className="w-full h-[200px] flex flex-col items-center justify-center text-slate-400 rounded-t-card">
               <IconGallery size={36} colour="#CBD5E1" />
               <p className="text-sm mt-2">Photo unavailable</p>
             </div>

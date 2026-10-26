@@ -90,7 +90,7 @@ function Toaster({ toasts, onDismiss }) {
     <div
       key={t.id}
       role={t.variant === "error" ? "alert" : "status"}
-      className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold animate-[toastIn_0.25s_ease-out] ${VARIANT_STYLES[t.variant] || VARIANT_STYLES.info}`}
+      className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-tile shadow-lg text-sm font-semibold animate-[toastIn_0.25s_ease-out] ${VARIANT_STYLES[t.variant] || VARIANT_STYLES.info}`}
     >
       <span className="flex-1">{t.message}</span>
 

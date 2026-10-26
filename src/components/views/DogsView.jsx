@@ -181,9 +181,9 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   const open = () => onOpenDog(dog.id || dog.name);
 
   const gridCardClass =
-    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple/30 hover:shadow-card-hover";
+    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple/30 hover:shadow-card-hover";
   const listCardClass =
-    "group relative flex flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-purple/30";
+    "group relative flex flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-purple/30";
 
   return (
     <article
@@ -438,7 +438,7 @@ export function DogsView({
         </PageHeader>
 
         {showRailAndSort && (
-        <div className="mb-4 rounded-xl border border-brand-paper-line bg-white px-5 py-3 md:px-6">
+        <div className="mb-4 rounded-tile border border-brand-paper-line bg-white px-5 py-3 md:px-6">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>
