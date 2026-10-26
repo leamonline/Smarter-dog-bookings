@@ -135,8 +135,8 @@ export function SaveButton({ onClick, saving, saved, label = "Save changes", dis
     : saving
     ? "bg-slate-200 text-slate-500 cursor-not-allowed"
     : saved
-      ? "bg-brand-teal text-white"
-      : "bg-brand-teal text-white cursor-pointer hover:bg-brand-teal-dark";
+      ? "bg-brand-teal-text text-white"
+      : "bg-brand-teal-text text-white cursor-pointer hover:bg-brand-teal-dark";
 
   return (
     <button onClick={onClick} disabled={saving || disabled} className={`${base} ${state}`}>
