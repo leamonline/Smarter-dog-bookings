@@ -37,7 +37,7 @@ export function DogSummaryCard({ dog, onOpenDog }) {
         {dog.size && <SizeTag size={dog.size} />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-brand-purple truncate">
+            <span className="text-sm font-bold text-brand-ink truncate">
               {name}
             </span>
             {dog.alerts?.length > 0 && (

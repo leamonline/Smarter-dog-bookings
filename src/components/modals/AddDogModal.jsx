@@ -251,7 +251,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
             </span>
             <h2
               id="add-dog-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               Add New Dog
             </h2>
@@ -268,7 +268,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
               type="button"
               disabled={submitting}
               onClick={() => submitDog({ addAnother: true })}
-              className="w-full min-h-[44px] rounded-full border-[1.5px] border-slate-200 bg-white text-brand-purple text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+              className="w-full min-h-[44px] rounded-full border-[1.5px] border-slate-200 bg-white text-brand-ink text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
             >
               {submitting ? "Saving..." : "Save & add another dog"}
             </button>

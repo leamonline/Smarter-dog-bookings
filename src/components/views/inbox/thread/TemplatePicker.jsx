@@ -131,7 +131,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
                 : "Send template"
             }
             title={!allFilled ? `Fill in ${missingLabels.join(", ")}` : "Send template"}
-            className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-brand-yellow text-brand-purple text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+            className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
           >
             {sending ? "Sending…" : "Send"}
           </button>

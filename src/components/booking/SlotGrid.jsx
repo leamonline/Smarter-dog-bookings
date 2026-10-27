@@ -351,7 +351,7 @@ export function SlotGrid({
         {/* "Last minute" chip on flagged rows — top-right ("Now" owns
             top-left) so the two can share a row without colliding. */}
         {isImmediate && (
-          <span className="pointer-events-none absolute top-0 right-0 z-10 inline-flex items-center gap-1 rounded-bl-lg bg-brand-yellow px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-brand-purple shadow-sm">
+          <span className="pointer-events-none absolute top-0 right-0 z-10 inline-flex items-center gap-1 rounded-bl-lg bg-brand-yellow px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-brand-ink shadow-sm">
             <Zap size={9} strokeWidth={2.6} aria-hidden="true" />
             Last minute
           </span>

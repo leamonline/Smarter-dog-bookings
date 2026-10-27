@@ -274,7 +274,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-card flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[76px] lg:min-h-[80px] h-auto ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-card flex flex-col cursor-pointer transition-all hover:border-brand-ink hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[76px] lg:min-h-[80px] h-auto ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.03), 0 2px 8px ${sizeTheme.glow}0.06)` }}
       >
         {/* Top accent bar */}
@@ -292,7 +292,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
                 tabIndex={searchDimmed ? -1 : 0}
                 aria-label={`Open booking for ${displayDogName}`}
-                className="text-xs sm:text-body md:text-sm font-bold font-display text-brand-purple truncate text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded hover:underline shrink-0 max-w-[50%]"
+                className="text-xs sm:text-body md:text-sm font-bold font-display text-brand-ink truncate text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded hover:underline shrink-0 max-w-[50%]"
               >
                 {displayDogName}
               </button>

@@ -51,7 +51,7 @@ function DogRow({
           onChange={() => selectable && onToggleDog(dog.id)}
         />
         <span className="min-w-0 flex-1">
-          <span className="block break-words text-sm font-bold text-brand-purple">
+          <span className="block break-words text-sm font-bold text-brand-ink">
             {dog.name}
           </span>
           {detail ? (
@@ -83,7 +83,7 @@ function DogRow({
             id={`service-${dog.id}`}
             value={service || ""}
             onChange={(event) => onSetService(dog.id, event.target.value)}
-            className="mt-1 min-h-11 w-full rounded-control border border-slate-200 bg-white px-2 text-sm font-semibold text-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+            className="mt-1 min-h-11 w-full rounded-control border border-slate-200 bg-white px-2 text-sm font-semibold text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink"
           >
             {services.map((option) => (
               <option key={option.id} value={option.id}>
@@ -108,7 +108,7 @@ export function DogServicePicker({
   if (!dogs?.length) {
     return (
       <div className="px-4 py-6 text-center">
-        <p className="text-sm font-bold text-brand-purple">No dogs on file</p>
+        <p className="text-sm font-bold text-brand-ink">No dogs on file</p>
         <p className="mt-1 text-xs text-slate-500">
           Add a dog to this customer&apos;s record before booking them in.
         </p>

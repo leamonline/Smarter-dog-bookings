@@ -126,10 +126,10 @@ export function SettingsView({
                 aria-controls="settings-panel"
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => requestTab(section.id)}
-                className={`inline-flex h-11 shrink-0 items-center justify-center rounded-control px-4 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1 ${
+                className={`inline-flex h-11 shrink-0 items-center justify-center rounded-control px-4 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-1 ${
                   isActive
-                    ? "bg-brand-purple text-white shadow-sm"
-                    : "border border-slate-200 bg-slate-100 text-slate-600 hover:border-brand-purple/30 hover:bg-brand-purple/5 hover:text-brand-purple"
+                    ? "bg-brand-ink text-white shadow-sm"
+                    : "border border-slate-200 bg-slate-100 text-slate-600 hover:border-brand-ink/30 hover:bg-brand-ink/5 hover:text-brand-ink"
                 }`}
               >
                 {section.label}

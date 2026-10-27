@@ -87,7 +87,7 @@ export function WorkflowStatusStrip({
         aria-label={ariaLabel}
         className="w-full min-h-[44px] flex items-center gap-2 px-3 py-2 rounded-card border border-gray-100 bg-white shadow-card-resting cursor-pointer font-[inherit] text-left"
       >
-        <span className="shrink-0 text-brand-purple font-semibold text-body">
+        <span className="shrink-0 text-brand-ink font-semibold text-body">
           Workflow
         </span>
         <span

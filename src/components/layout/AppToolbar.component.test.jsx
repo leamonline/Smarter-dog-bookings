@@ -57,10 +57,10 @@ describe("AppToolbar", () => {
     expect(active).toHaveAttribute("aria-current", "page");
     // The active treatment is the same soft purple tint for every section —
     // no per-section saturated fill (the quiet-nav contract).
-    expect(active.className).toContain("bg-brand-purple/[0.07]");
+    expect(active.className).toContain("bg-brand-ink/[0.07]");
     const inactive = within(nav).getByRole("link", { name: "Dogs" });
     expect(inactive).not.toHaveAttribute("aria-current", "page");
-    expect(inactive.className).not.toContain("bg-brand-purple/[0.07]");
+    expect(inactive.className).not.toContain("bg-brand-ink/[0.07]");
   });
 
   it("uses the same quiet active tint on every section, not per-section colours", () => {
@@ -68,7 +68,7 @@ describe("AppToolbar", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const active = within(nav).getByRole("link", { name: "Dogs" });
     expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toContain("bg-brand-purple/[0.07]");
+    expect(active.className).toContain("bg-brand-ink/[0.07]");
   });
 
   it("fires the New booking and New client handlers", () => {
@@ -114,7 +114,7 @@ describe("MobileNavStrip", () => {
     }
     const active = within(nav).getByRole("link", { name: "Humans" });
     expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toContain("bg-brand-purple/[0.07]");
+    expect(active.className).toContain("bg-brand-ink/[0.07]");
   });
 
   it("carries the unread badge into the Inbox tab's accessible name", () => {

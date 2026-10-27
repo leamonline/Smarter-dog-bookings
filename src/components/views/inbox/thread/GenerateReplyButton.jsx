@@ -47,7 +47,7 @@ export function GenerateReplyButton({
       title="Ask the AI to draft a suggested reply from the recent messages, in Smarter Dog's style. It's typed into the box for you to edit and send — nothing is sent automatically."
       className={[
         "self-stretch inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-full text-body font-bold transition-colors font-[inherit] border shrink-0 whitespace-nowrap",
-        "bg-brand-purple text-white border-brand-purple",
+        "bg-brand-ink text-white border-brand-ink",
         "hover:bg-brand-purple-light hover:border-brand-purple-light",
         "disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
       ].join(" ")}

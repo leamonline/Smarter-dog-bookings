@@ -17,7 +17,7 @@ export function BulkActionBar({ count, busy = false, onClose, onClear }) {
       <div
         role="region"
         aria-label="Bulk actions"
-        className="pointer-events-auto animate-card-pop-in inline-flex items-center gap-3 max-w-[calc(100vw-1.5rem)] px-3 py-2 rounded-full bg-brand-purple text-white shadow-lg shadow-brand-purple/30 ring-1 ring-white/10"
+        className="pointer-events-auto animate-card-pop-in inline-flex items-center gap-3 max-w-[calc(100vw-1.5rem)] px-3 py-2 rounded-full bg-brand-ink text-white shadow-lg shadow-brand-ink/30 ring-1 ring-white/10"
       >
         <span className="text-body font-semibold pl-1 whitespace-nowrap">
           {count} selected
@@ -26,11 +26,11 @@ export function BulkActionBar({ count, busy = false, onClose, onClear }) {
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-xs font-bold whitespace-nowrap cursor-pointer hover:bg-brand-yellow-dark active:scale-[0.97] motion-safe:transition-transform transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60 disabled:cursor-not-allowed font-[inherit]"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold whitespace-nowrap cursor-pointer hover:bg-brand-yellow-dark active:scale-[0.97] motion-safe:transition-transform transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60 disabled:cursor-not-allowed font-[inherit]"
         >
           {busy ? (
             <>
-              <Spinner size="sm" className="text-brand-purple" label="Closing" />
+              <Spinner size="sm" className="text-brand-ink" label="Closing" />
               Closing…
             </>
           ) : (

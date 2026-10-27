@@ -90,7 +90,7 @@ export function BookingHeader({
         <div className="flex items-start justify-between gap-3 mt-1">
           <h2
             id={titleId}
-            className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight min-w-0"
+            className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight min-w-0"
           >
             <span
               className="cursor-pointer hover:underline underline-offset-2"

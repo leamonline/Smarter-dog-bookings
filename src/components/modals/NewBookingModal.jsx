@@ -709,7 +709,7 @@ export function NewBookingModal({
             selected dog's row (Task 6), not the shell. */}
         <div className="px-6 py-[18px] border-b border-brand-paper-line bg-white flex justify-between items-center shrink-0">
           <div>
-            <div id="new-booking-title" className="font-display text-lg font-extrabold text-brand-purple">New booking</div>
+            <div id="new-booking-title" className="font-display text-lg font-extrabold text-brand-ink">New booking</div>
             <div
               className="text-xs mt-0.5 text-slate-600"
               role="status"
@@ -723,7 +723,7 @@ export function NewBookingModal({
             type="button"
             onClick={onClose}
             aria-label="Close new booking"
-            className="tap-target bg-transparent hover:bg-slate-100 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40"
+            className="tap-target bg-transparent hover:bg-slate-100 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink/40"
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 

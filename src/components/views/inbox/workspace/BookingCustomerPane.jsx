@@ -1,7 +1,7 @@
 import { ChevronDown, X } from "lucide-react";
 
 const HEADER_CLASS =
-  "flex min-h-11 w-full shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 text-left text-sm font-bold text-brand-purple transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple";
+  "flex min-h-11 w-full shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 text-left text-sm font-bold text-brand-ink transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink";
 
 // The two sections own their scrolling differently, on purpose.
 //
@@ -53,7 +53,7 @@ export function BookingCustomerPane({
           {showSuggestion ? (
             // Yellow, reserved in this pane for "needs your attention" —
             // the text alone says what it means, so no extra dot on top.
-            <span className="ml-auto inline-flex items-center rounded-full bg-brand-yellow/25 px-2 py-0.5 text-micro font-bold text-brand-purple">
+            <span className="ml-auto inline-flex items-center rounded-full bg-brand-yellow/25 px-2 py-0.5 text-micro font-bold text-brand-ink">
               Booking suggested
             </span>
           ) : null}
@@ -63,7 +63,7 @@ export function BookingCustomerPane({
             type="button"
             onClick={onDismissSuggestion}
             aria-label="Dismiss suggestion"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink"
           >
             <X aria-hidden="true" size={15} />
           </button>

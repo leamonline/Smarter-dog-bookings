@@ -276,7 +276,7 @@ export function WeekCalendarView({
             <button
               type="button"
               onClick={() => setMonthExpanded(false)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-slate-100 border-x-0 border-b-0 bg-transparent cursor-pointer text-caption font-bold uppercase tracking-tight text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors font-[inherit]"
+              className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-slate-100 border-x-0 border-b-0 bg-transparent cursor-pointer text-caption font-bold uppercase tracking-tight text-brand-ink/70 hover:text-brand-ink hover:bg-slate-50 transition-colors font-[inherit]"
             >
               <ChevronLeft size={14} strokeWidth={2.5} aria-hidden="true" />
               Back to week
@@ -293,7 +293,7 @@ export function WeekCalendarView({
               type="button"
               onClick={goToPrevWeek}
               aria-label="Previous week"
-              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors shrink-0"
             >
               <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
@@ -312,7 +312,7 @@ export function WeekCalendarView({
               type="button"
               onClick={goToNextWeek}
               aria-label="Next week"
-              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="sm:hidden w-8 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors shrink-0"
             >
               <ChevronRight size={18} strokeWidth={2.5} />
             </button>
@@ -321,7 +321,7 @@ export function WeekCalendarView({
               onClick={() => setMonthExpanded(true)}
               aria-label="Month view"
               aria-pressed={false}
-              className="w-9 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+              className="w-9 h-10 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors shrink-0"
             >
               <CalendarDays size={18} strokeWidth={2.25} />
             </button>

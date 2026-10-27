@@ -24,7 +24,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
     <section aria-label="Awaiting deposit" className="min-w-0">
       <header className="mb-1.5 flex items-baseline gap-2 px-0.5">
         <h2 className="text-label text-slate-500">Awaiting deposit</h2>
-        <span className="text-xs font-bold tabular-nums text-brand-purple">{items.length}</span>
+        <span className="text-xs font-bold tabular-nums text-brand-ink">{items.length}</span>
         <span className="hidden text-caption font-medium text-slate-500 sm:inline">
           unpaid deposits release automatically when their window closes
         </span>
@@ -35,7 +35,7 @@ export function AwaitingDepositsCard({ bookings, now, onOpenBooking }) {
             <button
               type="button"
               onClick={() => onOpenBooking?.(booking)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-tile border border-brand-paper-line bg-white px-3 py-2 text-left font-[inherit] outline-none transition-colors hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-tile border border-brand-paper-line bg-white px-3 py-2 text-left font-[inherit] outline-none transition-colors hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2"
             >
               <span
                 aria-hidden="true"

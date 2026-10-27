@@ -87,7 +87,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
     <ModalShell
       onClose={() => onClose?.()}
       titleId="broadcast-title"
-      accent="var(--color-brand-purple)"
+      accent="var(--color-brand-ink)"
       widthClass="w-[min(560px,95vw)]"
       maxHeightClass="max-h-[90vh]"
       bodyClassName="p-4 flex flex-col gap-3"
@@ -98,7 +98,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
             <span className="text-label text-ink-muted">
               Broadcast
             </span>
-            <h2 id="broadcast-title" className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1">
+            <h2 id="broadcast-title" className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1">
               Message the day’s customers
             </h2>
           </div>
@@ -119,7 +119,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           type="date"
           value={date}
           onChange={(e) => { setDate(e.target.value); setResult(null); }}
-          className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-brand-purple outline-none focus:border-brand-purple"
+          className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-brand-ink outline-none focus:border-brand-ink"
         />
       </label>
 
@@ -130,7 +130,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           onChange={(e) => { setReason(e.target.value); setResult(null); }}
           rows={3}
           placeholder="e.g. we’re closed Monday for a burst pipe — we’ll be in touch to rebook"
-          className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none resize-y focus:border-brand-purple"
+          className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none resize-y focus:border-brand-ink"
         />
         <span className="text-caption text-slate-400 mt-1 block">
           This fills the approved template: “Hi [name], an important update about your grooming appointment at Smarter Dog Grooming Salon: [your reason]. Please reply to this message and we’ll help with whatever you need.”
@@ -148,7 +148,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           <div className="text-body text-slate-700">
             {resultMode === "preview" ? (
               <>
-                <span className="font-bold text-brand-purple">{recipientCount}</span> customer{recipientCount === 1 ? "" : "s"} would be messaged.
+                <span className="font-bold text-brand-ink">{recipientCount}</span> customer{recipientCount === 1 ? "" : "s"} would be messaged.
               </>
             ) : (
               <>
@@ -193,7 +193,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           type="button"
           onClick={() => run(true)}
           disabled={busy || !reasonValid}
-          className="flex-1 py-2.5 rounded-full border border-brand-purple/30 text-brand-purple text-body font-bold cursor-pointer hover:bg-brand-purple/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 rounded-full border border-brand-ink/30 text-brand-ink text-body font-bold cursor-pointer hover:bg-brand-ink/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy && resultMode !== "sent" ? "Checking…" : "Preview recipients"}
         </button>

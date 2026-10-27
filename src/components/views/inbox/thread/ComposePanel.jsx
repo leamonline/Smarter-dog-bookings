@@ -188,7 +188,7 @@ export function ComposePanel({
           <button
             onClick={handleSend}
             disabled={inFlight || !value.trim()}
-            className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-purple text-body font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
+            className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-ink text-body font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
           >
             Send
           </button>

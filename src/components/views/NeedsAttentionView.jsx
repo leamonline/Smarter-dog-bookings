@@ -46,11 +46,11 @@ function AttentionRow({ item, dogs, humans, onOpenBooking }) {
       <button
         type="button"
         onClick={() => onOpenBooking?.(item.booking.id, item.booking)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-tile border border-brand-paper-line bg-white text-left cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2 font-[inherit]"
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-tile border border-brand-paper-line bg-white text-left cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-ink focus-visible:outline-offset-2 font-[inherit]"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-bold text-brand-purple truncate">
+            <span className="font-bold text-brand-ink truncate">
               {names.length > 0 ? names.join(" & ") : "Unnamed booking"}
             </span>
             {display.owner && !display.ownerMissing && (
@@ -97,8 +97,8 @@ function AttentionSection({ section, dogs, humans, onOpenBooking }) {
       className="rounded-card border border-brand-paper-line bg-white p-4"
     >
       <div className="flex items-center gap-2">
-        <h2 className="text-base font-bold text-brand-purple m-0">{section.title}</h2>
-        <span className="min-w-[24px] h-6 px-1.5 rounded-full bg-brand-purple text-white text-xs font-bold flex items-center justify-center">
+        <h2 className="text-base font-bold text-brand-ink m-0">{section.title}</h2>
+        <span className="min-w-[24px] h-6 px-1.5 rounded-full bg-brand-ink text-white text-xs font-bold flex items-center justify-center">
           {section.items.length}
         </span>
       </div>
@@ -141,7 +141,7 @@ export function NeedsAttentionContent({
     <div className="max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-4">
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-brand-purple m-0">Needs Attention</h1>
+          <h1 className="text-xl font-bold text-brand-ink m-0">Needs Attention</h1>
           <p className="mt-1 mb-0 text-sm text-slate-600">
             {loading
               ? "Checking the last few weeks…"
@@ -164,7 +164,7 @@ export function NeedsAttentionContent({
             onClick={onRefresh}
             disabled={loading}
             aria-label="Refresh"
-            className="tap-target shrink-0 w-10 h-10 rounded-tile flex items-center justify-center cursor-pointer border border-brand-paper-line bg-white text-brand-purple hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="tap-target shrink-0 w-10 h-10 rounded-tile flex items-center justify-center cursor-pointer border border-brand-paper-line bg-white text-brand-ink hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} strokeWidth={2.2} aria-hidden="true" />
           </button>

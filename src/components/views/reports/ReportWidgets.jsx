@@ -23,7 +23,7 @@ export function DetailedReportsDisclosure({ children }) {
         aria-expanded={expanded}
         aria-controls="detailed-reports"
         onClick={() => setExpanded((open) => !open)}
-        className="w-full min-h-[56px] flex items-center justify-between gap-3 px-5 py-3 bg-white text-left text-sm font-extrabold text-brand-purple"
+        className="w-full min-h-[56px] flex items-center justify-between gap-3 px-5 py-3 bg-white text-left text-sm font-extrabold text-brand-ink"
       >
         <span>{expanded ? "Hide detailed reports" : "Show detailed reports"}</span>
         <span aria-hidden="true">{expanded ? "−" : "+"}</span>

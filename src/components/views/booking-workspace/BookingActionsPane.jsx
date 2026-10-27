@@ -28,9 +28,9 @@ import { useBookingComposer } from "./useBookingComposer.js";
 const NARROW_QUERY = "(max-width: 767px)";
 
 const PRIMARY_BTN =
-  "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-purple px-4 text-sm font-bold text-white transition-colors hover:bg-brand-purple-light disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-ink px-4 text-sm font-bold text-white transition-colors hover:bg-brand-purple-light disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2";
 const GHOST_BTN =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-bold text-brand-purple transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-bold text-brand-ink transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2";
 // Offer only ever drafts a message — fully reversible, and the common case.
 // It gets the filled, reach-for-it-by-reflex treatment.
 const OFFER_BTN =
@@ -38,7 +38,7 @@ const OFFER_BTN =
 // Book writes a real appointment. Outlined, not filled, so it costs one more
 // beat of intent than the reversible action beside it — never equal billing.
 const BOOK_BTN =
-  "inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full border-2 border-brand-purple/25 px-4 text-sm font-bold text-brand-purple transition-colors hover:border-brand-purple/40 hover:bg-brand-purple/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full border-2 border-brand-ink/25 px-4 text-sm font-bold text-brand-ink transition-colors hover:border-brand-ink/40 hover:bg-brand-ink/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2";
 
 // The header above this pane already carries the "Booking suggested" badge
 // (BookingCustomerPane, fed independently from the same signal) — that's the
@@ -112,7 +112,7 @@ export function BookingActionsPane({
           header above this, so a second stacked two-line header would cost
           scarce phone height for no new information. */}
       <div className="flex shrink-0 items-baseline gap-2 border-b border-slate-200 px-3 py-1.5 sm:block sm:py-2">
-        <h2 ref={headingRef} tabIndex={-1} className="shrink-0 text-sm font-extrabold text-brand-purple">
+        <h2 ref={headingRef} tabIndex={-1} className="shrink-0 text-sm font-extrabold text-brand-ink">
           {narrow && stage === "slots" ? "Choose times" : "Choose dogs"}
         </h2>
         <p className="min-w-0 truncate text-micro text-slate-500 sm:mt-0.5">{customerName}</p>
@@ -155,7 +155,7 @@ export function BookingActionsPane({
           role="status"
           aria-live="polite"
           className={`mb-2 truncate text-xs ${
-            selectedDogs.length > 0 ? "font-bold text-brand-purple" : "font-semibold text-slate-500"
+            selectedDogs.length > 0 ? "font-bold text-brand-ink" : "font-semibold text-slate-500"
           }`}
         >
           {selectionSummary}

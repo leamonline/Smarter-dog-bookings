@@ -80,7 +80,7 @@ export function DogCardHeader({
               onChange={(e) => setEditName(e.target.value)}
               placeholder="Dog name"
               aria-label="Dog name"
-              className="mt-1 text-lg font-bold font-display text-brand-purple bg-white border border-slate-200 rounded-lg px-2.5 py-1 w-full box-border outline-none font-inherit focus:border-brand-teal"
+              className="mt-1 text-lg font-bold font-display text-brand-ink bg-white border border-slate-200 rounded-lg px-2.5 py-1 w-full box-border outline-none font-inherit focus:border-brand-teal"
             />
             <div className="flex gap-2 mt-2 items-center">
               <BreedCombobox
@@ -120,7 +120,7 @@ export function DogCardHeader({
           <>
             <h2
               id={titleId}
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
             >
               {titleCase(resolvedDog.name)}
             </h2>

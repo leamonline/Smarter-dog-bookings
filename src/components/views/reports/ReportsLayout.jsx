@@ -18,8 +18,8 @@ export function ReportsLayout() {
               key={section.to}
               to={{ pathname: section.to, search: location.search }}
               className={({ isActive }) => isActive
-                ? "inline-flex h-14 items-center justify-center rounded-control bg-brand-purple px-5 text-base font-extrabold text-white shadow-sm no-underline"
-                : "inline-flex h-14 items-center justify-center rounded-control border border-slate-200 bg-slate-100 px-5 text-base font-bold text-brand-purple no-underline transition-colors hover:border-brand-purple/30 hover:bg-brand-purple/5"}
+                ? "inline-flex h-14 items-center justify-center rounded-control bg-brand-ink px-5 text-base font-extrabold text-white shadow-sm no-underline"
+                : "inline-flex h-14 items-center justify-center rounded-control border border-slate-200 bg-slate-100 px-5 text-base font-bold text-brand-ink no-underline transition-colors hover:border-brand-ink/30 hover:bg-brand-ink/5"}
             >
               {section.label}
             </NavLink>

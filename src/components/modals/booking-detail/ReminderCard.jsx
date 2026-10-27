@@ -130,7 +130,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
       data-priority={isReady ? "primary" : "secondary"}
       className={`inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full text-body font-bold no-underline cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
         isReady
-          ? "border-none bg-brand-purple text-white hover:bg-brand-purple-light focus-visible:ring-brand-purple"
+          ? "border-none bg-brand-ink text-white hover:bg-brand-purple-light focus-visible:ring-brand-ink"
           : "border-[1.5px] border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-300"
       }`}
     >

@@ -8,7 +8,7 @@ import { fmtLabel } from "../../../hooks/useReportsData.ts";
 const MIN_N_FOR_RATE = 5;
 
 function Stat({ label, value, tone = "slate" }) {
-  const color = tone === "coral" ? "var(--color-brand-coral)" : "var(--color-brand-purple)";
+  const color = tone === "coral" ? "var(--color-brand-coral)" : "var(--color-brand-ink)";
   return (
     <div className="bg-slate-50 rounded-tile px-3 py-2">
       <div className="text-lg font-black font-display leading-none" style={{ color }}>{value}</div>

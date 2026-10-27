@@ -37,7 +37,7 @@ export function StepFirstBooking({
               <li key={d.clientKey} className="rounded-lg border border-slate-200 bg-white p-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={!!sel.booked} onChange={() => onToggleBooked(d.clientKey)} />
-                  <span className="text-body font-bold text-brand-purple">{d.name}</span>
+                  <span className="text-body font-bold text-brand-ink">{d.name}</span>
                   <span className="text-caption text-slate-500">
                     {[d.breed, d.size].filter(Boolean).join(" · ")}
                   </span>

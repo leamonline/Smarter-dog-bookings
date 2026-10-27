@@ -31,7 +31,7 @@ export function NotesPanel({
         onClick={onToggleExpanded}
         aria-label={expanded ? "Collapse notes" : "Expand notes"}
         aria-pressed={expanded}
-        className="text-micro font-bold uppercase tracking-wide text-slate-500 hover:text-brand-purple cursor-pointer bg-transparent border-none px-1 transition-colors"
+        className="text-micro font-bold uppercase tracking-wide text-slate-500 hover:text-brand-ink cursor-pointer bg-transparent border-none px-1 transition-colors"
       >
         {expanded ? "Collapse" : "Expand"}
       </button>
@@ -66,7 +66,7 @@ export function NotesPanel({
               placeholder="Anything worth remembering..."
               rows={3}
               aria-label="General notes"
-              className="mt-1 w-full py-2 px-2.5 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-purple resize-y bg-white focus:border-brand-teal transition-colors"
+              className="mt-1 w-full py-2 px-2.5 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-ink resize-y bg-white focus:border-brand-teal transition-colors"
             />
           </label>
           <label className="block">
@@ -79,13 +79,13 @@ export function NotesPanel({
               onChange={(e) => setEditHistoryFlag(e.target.value)}
               placeholder="Warning to show on the card"
               aria-label="History flag"
-              className="mt-1 w-full py-1.5 px-2.5 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-purple bg-white focus:border-brand-coral transition-colors"
+              className="mt-1 w-full py-1.5 px-2.5 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-ink bg-white focus:border-brand-coral transition-colors"
             />
           </label>
         </div>
       ) : human.notes ? (
         <div
-          className={`text-sm whitespace-pre-line text-brand-purple overflow-y-auto ${expanded ? "flex-1 min-h-0" : "max-h-32"}`}
+          className={`text-sm whitespace-pre-line text-brand-ink overflow-y-auto ${expanded ? "flex-1 min-h-0" : "max-h-32"}`}
         >
           {human.notes}
         </div>
@@ -93,7 +93,7 @@ export function NotesPanel({
         <button
           type="button"
           onClick={onStartEdit}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-purple transition-colors bg-transparent border-none cursor-pointer font-inherit p-0"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-ink transition-colors bg-transparent border-none cursor-pointer font-inherit p-0"
         >
           <Plus size={14} strokeWidth={2.6} aria-hidden="true" />
           Add a note

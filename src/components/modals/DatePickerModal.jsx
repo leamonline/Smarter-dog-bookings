@@ -64,7 +64,7 @@ export function DatePickerModal({
           </HeaderIconButton>
           <h2
             id="date-picker-title"
-            className="flex-1 text-center text-base font-bold font-display text-brand-purple"
+            className="flex-1 text-center text-base font-bold font-display text-brand-ink"
           >
             {monthName}
           </h2>
@@ -85,7 +85,7 @@ export function DatePickerModal({
               const todayStr = toDateStr(today);
               if (canSelect(todayStr)) onSelectDate(today);
             }}
-            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full border-[1.5px] border-slate-200 bg-white text-sm font-bold text-brand-purple cursor-pointer font-[inherit] hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full border-[1.5px] border-slate-200 bg-white text-sm font-bold text-brand-ink cursor-pointer font-[inherit] hover:bg-slate-50 transition-colors"
           >
             Today
           </button>

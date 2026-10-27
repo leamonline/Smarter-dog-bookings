@@ -10,9 +10,9 @@
 
 const FILTER_CHIP_PALETTES = {
   purple: {
-    dot: "bg-brand-purple",
-    active: "bg-brand-purple/10 border-brand-purple/30 text-brand-purple",
-    idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-purple/40 hover:text-brand-purple",
+    dot: "bg-brand-ink",
+    active: "bg-brand-ink/10 border-brand-ink/30 text-brand-ink",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-ink/40 hover:text-brand-ink",
   },
   amber: {
     dot: "bg-brand-mustard",

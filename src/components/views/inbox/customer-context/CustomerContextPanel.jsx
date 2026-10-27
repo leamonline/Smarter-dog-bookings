@@ -61,7 +61,7 @@ export function CustomerContextPanel({
       <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
         <h3
           id={titleId}
-          className="text-sm font-bold text-brand-purple font-display leading-tight m-0 truncate"
+          className="text-sm font-bold text-brand-ink font-display leading-tight m-0 truncate"
         >
           {loading
             ? "Loading customer details..."
@@ -74,7 +74,7 @@ export function CustomerContextPanel({
             type="button"
             onClick={onClose}
             aria-label="Close customer context"
-            className="w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-purple transition-colors text-[18px] leading-none cursor-pointer"
+            className="w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-ink transition-colors text-[18px] leading-none cursor-pointer"
           >
             ×
           </button>
@@ -136,7 +136,7 @@ export function CustomerContextPanel({
                       href={tel}
                       aria-label={`Call ${displayPhone}`}
                       title={`Call ${displayPhone}`}
-                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-ink no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -164,7 +164,7 @@ export function CustomerContextPanel({
                       href={`mailto:${displayHuman.email}`}
                       aria-label={`Email ${displayHuman.email}`}
                       title={`Email ${displayHuman.email}`}
-                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-tile border border-slate-200 bg-white text-brand-ink no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -188,7 +188,7 @@ export function CustomerContextPanel({
                       onClick={() => onOpenHuman(displayHuman.id)}
                       title="Open full profile"
                       aria-label="Open full profile"
-                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-ink text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -203,7 +203,7 @@ export function CustomerContextPanel({
                       onClick={handleUpdateNotes}
                       disabled={updatingNotes}
                       title="Have the AI read this chat and save any durable customer notes and dog grooming requests to their records. Nothing is sent to the customer."
-                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-ink text-caption font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
                     >
                       {updatingNotes ? (
                         <>
@@ -270,7 +270,7 @@ function Section({ title, children }) {
 }
 
 function DetailLine({ label, value, href, multiline, accent }) {
-  const valueClass = `text-xs text-brand-purple ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
+  const valueClass = `text-xs text-brand-ink ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
   return (
     <div className="mb-1.5 last:mb-0">
       <div className="text-micro font-bold uppercase tracking-wider text-ink-muted">

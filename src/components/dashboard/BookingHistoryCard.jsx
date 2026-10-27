@@ -60,7 +60,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
             type="button"
             onClick={toggleExpand}
             aria-expanded={isExpanded}
-            className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center cursor-pointer border border-slate-200 transition-colors hover:bg-slate-100 min-h-[36px] min-w-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+            className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center cursor-pointer border border-slate-200 transition-colors hover:bg-slate-100 min-h-[36px] min-w-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink"
             aria-label={isExpanded ? "Collapse activity history" : "Expand activity history"}
           >
             {isExpanded ? (

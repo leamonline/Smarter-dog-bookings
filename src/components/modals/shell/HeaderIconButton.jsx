@@ -9,7 +9,7 @@ export function HeaderIconButton({ label, onClick, className = "", children, ...
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`w-11 h-11 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 hover:bg-brand-purple/5 transition-colors shrink-0 ${className}`}
+      className={`w-11 h-11 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-ink hover:border-brand-ink/30 hover:bg-brand-ink/5 transition-colors shrink-0 ${className}`}
       {...rest}
     >
       {children}

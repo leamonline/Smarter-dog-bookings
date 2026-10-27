@@ -46,7 +46,7 @@ export function OverviewDrawer({
           </div>
           <h2
             id={TITLE_ID}
-            className="text-base font-bold text-brand-purple font-display leading-tight"
+            className="text-base font-bold text-brand-ink font-display leading-tight"
           >
             Week, month, capacity
           </h2>
@@ -55,7 +55,7 @@ export function OverviewDrawer({
           type="button"
           onClick={() => onClose?.()}
           aria-label="Close"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-purple transition-colors"
+          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-ink transition-colors"
         >
           <X size={18} strokeWidth={2.2} aria-hidden="true" />
         </button>

@@ -177,7 +177,7 @@ describe("DogsView directory", () => {
     renderView({ directoryDogs: [rex] });
     const card = screen.getByRole("article", { name: "Rex" });
 
-    expect(within(card).getByTestId("dog-size-mark")).toHaveClass("bg-brand-purple/5");
+    expect(within(card).getByTestId("dog-size-mark")).toHaveClass("bg-brand-ink/5");
     expect(within(card).getByTestId("dog-size-label")).toHaveTextContent(/^Large$/);
     expect(within(card).getByRole("img", { name: "Large dog" })).toBeInTheDocument();
   });

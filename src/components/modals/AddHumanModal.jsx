@@ -170,7 +170,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
             </span>
             <h2
               id="add-human-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               Add New Human
             </h2>

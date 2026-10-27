@@ -139,7 +139,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
             </span>
             <h2
               id="reschedule-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
             >
               {booking.dogName}
             </h2>

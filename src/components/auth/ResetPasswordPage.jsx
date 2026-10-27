@@ -151,7 +151,7 @@ export function ResetPasswordPage() {
     <CenteredScreen>
       <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
         <div className="text-center mb-6">
-          <div className="text-[28px] font-display font-bold text-brand-purple">
+          <div className="text-[28px] font-display font-bold text-brand-ink">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-body text-slate-500 mt-1">Salon Bookings</div>

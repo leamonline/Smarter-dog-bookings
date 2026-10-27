@@ -67,9 +67,9 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
             aria-label={`Jump to ${letter === "#" ? "non-letter names" : `the letter ${letter}`}`}
             className={`shrink-0 w-7 h-7 max-md:w-9 max-md:h-9 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
               active
-                ? "bg-brand-yellow text-brand-purple"
+                ? "bg-brand-yellow text-brand-ink"
                 : enabled
-                  ? "text-slate-600 hover:bg-brand-purple/10 hover:text-brand-purple cursor-pointer"
+                  ? "text-slate-600 hover:bg-brand-ink/10 hover:text-brand-ink cursor-pointer"
                   : "text-slate-400 cursor-default"
             }`}
           >
@@ -90,7 +90,7 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className="min-h-11 min-w-11 rounded-full border border-brand-purple/30 bg-white px-3 py-2 text-xs font-bold text-brand-purple transition-colors hover:bg-brand-purple/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      className="min-h-11 min-w-11 rounded-full border border-brand-ink/30 bg-white px-3 py-2 text-xs font-bold text-brand-ink transition-colors hover:bg-brand-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
     >
       Unarchive
     </button>
@@ -574,7 +574,7 @@ export function HumansView({
             <div className="sr-only lg:not-sr-only">
               <PageHeaderPill>
               {isInitialLoading && displayList.length === 0 ? (
-                <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+                <SkeletonBlock className="h-4 w-32 bg-brand-ink/10" />
               ) : (
                 headerCountText
               )}
@@ -614,8 +614,8 @@ export function HumansView({
                       aria-pressed={active}
                       className={`min-h-11 rounded-full border px-3 text-micro font-bold transition-colors ${
                         active
-                          ? "bg-brand-yellow text-brand-purple border-brand-yellow"
-                          : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
+                          ? "bg-brand-yellow text-brand-ink border-brand-yellow"
+                          : "bg-white text-slate-500 border-slate-200 hover:border-brand-ink hover:text-brand-ink"
                       }`}
                     >
                       {label}
@@ -639,8 +639,8 @@ export function HumansView({
                     aria-pressed={sortMode === mode}
                     className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
                       sortMode === mode
-                        ? "bg-brand-yellow text-brand-purple"
-                        : "text-slate-500 hover:text-brand-purple"
+                        ? "bg-brand-yellow text-brand-ink"
+                        : "text-slate-500 hover:text-brand-ink"
                     }`}
                   >
                     {label}
@@ -777,7 +777,7 @@ export function HumansView({
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="text-body font-semibold text-ink-muted hover:text-brand-purple bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
+              className="text-body font-semibold text-ink-muted hover:text-brand-ink bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
             >
               {showArchived ? "← Back to active" : "Show archived"}
             </button>
