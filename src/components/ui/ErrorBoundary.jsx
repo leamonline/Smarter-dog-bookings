@@ -49,12 +49,11 @@ export class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-          <div className="text-4xl mb-4">🐾</div>
           <div className="text-slate-800 font-extrabold text-lg mb-1">
-            That didn't quite work
+            This part of the screen didn't load
           </div>
           <div className="text-slate-500 text-sm mb-2 max-w-xs">
-            We couldn&apos;t load this part of the dashboard. Try again, or reload the page if the problem continues.
+            This section couldn&apos;t be shown. Try it again, or reload the page if it keeps happening.
           </div>
           {this.state.errorId ? (
             <div className="text-slate-500 text-caption font-mono mb-4">
@@ -66,7 +65,7 @@ export class ErrorBoundary extends Component {
               onClick={this.handleReset}
               className="py-2.5 px-5 rounded-lg bg-brand-teal text-white font-bold text-sm border-none cursor-pointer"
             >
-              Give it another go
+              Try this section again
             </button>
             <button
               onClick={() => window.location.reload()}

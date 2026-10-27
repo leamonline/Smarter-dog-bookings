@@ -11,6 +11,7 @@ const SIZES = {
 
 export function EmptyState({
   icon = null,
+  mark = null,
   title,
   description = null,
   action = null,
@@ -22,6 +23,12 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center justify-center text-center ${s.wrap} ${className}`}
     >
+      {mark === "dog" && (
+        <span
+          aria-hidden="true"
+          className={`sd-dog-mark mb-3 block text-slate-300 ${size === "sm" ? "h-8 w-8" : "h-14 w-14"}`}
+        />
+      )}
       {icon && (
         <div className={s.icon} aria-hidden="true">
           {icon}

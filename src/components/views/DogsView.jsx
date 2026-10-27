@@ -578,7 +578,7 @@ export function DogsView({
               {displayList.length === 0 && !isSearching && !loadError && (
                 <div className="col-span-full">
                   <EmptyState
-                    icon={showArchived ? "🗄️" : "🐾"}
+                    mark={!showArchived && !searchQuery && !narrowed ? "dog" : null}
                     title={
                       showArchived
                         ? "No archived dogs here"
@@ -589,9 +589,13 @@ export function DogsView({
                             : "No dogs just yet"
                     }
                     description={
-                      !showArchived && narrowed
-                        ? "Try clearing some filters, or search by breed or owner name"
-                        : null
+                      showArchived
+                        ? null
+                        : narrowed
+                          ? "Try clearing some filters, or search by breed or owner name"
+                          : searchQuery
+                            ? "Check the spelling, or try the owner's name or the breed."
+                            : "Add a dog and they'll appear here."
                     }
                     action={
                       searchQuery ? (

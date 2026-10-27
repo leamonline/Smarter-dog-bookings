@@ -127,7 +127,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       });
     } catch (err) {
       setSubmitting(false);
-      const msg = err?.message || "That didn't quite work — let's try again.";
+      const msg = err?.message || "Couldn't save this client. What you've typed is still here, so you can try again.";
       toast.show(msg, "error");
       setError(msg);
       return;
@@ -150,7 +150,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       onClose();
     } else {
       toast.show("Couldn't save that just now", "error");
-      setError("That didn't quite work — let's try again.");
+      setError("Couldn't save this client. What you've typed is still here, so you can try again.");
     }
   };
 

@@ -160,7 +160,7 @@ export function NewClientWizard({
       onClose();
     } catch (err) {
       logger.error("NewClientWizard save failed", err);
-      setError(err?.message || "That didn't quite work — let's try again.");
+      setError(err?.message || "Couldn't save the client. What you've entered is still here. Check the clients list before trying again, in case part of it was saved.");
     } finally {
       setSubmitting(false);
     }

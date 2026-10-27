@@ -63,6 +63,11 @@ is not the current implementation. EmptyState defaults to no icon (`null`).
 Prefer text or the existing silhouette where justified; do not add emoji merely
 to decorate an empty result. “Nothing booked. Blue skies.” belongs only to a
 confirmed empty result, never a failed request or a narrowed search.
+`EmptyState` takes `mark="dog"` (the salon silhouette, decorative) only for a true
+"nothing here yet"; a search or filter with no matches gets plain words and a
+"Clear search" action, so it never suggests the salon has no work. Save and
+confirm failures say what failed, say what is still on screen, and where the
+result is unknown (a booking, a client) tell staff to check before trying again.
 
 `SafetyAlertChip` accepts `items` and `className`, not a semantic tone, and
 keeps its frozen colours. On the day card the safety note is `SafetySummary`: a

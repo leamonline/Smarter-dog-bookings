@@ -54,10 +54,10 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText(/We couldn't load this part of the dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/This section couldn't be shown/i)).toBeInTheDocument();
     expect(screen.queryByText(/database password|leam@example.com/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Reference: err_/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Give it another go/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Try this section again/i })).toBeInTheDocument();
     expect(loggerError).toHaveBeenCalledTimes(1);
     expect(captureException).not.toHaveBeenCalled();
   });
@@ -87,7 +87,7 @@ describe("ErrorBoundary", () => {
     );
 
     expect(reloadSpy).not.toHaveBeenCalled();
-    expect(screen.getByText(/We couldn't load this part of the dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/This section couldn't be shown/i)).toBeInTheDocument();
   });
 
   it("does not report the lazy-mapping shadow of a reload already in flight", () => {

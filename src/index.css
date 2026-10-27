@@ -7,6 +7,14 @@
   -webkit-mask: url("/app/logos/smarter-dog-silhouette.svg") center / contain no-repeat;
 }
 
+/* The salon's dog silhouette as a quiet mark for a true empty state. Decorative
+   only: take the colour from the text colour, so it follows light surfaces. */
+.sd-dog-mark {
+  background: currentColor;
+  mask: url("/app/logos/smarter-dog-silhouette.svg") center / contain no-repeat;
+  -webkit-mask: url("/app/logos/smarter-dog-silhouette.svg") center / contain no-repeat;
+}
+
 /* ── Self-hosted brand fonts ──────────────────────────────────── */
 @font-face {
   font-family: "Montserrat";
