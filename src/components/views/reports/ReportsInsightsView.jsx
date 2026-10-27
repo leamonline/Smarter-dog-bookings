@@ -140,7 +140,6 @@ export function ReportsInsightsView({ loadError = null }) {
       ) : stats.curN === 0 ? (
         <Card padding="none">
           <EmptyState
-            icon="📊"
             title="No bookings in this period"
             description="Try a longer time range."
           />

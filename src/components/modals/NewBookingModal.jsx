@@ -614,7 +614,7 @@ export function NewBookingModal({
       }
       onClose();
     } else {
-      setError(res?.error || "That didn't quite work — let's try again");
+      setError(res?.error || "Couldn't confirm the booking. Your choices are still here. Check the calendar before trying again, in case it went through.");
     }
   };
 

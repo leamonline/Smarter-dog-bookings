@@ -718,7 +718,7 @@ export function HumansView({
               {displayList.length === 0 && !isSearching && !loadError && (
                 <div className="col-span-full">
                   <EmptyState
-                    icon={showArchived ? "🗄️" : "🔍"}
+                    mark={!showArchived && !searchQuery ? "dog" : null}
                     title={
                       showArchived
                         ? "No archived humans here"
@@ -727,9 +727,11 @@ export function HumansView({
                           : "No humans just yet"
                     }
                     description={
-                      !showArchived && searchQuery
-                        ? "Try searching by phone number or dog breed instead."
-                        : null
+                      showArchived
+                        ? null
+                        : searchQuery
+                          ? "Try searching by phone number or dog breed instead."
+                          : "Add a client and they'll appear here."
                     }
                     action={
                       searchQuery ? (
