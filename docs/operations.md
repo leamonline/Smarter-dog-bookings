@@ -3,8 +3,10 @@
 **Status:** Active
 **Authority:** Operational record for the production database's backup posture
 **Issue:** [#986](https://github.com/leamonline/Smarter-dog-bookings/issues/986)
-**Last verified:** 19 October 2026 (posture checklist answered, backup enabled,
-first run succeeded, first restore drill **partial**: see the drill log)
+**Last verified:** 27 October 2026 (Actions history, retained artifact and scheduled
+environment secret names and Free tier checked; backup/PITR posture retains
+the 19 October record;
+full restore and file recovery remain unproven)
 
 Everything else operational lives where it already was: migrations in
 [`migrations.md`](migrations.md), hosted-target control in
@@ -45,8 +47,20 @@ by hand from Actions → **Encrypted database backup** → *Run workflow* (from
 
 **It is enabled (19 October 2026).** The job is skipped entirely unless the
 repository variable `DATABASE_BACKUP_ENABLED` is `true`, and that variable is now
-set. Every run, scheduled ones included, still waits for the `production`
-reviewer's approval, so a Sunday run that nobody approves produces no backup.
+set. Manual runs wait for the `production` reviewer; scheduled runs use the
+separate environment described below and need no reviewer approval. Enabled
+scheduling is not evidence of a successful scheduled backup.
+
+**27 October evidence.** The [25 October scheduled run](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/40177159579)
+failed in the target/precondition step: no `PRODUCTION_SUPABASE_ACCESS_TOKEN`
+reached the job. The environment's secret-name inventory contained only
+`BACKUP_AGE_PUBLIC_KEY`; no secret value was read. Production linking, dumping
+and artifact upload were skipped. The [19 October manual run](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/39190407921)
+is still the only successful run in the workflow history inspected. Its
+2,821,176-byte artifact is unexpired, with expiry on 17 January 2027. This proves
+retention of an encrypted artifact, not a fresh restore or a successful schedule.
+Use the [completion runbook](runbooks/database-recovery-drill.md) to repair the
+missing configuration and collect the remaining evidence.
 
 **How it proves its target.** It is the read-only twin of
 *Apply named migrations to production*. A run started **by hand** runs under
@@ -135,57 +149,25 @@ the reason `migrations.md` gives: an unconfigured environment must fail closed.
 
 ## Restoring into a scratch project
 
-A restore is **always** into a fresh, disposable Supabase project first, never
-into production. The scratch project holds real customer data from the moment
-`data.sql` loads, so it is customer-data access: it needs the owner's
-authority, and the project is deleted when the drill is written up. Commands,
-on a machine with `age`, `tar` and `psql` (the `age` apt package on Ubuntu;
-`brew install age` on macOS):
+A restore is **always** into a fresh, disposable Supabase project first.
+The [database recovery drill runbook](runbooks/database-recovery-drill.md)
+sets out target checks, outbound isolation, protected artifact handling,
+full-schema restoration, synthetic account and permissions checks, file recovery
+and cleanup. The [execution plan](plans/active/2026-10-27-database-recovery.md)
+records the sequence and remaining external inputs.
 
-```bash
-# 1. Download the artifact from the workflow run (Actions → the run → Artifacts),
-#    then decrypt and unpack it. age asks nothing if the identity file is given.
-age --decrypt --identity smarter-dog-backup-key.txt \
-  --output backup.tar.gz database-backup-production-<date>-run<id>.tar.gz.age
-mkdir restore && tar -xzf backup.tar.gz -C restore
-cat restore/manifest.txt
-sha256sum restore/schema.sql restore/data.sql   # must match the manifest
+The scratch project holds real customer data once the dump is loaded. Confirm
+owner authority and the exact disposable target before accessing the artifact.
+Production (`nlzhllhkigmsvrzduefz`) and existing staging
+(`btjnxvgkpdbfrrqxvkfj`) are excluded targets. The project list checked on
+27 October contained only these two projects; no disposable target was present.
+Keep credentials out of chat, shell arguments, history and committed files.
 
-# 2. Create a scratch project in the dashboard (any region; Free plan is fine)
-#    and copy its direct connection string from Connect → Session pooler or
-#    Direct. Export it for this shell only; never write it to a file.
-export SCRATCH_DB_URL='postgresql://postgres.<scratch-ref>:<password>@<host>:5432/postgres'
-
-# 3. Restore. The two REVOKEs are what Supabase documents for restoring a dump
-#    into a new project: without
-#    them every restored table would inherit anon/authenticated privileges that
-#    production never granted. session_replication_role=replica lets the data
-#    load without firing the booking gates and audit triggers.
-psql --single-transaction --variable ON_ERROR_STOP=1 --dbname "$SCRATCH_DB_URL" \
-  --command 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;' \
-  --command 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;' \
-  --file restore/schema.sql
-psql --single-transaction --variable ON_ERROR_STOP=1 --dbname "$SCRATCH_DB_URL" \
-  --command 'SET session_replication_role = replica;' \
-  --file restore/data.sql
-
-# 4. Prove it is a database, not a file: counts should match the sizes staff
-#    recognise, and the capacity trigger should still refuse an overbooking.
-psql --dbname "$SCRATCH_DB_URL" --command \
-  "select (select count(*) from public.bookings) as bookings,
-          (select count(*) from public.dogs) as dogs,
-          (select count(*) from public.humans) as humans,
-          (select count(*) from auth.users) as auth_users;"
-
-# 5. Delete the scratch project in the dashboard, then the local plaintext.
-rm -rf restore backup.tar.gz
-```
-
-If `data.sql` fails on an `auth` table, the scratch project's Auth service is
-on a newer schema than the dump; restore `schema.sql` plus `data.sql` with
-`auth` filtered out (`grep -v '^COPY "auth"\.'` is not enough: cut from the
-`COPY "auth".` line to its `\.` terminator), note it in the drill log, and raise
-an issue, because account recovery then needs a hand-written step.
+A schema mismatch in `auth` or `storage` fails the full drill. Investigate it and
+retry on a fresh isolated target with a reviewed compatibility step. Removing
+those COPY blocks can support a separately labelled partial diagnostic restore;
+it cannot satisfy account or storage recovery. Compare restored aggregates with
+the **artifact snapshot**, rather than later live counts that may have changed.
 
 A restore **into production** is not a procedure this page grants: it is a
 production write under [ADR 006](architecture/decisions/006-manual-target-verified-database-rollout.md)
@@ -216,10 +198,10 @@ on, in a rolled-back transaction, two dogs were accepted into one slot and a
 third was refused with `Slot is full`, so the capacity gate survives a
 restore. Every plaintext file and the scratch cluster were deleted afterwards.
 
-Why not a scratch Supabase project, as the procedure above says: restoring into
-one means typing its database password into `psql`, which the agent running
-the drill may not do. **This drill does not satisfy "one drill before the workflow
-is trusted"**: loading `auth` and `storage` into a real Supabase project, and so
-account recovery, is still unproven. The required drill stays outstanding until
-a person runs the hosted procedure above successfully. Until then, the dump's
-counts show the data is there; they do not show it can be put back.
+**Historical limitation.** The 19 October operator did not perform a hosted
+Supabase restore. **This drill does not satisfy "one drill before the workflow
+is trusted"**: loading `auth` and `storage` into a disposable Supabase project,
+and proving account access, remain outstanding. The current route is the
+[completion runbook](runbooks/database-recovery-drill.md); credentials require
+an authorised secure hand-off. The historical counts show data in the dump,
+not that the full account and file recovery paths work.
