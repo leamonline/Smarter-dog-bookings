@@ -205,7 +205,7 @@ export function AddressPicker({
             {trimmedExisting}
             <button
               type="button"
-              className="block mt-1 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+              className="block mt-1 text-body text-brand-ink font-semibold bg-transparent border-none p-0 cursor-pointer"
               onClick={() => setEditing(true)}
             >
               Update address
@@ -240,7 +240,7 @@ export function AddressPicker({
         />
         <button
           type="button"
-          className="block mt-2 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          className="block mt-2 text-body text-brand-ink font-semibold bg-transparent border-none p-0 cursor-pointer"
           onClick={() => {
             resetSearch();
             setManualMode(false);
@@ -360,7 +360,7 @@ export function AddressPicker({
       ) : (
         <button
           type="button"
-          className="block mt-2 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
+          className="block mt-2 text-body text-brand-ink font-semibold bg-transparent border-none p-0 cursor-pointer"
           onClick={enterManual}
         >
           Can&apos;t find your address? Enter it manually

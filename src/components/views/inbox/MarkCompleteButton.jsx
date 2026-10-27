@@ -86,7 +86,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
         // icon whose meaning a sighted user has to guess.
         "inline-flex items-center gap-1 min-h-11 px-2 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit] shrink-0",
         isClosed
-          ? "bg-white border border-slate-200 text-brand-purple hover:border-brand-yellow/60"
+          ? "bg-white border border-slate-200 text-brand-ink hover:border-brand-yellow/60"
           : "bg-brand-green-50 border border-brand-green-200 text-brand-green-800 hover:bg-brand-green-100",
         "disabled:opacity-50 disabled:cursor-not-allowed",
       ].join(" ")}

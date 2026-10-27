@@ -51,7 +51,7 @@ export function MetricBar({
   return (
     <div aria-busy={loading || undefined}>
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
-        <div className="text-xs font-semibold text-brand-purple truncate min-w-0">
+        <div className="text-xs font-semibold text-brand-ink truncate min-w-0">
           {label}
           {subLabel && (
             <span className="text-ink-muted font-medium ml-1">{subLabel}</span>

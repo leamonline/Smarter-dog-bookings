@@ -60,8 +60,8 @@ export function UtilityTabs({
               onClick={() => setActive(t.id)}
               className={`flex-1 min-w-0 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-1.5 py-2 text-xs font-semibold transition-all border-none cursor-pointer font-[inherit] relative ${
                 isActive
-                  ? "text-brand-purple bg-white"
-                  : "text-slate-500 bg-transparent hover:text-brand-purple hover:bg-white/60"
+                  ? "text-brand-ink bg-white"
+                  : "text-slate-500 bg-transparent hover:text-brand-ink hover:bg-white/60"
               }`}
             >
               <Icon size={14} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
@@ -70,7 +70,7 @@ export function UtilityTabs({
                 <span
                   className={`min-w-[18px] h-[18px] px-1 rounded-full text-micro font-black flex items-center justify-center leading-none ${
                     isActive
-                      ? "bg-brand-yellow text-brand-purple"
+                      ? "bg-brand-yellow text-brand-ink"
                       : "bg-brand-coral-dark text-white"
                   }`}
                 >

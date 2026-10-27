@@ -84,7 +84,7 @@ export function PhotoUploadModal({
             </span>
             <h2
               id="photo-upload-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               Add Groom Photo
             </h2>

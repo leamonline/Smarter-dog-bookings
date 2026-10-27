@@ -42,7 +42,7 @@ function TrustedRow({
             onClose?.();
             onOpenHuman?.(trustedHuman?.id || contact.id);
           }}
-          className="text-sm font-semibold text-brand-purple cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit hover:text-brand-teal-text transition-colors"
+          className="text-sm font-semibold text-brand-ink cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit hover:text-brand-teal-text transition-colors"
         >
           {titleCase(trustedLabel)}
         </button>
@@ -70,7 +70,7 @@ function TrustedRow({
           onUpdateRelationship(next);
         }}
         disabled={!onUpdateRelationship}
-        className="w-full mt-1 px-2 py-1 rounded-md border border-slate-200 text-xs outline-none font-inherit text-brand-purple focus:border-brand-teal transition-colors"
+        className="w-full mt-1 px-2 py-1 rounded-md border border-slate-200 text-xs outline-none font-inherit text-brand-ink focus:border-brand-teal transition-colors"
         aria-label={`Relationship for ${titleCase(trustedLabel)}`}
       />
     </div>
@@ -349,7 +349,7 @@ export function TrustedHumansPanel({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
-                className="w-full py-2 px-2.5 pl-8 rounded-control border-[1.5px] border-brand-teal/60 text-sm font-inherit box-border outline-none text-brand-purple focus:border-brand-teal transition-colors"
+                className="w-full py-2 px-2.5 pl-8 rounded-control border-[1.5px] border-brand-teal/60 text-sm font-inherit box-border outline-none text-brand-ink focus:border-brand-teal transition-colors"
               />
             </div>
 
@@ -365,7 +365,7 @@ export function TrustedHumansPanel({
                       onClick={() => handleAddTrusted(c.id)}
                       className="w-full text-left bg-transparent px-3 py-2 cursor-pointer border-x-0 border-t-0 border-b border-slate-100 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-50 font-inherit"
                     >
-                      <div className="text-sm font-semibold text-brand-purple">
+                      <div className="text-sm font-semibold text-brand-ink">
                         {titleCase(full)}
                       </div>
                       <div className="text-xs text-slate-500">{c.phone}</div>
@@ -403,14 +403,14 @@ export function TrustedHumansPanel({
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     autoFocus
-                    className="flex-1 py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none text-brand-purple transition-colors focus:border-brand-teal"
+                    className="flex-1 py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none text-brand-ink transition-colors focus:border-brand-teal"
                   />
                   <input
                     type="text"
                     placeholder="Surname"
                     value={newSurname}
                     onChange={(e) => setNewSurname(e.target.value)}
-                    className="flex-1 py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none text-brand-purple transition-colors focus:border-brand-teal"
+                    className="flex-1 py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none text-brand-ink transition-colors focus:border-brand-teal"
                   />
                 </div>
                 <input
@@ -418,14 +418,14 @@ export function TrustedHumansPanel({
                   placeholder="Phone number"
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none box-border text-brand-purple mb-2 transition-colors focus:border-brand-teal"
+                  className="w-full py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none box-border text-brand-ink mb-2 transition-colors focus:border-brand-teal"
                 />
                 <input
                   type="text"
                   placeholder="Relationship (e.g. husband, dog walker)"
                   value={newRelationship}
                   onChange={(e) => setNewRelationship(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none box-border text-brand-purple mb-2 transition-colors focus:border-brand-teal"
+                  className="w-full py-1.5 px-2.5 rounded-control border-[1.5px] border-slate-200 text-xs font-inherit outline-none box-border text-brand-ink mb-2 transition-colors focus:border-brand-teal"
                 />
                 <div className="flex gap-2">
                   <button

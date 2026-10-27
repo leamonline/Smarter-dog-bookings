@@ -279,7 +279,9 @@ jobs:
           rm -f migration-list.txt
 
       - name: Keep the encrypted bundle for 90 days
-        if: ${{ steps.dump.outcome == 'success' }}
+        # Preserve a successful database dump even if the independent file
+        # backup fails. The job still fails, so partial recovery is visible.
+        if: ${{ always() && steps.dump.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.dump.outputs.artifact_name }}
@@ -289,6 +291,35 @@ jobs:
           # Already gzip-compressed and encrypted; recompressing gains nothing.
           compression-level: 0
 
+      - name: Back up and encrypt Storage files
+        id: storage
+        timeout-minutes: 10
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$PRODUCTION_PROJECT_REF"
+          mkdir -p storage-backup-artifact
+          artifact_name="storage-backup-production-$(date -u +%Y-%m-%d)-run$GITHUB_RUN_ID"
+          python3 scripts/operations/storage_archive.py backup \
+            --project-ref "$PRODUCTION_PROJECT_REF" \
+            --expected-project-ref "$PRODUCTION_PROJECT_REF" \
+            --output "storage-backup-artifact/$artifact_name.tar.gz.age"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          echo "| Storage file archive | \`$artifact_name.tar.gz.age\`; encrypted, with per-object sizes and digests |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the encrypted Storage archive for 90 days
+        if: ${{ always() && steps.storage.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.storage.outputs.artifact_name }}
+          path: storage-backup-artifact/*.tar.gz.age
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
       - name: Summarise the outcome
         if: ${{ always() }}
         shell: bash
@@ -296,6 +327,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           LINK_OUTCOME: ${{ steps.link.outcome }}
           DUMP_OUTCOME: ${{ steps.dump.outcome }}
+          STORAGE_OUTCOME: ${{ steps.storage.outcome }}
           ARTIFACT_NAME: ${{ steps.dump.outputs.artifact_name }}
         run: |
           set -euo pipefail
@@ -307,6 +339,7 @@ jobs:
             echo "|---|---|"
             echo "| Production link verified, migration state listed | $LINK_OUTCOME |"
             echo "| Schema and data dumped, bundle encrypted on the runner | $DUMP_OUTCOME |"
+            echo "| Storage files archived, verified and encrypted | $STORAGE_OUTCOME |"
             echo "| Artifact | \`${ARTIFACT_NAME:-none}\` (90-day retention) |"
             echo "| Job | **$JOB_STATUS** |"
             echo

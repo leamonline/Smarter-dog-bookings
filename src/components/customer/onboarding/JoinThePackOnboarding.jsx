@@ -267,8 +267,8 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
         className="w-full max-w-[520px] bg-white p-7 rounded-2xl border border-slate-200 shadow-sm"
       >
         <div className="text-center mb-5">
-          <PawPrint size={32} className="text-brand-purple mx-auto mb-2" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-brand-purple font-display">
+          <PawPrint size={32} className="text-brand-ink mx-auto mb-2" aria-hidden="true" />
+          <h1 className="text-xl font-bold text-brand-ink font-display">
             {step === 1 ? "About you" : "About your dog"}
           </h1>
           <p className="text-sm text-slate-500 mt-1 leading-relaxed">
@@ -397,14 +397,14 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 aria-describedby={fieldError("policies") ? "signup-policies-error" : undefined}
                 checked={policiesAccepted}
                 onChange={(e) => setPoliciesAccepted(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-brand-purple shrink-0"
+                className="mt-0.5 w-4 h-4 accent-brand-ink shrink-0"
               />
               <span className="text-body text-[var(--color-ink)] leading-relaxed">
                 I agree to Smarter Dog&apos;s{" "}
-                <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Terms</a>,{" "}
-                <a href={SALON_MATTED_COAT_POLICY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Matted Coat Policy</a>{" "}
+                <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-brand-ink font-semibold underline">Terms</a>,{" "}
+                <a href={SALON_MATTED_COAT_POLICY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-ink font-semibold underline">Matted Coat Policy</a>{" "}
                 and{" "}
-                <a href={SALON_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-purple font-semibold underline">Privacy Policy</a>.
+                <a href={SALON_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-brand-ink font-semibold underline">Privacy Policy</a>.
               </span>
             </label>
             {fieldError("policies") && <p id="signup-policies-error" className="text-body text-brand-coral mb-3">{ownerErrors.policies}</p>}
@@ -503,7 +503,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 <button
                   type="button"
                   onClick={() => updateDog(i, { showOptional: !dog.showOptional })}
-                  className="inline-flex items-center gap-1 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mt-1"
+                  className="inline-flex items-center gap-1 text-body text-brand-ink font-semibold bg-transparent border-none p-0 cursor-pointer mt-1"
                 >
                   {dog.showOptional ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
                   Add more about {dog.name.trim() || "your dog"} (optional)
@@ -558,7 +558,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                               onClick={() => toggleAlert(i, opt.label)}
                               className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer ${
                                 active
-                                  ? "bg-brand-purple text-white border-brand-purple"
+                                  ? "bg-brand-ink text-white border-brand-ink"
                                   : "bg-white text-slate-600 border-slate-200"
                               }`}
                             >
@@ -584,7 +584,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             <button
               type="button"
               onClick={addDog}
-              className="inline-flex items-center gap-1.5 text-body text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer mb-4"
+              className="inline-flex items-center gap-1.5 text-body text-brand-ink font-semibold bg-transparent border-none p-0 cursor-pointer mb-4"
             >
               <Plus size={16} aria-hidden="true" /> Add another dog
             </button>

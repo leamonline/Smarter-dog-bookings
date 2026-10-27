@@ -114,8 +114,8 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
         className="w-full max-w-[460px] bg-white p-7 rounded-2xl border border-slate-200 shadow-sm"
       >
         <div className="text-center mb-5">
-          <PawPrint size={32} className="text-brand-purple mx-auto mb-2" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-brand-purple font-display">
+          <PawPrint size={32} className="text-brand-ink mx-auto mb-2" aria-hidden="true" />
+          <h1 className="text-xl font-bold text-brand-ink font-display">
             {heading}
           </h1>
           <p className="text-sm text-slate-500 mt-1 leading-relaxed">

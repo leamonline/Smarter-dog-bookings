@@ -176,7 +176,7 @@ export function ReenableWhatsAppDialog({
           <div className="flex-1 min-w-0">
             {/* slate-600, not ink-muted: ink-muted is 4.18:1 on the paper header. */}
             <span className="text-label text-slate-600">WhatsApp</span>
-            <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1">
+            <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1">
               Switch WhatsApp back on?
             </h2>
             <p className="m-0 mt-1 text-body font-semibold text-slate-600">{shownPhone}</p>
@@ -241,7 +241,7 @@ export function ReenableWhatsAppDialog({
               We couldn’t reach the database. Checking whether it went through…
             </p>
           )}
-          <p className="m-0 font-semibold text-brand-purple">
+          <p className="m-0 font-semibold text-brand-ink">
             {scope.numberStoppedAt
               ? `This number said STOP on ${optOutTimeLabel(scope.numberStoppedAt)}.${againSuffix(scope)}`
               : "This number hasn’t said STOP, but WhatsApp is switched off on the records below."}

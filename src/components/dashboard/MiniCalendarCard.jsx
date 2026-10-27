@@ -64,18 +64,18 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
           type="button"
           onClick={() => goMonth(-1)}
           aria-label="Previous month"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors"
+          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors"
         >
           <ChevronLeft size={16} strokeWidth={2.5} />
         </button>
-        <div className="flex-1 text-center text-sm font-bold text-brand-purple font-display">
+        <div className="flex-1 text-center text-sm font-bold text-brand-ink font-display">
           {monthName}
         </div>
         <button
           type="button"
           onClick={() => goMonth(1)}
           aria-label="Next month"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors"
+          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors"
         >
           <ChevronRight size={16} strokeWidth={2.5} />
         </button>
@@ -125,7 +125,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
             // open → green, full → blue. Selected wins (yellow); today keeps
             // a yellow ring.
             const circleStyle = isSelected
-              ? "bg-brand-yellow text-brand-purple shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
+              ? "bg-brand-yellow text-brand-ink shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
               : dayCircleStyle({ isPast, dogCount: monthLoading ? null : count, isOpen });
 
             return (

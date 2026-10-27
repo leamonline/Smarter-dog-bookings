@@ -17,7 +17,7 @@ function ScopeRow({ record, isCurrent, onOpenProfile, disabled }) {
     <li className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span id={nameId} className="font-bold text-brand-purple truncate">
+          <span id={nameId} className="font-bold text-brand-ink truncate">
             {recordDisplayName(record)}
           </span>
           {isCurrent && (

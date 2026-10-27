@@ -16,7 +16,7 @@ function InlineRow({ caption, value, onCopy }) {
         {caption}
       </span>
       <span
-        className={`text-sm break-words [overflow-wrap:anywhere] min-w-0 ${value ? "text-brand-purple font-semibold" : "text-slate-400 italic"}`}
+        className={`text-sm break-words [overflow-wrap:anywhere] min-w-0 ${value ? "text-brand-ink font-semibold" : "text-slate-400 italic"}`}
       >
         {value || "Not on file"}
       </span>
@@ -26,7 +26,7 @@ function InlineRow({ caption, value, onCopy }) {
           onClick={() => onCopy(value, caption)}
           aria-label={`Copy ${caption.toLowerCase()}`}
           title="Copy to clipboard"
-          className="ml-auto shrink-0 w-6 h-6 max-sm:w-11 max-sm:h-11 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all"
+          className="ml-auto shrink-0 w-6 h-6 max-sm:w-11 max-sm:h-11 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-ink hover:bg-slate-100 transition-all"
         >
           <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
         </button>
@@ -48,7 +48,7 @@ function FieldInput({ caption, value, onChange, type = "text", placeholder, inpu
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={caption}
-        className="mt-1 w-full py-1.5 px-2.5 rounded-control border border-slate-200 text-sm font-semibold font-inherit outline-none text-brand-purple bg-white focus:border-brand-teal transition-colors"
+        className="mt-1 w-full py-1.5 px-2.5 rounded-control border border-slate-200 text-sm font-semibold font-inherit outline-none text-brand-ink bg-white focus:border-brand-teal transition-colors"
       />
     </label>
   );

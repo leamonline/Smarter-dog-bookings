@@ -122,7 +122,7 @@ function ShellSpecimenHeader({ onClose }) {
       <div className="flex items-start gap-3 flex-1 min-w-0">
         <div
           aria-hidden="true"
-          className="w-[46px] h-[46px] rounded-full bg-[#E6F5F2] flex items-center justify-center font-display font-bold text-brand-purple shrink-0"
+          className="w-[46px] h-[46px] rounded-full bg-[#E6F5F2] flex items-center justify-center font-display font-bold text-brand-ink shrink-0"
         >
           ST
         </div>
@@ -132,7 +132,7 @@ function ShellSpecimenHeader({ onClose }) {
           </span>
           <h2
             id="shell-specimen-title"
-            className="text-xl font-bold font-display text-brand-purple leading-tight mt-0.5 truncate"
+            className="text-xl font-bold font-display text-brand-ink leading-tight mt-0.5 truncate"
           >
             Sample Human
           </h2>
@@ -182,7 +182,7 @@ export function UiKitchenSink() {
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <div className="max-w-5xl mx-auto px-6 py-10">
         <header className="mb-12">
-          <h1 className="text-3xl font-black font-display text-brand-purple">UI kitchen sink</h1>
+          <h1 className="text-3xl font-black font-display text-brand-ink">UI kitchen sink</h1>
           <p className="text-body text-ink-muted mt-1">
             Design tokens + primitives, on the real slate-50 canvas.{" "}
             <span className="font-semibold">Dev-only</span> — not bundled into production.

@@ -197,7 +197,7 @@ export function WeeklyCashUp() {
       className="bg-white border border-slate-200 rounded-card overflow-hidden shadow-card-resting"
     >
       {/* Header + week navigation */}
-      <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light px-4 sm:px-6 py-3">
+      <div className="bg-gradient-to-br from-brand-ink to-brand-purple-light px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">
@@ -257,11 +257,11 @@ export function WeeklyCashUp() {
             ))}
 
             {/* Week grand total */}
-            <div className="rounded-tile bg-brand-purple/5 border border-brand-purple/15 px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="rounded-tile bg-brand-ink/5 border border-brand-ink/15 px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div>
                 <SectionLabel className="mb-1">Expected this week</SectionLabel>
                 <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-2xl sm:text-display font-black text-brand-purple font-display leading-none tabular-nums">
+                  <span className="text-2xl sm:text-display font-black text-brand-ink font-display leading-none tabular-nums">
                     {money(cashUp.weekTotal)}
                   </span>
                   {cashUp.weekDueTotal > 0 && (

@@ -42,7 +42,7 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
           <span
             aria-hidden="true"
             data-takings-bar
-            className="inline-block h-1.5 w-24 overflow-hidden rounded-full bg-brand-purple/10"
+            className="inline-block h-1.5 w-24 overflow-hidden rounded-full bg-brand-ink/10"
           >
             <span
               className="block h-full rounded-full bg-brand-teal"

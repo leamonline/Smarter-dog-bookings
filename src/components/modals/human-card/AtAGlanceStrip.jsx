@@ -32,7 +32,7 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
         ? "text-brand-teal-text"
         : tone === "muted"
           ? "text-slate-400"
-          : "text-brand-purple";
+          : "text-brand-ink";
 
   const isInteractive = !!onClick && !disabled;
   // `highlight` gives the upcoming-appointment tile a soft mustard tint

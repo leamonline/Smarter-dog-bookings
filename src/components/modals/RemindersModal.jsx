@@ -17,7 +17,7 @@ export function RemindersModal({ onClose }) {
       maxHeightClass="max-h-[min(85vh,680px)]"
       header={
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
-          <h2 id={titleId} className="font-display text-lg font-extrabold text-brand-purple">
+          <h2 id={titleId} className="font-display text-lg font-extrabold text-brand-ink">
             Reminders
           </h2>
           <HeaderIconButton label="Close reminders" onClick={onClose}>

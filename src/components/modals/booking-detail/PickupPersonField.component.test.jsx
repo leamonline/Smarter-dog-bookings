@@ -31,7 +31,7 @@ describe("PickupPersonField", () => {
     const select = screen.getByRole("combobox", { name: "Pick-up person" });
     expect(select).toHaveValue("Sam Jones");
     expect(screen.getAllByRole("option", { name: "Sam Jones" })).toHaveLength(1);
-    expect(select).toHaveClass("min-h-11", "focus-visible:ring-2", "focus-visible:ring-brand-purple", "focus-visible:ring-offset-2");
+    expect(select).toHaveClass("min-h-11", "focus-visible:ring-2", "focus-visible:ring-brand-ink", "focus-visible:ring-offset-2");
 
     await userEvent.selectOptions(select, "owner");
     expect(editData.pickupBy).toBe("owner");

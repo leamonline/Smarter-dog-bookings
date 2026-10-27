@@ -55,7 +55,7 @@ export function PickupPersonField({ booking, editData, setEditData, humans, prim
           aria-label="Pick-up person"
           value={editData.pickupBy}
           onChange={(event) => setEditData((previous) => ({ ...previous, pickupBy: event.target.value }))}
-          className={`${MODAL_INPUT_CLS} min-h-11 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2`}
+          className={`${MODAL_INPUT_CLS} min-h-11 focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2`}
         >
           {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>

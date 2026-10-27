@@ -10,7 +10,7 @@ export function HumanInitials({ fullName, className = "" }) {
     <span
       data-testid="human-initials"
       aria-hidden="true"
-      className={`grid size-13 shrink-0 place-items-center rounded-card bg-brand-purple/10 font-extrabold text-brand-purple ${className}`}
+      className={`grid size-13 shrink-0 place-items-center rounded-card bg-brand-ink/10 font-extrabold text-brand-ink ${className}`}
     >
       {initials}
     </span>
@@ -31,11 +31,11 @@ export function DogSizeMark({ size, decorative = false, className = "" }) {
       role={decorative ? undefined : "img"}
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : label}
-      className={`grid size-13 shrink-0 place-items-center rounded-full border border-brand-purple/15 bg-brand-purple/5 ${className}`}
+      className={`grid size-13 shrink-0 place-items-center rounded-full border border-brand-ink/15 bg-brand-ink/5 ${className}`}
     >
       <span
         aria-hidden="true"
-        className="dog-size-mark__silhouette size-8 text-brand-purple"
+        className="dog-size-mark__silhouette size-8 text-brand-ink"
       />
     </span>
   );
@@ -48,7 +48,7 @@ export function ProfileArrow({ label, onClick, visibleLabel = false, ...buttonPr
       {...buttonProps}
       aria-label={label}
       onClick={onClick}
-      className={`inline-flex size-11 shrink-0 items-center justify-center rounded-control text-brand-purple hover:bg-brand-purple/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark ${visibleLabel ? "sm:w-auto sm:gap-1 sm:px-3" : ""}`}
+      className={`inline-flex size-11 shrink-0 items-center justify-center rounded-control text-brand-ink hover:bg-brand-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark ${visibleLabel ? "sm:w-auto sm:gap-1 sm:px-3" : ""}`}
     >
       {visibleLabel && <span className="hidden text-xs font-bold sm:inline">View profile</span>}
       <ChevronRight size={18} strokeWidth={2.5} aria-hidden="true" />

@@ -68,7 +68,7 @@ const PILL_TONES = {
   neutral: "bg-slate-100 text-slate-700",
   open: "bg-emerald-50 text-emerald-700",
   closed: "bg-brand-coral-light text-brand-coral-text",
-  purple: "bg-brand-purple/5 text-brand-purple",
+  purple: "bg-brand-ink/5 text-brand-ink",
   teal: "bg-brand-teal/10 text-brand-teal-text",
   amber: "bg-brand-yellow/25 text-slate-800",
   info: "bg-cyan-50 text-cyan-800",
@@ -122,10 +122,10 @@ export function PageHeaderSegmented({
             aria-pressed={active}
             className={classes(
               "inline-flex h-9 pointer-coarse:min-h-11 items-center justify-center rounded-control px-3 text-xs font-bold transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-1",
               active
-                ? "bg-brand-purple text-white shadow-sm"
-                : "text-slate-600 hover:bg-white hover:text-brand-purple",
+                ? "bg-brand-ink text-white shadow-sm"
+                : "text-slate-600 hover:bg-white hover:text-brand-ink",
             )}
           >
             {option.label}

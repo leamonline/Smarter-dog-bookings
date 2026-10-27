@@ -212,12 +212,12 @@ export function SlotRowMenu({
         <Clock
           size={14}
           strokeWidth={2.2}
-          className="text-brand-purple/60"
+          className="text-brand-ink/60"
           aria-hidden="true"
         />
         <span
           className={`text-body md:text-sm font-bold tabular-nums leading-none ${
-            hasBooking ? "text-brand-purple" : "text-ink-muted"
+            hasBooking ? "text-brand-ink" : "text-ink-muted"
           }`}
         >
           {slotLabel}
@@ -241,7 +241,7 @@ export function SlotRowMenu({
             top: pos?.top ?? 0,
             left: pos?.left ?? 0,
             width: MENU_W,
-            backgroundColor: "var(--color-brand-purple)",
+            backgroundColor: "var(--color-brand-ink)",
             visibility: pos ? "visible" : "hidden",
             zIndex: 1100,
           }}
@@ -361,7 +361,7 @@ export function SlotRowMenu({
 
 const MENU_ITEM_VARIANTS = {
   // Solid mustard CTA — the one action that should pop.
-  primary: "bg-brand-yellow text-brand-purple hover:bg-brand-yellow-dark",
+  primary: "bg-brand-yellow text-brand-ink hover:bg-brand-yellow-dark",
   // Muted by default, coral on hover — clearly "danger", not primary.
   destructive:
     "bg-transparent text-brand-coral-light hover:bg-brand-coral hover:text-white",

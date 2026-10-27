@@ -48,13 +48,13 @@ export function TodayHeader({
             data-testid="daily-brief-date"
             onClick={onOpenDatePicker}
             aria-label={`${dateLabel} — choose a different date`}
-            className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-2 rounded-control px-1 -ml-1 text-left outline-none transition-colors hover:bg-brand-purple/[0.04] focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-2 rounded-control px-1 -ml-1 text-left outline-none transition-colors hover:bg-brand-ink/[0.04] focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2"
           >
-            <CalendarDays size={18} aria-hidden="true" className="shrink-0 text-brand-purple/45" />
-            <strong className="min-w-0 truncate font-display text-lg font-bold leading-none tracking-[-0.02em] text-brand-purple sm:text-2xl">
+            <CalendarDays size={18} aria-hidden="true" className="shrink-0 text-brand-ink/45" />
+            <strong className="min-w-0 truncate font-display text-lg font-bold leading-none tracking-[-0.02em] text-brand-ink sm:text-2xl">
               {dateLabel}
             </strong>
-            <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-purple/45" />
+            <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-ink/45" />
           </button>
           <Button variant="quiet" onClick={onManageAvailability}
             aria-label={`Manage availability — ${availabilityLabel}`}
@@ -95,7 +95,7 @@ export function TodayHeader({
                 {shape.map((entry, index) => (
                   <span key={entry.zone} className="whitespace-nowrap">
                     {index > 0 ? <span aria-hidden="true" className="mx-1.5 text-slate-300">·</span> : null}
-                    <strong className="font-bold text-brand-purple tabular-nums">{entry.count}</strong> {entry.label}
+                    <strong className="font-bold text-brand-ink tabular-nums">{entry.count}</strong> {entry.label}
                   </span>
                 ))}
               </span>

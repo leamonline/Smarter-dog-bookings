@@ -101,7 +101,7 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
             <span className="text-label text-ink-muted">Availability</span>
             <h2
               id={titleId}
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               Manage availability
             </h2>

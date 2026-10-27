@@ -197,7 +197,6 @@
   --color-brand-green-100: #CFF8DE;
   --color-brand-green-200: #A3EFC1;
   --color-brand-green-300: #5FE293;
-  --color-brand-green-400: #1ECF64;
   --color-brand-green-500: #00D94A;
   --color-brand-green-600: #0F7D39; /* white on fill: AA at 5.2:1 */
   --color-brand-green-700: var(--color-brand-green-600); /* was #0A7D30, three points of hex from 600 */
@@ -208,14 +207,12 @@
   --color-brand-whatsapp: #25D366;
   /* AA-readable WhatsApp green for text links on white (#25D366 is ~1.9:1). */
   --color-brand-whatsapp-dark: #136F4A; /* AA for normal link text */
-  --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
   /* Mustard family — waitlist tab/tag palette. Lifted out of WaitlistNote
      so the same colours can be reused for any "pending / on-the-list"
      affordance. */
   --color-brand-mustard: #B8860B;
   --color-brand-mustard-tint: #F5E6C8;
-  --color-brand-mustard-paper: #FFFBF2;
   /* Warnings are NOT the action yellow (see docs/ux/warm-colours.md): mustard for
      edges, dots and icons; the tint and ink for the notice itself (8.4:1). Always
      with a sentence saying what is wrong. In @theme so Tailwind generates
@@ -273,11 +270,9 @@
   /* Tape colours */
   --color-sd-tape-yellow: rgba(254, 204, 19, 0.75);
   --color-sd-tape-coral:  rgba(231, 84, 108, 0.55);
-  --color-sd-tape-sky:    rgba(85, 149, 220, 0.55); /* current sky, not retired cyan */
 
   /* Elevation */
   --shadow-sd-card: 0 6px 20px -12px rgba(0, 0, 0, 0.18);
-  --shadow-sd-card-hover: 0 14px 28px -14px rgba(0, 0, 0, 0.28);
   --shadow-sd-cta-green: 0 10px 22px -10px rgba(0, 194, 71, 0.55);
   --shadow-sd-cta-yellow: 0 10px 22px -10px rgba(254, 204, 19, 0.75);
   /* Modal/overlay shadow — replaces the 17 inline copies of
@@ -296,7 +291,6 @@
   /* Radii */
   --radius-sd-input: 12px;
   --radius-sd-card: 18px;
-  --radius-sd-pill: 9999px;
   /* Form-control radius — sits between rounded-md (6px) and rounded-tile
      (12px). Codifies the 45 inline rounded-[10px] uses. Available as
      rounded-control via Tailwind v4's @theme. */
@@ -432,16 +426,16 @@
   --color-action-cta: var(--color-brand-yellow);
   --color-action-danger: var(--color-brand-coral-dark); /* white on dark coral passes AA */
 
-  --color-text-body: var(--color-brand-purple);
-  --color-text-heading: var(--color-brand-purple);
+  --color-text-body: var(--color-brand-ink);
+  --color-text-heading: var(--color-brand-ink);
   --color-text-link: var(--color-brand-cyan); /* underline inline links, not colour alone */
-  --color-text-on-action: var(--color-brand-purple);
+  --color-text-on-action: var(--color-brand-ink);
   --color-text-muted: #57677C; /* readable on both white and cream */
   --color-text-placeholder: #90A1B9; /* placeholder/disabled only, never required copy */
 
   --color-surface-page: theme(--color-slate-50);  /* staff canvas = slate-50 (the de-facto bg); paper stays for auth/portal */
   --color-surface-card: #FFFFFF;
-  --color-surface-header: var(--color-brand-purple);
+  --color-surface-header: var(--color-brand-ink);
 
   --color-border-default: theme(--color-stone-200);
   --color-border-focus: var(--color-brand-ink);
@@ -561,7 +555,7 @@ body {
    the card the header's "Next:" link jumped to. Motion-gated — under reduced
    motion the class does nothing and the toast/aria-live carry the message. */
 @keyframes today-card-flash {
-  0% { box-shadow: 0 0 0 2px var(--color-brand-purple); }
+  0% { box-shadow: 0 0 0 2px var(--color-brand-ink); }
   100% { box-shadow: 0 0 0 2px transparent; }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -773,7 +767,7 @@ body {
   transition-duration: var(--duration-fast);
 }
 .btn-primary {
-  @apply bg-brand-yellow text-brand-purple hover:bg-brand-yellow-dark;
+  @apply bg-brand-yellow text-brand-ink hover:bg-brand-yellow-dark;
 }
 .btn-danger {
   @apply bg-brand-coral-dark text-white hover:bg-brand-coral-deep;
@@ -809,7 +803,7 @@ textarea::placeholder {
    Fixed frames keep the directory calm while the dog panel adapts to a
    single dog, a mixed-size composition, or a useful empty state. */
 .human-directory-card {
-  --pack-colour: var(--color-brand-purple);
+  --pack-colour: var(--color-brand-ink);
   --pack-soft: rgba(31, 31, 31, 0.05);
   position: relative;
   box-sizing: border-box;
@@ -949,7 +943,7 @@ textarea::placeholder {
   border: 1px solid rgba(31, 31, 31, 0.08);
   border-radius: 14px;
   background: var(--pack-soft);
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
   font-family: var(--font-display);
   font-size: 14px;
 }
@@ -968,7 +962,7 @@ textarea::placeholder {
 .human-directory-card__name {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 800;
@@ -1006,7 +1000,7 @@ textarea::placeholder {
 }
 
 .human-directory-card__contact-strip a:hover {
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
 }
 
 .human-directory-card__contact-actions {
@@ -1033,7 +1027,7 @@ textarea::placeholder {
 
 .human-directory-card__contact-actions a:hover {
   background: rgba(31, 31, 31, 0.05);
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
 }
 
 .human-directory-card__contact-actions .human-directory-card__contact-action--whatsapp {
@@ -1236,7 +1230,7 @@ textarea::placeholder {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 800;
@@ -1264,7 +1258,7 @@ textarea::placeholder {
   padding: 12px 14px;
   border: 0;
   background: rgba(255, 255, 255, 0.54);
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
   text-align: left;
 }
 
@@ -1314,7 +1308,7 @@ button.human-empty-pack:hover {
 .human-directory-card__profile > button {
   border-top: 1px solid rgba(31, 31, 31, 0.08);
   border-radius: 0;
-  color: var(--color-brand-purple);
+  color: var(--color-brand-ink);
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 800;

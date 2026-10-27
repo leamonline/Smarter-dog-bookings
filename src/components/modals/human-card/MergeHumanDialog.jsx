@@ -62,7 +62,7 @@ function CompareColumn({ human, dogs, dogsByHumanId, bookingsByDate, role }) {
       >
         {isWinner ? "Keep" : "Remove"}
       </div>
-      <div className="text-sm font-bold text-brand-purple truncate mt-0.5">
+      <div className="text-sm font-bold text-brand-ink truncate mt-0.5">
         {titleCase(fullNameOf(human)) || "Unnamed"}
       </div>
       <dl className="mt-2 flex flex-col gap-1">
@@ -171,7 +171,7 @@ export function MergeHumanDialog({
             </div>
             <h2
               id="merge-human-title"
-              className="text-lg font-bold font-display text-brand-purple leading-tight mt-0.5"
+              className="text-lg font-bold font-display text-brand-ink leading-tight mt-0.5"
             >
               {titleCase(fullNameOf(human))}
             </h2>
@@ -180,7 +180,7 @@ export function MergeHumanDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 transition-colors shrink-0"
+            className="tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-ink hover:border-brand-ink/30 transition-colors shrink-0"
           >
             <X size={16} strokeWidth={2.2} aria-hidden="true" />
           </button>
@@ -204,7 +204,7 @@ export function MergeHumanDialog({
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search by name or phone…"
                     aria-label="Search for a duplicate human"
-                    className="w-full pl-8 pr-2.5 py-2 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-purple bg-white focus:border-brand-teal transition-colors"
+                    className="w-full pl-8 pr-2.5 py-2 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-ink bg-white focus:border-brand-teal transition-colors"
                   />
                 </div>
               </label>
@@ -216,7 +216,7 @@ export function MergeHumanDialog({
                     onClick={() => setOtherId(c.id)}
                     className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-control bg-white border border-slate-200 cursor-pointer text-left font-inherit hover:border-brand-teal/50 hover:bg-brand-teal/5 transition-colors"
                   >
-                    <span className="text-sm font-semibold text-brand-purple truncate">
+                    <span className="text-sm font-semibold text-brand-ink truncate">
                       {titleCase(fullNameOf(c))}
                     </span>
                     <span className="text-xs text-slate-400 shrink-0">{c.phone || "No phone"}</span>
@@ -251,7 +251,7 @@ export function MergeHumanDialog({
               <button
                 type="button"
                 onClick={() => setWinnerIsCurrent((v) => !v)}
-                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-purple bg-transparent border-none cursor-pointer hover:text-brand-teal-text transition-colors px-1"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-ink bg-transparent border-none cursor-pointer hover:text-brand-teal-text transition-colors px-1"
               >
                 <ArrowLeftRight size={13} strokeWidth={2.4} aria-hidden="true" />
                 Swap which record to keep

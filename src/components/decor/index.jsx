@@ -17,7 +17,7 @@
  *   className — extra classes (positioning, etc.)
  */
 export function DogSilhouette({
-  color = "var(--color-brand-purple)",
+  color = "var(--color-brand-ink)",
   size = 80,
   rotation = 0,
   opacity = 1,

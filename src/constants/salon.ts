@@ -280,7 +280,7 @@ export const BOOKING_STATUSES = [
   { id: BOOKING_STATUS.RECONFIRMED, label: "Reconfirmed", color: "#1D4ED8", bg: "#DBEAFE" },
   { id: BOOKING_STATUS.ARRIVED, label: "Arrived", color: "#16A34A", bg: "#DCFCE7" },
   { id: BOOKING_STATUS.READY_FOR_COLLECTION, label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
-  { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
+  { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-ink)", bg: "#E2D9F0" },
 ];
 
 export interface StatusDisplay {
@@ -310,7 +310,7 @@ export interface StatusDisplay {
  * salon a slot.
  */
 export const STATUS_DISPLAY: Record<string, StatusDisplay> = {
-  [BOOKING_STATUS.BOOKED]:               { bg: "#FFF6CC", color: "var(--color-brand-purple)",     border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-purple)", label: "Booked" },
+  [BOOKING_STATUS.BOOKED]:               { bg: "#FFF6CC", color: "var(--color-brand-ink)",     border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-ink)", label: "Booked" },
   [BOOKING_STATUS.RECONFIRMED]:          { bg: "#DBEAFE", color: "#1E40AF",                       border: "#3B82F6",                   onAccent: "#FFFFFF",                   label: "Reconfirmed" },
   [BOOKING_STATUS.ARRIVED]:              { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)",  border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Arrived" },
   [BOOKING_STATUS.READY_FOR_COLLECTION]: { bg: "#D1FAE5", color: "#047857",                       border: "#10B981",                   onAccent: "#FFFFFF",                   label: "Ready" },

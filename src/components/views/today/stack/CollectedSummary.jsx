@@ -51,7 +51,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
               {moneyLabel(owed)} owed
             </span>
           ) : null}
-          <span className="font-medium tabular-nums text-brand-purple">
+          <span className="font-medium tabular-nums text-brand-ink">
             {moneyLabel(total)} · {dogLabel(rows.length)}
           </span>
         </span>
@@ -67,7 +67,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
               {byMethod.map((entry) => (
                 <span key={entry.method}>
                   {entry.label}{" "}
-                  <b className="font-medium tabular-nums text-brand-purple">
+                  <b className="font-medium tabular-nums text-brand-ink">
                     {moneyLabel(entry.amount)}
                   </b>{" "}
                   <span className="text-slate-400">· {dogLabel(entry.count)}</span>
@@ -89,7 +89,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
                   data-settled={row.settled ? "true" : "false"}
                   className="flex items-center justify-between gap-3 border-t border-slate-200 px-0.5 py-[7px] text-sm text-slate-600"
                 >
-                  <span className="truncate text-brand-purple">{name}</span>
+                  <span className="truncate text-brand-ink">{name}</span>
                   <span
                     className={`whitespace-nowrap tabular-nums ${row.settled ? "" : "font-medium text-rose-700"}`}
                   >

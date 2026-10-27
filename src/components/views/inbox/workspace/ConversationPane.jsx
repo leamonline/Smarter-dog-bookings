@@ -137,7 +137,7 @@ export function ConversationPane({
             onChange={(event) => onSearchQueryChange(event.target.value)}
             placeholder="Search all messages…"
             aria-label="Search all messages"
-            className={`h-11 w-full rounded-control border border-slate-300 bg-white pl-9 text-sm font-semibold text-brand-purple shadow-sm outline-none placeholder:font-medium placeholder:text-slate-400 focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20 ${
+            className={`h-11 w-full rounded-control border border-slate-300 bg-white pl-9 text-sm font-semibold text-brand-ink shadow-sm outline-none placeholder:font-medium placeholder:text-slate-400 focus:border-brand-ink focus:ring-2 focus:ring-brand-ink/20 ${
               searchQuery ? "pr-11" : "pr-3"
             }`}
           />
@@ -146,7 +146,7 @@ export function ConversationPane({
               type="button"
               onClick={onClearSearch}
               aria-label="Clear search"
-              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-control text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-control text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-1"
             >
               <X aria-hidden="true" size={16} />
             </button>
@@ -180,7 +180,7 @@ export function ConversationPane({
         aria-activedescendant={activeConversation ? `conversation-option-${activeConversation.id}` : undefined}
         tabIndex={0}
         onKeyDown={handleListKeyDown}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink"
       >
         {loadingList ? (
           <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
@@ -193,7 +193,7 @@ export function ConversationPane({
             <button
               type="button"
               onClick={refreshList}
-              className="mt-3 inline-flex items-center gap-1 rounded-full bg-feedback-warning-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-purple"
+              className="mt-3 inline-flex items-center gap-1 rounded-full bg-feedback-warning-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-ink"
             >
               Try again
             </button>
@@ -206,7 +206,7 @@ export function ConversationPane({
           </div>
         ) : conversations.length === 0 ? (
           <div className="p-6 text-center text-body text-slate-600">
-            <p className="mb-1 font-semibold text-brand-purple">No WhatsApp conversations yet</p>
+            <p className="mb-1 font-semibold text-brand-ink">No WhatsApp conversations yet</p>
             <p className="text-xs text-slate-500">
               When a customer messages your WhatsApp number, their thread will appear here.
             </p>
@@ -221,7 +221,7 @@ export function ConversationPane({
                 <button
                   type="button"
                   onClick={onClearSearch}
-                  className="font-semibold text-brand-purple underline hover:text-brand-purple-light"
+                  className="font-semibold text-brand-ink underline hover:text-brand-purple-light"
                 >
                   Clear search
                 </button>
@@ -234,7 +234,7 @@ export function ConversationPane({
                 <button
                   type="button"
                   onClick={() => onFilterChange("all")}
-                  className="font-semibold text-brand-purple underline hover:text-brand-purple-light"
+                  className="font-semibold text-brand-ink underline hover:text-brand-purple-light"
                 >
                   Show all conversations
                 </button>

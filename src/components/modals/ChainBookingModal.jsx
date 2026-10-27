@@ -298,7 +298,7 @@ export function ChainBookingModal({
             </span>
             <h2
               id="chain-booking-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
             >
               {dog?.name || "Dog"}
             </h2>
