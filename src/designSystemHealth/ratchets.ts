@@ -26,8 +26,6 @@ export const CEILINGS = {
   rawButtons: { raw: 440, legacy: 0 },
   hardCodedColours: { literals: 88 },
   offScale: { shadow: 35, radius: 3, card16: 0, tile12: 0 },
-  hardCodedColours: { literals: 88 },
-  offScale: { shadow: 35, radius: 3, card16: 0, tile12: 0 },
   smallText: { underFloor: 27, namedSizes: 0 },
   handRolledDialogs: { overlays: 0 },
   menusAndToggles: { menuItems: 4, toggles: 31 },
