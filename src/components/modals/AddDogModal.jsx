@@ -215,7 +215,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
       }
     } else {
       toast.show("Couldn't save that dog just now", "error");
-      setFieldErrors({ banner: "That didn't quite work — there might already be a dog with that name. Try again or pick a different name." });
+      setFieldErrors({ banner: "Couldn't add the dog — there might already be one with that name. Try again or pick a different name." });
     }
   };
 

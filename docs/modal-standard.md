@@ -37,7 +37,7 @@ at zero). Both live in the shared kit, `src/components/ui`, and import from `com
 
 - 4px **accent bar** (`<div className="h-1 shrink-0" style={{ background: accent }}>`).
 - Paper surface `bg-[var(--color-brand-paper)]` (**`#F7EFE6`**, not pure white).
-- `rounded-[20px]`, soft branded shadow `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]`.
+- `rounded-modal` (20px), soft charcoal shadow `shadow-modal-shell`.
 - **Pinned** header (`shrink-0`) + **scrolling** body
   (`flex-1 min-h-0 overflow-y-auto overscroll-contain`) + **pinned** footer (`shrink-0`, with
   `max-sm:pb-[env(safe-area-inset-bottom)]`).
@@ -134,8 +134,8 @@ Uppercase eyebrow + hairline divider + coloured corner icon chip. `accent ∈`
 |---|---|---|
 | Modal surface | `bg-[var(--color-brand-paper)]` | `#F7EFE6` |
 | Backdrop | `bg-[rgba(31,31,31,0.45)] animate-overlay-fade` | charcoal tint |
-| Shell shadow | `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]` | branded soft |
-| Outer radius | `rounded-[20px]` | 20px |
+| Shell shadow | `shadow-modal-shell` | charcoal soft |
+| Outer radius | `rounded-modal` | 20px |
 | Control radius | `rounded-control` | `--radius-control: 10px` |
 | CTA fill / text | `bg-action` / `text-on-action` | `#FECC13` / `#1F1F1F` |
 | Title text | `text-brand-purple`, `font-display` | — |
@@ -147,7 +147,7 @@ hex for brand colours; missing entrance animation.
 
 > Note: `shadow-modal` (`0 8px 32px rgba(0,0,0,0.18)`) and `shadow-elevated` **are** real
 > tokens, but they are *not* the gold-standard shell shadow. Use the branded
-> `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]` (which `ModalShell` already applies for you).
+> `shadow-modal-shell` (which `ModalShell` already applies for you).
 
 ---
 
@@ -163,7 +163,7 @@ hex for brand colours; missing entrance animation.
    (focus trap, ESC, role/aria, `titleId`→real heading, scroll-lock, arrow-key nav, `alt` text).
 3. **Confirm / action dialog** — small, centred, no accent bar. Use the shared
    [`ConfirmDialog`](../src/components/shared/ConfirmDialog.jsx) where possible; align its chrome
-   to paper + `rounded-[20px]` + shell shadow + ≥44px buttons. Bespoke confirm dialogs
+   to paper + `rounded-modal` + shell shadow + ≥44px buttons. Bespoke confirm dialogs
    (busy state, an input, a checklist) should match that same look and a11y.
 4. **Customer portal** (`src/components/customer/*`) — intentionally its own visual system
    (`--color-sd-*` tokens, Montserrat body and Poppins headings, `.portal-btn`/`.portal-input`). Do **not** repaint these
