@@ -1,6 +1,7 @@
 import { SERVICES } from "../../../constants/index";
 import { getServicePriceLabel } from "../../../engine/bookingRules";
 import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon";
+import { ToggleChip } from "../../ui";
 
 // Service dropdown + add-on chips for one dog. Mirrors the block inside
 // DogSearchSection.jsx (the live booking path); kept as a standalone
@@ -30,20 +31,16 @@ export function ServiceAddonsPicker({ dogName, size, service, addons, onServiceC
           const active = (addons || []).includes(addon);
           const price = getAddonPrice(addon);
           return (
-            <button
+            <ToggleChip
               key={addon}
-              type="button"
+              size="sm"
+              tone="cyan"
+              pressed={active}
               onClick={() => onAddonsChange(addon)}
-              aria-pressed={active}
-              className={`px-2 py-[3px] rounded-full text-micro font-semibold border transition-colors ${
-                active
-                  ? "bg-brand-cyan text-white border-brand-cyan"
-                  : "bg-white text-slate-600 border-slate-200"
-              }`}
             >
               {addon}
               {price > 0 ? ` +£${price}` : ""}
-            </button>
+            </ToggleChip>
           );
         })}
       </div>
