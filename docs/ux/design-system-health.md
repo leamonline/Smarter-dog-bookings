@@ -24,6 +24,7 @@ Review that diff and commit it with the change that earned it.
 | Off-scale radius and shadow | `shadow-[…]`, `rounded-[…]`, stock `rounded-2xl` and `rounded-xl` | [radius-and-elevation.md](radius-and-elevation.md) |
 | Small text | `text-[Npx]` under 12px, and 12, 13, 14, 16px where a name exists | a named text size |
 | Hand-rolled dialogs | `role="dialog"`, `aria-modal` or a `fixed inset-0` overlay outside the kit | `ModalShell` or `AccessibleModal` |
+| Menu rows and toggle pills | `role="menuitem"` and `aria-pressed` outside the kit | `MenuItem` and `ToggleChip` |
 
 ## The rules
 - **Never raise a ceiling to fit a feature.** Use the shared piece. `--lower` is
