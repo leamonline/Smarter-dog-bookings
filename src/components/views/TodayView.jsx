@@ -507,13 +507,13 @@ export function TodayView({
         <p className="sr-only" aria-live="polite" aria-atomic="true">{boardAnnouncement}</p>
 
         {isRefreshing ? (
-          <div role="status" aria-label="Refreshing bookings" className="-mt-3 h-0.5 overflow-hidden rounded-full bg-brand-purple/10">
-            <span className="block h-full w-1/3 rounded-full bg-brand-purple/40 motion-safe:animate-[refresh-slide_1.2s_ease-in-out_infinite]" />
+          <div role="status" aria-label="Refreshing bookings" className="-mt-3 h-0.5 overflow-hidden rounded-full bg-brand-ink/10">
+            <span className="block h-full w-1/3 rounded-full bg-brand-ink/40 motion-safe:animate-[refresh-slide_1.2s_ease-in-out_infinite]" />
           </div>
         ) : null}
 
         {attentionReason ? (
-          <p role="status" className="-mb-2 px-1 text-xs font-semibold text-brand-purple">
+          <p role="status" className="-mb-2 px-1 text-xs font-semibold text-brand-ink">
             Highlighting {new Set(attention.reasons[attentionReason]).size}{" "}
             {ATTENTION_STATUS_COPY[attentionReason]} — every other dog is dimmed, not hidden.
           </p>
@@ -531,7 +531,7 @@ export function TodayView({
         ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
             <div className="px-4 py-14 text-center">
-              <p className="font-display text-[17px] font-bold text-brand-purple">No bookings on this date</p>
+              <p className="font-display text-[17px] font-bold text-brand-ink">No bookings on this date</p>
               <p className="mt-1 text-body text-slate-500">
                 Choose another day from the date above, or open slots with Manage availability.
               </p>

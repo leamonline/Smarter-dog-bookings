@@ -45,7 +45,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`group border-[1.5px] border-dashed border-slate-200 rounded-tile flex items-center justify-center gap-1 text-ink-muted cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[76px] lg:min-h-[80px] font-[inherit] hover:border-slate-300 hover:text-brand-purple hover:bg-slate-50/50 ${spanClass} ${dropClass}`}
+        className={`group border-[1.5px] border-dashed border-slate-200 rounded-tile flex items-center justify-center gap-1 text-ink-muted cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[76px] lg:min-h-[80px] font-[inherit] hover:border-slate-300 hover:text-brand-ink hover:bg-slate-50/50 ${spanClass} ${dropClass}`}
       >
         <span className="text-sm font-extrabold transition-transform duration-150 group-hover:scale-110">+</span>
         <span className="text-xs font-bold">Book</span>
@@ -66,7 +66,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onClick={onClick}
         aria-label="Book this seat"
         title="Add booking"
-        className="group/book flex-1 min-h-[56px] lg:min-h-[64px] rounded-lg bg-brand-yellow/5 text-brand-purple border border-brand-yellow/20 flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow/15"
+        className="group/book flex-1 min-h-[56px] lg:min-h-[64px] rounded-lg bg-brand-yellow/5 text-brand-ink border border-brand-yellow/20 flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow/15"
       >
         <span className="text-xs font-extrabold transition-transform duration-150 group-hover/book:scale-110">+</span>
         <span className="text-xs font-bold">Book</span>

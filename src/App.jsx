@@ -197,14 +197,14 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
     <AppFrame>
       <div className="max-w-[420px] mx-auto mt-20 px-5 font-sans">
         <div className="text-center mb-8">
-          <div className="text-[28px] font-display font-bold text-brand-purple">
+          <div className="text-[28px] font-display font-bold text-brand-ink">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-body text-slate-500 mt-1">Salon Bookings</div>
         </div>
 
         <div className="bg-white rounded-card p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
-          <div className="text-lg font-extrabold text-brand-purple mb-2">
+          <div className="text-lg font-extrabold text-brand-ink mb-2">
             Staff access needed
           </div>
           <div className="text-body text-slate-500 mb-5 leading-relaxed">

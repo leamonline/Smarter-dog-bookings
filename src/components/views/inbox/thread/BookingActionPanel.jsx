@@ -76,10 +76,10 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   return (
     <div className="px-4 pt-3 pb-2 bg-brand-yellow/10 border-t border-brand-yellow/30">
       <div className="flex items-center gap-2 flex-wrap mb-2">
-        <span className="text-micro font-bold uppercase tracking-wider text-brand-purple">
+        <span className="text-micro font-bold uppercase tracking-wider text-brand-ink">
           Booking proposal
         </span>
-        <span className="inline-flex items-center gap-1 text-micro font-bold px-2 py-0.5 rounded-full bg-brand-yellow/20 text-brand-purple border border-brand-yellow/60">
+        <span className="inline-flex items-center gap-1 text-micro font-bold px-2 py-0.5 rounded-full bg-brand-yellow/20 text-brand-ink border border-brand-yellow/60">
           <span aria-hidden="true" className="text-[8px]">●</span>
           Proposed · awaiting your OK
         </span>
@@ -188,7 +188,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                     <button
                       onClick={() => handleApply(action)}
                       disabled={inFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-xs font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
                     >
                       Add to diary
                     </button>
@@ -220,7 +220,7 @@ function FieldDate({ label, value, onChange }) {
         type="date"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-body font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+        className="w-full text-body font-semibold text-brand-ink bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
       />
     </label>
   );
@@ -235,7 +235,7 @@ function FieldSelect({ label, value, onChange, options, placeholder }) {
       <select
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-body font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+        className="w-full text-body font-semibold text-brand-ink bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
       >
         {placeholder && !value && <option value="">{placeholder}…</option>}
         {options.map((opt) => (

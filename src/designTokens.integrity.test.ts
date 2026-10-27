@@ -175,7 +175,7 @@ describe("design tokens: deprecated names may not spread", () => {
   // Ratchets, not bans: the existing uses are fine, new ones are not. Lower
   // the ceiling as call sites move to brand-ink / text-ink. Never raise it.
   it.each([
-    ["brand-purple", /\bbrand-purple\b/g, 538],
+    ["brand-purple", /\bbrand-purple\b/g, 14],
     // The portal's --sd-* shorthand names were all renamed to canonical tokens.
     ["--sd-* shorthand", /var\(--sd-/g, 0],
   ])("%s stays at or below its ceiling", (_name, pattern, ceiling) => {

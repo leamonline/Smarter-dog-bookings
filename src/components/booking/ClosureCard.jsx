@@ -101,7 +101,7 @@ export function ClosureCard({ closure, slots = [], onReopen, onEditReason, child
                 setMenuOpen(false);
                 onEditReason();
               }}
-              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-bold text-left cursor-pointer border-none bg-transparent text-brand-purple hover:bg-slate-100 font-[inherit]"
+              className="w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-bold text-left cursor-pointer border-none bg-transparent text-brand-ink hover:bg-slate-100 font-[inherit]"
             >
               <Pencil size={13} strokeWidth={2.4} aria-hidden="true" />
               Edit reason

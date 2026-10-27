@@ -31,16 +31,16 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
     <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
       <div className="w-full max-w-[460px] bg-white p-7 rounded-2xl border border-slate-200 shadow-sm text-center">
         <div className="relative inline-block mb-2">
-          <PawPrint size={32} className="text-brand-purple mx-auto" aria-hidden="true" />
+          <PawPrint size={32} className="text-brand-ink mx-auto" aria-hidden="true" />
           <Clock
             size={16}
-            className="absolute -right-1 -bottom-1 text-brand-purple bg-white rounded-full"
+            className="absolute -right-1 -bottom-1 text-brand-ink bg-white rounded-full"
             aria-hidden="true"
           />
         </div>
         {claimsExisting ? (
           <>
-            <h1 className="text-xl font-bold text-brand-purple font-display">
+            <h1 className="text-xl font-bold text-brand-ink font-display">
               Thanks — looks like we already know you!
             </h1>
             <p className="text-sm text-slate-500 mt-1 leading-relaxed">
@@ -53,7 +53,7 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
           </>
         ) : (
           <>
-            <h1 className="text-xl font-bold text-brand-purple font-display">
+            <h1 className="text-xl font-bold text-brand-ink font-display">
               Thanks — you&apos;re on the list!
             </h1>
             <p className="text-sm text-slate-500 mt-1 leading-relaxed">
@@ -74,7 +74,7 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
             href={SALON_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-brand-purple underline"
+            className="font-semibold text-brand-ink underline"
           >
             Message us on WhatsApp
           </a>

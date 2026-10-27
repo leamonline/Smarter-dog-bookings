@@ -18,7 +18,7 @@ export function ConfirmDialog({
   const titleId = useId();
   const confirmClass = tone === "danger"
     ? "min-h-11 rounded-control bg-brand-coral px-4 text-body font-bold text-white hover:bg-brand-coral-dark"
-    : "min-h-11 rounded-control bg-brand-yellow px-4 text-body font-bold text-brand-purple hover:bg-brand-yellow-dark";
+    : "min-h-11 rounded-control bg-brand-yellow px-4 text-body font-bold text-brand-ink hover:bg-brand-yellow-dark";
 
   return (
     <ModalShell
@@ -31,7 +31,7 @@ export function ConfirmDialog({
       zIndex={zIndex}
       header={(
         <div className="border-b border-brand-paper-line px-5 py-4">
-          <h2 id={titleId} className="font-display text-[20px] font-bold leading-tight text-brand-purple">
+          <h2 id={titleId} className="font-display text-[20px] font-bold leading-tight text-brand-ink">
             {title}
           </h2>
         </div>

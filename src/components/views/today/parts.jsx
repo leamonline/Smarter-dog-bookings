@@ -75,7 +75,7 @@ export function SecondaryButton({ onClick, children, ...rest }) {
 export function TertiaryLink({ onClick, tone = "muted", children }) {
   const toneClass =
     tone === "purple"
-      ? "text-brand-purple"
+      ? "text-brand-ink"
       : tone === "whatsapp"
         ? "text-brand-whatsapp-dark"
         : "text-slate-600";

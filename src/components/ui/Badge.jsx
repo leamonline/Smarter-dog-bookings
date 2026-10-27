@@ -14,7 +14,7 @@ const TONES = {
     success: "bg-brand-green-100 text-brand-green-800 border-brand-green-200",
     warning: "bg-feedback-warning-tint text-feedback-warning-ink border-brand-mustard-tint",
     danger: "bg-red-100 text-red-800 border-red-200",
-    brand: "bg-brand-purple/10 text-brand-purple border-brand-purple/20",
+    brand: "bg-brand-ink/10 text-brand-ink border-brand-ink/20",
   },
   solid: {
     neutral: "bg-slate-600 text-white border-transparent",
@@ -22,7 +22,7 @@ const TONES = {
     success: "bg-brand-green-600 text-white border-transparent",
     warning: "bg-feedback-warning-ink text-white border-transparent",
     danger: "bg-brand-coral text-white border-transparent",
-    brand: "bg-brand-purple text-white border-transparent",
+    brand: "bg-brand-ink text-white border-transparent",
   },
   outline: {
     neutral: "bg-white text-slate-700 border-slate-300",
@@ -30,7 +30,7 @@ const TONES = {
     success: "bg-white text-brand-green-700 border-brand-green-300",
     warning: "bg-white text-feedback-warning-ink border-brand-mustard-tint",
     danger: "bg-white text-red-700 border-red-300",
-    brand: "bg-white text-brand-purple border-brand-purple/30",
+    brand: "bg-white text-brand-ink border-brand-ink/30",
   },
 };
 

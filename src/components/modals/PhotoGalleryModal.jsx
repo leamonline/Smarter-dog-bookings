@@ -117,7 +117,7 @@ export function PhotoGalleryModal({
               </span>
               <h2
                 id="photo-gallery-title"
-                className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+                className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
               >
                 {titleCase(dogName)}&apos;s Photos
               </h2>

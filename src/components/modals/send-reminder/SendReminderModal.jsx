@@ -79,8 +79,8 @@ function ChannelPill({ channel, available, active, onSelect }) {
         !available.ok
           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
           : active
-            ? "bg-brand-purple text-white cursor-pointer"
-            : "bg-white text-brand-purple border border-brand-purple/30 hover:bg-brand-purple/10 cursor-pointer",
+            ? "bg-brand-ink text-white cursor-pointer"
+            : "bg-white text-brand-ink border border-brand-ink/30 hover:bg-brand-ink/10 cursor-pointer",
       ].join(" ")}
     >
       {CHANNEL_LABEL[channel]}
@@ -195,7 +195,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
             </span>
             <h2
               id="send-reminder-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
             >
               Send Reminder
             </h2>
@@ -208,7 +208,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
     >
           {/* Booking summary */}
           <div className="rounded-tile bg-slate-50 border border-slate-100 p-3">
-            <div className="text-sm font-bold text-brand-purple">{row?.customerName}</div>
+            <div className="text-sm font-bold text-brand-ink">{row?.customerName}</div>
             <div className="text-xs text-slate-600">{row?.dogNamesDisplay}</div>
             <div className="text-xs text-slate-500 mt-1 tabular-nums">{whenLine}</div>
             {serviceLine && <div className="text-xs text-slate-500">{serviceLine}</div>}

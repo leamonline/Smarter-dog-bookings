@@ -104,7 +104,7 @@ export function BookingGridControls({
             onClick={onMessageDay}
             aria-label="Message day — message this day's customers"
             title="Send every booked customer a message about this day"
-            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-ink"
           >
             <MessageSquare size={13} strokeWidth={2.2} aria-hidden="true" />
             <span className="hidden sm:inline">Message day</span>
@@ -115,7 +115,7 @@ export function BookingGridControls({
           type="button"
           onClick={onOpenDaySettings}
           aria-label="Day settings"
-          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] pointer-coarse:min-h-11 max-sm:min-w-[40px] pointer-coarse:max-sm:min-w-11 py-1.5 px-2.5 sm:px-3 rounded-full text-xs font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-ink"
         >
           <SettingsIcon size={13} strokeWidth={2.2} aria-hidden="true" />
           <span className="hidden sm:inline">Day settings</span>

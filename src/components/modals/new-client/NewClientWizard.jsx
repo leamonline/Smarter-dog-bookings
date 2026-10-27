@@ -175,7 +175,7 @@ export function NewClientWizard({
           <div className="text-label text-ink-muted">
             Add client · Step {step} of 3
           </div>
-          <h2 id={titleId} className="text-xl font-bold font-display text-brand-purple leading-tight mt-0.5 truncate">
+          <h2 id={titleId} className="text-xl font-bold font-display text-brand-ink leading-tight mt-0.5 truncate">
             {STEP_TITLES[step - 1]}
           </h2>
         </div>

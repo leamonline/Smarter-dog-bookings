@@ -4,7 +4,7 @@ import { Section } from "./ReportWidgets.jsx";
 // Share by who created the booking (created_by_role). Link→completion
 // conversion isn't captured, so we don't claim it.
 const ROLE_COLOR = {
-  staff: "var(--color-brand-purple)",
+  staff: "var(--color-brand-ink)",
   customer: "var(--color-brand-teal)",
   ai: "var(--color-brand-cyan-light)",
   system: "var(--color-slate-400)",

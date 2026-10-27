@@ -62,7 +62,7 @@ export function HumanHeader({
       <div className="flex items-start gap-3 flex-1 min-w-0">
         <div
           aria-hidden="true"
-          className="w-[46px] h-[46px] rounded-full bg-brand-teal-tint text-brand-purple font-display font-bold text-base flex items-center justify-center shrink-0 mt-0.5"
+          className="w-[46px] h-[46px] rounded-full bg-brand-teal-tint text-brand-ink font-display font-bold text-base flex items-center justify-center shrink-0 mt-0.5"
         >
           {getInitials(human, humanFullName)}
         </div>
@@ -120,14 +120,14 @@ export function HumanHeader({
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="First name"
                   aria-label="First name"
-                  className="text-lg font-bold font-display text-brand-purple bg-white border border-slate-200 rounded-lg px-2.5 py-1 flex-1 min-w-0 outline-none font-inherit focus:border-brand-teal"
+                  className="text-lg font-bold font-display text-brand-ink bg-white border border-slate-200 rounded-lg px-2.5 py-1 flex-1 min-w-0 outline-none font-inherit focus:border-brand-teal"
                 />
                 <input
                   value={editSurname}
                   onChange={(e) => setEditSurname(e.target.value)}
                   placeholder="Surname"
                   aria-label="Surname"
-                  className="text-lg font-bold font-display text-brand-purple bg-white border border-slate-200 rounded-lg px-2.5 py-1 flex-1 min-w-0 outline-none font-inherit focus:border-brand-teal"
+                  className="text-lg font-bold font-display text-brand-ink bg-white border border-slate-200 rounded-lg px-2.5 py-1 flex-1 min-w-0 outline-none font-inherit focus:border-brand-teal"
                 />
               </div>
               <input
@@ -143,7 +143,7 @@ export function HumanHeader({
             <>
               <h2
                 id="human-card-title"
-                className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+                className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
               >
                 {titleCase(humanFullName) || "Unnamed human"}
               </h2>
@@ -153,7 +153,7 @@ export function HumanHeader({
                     <a
                       href={telLink(human.phone)}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-body text-slate-500 font-semibold no-underline hover:text-brand-purple transition-colors whitespace-nowrap"
+                      className="text-body text-slate-500 font-semibold no-underline hover:text-brand-ink transition-colors whitespace-nowrap"
                     >
                       {human.phone}
                     </a>
@@ -165,7 +165,7 @@ export function HumanHeader({
                       }}
                       aria-label={`Copy phone number ${human.phone}`}
                       title="Copy to clipboard"
-                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all"
+                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-ink hover:bg-slate-100 transition-all"
                     >
                       <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
                     </button>
@@ -174,7 +174,7 @@ export function HumanHeader({
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`Call ${human.phone}`}
                       title="Call"
-                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all no-underline"
+                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent text-slate-400 hover:text-brand-ink hover:bg-slate-100 transition-all no-underline"
                     >
                       <Phone size={12} strokeWidth={2.4} aria-hidden="true" />
                     </a>
@@ -201,7 +201,7 @@ export function HumanHeader({
               {isPendingSignup && claimedHuman && (
                 <p className="mt-3 text-body text-slate-600 leading-snug">
                   Says they&apos;re an existing customer:{" "}
-                  <span className="font-bold text-brand-purple">{claimedName}</span>.
+                  <span className="font-bold text-brand-ink">{claimedName}</span>.
                   Linking moves this number and login onto that record.
                 </p>
               )}

@@ -38,7 +38,7 @@ function DogRow({ dog, lastGroom, onClose, onOpenDog }) {
       <SizeDot size={dogSize} dim={20} />
       <span className="flex-1 min-w-0">
         <span className="block truncate">
-          <span className="text-sm font-semibold text-brand-purple">
+          <span className="text-sm font-semibold text-brand-ink">
             {titleCase(dog.name)}
           </span>
           {dog.breed && (

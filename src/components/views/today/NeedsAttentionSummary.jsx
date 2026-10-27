@@ -24,7 +24,7 @@ function segmentLabel(reason, count, dueNow) {
 const SEGMENT_TONE = {
   late: "text-brand-coral-text",
   toConfirm: "text-feedback-warning-ink",
-  waiting: "text-brand-purple",
+  waiting: "text-brand-ink",
   unpaid: "text-brand-coral-text",
 };
 
@@ -54,7 +54,7 @@ export function NeedsAttentionSummary({
     // Attention on money alone with nothing yet due-now: fall back to the
     // plain sentence rather than rendering an empty strip.
     return (
-      <span data-attention-state="pending" className="text-body font-bold text-brand-purple">
+      <span data-attention-state="pending" className="text-body font-bold text-brand-ink">
         {summary.headline}
       </span>
     );
@@ -83,10 +83,10 @@ export function NeedsAttentionSummary({
                 ? `Stop highlighting ${label}`
                 : `Highlight ${label} — ${distinct} ${distinct === 1 ? "dog" : "dogs"}`}
               onClick={() => onSelectReason?.(active ? null : segment.reason)}
-              className={`inline-flex min-h-11 items-center rounded-control px-2 text-body font-bold leading-none tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${
+              className={`inline-flex min-h-11 items-center rounded-control px-2 text-body font-bold leading-none tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2 ${
                 active
-                  ? "bg-brand-purple text-white"
-                  : `${SEGMENT_TONE[segment.reason]} hover:bg-brand-purple/[0.06]`
+                  ? "bg-brand-ink text-white"
+                  : `${SEGMENT_TONE[segment.reason]} hover:bg-brand-ink/[0.06]`
               }`}
             >
               {label}

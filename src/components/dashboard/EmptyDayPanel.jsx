@@ -27,11 +27,11 @@ export function EmptyDayPanel({
       </div>
 
       <div className="relative z-[1] max-w-md mx-auto">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-yellow/20 text-brand-purple mb-3">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-yellow/20 text-brand-ink mb-3">
           <Plus size={22} strokeWidth={2.4} aria-hidden="true" />
         </div>
 
-        <h2 className="text-lg md:text-xl font-bold text-brand-purple font-display mb-1.5">
+        <h2 className="text-lg md:text-xl font-bold text-brand-ink font-display mb-1.5">
           Nothing booked in for {formatLong(currentDateObj)} yet
         </h2>
         <p className="text-sm text-slate-600 mb-5">

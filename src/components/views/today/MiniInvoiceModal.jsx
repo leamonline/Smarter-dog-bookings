@@ -155,7 +155,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
               </p>
               <h2
                 id="mini-invoice-title"
-                className="truncate font-display text-xl font-bold leading-tight text-brand-purple"
+                className="truncate font-display text-xl font-bold leading-tight text-brand-ink"
               >
                 <span className="sr-only">Invoice ·</span> {dogName}
               </h2>
@@ -261,7 +261,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                   disabled={saving}
                   className={`min-h-11 rounded-lg border px-1.5 py-1 text-center text-caption font-bold leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 ${
                     selected
-                      ? "border-brand-purple bg-brand-purple text-white"
+                      ? "border-brand-ink bg-brand-ink text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
@@ -285,7 +285,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
           </div>
           <div className="flex items-center justify-between gap-2 pl-3">
             <dt className="font-semibold text-slate-600">Balance</dt>
-            <dd className="font-bold tabular-nums text-brand-purple">
+            <dd className="font-bold tabular-nums text-brand-ink">
               {formatMoney(totals.amountDue)}
             </dd>
           </div>
@@ -324,7 +324,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
                     key={method.id}
                     className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 text-center text-caption font-bold leading-tight outline-none transition-colors focus-within:ring-2 focus-within:ring-brand-teal focus-within:ring-offset-1 ${
                       selected
-                        ? "border-brand-purple bg-brand-purple text-white"
+                        ? "border-brand-ink bg-brand-ink text-white"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     } ${saving ? "cursor-wait opacity-60" : ""}`}
                   >

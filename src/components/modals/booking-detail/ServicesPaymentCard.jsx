@@ -44,7 +44,7 @@ export function ServicesPaymentCard({
           <span className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
             Total
           </span>
-          <span className="text-[20px] font-extrabold text-brand-purple tabular-nums">
+          <span className="text-[20px] font-extrabold text-brand-ink tabular-nums">
             £{pricing.subtotal}
           </span>
         </div>

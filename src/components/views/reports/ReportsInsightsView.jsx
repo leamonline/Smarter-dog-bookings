@@ -197,7 +197,7 @@ export function ReportsInsightsView({ loadError = null }) {
                     type="button"
                     onClick={() => setAllExpanded((value) => !value)}
                     aria-expanded={allExpanded}
-                    className="inline-flex items-center gap-1 min-h-[36px] px-2 bg-transparent border-none cursor-pointer text-xs font-bold text-brand-purple hover:text-brand-purple/70 font-[inherit]"
+                    className="inline-flex items-center gap-1 min-h-[36px] px-2 bg-transparent border-none cursor-pointer text-xs font-bold text-brand-ink hover:text-brand-ink/70 font-[inherit]"
                   >
                     {allExpanded ? "Collapse all" : "Expand all"}
                   </button>

@@ -25,7 +25,7 @@ const BASE =
 
 const VARIANTS = {
   primary:
-    "bg-brand-yellow text-brand-purple border-transparent shadow-cta-yellow " +
+    "bg-brand-yellow text-brand-ink border-transparent shadow-cta-yellow " +
     "hover:bg-brand-yellow-dark " +
     "disabled:bg-slate-100 disabled:text-slate-600 disabled:shadow-none",
   // The strong secondary: charcoal fill, white label. For a confirm or a main

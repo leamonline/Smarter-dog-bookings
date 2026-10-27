@@ -3,7 +3,7 @@ import { FocusScope } from "react-aria";
 import { useRailDocked } from "./dockedRail";
 
 const MOBILE_BACK_CLASS =
-  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2";
 
 export function InboxWorkspaceShell({
   rootRef,
@@ -81,7 +81,7 @@ export function InboxWorkspaceShell({
           <button
             type="button"
             aria-label="Dismiss booking and customer context"
-            className="absolute inset-0 z-20 hidden bg-slate-950/25 transition-opacity duration-200 md:block wide:hidden motion-reduce:transition-none motion-reduce:duration-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple"
+            className="absolute inset-0 z-20 hidden bg-slate-950/25 transition-opacity duration-200 md:block wide:hidden motion-reduce:transition-none motion-reduce:duration-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink"
             onClick={dismissContext}
           />
         )}

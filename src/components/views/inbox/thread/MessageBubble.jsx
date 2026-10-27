@@ -145,7 +145,7 @@ export function MessageBubble({ message, onRetry }) {
           <>
             <div className="flex items-center gap-1.5 mb-1">
               <span
-                className="inline-flex items-center gap-1 px-1 rounded text-[9px] font-bold tracking-wide bg-brand-purple/15 text-brand-purple"
+                className="inline-flex items-center gap-1 px-1 rounded text-[9px] font-bold tracking-wide bg-brand-ink/15 text-brand-ink"
                 title="Automated interactive message"
               >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

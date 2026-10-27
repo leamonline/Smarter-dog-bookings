@@ -221,7 +221,7 @@ describe("ConversationListItem", () => {
     // The name is muted, NOT struck through (strikethrough reads as deleted).
     const name = screen.getByText("Sarah Jones");
     expect(name.className).not.toContain("line-through");
-    expect(name.className).toContain("text-brand-purple/55");
+    expect(name.className).toContain("text-brand-ink/55");
   });
 
   it("never shows a 'Handled by staff' badge for human-takeover threads", () => {

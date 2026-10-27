@@ -50,17 +50,17 @@ function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, dailyCa
             role="tab"
             aria-selected={active}
             onClick={() => onPickDate(date.dateObj)}
-            className={`min-h-[52px] border-r border-slate-100 px-1 py-1.5 text-center transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:min-h-[66px] sm:py-2 ${
+            className={`min-h-[52px] border-r border-slate-100 px-1 py-1.5 text-center transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink sm:min-h-[66px] sm:py-2 ${
               // "Which date am I looking at" is orienting information, not a
               // problem — coral is reserved for the latter, so the currently
               // viewed date gets a quiet ink tint instead.
-              active ? "bg-brand-purple/[0.06]" : "hover:bg-slate-50"
+              active ? "bg-brand-ink/[0.06]" : "hover:bg-slate-50"
             }`}
           >
             <span className="block text-micro font-bold uppercase tracking-wide text-slate-500">
               {date.dateObj.toLocaleDateString("en-GB", { weekday: "short" })}
             </span>
-            <span className="mt-0.5 block font-display text-lg font-black text-brand-purple">
+            <span className="mt-0.5 block font-display text-lg font-black text-brand-ink">
               {date.dateObj.getDate()}
             </span>
             {open ? (
@@ -99,7 +99,7 @@ export function DraftOffer({
     <div className={compact ? "" : "border-t border-slate-200 pt-3"}>
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-xs font-extrabold text-brand-purple">Draft offer ({choices.length})</h3>
+          <h3 className="text-xs font-extrabold text-brand-ink">Draft offer ({choices.length})</h3>
           <p className="mt-0.5 text-micro text-slate-500">Not saved or sent</p>
         </div>
         {choices.length > 0 ? (
@@ -110,7 +110,7 @@ export function DraftOffer({
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {choices.length ? choices.map((choice) => (
-          <span key={slotChoiceKey(choice)} className="inline-flex min-h-8 items-center rounded-control bg-brand-yellow/20 px-2.5 text-caption font-bold text-brand-purple">
+          <span key={slotChoiceKey(choice)} className="inline-flex min-h-8 items-center rounded-control bg-brand-yellow/20 px-2.5 text-caption font-bold text-brand-ink">
             {formatDate(choice.dateStr)} · {choice.slot}
           </span>
         )) : (
@@ -239,17 +239,17 @@ export function BookingPane({
               the date and its two arrows. */}
           <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
             <div className="hidden sm:block">
-              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-purple">Diary</h2>
+              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-ink">Diary</h2>
               <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
             </div>
             <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">
-              <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+              <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50">
                 <ChevronLeft aria-hidden="true" size={18} />
               </button>
-              <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-purple sm:min-w-[150px] sm:flex-none">
+              <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-ink sm:min-w-[150px] sm:flex-none">
                 {formatDate(currentDateStr, { year: "numeric" })}
               </div>
-              <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-purple hover:bg-slate-50">
+              <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50">
                 <ChevronRight aria-hidden="true" size={18} />
               </button>
             </div>
@@ -269,7 +269,7 @@ export function BookingPane({
       {!hasSelection ? (
         <div id="booking-desk-diary" className="flex flex-1 flex-col items-center justify-center px-6 text-center text-slate-500">
           <PawPrint aria-hidden="true" size={28} className="text-slate-300" />
-          <p className="mt-3 text-sm font-bold text-brand-purple">{emptyStateTitle}</p>
+          <p className="mt-3 text-sm font-bold text-brand-ink">{emptyStateTitle}</p>
           <p className="mt-1 text-xs">{emptyStateBody}</p>
         </div>
       ) : !open ? (
@@ -307,7 +307,7 @@ export function BookingPane({
               onClick={() => onToggleChoice(choice)}
               aria-pressed={selected}
               title={disabled && capacityCheck?.reason ? capacityCheck.reason : undefined}
-              className={`grid w-full grid-cols-[52px_minmax(0,1fr)_auto] items-start text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple ${
+              className={`grid w-full grid-cols-[52px_minmax(0,1fr)_auto] items-start text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink ${
                 selected
                   ? "bg-brand-teal/[0.08]"
                   : bookable && open
@@ -331,7 +331,7 @@ export function BookingPane({
                 </span>
               </span>
               <span className="min-w-0 px-3 py-3">
-                <span className="block text-xs font-bold text-brand-purple">{slot}</span>
+                <span className="block text-xs font-bold text-brand-ink">{slot}</span>
                 {/* Existing bookings stay visible even when the slot is
                     selected — that context is exactly what staff want to
                     sanity-check before offering or booking a time. */}

@@ -49,7 +49,7 @@ export function DaySettingsDrawer({
             </div>
             <h2
               id={TITLE_ID}
-              className="text-base font-bold text-brand-purple font-display leading-tight"
+              className="text-base font-bold text-brand-ink font-display leading-tight"
             >
               {dayLabel}
             </h2>
@@ -58,7 +58,7 @@ export function DaySettingsDrawer({
             type="button"
             onClick={() => onClose?.()}
             aria-label="Close"
-            className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-purple transition-colors"
+            className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-ink transition-colors"
           >
             <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
@@ -85,7 +85,7 @@ export function DaySettingsDrawer({
                 )}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-brand-purple">
+                <div className="text-sm font-bold text-brand-ink">
                   {isOpen ? "Close this day" : "Open this day"}
                 </div>
                 <div className="text-caption text-slate-500">
@@ -110,7 +110,7 @@ export function DaySettingsDrawer({
                   <Clock size={16} strokeWidth={2.2} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-brand-purple">
+                  <div className="text-sm font-bold text-brand-ink">
                     Close part of the day
                   </div>
                   <div className="text-caption text-slate-500">
@@ -132,11 +132,11 @@ export function DaySettingsDrawer({
                 onClick={onAddSlot}
                 className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
               >
-                <span className="w-9 h-9 rounded-full bg-brand-yellow/15 text-brand-purple flex items-center justify-center shrink-0">
+                <span className="w-9 h-9 rounded-full bg-brand-yellow/15 text-brand-ink flex items-center justify-center shrink-0">
                   <Plus size={16} strokeWidth={2.5} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-brand-purple">Add an extra slot</div>
+                  <div className="text-sm font-bold text-brand-ink">Add an extra slot</div>
                   <div className="text-caption text-slate-500">Add 30 minutes to the end of the day</div>
                 </div>
               </button>
@@ -171,11 +171,11 @@ export function DaySettingsDrawer({
               onClick={onPrintDaySheet}
               className="w-full flex items-center gap-3 p-3 rounded-tile border border-slate-200 hover:border-brand-yellow/60 cursor-pointer transition-colors bg-white font-[inherit] text-left"
             >
-              <span className="w-9 h-9 rounded-full bg-brand-purple/5 text-brand-purple flex items-center justify-center shrink-0">
+              <span className="w-9 h-9 rounded-full bg-brand-ink/5 text-brand-ink flex items-center justify-center shrink-0">
                 <Printer size={16} strokeWidth={2.2} />
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-brand-purple">Print day sheet</div>
+                <div className="text-sm font-bold text-brand-ink">Print day sheet</div>
                 <div className="text-caption text-slate-500">Today's schedule for the salon</div>
               </div>
             </button>

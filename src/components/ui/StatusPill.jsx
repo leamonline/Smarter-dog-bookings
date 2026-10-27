@@ -23,7 +23,7 @@ const STATE_LABELS = {
 
 const STATE_STYLES = {
   ai_handling: "bg-slate-100 text-slate-700 border-slate-200",
-  human_takeover: "bg-brand-purple/10 text-brand-purple border-brand-purple/20",
+  human_takeover: "bg-brand-ink/10 text-brand-ink border-brand-ink/20",
   snoozed: "bg-sky-100 text-sky-800 border-sky-200",
   closed: "bg-slate-100 text-slate-500 border-slate-200",
 };

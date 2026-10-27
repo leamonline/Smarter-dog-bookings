@@ -56,7 +56,7 @@ function InboxActionableRow({ conv, onOpen }) {
   return (
     <div className="bg-white rounded-tile p-3 border border-slate-100 flex flex-col gap-1 shadow-sm">
       <div className="flex items-center justify-between text-caption font-bold text-slate-500">
-        <span className="text-brand-purple font-extrabold">{conv.displayName}</span>
+        <span className="text-brand-ink font-extrabold">{conv.displayName}</span>
         <span className="text-slate-400 tabular-nums">{formatTimeWaiting(conv.lastAt)}</span>
       </div>
       <p className="text-xs text-slate-700 italic truncate max-w-full">
@@ -65,7 +65,7 @@ function InboxActionableRow({ conv, onOpen }) {
       <button
         type="button"
         onClick={() => onOpen(conv.conversationId)}
-        className="mt-1.5 self-start text-caption font-bold text-brand-purple hover:underline cursor-pointer bg-transparent border-none p-0"
+        className="mt-1.5 self-start text-caption font-bold text-brand-ink hover:underline cursor-pointer bg-transparent border-none p-0"
       >
         Open conversation
       </button>

@@ -18,7 +18,7 @@ const STATUS_TONES = {
   danger: "border-rose-200 bg-rose-50 text-rose-800",
   warning: "border-brand-mustard-tint bg-feedback-warning-tint text-feedback-warning-ink",
   success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  info: "border-brand-purple/20 bg-brand-purple/5 text-brand-purple",
+  info: "border-brand-ink/20 bg-brand-ink/5 text-brand-ink",
   neutral: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
@@ -69,7 +69,7 @@ export function ConversationListItem({
             checked={isChecked}
             onChange={() => onToggleSelect(conv.id)}
             aria-label={`Select conversation with ${displayName(conv)}`}
-            className="h-4 w-4 cursor-pointer accent-brand-purple"
+            className="h-4 w-4 cursor-pointer accent-brand-ink"
           />
         </label>
       )}
@@ -92,10 +92,10 @@ export function ConversationListItem({
           <span
             className={`truncate text-body ${
               unread
-                ? "font-bold text-brand-purple"
+                ? "font-bold text-brand-ink"
                 : isClosed
-                  ? "font-semibold text-brand-purple/55"
-                  : "font-semibold text-brand-purple/90"
+                  ? "font-semibold text-brand-ink/55"
+                  : "font-semibold text-brand-ink/90"
             }`}
           >
             {displayName(conv)}

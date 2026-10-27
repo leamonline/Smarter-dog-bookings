@@ -27,8 +27,8 @@ describe("DogSizeMark", () => {
       name: new RegExp(tone === "unknown" ? "size unknown" : `${tone} dog`, "i"),
     });
     expect(mark).toHaveAttribute("data-size-tone", tone);
-    expect(mark).toHaveClass("bg-brand-purple/5", "border-brand-purple/15");
-    expect(mark.querySelector(".dog-size-mark__silhouette")).toHaveClass("text-brand-purple");
+    expect(mark).toHaveClass("bg-brand-ink/5", "border-brand-ink/15");
+    expect(mark.querySelector(".dog-size-mark__silhouette")).toHaveClass("text-brand-ink");
   });
 
   it("can be decorative when written size is already present", () => {

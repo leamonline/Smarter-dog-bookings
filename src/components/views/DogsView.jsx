@@ -80,9 +80,9 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
             aria-label={`Jump to ${letter === "#" ? "non-letter names" : `the letter ${letter}`}`}
             className={`shrink-0 w-7 h-7 max-md:w-9 max-md:h-9 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
               active
-                ? "bg-brand-yellow text-brand-purple"
+                ? "bg-brand-yellow text-brand-ink"
                 : enabled
-                  ? "text-slate-600 hover:bg-brand-purple/10 hover:text-brand-purple cursor-pointer"
+                  ? "text-slate-600 hover:bg-brand-ink/10 hover:text-brand-ink cursor-pointer"
                   : "text-slate-400 cursor-default"
             }`}
           >
@@ -104,8 +104,8 @@ function UnarchiveButton({ onUnarchive, inline = false }) {
       }}
       title="Unarchive this dog"
       className={inline
-        ? "min-h-11 min-w-11 px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-        : "absolute top-2 right-2 z-[1] min-h-11 min-w-11 text-caption font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
+        ? "min-h-11 min-w-11 px-3 py-2 rounded-full text-xs font-bold text-brand-ink bg-white border border-brand-ink/30 cursor-pointer hover:bg-brand-ink/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] min-h-11 min-w-11 text-caption font-bold text-brand-ink bg-brand-ink/10 border border-brand-ink/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-ink/20 transition-colors"}
     >
       Unarchive
     </button>
@@ -129,7 +129,7 @@ function OwnerContact({ phone, className = "" }) {
   if (!phone) return null;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <a href={telLink(phone)} className="inline-flex min-h-11 min-w-11 items-center truncate font-medium no-underline hover:text-brand-purple">
+      <a href={telLink(phone)} className="inline-flex min-h-11 min-w-11 items-center truncate font-medium no-underline hover:text-brand-ink">
         {phone}
       </a>
       <a
@@ -181,9 +181,9 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   const open = () => onOpenDog(dog.id || dog.name);
 
   const gridCardClass =
-    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple/30 hover:shadow-card-hover";
+    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-ink/30 hover:shadow-card-hover";
   const listCardClass =
-    "group relative flex flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-purple/30";
+    "group relative flex flex-col items-start gap-2 rounded-tile border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-ink/30";
 
   return (
     <article
@@ -194,7 +194,7 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
         <DogSizeMark size={dog.size} decorative />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-title font-extrabold text-brand-purple">
+            <span className="truncate text-title font-extrabold text-brand-ink">
               {titleCase(dog.name)}
             </span>
             {incomplete && (
@@ -416,7 +416,7 @@ export function DogsView({
             <div className="sr-only lg:not-sr-only">
               <PageHeaderPill>
               {isInitialLoading && displayList.length === 0 ? (
-                <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+                <SkeletonBlock className="h-4 w-32 bg-brand-ink/10" />
               ) : (
                 headerCountText
               )}
@@ -459,8 +459,8 @@ export function DogsView({
                       aria-label={s.label}
                       className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-caption font-bold transition-colors ${
                         active
-                          ? "bg-brand-yellow text-brand-purple border-brand-yellow"
-                          : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
+                          ? "bg-brand-yellow text-brand-ink border-brand-yellow"
+                          : "bg-white text-slate-500 border-slate-200 hover:border-brand-ink hover:text-brand-ink"
                       }`}
                     >
                       <SizeDot size={s.value === "unset" ? null : s.value} dim={12} />
@@ -475,8 +475,8 @@ export function DogsView({
                   aria-pressed={!!filters?.alert}
                   className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.alert
-                      ? "bg-brand-yellow text-brand-purple border-brand-yellow"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
+                      ? "bg-brand-yellow text-brand-ink border-brand-yellow"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-brand-ink hover:text-brand-ink"
                   }`}
                 >
                   Has alert
@@ -487,8 +487,8 @@ export function DogsView({
                   aria-pressed={!!filters?.incomplete}
                   className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.incomplete
-                      ? "bg-brand-yellow text-brand-purple border-brand-yellow"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
+                      ? "bg-brand-yellow text-brand-ink border-brand-yellow"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-brand-ink hover:text-brand-ink"
                   }`}
                 >
                   Incomplete profile
@@ -510,8 +510,8 @@ export function DogsView({
                     aria-pressed={sortMode === mode}
                     className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
                       sortMode === mode
-                        ? "bg-brand-yellow text-brand-purple"
-                        : "text-slate-500 hover:text-brand-purple"
+                        ? "bg-brand-yellow text-brand-ink"
+                        : "text-slate-500 hover:text-brand-ink"
                     }`}
                   >
                     {label}
@@ -639,7 +639,7 @@ export function DogsView({
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="text-body font-semibold text-ink-muted hover:text-brand-purple bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
+              className="text-body font-semibold text-ink-muted hover:text-brand-ink bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
             >
               {showArchived ? "← Back to active" : "Show archived"}
             </button>

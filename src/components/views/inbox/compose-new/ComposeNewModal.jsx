@@ -118,7 +118,7 @@ function CustomerRow({ human, onSelect }) {
       onClick={() => onSelect(human)}
       className="w-full text-left px-3 py-2 border-b border-slate-100 hover:bg-brand-yellow/10 transition-colors cursor-pointer font-[inherit]"
     >
-      <div className="text-body font-semibold text-brand-purple">{full}</div>
+      <div className="text-body font-semibold text-brand-ink">{full}</div>
       {human.phone && (
         <div className="text-caption text-slate-500 tabular-nums">{human.phone}</div>
       )}
@@ -294,7 +294,7 @@ export function ComposeNewModal({
               </span>
               <h2
                 id={titleId}
-                className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+                className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
               >
                 {selectedHuman
                   ? `New message to ${selectedHuman.name ?? ""} ${selectedHuman.surname ?? ""}`.trim()

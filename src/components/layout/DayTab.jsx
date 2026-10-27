@@ -63,7 +63,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       className={[
         "flex flex-col items-center gap-1 py-2 px-2 sm:px-2.5 rounded-card cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[52px]",
         isActive
-          ? "bg-brand-purple/10"
+          ? "bg-brand-ink/10"
           : !isOpen
             ? "bg-transparent opacity-60 hover:bg-slate-50 hover:opacity-100"
             : "bg-transparent hover:bg-slate-50",
@@ -73,7 +73,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       <span
         className={`text-micro font-bold uppercase tracking-wide leading-none ${
           isActive
-            ? "text-brand-purple"
+            ? "text-brand-ink"
             : "text-slate-500"
         }`}
       >
@@ -85,7 +85,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
         className={[
           "relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
-            ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
+            ? "bg-brand-yellow text-brand-ink shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
             : dayCircleStyle({ isPast, dogCount, isOpen }),
           isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1" : "",
         ].join(" ")}
@@ -97,7 +97,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       <span
         className={`text-[9px] font-bold leading-none ${
           isActive
-            ? "text-brand-purple"
+            ? "text-brand-ink"
             : "text-slate-600"
         }`}
         aria-hidden={isLoading || undefined}

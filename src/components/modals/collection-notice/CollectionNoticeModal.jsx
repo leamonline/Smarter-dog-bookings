@@ -256,7 +256,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
             </span>
             <h2
               id="collection-notice-title"
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               {dogName} {isPlural ? "are" : "is"} ready
             </h2>
@@ -300,7 +300,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
               value={minutes}
               onChange={(e) => setMinutes(e.target.value.replace(/[^\d]/g, ""))}
               aria-label="Minutes until ready for collection"
-              className="w-16 h-9 max-sm:h-11 rounded-lg border border-slate-300 px-2 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-purple/40"
+              className="w-16 h-9 max-sm:h-11 rounded-lg border border-slate-300 px-2 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-ink/40"
             />
             <span>mins</span>
           </label>
@@ -348,7 +348,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                     className="flex items-center justify-between gap-3 rounded-tile border border-slate-100 bg-white p-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-body font-semibold text-brand-purple truncate">
+                      <div className="text-body font-semibold text-brand-ink truncate">
                         {displayName(r)}
                         <span className="ml-1.5 text-caption font-medium text-slate-400">
                           {r.relationship}
@@ -369,7 +369,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                           ? "bg-emerald-100 text-emerald-700 cursor-default"
                           : disabled
                             ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            : "bg-brand-purple text-white hover:bg-brand-purple/90 cursor-pointer",
+                            : "bg-brand-ink text-white hover:bg-brand-ink/90 cursor-pointer",
                       ].join(" ")}
                     >
                       {isSent ? "Sent ✓" : isSending ? "Sending…" : "Send"}

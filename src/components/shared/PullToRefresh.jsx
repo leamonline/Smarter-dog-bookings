@@ -105,7 +105,7 @@ export function PullToRefresh({ onRefresh, children, className = "" }) {
         )}
         <div className="pointer-events-none sticky top-2 z-30 h-0 text-center" role="status" aria-live="polite">
           {(state.progress > 0 || state.refreshing) && (
-            <span data-refresh-indicator className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-brand-purple shadow-sm">
+            <span data-refresh-indicator className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-brand-ink shadow-sm">
               {state.refreshing ? "Refreshing…" : state.progress >= 1 ? "Release to refresh" : "Pull to refresh"}
             </span>
           )}

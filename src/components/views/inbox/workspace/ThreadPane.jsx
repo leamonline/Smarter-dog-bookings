@@ -155,7 +155,7 @@ export function ThreadPane({
             <button
               type="button"
               onClick={onBack}
-              className="h-11 w-11 shrink-0 rounded-full text-[18px] text-brand-purple transition-colors hover:bg-brand-purple/5 md:hidden"
+              className="h-11 w-11 shrink-0 rounded-full text-[18px] text-brand-ink transition-colors hover:bg-brand-ink/5 md:hidden"
               aria-label="Back to inbox"
             >
               ←
@@ -166,7 +166,7 @@ export function ThreadPane({
               size={36}
             />
             <div className="min-w-0">
-              <span className="block max-w-[260px] truncate font-display text-sm font-bold leading-tight text-brand-purple">
+              <span className="block max-w-[260px] truncate font-display text-sm font-bold leading-tight text-brand-ink">
                 {displayName(conversation)}
               </span>
               <div className="truncate text-xs text-slate-600">
@@ -199,7 +199,7 @@ export function ThreadPane({
               type="button"
               onClick={onOpenBooking}
               aria-label={bookingSuggested ? "Booking (suggested)" : undefined}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-ink transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Booking
               {bookingSuggested ? (
@@ -210,7 +210,7 @@ export function ThreadPane({
               ref={contextTriggerRef}
               type="button"
               onClick={onOpenCustomer}
-              className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-purple transition-colors hover:border-brand-yellow/60 wide:hidden"
+              className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-brand-ink transition-colors hover:border-brand-yellow/60 wide:hidden"
             >
               Customer
             </button>
@@ -244,7 +244,7 @@ export function ThreadPane({
               <button
                 type="button"
                 onClick={onRetryLoad}
-                className="ml-2 border-none bg-transparent p-0 font-[inherit] font-semibold text-brand-purple underline"
+                className="ml-2 border-none bg-transparent p-0 font-[inherit] font-semibold text-brand-ink underline"
               >
                 Retry
               </button>

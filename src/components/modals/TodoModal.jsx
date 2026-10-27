@@ -277,7 +277,7 @@ export function TodoModal({ onClose, onOpenClosureVisit }) {
             </span>
             <h2
               id={titleId}
-              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+              className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1"
             >
               To-Do List
             </h2>
