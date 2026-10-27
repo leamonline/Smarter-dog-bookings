@@ -132,10 +132,10 @@ export function ReportsInsightsView({ loadError = null }) {
         </div>
       ) : loadError && stats.curN === 0 ? (
         <ErrorBanner
-          title="We can't load the reports right now"
-          message="The booking data didn't load. Refresh to have another go."
+          title="Couldn't load reports"
+          message="The appointment data didn't load. Check your connection, then reload reports."
           retry={() => window.location.reload()}
-          retryLabel="Refresh"
+          retryLabel="Reload reports"
         />
       ) : stats.curN === 0 ? (
         <Card padding="none">

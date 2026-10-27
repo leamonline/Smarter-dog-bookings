@@ -54,7 +54,7 @@ export const Card = forwardRef(function Card(
   const interactiveCls = interactive
     ? "cursor-pointer text-left w-full motion-safe:transition-all motion-safe:duration-[var(--duration-base)] " +
       "hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover " +
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1"
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1"
     : "";
 
   // For a non-button clickable card (role="button"), supply the Enter/Space

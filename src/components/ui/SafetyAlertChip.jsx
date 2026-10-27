@@ -45,7 +45,7 @@ export function SafetyAlertChip({ items, className = "" }) {
         // activation from bubbling up and opening the profile as well.
         if (e.key === "Enter" || e.key === " ") e.stopPropagation();
       }}
-      className={`inline-flex items-start gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md text-left cursor-pointer transition-colors hover:bg-brand-coral/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral/50 focus-visible:ring-offset-1 ${className}`}
+      className={`inline-flex items-start gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md text-left cursor-pointer transition-colors hover:bg-brand-coral/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 ${className}`}
     >
       <AlertTriangle size={12} aria-hidden="true" className="shrink-0 mt-px" />
       <span className={expanded ? "whitespace-normal break-words" : "truncate"}>

@@ -5,7 +5,7 @@ import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
-import { turnstileConfig, CAPTCHA_PENDING_ERROR } from "../../lib/turnstile";
+import { turnstileConfig, CAPTCHA_PENDING_ERROR, getTurnstileErrorMessage } from "../../lib/turnstile";
 
 const OTP_RESEND_SECONDS = 60;
 // Keep the format hint gentle — getting your phone number wrong is the most
@@ -74,6 +74,7 @@ export function CustomerLoginPage({
   const [otpIsReset, setOtpIsReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [captchaFeedback, setCaptchaFeedback] = useState(null);
   const [otpCooldown, setOtpCooldown] = useState(otpSent ? OTP_RESEND_SECONDS : 0);
   const [resendStatus, setResendStatus] = useState("");
   const resendInFlight = useRef(false);
@@ -93,6 +94,9 @@ export function CustomerLoginPage({
       : awaitingPassword
         ? "password"
         : "phone";
+  // A newly mounted stage owns a fresh challenge; never show an old stage's result.
+  const captchaError = captchaFeedback?.stage === stage ? captchaFeedback.error : "";
+  const captchaComplete = captchaFeedback?.stage === stage && captchaFeedback.complete;
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -123,6 +127,7 @@ export function CustomerLoginPage({
   }, [stage]);
 
   const resetCaptcha = () => {
+    setCaptchaFeedback(null);
     turnstileRef.current?.reset();
     captchaTokenRef.current = null;
   };
@@ -319,8 +324,7 @@ export function CustomerLoginPage({
 
   const errorText = localError || error;
 
-  // Yellow CTA is reserved for non-booking primary actions across the portal;
-  // green stays the booking-only colour.
+  // Yellow is the lead-action colour for sign-in and booking alike.
   const submitButtonClass = `w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--color-brand-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-brand-yellow-dark)] disabled:opacity-70 transition-colors ${focusRing}`;
   const linkButtonClass = `w-full text-sm font-semibold no-underline rounded text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] py-2 ${focusRing}`;
 
@@ -373,18 +377,24 @@ export function CustomerLoginPage({
               siteKey={turnstileConfig.siteKey}
               onSuccess={(token) => {
                 captchaTokenRef.current = token;
+                setCaptchaFeedback({ stage, error: "", complete: true });
               }}
               onExpire={() => {
+                setCaptchaFeedback(null);
                 captchaTokenRef.current = null;
               }}
-              onError={() => {
+              onError={(code) => {
+                setCaptchaFeedback({ stage, error: getTurnstileErrorMessage(code), complete: false });
                 captchaTokenRef.current = null;
               }}
               options={{ theme: "light", size: "normal" }}
             />
           </div>
-          <p className="text-xs text-[var(--color-ink-muted)] text-center mt-3 leading-relaxed">
-            Just confirms you&apos;re human — no clicks needed.
+          <p role={captchaError ? "alert" : undefined}
+            aria-live={captchaError ? undefined : "polite"}
+            aria-label={captchaError ? "Security check" : undefined}
+            className="text-xs text-[var(--color-ink-muted)] text-center mt-3 leading-relaxed">
+            {captchaError || (captchaComplete ? "Security check complete." : "Complete the security check if prompted.")}
           </p>
         </>
       )}

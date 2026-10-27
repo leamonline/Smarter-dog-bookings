@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
  */
 export const CEILINGS = {
   rawFormControls: { input: 61, textarea: 17, select: 19 },
-  rawButtons: { raw: 451, legacy: 0 },
+  rawButtons: { raw: 449, legacy: 0 },
   hardCodedColours: { literals: 90 },
   offScale: { shadow: 37, radius: 6, card16: 0, tile12: 0 },
   smallText: { underFloor: 27, namedSizes: 0 },

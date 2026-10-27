@@ -1,5 +1,8 @@
-import { forwardRef } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import { Search, X } from "lucide-react";
+import { Input } from "./Input.jsx";
+import { Button } from "./Button.jsx";
+import { IconButton } from "./IconButton.jsx";
 
 function classes(...values) {
   return values.filter(Boolean).join(" ");
@@ -64,7 +67,7 @@ export function PageHeader({
 const PILL_TONES = {
   neutral: "bg-slate-100 text-slate-700",
   open: "bg-emerald-50 text-emerald-700",
-  closed: "bg-brand-coral-light text-brand-coral",
+  closed: "bg-brand-coral-light text-brand-coral-text",
   purple: "bg-brand-purple/5 text-brand-purple",
   teal: "bg-brand-teal/10 text-brand-teal-text",
   amber: "bg-brand-yellow/25 text-slate-800",
@@ -105,7 +108,7 @@ export function PageHeaderSegmented({
       role="group"
       aria-label={ariaLabel}
       className={classes(
-        "inline-flex h-11 shrink-0 items-center rounded-control border border-slate-200 bg-slate-100 p-1",
+        "inline-flex h-11 pointer-coarse:h-auto shrink-0 items-center rounded-control border border-slate-200 bg-slate-100 p-1",
         className,
       )}
     >
@@ -118,7 +121,7 @@ export function PageHeaderSegmented({
             onClick={() => onChange(option.value)}
             aria-pressed={active}
             className={classes(
-              "inline-flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors",
+              "inline-flex h-9 pointer-coarse:min-h-11 items-center justify-center rounded-control px-3 text-xs font-bold transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1",
               active
                 ? "bg-brand-purple text-white shadow-sm"
@@ -145,73 +148,60 @@ export const PageHeaderSearch = forwardRef(function PageHeaderSearch(
   },
   ref,
 ) {
+  const inputRef = useRef(null);
+  useImperativeHandle(ref, () => inputRef.current);
   const accessibleLabel =
     ariaLabel || inputProps["aria-label"] || placeholder || "Search";
   const canClear = Boolean(onClear && value);
 
   return (
-    <div className="relative min-w-[9rem] flex-1 md:w-80 md:flex-none md:shrink-0">
+    <div className="relative min-w-0 w-full md:w-80 md:flex-none md:shrink-0">
       <Search
         aria-hidden="true"
         size={18}
-        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
       />
-      <input
+      <Input
         {...inputProps}
-        ref={ref}
+        ref={inputRef}
         type="search"
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         aria-label={accessibleLabel}
         className={classes(
-          "h-11 w-full rounded-control border border-slate-300 bg-white pl-10 text-sm font-semibold text-brand-purple shadow-sm outline-none",
-          "placeholder:font-medium placeholder:text-slate-400",
-          "focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20",
-          "disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500",
-          canClear ? "pr-11" : "pr-3",
+          "min-h-11 pl-10",
+          canClear ? "pr-12" : "pr-3",
           className,
         )}
       />
       {canClear ? (
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label="Clear search"
-          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-control text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+        <IconButton
+          label="Clear search"
+          disabled={inputProps.disabled}
+          onClick={() => { onClear(); inputRef.current?.focus(); }}
+          className="absolute right-0 top-1/2 -translate-y-1/2"
         >
           <X aria-hidden="true" size={16} />
-        </button>
+        </IconButton>
       ) : null}
     </div>
   );
 });
 
 export const PageHeaderAction = forwardRef(function PageHeaderAction(
-  {
-    children,
-    icon: Icon,
-    type = "button",
-    className = "",
-    ...buttonProps
-  },
+  { children, icon: Icon, variant = "strong", className = "", ...buttonProps },
   ref,
 ) {
   return (
-    <button
+    <Button
       {...buttonProps}
       ref={ref}
-      type={type}
-      className={classes(
-        "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-control bg-brand-purple px-4 text-sm font-bold text-white shadow-sm",
-        "transition-colors hover:bg-brand-purple-light",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        className,
-      )}
+      variant={variant}
+      iconLeft={Icon ? <Icon aria-hidden="true" size={16} /> : null}
+      className={classes("min-h-11 shrink-0", className)}
     >
-      {Icon ? <Icon aria-hidden="true" size={16} /> : null}
       {children}
-    </button>
+    </Button>
   );
 });

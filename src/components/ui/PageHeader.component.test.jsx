@@ -75,12 +75,13 @@ describe("PageHeaderSearch", () => {
     });
     expect(input).toHaveValue("Alfie");
     expect(input).toHaveAttribute("name", "dog-search");
-    expect(input).toHaveClass("h-11", "w-full");
+    expect(input).toHaveClass("w-full");
 
     await user.click(screen.getByRole("button", { name: "Clear search" }));
 
     expect(onClear).toHaveBeenCalledOnce();
     expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
     expect(
       screen.queryByRole("button", { name: "Clear search" }),
     ).not.toBeInTheDocument();
@@ -88,7 +89,7 @@ describe("PageHeaderSearch", () => {
 });
 
 describe("PageHeaderAction", () => {
-  it("renders a 44px purple action with its icon and forwards button props", async () => {
+  it("renders a shared strong action with its icon and forwards button props", async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
 
@@ -100,10 +101,21 @@ describe("PageHeaderAction", () => {
 
     const action = screen.getByRole("button", { name: "Add dog" });
     expect(action).toHaveAttribute("type", "button");
-    expect(action).toHaveClass("h-11", "rounded-control", "bg-brand-purple");
+    expect(action).toHaveClass("min-h-11", "rounded-full", "bg-ink");
     expect(action.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 
     await user.click(action);
     expect(onClick).toHaveBeenCalledOnce();
   });
+  it("supports a loading lead action without allowing another activation", async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<PageHeaderAction variant="primary" loading onClick={onClick}>Adding dog</PageHeaderAction>);
+    const action = screen.getByRole("button", { name: /Adding dog/ });
+    expect(action).toBeDisabled();
+    expect(action).toHaveAttribute("aria-busy", "true");
+    await user.click(action);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
 });

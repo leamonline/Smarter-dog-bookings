@@ -1,8 +1,8 @@
 /* ==============================================
    Customer Portal — Brand Reskin
    Smarter Dog Grooming
-   White/sky surfaces, lime CTA, navy ink,
-   yellow accents only, tinted section bands.
+   Paper/sky surfaces, yellow lead actions, charcoal ink,
+   tinted section bands.
    Tightened grid + densified cards for better flow.
    ============================================== */
 
@@ -343,7 +343,9 @@
 }
 
 .portal-btn:disabled {
-  opacity: 0.5;
+  opacity: 1;
+  background: var(--color-slate-100);
+  color: var(--color-slate-600);
   cursor: not-allowed;
   transform: none !important;
   box-shadow: none !important;
@@ -379,15 +381,15 @@
 }
 
 .portal-btn--cta {
-  background: var(--color-sd-green);
+  background: var(--color-brand-yellow);
   color: var(--color-ink); /* readable on bright green */
   padding: 14px 26px;
   font-size: 16px;
   width: 100%;
   letter-spacing: 0.2px;
-  box-shadow: 0 8px 18px -8px rgba(0, 194, 71, 0.55);
+  box-shadow: var(--shadow-sd-cta-yellow);
 }
-.portal-btn--cta:hover { background: var(--color-sd-green-dark); box-shadow: 0 12px 24px -8px rgba(0, 149, 54, 0.55); }
+.portal-btn--cta:hover:not(:disabled) { background: var(--color-brand-yellow-dark); box-shadow: var(--shadow-sd-cta-yellow); }
 .portal-btn--cta .portal-btn-arrow { transition: transform 250ms ease; }
 .portal-btn--cta:hover .portal-btn-arrow { transform: translateX(4px); }
 
@@ -1155,4 +1157,14 @@
   .portal-card { padding: 16px 16px 14px; }
   .portal-btn--cta { font-size: 15px; padding: 13px 22px; }
   .portal-welcome { font-size: 24px; }
+}
+
+/* Disabled wins over all portal action variants, including hover. */
+.portal-btn:disabled,
+.portal-btn:disabled:hover {
+  opacity: 1;
+  background: var(--color-slate-100);
+  color: var(--color-slate-600);
+  box-shadow: none;
+  transform: none;
 }

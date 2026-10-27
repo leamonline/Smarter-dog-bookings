@@ -9,6 +9,7 @@ import {
   resolveTurnstileConfig,
   TURNSTILE_TEST_SITE_KEY,
   isCaptchaRejection,
+  getTurnstileErrorMessage,
 } from "./turnstile";
 
 // The real "Customer Log-in Capture" widget. Public, so safe to write here.
@@ -117,5 +118,16 @@ describe("isCaptchaRejection", () => {
     expect(isCaptchaRejection(undefined)).toBe(false);
     expect(isCaptchaRejection(null)).toBe(false);
     expect(isCaptchaRejection(42 as unknown as string)).toBe(false);
+  });
+});
+
+describe("Turnstile visitor recovery guidance", () => {
+  it("explains the clock/cache class without treating it as a bad password", () => {
+    expect(getTurnstileErrorMessage("200100")).toContain("date and time");
+    expect(getTurnstileErrorMessage("200100")).toContain("fresh browser session");
+  });
+  it("does not invent a clock diagnosis for an unknown widget failure", () => {
+    expect(getTurnstileErrorMessage("200500")).toContain("connection");
+    expect(getTurnstileErrorMessage(undefined)).not.toContain("date and time");
   });
 });

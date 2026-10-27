@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — iPhone controls and Daily Brief hierarchy (#1142)
+
+- Dogs/Humans search gets a full-width phone row and restores focus when cleared.
+- Header and Settings save actions use shared button behaviour; yellow leads
+  directory and customer booking actions. Disabled controls keep readable labels.
+- Error recovery names the operation and uses wrapping, touch-sized controls.
+- Daily Brief separates urgent attention from quieter totals and reduces header
+  overhead, preserving card geometry, status meaning and booking behaviour.
+- Customer CAPTCHA widget failures show recovery guidance; no-click promises
+  are removed. The original capture cause and a normal-device challenge remain
+  unverified; see the [investigation](docs/research/2026-10-27-sign-in-security-check.md).
+- Current visual rules and component usage now distinguish source from old exports.
+  No migration, new decoration, customer-data change or provider configuration change.
+
 ## Unreleased — customer screens load on demand (#1073)
 
 - Sign-in no longer downloads the dashboard, booking wizard or onboarding

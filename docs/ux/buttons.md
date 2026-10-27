@@ -29,3 +29,10 @@ builds on [warm-colours.md](warm-colours.md), which says yellow means "do this".
 ## How this is held
 `rawButtons.ratchet.test.ts` counts the hand-written `<button>` tags and fails if
 the number rises. Moving a hand-written button to `Button` lowers the ceiling.
+
+## Header and customer actions
+
+PageHeaderAction delegates to Button and defaults to strong; pass primary for
+the local lead. Customer portal CTA and wizard confirmation use yellow with
+charcoal text too; WhatsApp and success greens keep their separate meaning.
+Settings SaveButton uses Button, including loading/disabled behaviour.

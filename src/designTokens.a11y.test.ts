@@ -31,8 +31,8 @@ describe("design system: WCAG AA text pairs", () => {
     ["WhatsApp link", "color-brand-whatsapp-dark", "#FFFFFF"],
     ["muted text on white", "color-text-muted", "#FFFFFF"],
     ["muted text on paper", "color-text-muted", "#F7EFE6"],
-    ["portal green CTA", "color-sd-green", "#1F1F1F"],
-    ["portal green CTA hover", "color-sd-green-dark", "#1F1F1F"],
+    ["portal yellow CTA", "color-brand-yellow", "#1F1F1F"],
+    ["portal yellow CTA hover", "color-brand-yellow-dark", "#1F1F1F"],
     ["bright WhatsApp action", "color-brand-whatsapp", "#1F1F1F"],
   ])("%s remains at least 4.5:1", (_label, fg, bg) => {
     expect(contrast(literal(fg), bg)).toBeGreaterThanOrEqual(4.5);
@@ -50,7 +50,7 @@ describe("design system: WCAG AA text pairs", () => {
     expect(css).toContain("@apply bg-brand-coral-dark text-white");
     expect(button).toContain("bg-brand-coral-dark text-white border-transparent");
     expect(portal).toMatch(/\.portal-btn--danger\s*\{\s*background: var\(--color-brand-coral-dark\);/);
-    expect(portal).toMatch(/\.portal-btn--cta\s*\{\s*background: var\(--color-sd-green\);\s*color: var\(--color-ink\)/);
+    expect(portal).toMatch(/\.portal-btn--cta\s*\{\s*background: var\(--color-brand-yellow\);\s*color: var\(--color-ink\)/);
     expect(portal).toMatch(/\.portal-btn--whatsapp\s*\{\s*background: var\(--color-brand-whatsapp\);\s*color: var\(--color-ink\)/);
   });
 

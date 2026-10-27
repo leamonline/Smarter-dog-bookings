@@ -18,18 +18,18 @@ values:
 
 | Purpose | Classes / tokens |
 |---|---|
-| Primary CTA colour | `bg-brand-yellow` / `text-brand-purple` (primary button uses this pairing — mustard-on-ink, not blue) |
+| Primary CTA colour | `bg-brand-yellow` / `text-brand-ink` (yellow fill, charcoal label; portal booking actions too) |
 | Danger / destructive | `bg-brand-coral-dark text-white` (hover `bg-brand-coral-deep`); use bright coral only as an accent |
 | Success / confirmed | `bg-brand-green-*` (numbered 50–900 scale) |
 | Size semantics | `--color-size-small` (yellow), `--color-size-medium` (teal), `--color-size-large` (coral) — used by `SizeDot`/`SizeTag`, keep this mapping if you build new size UI |
 | Body ink | `text-ink` / `text-ink-muted` (charcoal and accessible staff grey). Do not use placeholder tokens for required text |
-| Card surface | `bg-white border border-slate-200 rounded-2xl shadow-card-resting` (what `<Card>` renders — reuse this recipe for any new card-like surface instead of `shadow-md`) |
-| Form-control radius | `rounded-control` (10px — the codified value for inputs/buttons; not `rounded-md`/`rounded-xl`) |
+| Card surface | `bg-white border border-slate-200 rounded-card shadow-card-resting` (what `<Card>` renders — reuse this recipe for any new card-like surface instead of `shadow-md`) |
+| Form-control radius | `rounded-control` (10px — inputs and segmented controls; Button and IconButton are pills) |
 | Motion | `duration-[var(--duration-base)]` (180ms — the standard interactive-transition speed) |
 
 Fonts: **Montserrat** is body/UI (`font-sans`), **Poppins** is
 display/headings (`font-display`), **Barlow Condensed** is for selected hero lines
-(`font-hero`), and **Caveat** is an optional handwriting accent.
+(`font-hero`), Caveat is a retained legacy font token, not a default for new work.
 Rebuild this bundle after token/font changes. Don't
 introduce a different font family for new text.
 
@@ -45,8 +45,8 @@ renders rather than assume every Tailwind utility is available.
 - Use `--color-border-focus` (charcoal on light surfaces) and a white outline on dark headers. Selection must not rely on a decorative yellow line alone.
 - Inline links are underlined without hover; colour alone is insufficient. The canonical `Button` link variant is underlined.
 - On touch devices, use at least a 44px hit area for icon-only actions. Use `.tap-target` where a component does not otherwise provide that floor.
-- Use 12px or larger for useful metadata on small screens; the named micro and caption typography steps grow at narrow widths. Form controls are 16px on touch to prevent iOS focus zoom.
-- Alert chips select style by semantic `tone` (`behaviour`, `caution`, `information`), never by a specific hex value.
+- Use 12px or larger for useful metadata on small screens; the named micro and caption steps are 12px at every width. Form controls are 16px on touch to prevent iOS focus zoom.
+- `SafetyAlertChip` accepts `items` and `className`; it has no `tone` prop. Its safety colours remain frozen.
 - `--color-brand-purple` remains a compatibility alias for charcoal `--color-brand-ink`; do not use the old name in new work.
 
 ### Where the truth lives
@@ -73,7 +73,7 @@ const { Card, PageHeader, PageHeaderAction, Badge, StatusPill } = window.Smarter
   <PageHeader
     title="Dogs"
     subtitle="248 dogs on file"
-    actions={<PageHeaderAction>Add dog</PageHeaderAction>}
+    actions={<PageHeaderAction variant="primary">Add dog</PageHeaderAction>}
   />
   <Card interactive accent="#FECC13">
     <div className="flex items-center justify-between">
@@ -84,3 +84,13 @@ const { Card, PageHeader, PageHeaderAction, Badge, StatusPill } = window.Smarter
   </Card>
 </div>
 ```
+
+### Current interaction contract
+
+See [the current design-system rules](../docs/ux/design-system.md) for the full
+source-of-truth map. `PageHeaderSearch` composes `Input` and `IconButton`;
+`PageHeaderAction` composes `Button` and defaults to `variant="strong"`.
+Do not override colours, focus or disabled styling at those call sites.
+All supplied screenshots are dated evidence: regenerate captures after a sync;
+a source update does not make an old image current. Do not update token-snapshot
+metadata merely because code changed; it records an actual design sync.

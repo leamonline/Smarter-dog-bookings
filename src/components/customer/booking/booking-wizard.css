@@ -565,9 +565,8 @@
   gap: 8px;
   transition: transform 220ms ease, box-shadow 220ms ease, background 200ms ease;
 }
-/* Disabled opacity matches .portal-btn (0.5) so the three button systems
-   share a single "dim" feel when disabled. */
-.wizard-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+/* Disabled actions retain readable labels, matching the shared controls. */
+.wizard-btn:disabled { opacity: 1; cursor: not-allowed; transform: none; box-shadow: none; }
 .wizard-btn--back {
   background: white;
   border: 1.5px solid rgba(31, 31, 31, 0.18);
@@ -584,12 +583,12 @@
 }
 .wizard-btn--primary:hover:not(:disabled) { background: var(--color-brand-yellow-dark); transform: translateY(-2px); }
 .wizard-btn--confirm {
-  background: var(--color-sd-green);
-  color: white;
+  background: var(--color-brand-yellow);
+  color: var(--color-ink);
   flex: 1;
-  box-shadow: var(--shadow-sd-cta-green);
+  box-shadow: var(--shadow-sd-cta-yellow);
 }
-.wizard-btn--confirm:hover:not(:disabled) { background: var(--color-sd-green-dark); transform: translateY(-2px); }
+.wizard-btn--confirm:hover:not(:disabled) { background: var(--color-brand-yellow-dark); transform: translateY(-2px); }
 
 /* Subtle helper line under headings */
 .wizard-helper {
@@ -732,4 +731,9 @@
 @media (prefers-reduced-motion: reduce) {
   .booking-success-polaroid { animation: none; }
   .booking-success-paws svg { animation: none; }
+}
+
+.wizard-btn:disabled {
+  background: var(--color-slate-100);
+  color: var(--color-slate-600);
 }

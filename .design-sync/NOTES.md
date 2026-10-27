@@ -1,5 +1,13 @@
 # design-sync notes — Smarter Dog UI Kit
 
+## 27 October 2026 consistency follow-up
+
+Current rules are in [docs/ux/design-system.md](../docs/ux/design-system.md).
+Header search/actions delegate to shared controls; directory search has its own
+iPhone row; yellow also leads portal booking. Supplied October captures predate
+these edits and require a new capture during the next actual sync. Historical
+snapshot metadata below is retained as history, not rewritten as current proof.
+
 ## Repo shape
 
 This is not a published component library. `src/components/ui/` is an internal

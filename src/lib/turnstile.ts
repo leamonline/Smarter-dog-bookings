@@ -57,6 +57,14 @@ export function isCaptchaRejection(message?: string | null): boolean {
   return typeof message === "string" && /captcha protection/i.test(message);
 }
 
+/** Public widget failure guidance; never weakens the token requirement. */
+export function getTurnstileErrorMessage(code?: string): string {
+  if (code === "200100") {
+    return "The security check couldn't verify your device time. Check that your date and time are set automatically, then reload this page. If they are already correct, try a fresh browser session.";
+  }
+  return "The security check couldn't finish. Check your connection and reload this page. If it keeps happening, contact the salon.";
+}
+
 export interface TurnstileEnvironment {
   siteKey?: string | null;
   forceOffline?: boolean;
