@@ -50,6 +50,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run check:docs
+      - name: Test encrypted Storage recovery tooling
+        run: python3 -m unittest discover -s scripts/operations -p 'test_storage_archive.py'
       - run: npm run typecheck
       - name: Validate migrations
         run: node scripts/check-migrations.mjs
