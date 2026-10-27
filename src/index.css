@@ -131,6 +131,10 @@
 }
 
 @theme {
+  /* The smallest tap target, 44px at the normal root size. Safety controls and
+     icon buttons use it so the number lives in one place (docs/ux/design-system.md). */
+  --spacing-touch-target: 2.75rem;
+
   /* Wide-desktop breakpoint for the Inbox workspace, where the Booking /
      Customer rail docks beside the list and thread instead of overlaying them.
      90rem === 1440px (rem in a media query always resolves against the initial

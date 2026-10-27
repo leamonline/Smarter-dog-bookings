@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Readable safety area on the day card
+
+- The day card's safety note is now a full-width, 44px-minimum target showing up
+  to two warnings in words, most important first. When they cannot all be read it
+  says "Review safety instructions before handling · N alerts" instead of cutting
+  words off. Card height (144px) and every original note are unchanged.
+- Warnings are ordered by what staff recorded (handling restriction, behaviour,
+  then softer notes); nothing is inferred, reworded or dropped.
+- A delivery-failure flag beside a safety note becomes an icon so safety keeps the width.
+- New `--spacing-touch-target` token (44px). The directory chip is 12px text with
+  a 44px touch floor on coarse pointers and uses the shared focus outline.
+
 ## Unreleased — iPhone controls and Daily Brief hierarchy (#1142)
 
 - Dogs/Humans search gets a full-width phone row and restores focus when cleared.

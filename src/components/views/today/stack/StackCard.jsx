@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import { money } from "../../../../engine/dayStack";
 import { tokenActions } from "../../../../engine/salonBoard";
+import { orderSafetyFacts } from "../../../../engine/safetyOrder";
 import { DayCard, resolveDayStatus } from "../../../ui";
 import { firstName, telephoneHref } from "../parts.jsx";
 import { titleCase } from "../../../../utils/text";
@@ -70,10 +71,9 @@ export function StackCard({
   const dogName = titleCase(display.dogMissing ? "Unnamed booking" : display.dogName);
   const ownerName = display.ownerMissing ? "" : titleCase(display.owner);
 
-  const safetyFacts = [
-    welfare?.pregnant ? "Pregnant" : null,
-    ...(welfare?.alerts || []),
-  ].filter(Boolean);
+  const safetyFacts = orderSafetyFacts(
+    [welfare?.pregnant ? "Pregnant" : null, ...(welfare?.alerts || [])].filter(Boolean),
+  );
 
   // Money only matters once the dog is ready to leave. Before that it is a
   // number nobody can act on.
