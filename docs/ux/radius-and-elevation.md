@@ -58,12 +58,12 @@ Migrating the stock `rounded-xl` / `rounded-2xl` cards to `rounded-card` and the
 cards, 8 to 10 on fields), so it is done in slices a screen at a time and looked
 at, not in one sweep.
 
-## Existing modal-shell exception
+## Modal shell tokens
 
-`ModalShell` currently preserves its established 20px shell radius, 24px mobile
-sheet top corners and bespoke charcoal shadow. These are encapsulated legacy
-exceptions, documented in [the modal standard](../modal-standard.md), not a
-recipe to copy into consumers. The general rule against new arbitrary radius
-or shadow values still holds. A later token migration should preserve these
-pixels and be verified independently; this control-consistency work does not
-change modal geometry.
+The entity modals keep their established look, now as named tokens with the same
+values, so nothing moved: `rounded-modal` (20px shell), `rounded-modal-sheet`
+(24px top corners of the phone bottom sheet), `shadow-modal-shell` (a soft
+charcoal lift) and `bg-modal-backdrop` (charcoal at 45%). They belong to
+`ModalShell` (and the one dialog, `MergeHumanDialog`, that mirrors it); use
+`ModalShell` rather than these names in a new dialog. The general rule against
+arbitrary radius and shadow values holds. See [the modal standard](../modal-standard.md).
