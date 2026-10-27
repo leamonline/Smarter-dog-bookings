@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { AccessibleModal, Button, Field, Input, Select } from "../ui";
+import { AccessibleModal, Button, Field, IconButton, Input, Select } from "../ui";
 import {
   validateClosure,
   endTimeOptions,
@@ -169,14 +169,9 @@ export function CloseTimesDialog({
             {dayLabel}
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-ink transition-colors"
-        >
+        <IconButton label="Close" onClick={onClose}>
           <X size={18} strokeWidth={2.2} aria-hidden="true" />
-        </button>
+        </IconButton>
       </header>
 
       <div className="p-5 flex flex-col gap-4">
