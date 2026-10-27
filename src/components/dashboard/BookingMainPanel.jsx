@@ -71,7 +71,7 @@ export function BookingMainPanel({
               title="Couldn't load the day's bookings"
               message={typeof bookingsError === "string" ? bookingsError : "Check your connection and try again."}
               retry={onRetry}
-              retryLabel="Refresh"
+              retryLabel="Reload appointments"
             />
           )}
 

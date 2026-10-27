@@ -716,13 +716,19 @@ describe("TodayHeader", () => {
     // One financial voice here: the till. Due-now lives in the strip; the day
     // total lives in the end-of-day facts.
     expect(status).toHaveTextContent("£286 collected");
+    const totals = within(status).getByRole("group", { name: "Day totals" });
+    expect(totals).toHaveTextContent("£286 collected");
+    expect(totals).toHaveTextContent("3 arriving");
+    expect(totals).not.toHaveTextContent("1 late");
+    expect(within(status).getByRole("group", { name: "Needs attention" })).toBeInTheDocument();
+
     expect(status).not.toHaveTextContent("to collect");
 
     fireEvent.click(within(status).getByRole("button", { name: /Highlight 1 late/ }));
     expect(onSelectAttentionReason).toHaveBeenCalledWith("late");
   });
 
-  it("reassures in a whole sentence when nothing needs doing, with no control to press", () => {
+  it("reassures in a whole sentence when nothing needs doing, with no attention control to press", () => {
     render(
       <TodayHeader
         dateLabel="Thursday 2 July"
@@ -741,7 +747,7 @@ describe("TodayHeader", () => {
     const status = screen.getByRole("region", { name: "Day status" });
     expect(status).toHaveTextContent("Everything's on track");
     expect(status).toHaveTextContent("All paid");
-    expect(within(status).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(status).queryByRole("button", { name: /^(Highlight|Stop highlighting)/ })).not.toBeInTheDocument();
   });
 
   it("gives the active segment an explicit visible selected state", () => {

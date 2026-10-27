@@ -277,7 +277,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                   />
                 </div>
                 <p className="text-xs text-[var(--color-ink-muted)] text-center mt-2 sm:mt-3 leading-relaxed hidden sm:block">
-                  Just confirms you&apos;re human — no clicks needed.
+                  Complete the security check if prompted.
                 </p>
               </>
             )}

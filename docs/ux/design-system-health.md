@@ -3,7 +3,7 @@
 Status: Active
 Last verified: 2026-10-26
 
-Five counts track how much of the app still bypasses the design system. Each has
+Six counts track how much of the app still bypasses the design system. Each has
 a ceiling that may only go down. One command shows them all.
 
 ```bash

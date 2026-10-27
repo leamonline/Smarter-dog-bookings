@@ -481,7 +481,7 @@ function AuthedApp({
               <OfflineDemoBanner isOnline={isOnline} />
               <NetworkOfflineBanner />
               {data.dataError && !data.errorDismissed && (
-                <ErrorBanner message={data.dataError} onClose={data.dismissError} />
+                <ErrorBanner title="Couldn't load salon data" message={data.dataError} onClose={data.dismissError} />
               )}
               {passwordCompromised && (
                 <ErrorBanner

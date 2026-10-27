@@ -36,16 +36,16 @@ at zero). Both live in the shared kit, `src/components/ui`, and import from `com
 [`src/components/ui/ModalShell.jsx`](../src/components/ui/ModalShell.jsx)
 
 - 4px **accent bar** (`<div className="h-1 shrink-0" style={{ background: accent }}>`).
-- Paper surface `bg-[var(--color-brand-paper)]` (**`#FAF9F6`**, not pure white).
-- `rounded-[20px]`, soft branded shadow `shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)]`.
+- Paper surface `bg-[var(--color-brand-paper)]` (**`#F7EFE6`**, not pure white).
+- `rounded-[20px]`, soft branded shadow `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]`.
 - **Pinned** header (`shrink-0`) + **scrolling** body
   (`flex-1 min-h-0 overflow-y-auto overscroll-contain`) + **pinned** footer (`shrink-0`, with
   `max-sm:pb-[env(safe-area-inset-bottom)]`).
 - Mobile full-screen sheet: `max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none`.
 - Entrance `animate-shell-in` (gentle rise ≥sm, slide-up sheet <sm); backdrop
-  `bg-[rgba(45,0,75,0.45)] animate-overlay-fade`.
+  `bg-[rgba(31,31,31,0.45)] animate-overlay-fade`.
 - Props: `onClose, titleId, accent, header, footer, children, widthClass, maxHeightClass,`
-  `backdropClass, dismissOnEscape, zIndex, bodyClassName, rootClassName`.
+  `backdropClass, dismissOnEscape, zIndex, bodyClassName, rootClassName, mobilePresentation`.
 
 ### `PanelShell` — internal section card
 [`src/components/modals/shell/PanelShell.jsx`](../src/components/modals/shell/PanelShell.jsx)
@@ -82,7 +82,7 @@ Uppercase eyebrow + hairline divider + coloured corner icon chip. `accent ∈`
 ```jsx
 <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
   <div className="flex-1 min-w-0">
-    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eyebrow</span>
+    <span className="text-label text-ink-muted uppercase">Eyebrow</span>
     <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate">
       {title}
     </h2>
@@ -97,8 +97,8 @@ Uppercase eyebrow + hairline divider + coloured corner icon chip. `accent ∈`
 **Footer idiom** (lives in the `footer` slot, stays pinned):
 ```jsx
 <div className="border-t border-slate-100 bg-white px-5 py-3 flex items-center gap-2.5">
-  <button type="button" className="px-4 py-2 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold …">Cancel</button>
-  <button type="button" className="ml-auto py-2 px-5 rounded-full bg-action text-on-action hover:bg-brand-yellow-dark text-sm font-bold …">Save changes</button>
+  <Button variant="ghost">Cancel</Button>
+  <Button className="ml-auto">Save changes</Button>
 </div>
 ```
 
@@ -124,20 +124,20 @@ Uppercase eyebrow + hairline divider + coloured corner icon chip. `accent ∈`
 | Role | Pattern |
 |---|---|
 | **Primary CTA** | `rounded-full bg-action text-on-action hover:bg-brand-yellow-dark`, ≥44px tall on mobile, `ml-auto` in a footer |
-| **Secondary / Cancel** | `rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 hover:bg-slate-50` |
-| **Destructive** | coral/rose: `bg-brand-coral text-white` (or rose-bordered ghost for a softer "Cancel booking") |
+| **Secondary / Cancel** | `<Button variant="ghost">` (pill, readable disabled state) |
+| **Destructive** | coral/rose: `bg-brand-coral-dark text-white` (or rose-bordered ghost for a softer "Cancel booking") |
 | **Header icon button** | `HeaderIconButton` (44px mobile/tablet → 32px `lg+`) |
 
 **Tokens — prefer these over literals:**
 
 | Use | Token | Value |
 |---|---|---|
-| Modal surface | `bg-[var(--color-brand-paper)]` | `#FAF9F6` |
-| Backdrop | `bg-[rgba(45,0,75,0.45)] animate-overlay-fade` | purple-tint |
-| Shell shadow | `shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)]` | branded soft |
+| Modal surface | `bg-[var(--color-brand-paper)]` | `#F7EFE6` |
+| Backdrop | `bg-[rgba(31,31,31,0.45)] animate-overlay-fade` | charcoal tint |
+| Shell shadow | `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]` | branded soft |
 | Outer radius | `rounded-[20px]` | 20px |
 | Control radius | `rounded-control` | `--radius-control: 10px` |
-| CTA fill / text | `bg-action` / `text-on-action` | `#FECC13` / `#2D004B` |
+| CTA fill / text | `bg-action` / `text-on-action` | `#FECC13` / `#1F1F1F` |
 | Title text | `text-brand-purple`, `font-display` | — |
 | iOS field-zoom fix | `.bm-fields` root class | ≥16px on touch, 13px on fine pointer |
 
@@ -147,7 +147,7 @@ hex for brand colours; missing entrance animation.
 
 > Note: `shadow-modal` (`0 8px 32px rgba(0,0,0,0.18)`) and `shadow-elevated` **are** real
 > tokens, but they are *not* the gold-standard shell shadow. Use the branded
-> `shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)]` (which `ModalShell` already applies for you).
+> `shadow-[0_18px_50px_-12px_rgba(31,31,31,0.28)]` (which `ModalShell` already applies for you).
 
 ---
 
@@ -166,7 +166,7 @@ hex for brand colours; missing entrance animation.
    to paper + `rounded-[20px]` + shell shadow + ≥44px buttons. Bespoke confirm dialogs
    (busy state, an input, a checklist) should match that same look and a11y.
 4. **Customer portal** (`src/components/customer/*`) — intentionally its own visual system
-   (`--sd-*` tokens, Quicksand font, `.portal-btn`/`.portal-input`). Do **not** repaint these
+   (`--color-sd-*` tokens, Montserrat body and Poppins headings, `.portal-btn`/`.portal-input`). Do **not** repaint these
    with staff-app tokens. Hold them to the *a11y* baseline only (focus trap, ESC, role/aria,
    `titleId`→heading, scroll-lock, 44px targets, `type="button"`).
 

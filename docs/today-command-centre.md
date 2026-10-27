@@ -449,3 +449,11 @@ Carried from the build's gap analysis (G1–G7):
 3. **Payment method + paid_at** — a minimal ledger would unlock a real till view.
 4. **Portal funnel telemetry** — instrument wizard start→complete to measure
    drop-off (the missing half of 2E/2F).
+
+## iPhone header hierarchy (27 October 2026)
+
+TodayHeader keeps date and availability action first, actionable attention next,
+and a labelled Day totals group for salon state, online availability, progress
+and collected money. Repair/deposit warnings remain before the first dog.
+The hierarchy refinement leaves day-stack geometry, 144px card headers, ordering
+and expansion calculations untouched. See the [current design-system rules](ux/design-system.md).

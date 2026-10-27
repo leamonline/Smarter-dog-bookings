@@ -2,6 +2,7 @@
 // Shared sub-components used by multiple settings sections.
 
 import { cloneElement, useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "../../ui/Button.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 // Email format check shared by the explicit-save tabs (Business, Account).
@@ -129,19 +130,11 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
 }
 
 export function SaveButton({ onClick, saving, saved, label = "Save changes", disabled = false }) {
-  const base = "px-4 py-2.5 rounded-control border-none text-body font-bold font-[inherit] motion-safe:transition-colors duration-200";
-  const state = disabled
-    ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-    : saving
-    ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-    : saved
-      ? "bg-brand-teal-text text-white"
-      : "bg-brand-teal-text text-white cursor-pointer hover:bg-brand-teal-dark";
-
   return (
-    <button onClick={onClick} disabled={saving || disabled} className={`${base} ${state}`}>
-      {saving ? "Saving\u2026" : saved ? "\u2713 Saved" : label}
-    </button>
+    <Button onClick={onClick} loading={saving} disabled={disabled}
+      variant={saved ? "ghost" : "primary"}>
+      {saving ? "Saving…" : saved ? "✓ Saved" : label}
+    </Button>
   );
 }
 

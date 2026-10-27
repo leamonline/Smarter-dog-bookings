@@ -564,20 +564,30 @@ export function HumansView({
         aria-label="Humans directory controls"
       >
         <PageHeader title="Humans Directory">
-          <PageHeaderSegmented
-            value={viewMode}
-            onChange={setViewMode}
-            options={VIEW_OPTIONS}
-            ariaLabel="Human directory view"
-          />
-          <PageHeaderPill className="hidden lg:inline-flex">
-            {isInitialLoading && displayList.length === 0 ? (
-              <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
-            ) : (
-              headerCountText
+          <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
+            <PageHeaderSegmented
+              value={viewMode}
+              onChange={setViewMode}
+              options={VIEW_OPTIONS}
+              ariaLabel="Human directory view"
+            />
+            <div className="sr-only lg:not-sr-only">
+              <PageHeaderPill>
+              {isInitialLoading && displayList.length === 0 ? (
+                <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+              ) : (
+                headerCountText
+              )}
+              </PageHeaderPill>
+            </div>
+            <div className="flex-1" />
+            <DirectoryHeaderKey />
+            {onNewClient && (
+              <PageHeaderAction variant="primary" icon={Plus} onClick={onNewClient} aria-label="Add client">
+                Add client
+              </PageHeaderAction>
             )}
-          </PageHeaderPill>
-          <div className="hidden flex-1 md:block" />
+          </div>
           <PageHeaderSearch
             value={searchQuery}
             onChange={(event) => onSearch(event.target.value)}
@@ -585,12 +595,6 @@ export function HumansView({
             ariaLabel="Search humans"
             placeholder="Search clients..."
           />
-          <DirectoryHeaderKey />
-          {onNewClient && (
-            <PageHeaderAction icon={Plus} onClick={onNewClient} aria-label="Add client">
-              Add client
-            </PageHeaderAction>
-          )}
         </PageHeader>
 
         {/* Less frequent filters and sorting stay below the primary toolbar. */}
@@ -669,7 +673,7 @@ export function HumansView({
           title="Couldn't load the humans directory"
           message="Check your connection, then try again"
           retry={() => window.location.reload()}
-          retryLabel="Refresh"
+          retryLabel="Reload humans"
         />
       )}
 
@@ -683,7 +687,7 @@ export function HumansView({
               title="Couldn't load archived humans"
               message="Check your connection, then try again"
               retry={retryArchived}
-              retryLabel="Try again"
+              retryLabel="Load archived humans again"
             />
           ) : showArchived && archivedList === null ? (
             <div className="py-12 text-center text-body text-slate-500 italic">

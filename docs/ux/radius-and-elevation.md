@@ -57,3 +57,13 @@ Migrating the stock `rounded-xl` / `rounded-2xl` cards to `rounded-card` and the
 8px fields to `rounded-control` changes pixels (12 to 16 on about half the
 cards, 8 to 10 on fields), so it is done in slices a screen at a time and looked
 at, not in one sweep.
+
+## Existing modal-shell exception
+
+`ModalShell` currently preserves its established 20px shell radius, 24px mobile
+sheet top corners and bespoke charcoal shadow. These are encapsulated legacy
+exceptions, documented in [the modal standard](../modal-standard.md), not a
+recipe to copy into consumers. The general rule against new arbitrary radius
+or shadow values still holds. A later token migration should preserve these
+pixels and be verified independently; this control-consistency work does not
+change modal geometry.

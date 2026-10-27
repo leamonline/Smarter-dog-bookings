@@ -12,16 +12,16 @@ describe("ErrorBanner", () => {
     expect(alert).toHaveTextContent("The connection dropped.");
   });
 
-  it("keeps the default warm title", () => {
+  it("uses a direct fallback title", () => {
     render(<ErrorBanner />);
-    expect(screen.getByRole("alert")).toHaveTextContent("That didn't quite work");
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't complete this action");
   });
 
   it("calls retry and onClose from their buttons", () => {
     const retry = vi.fn();
     const onClose = vi.fn();
     render(<ErrorBanner message="Nope." retry={retry} onClose={onClose} />);
-    fireEvent.click(screen.getByRole("button", { name: "Give it another go" }));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     fireEvent.click(screen.getByRole("button", { name: "Dismiss error" }));
     expect(retry).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);

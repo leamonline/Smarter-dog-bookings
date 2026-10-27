@@ -406,20 +406,33 @@ export function DogsView({
         aria-label="Dogs directory controls"
       >
         <PageHeader title="Dogs Directory">
-          <PageHeaderSegmented
-            value={viewMode}
-            onChange={setViewMode}
-            options={VIEW_OPTIONS}
-            ariaLabel="Directory view"
-          />
-          <PageHeaderPill className="hidden lg:inline-flex">
-            {isInitialLoading && displayList.length === 0 ? (
-              <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
-            ) : (
-              headerCountText
-            )}
-          </PageHeaderPill>
-          <div className="hidden flex-1 md:block" />
+          <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
+            <PageHeaderSegmented
+              value={viewMode}
+              onChange={setViewMode}
+              options={VIEW_OPTIONS}
+              ariaLabel="Directory view"
+            />
+            <div className="sr-only lg:not-sr-only">
+              <PageHeaderPill>
+              {isInitialLoading && displayList.length === 0 ? (
+                <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+              ) : (
+                headerCountText
+              )}
+              </PageHeaderPill>
+            </div>
+            <div className="flex-1" />
+            <DirectoryHeaderKey />
+            <PageHeaderAction
+              variant="primary"
+              icon={Plus}
+              onClick={() => setShowAddModal(true)}
+              aria-label="Add dog"
+            >
+              Add dog
+            </PageHeaderAction>
+          </div>
           <PageHeaderSearch
             value={searchQuery}
             onChange={(event) => onSearch(event.target.value)}
@@ -427,14 +440,6 @@ export function DogsView({
             ariaLabel="Search dogs by name, breed or owner"
             placeholder="Search by name, breed or owner..."
           />
-          <DirectoryHeaderKey />
-          <PageHeaderAction
-            icon={Plus}
-            onClick={() => setShowAddModal(true)}
-            aria-label="Add dog"
-          >
-            Add dog
-          </PageHeaderAction>
         </PageHeader>
 
         {showRailAndSort && (
@@ -537,7 +542,7 @@ export function DogsView({
           title="Couldn't load the dogs directory"
           message="Check your connection, then try again"
           retry={() => window.location.reload()}
-          retryLabel="Refresh"
+          retryLabel="Reload dogs"
         />
       )}
 
