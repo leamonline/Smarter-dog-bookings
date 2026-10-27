@@ -37,3 +37,20 @@ describe("database-backup.yml approval rule", () => {
     expect(workflow).toContain("if: ${{ vars.DATABASE_BACKUP_ENABLED == 'true' }}");
   });
 });
+
+
+describe("database-backup.yml file recovery", () => {
+  it("preserves the SQL artifact before starting the independent Storage backup", () => {
+    expect(workflow.indexOf("name: Keep the encrypted bundle for 90 days")).toBeLessThan(
+      workflow.indexOf("name: Back up and encrypt Storage files"),
+    );
+    expect(workflow).toContain("if: ${{ always() && steps.dump.outcome == 'success' }}");
+  });
+
+  it("backs up file bytes on the explicit production target and retains only ciphertext", () => {
+    expect(workflow).toContain("python3 scripts/operations/storage_archive.py backup");
+    expect(workflow).toContain('--expected-project-ref "$PRODUCTION_PROJECT_REF"');
+    expect(workflow).toContain("path: storage-backup-artifact/*.tar.gz.age");
+    expect(workflow).toContain("if: ${{ always() && steps.storage.outcome == 'success' }}");
+  });
+});

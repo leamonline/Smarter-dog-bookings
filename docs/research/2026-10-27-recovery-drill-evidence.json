@@ -1,0 +1,60 @@
+{
+  "checked_on": "2026-10-27",
+  "source_project": "nlzhllhkigmsvrzduefz",
+  "scratch_project": "kbhbprffdorhbmklzaro",
+  "database_artifact_restored": "database-backup-production-2026-10-19-run39190407921",
+  "scheduled_run_verified": {
+    "id": 40177159579,
+    "attempt": 2,
+    "event": "schedule",
+    "conclusion": "success",
+    "artifact": "database-backup-production-2026-10-27-run40177159579",
+    "decryption_and_sql_digests": "passed"
+  },
+  "storage": {
+    "buckets": 2,
+    "objects": 19,
+    "verified_bytes": 13363551,
+    "restored_from_independent_encrypted_archive": true,
+    "every_object_redownload_hash_matches": true
+  },
+  "capacity": {
+    "legal_slot_rows": 2,
+    "third_row_rejected": "Slot is full",
+    "transaction_rolled_back": true,
+    "fixture_dogs_after_rollback": 0
+  },
+  "snapshot_counts": {
+    "snapshot_tables_compared": 105,
+    "count_mismatches": {},
+    "snapshot_rows_omitted": 0,
+    "empty_vendor_vector_copy_blocks_skipped": 2,
+    "always_trigger_import_correction": true,
+    "copied_sessions_revoked": true,
+    "storage_buckets_private": true,
+    "full_data_import": "passed"
+  },
+  "relationships": {
+    "restored_foreign_keys_checked": 165,
+    "orphan_rows": 0,
+    "custom_storage_policies_restored": 4
+  },
+  "auth": {
+    "synthetic_auth_export_delete_reimport": "passed",
+    "original_password_sign_in": "passed",
+    "authenticated_user_identity_matches": true,
+    "customer_email_or_sms_sent": false
+  },
+  "permissions": {
+    "anonymous_human_access_denied": true,
+    "customer_sees_only_own_synthetic_human": true,
+    "staff_can_read_both_synthetic_humans": true,
+    "private_storage_anonymous_denied": true,
+    "private_storage_staff_file_hash_matches": true,
+    "private_storage_customer_denied": true,
+    "customer_storage_negative_uses_never_staff_account": true
+  },
+  "local_plaintext_and_temporary_credentials_removed": true,
+  "scratch_deleted": true,
+  "staging_resumption": "ACTIVE_HEALTHY verified after resumption"
+}

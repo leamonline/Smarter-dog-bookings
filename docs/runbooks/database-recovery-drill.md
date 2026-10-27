@@ -1,6 +1,6 @@
 # Database recovery drill
 
-Status: Prepared procedure; hosted execution and file recovery unverified
+Status: Tested hosted procedure on 27 October 2026; recurring Storage workflow awaits PR release
 Issue: [#986](https://github.com/leamonline/Smarter-dog-bookings/issues/986)
 Last verified: 2026-10-27
 
@@ -115,7 +115,12 @@ migrations at the artifact's schema generation, without executing cron/provider
 setup. Never drop a managed table or omit failing account data to obtain a pass.
 
 Stop on compatibility failures and record a sanitised error, table name and
-version mismatch. Any filtered diagnostic restore remains **partial**. Publish
+version mismatch. The tested exception is an empty COPY block for vendor-owned
+`storage.buckets_vectors` or `storage.vector_indexes`: assert zero source rows,
+omit only that empty block, and still compare the target's zero count. Nonempty
+unrestored data means **partial** recovery. Save and explicitly disable application
+trigger modes before COPY, including ALWAYS triggers; restore their original
+modes after COPY, retaining outbound isolation. Replica mode alone is insufficient. Publish
 only aggregate counts and pass/fail evidence.
 
 ## 4. Prove relationships, account access, permissions and capacity
@@ -132,8 +137,11 @@ perform a password sign-in without email/SMS delivery and make an authenticated
 request. If a fixture account is created only after import, label this evidence
 as scratch Auth availability, not proof that a backed-up account can sign in.
 To prove credential recovery without modifying production, create a synthetic
-account in a separate disposable Supabase source, export/import its Auth fixture
-using the same procedure and prove that its original password still works.
+account in the isolated target, export its Auth user and identity, delete that
+fixture through the Auth admin API, reimport its writable columns and prove that
+its original password still works. Omit generated columns from fixture INSERTs;
+PostgreSQL regenerates them. Ban copied customer accounts before temporarily
+enabling password sign-in for the synthetic fixture.
 The production snapshot's account rows and identity links must also pass the
 aggregate comparisons. Keep these two sources of evidence distinct.
 
@@ -194,3 +202,44 @@ resource and restriction immediately; do not report the drill as cleaned up.
 Append verified evidence to [the drill log](../operations.md#restore-drill-log).
 Keep #986 open until its remaining acceptance criteria are evidenced or the
 owner has explicitly accepted the documented file recovery boundary.
+
+
+## Reusable encrypted Storage commands
+
+The [Storage utility](../../scripts/operations/storage_archive.py) uses only the
+Python standard library plus `age`. It retrieves the specified project's
+service-role key in memory using `SUPABASE_ACCESS_TOKEN` supplied by a trusted
+secret mechanism. Do not paste credentials into command arguments or logs.
+`BACKUP_AGE_PUBLIC_KEY` contains only the public recipient. These are the same
+backup/archive/restore operations verified against the 19-object hosted drill;
+[the focused tests](../../scripts/operations/test_storage_archive.py) also cover
+pagination, nested folders, corruption, changing inventories and target guards.
+
+```bash
+# Read-only production backup; prerequisites are securely supplied environment
+# variables and an existing private destination directory, outside sync folders.
+python3 scripts/operations/storage_archive.py backup \
+  --project-ref nlzhllhkigmsvrzduefz \
+  --expected-project-ref nlzhllhkigmsvrzduefz \
+  --output "$PRIVATE_BACKUP_DIR/storage-production-$STAMP.tar.gz.age"
+
+# Customer-data write: only after authorising and checking a disposable target.
+# Both permanent refs are rejected by the utility even if supplied by mistake.
+python3 scripts/operations/storage_archive.py restore \
+  --project-ref "$SCRATCH_REF" \
+  --expected-project-ref "$SCRATCH_REF" \
+  --identity "$IDENTITY_PATH" \
+  --input "$PRIVATE_BACKUP_DIR/storage-production-$STAMP.tar.gz.age"
+
+python3 -m unittest discover -s scripts/operations -p 'test_storage_archive.py'
+```
+
+A successful backup emits only aggregate totals and an encrypted archive digest;
+no object paths are printed. Plaintext is automatically removed on exit. Existing
+backup destinations are never overwritten. Bucket/object paths and configuration
+remain inside the encrypted manifest. Restore writes private buckets, uses the
+Storage API rather than treating SQL metadata as file bytes, and verifies every
+uploaded object's bytes before reporting success. Restore does not provision or
+delete the project, reconstruct RLS or remove copied accounts: perform the rest
+of this runbook too. A failed restore may leave partial data in its authorised
+disposable target; investigate or delete that target rather than reporting a pass.

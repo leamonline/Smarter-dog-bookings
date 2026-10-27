@@ -1,10 +1,10 @@
 # Complete database recovery evidence
 
-Status: Active; hosted execution awaits owner inputs
+Status: Active; hosted drill passed, recurring Storage change awaits release
 Issue: [#986](https://github.com/leamonline/Smarter-dog-bookings/issues/986)
 Base: `origin/main@ccceeaa1f49705f43f53ceb356e5b0c714a5fc96`
 Last verified: 2026-10-27
-Owners: `docs/operations.md`, `docs/runbooks/database-recovery-drill.md`, this plan
+Owners: operations/runbook/evidence, Storage archive utility/tests, backup and CI workflows
 Dependencies: Scheduled environment token, offline age identity, disposable target
 Related requirements: [Operational recovery record](../../operations.md)
 Related ADRs: [ADR 006](../../architecture/decisions/006-manual-target-verified-database-rollout.md)
@@ -15,7 +15,7 @@ Prove a scheduled encrypted backup and recover its database, account access and
 agreed file boundary in disposable Supabase infrastructure. The existing dump
 and partial local restore do not prove full recovery after losing production.
 
-## Current behaviour
+## Current behaviour at initial discovery
 
 - [The workflow](../../../.github/workflows/database-backup.yml) has separate
   reviewer-gated manual and unattended scheduled environments. The runbook's
@@ -133,3 +133,38 @@ organisation may be used? How will credentials be supplied securely? Can the
 owner add the scheduled token? Which file recovery route is accepted? These
 inputs remain unresolved; no positive execution result or accepted loss is
 inferred from the prepared procedure.
+
+
+## Execution update — 27 October 2026
+
+The owner authorised pausing staging, using a disposable project in the named
+organisation, restoring customer data, deleting the target and resuming staging.
+The existing CLI token securely repaired the scheduled environment; scheduled
+run `40177159579` attempt 2 succeeded and its encrypted SQL artifact decrypted
+and passed both digest checks. The original age identity is confirmed usable.
+
+The full hosted drill restored 105 table counts, checked 165 foreign keys with
+zero orphans, proved synthetic credential recovery and user-role permissions,
+and rejected a synthetic overbooking with no excess persisted row. Nineteen
+files (13,363,551 bytes) were independently encrypted and restored, with every
+hash verified. See [the operational evidence](../../operations.md#27-october-2026-full-hosted-drill).
+Two compatibility corrections are now recorded there: empty vendor-owned vector
+COPY blocks, and explicit handling of an ALWAYS audit trigger during import.
+
+Scope now includes `scripts/operations/storage_archive.py`, its synthetic Python
+tests, the weekly backup workflow and one Python-test CI step. This closes the
+continuing file-recovery gap instead of relying on this sitting's one-off archive.
+The SQL artifact uploads before file backup begins; file failure fails the job
+while preserving the database artifact. Both artifacts retain the existing
+90-day encrypted retention. Production access is read-only; no production schema
+or application behaviour changes. No file-loss decision was needed.
+
+Validation includes the live read-only utility backup, a full hosted object
+round trip, Python tests and focused workflow tests. An independent reviewer
+found two issues (possible output overwrite and upload-after-timeout ordering);
+both were corrected and the reviewer found no remaining actionable defects.
+Staging is verified ACTIVE_HEALTHY and local plaintext/temporary credentials
+are removed. Focused verification passed: 12 Python tests, seven workflow tests,
+documentation checks and lint (existing warnings only). Next gates: current-head
+PR checks, merge the reviewed workflow change with owner authority,
+then exercise the released file backup and observe the next fresh schedule.
