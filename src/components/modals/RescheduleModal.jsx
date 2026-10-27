@@ -10,7 +10,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
-import { ModalShell } from "../ui";
+import { IconButton, ModalShell } from "../ui";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -175,23 +175,13 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
 
         {/* Month calendar */}
         <div className="flex items-center justify-between mb-2">
-          <button
-            type="button"
-            onClick={() => goMonth(-1)}
-            aria-label="Previous month"
-            className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none bg-transparent text-slate-500 hover:bg-slate-100 cursor-pointer transition-colors"
-          >
+          <IconButton label="Previous month" onClick={() => goMonth(-1)}>
             <ChevronLeft size={18} strokeWidth={2.5} />
-          </button>
+          </IconButton>
           <div className="text-sm font-bold text-slate-800">{monthName}</div>
-          <button
-            type="button"
-            onClick={() => goMonth(1)}
-            aria-label="Next month"
-            className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none bg-transparent text-slate-500 hover:bg-slate-100 cursor-pointer transition-colors"
-          >
+          <IconButton label="Next month" onClick={() => goMonth(1)}>
             <ChevronRight size={18} strokeWidth={2.5} />
-          </button>
+          </IconButton>
         </div>
         <div className="grid grid-cols-7 gap-1 mb-1" aria-hidden="true">
           {WEEKDAYS.map((d) => (

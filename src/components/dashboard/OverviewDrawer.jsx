@@ -3,6 +3,7 @@ import { DrawerShell } from "../shared/DrawerShell";
 import { WeekOverviewCard } from "./WeekOverviewCard.jsx";
 import { MiniCalendarCard } from "./MiniCalendarCard.jsx";
 import { CapacityCard } from "./CapacityCard.jsx";
+import { IconButton } from "../ui";
 
 const TITLE_ID = "overview-drawer-title";
 
@@ -51,14 +52,9 @@ export function OverviewDrawer({
             Week, month, capacity
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => onClose?.()}
-          aria-label="Close"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-ink transition-colors"
-        >
+        <IconButton label="Close" onClick={() => onClose?.()}>
           <X size={18} strokeWidth={2.2} aria-hidden="true" />
-        </button>
+        </IconButton>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 flex flex-col gap-4">
