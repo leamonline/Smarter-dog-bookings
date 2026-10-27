@@ -6,6 +6,7 @@ import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { dayCircleStyle, startOfDay } from "../layout/DayTab.jsx";
+import { IconButton } from "../ui";
 
 export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false }) {
   const todayStr = toDateStr(new Date());
@@ -60,25 +61,15 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
       }
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-        <button
-          type="button"
-          onClick={() => goMonth(-1)}
-          aria-label="Previous month"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors"
-        >
+        <IconButton label="Previous month" onClick={() => goMonth(-1)}>
           <ChevronLeft size={16} strokeWidth={2.5} />
-        </button>
+        </IconButton>
         <div className="flex-1 text-center text-sm font-bold text-brand-ink font-display">
           {monthName}
         </div>
-        <button
-          type="button"
-          onClick={() => goMonth(1)}
-          aria-label="Next month"
-          className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-ink/60 hover:text-brand-ink hover:bg-brand-ink/5 transition-colors"
-        >
+        <IconButton label="Next month" onClick={() => goMonth(1)}>
           <ChevronRight size={16} strokeWidth={2.5} />
-        </button>
+        </IconButton>
       </header>
 
       <div className="p-3">
