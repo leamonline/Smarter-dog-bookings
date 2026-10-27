@@ -278,7 +278,7 @@ describe("MiniInvoiceModal", () => {
     );
 
     const dialog = screen.getByRole("dialog", { name: "Invoice · Jack" });
-    expect(dialog).toHaveClass("max-sm:rounded-t-[24px]");
+    expect(dialog).toHaveClass("max-sm:rounded-t-modal-sheet");
     expect(dialog.parentElement).toHaveClass("items-end");
   });
 

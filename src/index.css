@@ -232,6 +232,8 @@
   --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
   --color-brand-paper: #F7EFE6;
+  /* Dimmed page behind a modal: charcoal at 45%. */
+  --color-modal-backdrop: rgba(31, 31, 31, 0.45);
   --color-brand-paper-line: #ECE7E0; /* warm card border on the paper surface */
   --color-brand-dark: #2A1810;
 
@@ -276,6 +278,12 @@
   /* Modal/overlay shadow — replaces the 17 inline copies of
      shadow-[0_8px_32px_rgba(0,0,0,0.18)] across the modal layer. */
   --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+  /* The entity-modal shell's own shadow, the backdrop behind it and its two
+     radii. Named so a modal is one recipe in one place; the values are exactly
+     what ModalShell and MergeHumanDialog hard-coded before, so no pixel moved.
+     Available as shadow-modal-shell, bg-modal-backdrop, rounded-modal and
+     rounded-modal-sheet. */
+  --shadow-modal-shell: 0 18px 50px -12px rgba(31, 31, 31, 0.28);
   /* Card resting shadow — softer than --shadow-sd-card, for white cards
      on the staff dashboard. */
   --shadow-card-resting: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -296,6 +304,10 @@
      card or on the page. One step under a card (16px) so nested corners stay
      visibly nested. Available as rounded-tile. Was rounded-xl, the same 12px. */
   --radius-tile: 12px;
+  /* Modal shell: the 20px floating box, and the 24px top corners of the phone
+     bottom sheet. */
+  --radius-modal: 20px;
+  --radius-modal-sheet: 24px;
 
   /* Motion durations — three speeds for the whole UI. */
   --duration-fast: 80ms;
