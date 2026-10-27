@@ -64,11 +64,22 @@ Prefer text or the existing silhouette where justified; do not add emoji merely
 to decorate an empty result. “Nothing booked. Blue skies.” belongs only to a
 confirmed empty result, never a failed request or a narrowed search.
 
-`SafetyAlertChip` currently accepts `items` and `className`, not a semantic tone.
-Its frozen colours remain. The owner-approved two-line safety-area proposal is
-separate follow-up work: preserve normal card height, show recorded actionable
-instructions, use an explicit review prompt for overflow and retain original
-notes. Do not infer handling instructions from age, breed or a generic diagnosis.
+`SafetyAlertChip` accepts `items` and `className`, not a semantic tone, and
+keeps its frozen colours. On the day card the safety note is `SafetySummary`: a
+full-width target at least 44px high (`--spacing-touch-target`) inside the
+unchanged 144px header. It shows up to two recorded warnings, one per line, in
+`text-caption` (never below 12px), ordered by `orderSafetyFacts`
+(`src/engine/safetyOrder.ts`): handling restrictions such as Pregnant first,
+then the recorded behaviour warnings, then free text nobody categorised, then
+the softer caution and information notes. Order comes only from the tone staff
+recorded; nothing is inferred from age, breed or a diagnosis, and no warning is
+reworded or dropped. When the warnings cannot all be read (more than two, or a
+line too wide) it says “Review safety instructions before handling · N alerts”
+with the real count; that is a prompt to open the full list, not a claim that
+everything is visible. Tapping opens the drawer, which keeps every note in full.
+Beside a safety note an undeliverable-message flag shrinks to an icon, because
+safety keeps the width. Directory cards still use `SafetyAlertChip`; their
+layout needs its own verification before they adopt the summary.
 
 ## Daily Brief hierarchy
 

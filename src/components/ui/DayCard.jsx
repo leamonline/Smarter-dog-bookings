@@ -9,18 +9,22 @@
 //
 // The header's rules are the screen's job, and none of them is colour alone:
 //
-//   • the safety note   — its own row, ALWAYS visible, with the actual words.
+//   • the safety note   — its own full-width, 44px row, ALWAYS visible, with the
+//                         actual words: up to two warnings, or an explicit
+//                         "review before handling" prompt when they cannot all fit.
 //   • the balance       — bold tabular figures and the word "due".
 //   • urgency           — weight on the left rule AND the wording of the timing
 //                         line. Never a new hue.
 //   • an undeliverable WhatsApp message shares the safety row, because the
 //     header's height is fixed and a new row would move every card below it.
+//     Safety wins the width: beside a safety note it shrinks to an icon.
 //
 // Where the card sits in the stack (absolute position, transform, dimming) is
 // the stack's concern: it arrives through `stackStyle` and the
 // `wallet-appointment` class, which dayStack.css positions.
-import { AlertTriangle, Car, Clock, PhoneOff } from "lucide-react";
+import { Car, Clock, PhoneOff } from "lucide-react";
 import { BookingStatusBadge } from "./BookingStatusBadge";
+import { SafetySummary } from "./SafetySummary.jsx";
 import "./dayCard.css";
 
 /** Left-rule weight, in pixels. The only thing urgency changes about colour. */
@@ -185,19 +189,14 @@ export function DayCard({
         </span>
         <div className="wallet-safety flex items-center gap-2">
           {safetyFacts.length > 0 && (
-            <button
-              type="button"
-              aria-label={`Safety alert: ${safetyFacts.join(", ")}`}
-              aria-expanded={expanded}
-              aria-controls={drawerId}
-              onClick={() => { if (!expanded) onToggle(); }}
-              className="flex h-11 min-w-0 max-w-full items-center gap-1 text-left text-caption font-semibold text-brand-coral-text"
-            >
-              <AlertTriangle size={14} className="shrink-0" aria-hidden="true" />
-              <span className="truncate rounded bg-brand-coral-light px-1.5 py-1">
-                {safetyFacts[0]}{safetyFacts.length > 1 ? ` +${safetyFacts.length - 1}` : ""}
-              </span>
-            </button>
+            <SafetySummary
+              facts={safetyFacts}
+              expanded={expanded}
+              controls={drawerId}
+              onOpen={() => {
+                if (!expanded) onToggle();
+              }}
+            />
           )}
           {undelivered && (
             <button
@@ -207,13 +206,21 @@ export function DayCard({
               aria-expanded={expanded}
               aria-controls={drawerId}
               onClick={() => { if (!expanded) onToggle(); }}
-              className="flex h-11 min-w-0 items-center gap-1 text-left text-caption font-semibold"
+              className={
+                safetyFacts.length > 0
+                  ? // Safety keeps the width. The delivery problem shrinks to an
+                    // icon here and is spelled out in the drawer and the spoken name.
+                    "flex h-touch-target w-touch-target shrink-0 items-center justify-center rounded-control border border-current bg-white/60"
+                  : "flex h-11 min-w-0 items-center gap-1 text-left text-caption font-semibold"
+              }
               style={{ color: "var(--card-ink)" }}
             >
               <PhoneOff size={14} className="shrink-0" aria-hidden="true" />
-              <span className="truncate rounded border border-current bg-white/60 px-1.5 py-1">
-                {undelivered.chip}
-              </span>
+              {safetyFacts.length > 0 ? null : (
+                <span className="truncate rounded border border-current bg-white/60 px-1.5 py-1">
+                  {undelivered.chip}
+                </span>
+              )}
             </button>
           )}
         </div>

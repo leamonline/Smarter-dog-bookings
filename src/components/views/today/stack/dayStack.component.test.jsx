@@ -607,11 +607,13 @@ describe("fixed-header welfare disclosure", () => {
     const warnings = ["Nervous / Anxious", "Needs a quiet room and a slow introduction before grooming"];
     renderStack({ getWelfare: () => ({ alerts: warnings }) });
     const target = card("bathing");
-    const safety = within(target).getByRole("button", { name: `Safety alert: ${warnings.join(", ")}` });
+    // Most important first: a warning nobody categorised ranks above "Nervous / Anxious".
+    const ordered = [warnings[1], warnings[0]];
+    const safety = within(target).getByRole("button", { name: `Safety alert: ${ordered.join(", ")}` });
     fireEvent.click(safety);
     expect(head("bathing").getAttribute("aria-expanded")).toBe("true");
     const details = target.querySelector("[data-stack-details]");
-    expect(details.textContent).toContain(warnings.join(", "));
+    expect(details.textContent).toContain(ordered.join(", "));
     expect(target.querySelector("[data-stack-header]").contains(details)).toBe(false);
   });
 });

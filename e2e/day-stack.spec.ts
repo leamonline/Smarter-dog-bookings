@@ -546,3 +546,23 @@ test("marking ready opens the prompt and sends nothing on its own", async ({ pag
   // The status moved anyway: the message and the status are independent.
   await expect(card(page, "Bella")).toContainText("Ready");
 });
+
+test("a safety note is a 44px target that names the warning and never grows the header", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto(MONDAY);
+  await settle(page);
+
+  const summaries = page.locator("[data-safety-summary]");
+  await expect(summaries.first()).toBeVisible();
+  for (const summary of await summaries.all()) {
+    const box = (await summary.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    // Words, not a bare icon: either the warning itself or the review prompt.
+    await expect(summary).toContainText(/\S{3}/);
+  }
+  // The header is the same height with or without a safety note.
+  const heights = await page
+    .locator("[data-stack-card] .wallet-header")
+    .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)));
+  expect(new Set(heights).size).toBe(1);
+});

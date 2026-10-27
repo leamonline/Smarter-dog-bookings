@@ -54,10 +54,42 @@ describe("DayCard states", () => {
     expect(screen.getByText("Payment not known")).toBeTruthy();
   });
 
-  it("keeps the safety note visible as words, with a count for more than one", () => {
-    renderCard({ safetyFacts: ["Bites", "Pregnant"] });
-    expect(screen.getByText("Bites +1")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Safety alert: Bites, Pregnant" })).toBeTruthy();
+  it("shows up to two warnings as words, one per line, in a 44px target", () => {
+    const { container } = renderCard({ safetyFacts: ["Bites / Nips", "Pregnant"] });
+    const summary = container.querySelector("[data-safety-summary]");
+    expect(summary.className).toContain("min-h-touch-target");
+    expect(summary.dataset.safetyReview).toBe("false");
+    expect(screen.getByText("Bites / Nips")).toBeTruthy();
+    expect(screen.getByText("Pregnant")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Safety alert: Bites / Nips, Pregnant" })).toBeTruthy();
+  });
+
+  it("asks for a review, with the real count, when there are more than two", () => {
+    const { container } = renderCard({ safetyFacts: ["Bites / Nips", "Reactive to dogs", "Fear of dryer", "Sensitive paws"] });
+    const summary = container.querySelector("[data-safety-summary]");
+    expect(summary.dataset.safetyReview).toBe("true");
+    expect(summary.textContent).toContain("Review safety instructions before handling · 4 alerts");
+    // Every warning is still named for assistive technology.
+    expect(summary.getAttribute("aria-label")).toBe(
+      "Safety alert: Bites / Nips, Reactive to dogs, Fear of dryer, Sensitive paws",
+    );
+  });
+
+  it("keeps the safety area inside the fixed header, whatever it holds", () => {
+    const { container } = renderCard({ safetyFacts: ["a", "b", "c"], undelivered: { chip: "Message not delivered", detail: "x" } });
+    expect(container.querySelector(".wallet-header").children).toHaveLength(3);
+  });
+
+  it("lets safety keep the width: beside a safety note the delivery problem is an icon with its full name", () => {
+    const { container } = renderCard({
+      safetyFacts: ["Bites / Nips"],
+      undelivered: { chip: "Message not delivered", detail: "Phone them." },
+    });
+    const undelivered = container.querySelector("[data-undelivered]");
+    expect(undelivered.textContent).toBe("");
+    expect(undelivered.getAttribute("aria-label")).toBe("Message not delivered. Phone them.");
+    expect(undelivered.className).toContain("w-touch-target");
+    expect(container.querySelector("[data-safety-summary]")).toBeTruthy();
   });
 
   it("shows an undeliverable message in the safety row", () => {

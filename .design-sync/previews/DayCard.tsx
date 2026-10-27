@@ -65,6 +65,23 @@ export const WithSafetyNote = () => (
   </Stack>
 );
 
+export const ManySafetyNotes = () => (
+  <Stack>
+    <DayCard
+      id="3b"
+      status="Arrived"
+      tone={resolveDayStatus("Arrived")}
+      time="09:00"
+      dogName="Rex"
+      subtitle="German Shepherd · Bath & De-shed"
+      timing="In the salon"
+      safetyFacts={["Bites / Nips", "Reactive to dogs", "Fear of dryer", "Sensitive paws"]}
+      expanded={false}
+      onToggle={noop}
+    />
+  </Stack>
+);
+
 export const Expanded = () => (
   <Stack>
     <DayCard
