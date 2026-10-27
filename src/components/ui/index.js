@@ -4,6 +4,9 @@
 // New primitives
 export { Button } from "./Button.jsx";
 export { IconButton } from "./IconButton.jsx";
+// A pill that is on or off (aria-pressed), and one row of a menu (role="menuitem").
+export { ToggleChip } from "./ToggleChip.jsx";
+export { MenuItem } from "./MenuItem.jsx";
 export { Card, CardStripe } from "./Card.jsx";
 export { Badge } from "./Badge.jsx";
 // Form controls. Wrap a control in <Field> for its label, hint and error.

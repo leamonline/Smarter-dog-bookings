@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { HeaderIconButton } from "./HeaderIconButton.jsx";
+import { MenuItem } from "../../ui";
 
 // Header overflow ("…") menu extracted from HumanHeader so the dog and
 // booking headers can carry the same idiom. Items: { label, onClick,
@@ -47,19 +48,16 @@ export function OverflowMenu({ items }) {
           className="absolute right-0 top-full mt-1 z-20 min-w-[220px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(31,31,31,0.12)] py-1"
         >
           {items.map((item) => (
-            <button
+            <MenuItem
               key={item.label}
-              type="button"
-              role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 item.onClick?.();
               }}
               disabled={item.disabled}
-              className="w-full text-left px-3 py-1.5 text-sm font-semibold font-inherit text-slate-700 bg-transparent border-none cursor-pointer transition-colors hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
             >
               {item.label}
-            </button>
+            </MenuItem>
           ))}
         </div>
       )}

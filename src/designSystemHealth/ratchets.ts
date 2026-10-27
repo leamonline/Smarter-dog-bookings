@@ -23,11 +23,12 @@ import { fileURLToPath } from "node:url";
  */
 export const CEILINGS = {
   rawFormControls: { input: 61, textarea: 17, select: 19 },
-  rawButtons: { raw: 449, legacy: 0 },
+  rawButtons: { raw: 447, legacy: 0 },
   hardCodedColours: { literals: 88 },
   offScale: { shadow: 35, radius: 3, card16: 0, tile12: 0 },
   smallText: { underFloor: 27, namedSizes: 0 },
   handRolledDialogs: { overlays: 0 },
+  menusAndToggles: { menuItems: 4, toggles: 31 },
 } as const;
 
 export type RatchetId = keyof typeof CEILINGS;
@@ -330,6 +331,30 @@ export function measureHandRolledDialogs(srcDir: string = SRC_DIR): Measurement 
   return m;
 }
 
+// ------------------------------------------------------- 7. hand-written menu rows and toggles
+
+// A menu row is `<MenuItem>` and an on/off pill is `<ToggleChip>`. These count the
+// markers of a hand-written one: `role="menuitem"` and `aria-pressed`. Some
+// `aria-pressed` buttons are not chips (a calendar day, one half of a segmented
+// control), so the toggle ceiling is a floor to reduce towards, like raw buttons.
+export function countMenusAndToggles(source: string): Record<"menuItems" | "toggles", number> {
+  return {
+    menuItems: (source.match(/\brole=["']menuitem["']/g) ?? []).length,
+    toggles: (source.match(/\baria-pressed=/g) ?? []).length,
+  };
+}
+
+export function measureMenusAndToggles(srcDir: string = SRC_DIR): Measurement {
+  const m = emptyMeasurement(Object.keys(CEILINGS.menusAndToggles));
+  const kit = join(srcDir, "components", "ui") + "/";
+  for (const file of sourceFiles(srcDir)) {
+    if (file.startsWith(kit)) continue;
+    const counts = countMenusAndToggles(readFileSync(file, "utf8"));
+    for (const [kind, n] of Object.entries(counts)) add(m, kind, relative(srcDir, file), n);
+  }
+  return m;
+}
+
 // --------------------------------------------------------------------- registry
 
 export const RATCHETS: ReadonlyArray<{
@@ -379,5 +404,11 @@ export const RATCHETS: ReadonlyArray<{
     title: "Hand-rolled dialogs (use ModalShell or AccessibleModal from the kit)",
     keys: { overlays: "role=dialog, aria-modal or fixed inset-0 outside the kit" },
     measure: measureHandRolledDialogs,
+  },
+  {
+    id: "menusAndToggles",
+    title: "Hand-written menu rows and toggle pills (use MenuItem and ToggleChip)",
+    keys: { menuItems: 'role="menuitem" outside the kit', toggles: "aria-pressed outside the kit" },
+    measure: measureMenusAndToggles,
   },
 ];

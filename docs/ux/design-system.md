@@ -81,6 +81,13 @@ Beside a safety note an undeliverable-message flag shrinks to an icon, because
 safety keeps the width. Directory cards still use `SafetyAlertChip`; their
 layout needs its own verification before they adopt the summary.
 
+`ToggleChip` is the on/off pill (a filter, an add-on, a channel): a real button with
+`aria-pressed`, a tick when pressed so colour is never the only signal, and the
+44px touch floor. For one choice from several use a segmented control. `MenuItem`
+is one row of a `role="menu"`: a real `role="menuitem"` button, with a `danger`
+tone for the single destructive row. The menu still owns opening, Escape and
+placement. The `menusAndToggles` ratchet counts the hand-written ones left.
+
 ## Daily Brief hierarchy
 
 Keep the selected date and availability action first. Keep actionable attention
