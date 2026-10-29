@@ -283,6 +283,11 @@ Deno.test("persists a known customer's inbound but draws no AI draft without for
       call.method === "POST" && call.path === "/rest/v1/whatsapp_messages"
         ? json({ id: "msg-1" }, 201)
         : undefined,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/whatsapp_messages" &&
+        call.search.get("raw->>sent_by") === "eq.staff"
+        ? json([])
+        : undefined,
   );
 
   const res = await handleAgentRequest(agentRequest({ event_id: "event-1" }));
@@ -404,6 +409,8 @@ Deno.test("runs the Claude path for an unknown customer and saves a pending draf
       call.path === "/rest/v1/whatsapp_messages"
         ? call.method === "POST"
           ? json({ id: "msg-1" }, 201)
+          : call.search.get("raw->>sent_by") === "eq.staff"
+          ? json([])
           : json([{ id: "msg-1" }])
         : undefined,
     (call) =>

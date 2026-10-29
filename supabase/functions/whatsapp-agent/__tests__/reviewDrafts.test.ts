@@ -31,6 +31,8 @@ interface Scenario {
   emptyBookings?: boolean;
   availabilityError?: boolean;
   extraSlots?: boolean;
+  staffReply?: "before" | "during";
+  staffReplyLookupError?: boolean;
 }
 const dogId = "00000000-0000-4000-8000-000000000001";
 async function run(s: Scenario = {}) {
@@ -55,6 +57,7 @@ async function run(s: Scenario = {}) {
   const calls: { method: string; path: string; query: URLSearchParams; body: Record<string, unknown> }[] = [];
   const rows: Record<string, unknown>[] = [];
   let memoryAttempts = 0;
+  let staffReplyReads = 0;
   const memoryRows: Record<string, unknown>[] = [];
   const today = agentCalendar().today;
   const later = addCalendarDays(today, 42);
@@ -81,6 +84,12 @@ async function run(s: Scenario = {}) {
     }
     if (url.pathname === "/rest/v1/whatsapp_messages") {
       if (method === "POST") return s.duplicate ? reply({ code: "23505", message: "duplicate key idx_whatsapp_messages_meta_msg" }, 409) : reply({ id: "message-review" }, 201);
+      if (url.searchParams.get("raw->>sent_by") === "eq.staff") {
+        staffReplyReads++;
+        if (s.staffReplyLookupError) return reply({ message: "synthetic staff reply lookup failure" }, 500);
+        const answered = s.staffReply === "before" || (s.staffReply === "during" && staffReplyReads > 1);
+        return reply(answered ? [{ id: "staff-reply" }] : []);
+      }
       if (url.searchParams.has("or")) return reply(s.recent ? [{ id: "previous", content: "[book_entry] synthetic" }] : []);
       return reply([{ id: "message-review", direction: "inbound", content: s.text ?? "Can I book my dog?" }]);
     }
@@ -112,7 +121,7 @@ async function run(s: Scenario = {}) {
     const response = await handleAgentRequest(new Request("http://agent.test", { method: "POST", headers: { "x-agent-secret": "test-secret", "content-type": "application/json" }, body: JSON.stringify({ event_id: "event-review", force_draft: s.force, suggest_only: s.suggest }) }));
     assertEquals(response.status, 200);
     const text = await response.text();
-    if (!s.suggest) assertEquals(text, s.memoryFailure || s.truncated || s.memoryConflict === "overlap" || s.memoryConflict === "twice" ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
+    if (!s.suggest) assertEquals(text, s.staffReplyLookupError || s.memoryFailure || s.truncated || s.memoryConflict === "overlap" || s.memoryConflict === "twice" ? "handled with error" : s.duplicate ? "ok (duplicate inbound, ignored)" : "ok");
     return { calls, rows, memoryRows, memoryAttempts, today, later, text };
   } finally { globalThis.fetch = oldFetch; }
 }
@@ -137,6 +146,39 @@ Deno.test("review draft writes only a held draft despite all automation opt-ins 
   assertEquals((result.rows[0].tool_calls as Record<string, unknown>).prompt_version, "2026-10-07.portal-trouble-1");
   // No durable AI send gate lookup is needed merely to save a review draft.
   assertEquals(result.calls.filter((c) => c.path.includes("ai_whatsapp_settings")).length, 0);
+});
+Deno.test("a staff reply after the inbound skips the model and automatic draft", async () => {
+  const result = await run({ staffReply: "before" });
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+  assertEquals(result.rows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+});
+Deno.test("a staff reply blocks the deterministic booking-entry send too", async () => {
+  const result = await run({ staffReply: "before", bookEntry: true });
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+  assertEquals(result.rows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+});
+Deno.test("a staff reply during the model call saves only a superseded audit draft", async () => {
+  const result = await run({ staffReply: "during" });
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 1);
+  assertEquals(result.rows.length, 1);
+  assertEquals(result.rows[0].state, "superseded");
+  assertEquals(result.rows[0].rejected_reason, "staff_replied");
+  assertEquals(result.rows[0].auto_send_eligible, false);
+  assert(typeof result.rows[0].decided_at === "string");
+  assertEquals(result.memoryRows.length, 0);
+  assertEquals(result.calls.filter((c) => c.path.includes("whatsapp_booking_actions")).length, 0);
+  assertEquals(result.calls.filter((c) => c.path.endsWith("/functions/v1/whatsapp-send")).length, 0);
+});
+Deno.test("a failed staff-reply lookup fails closed before the model", async () => {
+  const result = await run({ staffReplyLookupError: true });
+  assertEquals(result.text, "handled with error");
+  assertEquals(result.calls.filter((c) => c.path === "/v1/messages").length, 0);
+  assertEquals(result.rows.length, 0);
+  const event = result.calls.filter((c) => c.method === "PATCH" && c.path === "/rest/v1/whatsapp_events").at(-1);
+  assertEquals(event?.body.processing_status, "failed");
+  assertStringIncludes(String(event?.body.error_message), "staff reply guard failed");
 });
 for (const scenario of [{ enabled: false }, { state: "human_takeover" }, { text: "Please cancel my appointment" }, { text: "Please reschedule" }, { text: "Hello" }]) {
   Deno.test(`ineligible review path preserves on-demand: ${JSON.stringify(scenario)}`, async () => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — staff replies block overlapping WhatsApp AI drafts (#1063)
+
+- Automatic WhatsApp drafting now stops before the model call when a marked
+  staff reply already answered the triggering inbound message.
+- If staff answer while the model is running, its result is retained only as a
+  superseded audit draft; it cannot update memory, stage a booking action or
+  send another reply. Guard lookup failures fail closed.
+- Staff-requested **Generate reply** remains available on demand, and existing
+  STOP acknowledgement and pending-booking safeguards are unchanged.
+
 ## Unreleased — CI credential isolation rollout complete (#1125)
 
 - The production Supabase credential is now reachable only from trusted `main`

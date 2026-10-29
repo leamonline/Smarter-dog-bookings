@@ -31,9 +31,13 @@ counts: the agent's own sends and `apply-customer-confirm` use the internal
 secret and never supersede, and templates and failed sends never do. A failure
 to supersede is logged and never fails the send. The staff reply's outbound row
 carries `sent_by: "staff"` beside Meta's keys in `raw`, the only way to tell it
-from an AI or system message (all are `role = 'assistant'`). The agent does not
-read that marker yet: blocking its drafting and auto-send for a message staff
-already answered is Step 2 of the plan, sequenced after #921.
+from an AI or system message (all are `role = 'assistant'`). Before automatic
+drafting, the agent checks for that marker after the triggering inbound and
+stops before calling the model when staff already answered. It checks again
+after the model returns; a reply that arrived during generation leaves only a
+superseded audit draft and cannot update memory, stage a booking action or send.
+An unreadable guard fails closed. Explicit staff **Generate reply** requests
+remain available on demand.
 
 **Known-customer drafting is on demand by default.** The default-off `AI_KNOWN_CUSTOMER_REVIEW_DRAFTS` flag allows a known customer's `booking_propose` message in `ai_handling` to create a held staff-review draft. Human only, changes, cancellations and other intents stay on demand. Unknown-customer onboarding and staff Generate reply retain their existing contracts.
 

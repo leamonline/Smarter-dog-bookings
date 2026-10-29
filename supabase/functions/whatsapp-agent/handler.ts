@@ -1238,6 +1238,7 @@ interface DraftPolicy {
   handoffRequired: boolean;
   autoSendEligible: boolean;
   draftOnly: boolean;
+  answeredByStaff?: boolean;
 }
 
 async function saveDraft(
@@ -1271,6 +1272,7 @@ async function saveDraft(
   // is mandatory, not just preferred. They're orthogonal: high-risk
   // sets both; routine medium-risk sets requires_approval=true and
   // handoff_required=false (staff approves but it's not urgent).
+  const answeredByStaff = policy.answeredByStaff === true;
   const { data, error } = await supabase.from("whatsapp_drafts").insert({
     conversation_id: conversationId,
     trigger_message_id: triggerMessageId,
@@ -1278,10 +1280,13 @@ async function saveDraft(
     intent: draft.intent,
     confidence: Math.max(0, Math.min(1, draft.confidence)), // clamp
     requires_approval: true, // v1: always gated; auto-send fast-path runs after this row exists
-    state: "pending",
+    state: answeredByStaff ? "superseded" : "pending",
+    ...(answeredByStaff
+      ? { rejected_reason: "staff_replied", decided_at: new Date().toISOString() }
+      : {}),
     risk_level: policy.riskLevel,
     handoff_required: policy.handoffRequired,
-    auto_send_eligible: !policy.draftOnly && policy.autoSendEligible,
+    auto_send_eligible: !answeredByStaff && !policy.draftOnly && policy.autoSendEligible,
     model: CLAUDE_MODEL,
     tokens_input: tokensIn,
     tokens_output: tokensOut,
@@ -1289,6 +1294,26 @@ async function saveDraft(
   }).select("id").single();
   if (error) throw new Error(`saveDraft failed: ${error.message}`);
   return data.id as string;
+}
+
+async function hasStaffReplyAfter(
+  supabase: SupabaseClient,
+  conversationId: string,
+  inboundSentAt: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .eq("raw->>sent_by", "staff")
+    .gt("sent_at", inboundSentAt)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`staff reply guard failed; automatic drafting stopped: ${error.message}`);
+  }
+  return data != null;
 }
 
 const HANDOFF_CARRY_DAYS = 14;
@@ -3359,6 +3384,16 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             }
           }
 
+          // A signed-in staff reply is authoritative. Once the opt-out and
+          // customer button paths above have recorded their own state, stop
+          // every automatic draft, booking flow or send for an inbound that
+          // staff already answered. Explicit Generate reply requests remain
+          // available because they set forceDraft.
+          if (!forceDraft && await hasStaffReplyAfter(supabase, conversation.id, sentAt)) {
+            console.log(`staff reply guard: event ${event.id} was already answered; automatic processing skipped`);
+            continue;
+          }
+
           // A customer who needs a person, not a script: standing at a closed
           // salon, or chasing a message we never answered. Runs before the
           // manage-booking and booking-entry paths because those act on the
@@ -3563,6 +3598,16 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             conversationOptedIn: conversation.auto_send_enabled,
           });
           const policy: DraftPolicy = { riskLevel, handoffRequired, autoSendEligible: !reviewDraftOnly && autoSendEligible, draftOnly: reviewDraftOnly };
+
+          // Staff may answer while Claude is running. Keep the model result as
+          // an auditable superseded row, but do not persist its extracted
+          // memory, stage a booking action or dispatch any customer message.
+          if (!forceDraft && await hasStaffReplyAfter(supabase, conversation.id, sentAt)) {
+            policy.answeredByStaff = true;
+            await saveDraft(supabase, conversation.id, event.id, draft, policy, tokensIn, tokensOut, raw);
+            console.log(`staff reply guard: event ${event.id} was answered during drafting; superseded result saved`);
+            continue;
+          }
 
           // Isolated review path: only the draft row plus existing inbound/event bookkeeping.
           // In particular, bypass learned state and AI-onboarded record corrections.
