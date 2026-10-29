@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — CI credential isolation rollout complete (#1125)
+
+- The production Supabase credential is now reachable only from trusted `main`
+  workflows through the main-only `supabase-automation` environment; the old
+  broad token is revoked and staging has its own token with no production
+  authority. Pull request code is never checked out or run by the privileged job.
+- Operational proof is recorded in the completed plan: cross-project 403
+  isolation on both tokens, exact-head `migrations-applied` checks on real pull
+  requests, and a synthetic tampering PR that stayed inert. No migration,
+  application or customer-data change.
+
 ## Unreleased — Readable safety area on the day card
 
 - The day card's safety note is now a full-width, 44px-minimum target showing up

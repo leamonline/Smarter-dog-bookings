@@ -1120,12 +1120,13 @@ production; a differently named copy of the same broad token does not isolate it
    check. The next authorised Edge deployment/staging operation must confirm
    its replacement credential before those consumers are declared released.
 
-Until those external settings and hosted checks are verified, the patch is a
-locally tested preparation, not a claim that production is remediated. If setup
-fails, stop the affected automation and correct forward; do not restore a broad
-repository secret or PR-controlled privileged execution as a rollback.
+This rollout was completed and verified on 29 October 2026; the dated evidence
+is in the completed plan. Repeat the checks above if the environment, its
+credentials or the gate workflow change. If setup fails, stop the affected
+automation and correct forward; do not restore a broad repository secret or
+PR-controlled privileged execution as a rollback.
 
-See [the implementation plan](plans/active/2026-10-26-ci-credential-isolation.md).
+See [the implementation plan](plans/completed/2026-10-26-ci-credential-isolation.md), which records the completed rollout evidence (29 October 2026).
 Platform contracts:
 [trusted target-event use](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target),
 [exact-commit check runs](https://docs.github.com/en/rest/checks/runs), and
