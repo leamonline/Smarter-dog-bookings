@@ -1,15 +1,15 @@
 # WhatsApp: a staff reply clears stale AI drafts and blocks auto-send
 
-Status: Active
+Status: Active — Steps 1–3 built; controlled live verification remains
 Issue: [#1063](https://github.com/leamonline/Smarter-dog-bookings/issues/1063)
-Base: origin/main, 500ead13400334d0a3187aeb367f02e3c4b2a64e
-Last verified: 2026-10-21 (Step 1 built 2026-10-21)
+Base: origin/main, d410058813e79fc37911ff34c4be4cd12625974d
+Last verified: 2026-10-29 (Steps 1–3 built; Step 4 live verification pending)
 Owners: `supabase/functions/whatsapp-send/`, `supabase/functions/whatsapp-agent/`, their Deno tests and this document
 Dependencies: The agent change (Step 2) touches the same area as #921 ([plan](2026-10-01-whatsapp-agent-review-drafts.md)); sequence it after, or coordinate with, that work. Step 0 needs a separately approved read-only production query.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
 Related ADRs: None identified
 
-**Resumed by the owner on 21 October 2026** after an earlier pause the same day. Step 0 was re-run on resuming (same result) and Step 1 is built on `fix/staff-reply-supersedes-drafts`. Step 2 still waits for #921.
+**Resumed by the owner on 21 October 2026** after an earlier pause the same day. Step 0 was re-run on resuming (same result), Step 1 merged through #1064/#1065, and #921 later closed after its implementation merged. Step 2 is built on `codex/whatsapp-staff-reply-guard`; Step 4's controlled live verification remains separately authorised work.
 
 Replaces the goal that survives from [the Business app echoes plan](2026-10-19-whatsapp-business-app-echoes.md) (#1050, Superseded). That plan assumed staff reply from the WhatsApp Business app on the salon phone. Meta reports the salon number is not in coexistence mode, so that premise does not hold. The owner's wish to stop the AI sending unnecessary replies does hold, and applies to replies staff type in the inbox.
 
@@ -138,8 +138,8 @@ Rollback: revert the pull request. Superseded rows are harmless and identifiable
    **Result:** 4 pending drafts in total; 0 with a later outbound message; 0 older than 24 hours with one. Limits: it is a snapshot of one moment; and "any later outbound message" is an upper bound for staff replies, because the database cannot tell a staff reply from a system message (every outbound row is `assistant`), so the true number could only be lower. Zero is therefore a real zero for today.
    **Re-run on resuming (owner-approved, 21 October 2026, same query, joined on `whatsapp_messages.sent_at`):** 4 pending drafts; 0 with a later outbound message; 0 older than 24 hours with one.
 1. **`whatsapp-send`.** **Built** (21 October 2026): callers searched (staff: the inbox compose box and draft approval; internal secret: the agent and `apply-customer-confirm`, both manual mode; neither counts as staff), and the only reader of `raw` is `whatsapp-media`, for media ids. Tests in `whatsapp-send/__tests__/staffReply.test.ts`. Search callers of manual and draft mode (including any internal-secret callers of manual mode) and readers of outbound `raw`. Pass the auth result into manual mode. Add the `sent_by` marker, then the supersede update after a successful send, only when a signed-in staff member made the call. Tests first, in a new file beside `optOut.test.ts`.
-2. **Agent guard.** The two checks above, after #921's agent changes or coordinated with them. Tests alongside `dispatch.test.ts`; the existing gate tests must stay green.
-3. **UI check.** Exercise the superseded-draft states; add a component test only if something is wrong.
+2. **Agent guard.** **Built 29 October 2026:** before the model call, a marked staff reply after the inbound skips automatic drafting. A second check after the model catches the race and stores only a superseded audit draft, with no memory, booking action or send. Lookup failure fails closed. Explicit staff Generate reply remains on demand. Tests live beside the review-draft and dispatch contracts; all agent tests remain green.
+3. **UI check.** **Confirmed from the current fetch boundary:** `inboxFetchers.ts` selects only `state = 'pending'`, so an already-superseded race draft never reaches `DraftPanel`; no UI change or duplicate component test was needed.
 4. **Docs and live test.** Update the documents below, run the live test, record the result here.
 
 Steps 1 and 2 are separate pull requests with one writer each.
@@ -151,6 +151,11 @@ Steps 1 and 2 are separate pull requests with one writer each.
 - Step 2 cases: staff already replied, so no model call and no draft; staff reply during the model call, so the draft is saved superseded and not auto-sent; no staff reply, so behaviour is unchanged. The gate tests in `src/lib/ai/agentRisk.test.ts` must stay green and unchanged.
 - `npm run check:edge-types`, `npm run lint`, `npm run check:docs`, `npm run typecheck`, `npm run test`, `npm run build`.
 - Not coverable in tests: real Meta delivery. Covered by the live test.
+
+Step 2 local verification on 29 October 2026: all 135 WhatsApp-agent tests and
+all 463 Edge Function tests passed; Vitest passed 5,201 tests in 470 files;
+edge types, edge auth, docs, lint, TypeScript, migrations and the production
+build all passed. The separately authorised live Meta test was not run.
 
 ## Observability
 
@@ -188,7 +193,7 @@ The owner also accepted this plan and asked for Step 1 to be built on a separate
 
 **Priority: resumed by the owner later on 21 October 2026** ("start on #1063"), with a fresh Step 0 count first. The earlier decision follows for the record.
 
-**Priority (decided by the owner, 21 October 2026): pause.** The count came back at zero, and Step 1 changes `whatsapp-send`, the function every customer message goes through, for no measured benefit today. The owner chose to pause rather than build Step 1 anyway or close the issue. Nothing has been built, and no code branch exists.
+**Historical priority decision (21 October 2026): pause.** The count came back at zero, so the owner initially paused the work. They resumed it later; Steps 1–3 are now built as recorded above.
 
 Resume when any of these happens:
 
@@ -197,4 +202,6 @@ Resume when any of these happens:
 - A real double reply, or a stale draft that staff approved after a colleague had already answered, is reported.
 - The owner asks.
 
-On resuming: re-run the Step 0 count first (it is cheap and read-only, and needs fresh approval), then start at Step 1. The answers above still stand unless the owner changes them.
+The answers above still stand unless the owner changes them. Step 4 remains the
+only incomplete part and still requires explicit authority because it sends a
+real message through Meta.

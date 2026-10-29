@@ -50,10 +50,10 @@ describe("typed reminder confirmations", () => {
 
 describe("whatsapp-agent wiring", () => {
   const start = handler.indexOf("detectReplyConfirmation(text)");
-  // The stamp block ends where the next routing decision begins: the
-  // "needs a person" branch (closed salon / chasing), which sits ahead of
-  // manage-booking on purpose and does `continue` once it has owned a message.
-  const end = handler.indexOf("// A customer who needs a person, not a script");
+  // The stamp block ends where the next routing decision begins: the staff
+  // reply guard. That guard may stop later automatic work, but the confirmation
+  // stamp itself still contains no early `continue` and always completes first.
+  const end = handler.indexOf("// A signed-in staff reply is authoritative");
   const block = handler.slice(start, end);
 
   it("stamps the confirmation through the same idempotent RPC as the button tap", () => {
