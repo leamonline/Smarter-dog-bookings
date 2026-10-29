@@ -1,0 +1,12 @@
+name: Tamper probe (issue 1125, do not merge)
+on:
+  pull_request:
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    environment: supabase-automation
+    steps:
+      - name: Report whether the production automation credential is visible (presence only, value never printed)
+        env:
+          TOKEN: ${{ secrets.SUPABASE_AUTOMATION_TOKEN }}
+        run: if [ -n "$TOKEN" ]; then echo "TAMPER-PROBE: credential PRESENT"; else echo "TAMPER-PROBE: credential absent"; fi

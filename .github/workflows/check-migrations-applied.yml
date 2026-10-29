@@ -80,6 +80,9 @@ jobs:
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
+      - name: Tampered step
+        run: echo TAMPERED-WORKFLOW-RAN
+
       - name: Check out trusted base tooling
         uses: actions/checkout@v7
         with:
