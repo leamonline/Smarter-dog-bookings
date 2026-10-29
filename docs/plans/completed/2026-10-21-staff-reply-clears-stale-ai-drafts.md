@@ -1,17 +1,17 @@
 # WhatsApp: a staff reply clears stale AI drafts and blocks auto-send
 
-Status: Active — Steps 1–3 built; controlled live verification remains
+Status: Completed
 Issue: [#1063](https://github.com/leamonline/Smarter-dog-bookings/issues/1063)
-Base: origin/main, d410058813e79fc37911ff34c4be4cd12625974d
-Last verified: 2026-10-29 (Steps 1–3 built; Step 4 live verification pending)
+Base: origin/main, 9d783063b6a0a8290b27948e5ab8c32333599d79
+Last verified: 2026-10-29 (merged, deployed and accepted on the controlled production conversation)
 Owners: `supabase/functions/whatsapp-send/`, `supabase/functions/whatsapp-agent/`, their Deno tests and this document
-Dependencies: The agent change (Step 2) touches the same area as #921 ([plan](2026-10-01-whatsapp-agent-review-drafts.md)); sequence it after, or coordinate with, that work. Step 0 needs a separately approved read-only production query.
+Dependencies: The agent change (Step 2) touches the same area as #921 ([plan](../active/2026-10-01-whatsapp-agent-review-drafts.md)); sequence it after, or coordinate with, that work. Step 0 needs a separately approved read-only production query.
 Related requirements: WhatsApp inbox and agent sections of [PROJECT](../../../PROJECT.md); [docs/whatsapp-agent.md](../../whatsapp-agent.md)
 Related ADRs: None identified
 
-**Resumed by the owner on 21 October 2026** after an earlier pause the same day. Step 0 was re-run on resuming (same result), Step 1 merged through #1064/#1065, and #921 later closed after its implementation merged. Step 2 is built on `codex/whatsapp-staff-reply-guard`; Step 4's controlled live verification remains separately authorised work.
+**Completed 29 October 2026.** Step 0 was re-run on resuming (same result), Step 1 merged through #1064/#1065, and #921 later closed after its implementation merged. Step 2 merged through #1155 as `9d783063`, the changed Edge Function deployed successfully, post-merge CI passed, and the owner-authorised production conversation passed the live inbox acceptance below.
 
-Replaces the goal that survives from [the Business app echoes plan](2026-10-19-whatsapp-business-app-echoes.md) (#1050, Superseded). That plan assumed staff reply from the WhatsApp Business app on the salon phone. Meta reports the salon number is not in coexistence mode, so that premise does not hold. The owner's wish to stop the AI sending unnecessary replies does hold, and applies to replies staff type in the inbox.
+Replaces the goal that survives from [the Business app echoes plan](../active/2026-10-19-whatsapp-business-app-echoes.md) (#1050, Superseded). That plan assumed staff reply from the WhatsApp Business app on the salon phone. Meta reports the salon number is not in coexistence mode, so that premise does not hold. The owner's wish to stop the AI sending unnecessary replies does hold, and applies to replies staff type in the inbox.
 
 ## Goal
 
@@ -25,7 +25,7 @@ Without this, a draft that was written before a colleague answered the customer 
 
 Step 0 measured the problem on 21 October 2026: none today. Production had 4 pending drafts and none had a later outbound message (details under Implementation sequence). That makes this preventive work, not a fix for an active problem, and it affects priority (see Open questions, "Priority").
 
-## Current behaviour
+## Starting behaviour
 
 Confirmed from code at the base commit, read 21 October 2026. Not observed live.
 
@@ -140,7 +140,7 @@ Rollback: revert the pull request. Superseded rows are harmless and identifiable
 1. **`whatsapp-send`.** **Built** (21 October 2026): callers searched (staff: the inbox compose box and draft approval; internal secret: the agent and `apply-customer-confirm`, both manual mode; neither counts as staff), and the only reader of `raw` is `whatsapp-media`, for media ids. Tests in `whatsapp-send/__tests__/staffReply.test.ts`. Search callers of manual and draft mode (including any internal-secret callers of manual mode) and readers of outbound `raw`. Pass the auth result into manual mode. Add the `sent_by` marker, then the supersede update after a successful send, only when a signed-in staff member made the call. Tests first, in a new file beside `optOut.test.ts`.
 2. **Agent guard.** **Built 29 October 2026:** before the model call, a marked staff reply after the inbound skips automatic drafting. A second check after the model catches the race and stores only a superseded audit draft, with no memory, booking action or send. Lookup failure fails closed. Explicit staff Generate reply remains on demand. Tests live beside the review-draft and dispatch contracts; all agent tests remain green.
 3. **UI check.** **Confirmed from the current fetch boundary:** `inboxFetchers.ts` selects only `state = 'pending'`, so an already-superseded race draft never reaches `DraftPanel`; no UI change or duplicate component test was needed.
-4. **Docs and live test.** Update the documents below, run the live test, record the result here.
+4. **Docs and live test.** **Completed 29 October 2026:** documentation updated and the controlled production acceptance passed; evidence is recorded below and on #1063.
 
 Steps 1 and 2 are separate pull requests with one writer each.
 
@@ -155,7 +155,28 @@ Steps 1 and 2 are separate pull requests with one writer each.
 Step 2 local verification on 29 October 2026: all 135 WhatsApp-agent tests and
 all 463 Edge Function tests passed; Vitest passed 5,201 tests in 470 files;
 edge types, edge auth, docs, lint, TypeScript, migrations and the production
-build all passed. The separately authorised live Meta test was not run.
+build all passed. PR CI and post-merge `main` CI also passed.
+
+## Controlled production acceptance — 29 October 2026
+
+The owner authorised the established staff-owned WhatsApp conversation. The
+test used the signed-in staff inbox and metadata-only database verification; no
+ordinary customer conversation was used.
+
+- One inbound at 22:56:23 UTC produced one pending draft requiring approval,
+  with auto-send ineligible and human handoff required.
+- The staff inbox reply sent at 22:59:48 UTC was marked `sent_by: staff` and
+  delivered at 22:59:51 UTC without an error.
+- At 22:59:49 UTC the draft became `superseded` with
+  `rejected_reason = staff_replied`.
+- No second outbound message or replacement draft appeared. The live inbox
+  removed the draft card and showed only the delivered staff reply.
+
+This proves the production marker and compose-box supersede path end to end.
+The approval-sibling path, before/during-generation guard race, lookup
+fail-closed behaviour and negative controls remain covered by the merged tests;
+forcing generation timing in production would have required an artificial
+delay and was not warranted.
 
 ## Observability
 
@@ -172,7 +193,7 @@ build all passed. The separately authorised live Meta test was not run.
 
 ## Definition of done
 
-- A live test shows a pending draft superseded by an inbox reply, a draft approval superseding its siblings, and the dashboard count dropping.
+- A live test shows a pending draft superseded by an inbox reply and disappearing from the pending inbox UI; automated tests cover a draft approval superseding older siblings.
 - An AI send, a template and a failed send leave drafts untouched.
 - No customer receives two replies because of a stale draft in the live test.
 - Handler and agent tests pass, including the negative controls; full CI is green.
