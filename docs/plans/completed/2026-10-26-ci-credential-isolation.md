@@ -1,7 +1,7 @@
-Status: Active
+Status: Completed (29 October 2026)
 Issue: #1125; Codex Security scan ef4423c4-54de-461e-b9c9-f2ce4ef2745a, finding ci-secret-exposure.pr-controlled-execution
 Base: main 74d362c2ba532e250bebb45100bc3c8ea9843263; discovery base b38d7f5e24a3db3d5195fccbb8ef424312e779b8
-Last verified: 2026-10-26
+Last verified: 2026-10-29
 Owners: workflow, release-helper, regression-test and runbook paths in this patch; one implementation writer, read-only investigation/review
 Dependencies: Owner-configured protected environments and separate staging credential
 Related requirements: GOAL-04 in PROJECT.md
@@ -80,3 +80,33 @@ verified environment policy, removed/revoked repository token, isolated staging
 authority and an exact-head hosted check. Until those are proved, the finding
 is not operationally remediated. Actual external settings remain unqueried and
 unchanged by this preparation; retain this plan as active until rollout evidence.
+
+## Completion evidence — 29 October 2026
+
+Implementation: [#1126](https://github.com/leamonline/Smarter-dog-bookings/pull/1126),
+merged 26 October 2026. Issue: [#1125](https://github.com/leamonline/Smarter-dog-bookings/issues/1125);
+dated evidence is in its comments of 28 and 29 October. The decisions above are
+unchanged; this section only records the operational definition of done.
+
+- **Environment policy:** `supabase-automation` allows exactly one branch rule,
+  `main`, and no tags or wildcards; the automated jobs verify it before using a
+  credential.
+- **Credential placement:** the automation and staging tokens each live only in
+  their own environment, as separate scoped tokens. No Supabase token remains at
+  repository scope. The old broad token (`github-actions-edge-deploy`, last used
+  26 October) was revoked in Supabase on 29 October.
+- **Isolation:** the manual probe ([run 40757712758](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/40757712758),
+  28 October) showed each token reads the constant from its own project and
+  receives 403 from the other, so staging holds no production authority.
+- **Hosted exact-head check:** `migrations-applied` runs from trusted `main` on
+  `pull_request_target`, passing on real pull requests from 26 October, with the
+  check published on each exact head and run attempt.
+- **Tampering test:** synthetic draft PR #1153 (closed unmerged) changed the gate
+  workflow and helper and added a new PR workflow requesting the environment. The
+  trusted run printed no tamper marker; the new workflow was refused at the
+  environment gate with no step executed.
+- **First-install bootstrap:** the ruleset history shows the owner's account
+  removed `migrations-applied` from the required checks at 11:13:27 on 26 October,
+  #1126 merged at 11:13:37 and the check was restored at 11:13:42, with no bypass
+  actors left behind. The full Edge Function redeploy at 11:13:40 succeeded.
+- **Local checks:** `npm run test:release` passed 15 of 15 on `main` on 28 October.
