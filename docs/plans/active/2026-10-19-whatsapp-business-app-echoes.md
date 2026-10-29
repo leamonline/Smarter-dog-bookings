@@ -11,7 +11,7 @@ Related ADRs: None identified
 
 ## Outcome: superseded (21 October 2026)
 
-Replaced by [a staff reply clears stale AI drafts and blocks auto-send](2026-10-21-staff-reply-clears-stale-ai-drafts.md) (#1063). Work stopped because the plan's premise failed. The rest of this document is preserved as it stood.
+Replaced by [a staff reply clears stale AI drafts and blocks auto-send](../completed/2026-10-21-staff-reply-clears-stale-ai-drafts.md) (#1063). Work stopped because the plan's premise failed. The rest of this document is preserved as it stood.
 
 - **The check.** Meta's documented request for `is_on_biz_app` and `platform_type` on the production phone number ID, run by the owner in the Graph API Explorer on 21 October 2026, returned `is_on_biz_app: false` and `platform_type: CLOUD_API` (ID `1060731703795077`). The number is on the Cloud API only. Meta describes `true` with `CLOUD_API` as the coexistence state ([Meta, onboarding Business app users](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/), read 19 October 2026).
 - **What it means.** The WhatsApp Business app is not connected to this number, so staff replies cannot be arriving from the phone app and there is nothing to mirror. The customer-thread screenshot that suggested phone replies (see Why) was inference, and is contradicted: those replies were most likely typed in the inbox.
