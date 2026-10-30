@@ -311,7 +311,7 @@
     },
     "notify-waitlist-joined": {
       "authFamily": "webhook-bearer",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "Postgres trigger via pg_net",
       "role": "service",
       "gatewayVerifyJwt": false,

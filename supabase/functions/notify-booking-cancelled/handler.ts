@@ -1,18 +1,41 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendSmsBoolean, sendWhatsApp } from "../_shared/twilio.ts";
-import { notificationLogPatchForTwilioWhatsApp } from "../_shared/twilioDelivery.ts";
+import { sendSms } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
-import { sendEmail } from "../_shared/email.ts";
+import { sendEmailDetailed } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate } from "../_shared/format.ts";
 import {
   recipientIdsForBooking,
   fetchHumansByIds,
-  pickChannel,
+  channelAvailableFor,
   bookingCancellationSkipReason,
   reportStaffRescheduleReplacement,
+  type RecipientHuman,
   type StaffRescheduleLookupResult,
 } from "../_shared/recipients.ts";
 import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
+
+// Cancellation notices go out as SMS, then email when a text is not possible
+// (no mobile, SMS not set up, opted out, or Twilio rejects the send). They do
+// not use Twilio WhatsApp. Consent is the same rule as every other text:
+// channelAvailableFor requires the channel to be set up, to have a contact
+// detail, and not to be opted out. This function has no quiet-hours gate.
+function cancellationChannel(human: RecipientHuman): "sms" | "email" | null {
+  if (channelAvailableFor(human, "sms")) return "sms";
+  if (channelAvailableFor(human, "email")) return "email";
+  return null;
+}
+
+function smsRejection(result: {
+  status: number;
+  errorCode?: string;
+  errorMessage?: string;
+}): string {
+  const what = (result.errorMessage ?? "").trim();
+  const code = result.errorCode ? ` (Twilio ${result.errorCode})` : "";
+  return what
+    ? `Twilio rejected this SMS: ${what}${code}.`
+    : `Twilio rejected this SMS (HTTP ${result.status})${code}.`;
+}
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -125,8 +148,9 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         continue;
       }
 
-      // Channel preference WhatsApp → SMS → email, skipping opted-out channels.
-      const channel = pickChannel(human);
+      // SMS, then email. WhatsApp is not a cancellation channel: the Twilio
+      // sender is a sandbox number whose accepts are not delivery.
+      const channel = cancellationChannel(human);
       if (!channel) {
         results.push({ human_id: humanId, skipped: "no contact method" });
         continue;
@@ -151,8 +175,7 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
           channel,
           trigger_type: "cancelled",
           status: "pending",
-          // Stored so reminder-sms-fallback can resend this exact wording over
-          // SMS when the WhatsApp notice is not confirmed delivered.
+          // The wording of the notice, kept on the row for staff.
           message_text: message,
         })
         .select("id")
@@ -168,44 +191,59 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         continue;
       }
 
-      // Send via Twilio (SMS/WhatsApp) or SendGrid (email).
-      //
-      // WhatsApp goes through Twilio free text, which answers 2xx when it
-      // QUEUES the message and has no status callback here, so an accept is
-      // not delivery: the row stays 'pending' (never 'sent'), the pending
-      // reaper fails it after ten minutes and reminder-sms-fallback follows
-      // up by SMS. See _shared/twilioDelivery.ts (#989).
+      // 'sent' only when the provider accepts the message. A Twilio or
+      // SendGrid rejection is 'failed' with that provider's reason, and the
+      // channel on the row is the one that was actually used.
+      const subject = `Your ${dogName} appointment has been cancelled`;
+      let used: "sms" | "email" = channel;
       let sent = false;
-      let patch: Record<string, unknown>;
-      if (channel === "whatsapp") {
-        const twilio = await sendWhatsApp(human.phone!, message);
-        if (!twilio.ok) {
-          console.error(
-            `Twilio WhatsApp failed (${twilio.status}): ${twilio.errorCode ?? "?"} ${twilio.errorMessage ?? ""}`,
-          );
-        }
-        patch = notificationLogPatchForTwilioWhatsApp(twilio);
-        sent = twilio.ok;
-      } else {
-        if (channel === "sms") {
-          sent = await sendSmsBoolean(human.phone!, message);
+      let errorMessage: string | null = null;
+      let providerMessageId: string | null = null;
+
+      if (channel === "sms") {
+        const sms = await sendSms(human.phone!, message);
+        if (sms.ok) {
+          sent = true;
+          providerMessageId = sms.sid ?? null;
         } else {
-          const subject = `Your ${dogName} appointment has been cancelled`;
-          sent = await sendEmail(human.email!, subject, message);
+          const rejected = smsRejection(sms);
+          console.error(`Twilio SMS failed (${sms.status}): ${rejected}`);
+          if (channelAvailableFor(human, "email")) {
+            const email = await sendEmailDetailed(human.email!, subject, message);
+            used = "email";
+            if (email.ok) {
+              sent = true;
+            } else {
+              const emailError = email.errorMessage ?? `SendGrid HTTP ${email.status}`;
+              console.error(`Cancellation email fallback failed: ${emailError}`);
+              errorMessage = `${rejected} Email fallback failed: ${emailError}`;
+            }
+          } else {
+            errorMessage = rejected;
+          }
         }
-        patch = {
-          status: sent ? "sent" : "failed",
-          sent_at: sent ? new Date().toISOString() : null,
-          error_message: sent ? null : "Delivery failed — check provider logs",
-        };
+      } else {
+        const email = await sendEmailDetailed(human.email!, subject, message);
+        if (email.ok) {
+          sent = true;
+        } else {
+          errorMessage = email.errorMessage ?? `SendGrid HTTP ${email.status}`;
+          console.error(`Cancellation email failed: ${errorMessage}`);
+        }
       }
 
       await supabase
         .from("notification_log")
-        .update(patch)
+        .update({
+          channel: used,
+          status: sent ? "sent" : "failed",
+          sent_at: sent ? new Date().toISOString() : null,
+          provider_message_id: sent ? providerMessageId : null,
+          error_message: sent ? null : errorMessage,
+        })
         .eq("id", pendingRow.id);
 
-      results.push({ human_id: humanId, channel, sent });
+      results.push({ human_id: humanId, channel: used, sent });
     }
 
     return new Response(

@@ -82,12 +82,14 @@ group by 1;
 
 Expected: `pending` older than an hour = **0**. A handful of WhatsApp
 `failed` rows is normal *if* matching `reminder_sms_fallback` /
-`confirmed_sms_fallback` / `cancelled_sms_fallback` rows exist — that is the
-fallback working, not a fault. Every Twilio-sent cancellation notice will
-show this pattern: Twilio gives no delivery receipt, so the row is left
-`pending`, reaped to `failed` after ten minutes and texted an hour on (#989).
-Sustained failures with no fallback means the Meta template or number needs
-attention.
+`confirmed_sms_fallback` rows exist — that is the fallback working, not a
+fault. Cancellation notices go out as SMS at once (or email when SMS cannot
+be sent) and are logged on that channel as `sent` only when the provider
+accepted them. They are not left pending for the hourly chase. Older
+cancellation rows that were logged as WhatsApp can still show a
+`cancelled_sms_fallback` — that is the previous safety net finishing work
+it already started (#989). Sustained WhatsApp failures with no fallback
+means the Meta template or number needs attention.
 
 ## If something looks wrong
 

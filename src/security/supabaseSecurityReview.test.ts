@@ -251,7 +251,9 @@ describe("Supabase security review regressions", () => {
       // index.ts is a serve() shim kept importable for deno tests.
       "supabase/functions/notify-booking-cancelled/handler.ts",
       "supabase/functions/notify-booking-reminder/index.ts",
-      "supabase/functions/notify-waitlist-joined/index.ts",
+      // notify-waitlist-joined keeps its implementation in handler.ts;
+      // index.ts is a serve() shim kept importable for deno tests.
+      "supabase/functions/notify-waitlist-joined/handler.ts",
     ];
 
     for (const path of notifyFns) {
