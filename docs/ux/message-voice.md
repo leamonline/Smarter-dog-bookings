@@ -39,12 +39,14 @@ Used for: `booking_confirmed_v1`, the reminder messages, and the cancellation
 sentence, sent from `supabase/functions/notify-booking-confirmed`,
 `notify-booking-reminder` and `notify-booking-cancelled`.
 
-The cancellation sentence is one line and does not name a service or a time:
-"Hi Sarah, your appointment for Bella on Tue 20 Oct has been cancelled.
-Rebook anytime." That is also the body to submit as `booking_cancelled_v1`.
-WhatsApp uses it only after Meta approves that template and the flag in
-[the template note](../whatsapp-templates/booking_cancelled_v1.md) is on.
-Until then the same sentence goes by SMS or email.
+The text and the email stay one short line, with no time: "Hi Sarah, your
+appointment for Bella on Tue 20 Oct has been cancelled. Rebook anytime."
+WhatsApp uses the already-approved `booking_cancelled_v1` body only when the
+salon cancelled. That body apologises and includes the date and time. It is
+recorded in [the template note](../whatsapp-templates/booking_cancelled_v1.md).
+Do not resubmit it. A cancellation the customer asked for keeps the short
+sentence by text or email. The automatic WhatsApp send stays off until the
+flag in that note is on.
 
 | Rule | Why |
 |---|---|

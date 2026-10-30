@@ -13,12 +13,14 @@
 // reminder or confirmation is texted after the windows below.
 //
 // Cancellations are not texted twice. When CANCELLATION_WHATSAPP_ENABLED is
-// on, notify-booking-cancelled sends booking_cancelled_v1 and, if Meta
-// rejects it, sends SMS or email itself and moves that same row onto the
-// channel that was used. A cancellation Meta accepted (status 'sent') is
-// not chased here. A 'failed' WhatsApp cancellation still is: those are
-// older Twilio notices, or a send that stopped before the immediate
-// fallback. A row already logged as sms or email is not in this query.
+// on and the salon cancelled, notify-booking-cancelled sends
+// booking_cancelled_v1 and, if Meta rejects it, sends SMS or email itself
+// and moves that same row onto the channel that was used. A customer
+// cancellation is logged as sms or email from the start. A cancellation
+// Meta accepted (status 'sent') is not chased here. A 'failed' WhatsApp
+// cancellation still is: those are older Twilio notices, or a send that
+// stopped before the immediate fallback. A row already logged as sms or
+// email is not in this query.
 //
 // This job runs hourly and, for any such WhatsApp notice that — an hour on —
 // either FAILED to send or hasn't been confirmed delivered, sends the same

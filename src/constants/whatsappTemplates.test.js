@@ -143,27 +143,27 @@ describe("appointment_request_reply_v1", () => {
 describe("booking_cancelled_v1", () => {
   const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_cancelled_v1");
 
-  it("is en_GB and hidden from the staff picker until Meta approves it", () => {
-    expect(template.status).toBe("pending");
+  it("is the approved en_GB template and is offered in the staff picker", () => {
+    expect(template.status).toBe("approved");
     expect(template.language).toBe("en_GB");
-    expect(WHATSAPP_PICKER_TEMPLATES.some((t) => t.name === "booking_cancelled_v1")).toBe(false);
+    expect(WHATSAPP_PICKER_TEMPLATES.some((t) => t.name === "booking_cancelled_v1")).toBe(true);
   });
 
-  it("sends first name, dog name, then the short date, in that order", () => {
+  it("sends first name, dog name, then the date and time, in that order", () => {
     expect(buildTemplateParams(template, {
       customer_first_name: "Sarah",
-      dog_name: "Bella",
-      appointment_date: "Tue 20 Oct",
-    })).toEqual(["Sarah", "Bella", "Tue 20 Oct"]);
+      dog_name: "Cooper",
+      appointment_when: "Monday 16 June at 10:00am",
+    })).toEqual(["Sarah", "Cooper", "Monday 16 June at 10:00am"]);
   });
 
-  it("previews the same sentence the SMS cancellation sends", () => {
+  it("previews the body Meta has already approved", () => {
     expect(template.preview({
       customer_first_name: "Sarah",
-      dog_name: "Bella",
-      appointment_date: "Tue 20 Oct",
+      dog_name: "Cooper",
+      appointment_when: "Monday 16 June at 10:00am",
     })).toBe(
-      "Hi Sarah, your appointment for Bella on Tue 20 Oct has been cancelled. Rebook anytime.",
+      "Hi Sarah, we're sorry to let you know that Cooper's appointment on Monday 16 June at 10:00am has been cancelled. If you'd like to rearrange, just reply here and we'll find a new time — Smarter Dog Grooming Salon.",
     );
   });
 });
@@ -178,6 +178,7 @@ describe("WHATSAPP_PICKER_TEMPLATES", () => {
       "welcome_to_the_pack_v1__english",
       "appointment_request_reply_v1",
       "customer_enquiry_response_v1",
+      "booking_cancelled_v1",
     ]);
     expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
   });

@@ -85,10 +85,12 @@ Expected: `pending` older than an hour = **0**. A handful of WhatsApp
 `confirmed_sms_fallback` rows exist — that is the fallback working, not a
 fault. Cancellation notices go out as SMS at once (or email when SMS cannot
 be sent) and are logged on that channel as `sent` only when the provider
-accepted them. They are not left pending for the hourly chase. When
-`CANCELLATION_WHATSAPP_ENABLED` is `true` and Meta has accepted
-`booking_cancelled_v1`, that row stays on WhatsApp and is not texted again.
-If Meta rejects the template, the same row moves to SMS or email. Older
+accepted them. They are not left pending for the hourly chase. `booking_cancelled_v1` is already approved and is only for a cancellation
+the salon made. When `CANCELLATION_WHATSAPP_ENABLED` is `true` and
+`cancellation_cause` is `salon`, an accepted WhatsApp cancellation stays on
+that channel and is not texted again. A customer cancellation stays on SMS
+or email. If Meta rejects the salon send, the same row moves to SMS or email.
+Older
 cancellation rows that were logged as WhatsApp and failed can
 still show a `cancelled_sms_fallback`. See
 [booking_cancelled_v1](whatsapp-templates/booking_cancelled_v1.md). Sustained

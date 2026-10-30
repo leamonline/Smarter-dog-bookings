@@ -2,12 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmailDetailed } from "../_shared/email.ts";
-import { sanitise, formatDateShort as formatDate } from "../_shared/format.ts";
+import { sanitise, formatDateShort as formatDate, formatTime } from "../_shared/format.ts";
 import {
   recipientIdsForBooking,
   fetchHumansByIds,
   channelAvailableFor,
-  pickChannel,
   bookingCancellationSkipReason,
   reportStaffRescheduleReplacement,
   type NotifyChannel,
@@ -20,16 +19,16 @@ import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 // bookingCancellationSkipReason).
 //
 // CANCELLATION_WHATSAPP_ENABLED must be the string "true" or this function
-// behaves as it does today: SMS, then email. The flag ships off because the
-// Meta template booking_cancelled_v1 does not exist until Leam submits the
-// body in docs/whatsapp-templates/booking_cancelled_v1.md and Meta approves it.
-// Turning the flag on early does not send twice: Meta rejects the unknown
-// template, and the same notice goes out by SMS, then email, on this same
-// notification_log row.
+// behaves as it does today: SMS, then email. The flag ships off so a deploy
+// does not change that. booking_cancelled_v1 is already approved in Meta
+// (en_GB, Utility) and its wording apologises, so it is only for a
+// cancellation the salon made (bookings.cancellation_cause = 'salon').
+// Do not resubmit the template. A customer, reschedule, system, or unknown
+// cause stays on SMS then email. Once this function is deployed, the flag
+// can be turned on. A Meta rejection still does not send twice: the same
+// notice goes out by SMS, then email, on this same notification_log row.
 //
-// With the flag on, the channel is the same preference confirmations and
-// reminders use (pickChannel): WhatsApp, then SMS, then email. Each channel
-// requires the customer to have it switched on, a contact detail, and no
+// WhatsApp still requires the channel to be switched on, a phone, and no
 // opt-out (channelAvailableFor). whatsapp-send enforces the opt-out again.
 //
 // WhatsApp is always the approved-template send, never free text. A template
@@ -44,7 +43,10 @@ import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 export const BOOKING_CANCELLED_TEMPLATE = "booking_cancelled_v1";
 export const BOOKING_CANCELLED_TEMPLATE_LANGUAGE = "en_GB";
 
-/** The one cancellation sentence. The Meta template body is this sentence. */
+/**
+ * The SMS and email sentence. The approved WhatsApp body is different and
+ * lives on the template; this wording stays as it is.
+ */
 export function cancellationNotice(
   firstName: string,
   dogName: string,
@@ -53,13 +55,55 @@ export function cancellationNotice(
   return `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. Rebook anytime.`;
 }
 
+/**
+ * {{3}} of booking_cancelled_v1. Long date, and the time when the booking has
+ * a slot, in the approved sample's shape ("Monday 16 June at 10:00am"). The
+ * time uses the same formatTime as booking_confirmed_v1. No slot means the
+ * date alone. SMS keeps the short date and does not use this.
+ */
+export function cancellationAppointmentWhen(
+  dateStr: string,
+  slot: string | null | undefined,
+): string {
+  const date = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const time = typeof slot === "string" && slot.trim() ? formatTime(slot) : "";
+  return time ? `${date} at ${time}` : date;
+}
+
 export function cancellationWhatsAppEnabled(): boolean {
   return (Deno.env.get("CANCELLATION_WHATSAPP_ENABLED") ?? "").trim().toLowerCase() === "true";
 }
 
-// Flag off: SMS, then email, ignoring WhatsApp. Flag on: pickChannel.
-function cancellationChannel(human: RecipientHuman): NotifyChannel | null {
-  if (cancellationWhatsAppEnabled()) return pickChannel(human);
+/**
+ * Who cancelled, from the row the trigger posts as `record` (NEW). A resend
+ * posts the current row as `old_record` only, so that is the fallback. Anything
+ * other than the exact value "salon" is not the salon, including a missing
+ * cause: we do not guess.
+ */
+export function cancellationCause(payload: {
+  record?: { cancellation_cause?: unknown } | null;
+  old_record?: { cancellation_cause?: unknown } | null;
+}): string | null {
+  const raw = payload.record?.cancellation_cause ?? payload.old_record?.cancellation_cause;
+  if (typeof raw !== "string") return null;
+  const cause = raw.trim();
+  return cause.length > 0 ? cause : null;
+}
+
+export function isSalonCancellation(cause: string | null): boolean {
+  return cause === "salon";
+}
+
+// Salon + flag on: WhatsApp, then SMS, then email. Every other cancellation:
+// SMS, then email. Never the apology template unless the cause is salon.
+function cancellationChannel(human: RecipientHuman, salon: boolean): NotifyChannel | null {
+  if (salon && cancellationWhatsAppEnabled() && channelAvailableFor(human, "whatsapp")) {
+    return "whatsapp";
+  }
   if (channelAvailableFor(human, "sms")) return "sms";
   if (channelAvailableFor(human, "email")) return "email";
   return null;
@@ -167,6 +211,11 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
     const rawReason = payload.record?.cancel_reason ?? booking.cancel_reason;
     const cancelReason = typeof rawReason === "string" ? rawReason.trim() : "";
 
+    // NEW carries cancellation_cause from the same UPDATE. Only 'salon' may
+    // use the apology template. Customer, reschedule, system, and a blank
+    // cause (older writers that never set the column) stay on SMS then email.
+    const salonCancellation = isSalonCancellation(cancellationCause(payload));
+
     const skipReason = bookingCancellationSkipReason({ cancel_reason: cancelReason });
     if (skipReason) {
       // Staff reschedule only. The WhatsApp case is live in production and
@@ -222,11 +271,9 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
     const recipientIds = recipientIdsForBooking(booking.notify_human_ids, dog.human_id);
     const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-    // 3. Message bits shared across recipients. The WhatsApp-reschedule case is
-    //    now filtered out above; for everything that reaches here (customer
-    //    cancel, staff cancel, deposit not received, no-show, ...) we still
-    //    can't tell the specific cause from the webhook payload, so we use the
-    //    one generic customer-facing tone for all of them.
+    // 3. Message bits shared across recipients. Reschedules are filtered out
+    //    above. SMS and email keep one short sentence for every cause. The
+    //    apology template is added only when cancellation_cause is salon.
     const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
@@ -239,17 +286,18 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         continue;
       }
 
-      const channel = cancellationChannel(human);
+      const channel = cancellationChannel(human, salonCancellation);
       if (!channel) {
         results.push({ human_id: humanId, skipped: "no contact method" });
         continue;
       }
 
       const firstName = sanitise(human.name.split(" ")[0]);
-      // One sentence for every channel. The Meta body is the same words, so a
-      // fallback does not change what the customer is told. Tight enough for
-      // a single GSM-7 SMS segment.
+      // SMS and email keep this short sentence, including when WhatsApp is
+      // rejected and we fall back. The template has its own approved body;
+      // only {{3}} carries the longer date and time.
       const message = cancellationNotice(firstName, dogName, dateFormatted);
+      const appointmentWhen = cancellationAppointmentWhen(booking.booking_date, booking.slot);
 
       // IDEMPOTENCY: pending row up front, per recipient. Unique index
       // (booking_id, trigger_type, human_id) skips a recipient already notified
@@ -346,8 +394,8 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
           to: human.phone,
           template_name: BOOKING_CANCELLED_TEMPLATE,
           language: BOOKING_CANCELLED_TEMPLATE_LANGUAGE,
-          // {{1}} first name, {{2}} dog, {{3}} short date. Same order as the sentence.
-          params: [firstName, dogName, dateFormatted],
+          // {{1}} first name, {{2}} dog name, {{3}} long date and time.
+          params: [firstName, dogName, appointmentWhen],
           human_id: human.id,
         });
         const metaId = whatsappAccepted(result);
