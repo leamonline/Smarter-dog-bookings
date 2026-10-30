@@ -45,13 +45,15 @@
  *   - customer_enquiry_response_v1 (en_GB, 3 params — {{1}} customer first
  *                                name, {{2}} enquiry topic, {{3}} reply.
  *                                Approved as Utility on 2026-10-24.)
- *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
  *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
  * A wrong name or language fails with Meta error 132001 ("Template name
  * does not exist in the translation"), so match both exactly.
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
+ * booking_cancelled_v1 is listed below with status "pending": it is the
+ * body to submit (docs/whatsapp-templates/booking_cancelled_v1.md) and is
+ * not offered in the picker until that status is "approved".
  */
 const PLACEHOLDER = {
   customer_first_name: "[their name]",
@@ -188,6 +190,25 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, thank you for your message about ${values.enquiry_topic || PLACEHOLDER.enquiry_topic}. ${values.reply || PLACEHOLDER.reply}\nThanks 🎓🐶❤️ X`,
+  },
+  {
+    // Not in Meta yet. status is not "approved", so the staff picker hides it.
+    // The automatic cancellation send does not read this status; it is gated
+    // by CANCELLATION_WHATSAPP_ENABLED and stays off until the template in
+    // docs/whatsapp-templates/booking_cancelled_v1.md is approved. This preview
+    // is that body, and the same sentence as the SMS.
+    name: "booking_cancelled_v1",
+    label: "Booking Cancellation",
+    description: "Tell a customer their appointment has been cancelled. Awaiting Meta approval.",
+    status: "pending",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "appointment_date", label: "Date (e.g. Tue 20 Oct)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, your appointment for ${values.dog_name || PLACEHOLDER.dog_name} on ${values.appointment_date || PLACEHOLDER.date} has been cancelled. Rebook anytime.`,
   },
 ];
 

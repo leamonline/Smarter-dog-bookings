@@ -3,21 +3,22 @@
 //
 // Hourly safety net for customer WhatsApp notices: the day-before reminder,
 // the booking confirmation, and cancellation notices that were logged as
-// WhatsApp. New cancellations go out as SMS or email immediately from
-// notify-booking-cancelled and are not candidates here.
+// WhatsApp and were not accepted.
 //
 // notify-booking-reminder and notify-booking-confirmed send Meta WhatsApp
 // templates and log them to notification_log (trigger_type='reminder' /
 // 'confirmed', channel='whatsapp') with the meta_message_id in
 // provider_message_id. Meta status webhooks then move the matching
-// whatsapp_messages row to delivered / read (or failed).
+// whatsapp_messages row to delivered / read (or failed). An undelivered
+// reminder or confirmation is texted after the windows below.
 //
-// Older cancellation rows were Twilio free text with no delivery receipt,
-// left 'pending' until the notification-pending-reaper failed them. This
-// job still chases those channel='whatsapp' rows (trigger_type='cancelled')
-// after the one-hour window. A new cancellation is logged as sms or email,
-// so the candidate query does not pick it up and the customer is not
-// texted twice.
+// Cancellations are not texted twice. When CANCELLATION_WHATSAPP_ENABLED is
+// on, notify-booking-cancelled sends booking_cancelled_v1 and, if Meta
+// rejects it, sends SMS or email itself and moves that same row onto the
+// channel that was used. A cancellation Meta accepted (status 'sent') is
+// not chased here. A 'failed' WhatsApp cancellation still is: those are
+// older Twilio notices, or a send that stopped before the immediate
+// fallback. A row already logged as sms or email is not in this query.
 //
 // This job runs hourly and, for any such WhatsApp notice that — an hour on —
 // either FAILED to send or hasn't been confirmed delivered, sends the same
@@ -204,6 +205,10 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
     const needsSms = candidates.filter((r) => {
       if (!r.message_text) return false; // nothing to resend
       if (!r.booking_id || !noticeStillRelevant(r.trigger_type, bookingStatus.get(r.booking_id))) return false;
+      // Meta accepted this cancellation. SMS here would be a second notice.
+      // Send-time rejection is already SMS or email on a row whose channel
+      // is no longer whatsapp, so it never reaches this list.
+      if (r.trigger_type === "cancelled" && r.status === "sent") return false;
       if (r.status === "failed") return true; // whatsapp-send returned failure
       // status === 'sent': decide by the Meta delivery receipt.
       if (!r.provider_message_id) return false; // can't verify — assume it landed

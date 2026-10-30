@@ -140,6 +140,34 @@ describe("appointment_request_reply_v1", () => {
   });
 });
 
+describe("booking_cancelled_v1", () => {
+  const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_cancelled_v1");
+
+  it("is en_GB and hidden from the staff picker until Meta approves it", () => {
+    expect(template.status).toBe("pending");
+    expect(template.language).toBe("en_GB");
+    expect(WHATSAPP_PICKER_TEMPLATES.some((t) => t.name === "booking_cancelled_v1")).toBe(false);
+  });
+
+  it("sends first name, dog name, then the short date, in that order", () => {
+    expect(buildTemplateParams(template, {
+      customer_first_name: "Sarah",
+      dog_name: "Bella",
+      appointment_date: "Tue 20 Oct",
+    })).toEqual(["Sarah", "Bella", "Tue 20 Oct"]);
+  });
+
+  it("previews the same sentence the SMS cancellation sends", () => {
+    expect(template.preview({
+      customer_first_name: "Sarah",
+      dog_name: "Bella",
+      appointment_date: "Tue 20 Oct",
+    })).toBe(
+      "Hi Sarah, your appointment for Bella on Tue 20 Oct has been cancelled. Rebook anytime.",
+    );
+  });
+});
+
 describe("WHATSAPP_PICKER_TEMPLATES", () => {
   it("only exposes Meta-approved templates to the staff picker", () => {
     expect(WHATSAPP_PICKER_TEMPLATES.map((t) => t.name)).toEqual([

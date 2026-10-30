@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — WhatsApp cancellation notices, off until the template is approved
+
+- A customer who can be reached on WhatsApp can be told of a cancellation
+  with the Meta template `booking_cancelled_v1`, the same sentence the SMS
+  already uses. The path stays off until `CANCELLATION_WHATSAPP_ENABLED` is
+  `true`, so a deploy before Meta approves the template does not change
+  today's SMS-then-email notices.
+- If WhatsApp is unavailable or Meta rejects the send, the notice still goes
+  by SMS, then email, on the same log row. `sent` is written only when that
+  provider accepts. The hourly SMS chase does not text a cancellation Meta
+  has already accepted.
+- Reschedule cancellations are still skipped. The body for Leam to submit is
+  in `docs/whatsapp-templates/booking_cancelled_v1.md`.
+
 ## Unreleased — staff replies block overlapping WhatsApp AI drafts (#1063)
 
 - Automatic WhatsApp drafting now stops before the model call when a marked
