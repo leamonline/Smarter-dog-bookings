@@ -3,7 +3,10 @@ import { logger } from "../../lib/logger";
 import {
   handleStaleChunkError,
   isChunkReloadPending,
+  isLazyImportShadow,
   isStaleChunkError,
+  reloadFreshDocument,
+  staleChunkReloadAllowed,
 } from "../../lib/chunkReload.js";
 
 function makeErrorId() {
@@ -17,11 +20,14 @@ function makeErrorId() {
 export class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, errorId: null };
+    this.state = { hasError: false, errorId: null, updating: false };
   }
 
-  static getDerivedStateFromError(_error) {
-    return { hasError: true, errorId: makeErrorId() };
+  static getDerivedStateFromError(error) {
+    const updating =
+      (isStaleChunkError(error) && staleChunkReloadAllowed()) ||
+      (isChunkReloadPending() && (isStaleChunkError(error) || isLazyImportShadow(error)));
+    return { hasError: true, errorId: updating ? null : makeErrorId(), updating };
   }
 
   componentDidCatch(error, info) {
@@ -31,8 +37,9 @@ export class ErrorBoundary extends Component {
     if (isChunkReloadPending()) return;
     // A lazy() import that rejected inside React never reaches the window
     // error listeners, so the stale-chunk auto-reload has to be offered here.
-    // If the loop guard refuses, fall through and show the recovery UI.
-    if (isStaleChunkError(error) && handleStaleChunkError("error-boundary", error)) {
+    // The handler reports a loop-guard refusal itself; don't also log it.
+    if (isStaleChunkError(error)) {
+      handleStaleChunkError("error-boundary", error);
       return;
     }
     logger.error("[ErrorBoundary] Unhandled error:", error, {
@@ -42,10 +49,23 @@ export class ErrorBoundary extends Component {
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, errorId: null });
+    this.setState({ hasError: false, errorId: null, updating: false });
   };
 
   render() {
+    if (this.state.updating) {
+      return (
+        <div role="status" aria-live="polite" className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="text-slate-800 font-extrabold text-lg mb-1">
+            Updating to the latest version…
+          </div>
+          <div className="text-slate-500 text-sm max-w-xs">
+            This page will refresh in a moment. Anything you had not saved may need to be entered again.
+          </div>
+        </div>
+      );
+    }
+
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -68,7 +88,7 @@ export class ErrorBoundary extends Component {
               Try this section again
             </button>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => reloadFreshDocument()}
               className="py-2.5 px-5 rounded-lg bg-white text-slate-700 font-bold text-sm border border-slate-200 cursor-pointer"
             >
               Reload the page

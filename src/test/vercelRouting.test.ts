@@ -38,15 +38,32 @@ describe("vercel routing table", () => {
     expect(manifest.start_url).toBe("/staff/");
     expect(manifest.scope).toBe("/staff/");
     expect(rewriteFor(manifest.start_url)?.destination).toBe(BOOKING_SHELL);
-    expect(indexOfRewrite(manifest.start_url)).toBeLessThan(indexOfRewrite("/(.*)"));
+    expect(indexOfRewrite(manifest.start_url)).toBeLessThan(
+      indexOfRewrite("/((?!assets/|app/assets/).*)"),
+    );
     expect(resolveMount(manifest.start_url)).not.toBeNull();
   });
 
-  it("keeps the marketing catch-all last", () => {
+  it("keeps the marketing catch-all last and lets missing hashed assets 404", () => {
     // A catch-all placed above the booking rewrites would swallow them.
-    const catchAll = indexOfRewrite("/(.*)");
+    // The negative lookahead is the form Vercel documents for "everything
+    // except this prefix". Files that exist are still served from the
+    // filesystem before any rewrite, so /app/assets/real-hash.js is unchanged.
+    // A missing hash used to match /(.*) and come back as index.html with
+    // HTTP 200, which the browser refuses as a module (MIME type text/html).
+    const source = "/((?!assets/|app/assets/).*)";
+    const catchAll = indexOfRewrite(source);
     expect(catchAll).toBe(config.rewrites.length - 1);
     expect(config.rewrites[catchAll].destination).toBe("/index.html");
+    expect(indexOfRewrite("/(.*)")).toBe(-1);
+
+    const re = new RegExp(`^${source}$`);
+    expect(re.test("/services")).toBe(true);
+    expect(re.test("/")).toBe(true);
+    expect(re.test("/book/new")).toBe(true);
+    expect(re.test("/app/assets/TodayView-abc.js")).toBe(false);
+    expect(re.test("/assets/index-abc.js")).toBe(false);
+    expect(re.test("/app/assets/TodayView-abc.css")).toBe(false);
   });
 
   it("agrees with the client-side resolver about where old URLs go", () => {
@@ -156,7 +173,11 @@ describe("vercel routing table", () => {
       for (let i = 0; i < source.length; i += 1) {
         if (source[i] === "\\") { i += 1; continue; }
         if (source[i] === "(") {
-          if (depth > 0 && !source.startsWith("(?:", i)) return true;
+          const nonCapturing =
+            source.startsWith("(?:", i) ||
+            source.startsWith("(?=", i) ||
+            source.startsWith("(?!", i);
+          if (depth > 0 && !nonCapturing) return true;
           depth += 1;
         } else if (source[i] === ")") depth -= 1;
       }
@@ -166,6 +187,8 @@ describe("vercel routing table", () => {
       ...config.redirects, ...config.rewrites, ...config.headers,
     ].map((r: { source: string }) => r.source);
     expect(sources.length).toBeGreaterThan(10);
+    expect(nested("((a))")).toBe(true);
+    expect(nested("/((?!assets/).*)")).toBe(false);
     for (const source of sources) {
       expect(source, source).toMatch(/^\//);
       expect(nested(source), `nested capturing group: ${source}`).toBe(false);

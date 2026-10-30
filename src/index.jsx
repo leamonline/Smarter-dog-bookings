@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { OverlayProvider } from "react-aria";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { supabaseConfigError } from "./supabase/client";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
@@ -21,7 +22,10 @@ const App = lazy(() => import("./App.jsx"));
 const CustomerApp = lazy(() => import("./CustomerApp.jsx"));
 const ResetPasswordPage = lazy(() =>
   import("./components/auth/ResetPasswordPage.jsx").then((module) => ({
-    default: module.ResetPasswordPage,
+    // A prevented preload resolves the module to undefined. Rendering nothing
+    // beats throwing "reading 'ResetPasswordPage'" through the whole tree
+    // while the stale-chunk reload is already navigating away.
+    default: module?.ResetPasswordPage ?? function MissingResetPassword() { return null; },
   })),
 );
 
@@ -59,7 +63,9 @@ if (legacyRedirect) {
   createRoot(document.getElementById("root")).render(
     <BrowserRouter basename={basename}>
       <OverlayProvider>
-        <Suspense fallback={<LoadingSpinner />}>{screen()}</Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingSpinner />}>{screen()}</Suspense>
+        </ErrorBoundary>
         <DevConnectionBanner />
       </OverlayProvider>
     </BrowserRouter>,

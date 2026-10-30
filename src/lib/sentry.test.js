@@ -1,7 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { sentryBeforeSend } from "./sentry.js";
+import { afterEach, describe, it, expect } from "vitest";
+import { registerChunkReloadNoiseFilter, sentryBeforeSend } from "./sentry.js";
 
 describe("sentryBeforeSend", () => {
+  afterEach(() => {
+    registerChunkReloadNoiseFilter(() => false);
+  });
+
+  it("drops a stale-chunk event when the reload filter says the reload handled it", () => {
+    registerChunkReloadNoiseFilter(() => true);
+    expect(sentryBeforeSend({
+      message: "Failed to fetch dynamically imported module: /app/assets/TodayView-abc.js",
+    })).toBeNull();
+  });
+
+  it("keeps a loop-guard hit even when the noise filter would drop it", () => {
+    registerChunkReloadNoiseFilter(() => true);
+    const out = sentryBeforeSend({
+      message: "Failed to fetch dynamically imported module: /app/assets/CustomerApp-abc.js",
+      tags: { chunkReload: "loop_guard_hit", source: "vite:preloadError" },
+    });
+    expect(out).not.toBeNull();
+    expect(out.tags.chunkReload).toBe("loop_guard_hit");
+    expect(out.message).toMatch(/CustomerApp-abc\.js/);
+  });
+
   it("redacts UK mobile in event.message", () => {
     const out = sentryBeforeSend({ message: "Call from 07507731487 failed" });
     expect(out.message).toBe("Call from [redacted-phone] failed");

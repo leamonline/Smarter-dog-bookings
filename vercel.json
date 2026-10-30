@@ -150,7 +150,7 @@
       "destination": "/app/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|app/assets/).*)",
       "destination": "/index.html"
     }
   ],

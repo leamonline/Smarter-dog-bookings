@@ -9,16 +9,20 @@ const { loggerError, captureException } = vi.hoisted(() => ({
 vi.mock("../../lib/logger", () => ({
   logger: { error: loggerError },
 }));
-vi.mock("../../lib/sentry.js", () => ({ captureException }));
+vi.mock("../../lib/sentry.js", () => ({
+  captureException,
+  registerChunkReloadNoiseFilter: vi.fn(),
+}));
 
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
+import { handleStaleChunkError, resetChunkReloadForTests } from "../../lib/chunkReload.js";
 
 function Throws() {
   throw new Error("database password for leam@example.com was rejected");
 }
 
 function ThrowsStaleChunk() {
-  throw new TypeError("Failed to fetch dynamically imported module: /assets/TodayView-abc.js");
+  throw new TypeError("Failed to fetch dynamically imported module: /app/assets/TodayView-abc.js");
 }
 
 function ThrowsLazyShadow() {
@@ -28,23 +32,31 @@ function ThrowsLazyShadow() {
 const RELOAD_FLAG = "app:chunk-reload-attempted";
 
 describe("ErrorBoundary", () => {
-  let reloadSpy;
+  let replaceSpy;
 
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     loggerError.mockClear();
     captureException.mockClear();
     sessionStorage.clear();
-    reloadSpy = vi.fn();
+    resetChunkReloadForTests();
+    document.getElementById("chunk-reload-notice")?.remove();
+    replaceSpy = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { reload: reloadSpy },
+      value: {
+        href: "https://smarterdog.co.uk/staff/today",
+        replace: replaceSpy,
+        reload: vi.fn(),
+      },
     });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     sessionStorage.clear();
+    resetChunkReloadForTests();
+    document.getElementById("chunk-reload-notice")?.remove();
   });
 
   it("keeps exception detail out of recovery copy and reports the error once", () => {
@@ -62,20 +74,18 @@ describe("ErrorBoundary", () => {
     expect(captureException).not.toHaveBeenCalled();
   });
 
-  it("auto-reloads once on a stale-chunk import instead of reporting it", () => {
+  it("shows an updating notice and refreshes once on a stale-chunk import", () => {
     render(
       <ErrorBoundary>
         <ThrowsStaleChunk />
       </ErrorBoundary>,
     );
 
-    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status")).toHaveTextContent(/Updating to the latest version/i);
+    expect(screen.getByText(/had not saved/i)).toBeInTheDocument();
+    expect(replaceSpy).toHaveBeenCalledTimes(1);
     expect(loggerError).not.toHaveBeenCalled();
-    expect(captureException).toHaveBeenCalledTimes(1);
-    expect(captureException.mock.calls[0][1].tags).toMatchObject({
-      chunkReload: "reloading",
-      source: "error-boundary",
-    });
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("shows the recovery UI and reports when the reload loop guard refuses", () => {
@@ -86,12 +96,18 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(replaceSpy).not.toHaveBeenCalled();
     expect(screen.getByText(/This section couldn't be shown/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Updating to the latest version/i)).not.toBeInTheDocument();
+    expect(loggerError).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(captureException.mock.calls[0][1].tags.chunkReload).toBe("loop_guard_hit");
   });
 
   it("does not report the lazy-mapping shadow of a reload already in flight", () => {
-    sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+    handleStaleChunkError("vite:preloadError", new Error("preload"));
+    captureException.mockClear();
+    loggerError.mockClear();
     render(
       <ErrorBoundary>
         <ThrowsLazyShadow />
@@ -100,5 +116,6 @@ describe("ErrorBoundary", () => {
 
     expect(loggerError).not.toHaveBeenCalled();
     expect(captureException).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(/Updating to the latest version/i);
   });
 });
