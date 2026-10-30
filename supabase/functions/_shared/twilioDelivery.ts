@@ -5,18 +5,18 @@
 //
 // Twilio answers a Messages POST with 2xx the moment it QUEUES the message.
 // For WhatsApp that is not delivery: the real failures (outside the 24-hour
-// window, number not on WhatsApp) arrive later as status callbacks, and this
-// project has none wired for the Twilio channel. notify-booking-cancelled and
-// notify-booking-ready used to write notification_log.status = 'sent' on that
-// 2xx, so a cancellation notice the customer never received looked delivered
-// forever and the SMS safety net never chased it (audit C3, #989).
+// window, number not on WhatsApp, sandbox recipient not joined) arrive later
+// as status callbacks, and this project has none wired for the Twilio channel.
+// notify-booking-cancelled and notify-booking-ready used to write
+// notification_log.status = 'sent' on that 2xx (audit C3, #989). Cancellation
+// notices no longer use Twilio WhatsApp: they go out as SMS, or email when a
+// text cannot be sent, and are logged sent or failed on that channel.
 //
-// AGENTS.md: delivery is never inferred from an attempted provider call, and
-// an ambiguous outcome fails closed. So a Twilio accept leaves the row at
-// 'pending'. The notification-pending-reaper cron (migration 20260615140000,
-// message preserved since 20261014100000) flips it to 'failed' after ten
-// minutes, and reminder-sms-fallback then follows up over SMS after an hour.
-// A Twilio rejection is recorded as 'failed' with Twilio's own reason.
+// This helper remains for historical WhatsApp rows. isDeliveryUnconfirmed
+// still tells the delivery card that one of those notes is "not confirmed"
+// rather than a reported failure. A Twilio rejection is recorded as 'failed'
+// with Twilio's own reason. An accept, for any caller that still uses this
+// helper, stays 'pending' so it is not claimed as delivered.
 //
 // Pure: no Deno or Supabase imports, so it is unit-tested without a network.
 // ============================================================

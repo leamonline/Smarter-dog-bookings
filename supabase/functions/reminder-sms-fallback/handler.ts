@@ -2,7 +2,9 @@
 // reminder-sms-fallback
 //
 // Hourly safety net for customer WhatsApp notices: the day-before reminder,
-// the booking confirmation and (since #989) the cancellation notice.
+// the booking confirmation, and cancellation notices that were logged as
+// WhatsApp. New cancellations go out as SMS or email immediately from
+// notify-booking-cancelled and are not candidates here.
 //
 // notify-booking-reminder and notify-booking-confirmed send Meta WhatsApp
 // templates and log them to notification_log (trigger_type='reminder' /
@@ -10,11 +12,12 @@
 // provider_message_id. Meta status webhooks then move the matching
 // whatsapp_messages row to delivered / read (or failed).
 //
-// notify-booking-cancelled still sends Twilio free text, which has no
-// delivery receipt here, so it leaves its row 'pending' and the
-// notification-pending-reaper fails it after ten minutes: a cancellation
-// therefore always reaches this job as a 'failed' row (trigger_type=
-// 'cancelled') and is chased after the one-hour window.
+// Older cancellation rows were Twilio free text with no delivery receipt,
+// left 'pending' until the notification-pending-reaper failed them. This
+// job still chases those channel='whatsapp' rows (trigger_type='cancelled')
+// after the one-hour window. A new cancellation is logged as sms or email,
+// so the candidate query does not pick it up and the customer is not
+// texted twice.
 //
 // This job runs hourly and, for any such WhatsApp notice that — an hour on —
 // either FAILED to send or hasn't been confirmed delivered, sends the same
