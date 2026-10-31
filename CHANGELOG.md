@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — WhatsApp cancellation notices, off until the flag is switched on
+
+- When the salon cancels (`bookings.cancellation_cause` is `salon`) and
+  `CANCELLATION_WHATSAPP_ENABLED` is `true`, the customer can be told on the
+  already-approved Meta template `booking_cancelled_v1` (English UK, Utility).
+  Do not resubmit it. The wording apologises, so a cancellation the customer
+  asked for, and any row with no cause, stays on SMS then email. The flag
+  stays off until it is set, which can happen once this function is deployed.
+- The WhatsApp date includes the time when the booking has one (`Monday 16
+  June at 10:00am`). The text and the email keep the existing short sentence.
+- If WhatsApp is unavailable or Meta rejects the send, the notice still goes
+  by SMS, then email, on the same log row. `sent` is written only when that
+  provider accepts. The hourly SMS chase does not text a cancellation Meta
+  has already accepted.
+- Reschedule cancellations are still skipped. The approved body is in
+  `docs/whatsapp-templates/booking_cancelled_v1.md`.
+
 ## Unreleased — staff replies block overlapping WhatsApp AI drafts (#1063)
 
 - Automatic WhatsApp drafting now stops before the model call when a marked

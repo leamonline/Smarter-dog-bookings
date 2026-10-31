@@ -45,7 +45,10 @@
  *   - customer_enquiry_response_v1 (en_GB, 3 params — {{1}} customer first
  *                                name, {{2}} enquiry topic, {{3}} reply.
  *                                Approved as Utility on 2026-10-24.)
- *   - booking_cancelled_v1      (en_GB — approved, not yet sent by the app)
+ *   - booking_cancelled_v1      (en_GB, 3 params — {{1}} first name,
+ *                                {{2}} dog name, {{3}} date and time.
+ *                                Approved as Utility. Already in Meta;
+ *                                do not resubmit or edit the body.)
  *   - day_closure_v1            (en_GB — broadcast only, not in the picker)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
  * A wrong name or language fails with Meta error 132001 ("Template name
@@ -188,6 +191,27 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, thank you for your message about ${values.enquiry_topic || PLACEHOLDER.enquiry_topic}. ${values.reply || PLACEHOLDER.reply}\nThanks 🎓🐶❤️ X`,
+  },
+  {
+    // Approved in Meta as Utility, en_GB, body only (no header, footer or
+    // buttons). Checked live 30 Oct 2026. Do not resubmit or reword: a change
+    // needs a new template name. The automatic cancellation send is still
+    // gated by CANCELLATION_WHATSAPP_ENABLED and only when
+    // bookings.cancellation_cause is salon. A customer cancellation keeps
+    // the short SMS sentence. {{3}} is the long date and time, e.g.
+    // "Monday 16 June at 10:00am".
+    name: "booking_cancelled_v1",
+    label: "Booking Cancellation",
+    description: "The salon had to cancel. Not for a cancellation the customer asked for.",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "appointment_when", label: "When (e.g. Monday 16 June at 10:00am)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, we're sorry to let you know that ${values.dog_name || PLACEHOLDER.dog_name}'s appointment on ${values.appointment_when || PLACEHOLDER.when} has been cancelled. If you'd like to rearrange, just reply here and we'll find a new time — Smarter Dog Grooming Salon.`,
   },
 ];
 

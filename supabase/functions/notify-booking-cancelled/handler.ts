@@ -2,24 +2,108 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmailDetailed } from "../_shared/email.ts";
-import { sanitise, formatDateShort as formatDate } from "../_shared/format.ts";
+import { sanitise, formatDateShort as formatDate, formatTime } from "../_shared/format.ts";
 import {
   recipientIdsForBooking,
   fetchHumansByIds,
   channelAvailableFor,
   bookingCancellationSkipReason,
   reportStaffRescheduleReplacement,
+  type NotifyChannel,
   type RecipientHuman,
   type StaffRescheduleLookupResult,
 } from "../_shared/recipients.ts";
 import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
-// Cancellation notices go out as SMS, then email when a text is not possible
-// (no mobile, SMS not set up, opted out, or Twilio rejects the send). They do
-// not use Twilio WhatsApp. Consent is the same rule as every other text:
-// channelAvailableFor requires the channel to be set up, to have a contact
-// detail, and not to be opted out. This function has no quiet-hours gate.
-function cancellationChannel(human: RecipientHuman): "sms" | "email" | null {
+// Cancellation notices. Reschedule skips are unchanged (see
+// bookingCancellationSkipReason).
+//
+// CANCELLATION_WHATSAPP_ENABLED must be the string "true" or this function
+// behaves as it does today: SMS, then email. The flag ships off so a deploy
+// does not change that. booking_cancelled_v1 is already approved in Meta
+// (en_GB, Utility) and its wording apologises, so it is only for a
+// cancellation the salon made (bookings.cancellation_cause = 'salon').
+// Do not resubmit the template. A customer, reschedule, system, or unknown
+// cause stays on SMS then email. Once this function is deployed, the flag
+// can be turned on. A Meta rejection still does not send twice: the same
+// notice goes out by SMS, then email, on this same notification_log row.
+//
+// WhatsApp still requires the channel to be switched on, a phone, and no
+// opt-out (channelAvailableFor). whatsapp-send enforces the opt-out again.
+//
+// WhatsApp is always the approved-template send, never free text. A template
+// is allowed inside and outside Meta's 24-hour customer-care window, which is
+// the usual case for a cancellation. 'sent' is recorded only when the provider
+// accepts (for WhatsApp, that includes a meta_message_id). Otherwise the row
+// is 'failed' with that provider's error, on the channel actually used.
+// A customer gets one notice: a rejected WhatsApp is moved onto SMS or email
+// before that send, so reminder-sms-fallback does not see a WhatsApp row and
+// text them as well.
+
+export const BOOKING_CANCELLED_TEMPLATE = "booking_cancelled_v1";
+export const BOOKING_CANCELLED_TEMPLATE_LANGUAGE = "en_GB";
+
+/**
+ * The SMS and email sentence. The approved WhatsApp body is different and
+ * lives on the template; this wording stays as it is.
+ */
+export function cancellationNotice(
+  firstName: string,
+  dogName: string,
+  dateFormatted: string,
+): string {
+  return `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. Rebook anytime.`;
+}
+
+/**
+ * {{3}} of booking_cancelled_v1. Long date, and the time when the booking has
+ * a slot, in the approved sample's shape ("Monday 16 June at 10:00am"). The
+ * time uses the same formatTime as booking_confirmed_v1. No slot means the
+ * date alone. SMS keeps the short date and does not use this.
+ */
+export function cancellationAppointmentWhen(
+  dateStr: string,
+  slot: string | null | undefined,
+): string {
+  const date = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const time = typeof slot === "string" && slot.trim() ? formatTime(slot) : "";
+  return time ? `${date} at ${time}` : date;
+}
+
+export function cancellationWhatsAppEnabled(): boolean {
+  return (Deno.env.get("CANCELLATION_WHATSAPP_ENABLED") ?? "").trim().toLowerCase() === "true";
+}
+
+/**
+ * Who cancelled, from the row the trigger posts as `record` (NEW). A resend
+ * posts the current row as `old_record` only, so that is the fallback. Anything
+ * other than the exact value "salon" is not the salon, including a missing
+ * cause: we do not guess.
+ */
+export function cancellationCause(payload: {
+  record?: { cancellation_cause?: unknown } | null;
+  old_record?: { cancellation_cause?: unknown } | null;
+}): string | null {
+  const raw = payload.record?.cancellation_cause ?? payload.old_record?.cancellation_cause;
+  if (typeof raw !== "string") return null;
+  const cause = raw.trim();
+  return cause.length > 0 ? cause : null;
+}
+
+export function isSalonCancellation(cause: string | null): boolean {
+  return cause === "salon";
+}
+
+// Salon + flag on: WhatsApp, then SMS, then email. Every other cancellation:
+// SMS, then email. Never the apology template unless the cause is salon.
+function cancellationChannel(human: RecipientHuman, salon: boolean): NotifyChannel | null {
+  if (salon && cancellationWhatsAppEnabled() && channelAvailableFor(human, "whatsapp")) {
+    return "whatsapp";
+  }
   if (channelAvailableFor(human, "sms")) return "sms";
   if (channelAvailableFor(human, "email")) return "email";
   return null;
@@ -37,12 +121,63 @@ function smsRejection(result: {
     : `Twilio rejected this SMS (HTTP ${result.status})${code}.`;
 }
 
+function whatsappAccepted(result: {
+  ok: boolean;
+  body: Record<string, unknown>;
+}): string | null {
+  const id = result.body.meta_message_id;
+  if (result.ok && result.body.ok === true && typeof id === "string" && id.length > 0) {
+    return id;
+  }
+  return null;
+}
+
+function whatsappRejection(result: {
+  ok: boolean;
+  status: number;
+  body: Record<string, unknown>;
+}): string {
+  if (result.ok && result.body.ok === true) {
+    return "WhatsApp was not accepted: Meta returned no message id.";
+  }
+  const error = typeof result.body.error === "string" ? result.body.error.trim() : "";
+  const reason = typeof result.body.reason === "string" ? result.body.reason.trim() : "";
+  const detail = [error, reason].filter(Boolean).join(" — ");
+  return detail
+    ? `WhatsApp was not accepted: ${detail} (HTTP ${result.status}).`
+    : `WhatsApp was not accepted (HTTP ${result.status}).`;
+}
+
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts.
 // SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
+// SEND_INTERNAL_SECRET is read per request so a test can set it, and so the
+// WhatsApp call uses the same internal credential as notify-booking-confirmed.
+
+async function invokeInternal(
+  fn: string,
+  payload: unknown,
+): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": Deno.env.get("SEND_INTERNAL_SECRET") ?? "",
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  let body: Record<string, unknown> = {};
+  try {
+    body = await res.json();
+  } catch {
+    /* non-JSON */
+  }
+  return { ok: res.ok, status: res.status, body };
+}
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
@@ -75,6 +210,11 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
     // decision and the staff-only branch below can't disagree about padding.
     const rawReason = payload.record?.cancel_reason ?? booking.cancel_reason;
     const cancelReason = typeof rawReason === "string" ? rawReason.trim() : "";
+
+    // NEW carries cancellation_cause from the same UPDATE. Only 'salon' may
+    // use the apology template. Customer, reschedule, system, and a blank
+    // cause (older writers that never set the column) stay on SMS then email.
+    const salonCancellation = isSalonCancellation(cancellationCause(payload));
 
     const skipReason = bookingCancellationSkipReason({ cancel_reason: cancelReason });
     if (skipReason) {
@@ -131,11 +271,9 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
     const recipientIds = recipientIdsForBooking(booking.notify_human_ids, dog.human_id);
     const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-    // 3. Message bits shared across recipients. The WhatsApp-reschedule case is
-    //    now filtered out above; for everything that reaches here (customer
-    //    cancel, staff cancel, deposit not received, no-show, ...) we still
-    //    can't tell the specific cause from the webhook payload, so we use the
-    //    one generic customer-facing tone for all of them.
+    // 3. Message bits shared across recipients. Reschedules are filtered out
+    //    above. SMS and email keep one short sentence for every cause. The
+    //    apology template is added only when cancellation_cause is salon.
     const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
@@ -148,19 +286,18 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         continue;
       }
 
-      // SMS, then email. WhatsApp is not a cancellation channel: the Twilio
-      // sender is a sandbox number whose accepts are not delivery.
-      const channel = cancellationChannel(human);
+      const channel = cancellationChannel(human, salonCancellation);
       if (!channel) {
         results.push({ human_id: humanId, skipped: "no contact method" });
         continue;
       }
 
       const firstName = sanitise(human.name.split(" ")[0]);
-      // Tight — single GSM-7 segment to keep SMS cost at £0.04 per send.
-      const message =
-        `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. ` +
-        `Rebook anytime.`;
+      // SMS and email keep this short sentence, including when WhatsApp is
+      // rejected and we fall back. The template has its own approved body;
+      // only {{3}} carries the longer date and time.
+      const message = cancellationNotice(firstName, dogName, dateFormatted);
+      const appointmentWhen = cancellationAppointmentWhen(booking.booking_date, booking.slot);
 
       // IDEMPOTENCY: pending row up front, per recipient. Unique index
       // (booking_id, trigger_type, human_id) skips a recipient already notified
@@ -175,7 +312,8 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
           channel,
           trigger_type: "cancelled",
           status: "pending",
-          // The wording of the notice, kept on the row for staff.
+          // The wording of the notice, kept on the row for staff and for the
+          // hourly chase of a WhatsApp row that never reached a fallback.
           message_text: message,
         })
         .select("id")
@@ -191,46 +329,92 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         continue;
       }
 
-      // 'sent' only when the provider accepts the message. A Twilio or
-      // SendGrid rejection is 'failed' with that provider's reason, and the
-      // channel on the row is the one that was actually used.
+      // 'sent' only when the provider accepts the message. A rejection is
+      // 'failed' with that provider's reason. The channel on the row is the
+      // one that was actually used. Moving the row off WhatsApp before an SMS
+      // or email means the hourly chase cannot text the same cancellation.
       const subject = `Your ${dogName} appointment has been cancelled`;
-      let used: "sms" | "email" = channel;
+      let used: NotifyChannel = channel;
       let sent = false;
-      let errorMessage: string | null = null;
       let providerMessageId: string | null = null;
+      const failures: string[] = [];
 
-      if (channel === "sms") {
-        const sms = await sendSms(human.phone!, message);
+      const retarget = async (next: "sms" | "email"): Promise<boolean> => {
+        if (used === next) return true;
+        const { error } = await supabase
+          .from("notification_log")
+          .update({ channel: next, status: "pending" })
+          .eq("id", pendingRow.id);
+        if (error) {
+          console.error("Cancellation log retarget failed:", error.message);
+          failures.push(
+            "The notice could not be moved onto the next channel, so nothing further was sent.",
+          );
+          return false;
+        }
+        used = next;
+        return true;
+      };
+
+      const trySms = async (): Promise<boolean> => {
+        if (!channelAvailableFor(human, "sms") || !human.phone) return false;
+        if (!(await retarget("sms"))) return false;
+        const sms = await sendSms(human.phone, message);
         if (sms.ok) {
           sent = true;
           providerMessageId = sms.sid ?? null;
-        } else {
-          const rejected = smsRejection(sms);
-          console.error(`Twilio SMS failed (${sms.status}): ${rejected}`);
-          if (channelAvailableFor(human, "email")) {
-            const email = await sendEmailDetailed(human.email!, subject, message);
-            used = "email";
-            if (email.ok) {
-              sent = true;
-            } else {
-              const emailError = email.errorMessage ?? `SendGrid HTTP ${email.status}`;
-              console.error(`Cancellation email fallback failed: ${emailError}`);
-              errorMessage = `${rejected} Email fallback failed: ${emailError}`;
-            }
-          } else {
-            errorMessage = rejected;
-          }
+          return true;
         }
-      } else {
-        const email = await sendEmailDetailed(human.email!, subject, message);
+        const rejected = smsRejection(sms);
+        console.error(`Twilio SMS failed (${sms.status}): ${rejected}`);
+        failures.push(rejected);
+        return false;
+      };
+
+      const tryEmail = async (): Promise<boolean> => {
+        if (!channelAvailableFor(human, "email") || !human.email) return false;
+        if (!(await retarget("email"))) return false;
+        const email = await sendEmailDetailed(human.email, subject, message);
         if (email.ok) {
           sent = true;
-        } else {
-          errorMessage = email.errorMessage ?? `SendGrid HTTP ${email.status}`;
-          console.error(`Cancellation email failed: ${errorMessage}`);
+          providerMessageId = null;
+          return true;
         }
+        const emailError = email.errorMessage ?? `SendGrid HTTP ${email.status}`;
+        console.error(`Cancellation email failed: ${emailError}`);
+        failures.push(
+          failures.length > 0 ? `Email fallback failed: ${emailError}` : emailError,
+        );
+        return false;
+      };
+
+      if (channel === "whatsapp") {
+        const result = await invokeInternal("whatsapp-send", {
+          mode: "template",
+          to: human.phone,
+          template_name: BOOKING_CANCELLED_TEMPLATE,
+          language: BOOKING_CANCELLED_TEMPLATE_LANGUAGE,
+          // {{1}} first name, {{2}} dog name, {{3}} long date and time.
+          params: [firstName, dogName, appointmentWhen],
+          human_id: human.id,
+        });
+        const metaId = whatsappAccepted(result);
+        if (metaId) {
+          sent = true;
+          providerMessageId = metaId;
+        } else {
+          const why = whatsappRejection(result);
+          console.error(`cancelled whatsapp-send failed: ${why}`);
+          failures.push(why);
+          if (!(await trySms())) await tryEmail();
+        }
+      } else if (channel === "sms") {
+        if (!(await trySms())) await tryEmail();
+      } else {
+        await tryEmail();
       }
+
+      const errorMessage = sent ? null : (failures.join(" ") || "Delivery failed");
 
       await supabase
         .from("notification_log")
@@ -239,7 +423,7 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
           status: sent ? "sent" : "failed",
           sent_at: sent ? new Date().toISOString() : null,
           provider_message_id: sent ? providerMessageId : null,
-          error_message: sent ? null : errorMessage,
+          error_message: errorMessage,
         })
         .eq("id", pendingRow.id);
 

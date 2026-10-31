@@ -35,8 +35,18 @@ Most replies follow the same three beats: reassure, inform, close warmly.
 
 ## 2. Automated notifications (confirmations and reminders)
 
-Used for: `booking_confirmed_v1` and the reminder messages, sent from
-`supabase/functions/notify-booking-confirmed` and `notify-booking-reminder`.
+Used for: `booking_confirmed_v1`, the reminder messages, and the cancellation
+sentence, sent from `supabase/functions/notify-booking-confirmed`,
+`notify-booking-reminder` and `notify-booking-cancelled`.
+
+The text and the email stay one short line, with no time: "Hi Sarah, your
+appointment for Bella on Tue 20 Oct has been cancelled. Rebook anytime."
+WhatsApp uses the already-approved `booking_cancelled_v1` body only when the
+salon cancelled. That body apologises and includes the date and time. It is
+recorded in [the template note](../whatsapp-templates/booking_cancelled_v1.md).
+Do not resubmit it. A cancellation the customer asked for keeps the short
+sentence by text or email. The automatic WhatsApp send stays off until the
+flag in that note is on.
 
 | Rule | Why |
 |---|---|

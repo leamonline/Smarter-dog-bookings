@@ -99,6 +99,9 @@ These files remain authoritative for their bounded topics:
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
   behaviour.
+- [`whatsapp-templates/booking_cancelled_v1.md`](whatsapp-templates/booking_cancelled_v1.md)
+  — the approved salon-cancellation template (do not resubmit it) and the flag
+  that keeps that WhatsApp send off until it is switched on.
 - [`address-search.md`](address-search.md) — Geoapify free-plan address search,
   server-held key setup, attribution and manual signup recovery.
 - [`booking-pane-actions-spec.md`](booking-pane-actions-spec.md) — current
