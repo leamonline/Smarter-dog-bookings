@@ -82,8 +82,26 @@ function redactDeep(value, depth = 0) {
   return value;
 }
 
+// chunkReload.js registers this. A handled stale-deploy reload must not open
+// a Sentry issue; the loop-guard path is a real failure and is kept below.
+let dropChunkNoise = () => false;
+
+export function registerChunkReloadNoiseFilter(fn) {
+  dropChunkNoise = typeof fn === "function" ? fn : () => false;
+}
+
 export function sentryBeforeSend(event) {
   if (!event) return event;
+  // The fresh document is still failing. Keep it, tag and all, so it stays
+  // distinguishable from an ordinary crash.
+  if (event.tags?.chunkReload === "loop_guard_hit") {
+    return redactEvent(event);
+  }
+  if (dropChunkNoise(event)) return null;
+  return redactEvent(event);
+}
+
+function redactEvent(event) {
   if (event.message) event.message = redactPii(event.message);
   if (event.exception && Array.isArray(event.exception.values)) {
     event.exception.values = event.exception.values.map((ex) => ({

@@ -118,6 +118,46 @@ pass (phone, email, postcode, token, UUID) and the key pass (names, addresses,
 notes, message content) actually fire on real payloads. Report anything that
 leaks rather than assuming the tests covered it.
 
+## Stale deploys and missing chunks
+
+After a deploy, a tab that is already open still has the previous JavaScript in
+memory. The next screen it lazy-loads asks for a hashed file that the new
+deploy deleted. Two things used to follow:
+
+- Vercel's marketing catch-all rewrote that missing `/app/assets/*.js` (and the
+  marketing site's `/assets/*.js`) to `index.html` with HTTP 200. The browser
+  then refused to run it (`text/html` is not a JavaScript MIME type, or
+  "Failed to fetch dynamically imported module") and the screen went blank.
+- [`installChunkReloadHandler`](../src/lib/chunkReload.js) did reload once, but
+  it stored the guard before the navigation finished. A second event from the
+  same failure — another chunk, or the `vite:preloadError` that follows the
+  first — was reported as `chunkReload: loop_guard_hit` and was not swallowed.
+  The recovering reload itself was sent to Sentry at info level, which still
+  opens an issue (JAVASCRIPT-REACT-A, JAVASCRIPT-REACT-8).
+
+The catch-all now excludes `/assets/` and `/app/assets/`. A file that exists is
+still served from the filesystem before rewrites, so real chunks, CSS and the
+booking routes (`/staff`, `/book`, `/reset-password`) are unchanged. A missing
+hash 404s. The header that marks `/app/assets/*` immutable still applies to that
+404; a retired content hash never comes back, so caching the 404 is safe.
+
+The handler navigates once, with `location.replace` onto the same URL plus a
+`__sd_chunk_reload` timestamp that it strips on the next document. A second
+event on the way out does not count as a failed recovery. A failure on the
+fresh document within 10 seconds does: the loop guard reports that one to
+Sentry and the existing "this part didn't load" screen stays up, with a button
+that asks for another refresh. Handled reloads are not sent. Sentry's
+`beforeSend` also drops the lazy-import shadow (`undefined is not an object
+(evaluating 'e.Analytics')`) while a reload is in flight, and keeps every other
+error.
+
+Customer drafts saved with `useDraftPersistence` live in `localStorage` and come
+back after the refresh. The staff new-booking drawer and unsaved settings edits
+are React state, so they do not. The screen says so ("Anything you had not
+saved may need to be entered again") instead of refreshing with no explanation.
+The marketing site has no equivalent handler; a missing `/assets/*.js` there
+now 404s and still needs a manual refresh.
+
 ## Related
 
 - [`src/lib/logger.ts`](../src/lib/logger.ts) — the call-site API; `error()` forwards here

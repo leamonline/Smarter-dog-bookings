@@ -37,7 +37,10 @@ import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 const Analytics = import.meta.env.PROD
   ? lazy(() =>
       import("@vercel/analytics/react").then((module) => ({
-        default: module.Analytics,
+        // Outside every route error boundary. A prevented stale-chunk preload
+        // resolves this module to undefined; reading .Analytics used to throw
+        // "undefined is not an object" and unmount the whole staff app.
+        default: module?.Analytics ?? function MissingAnalytics() { return null; },
       })),
     )
   : () => null;
