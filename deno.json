@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "https://esm.sh/tslib@2.8.1/denonext/tslib.mjs": "./supabase/functions/_shared/vendor/tslib-2.8.1.denonext.mjs"
+  }
+}
