@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — a delivered WhatsApp reminder is no longer chased or repeated
+
+- On 1 November 2026 Meta reported a day-before reminder undeliverable (131026)
+  and seconds later delivered and read it. The log row stayed `failed`, so the
+  hourly SMS chase texted the customer and the 19:00 pass sent the WhatsApp a
+  second time.
+- `reminder-sms-fallback` now checks Meta's delivery status for `failed` rows
+  too, and does not text a message Meta shows as delivered or read.
+- New trigger `reconcile_notification_log_on_meta_delivery` puts a log row back
+  to `sent` when its message leaves `failed` for `delivered` or `read`, only for
+  rows the Meta failure reconciliation itself marked, and never over a resend
+  that already holds the slot. Migration `20261101120000` has to be applied to
+  production by hand before the next reminder run matters; no backfill is
+  needed (one production row fit and a resend already blocks it).
+
 ## Unreleased — WhatsApp cancellation notices, off until the flag is switched on
 
 - When the salon cancels (`bookings.cancellation_cause` is `salon`) and

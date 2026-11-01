@@ -163,9 +163,11 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
       return json({ checked: 0, sms_sent: 0 });
     }
 
-    // 2. Resolve Meta delivery status for the 'sent' rows by meta_message_id.
+    // 2. Resolve Meta delivery status by meta_message_id, for 'failed' rows as
+    //    well as 'sent' ones: Meta can attach a 131026 to a message it then
+    //    delivers, and the log row stays 'failed'. Meta's own record wins.
     const metaIds = candidates
-      .filter((r) => r.status === "sent" && r.provider_message_id)
+      .filter((r) => r.provider_message_id)
       .map((r) => r.provider_message_id!);
     const deliveryByMetaId = new Map<string, string>();
     if (metaIds.length) {
@@ -211,11 +213,11 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
       // Send-time rejection is already SMS or email on a row whose channel
       // is no longer whatsapp, so it never reaches this list.
       if (r.trigger_type === "cancelled" && r.status === "sent") return false;
-      if (r.status === "failed") return true; // whatsapp-send returned failure
+      const d = r.provider_message_id ? deliveryByMetaId.get(r.provider_message_id) : undefined;
+      if (d && DELIVERED.has(d)) return false; // delivered / read → done, whatever the log says
+      if (r.status === "failed") return true; // send-time failure, or Meta failed it too
       // status === 'sent': decide by the Meta delivery receipt.
       if (!r.provider_message_id) return false; // can't verify — assume it landed
-      const d = deliveryByMetaId.get(r.provider_message_id);
-      if (d && DELIVERED.has(d)) return false; // delivered / read → done
       if (d === "failed") return true; // Meta reported the send failed → chase
       // No positive receipt yet → only chase once well past the grace window.
       return new Date(r.created_at).getTime() < olderThan6h;
