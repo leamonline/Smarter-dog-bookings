@@ -67,22 +67,29 @@ describe("useStaffTeam", () => {
     expect(result.current.members).toBeNull();
   });
 
-  it("invites through the staff-invite function with the snake_case body, then refreshes the list", async () => {
-    h.invoke.mockResolvedValue({ data: { ok: true }, error: null });
+  it("invites through the staff-invite function with the snake_case body, then shows what the server wrote", async () => {
+    // The fake server does the write itself, from the body it receives. The
+    // test never pre-loads the expected member, so it fails if the hook sends
+    // the wrong fields or does not refresh the list afterwards.
+    h.invoke.mockImplementation((_name: string, opts: { body: Record<string, string> }) => {
+      h.rows = [...h.rows, row("p2", opts.body.display_name, opts.body.role)];
+      return Promise.resolve({ data: { ok: true }, error: null });
+    });
     const { result } = renderHook(() => useStaffTeam(true));
     await waitFor(() => expect(result.current.members).toHaveLength(1));
 
-    h.rows = [row("p1", "Leam", "owner"), row("p2", "Alex")];
     let outcome;
     await act(async () => {
-      outcome = await result.current.invite({ email: "alex@example.com", displayName: "Alex", role: "staff" });
+      outcome = await result.current.invite({ email: "alex@example.com", displayName: "Alex", role: "owner" });
     });
 
     expect(outcome).toEqual({ ok: true });
     expect(h.invoke).toHaveBeenCalledWith("staff-invite", {
-      body: { email: "alex@example.com", display_name: "Alex", role: "staff" },
+      body: { email: "alex@example.com", display_name: "Alex", role: "owner" },
     });
+    // The list now holds the row the "server" wrote, carrying the name and role we sent.
     expect(result.current.members).toHaveLength(2);
+    expect(result.current.members?.[1]).toMatchObject({ displayName: "Alex", role: "owner" });
   });
 
   it("returns the function's own reason when it refuses, and does not refresh the list", async () => {

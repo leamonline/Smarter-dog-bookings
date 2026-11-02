@@ -542,10 +542,10 @@
       "configToml": "declared-false",
       "serviceRole": true,
       "originPolicy": "STAFF_INVITE_ALLOWED_ORIGINS",
-      "replayDefence": "none — a repeat is refused by Supabase Auth because the email is already registered, and the owner sees the failure",
+      "replayDefence": "none — a repeat is refused (409) because the admin createUser call rejects any email that already has an account, confirmed or not, and the owner sees the failure",
       "unauthorizedResponse": "401 Unauthorized (missing or invalid token), 403 Forbidden (not staff, not an owner, or origin not allowed)",
       "emptySecretBehaviour": "n/a — no shared secret",
-      "notes": "Creates staff accounts. Staff is not enough: the handler also requires staff_profiles.role = 'owner' under the caller's own token. Never touches an existing login (a 409 is returned instead). redirectTo is built only from an allowlisted origin."
+      "notes": "Creates staff accounts. Staff is not enough: the handler also requires staff_profiles.role = 'owner' under the caller's own token. Creates the login first (so an existing account of any kind is refused with a 409 and never touched), then the staff row, then sends the invite email; rollback deletes only the account this request created. redirectTo is built only from an allowlisted origin."
     }
   }
 }
