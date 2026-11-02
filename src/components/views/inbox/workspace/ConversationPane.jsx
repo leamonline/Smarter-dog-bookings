@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { InboxFilterChip } from "../InboxFilterChip.jsx";
 import { ConversationListItem } from "../conversation-list/ConversationListItem.jsx";
+import { isMessengerInboxEnabled } from "../../../../lib/messengerInbox";
 
 const FILTERS = [
   {
@@ -38,6 +39,12 @@ const FILTERS = [
     hint: "Show only conversations with a pending AI draft waiting for staff approval.",
   },
   {
+    key: "messenger",
+    label: "Messenger",
+    color: "slate",
+    hint: "Show Messenger conversations. WhatsApp, SMS and email stay in the other filters.",
+  },
+  {
     key: "done",
     label: "Done",
     color: "slate",
@@ -51,6 +58,7 @@ const FILTER_LABELS = {
   failed_sends: "failed sends",
   unread: "unread",
   drafts: "pending drafts",
+  messenger: "Messenger",
   done: "closed conversations",
 };
 
@@ -158,7 +166,7 @@ export function ConversationPane({
           role="group"
           aria-label="Filter conversations"
         >
-          {FILTERS.map((filter) => (
+          {FILTERS.filter((filter) => filter.key !== "messenger" || isMessengerInboxEnabled()).map((filter) => (
             <InboxFilterChip
               key={filter.key}
               label={filter.label}

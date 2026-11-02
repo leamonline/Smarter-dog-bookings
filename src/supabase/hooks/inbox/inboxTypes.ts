@@ -46,6 +46,8 @@ export type ConversationListRow = Pick<
   | "id"
   | "phone_e164"
   | "channel"
+  | "messenger_psid"
+  | "messenger_page_id"
   | "state"
   | "human_id"
   | "last_inbound_at"

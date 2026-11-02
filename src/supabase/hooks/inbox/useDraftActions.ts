@@ -49,6 +49,7 @@ export interface UseDraftActionsArgs<D extends PendingDraft, C extends DraftConv
   draft: D | null | undefined;
   actionInFlight: boolean;
   selectedId: string | null | undefined;
+  selectedChannel?: string | null;
   setActionInFlight: (inFlight: boolean) => void;
   setDraft: Dispatch<SetStateAction<D | null>>;
   setConversations: Dispatch<SetStateAction<C[]>>;
@@ -65,10 +66,15 @@ function failure(err: unknown): DraftActionResult {
   return { ok: false, reason: err instanceof Error ? err.message : String(err) };
 }
 
+function sendPath(channel: string | null | undefined): string {
+  return channel === "messenger" ? "messenger-send" : SEND_FUNCTION_PATH;
+}
+
 export function useDraftActions<D extends PendingDraft, C extends DraftConversation>({
   draft,
   actionInFlight,
   selectedId,
+  selectedChannel = null,
   setActionInFlight,
   setDraft,
   setConversations,
@@ -81,7 +87,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     setActionInFlight(true);
     try {
       if (!supabase) throw new Error("Not connected");
-      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, SEND_FUNCTION_PATH, {
+      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, sendPath(selectedChannel), {
         body: {
           mode: "draft",
           draft_id: draft.id,
@@ -113,7 +119,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     } finally {
       setActionInFlight(false);
     }
-  }, [draft, actionInFlight, setActionInFlight, setDraft, setConversations, selectedIdRef]);
+  }, [draft, actionInFlight, selectedChannel, setActionInFlight, setDraft, setConversations, selectedIdRef]);
 
   const rejectDraft = useCallback(async ({ reason }: { reason?: string | null } = {}): Promise<DraftActionResult> => {
     if (!draft || actionInFlight) return { ok: false };
@@ -158,7 +164,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     setActionInFlight(true);
     try {
       if (!supabase) throw new Error("Not connected");
-      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, SEND_FUNCTION_PATH, {
+      const { data, error } = await invokeWithSessionRetry<SendFunctionResponse>(supabase, sendPath(selectedChannel), {
         body: {
           mode: "manual",
           conversation_id: selectedId,
@@ -181,7 +187,7 @@ export function useDraftActions<D extends PendingDraft, C extends DraftConversat
     } finally {
       setActionInFlight(false);
     }
-  }, [selectedId, actionInFlight, setActionInFlight]);
+  }, [selectedId, selectedChannel, actionInFlight, setActionInFlight]);
 
   return { approveDraft, rejectDraft, sendManualReply };
 }

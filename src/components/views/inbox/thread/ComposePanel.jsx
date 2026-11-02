@@ -10,7 +10,8 @@
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isWindowOpen, windowCountdown } from "../helpers.js";
+import { isWindowOpen, messengerWindowDecision, windowCountdown } from "../helpers.js";
+import { MESSENGER_MAX_TEXT_LENGTH } from "../../../../engine/messengerWindow";
 import { TemplatePicker } from "./TemplatePicker.jsx";
 import { GenerateReplyButton } from "./GenerateReplyButton.jsx";
 
@@ -94,8 +95,16 @@ export function ComposePanel({
     return () => cancelAnimationFrame(raf);
   }, [autoFocusSignal]);
 
-  const windowOpen = isWindowOpen(lastInboundAt, nowMs);
-  const countdown = windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;
+  const isMessenger = conversation?.channel === "messenger";
+  const messengerDecision = isMessenger ? messengerWindowDecision(conversation, nowMs) : null;
+  const windowOpen = isMessenger
+    ? messengerDecision.mode !== "closed"
+    : isWindowOpen(lastInboundAt, nowMs);
+  const countdown = isMessenger
+    ? messengerDecision.label
+    : windowOpen
+      ? windowCountdown(lastInboundAt, nowMs)
+      : null;
 
   async function handleSend() {
     const trimmed = value.trim();
@@ -133,6 +142,18 @@ export function ComposePanel({
       });
     }
     return res;
+  }
+
+  if (!windowOpen && isMessenger) {
+    return (
+      <div className="compose-fields shrink-0 border-t border-slate-200 bg-white p-3" role="status">
+        <p className="m-0 text-xs leading-snug text-slate-700">
+          <span className="font-bold text-brand-ink">Reply window closed.</span>{" "}
+          Meta only allows a standard Messenger reply within 24 hours of the customer&apos;s last message.
+          A 7-day human-agent reply stays switched off until Meta approves that tag for this Page, and it would only apply to a message a person typed.
+        </p>
+      </div>
+    );
   }
 
   if (!windowOpen) {
@@ -175,7 +196,7 @@ export function ComposePanel({
           placeholder="Write a reply…"
           disabled={inFlight}
           rows={1}
-          maxLength={2000}
+          maxLength={isMessenger ? MESSENGER_MAX_TEXT_LENGTH : 2000}
           className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-sm p-2 bg-white border border-slate-200 rounded-tile font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <div className="flex min-h-9 gap-2 justify-end shrink-0 sm:self-stretch">
@@ -201,7 +222,12 @@ export function ComposePanel({
           Enter to send · Shift+Enter for new line
         </span>
         {countdown && (
-          <span className="ml-auto shrink-0 text-caption text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
+          <span
+            className="ml-auto shrink-0 text-caption text-slate-500"
+            title={isMessenger
+              ? "When this reply window closes, Messenger will not accept a standard reply."
+              : "When this window closes, you'll need to send a Meta-approved template to reopen the chat."}
+          >
             {countdown}
           </span>
         )}

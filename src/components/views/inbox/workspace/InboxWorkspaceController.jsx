@@ -292,6 +292,8 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       autoFocusSignal={compose.composeFocusSignal}
       textareaRef={composerTextareaRef}
       onOpenHuman={onOpenHuman}
+      onSearchMessengerCustomers={inbox.searchMessengerCustomers}
+      onLinkMessengerCustomer={inbox.linkMessengerCustomer}
       onWhatsappReenabled={(result) => {
         onWhatsappReenabled?.(result.humanIds);
         // A re-enable that only touched customer records emits no

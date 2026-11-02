@@ -113,6 +113,10 @@ verify_jwt = false
 verify_jwt = false
 [functions.slack-alerts]
 verify_jwt = false
+[functions.messenger-webhook]
+verify_jwt = false
+[functions.messenger-send]
+verify_jwt = false
 [edge_runtime]
 policy = "per_worker"
 [analytics]

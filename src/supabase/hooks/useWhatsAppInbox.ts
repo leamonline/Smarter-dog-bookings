@@ -34,6 +34,8 @@ import {
   SAMPLE_WHATSAPP_MESSAGES,
 } from "../../data/sample.js";
 import { logger } from "../../lib/logger";
+import { hideMessengerUntilEnabled } from "../../lib/messengerInbox";
+import { searchHumansAndDogs } from "../repositories/humansRepo";
 import {
   SEND_FUNCTION_PATH,
   invokeWithSessionRetry,
@@ -244,11 +246,13 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
   // Approve / reject / manual-reply actions on the thread's draft.
   // Attached booking proposals are resolved separately above so a
   // booking write and customer send cannot masquerade as one operation.
+  const selectedChannel = conversations.find((c) => c.id === selectedId)?.channel ?? null;
   const { approveDraft, rejectDraft, sendManualReply } =
     useDraftActions({
       draft,
       actionInFlight,
       selectedId,
+      selectedChannel,
       setActionInFlight,
       setDraft,
       setConversations,
@@ -260,7 +264,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
       // Offline/sample mode (VITE_FORCE_OFFLINE=1, or missing creds in dev):
       // serve the shared fixtures so the workspace renders populated for visual
       // review. No query runs and no realtime channel opens.
-      setConversations(SAMPLE_CONVERSATIONS);
+      setConversations(hideMessengerUntilEnabled(SAMPLE_CONVERSATIONS));
       setLoadingList(false);
       return;
     }
@@ -558,6 +562,24 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
     approveDraft,
     rejectDraft,
     sendManualReply,
+    searchMessengerCustomers: (term: string) => {
+      if (!supabase) return Promise.resolve([]);
+      return searchHumansAndDogs(supabase, term);
+    },
+    linkMessengerCustomer: async (humanId: string) => {
+      if (!selectedId) return { ok: false, reason: "no conversation selected" };
+      if (!supabase) return { ok: false, reason: "Not connected" };
+      const { data, error } = await invokeWithSessionRetry<{ error?: string }>(supabase, "messenger-send", {
+        body: { mode: "link", conversation_id: selectedId, human_id: humanId },
+      });
+      if (error) {
+        return { ok: false, reason: await parseSupabaseFunctionError(error, "Could not link this customer") };
+      }
+      if (data?.error) return { ok: false, reason: data.error };
+      await refreshList();
+      await refreshDetail(selectedId);
+      return { ok: true };
+    },
     applyBookingAction,
     rejectBookingAction,
     takeoverConversation,

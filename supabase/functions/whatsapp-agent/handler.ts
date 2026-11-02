@@ -116,6 +116,7 @@ import {
 
 import { agentCalendar, addCalendarDays, contextHorizon, bookEntryOutcome, type BookEntryOutcome } from "../_shared/agentContext.ts";
 import { isCreditExhausted, reportAiCreditExhausted } from "../_shared/aiCreditAlert.ts";
+import { messengerAgentPolicy } from "../_shared/messenger.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -3023,6 +3024,22 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
       );
     }
     return new Response("ignored (invalid signature)", { status: 200 });
+  }
+
+  // A Page webhook that lands here (same Meta app, wrong callback URL) must
+  // not be matched to a phone or auto-sent. Messenger has its own function.
+  const pageObject = (event.payload as { object?: unknown } | null)?.object;
+  if (pageObject === "page") {
+    const policy = messengerAgentPolicy();
+    await supabase
+      .from("whatsapp_events")
+      .update({
+        processing_status: "ignored",
+        processed_at: new Date().toISOString(),
+        error_message: `messenger page event ignored (draftOnly=${policy.draftOnly}, autoSend=${policy.autoSend}, humanAgent=${policy.humanAgent})`,
+      })
+      .eq("id", event.id);
+    return new Response("ignored (messenger)", { status: 200 });
   }
 
   try {

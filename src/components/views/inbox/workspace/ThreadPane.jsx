@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { formatPhoneForDisplay } from "../../../../utils/phone.js";
 import { ThreadSkeleton } from "../../../ui/Skeleton.jsx";
 import { displayName, formatDayToken } from "../helpers.js";
+import { MessengerCustomerLink } from "../thread/MessengerCustomerLink.jsx";
 import { InitialsAvatar } from "../InitialsAvatar.jsx";
 import { MarkCompleteButton } from "../MarkCompleteButton.jsx";
 import { BookingActionPanel } from "../thread/BookingActionPanel.jsx";
@@ -52,6 +53,8 @@ export function ThreadPane({
   // status with no buttons.
   onWhatsappReenabled,
   onOpenHuman,
+  onSearchMessengerCustomers = async () => [],
+  onLinkMessengerCustomer = async () => ({ ok: false, reason: "Linking is unavailable here." }),
 }) {
   const threadScrollRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -169,10 +172,19 @@ export function ThreadPane({
               <span className="block max-w-[260px] truncate font-display text-sm font-bold leading-tight text-brand-ink">
                 {displayName(conversation)}
               </span>
-              <div className="truncate text-xs text-slate-600">
-                {formatPhoneForDisplay(conversation?.phone_e164)}
-                {customerEmail ? ` | ${customerEmail}` : ""}
-              </div>
+              {conversation?.channel === "messenger" ? (
+                <MessengerCustomerLink
+                  linkedName={conversation?.humans?.name ? displayName(conversation) : ""}
+                  onSearch={onSearchMessengerCustomers}
+                  onLink={onLinkMessengerCustomer}
+                  busy={actionInFlight}
+                />
+              ) : (
+                <div className="truncate text-xs text-slate-600">
+                  {formatPhoneForDisplay(conversation?.phone_e164)}
+                  {customerEmail ? ` | ${customerEmail}` : ""}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center gap-1 md:w-auto md:gap-2">

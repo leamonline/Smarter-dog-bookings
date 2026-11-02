@@ -98,7 +98,7 @@ The two deploy paths set `verify_jwt` by different means:
 - **CI** passes `--no-verify-jwt` for every changed function and never reads `config.toml`.
 - **A local `supabase functions deploy`** does read `config.toml`.
 
-They now agree for all 27 deployable functions: every `[functions.*]` block in
+They now agree for every deployable function: every `[functions.*]` block in
 `supabase/config.toml` explicitly sets `verify_jwt = false`, matching CI's
 `--no-verify-jwt` behaviour.
 
@@ -140,7 +140,7 @@ protection.
   is syntactic: it proves the guard shape exists and exits, not that every
   request path passes through it, and it follows names rather than scopes, so
   a shadowed variable could in principle mislead it. Executing the handlers
-  would mean restructuring all 27 functions — importing an entrypoint starts an
+  would mean restructuring every function — importing an entrypoint starts an
   HTTP server — which is exactly the trade this analysis exists to avoid.
 - Guard *polarity*. `if (ok) reject()` instead of `if (!ok) reject()` satisfies
   the shape check; only a runtime test or review catches an inverted condition.

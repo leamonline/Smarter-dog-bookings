@@ -14,7 +14,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { isWindowOpen } from "../helpers.js";
+import { isWindowOpen, messengerWindowDecision } from "../helpers.js";
 
 export function WindowClosedBanner({ conversation }) {
   const lastInboundAt = conversation?.last_inbound_at;
@@ -27,6 +27,21 @@ export function WindowClosedBanner({ conversation }) {
   }, [lastInboundAt]);
 
   if (!conversation) return null;
+  if (conversation.channel === "messenger") {
+    if (messengerWindowDecision(conversation, nowMs).mode !== "closed") return null;
+    return (
+      <div
+        role="status"
+        className="shrink-0 flex items-start gap-2 px-4 py-2 bg-feedback-warning-tint border-b border-brand-mustard-tint text-xs leading-snug text-feedback-warning-ink"
+      >
+        <span aria-hidden="true" className="mt-px">⏱</span>
+        <p className="m-0">
+          <span className="font-bold">24-hour Messenger reply window closed.</span>{" "}
+          <span>A standard reply is no longer available. The reply box explains why.</span>
+        </p>
+      </div>
+    );
+  }
   if (isWindowOpen(lastInboundAt, nowMs)) return null;
 
   return (

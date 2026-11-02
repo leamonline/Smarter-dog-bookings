@@ -100,6 +100,20 @@ describe("useAIModeControls", () => {
     });
   });
 
+  it("refuses to turn auto-send on for a Messenger thread", async () => {
+    const stub = makeStub();
+    const { result } = setup({
+      stub,
+      conversations: [{ id: "c-1", channel: "messenger" }],
+    });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.setAutoSendEnabled(true);
+    });
+    expect(outcome.ok).toBe(false);
+    expect(stub.from).not.toHaveBeenCalled();
+  });
+
   it("setAIMode 'human_only' switches state to human_takeover and disables auto-send", async () => {
     const stub = makeStub();
     const { result } = setup({ stub });

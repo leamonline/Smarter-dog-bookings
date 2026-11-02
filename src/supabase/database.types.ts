@@ -3435,8 +3435,10 @@ export type Database = {
           lead_payload: Json | null
           lead_status: string | null
           locale: string
+          messenger_page_id: string | null
+          messenger_psid: string | null
           notes: string | null
-          phone_e164: string
+          phone_e164: string | null
           snoozed_until: string | null
           state: string
           unread_count: number
@@ -3467,8 +3469,10 @@ export type Database = {
           lead_payload?: Json | null
           lead_status?: string | null
           locale?: string
+          messenger_page_id?: string | null
+          messenger_psid?: string | null
           notes?: string | null
-          phone_e164: string
+          phone_e164?: string | null
           snoozed_until?: string | null
           state?: string
           unread_count?: number
@@ -3499,8 +3503,10 @@ export type Database = {
           lead_payload?: Json | null
           lead_status?: string | null
           locale?: string
+          messenger_page_id?: string | null
+          messenger_psid?: string | null
           notes?: string | null
-          phone_e164?: string
+          phone_e164?: string | null
           snoozed_until?: string | null
           state?: string
           unread_count?: number

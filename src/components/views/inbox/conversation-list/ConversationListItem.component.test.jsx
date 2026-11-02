@@ -17,6 +17,23 @@ function baseConversation(overrides = {}) {
 }
 
 describe("ConversationListItem", () => {
+  it("badges a Messenger thread", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          channel: "messenger",
+          phone_e164: null,
+          messenger_psid: "123456789",
+          humans: null,
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Messenger")).toBeInTheDocument();
+    expect(screen.getByText("Messenger 456789")).toBeInTheDocument();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });

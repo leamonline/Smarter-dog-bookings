@@ -33,9 +33,17 @@ import { logger } from "../../../lib/logger";
 /** The conversation fields these toggles read and write; the list holds richer objects. */
 export interface AIModeConversation {
   id: string;
+  channel?: string | null;
   state?: string | null;
   auto_send_enabled?: boolean | null;
   autonomous_booking_enabled?: boolean | null;
+}
+
+function messengerRefusesAutoSend<T extends AIModeConversation>(
+  conversations: readonly T[],
+  selectedId: string | null | undefined,
+): boolean {
+  return conversations.find((row) => row.id === selectedId)?.channel === "messenger";
 }
 
 export type AIMode = "ai_auto" | "human_only";
@@ -70,6 +78,9 @@ export function useAIModeControls<T extends AIModeConversation>({
 }: UseAIModeControlsArgs<T>): UseAIModeControlsResult {
   const setAutoSendEnabled = useCallback(async (enabled: boolean): Promise<AIModeResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
+    if (enabled && messengerRefusesAutoSend(conversations, selectedId)) {
+      return { ok: false, reason: "Messenger never auto-sends. A draft stays for you to approve." };
+    }
     setActionInFlight(true);
     const next = !!enabled;
     setConversations((prev) =>
@@ -95,10 +106,13 @@ export function useAIModeControls<T extends AIModeConversation>({
     } finally {
       setActionInFlight(false);
     }
-  }, [selectedId, actionInFlight, setActionInFlight, setConversations]);
+  }, [selectedId, actionInFlight, conversations, setActionInFlight, setConversations]);
 
   const setAutonomousBookingEnabled = useCallback(async (enabled: boolean): Promise<AIModeResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
+    if (enabled && messengerRefusesAutoSend(conversations, selectedId)) {
+      return { ok: false, reason: "Messenger never books or sends on its own." };
+    }
     setActionInFlight(true);
     const next = !!enabled;
     setConversations((prev) =>
@@ -127,7 +141,7 @@ export function useAIModeControls<T extends AIModeConversation>({
     } finally {
       setActionInFlight(false);
     }
-  }, [selectedId, actionInFlight, setActionInFlight, setConversations]);
+  }, [selectedId, actionInFlight, conversations, setActionInFlight, setConversations]);
 
   const setAIMode = useCallback(async (
     mode: AIMode,
@@ -136,6 +150,9 @@ export function useAIModeControls<T extends AIModeConversation>({
     if (!selectedId || actionInFlight) return { ok: false };
     if (mode !== "ai_auto" && mode !== "human_only") {
       return { ok: false, reason: `unknown mode: ${String(mode)}` };
+    }
+    if (mode === "ai_auto" && messengerRefusesAutoSend(conversations, selectedId)) {
+      return { ok: false, reason: "Messenger never auto-sends. A draft stays for you to approve." };
     }
 
     const next = {

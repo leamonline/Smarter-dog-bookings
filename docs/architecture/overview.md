@@ -167,9 +167,10 @@ provider accepted or delivered a message.
 - **Edge Functions:** the deployment workflow currently uses
   `--no-verify-jwt`. Functions rely on HMACs, provider signatures, internal
   secrets, session checks, role checks and origin policy in different
-  combinations. There are 27 deployable entry points but 22 function sections
-  in `supabase/config.toml`; five entry points are implicit. This is a
-  confirmed inventory gap, not proof that those five are unauthenticated.
+  combinations. Every deployable entry point has a `[functions.*]` block in
+  `supabase/config.toml` with `verify_jwt = false`, matching CI. Messenger
+  adds `messenger-webhook` and `messenger-send`, both dark until
+  `MESSENGER_INBOX_ENABLED` is set.
 - **External providers:** requests and callbacks cross organisational
   boundaries. Provider acceptance, provider delivery and customer receipt are
   distinct facts and must be represented honestly.

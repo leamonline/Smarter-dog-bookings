@@ -20,6 +20,7 @@ const rows = [
 describe("parseInboxListFilter", () => {
   it("accepts every known mode and falls back to all", () => {
     for (const f of INBOX_LIST_FILTERS) expect(parseInboxListFilter(f)).toBe(f);
+    expect(parseInboxListFilter("messenger")).toBe("messenger");
     expect(parseInboxListFilter("snoozed")).toBe("all");
     expect(parseInboxListFilter(null)).toBe("all");
     expect(parseInboxListFilter(undefined)).toBe("all");
@@ -37,6 +38,7 @@ describe("splitByClosed + countInboxFilters", () => {
       failed_sends: 1,
       unread: 1,
       drafts: 1,
+      messenger: 0,
       done: 1,
     });
   });
@@ -50,7 +52,10 @@ describe("filterInboxConversations", () => {
     expect(filterInboxConversations("failed_sends", active, closed).map((r) => r.id)).toEqual(["b"]);
     expect(filterInboxConversations("unread", active, closed).map((r) => r.id)).toEqual(["a"]);
     expect(filterInboxConversations("drafts", active, closed).map((r) => r.id)).toEqual(["b"]);
+    expect(filterInboxConversations("messenger", active, closed)).toEqual([]);
     expect(filterInboxConversations("done", active, closed).map((r) => r.id)).toEqual(["c"]);
+    const withMessenger = [...active, { ...active[0], id: "m", channel: "messenger" }];
+    expect(filterInboxConversations("messenger", withMessenger, closed).map((r) => r.id)).toEqual(["m"]);
   });
 });
 

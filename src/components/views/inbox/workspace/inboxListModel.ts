@@ -14,6 +14,7 @@ export const INBOX_LIST_FILTERS = [
   "failed_sends",
   "unread",
   "drafts",
+  "messenger",
   "done",
 ] as const;
 
@@ -26,6 +27,7 @@ export const INBOX_FILTER_LABELS: Record<InboxListFilter, string> = {
   failed_sends: "failed sends",
   unread: "unread",
   drafts: "pending drafts",
+  messenger: "Messenger",
   done: "closed conversations",
 };
 
@@ -38,6 +40,8 @@ export interface InboxListConversation {
   has_failed_message?: boolean | null;
   has_pending_draft?: boolean | null;
   phone_e164?: string | null;
+  channel?: string | null;
+  messenger_psid?: string | null;
   last_customer_text?: string | null;
   notes?: string | null;
 }
@@ -73,6 +77,7 @@ export function countInboxFilters<T extends InboxListConversation>(
     failed_sends: active.filter((c) => !!c.has_failed_message).length,
     unread: active.filter((c) => (c.unread_count || 0) > 0).length,
     drafts: active.filter((c) => !!c.has_pending_draft).length,
+    messenger: active.filter((c) => c.channel === "messenger").length,
     done: closed.length,
   };
 }
@@ -93,6 +98,8 @@ export function filterInboxConversations<T extends InboxListConversation>(
       return active.filter((c) => (c.unread_count || 0) > 0);
     case "drafts":
       return active.filter((c) => !!c.has_pending_draft);
+    case "messenger":
+      return active.filter((c) => c.channel === "messenger");
     case "done":
       return closed;
     case "all":
@@ -116,11 +123,13 @@ export function searchInboxConversations<T extends InboxListConversation>(
     if (messageMatchIds.has(c.id)) return true;
     const name = displayName(c).toLowerCase();
     const phone = (c.phone_e164 || "").toLowerCase();
+    const psid = (c.messenger_psid || "").toLowerCase();
     const preview = (c.last_customer_text || "").toLowerCase();
     const note = (c.notes || "").toLowerCase();
     return (
       name.includes(q) ||
       phone.includes(q) ||
+      psid.includes(q) ||
       preview.includes(q) ||
       note.includes(q)
     );

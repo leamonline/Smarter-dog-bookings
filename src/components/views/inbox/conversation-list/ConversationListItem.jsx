@@ -89,8 +89,13 @@ export function ConversationListItem({
         }`}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
+          {conv.channel === "messenger" && (
+            <span className="mr-1 inline-flex h-5 shrink-0 items-center rounded-full border border-slate-300 bg-slate-50 px-1.5 text-micro font-bold uppercase tracking-wide text-slate-700">
+              Messenger
+            </span>
+          )}
           <span
-            className={`truncate text-body ${
+            className={`min-w-0 flex-1 truncate text-body ${
               unread
                 ? "font-bold text-brand-ink"
                 : isClosed

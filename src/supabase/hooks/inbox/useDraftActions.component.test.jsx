@@ -36,6 +36,7 @@ function setup({
   stub,
   draft = { id: "d-1" },
   selectedId = "c-1",
+  selectedChannel = null,
 } = {}) {
   setSupabase(stub ?? makeStub());
   const setActionInFlight = vi.fn();
@@ -47,6 +48,7 @@ function setup({
       draft,
       actionInFlight: false,
       selectedId,
+      selectedChannel,
       setActionInFlight,
       setDraft,
       setConversations,
@@ -161,6 +163,18 @@ describe("useDraftActions", () => {
     expect(outcome.ok).toBe(true);
     expect(stub.functions.invoke).toHaveBeenCalledWith("whatsapp-send", {
       body: { mode: "manual", conversation_id: "c-1", text: "hello there" },
+    });
+  });
+
+  it("sendManualReply posts messenger-send for a Messenger thread", async () => {
+    const stub = makeStub();
+    const { result } = setup({ stub, selectedChannel: "messenger" });
+
+    await act(async () => {
+      await result.current.sendManualReply({ text: "Hello there" });
+    });
+    expect(stub.functions.invoke).toHaveBeenCalledWith("messenger-send", {
+      body: { mode: "manual", conversation_id: "c-1", text: "Hello there" },
     });
   });
 

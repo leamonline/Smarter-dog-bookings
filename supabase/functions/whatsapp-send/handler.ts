@@ -90,6 +90,7 @@ import {
   phoneMatchPattern,
   type OptOutRecipient,
 } from "../_shared/optOut.ts";
+import { whatsappCloudSendAllowed } from "../_shared/messenger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -718,7 +719,7 @@ async function handleDraftMode(
   const { data: draft, error: draftErr } = await supabase
     .from("whatsapp_drafts")
     .select(
-      "id, conversation_id, proposed_text, state, whatsapp_conversations!inner(id, phone_e164, last_inbound_at)",
+      "id, conversation_id, proposed_text, state, whatsapp_conversations!inner(id, channel, phone_e164, last_inbound_at)",
     )
     .eq("id", body.draft_id)
     .single();
@@ -738,9 +739,21 @@ async function handleDraftMode(
 
   const conv = (draft as any).whatsapp_conversations as {
     id: string;
+    channel?: string | null;
     phone_e164: string;
     last_inbound_at: string | null;
   };
+
+  if (!whatsappCloudSendAllowed(conv.channel)) {
+    return json(
+      req,
+      {
+        error: "Messenger replies are not sent through WhatsApp",
+        detail: "Approve this draft from the Messenger thread. Messenger never auto-sends.",
+      },
+      422,
+    );
+  }
 
   if (!isWindowOpen(conv.last_inbound_at)) {
     return json(
@@ -854,13 +867,24 @@ async function handleManualMode(
 
   const { data: conv, error: convErr } = await supabase
     .from("whatsapp_conversations")
-    .select("id, phone_e164, last_inbound_at")
+    .select("id, channel, phone_e164, last_inbound_at")
     .eq("id", body.conversation_id)
     .single();
 
   if (convErr || !conv) {
     if (convErr) console.error("whatsapp-send: conversation lookup error:", convErr.message);
     return json(req, { error: "conversation not found" }, 404);
+  }
+
+  if (!whatsappCloudSendAllowed((conv as { channel?: string | null }).channel)) {
+    return json(
+      req,
+      {
+        error: "Messenger replies are not sent through WhatsApp",
+        detail: "Reply from the Messenger thread. Messenger never auto-sends.",
+      },
+      422,
+    );
   }
 
   if (!isWindowOpen(conv.last_inbound_at)) {

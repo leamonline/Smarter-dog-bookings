@@ -8,6 +8,7 @@ import type { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 import { latestMessagesChronological, mergeFailedMessageFlags } from "./inboxListHelpers";
 import type { ConversationDetail, ConversationListRow, InboxConversation } from "./inboxTypes";
+import { hideMessengerUntilEnabled, isMessengerInboxEnabled } from "../../../lib/messengerInbox";
 
 /** The connected client (the hook throws "Not connected" before calling in without one). */
 export type Client = NonNullable<typeof supabase>;
@@ -36,6 +37,7 @@ export async function fetchConversationsList(
       id,
       phone_e164,
       channel,
+      ${isMessengerInboxEnabled() ? "messenger_psid, messenger_page_id," : ""}
       state,
       human_id,
       last_inbound_at,
@@ -81,7 +83,7 @@ export async function fetchConversationsList(
   // list view can pin those to the top with a red marker.
   // The template-string select above is opaque to the typed client, so
   // narrow once here to the row shape it actually returns.
-  const rows = (data ?? []) as unknown as ConversationListRow[];
+  const rows = hideMessengerUntilEnabled((data ?? []) as unknown as ConversationListRow[]);
   const list = rows.map((c) => {
     const pendingDrafts = Array.isArray(c.whatsapp_drafts)
       ? c.whatsapp_drafts.filter((d) => d.state === "pending")

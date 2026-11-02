@@ -97,6 +97,9 @@ These files remain authoritative for their bounded topics:
   channel: what posts, the thresholds, the privacy rule and how to switch it off.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
+- [`messenger-inbox.md`](messenger-inbox.md) — Facebook Page conversations in
+  the staff inbox. Dark until `MESSENGER_INBOX_ENABLED` is set. Not applied
+  to production by a merge.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
   behaviour.
 - [`whatsapp-templates/booking_cancelled_v1.md`](whatsapp-templates/booking_cancelled_v1.md)

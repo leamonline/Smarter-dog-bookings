@@ -175,6 +175,33 @@ Deno.test("404s when the event row does not exist", async () => {
   assertEquals(res.status, 404);
 });
 
+Deno.test("ignores a Messenger page payload without matching a phone or sending", async () => {
+  resetStub(
+    eventSelect(eventRow({
+      payload: {
+        object: "page",
+        entry: [{
+          id: "page-1",
+          messaging: [{
+            sender: { id: "psid-1" },
+            recipient: { id: "page-1" },
+            message: { mid: "mid.1", text: "Hello" },
+          }],
+        }],
+      },
+    })),
+    eventUpdate,
+  );
+  const res = await handleAgentRequest(agentRequest({ event_id: "event-1" }));
+  assertEquals(res.status, 200);
+  assertEquals(await res.text(), "ignored (messenger)");
+  const patch = lastEventPatch();
+  assertEquals(patch?.processing_status, "ignored");
+  assertEquals(String(patch?.error_message).includes("autoSend=false"), true);
+  assertEquals(String(patch?.error_message).includes("humanAgent=false"), true);
+  assertEquals(calls.some((call) => call.path.includes("whatsapp_conversations")), false);
+});
+
 Deno.test("skips an already-processed event without writing anything", async () => {
   resetStub(eventSelect(eventRow({ processing_status: "processed" })));
   const res = await handleAgentRequest(agentRequest({ event_id: "event-1" }));

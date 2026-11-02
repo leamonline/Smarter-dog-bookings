@@ -7,6 +7,8 @@
 
 import { titleCase } from "../../../utils/text";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
+import { decideMessengerWindow } from "../../../engine/messengerWindow";
+import { isMessengerHumanAgentEnabled } from "../../../lib/messengerInbox";
 
 // "09:30" if today, "Yesterday" if yesterday, "12 May" otherwise.
 export function formatWhen(iso) {
@@ -26,13 +28,28 @@ export function formatWhen(iso) {
 // Display name for a conversation row: customer's full name if matched
 // to a humans record, otherwise the phone in 07… form. "Unknown contact"
 // only when both are missing (degenerate data).
+export function messengerContactLabel(conv) {
+  const tail = String(conv?.messenger_psid || "").slice(-6);
+  return tail ? `Messenger ${tail}` : "Messenger contact";
+}
+
 export function displayName(conv) {
   if (conv?.humans?.name) {
     const name = titleCase(conv.humans.name);
     const surname = conv.humans.surname ? " " + titleCase(conv.humans.surname) : "";
     return `${name}${surname}`;
   }
+  if (conv?.channel === "messenger") return messengerContactLabel(conv);
   return formatPhoneForDisplay(conv?.phone_e164) || "Unknown contact";
+}
+
+export function messengerWindowDecision(conv, nowMs = Date.now()) {
+  return decideMessengerWindow({
+    lastInboundAt: conv?.last_inbound_at,
+    nowMs,
+    humanAgentEnabled: isMessengerHumanAgentEnabled(),
+    sender: "staff",
+  });
 }
 
 // Day token for the message meta line and the thread day-dividers:
@@ -168,15 +185,37 @@ export function isAwaitingReply(conv) {
 }
 
 export function isWindowClosingSoon(conv, nowMs = Date.now()) {
-  if ((conv?.channel ?? "whatsapp") !== "whatsapp") return false;
+  const channel = conv?.channel ?? "whatsapp";
+  if (channel !== "whatsapp" && channel !== "messenger") return false;
   if (!isAwaitingReply(conv)) return false;
+  if (channel === "messenger") {
+    const decision = messengerWindowDecision(conv, nowMs);
+    return decision.mode !== "closed" && decision.remainingMs <= CLOSING_SOON_MS;
+  }
   if (!isWindowOpen(conv.last_inbound_at, nowMs)) return false;
   return windowRemainingMs(conv.last_inbound_at, nowMs) <= CLOSING_SOON_MS;
 }
 
 export function inboxWindowBadge(conv, nowMs = Date.now()) {
-  if ((conv?.channel ?? "whatsapp") !== "whatsapp") return null;
+  const channel = conv?.channel ?? "whatsapp";
+  if (channel !== "whatsapp" && channel !== "messenger") return null;
   if (!isAwaitingReply(conv)) return null;
+  if (channel === "messenger") {
+    const decision = messengerWindowDecision(conv, nowMs);
+    if (decision.mode === "closed") {
+      return {
+        kind: "template_needed",
+        label: "Window closed",
+        title: "The 24-hour Messenger reply window has closed.",
+      };
+    }
+    if (!isWindowClosingSoon(conv, nowMs)) return null;
+    return {
+      kind: "closing_soon",
+      label: decision.label?.replace(/^Reply window closes/, "Closes") ?? "Closes soon",
+      title: "The Messenger reply window is nearly closed.",
+    };
+  }
   if (!isWindowOpen(conv.last_inbound_at, nowMs)) {
     return {
       kind: "template_needed",

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Messenger in the staff inbox, switched off
+
+- Facebook Page conversations can sit in the same inbox as WhatsApp, SMS and
+  email. They are keyed by Page id and page-scoped id, not by a phone number.
+  WhatsApp, SMS and email keep the existing `(phone, channel)` uniqueness.
+- Inbound text, simple attachments, Business Suite echoes, and delivery and
+  read updates are handled by a new `messenger-webhook`. Staff replies go out
+  through the Messenger Send API. The 24-hour reply window locks the box, and
+  the 7-day human-agent tag stays off until Meta approves it.
+- Nothing is live until `MESSENGER_INBOX_ENABLED` is set on the edge functions
+  and `VITE_MESSENGER_INBOX_ENABLED` is set for the staff app. Merging does not
+  apply the migration and does not send any message. Setup is in
+  [docs/messenger-inbox.md](docs/messenger-inbox.md).
+
 ## Unreleased — a delivered WhatsApp reminder is no longer chased or repeated
 
 - On 1 November 2026 Meta reported a day-before reminder undeliverable (131026)
