@@ -532,6 +532,20 @@
       "unauthorizedResponse": "401 unauthorized",
       "emptySecretBehaviour": "closed — !!WEBHOOK_SECRET guards the comparison, and isAuthorizedWebhook itself refuses an empty secret",
       "notes": "#salon-today Slack alerts, dark-launched behind SLACK_ALERTS_ENABLED (default off) with a SLACK_ALERTS_DRY_RUN mode that logs instead of posting. Returns 200 on every failure path so a Slack outage cannot make pg_net retry or pg_cron log failures."
+    },
+    "staff-invite": {
+      "authFamily": "staff-jwt",
+      "authSource": "handler.ts",
+      "caller": "staff dashboard browser (Settings, Team, owners only)",
+      "role": "owner",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": "STAFF_INVITE_ALLOWED_ORIGINS",
+      "replayDefence": "none — a repeat is refused by Supabase Auth because the email is already registered, and the owner sees the failure",
+      "unauthorizedResponse": "401 Unauthorized (missing or invalid token), 403 Forbidden (not staff, not an owner, or origin not allowed)",
+      "emptySecretBehaviour": "n/a — no shared secret",
+      "notes": "Creates staff accounts. Staff is not enough: the handler also requires staff_profiles.role = 'owner' under the caller's own token. Never touches an existing login (a 409 is returned instead). redirectTo is built only from an allowlisted origin."
     }
   }
 }
