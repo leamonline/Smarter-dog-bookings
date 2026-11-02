@@ -6,6 +6,7 @@ import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
 import { londonDateStr } from "../../engine/londonTime";
+import { releasesHeldNotice } from "../../engine/collectionNotice";
 import type { DbBookingRow } from "../transforms";
 import { createStaffBookingGroup } from "../rpc";
 import type { StaffBookingGroupRow } from "../rpc";
@@ -186,6 +187,39 @@ export function useBookings(
 
   const onReadyForPickupRef = useRef(onReadyForPickup);
   useEffect(() => { onReadyForPickupRef.current = onReadyForPickup; }, [onReadyForPickup]);
+
+  // Latest raw rows, readable from callbacks without re-creating them.
+  const rowsRef = useRef(rows);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  // A "ready for collection" notice is held back while another of the owner's
+  // dogs is still in the salon, and nothing stores it. So when the booking
+  // that was holding it leaves (cancelled, no-show, collected, moved, deleted)
+  // re-open the notice for the owner's Ready dog. The modal re-checks the
+  // owner's day itself and simply holds again if another dog is still in.
+  const ownerOfRow = useCallback(
+    (row: DbBookingRow): string | null =>
+      (row.dog_id ? dogsById?.[row.dog_id]?.human_id : null) ?? null,
+    [dogsById],
+  );
+
+  const reopenHeldNotice = useCallback(
+    (left: DbBookingRow) => {
+      const ownerId = ownerOfRow(left);
+      if (!ownerId) return;
+      const sibling = (rowsRef.current ?? []).find(
+        (r) =>
+          r.id !== left.id &&
+          r.status === BOOKING_STATUS.READY_FOR_COLLECTION &&
+          r.booking_date === left.booking_date &&
+          ownerOfRow(r) === ownerId,
+      );
+      if (!sibling) return;
+      const booking = dbBookingsToArray([sibling], dogsById, humansById)[0];
+      if (booking) onReadyForPickupRef.current?.(booking);
+    },
+    [dogsById, humansById, ownerOfRow],
+  );
 
   useEffect(() => {
     if (!supabase || !weekStart) {
@@ -508,9 +542,18 @@ export function useBookings(
       const removed = removedRow
         ? dbBookingsToArray([removedRow], dogsById, humansById)[0]
         : null;
+      if (
+        removedRow &&
+        releasesHeldNotice(
+          { status: removedRow.status, ownerId: ownerOfRow(removedRow), date: removedRow.booking_date },
+          null,
+        )
+      ) {
+        reopenHeldNotice(removedRow);
+      }
       return { success: true, removed };
     },
-    [dogsById, humansById],
+    [dogsById, humansById, ownerOfRow, reopenHeldNotice],
   );
 
   const updateBooking = useCallback(
@@ -647,9 +690,22 @@ export function useBookings(
         onReadyForPickupRef.current?.(persisted);
       }
 
+      // The other direction: this booking may have been what was holding a
+      // sibling's notice back (see reopenHeldNotice).
+      if (
+        !updatedBooking._skipCollectionPrompt &&
+        prevRow &&
+        releasesHeldNotice(
+          { status: prevRow.status, ownerId: ownerOfRow(prevRow), date: prevRow.booking_date },
+          { status: data.status, ownerId: ownerOfRow(data), date: data.booking_date },
+        )
+      ) {
+        reopenHeldNotice(prevRow);
+      }
+
       return persisted;
     },
-    [dogsById, humansById],
+    [dogsById, humansById, ownerOfRow, reopenHeldNotice],
   );
 
   const fetchBookingHistoryForDog = useCallback(async (dogId: string): Promise<Array<Booking & { date: string }>> => {

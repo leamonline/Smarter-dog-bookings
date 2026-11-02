@@ -32,6 +32,47 @@ export interface CollectionNoticeReadiness {
   waitingDogNames: string[];
 }
 
+/**
+ * True for a booking that is still to be groomed or in the salon, i.e. one
+ * whose owner's notice must wait for it. Ready, collected, cancelled and
+ * no-show bookings never hold a notice.
+ */
+export function blocksCollectionNotice(status: string | null | undefined): boolean {
+  return (
+    status !== BOOKING_STATUS.READY_FOR_COLLECTION &&
+    status !== BOOKING_STATUS.COMPLETED &&
+    status !== BOOKING_STATUS.CANCELLED &&
+    status !== BOOKING_STATUS.NO_SHOW
+  );
+}
+
+export interface NoticeHoldView {
+  status?: string | null;
+  ownerId?: string | null;
+  date?: string | null;
+}
+
+/**
+ * Did this change stop a booking from holding its owner's notice back?
+ *
+ * A held notice is not stored anywhere: it is simply not opened. So when the
+ * booking that was holding it leaves (cancelled, no-show, collected, moved to
+ * another day or owner, or deleted) the caller must re-open the notice for
+ * the owner's Ready dog, or it is stranded. `after` is null for a delete.
+ * A booking moving INTO Ready is excluded: that transition opens its own
+ * notice.
+ */
+export function releasesHeldNotice(before: NoticeHoldView, after: NoticeHoldView | null): boolean {
+  if (!blocksCollectionNotice(before.status)) return false;
+  if (!after) return true;
+  if (after.status === BOOKING_STATUS.READY_FOR_COLLECTION) return false;
+  return (
+    !blocksCollectionNotice(after.status) ||
+    (after.ownerId ?? null) !== (before.ownerId ?? null) ||
+    (after.date ?? null) !== (before.date ?? null)
+  );
+}
+
 function dogNameOf(row: OwnerDayRow): string {
   const dog = Array.isArray(row.dogs) ? row.dogs[0] : row.dogs;
   return (dog?.name || row.dog_name_snapshot || "").trim();
@@ -52,13 +93,7 @@ export function collectionNoticeReadiness(
     const status = row.status ?? "";
     if (row.id === currentBookingId || status === BOOKING_STATUS.READY_FOR_COLLECTION) {
       pushUnique(readyDogNames, dogNameOf(row));
-    } else if (
-      status === BOOKING_STATUS.COMPLETED ||
-      status === BOOKING_STATUS.CANCELLED ||
-      status === BOOKING_STATUS.NO_SHOW
-    ) {
-      continue;
-    } else {
+    } else if (blocksCollectionNotice(status)) {
       pushUnique(waitingDogNames, dogNameOf(row));
     }
   }

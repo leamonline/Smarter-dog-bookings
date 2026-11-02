@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { collectionNoticeReadiness, type OwnerDayRow } from "./collectionNotice";
+import {
+  blocksCollectionNotice,
+  collectionNoticeReadiness,
+  releasesHeldNotice,
+  type OwnerDayRow,
+} from "./collectionNotice";
 
 const row = (id: string, status: string, name: string): OwnerDayRow => ({
   id,
@@ -77,5 +82,51 @@ describe("collectionNoticeReadiness", () => {
       "1",
     );
     expect(r.readyDogNames).toEqual(["Bella"]);
+  });
+});
+
+describe("blocksCollectionNotice", () => {
+  it.each(["Booked", "Reconfirmed", "Arrived"])("%s holds the notice", (status) => {
+    expect(blocksCollectionNotice(status)).toBe(true);
+  });
+  it.each(["Ready for collection", "Completed", "Cancelled", "No-show"])(
+    "%s does not hold the notice",
+    (status) => {
+      expect(blocksCollectionNotice(status)).toBe(false);
+    },
+  );
+});
+
+describe("releasesHeldNotice", () => {
+  const max = { status: "Arrived", ownerId: "human-1", date: "2026-05-18" };
+
+  it.each(["Cancelled", "No-show", "Completed"])("is released when the holder becomes %s", (status) => {
+    expect(releasesHeldNotice(max, { ...max, status })).toBe(true);
+  });
+
+  it("is released when the holder moves to another day", () => {
+    expect(releasesHeldNotice(max, { ...max, date: "2026-05-19" })).toBe(true);
+  });
+
+  it("is released when the holder is deleted", () => {
+    expect(releasesHeldNotice(max, null)).toBe(true);
+  });
+
+  it("is released when the holder is reassigned to another owner", () => {
+    expect(releasesHeldNotice(max, { ...max, ownerId: "human-2" })).toBe(true);
+  });
+
+  it("is not released by an ordinary edit that keeps the holder in the salon", () => {
+    expect(releasesHeldNotice(max, { ...max, status: "Arrived" })).toBe(false);
+    expect(releasesHeldNotice({ ...max, status: "Booked" }, { ...max, status: "Arrived" })).toBe(false);
+  });
+
+  it("leaves the transition into Ready to its own prompt", () => {
+    expect(releasesHeldNotice(max, { ...max, status: "Ready for collection" })).toBe(false);
+  });
+
+  it("is not released by a booking that was not holding anything", () => {
+    expect(releasesHeldNotice({ ...max, status: "Ready for collection" }, { ...max, status: "Completed" })).toBe(false);
+    expect(releasesHeldNotice({ ...max, status: "Cancelled" }, null)).toBe(false);
   });
 });
