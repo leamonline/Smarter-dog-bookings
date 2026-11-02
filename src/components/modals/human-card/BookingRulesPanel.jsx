@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { CancellationHistoryPanel } from "./CancellationHistoryPanel";
 import { CalendarClock } from "lucide-react";
 import { PanelShell } from "../shell/PanelShell.jsx";
+import { Button } from "../../ui/Button.jsx";
 import { SALON_SLOTS } from "../../../constants/salon";
 
 // Booking rules — staff-only controls on the human card:
@@ -38,6 +40,49 @@ function SlotRow({ kind, selected, onToggle, disabled, activeClasses }) {
   );
 }
 
+// One collapsible slot list. Collapsed by default: the heading carries a
+// one-line summary (the times that are set, or "None") so the card stays short
+// on a phone, and the 10-chip grid only appears when staff choose to edit.
+function SlotSection({ title, hint, kind, selected, onToggle, disabled, activeClasses }) {
+  const [open, setOpen] = useState(false);
+  const panelId = `slots-${kind}`;
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-slate-600">{title}</p>
+          <p className="text-caption text-slate-500 break-words">
+            {selected.length ? selected.join(", ") : "None"}
+          </p>
+        </div>
+        <Button
+          variant="quiet"
+          size="sm"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={`${open ? "Done editing" : "Edit"} ${title.toLowerCase()}`}
+          onClick={() => setOpen((v) => !v)}
+          className="shrink-0"
+        >
+          {open ? "Done" : "Edit"}
+        </Button>
+      </div>
+      {open && (
+        <div id={panelId} className="mt-1">
+          <p className="text-caption text-slate-400 mb-1.5">{hint}</p>
+          <SlotRow
+            kind={kind}
+            selected={selected}
+            onToggle={onToggle}
+            disabled={disabled}
+            activeClasses={activeClasses}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BookingRulesPanel({ human, onUpdateHuman }) {
   const preferred = human?.preferredSlots || [];
   const blocked = human?.blockedSlots || [];
@@ -63,33 +108,25 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
     <PanelShell eyebrow="Booking rules" icon={CalendarClock} accent="sky">
       <div className="flex flex-col gap-3">
         <CancellationHistoryPanel key={human?.id} humanId={human?.id} />
-        <div>
-          <p className="text-xs font-bold text-slate-600 mb-1">Preferred times</p>
-          <p className="text-caption text-slate-400 mb-1.5">
-            Starred for them in the portal — a gentle steer, never enforced.
-          </p>
-          <SlotRow
-            kind="preferred"
-            selected={preferred}
-            onToggle={togglePreferred}
-            disabled={disabled}
-            activeClasses="bg-sky-500 text-white"
-          />
-        </div>
+        <SlotSection
+          title="Preferred times"
+          hint="Starred for them in the portal — a gentle steer, never enforced."
+          kind="preferred"
+          selected={preferred}
+          onToggle={togglePreferred}
+          disabled={disabled}
+          activeClasses="bg-sky-500 text-white"
+        />
 
-        <div>
-          <p className="text-xs font-bold text-slate-600 mb-1">Blocked times</p>
-          <p className="text-caption text-slate-400 mb-1.5">
-            They can't book these themselves — you still can, deliberately.
-          </p>
-          <SlotRow
-            kind="blocked"
-            selected={blocked}
-            onToggle={toggleBlocked}
-            disabled={disabled}
-            activeClasses="bg-rose-500 text-white"
-          />
-        </div>
+        <SlotSection
+          title="Blocked times"
+          hint="They can't book these themselves — you still can, deliberately."
+          kind="blocked"
+          selected={blocked}
+          onToggle={toggleBlocked}
+          disabled={disabled}
+          activeClasses="bg-rose-500 text-white"
+        />
 
         <div className="flex items-start justify-between gap-2 pt-1 border-t border-slate-200/70">
           <div>
