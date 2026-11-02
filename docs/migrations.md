@@ -1,5 +1,53 @@
 # Migration history
 
+## Meta delivery after a Meta failure (#1161) — production applied 2 November 2026
+
+`20261101120000_notification_log_reconcile_meta_delivery.sql` adds one
+`AFTER UPDATE OF status` trigger on `whatsapp_messages`
+(`trg_reconcile_notification_log_on_meta_delivery`) and its definer function:
+when Meta reports an outbound message delivered or read after failing it, the
+WhatsApp `notification_log` row that the 12 October reconciliation marked
+failed goes back to `sent`, unless a resend already holds its slot. Create or
+replace only, no drop statements, no backfill, revoke block included.
+
+**Staging** (`btjnxvgkpdbfrrqxvkfj`): applied on 1 November 2026 through the
+Supabase MCP as `notification_log_reconcile_meta_delivery` (ledger version
+`20261101214729`; ledger 79 → 80 rows) with the file's exact text: the ledger
+holds one statement whose SHA-256, trailing whitespace trimmed, equals the
+committed file's (`256b62c0…`). The nine scenarios of
+`259_notification_log_reconcile_meta_delivery.test.sql` were replayed on hosted
+staging in one block that raised at the end, so everything rolled back: 9
+passed, 0 failed. Hosted Supabase refuses `session_replication_role`, so the
+fixture tables' user triggers were disabled for the fixture inserts inside that
+same transaction and restored by the rollback. Read back afterwards: trigger
+enabled, function `SECURITY DEFINER`, neither `anon` nor `authenticated` can
+execute it, no fixture rows and no disabled triggers left.
+
+**Production** (`nlzhllhkigmsvrzduefz`): the approval-gated workflow could not
+be used. Runs
+[41346844911](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/41346844911)
+and
+[41353951360](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/41353951360),
+both for PR head `adbd5794`, refused at their first step ("The production
+environment has no required reviewers") before any checkout, and applied
+nothing: the repository is private again, and GitHub Free offers no required
+reviewers on a private repository's environment, the case the
+[production route decision](#production-route-decision-1024--20-october-2026)
+names. With the owner's explicit approval in the session, the same file was
+applied through the Supabase MCP on 2 November 2026 as
+`notification_log_reconcile_meta_delivery` (ledger version `20261102075029`;
+ledger 254 → 255 rows). Read-only pre-check: every column the trigger reads
+present, neither object present, no ledger row for the name. Read back
+afterwards through the MCP (read-only, catalogue and counts only): the ledger
+row holds one statement whose trimmed SHA-256 equals the committed file's
+(`256b62c0…`, as on staging); the trigger is enabled with the committed `WHEN`
+clause; the function is `SECURITY DEFINER` with `search_path=pg_catalog,
+public`, and neither `anon` nor `authenticated` can execute it; both 12 October
+reconciliation triggers are still enabled; `notification_log` held 3657 rows,
+97 of them `failed`, before and after. The row carries no workflow provenance
+line. Rollback, if ever needed, is dropping the trigger and then the function;
+no data depends on them.
+
 ## Retired large-dog settings column (#1000) — production applied 25 October 2026
 
 `20261024110000_drop_large_dog_slots.sql` drops only
