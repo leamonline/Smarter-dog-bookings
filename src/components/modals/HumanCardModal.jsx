@@ -278,12 +278,15 @@ export function HumanCardModal({
           />
         </div>
 
-        {/* Aligned pairs on wide containers — Dogs / Trusted Humans,
-            Contact / Channels, Reminders / AI Messaging — then Notes and
-            Booking Rules full width. DOM order is the single-column order, so
-            visual order == DOM == tab order. The @container tests the modal's
-            own width (capped/decoupled from the viewport above sm). Rows
-            share height (items-stretch); no fixed-height clipping. */}
+        {/* Working content first, settings after. Order: Dogs / Trusted Humans,
+            Notes, Recent bookings, then Contact / Channels, Reminders / AI
+            Messaging and Booking Rules (settings-style cards), with the
+            booking-activity timeline last. Pairs sit side by side on wide
+            containers; Notes, Recent bookings and Booking Rules are full width.
+            DOM order is the single-column order, so visual order == DOM == tab
+            order. The @container tests the modal's own width (capped/decoupled
+            from the viewport above sm). Rows share height (items-stretch); no
+            fixed-height clipping. */}
         <div className="@container">
           <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3 @3xl:gap-4 items-stretch">
             <DogsPanel
@@ -316,6 +319,33 @@ export function HumanCardModal({
               findHumanByFullName={findHumanByFullName}
               searchHumansByTerm={searchHumansByTerm}
             />
+            <div className="@3xl:col-span-2">
+              <NotesPanel
+                isEditing={isEditing}
+                human={human}
+                editNotes={draft.notes}
+                setEditNotes={(v) => setDraftField("notes", v)}
+                editHistoryFlag={draft.historyFlag}
+                setEditHistoryFlag={(v) => setDraftField("historyFlag", v)}
+                expanded={notesExpanded}
+                onToggleExpanded={() => setNotesExpanded((v) => !v)}
+                onStartEdit={onUpdateHuman ? () => startEdit("notes") : undefined}
+                notesInputRef={notesInputRef}
+              />
+            </div>
+            {/* Recent bookings: full width, straight after Notes. The ref is what
+                the header's "jump to history" scrolls to. */}
+            <div ref={historyRef} className="@3xl:col-span-2 scroll-mt-2">
+              <HumanBookingHistory
+                human={human}
+                dogs={dogs}
+                dogsByHumanId={dogsByHumanId}
+                bookingsByDate={bookingsByDate}
+                onOpenBooking={handleOpenBooking}
+                onBookAgain={onBookAgain}
+                onNewBookingForHuman={onNewBookingForHuman}
+              />
+            </div>
             <ContactPanel
               isEditing={isEditing}
               human={human}
@@ -345,36 +375,9 @@ export function HumanCardModal({
             <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
             <AiMessagingPanel human={human} onUpdateHuman={onUpdateHuman} />
             <div className="@3xl:col-span-2">
-              <NotesPanel
-                isEditing={isEditing}
-                human={human}
-                editNotes={draft.notes}
-                setEditNotes={(v) => setDraftField("notes", v)}
-                editHistoryFlag={draft.historyFlag}
-                setEditHistoryFlag={(v) => setDraftField("historyFlag", v)}
-                expanded={notesExpanded}
-                onToggleExpanded={() => setNotesExpanded((v) => !v)}
-                onStartEdit={onUpdateHuman ? () => startEdit("notes") : undefined}
-                notesInputRef={notesInputRef}
-              />
-            </div>
-            <div className="@3xl:col-span-2">
               <BookingRulesPanel human={human} onUpdateHuman={onUpdateHuman} />
             </div>
           </div>
-        </div>
-
-        {/* Booking history spans both columns underneath the grid. */}
-        <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
-          <HumanBookingHistory
-            human={human}
-            dogs={dogs}
-            dogsByHumanId={dogsByHumanId}
-            bookingsByDate={bookingsByDate}
-            onOpenBooking={handleOpenBooking}
-            onBookAgain={onBookAgain}
-            onNewBookingForHuman={onNewBookingForHuman}
-          />
         </div>
 
         {/* Read-only timeline of cancellations / reschedules / completions
