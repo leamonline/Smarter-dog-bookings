@@ -25,8 +25,16 @@
  *   - appointment_reminder_v1   (en_GB, 3 params)
  *   - booking_confirmed_v1      (en_GB, 4 params)
  *   - booking_changed_v1        (en,    3 params)
+ *   - ready_for_collection_v2   (en_GB, 2 params — {{1}} dog name(s),
+ *                                {{2}} minutes. Approved as Utility on
+ *                                2026-11-02. Worded so it reads correctly for
+ *                                one dog or several: "We've finished pampering
+ *                                Bella and Max and they're ready…".)
  *   - ready_for_collection_v1   (en_GB, 2 params — {{1}} dog name,
- *                                {{2}} minutes)
+ *                                {{2}} minutes. RETIRED: "{{1}} is all done"
+ *                                is wrong for two dogs. Kept in the list only
+ *                                so old inbox messages still render; not in
+ *                                the picker and never sent.)
  *   - welcome_to_the_pack_v1__english (en_GB, 1 param — {{1}} customer
  *                                first name. Sent when staff approve a Join
  *                                the Pack self-signup. The `__english` suffix
@@ -124,11 +132,32 @@ export const WHATSAPP_TEMPLATES = [
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, a quick update on ${values.dog_name || PLACEHOLDER.dog_name}'s booking: ${values.change_description || PLACEHOLDER.change_description}. If this isn't right or you have any questions, just reply here.`,
   },
   {
+    // Approved in Meta as Utility, en_GB, body only, on 2026-11-02 (template id
+    // 1827786361646431). Do not reword: a change needs a new template name.
+    // {{1}} is the dogs' names already joined ("Bella", "Bella and Max",
+    // "Bella, Max and Alfie"), so the sentence never needs a singular/plural verb.
+    name: "ready_for_collection_v2",
+    label: "Ready for Collection",
+    description: "Tell the owner or a trusted contact their dog (or dogs) can be collected",
+    status: "approved",
+    language: "en_GB",
+    params: [
+      { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "minutes", label: "Minutes until ready (e.g. 15)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi! 🐾 We've finished pampering ${values.dog_name || PLACEHOLDER.dog_name} and they're ready to head home in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon 🎓🐶❤️ X`,
+  },
+  {
+    // RETIRED 2026-11-02, replaced by ready_for_collection_v2. Still Approved
+    // in Meta, but the body says "{{1}} is all done", which is wrong for more
+    // than one dog. Kept ONLY so messages already in the inbox
+    // ("[template:ready_for_collection_v1] …") keep rendering; status
+    // "retired" keeps it out of the staff picker. Do not send it.
     name: "ready_for_collection_v1",
     label: "Ready for Collection",
-    description: "Tell the owner or a trusted contact the dog is ready to collect",
-    // Approved & live in Meta (verified 2026-06-15: 34 sends read by customers).
-    status: "approved",
+    description: "Retired. Replaced by ready_for_collection_v2.",
+    status: "retired",
     language: "en_GB",
     params: [
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },

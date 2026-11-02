@@ -155,7 +155,7 @@ describe("CollectionNoticeModal", () => {
 
     await screen.findByText("Partner");
     expect(screen.getByLabelText("Minutes until ready for collection")).toHaveValue(15);
-    expect(screen.getByText(/Bella is all done.*15 mins/i)).toBeInTheDocument();
+    expect(screen.getByText(/finished pampering Bella and they.re ready to head home in 15 mins/i)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(2);
   });
 
@@ -172,7 +172,7 @@ describe("CollectionNoticeModal", () => {
       expect.objectContaining({
         body: expect.objectContaining({
           human_id: "human-1",
-          template_name: "ready_for_collection_v1",
+          template_name: "ready_for_collection_v2",
           to: "+447123456789",
         }),
       }),
@@ -266,6 +266,33 @@ describe("CollectionNoticeModal", () => {
 
       expect(await screen.findByRole("heading", { name: /^Bella is ready$/i })).toBeInTheDocument();
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("sends both dogs' names in one parameter, and the wording reads correctly for two", async () => {
+      invoke.mockResolvedValue({ data: { success: true }, error: null });
+      ownerDayRows = [
+        dayRow("booking-1", "Arrived", "Bella"),
+        dayRow("booking-2", "Ready for collection", "Max"),
+      ];
+      renderModal();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
+      expect(
+        await screen.findByText(/finished pampering Bella and Max and they.re ready to head home in 15 mins/i),
+      ).toBeInTheDocument();
+
+      await screen.findByText("Owner");
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+        "whatsapp-send",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            template_name: "ready_for_collection_v2",
+            params: ["Bella and Max", "15"],
+          }),
+        }),
+      ));
     });
 
     it("a reopened notice is not closed by the stale lookup it superseded", async () => {

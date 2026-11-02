@@ -157,6 +157,19 @@ describe("presentTemplate", () => {
     expect(body).not.toContain("[template:");
   });
 
+  it("renders a new ready_for_collection_v2 message with both dogs named", () => {
+    const { label, body, known } = presentTemplate(
+      "ready_for_collection_v2",
+      ["Bella and Max", "15"],
+      "Bella and Max · 15",
+    );
+    expect(known).toBe(true);
+    expect(label).toBe("Ready for Collection");
+    expect(body).toContain("finished pampering Bella and Max");
+    expect(body).toContain("15 mins");
+    expect(body).not.toContain("[template:");
+  });
+
   it("falls back to a tidy label + args for an unknown template id", () => {
     expect(presentTemplate("mystery_v9", ["A", "B"], "A · B")).toEqual({
       label: "Template message",

@@ -174,12 +174,35 @@ describe("WHATSAPP_PICKER_TEMPLATES", () => {
       "appointment_reminder_v1",
       "booking_confirmed_v1",
       "booking_changed_v1",
-      "ready_for_collection_v1",
+      "ready_for_collection_v2",
       "welcome_to_the_pack_v1__english",
       "appointment_request_reply_v1",
       "customer_enquiry_response_v1",
       "booking_cancelled_v1",
     ]);
     expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
+  });
+});
+
+describe("ready_for_collection templates", () => {
+  const byName = (name) => WHATSAPP_TEMPLATES.find((t) => t.name === name);
+
+  it("v2 is Meta's approved wording and reads correctly for one dog or several", () => {
+    const v2 = byName("ready_for_collection_v2");
+    expect(v2.language).toBe("en_GB");
+    expect(buildTemplateParams(v2, { dog_name: "Bella and Max", minutes: "15" })).toEqual(["Bella and Max", "15"]);
+    expect(v2.preview({ dog_name: "Bella", minutes: "15" })).toBe(
+      "Hi! 🐾 We've finished pampering Bella and they're ready to head home in 15 mins. See you soon 🎓🐶❤️ X",
+    );
+    expect(v2.preview({ dog_name: "Bella, Max and Alfie", minutes: "10" })).toBe(
+      "Hi! 🐾 We've finished pampering Bella, Max and Alfie and they're ready to head home in 10 mins. See you soon 🎓🐶❤️ X",
+    );
+  });
+
+  it("v1 is retired: still known (old inbox messages render) but never offered to staff", () => {
+    const v1 = byName("ready_for_collection_v1");
+    expect(v1).toBeDefined();
+    expect(v1.status).toBe("retired");
+    expect(WHATSAPP_PICKER_TEMPLATES.map((t) => t.name)).not.toContain("ready_for_collection_v1");
   });
 });

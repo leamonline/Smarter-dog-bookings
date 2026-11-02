@@ -10,7 +10,7 @@
 // Sending reuses the whatsapp-send edge function (Meta Cloud API
 // template) — the same path the inbox compose-new flow uses — so the
 // message goes out from the salon's WhatsApp Business number and is
-// logged to the recipient's inbox thread. The ready_for_collection_v1
+// logged to the recipient's inbox thread. The ready_for_collection_v2
 // template must be Approved in Meta before live sends succeed.
 // ============================================================
 
@@ -28,7 +28,7 @@ import { titleCase } from "../../../utils/text";
 import { collectionNoticeReadiness } from "../../../engine/collectionNotice";
 import { Button, ModalShell } from "../../ui";
 
-const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v1");
+const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v2");
 
 function displayName(h) {
   return `${h?.name ?? ""} ${h?.surname ?? ""}`.trim() || "this contact";
