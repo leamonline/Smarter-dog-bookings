@@ -691,9 +691,12 @@ export function useBookings(
       }
 
       // The other direction: this booking may have been what was holding a
-      // sibling's notice back (see reopenHeldNotice).
+      // sibling's notice back (see reopenHeldNotice). Deliberately NOT gated
+      // on _skipCollectionPrompt: that flag only says "don't open THIS
+      // booking's own prompt", and Today's check-out (collectWithPayment) sets
+      // it on every collection, which is exactly when a sibling's held notice
+      // should be released.
       if (
-        !updatedBooking._skipCollectionPrompt &&
         prevRow &&
         releasesHeldNotice(
           { status: prevRow.status, ownerId: ownerOfRow(prevRow), date: prevRow.booking_date },

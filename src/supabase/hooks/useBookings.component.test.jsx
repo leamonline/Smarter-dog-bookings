@@ -1382,6 +1382,21 @@ describe("useBookings", () => {
       },
     );
 
+    it("reopens Bella's notice when Max is collected through checkout, which suppresses Max's own prompt", async () => {
+      const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
+
+      // collectWithPayment sends _skipCollectionPrompt on every collection.
+      await updateMax(
+        result,
+        stub,
+        { status: BOOKING_STATUS.COMPLETED, _skipCollectionPrompt: true },
+        { ...maxArrived, status: BOOKING_STATUS.COMPLETED },
+      );
+
+      expect(onReadyForPickup).toHaveBeenCalledTimes(1);
+      expect(onReadyForPickup.mock.calls[0][0].id).toBe("booking-bella");
+    });
+
     it("reopens Bella's notice when Max is moved to another day", async () => {
       const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
 
