@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CancellationHistoryPanel } from "./CancellationHistoryPanel";
 import { CalendarClock } from "lucide-react";
 import { PanelShell } from "../shell/PanelShell.jsx";
+import { Button } from "../../ui/Button.jsx";
 import { SALON_SLOTS } from "../../../constants/salon";
 
 // Booking rules — staff-only controls on the human card:
@@ -54,16 +55,17 @@ function SlotSection({ title, hint, kind, selected, onToggle, disabled, activeCl
             {selected.length ? selected.join(", ") : "None"}
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="quiet"
+          size="sm"
           aria-expanded={open}
           aria-controls={panelId}
           aria-label={`${open ? "Done editing" : "Edit"} ${title.toLowerCase()}`}
           onClick={() => setOpen((v) => !v)}
-          className="shrink-0 min-h-[44px] px-2 -my-2 bg-transparent border-none text-caption font-bold text-brand-teal-text cursor-pointer"
+          className="shrink-0"
         >
           {open ? "Done" : "Edit"}
-        </button>
+        </Button>
       </div>
       {open && (
         <div id={panelId} className="mt-1">
