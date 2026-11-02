@@ -355,6 +355,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
         <ErrorBoundary>
           <Suspense fallback={null}>
             <CollectionNoticeModal
+              key={collectionNotice.booking?.id}
               booking={collectionNotice.booking}
               onClose={() => setCollectionNotice(null)}
             />
