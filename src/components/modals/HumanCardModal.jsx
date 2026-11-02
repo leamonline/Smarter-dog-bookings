@@ -278,81 +278,73 @@ export function HumanCardModal({
           />
         </div>
 
-        {/* One locked section order — Dogs, Contact, Channels, Trusted,
-            Reminders, Notes — in every layout. The @container splits it into
-            two balanced columns once the modal itself is wide enough (≈iPad
-            landscape up), NOT the viewport: the modal width is capped/decoupled
-            from the viewport above sm, so a container query is the honest test.
-            Reading down the left column then the right == the single-column
-            stack, so no `order-*` hack and visual order == DOM == tab order. */}
+        {/* Aligned pairs on wide containers — Dogs / Trusted Humans,
+            Contact / Channels, Reminders / AI Messaging — then Notes and
+            Booking Rules full width. DOM order is the single-column order, so
+            visual order == DOM == tab order. The @container tests the modal's
+            own width (capped/decoupled from the viewport above sm). Rows
+            share height (items-stretch); no fixed-height clipping. */}
         <div className="@container">
-          <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3 @3xl:gap-4 items-start">
-            {/* Column 1 — Dogs, Contact, Channels */}
-            <div className="flex flex-col gap-3 min-h-0">
-              <DogsPanel
-                human={human}
-                dogs={dogs}
-                dogsByHumanId={dogsByHumanId}
-                trustedOwnerIds={trustedOwnerIds}
-                bookingsByDate={bookingsByDate}
-                onClose={onClose}
-                onOpenDog={onOpenDog}
-                actions={
-                  human.id ? (
-                    <LinkDogActions
-                      human={human}
-                      humans={humans}
-                      dogs={dogs}
-                      onAddOwnedDog={onAddDog ? () => setShowAddDog(true) : undefined}
-                      onLinkTrustedOnDog={onUpdateHuman ? handleLinkTrustedOnDog : undefined}
-                    />
-                  ) : null
-                }
-              />
-              <ContactPanel
-                isEditing={isEditing}
-                human={human}
-                editAddress={draft.address}
-                setEditAddress={(v) => setDraftField("address", v)}
-                editEmail={draft.email}
-                setEditEmail={(v) => setDraftField("email", v)}
-                onStartEdit={() => startEdit("address")}
-                addressInputRef={addressInputRef}
-                emailInputRef={emailInputRef}
-              />
-              <ChannelsPanel
-                isEditing={isEditing}
-                human={human}
-                onUpdateHuman={onUpdateHuman}
-                editSms={draft.sms}
-                setEditSms={(v) => setDraftField("sms", v)}
-                editWhatsapp={draft.whatsapp}
-                setEditWhatsapp={(v) => setDraftField("whatsapp", v)}
-                editFb={draft.fb}
-                setEditFb={(v) => setDraftField("fb", v)}
-                editInsta={draft.insta}
-                setEditInsta={(v) => setDraftField("insta", v)}
-                editTiktok={draft.tiktok}
-                setEditTiktok={(v) => setDraftField("tiktok", v)}
-              />
-            </div>
-
-            {/* Column 2 — Trusted, Reminders, Notes. Notes keeps its flex-1
-                grow so it absorbs the leftover height at the column bottom. */}
-            <div className="flex flex-col gap-3 min-h-0">
-              <TrustedHumansPanel
-                human={human}
-                humans={humans}
-                onClose={onClose}
-                onOpenHuman={onOpenHuman}
-                onUpdateHuman={onUpdateHuman}
-                onAddHuman={onAddHuman}
-                findHumanByFullName={findHumanByFullName}
-                searchHumansByTerm={searchHumansByTerm}
-              />
-              <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
-              <AiMessagingPanel human={human} onUpdateHuman={onUpdateHuman} />
-              <BookingRulesPanel human={human} onUpdateHuman={onUpdateHuman} />
+          <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3 @3xl:gap-4 items-stretch">
+            <DogsPanel
+              human={human}
+              dogs={dogs}
+              dogsByHumanId={dogsByHumanId}
+              trustedOwnerIds={trustedOwnerIds}
+              bookingsByDate={bookingsByDate}
+              onClose={onClose}
+              onOpenDog={onOpenDog}
+              actions={
+                human.id ? (
+                  <LinkDogActions
+                    human={human}
+                    humans={humans}
+                    dogs={dogs}
+                    onAddOwnedDog={onAddDog ? () => setShowAddDog(true) : undefined}
+                    onLinkTrustedOnDog={onUpdateHuman ? handleLinkTrustedOnDog : undefined}
+                  />
+                ) : null
+              }
+            />
+            <TrustedHumansPanel
+              human={human}
+              humans={humans}
+              onClose={onClose}
+              onOpenHuman={onOpenHuman}
+              onUpdateHuman={onUpdateHuman}
+              onAddHuman={onAddHuman}
+              findHumanByFullName={findHumanByFullName}
+              searchHumansByTerm={searchHumansByTerm}
+            />
+            <ContactPanel
+              isEditing={isEditing}
+              human={human}
+              editAddress={draft.address}
+              setEditAddress={(v) => setDraftField("address", v)}
+              editEmail={draft.email}
+              setEditEmail={(v) => setDraftField("email", v)}
+              onStartEdit={() => startEdit("address")}
+              addressInputRef={addressInputRef}
+              emailInputRef={emailInputRef}
+            />
+            <ChannelsPanel
+              isEditing={isEditing}
+              human={human}
+              onUpdateHuman={onUpdateHuman}
+              editSms={draft.sms}
+              setEditSms={(v) => setDraftField("sms", v)}
+              editWhatsapp={draft.whatsapp}
+              setEditWhatsapp={(v) => setDraftField("whatsapp", v)}
+              editFb={draft.fb}
+              setEditFb={(v) => setDraftField("fb", v)}
+              editInsta={draft.insta}
+              setEditInsta={(v) => setDraftField("insta", v)}
+              editTiktok={draft.tiktok}
+              setEditTiktok={(v) => setDraftField("tiktok", v)}
+            />
+            <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
+            <AiMessagingPanel human={human} onUpdateHuman={onUpdateHuman} />
+            <div className="@3xl:col-span-2">
               <NotesPanel
                 isEditing={isEditing}
                 human={human}
@@ -365,6 +357,9 @@ export function HumanCardModal({
                 onStartEdit={onUpdateHuman ? () => startEdit("notes") : undefined}
                 notesInputRef={notesInputRef}
               />
+            </div>
+            <div className="@3xl:col-span-2">
+              <BookingRulesPanel human={human} onUpdateHuman={onUpdateHuman} />
             </div>
           </div>
         </div>
