@@ -131,7 +131,12 @@ export function CollectionNoticeModal({ booking, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [needsGate, contacts, ownerId, booking?.id, booking?.dogName, booking?._bookingDate]);
+    // Depends on the booking OBJECT, not just its id. Every open request
+    // arrives as a fresh object, so a notice reopened for the same booking
+    // (its holder was cancelled, say) re-runs the check and cancels the one
+    // still in flight, whose late "still waiting" result must not close the
+    // modal that was just reopened.
+  }, [needsGate, contacts, ownerId, booking]);
 
   useEffect(() => {
     if (step !== "compose") return undefined;

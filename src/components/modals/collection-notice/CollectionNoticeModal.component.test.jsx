@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
 const invoke = vi.fn();
@@ -7,6 +7,9 @@ let trustedLinks = [];
 let trustedHumans = [];
 let contactQueryError = null;
 let ownerDayRows = null;
+// Per-call overrides for the owner-day lookup, consumed in order, so a test
+// can hold one lookup open while a later one resolves.
+let dayLookupQueue = [];
 
 const defaultDayRows = () => [
   {
@@ -28,7 +31,9 @@ function makeBookingsQuery() {
   const query = {
     eq: vi.fn(() => query),
     neq: vi.fn(() =>
-      Promise.resolve({ data: ownerDayRows ?? defaultDayRows(), error: null }),
+      dayLookupQueue.length
+        ? dayLookupQueue.shift()
+        : Promise.resolve({ data: ownerDayRows ?? defaultDayRows(), error: null }),
     ),
   };
   return query;
@@ -105,6 +110,7 @@ describe("CollectionNoticeModal", () => {
     trustedHumans = [];
     contactQueryError = null;
     ownerDayRows = null;
+    dayLookupQueue = [];
   });
 
   it("asks before loading recipient controls", async () => {
@@ -260,6 +266,44 @@ describe("CollectionNoticeModal", () => {
 
       expect(await screen.findByRole("heading", { name: /^Bella is ready$/i })).toBeInTheDocument();
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("a reopened notice is not closed by the stale lookup it superseded", async () => {
+      // 1st lookup (Bella just became Ready, Max still in) is held open.
+      let finishStale;
+      dayLookupQueue = [
+        new Promise((resolve) => {
+          finishStale = () =>
+            resolve({
+              data: [
+                dayRow("booking-1", "Ready for collection", "Bella"),
+                dayRow("booking-2", "Arrived", "Max"),
+              ],
+              error: null,
+            });
+        }),
+      ];
+      const onClose = vi.fn();
+      const ui = (booking) => (
+        <ToastProvider>
+          <CollectionNoticeModal booking={booking} onClose={onClose} />
+        </ToastProvider>
+      );
+      const { rerender } = render(ui({ ...bookingFixture }));
+
+      // Max is cancelled before that lookup returns, so Bella's notice is
+      // reopened: a NEW object for the same booking. Its lookup finds Max gone.
+      ownerDayRows = [dayRow("booking-1", "Ready for collection", "Bella")];
+      rerender(ui({ ...bookingFixture }));
+      expect(await screen.findByRole("button", { name: "Send message" })).toBeInTheDocument();
+
+      // The stale lookup now finishes, still seeing Max as waiting.
+      await act(async () => {
+        finishStale();
+      });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
     });
 
     it("still lets staff message if the sibling lookup fails", async () => {
