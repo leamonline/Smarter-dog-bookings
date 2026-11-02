@@ -114,3 +114,24 @@ describe("SettingsView unsaved-changes guard", () => {
     expect(screen.getByRole("tab", { name: "Your Account" })).toHaveAttribute("aria-selected", "true");
   });
 });
+
+describe("SettingsView Team tab", () => {
+  beforeEach(() => setViewportMobile(false));
+
+  it("is hidden from staff", () => {
+    render(<SettingsView {...baseProps()} staffProfile={{ id: "s1", role: "staff", display_name: "Sam" }} />);
+    expect(screen.queryByRole("tab", { name: "Team" })).not.toBeInTheDocument();
+  });
+
+  it("appears for an owner straight after Your Account, and opens the add-a-team-member form", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView {...baseProps()} staffProfile={{ id: "s1", role: "owner", display_name: "Leam" }} />);
+
+    const labels = screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(labels[labels.indexOf("Your Account") + 1]).toBe("Team");
+
+    await user.click(screen.getByRole("tab", { name: "Team" }));
+    expect(screen.getByText("Add a team member")).toBeInTheDocument();
+  });
+});
+

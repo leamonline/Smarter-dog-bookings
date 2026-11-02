@@ -4,6 +4,7 @@ import { BusinessSettings } from "./settings/BusinessSettings.jsx";
 import { HolidaySettings } from "./settings/HolidaySettings";
 import { HoursSettings } from "./settings/HoursSettings.jsx";
 import { AccountSettings } from "./settings/AccountSettings.jsx";
+import { TeamSettings } from "./settings/TeamSettings.jsx";
 import { PricingSettings } from "./settings/PricingSettings.jsx";
 import { BookingRulesSettings } from "./settings/BookingRulesSettings.jsx";
 import { CapacitySettings } from "./settings/CapacitySettings.jsx";
@@ -13,6 +14,10 @@ import { CalendarSettings } from "./settings/CalendarSettings.jsx";
 import { AiWhatsAppSettings } from "./settings/AiWhatsAppSettings.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { PageHeader } from "../ui/index.js";
+
+// Owners also get a Team tab (right after "Your Account"). Staff never see it;
+// the staff-invite function re-checks the role, so this is convenience only.
+const TEAM_SECTION = { id: "team", label: "Team" };
 
 const SECTIONS = [
   { id: "business", label: "Your Business" },
@@ -42,6 +47,10 @@ export function SettingsView({
   canEdit = true,
 }) {
   const [activeTab, setActiveTab] = useState("business");
+  const isOwner = staffProfile?.role === "owner";
+  const sections = isOwner
+    ? SECTIONS.flatMap((section) => (section.id === "account" ? [section, TEAM_SECTION] : [section]))
+    : SECTIONS;
   const tablistRef = useRef(null);
   const keyboardNav = useRef(false);
 
@@ -94,15 +103,15 @@ export function SettingsView({
   };
 
   const handleKeyDown = (e) => {
-    const idx = SECTIONS.findIndex((s) => s.id === activeTab);
+    const idx = sections.findIndex((s) => s.id === activeTab);
     let next;
-    if (e.key === "ArrowRight") next = (idx + 1) % SECTIONS.length;
-    else if (e.key === "ArrowLeft") next = (idx - 1 + SECTIONS.length) % SECTIONS.length;
+    if (e.key === "ArrowRight") next = (idx + 1) % sections.length;
+    else if (e.key === "ArrowLeft") next = (idx - 1 + sections.length) % sections.length;
     else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = SECTIONS.length - 1;
+    else if (e.key === "End") next = sections.length - 1;
     else return;
     e.preventDefault();
-    requestTab(SECTIONS[next].id, true);
+    requestTab(sections[next].id, true);
   };
 
   return (
@@ -115,7 +124,7 @@ export function SettingsView({
           onKeyDown={handleKeyDown}
           className="flex w-full min-w-0 gap-2 overflow-x-auto [scrollbar-width:thin]"
         >
-          {SECTIONS.map((section) => {
+          {sections.map((section) => {
             const isActive = activeTab === section.id;
             return (
               <button
@@ -160,6 +169,7 @@ export function SettingsView({
         {activeTab === "holidays" && <HolidaySettings canEdit={canEdit} onDirtyChange={setDirty} />}
         {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
         {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} onDirtyChange={setDirty} />}
+        {activeTab === "team" && isOwner && <TeamSettings staffProfile={staffProfile} />}
         {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "rules" && (
           <BookingRulesSettings
