@@ -14,7 +14,7 @@
 // template must be Approved in Meta before live sends succeed.
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
@@ -25,7 +25,7 @@ import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.j
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/whatsappTemplates.js";
 import { joinNames } from "../../../lib/reminders/templates.js";
 import { titleCase } from "../../../utils/text";
-import { BOOKING_STATUS } from "../../../constants/index";
+import { collectionNoticeReadiness } from "../../../engine/collectionNotice";
 import { Button, ModalShell } from "../../ui";
 
 const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v1");
@@ -63,18 +63,80 @@ export function CollectionNoticeModal({ booking, onClose }) {
   const [contactLoadAttempt, setContactLoadAttempt] = useState(0);
 
   const ownerId = booking?._ownerId ?? null;
-  // The owner's other dogs booked the same day that are ALSO ready get
-  // named in the one notice ("Bella and Max are ready"). Dogs still being
-  // groomed are left out — their own notice fires when they're marked
-  // ready. Starts as just this booking's dog; the effect below widens it.
+  // One notice per owner, sent only once EVERY dog of theirs still in the
+  // salon that day is ready (see engine/collectionNotice). If a sibling is
+  // still being groomed the notice is held back: this modal closes itself
+  // with a toast, and the last dog's Ready opens it again with all the names
+  // ("Bella and Max"). Starts as just this booking's dog; the gate widens it.
   const [readyDogNames, setReadyDogNames] = useState(() =>
     [booking?.dogName].filter(Boolean),
   );
   const dogName = joinNames(readyDogNames.map((n) => titleCase(n))) || "Your dog";
   const isPlural = readyDogNames.length > 1;
 
+  // "checking" renders nothing, so a held-back notice never flashes a modal.
+  // Sample data, a booking with no owner, or a failed lookup skip the gate
+  // ("send"): staff can still message, they just lose the sibling check.
+  const needsGate = Boolean(contacts.connected && ownerId && booking?._bookingDate);
+  const [gate, setGate] = useState(needsGate ? "checking" : "send");
+
+  // The parent and the toast context hand us fresh function identities on
+  // every render; read them through refs so they can't re-run the lookup.
+  const onCloseRef = useRef(onClose);
+  const toastRef = useRef(toast);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    toastRef.current = toast;
+  });
+
   // Escape, focus trap, scroll-lock and backdrop click are owned by
   // ModalShell/AccessibleModal — no hand-rolled key handler needed here.
+
+  useEffect(() => {
+    if (!needsGate) return undefined;
+    let cancelled = false;
+    setGate("checking");
+    async function check() {
+      let rows = null;
+      try {
+        const res = await contacts.listOwnerBookingsOnDate(booking._bookingDate, ownerId);
+        if (!res.error) rows = res.data ?? [];
+      } catch {
+        rows = null;
+      }
+      if (cancelled) return;
+      if (!rows) {
+        setGate("send");
+        return;
+      }
+      const { readyDogNames: ready, waitingDogNames: waiting } = collectionNoticeReadiness(
+        rows,
+        booking.id,
+      );
+      if (waiting.length > 0) {
+        const justReady = joinNames((ready.length ? ready : [booking.dogName]).map(titleCase));
+        const stillIn = joinNames(waiting.map(titleCase));
+        toastRef.current.show(
+          `${justReady} ready. Holding the message until ${stillIn} ${waiting.length > 1 ? "are" : "is"} ready too.`,
+          "info",
+        );
+        setGate("hold");
+        onCloseRef.current?.();
+        return;
+      }
+      if (ready.length > 0) setReadyDogNames(ready);
+      setGate("send");
+    }
+    check();
+    return () => {
+      cancelled = true;
+    };
+    // Depends on the booking OBJECT, not just its id. Every open request
+    // arrives as a fresh object, so a notice reopened for the same booking
+    // (its holder was cancelled, say) re-runs the check and cancels the one
+    // still in flight, whose late "still waiting" result must not close the
+    // modal that was just reopened.
+  }, [needsGate, contacts, ownerId, booking]);
 
   useEffect(() => {
     if (step !== "compose") return undefined;
@@ -97,35 +159,12 @@ export function CollectionNoticeModal({ booking, onClose }) {
         return;
       }
       try {
-        const [ownerRes, linkRes, dayRes] = await Promise.all([
+        const [ownerRes, linkRes] = await Promise.all([
           contacts.getContactCard(ownerId),
           contacts.listTrustedContactLinks(ownerId),
-          booking?._bookingDate
-            ? contacts.listOwnerBookingsOnDate(booking._bookingDate, ownerId)
-            : Promise.resolve({ data: null, error: null }),
         ]);
-        if (ownerRes.error || linkRes.error || dayRes.error) {
+        if (ownerRes.error || linkRes.error) {
           throw new Error("Contact query failed");
-        }
-
-        // Name every dog of this owner that's ready for pick-up today
-        // (this booking's dog included regardless of how fresh its status
-        // row is — the modal opens on the transition itself).
-        const dayRows = dayRes?.data ?? [];
-        const ready = dayRows.filter(
-          (r) =>
-            r.id === booking?.id ||
-            r.status === BOOKING_STATUS.READY_FOR_COLLECTION ||
-            r.status === BOOKING_STATUS.COMPLETED,
-        );
-        if (ready.length > 0) {
-          const names = [];
-          for (const r of ready) {
-            const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
-            const name = dog?.name || r.dog_name_snapshot;
-            if (name && !names.includes(name)) names.push(name);
-          }
-          if (!cancelled && names.length > 0) setReadyDogNames(names);
         }
 
         const links = linkRes.data ?? [];
@@ -162,7 +201,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [step, ownerId, booking?.id, booking?._bookingDate, contactLoadAttempt, contacts]);
+  }, [step, ownerId, contactLoadAttempt, contacts]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
@@ -237,6 +276,8 @@ export function CollectionNoticeModal({ booking, onClose }) {
       </div>
     </div>
   );
+
+  if (gate !== "send") return null;
 
   return (
     <ModalShell

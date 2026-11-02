@@ -1316,6 +1316,153 @@ describe("useBookings", () => {
     expect(onReadyForPickup).not.toHaveBeenCalled();
   });
 
+  describe("held collection notices", () => {
+    // Bella and Max are the same owner's dogs, in adjacent slots on the same day.
+    const twoDogs = {
+      "dog-1": { id: "dog-1", name: "Bella", breed: "Cockapoo", human_id: "human-1" },
+      "dog-2": { id: "dog-2", name: "Max", breed: "Cockapoo", human_id: "human-1" },
+    };
+    const bellaReady = {
+      id: "booking-bella",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: BOOKING_STATUS.READY_FOR_COLLECTION,
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const maxArrived = {
+      ...bellaReady,
+      id: "booking-max",
+      slot: "09:30",
+      status: BOOKING_STATUS.ARRIVED,
+      dog_id: "dog-2",
+    };
+
+    async function setup(rows, extra = {}, dogs = twoDogs) {
+      const onReadyForPickup = vi.fn();
+      const stub = makeSupabaseStub({ selectResult: { data: rows, error: null }, ...extra });
+      setSupabase(stub);
+      const { result } = renderHook(() =>
+        useBookings(weekStart, dogs, humansById, { onReadyForPickup }),
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      return { result, onReadyForPickup, stub };
+    }
+
+    // The response is held open, then resolved, so React has flushed the
+    // optimistic updater and the previous-row snapshot exists (as in the
+    // "already Ready" test above). Real network latency does the same.
+    async function updateMax(result, stub, patch, returnedRow) {
+      let pending;
+      await act(async () => {
+        pending = result.current.updateBooking(
+          { ...result.current.bookingsByDate["2026-05-18"].find((b) => b.id === "booking-max"), ...patch },
+          "2026-05-18",
+          patch._to ?? "2026-05-18",
+        );
+      });
+      await act(async () => {
+        stub.resolveUpdate({ data: returnedRow, error: null });
+        await pending;
+      });
+    }
+
+    it.each([BOOKING_STATUS.CANCELLED, BOOKING_STATUS.NO_SHOW])(
+      "reopens Bella's notice when Max, who was holding it, becomes %s",
+      async (status) => {
+        const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
+
+        await updateMax(result, stub, { status }, { ...maxArrived, status });
+
+        expect(onReadyForPickup).toHaveBeenCalledTimes(1);
+        expect(onReadyForPickup.mock.calls[0][0].id).toBe("booking-bella");
+      },
+    );
+
+    it("reopens Bella's notice when Max is collected through checkout, which suppresses Max's own prompt", async () => {
+      const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
+
+      // collectWithPayment sends _skipCollectionPrompt on every collection.
+      await updateMax(
+        result,
+        stub,
+        { status: BOOKING_STATUS.COMPLETED, _skipCollectionPrompt: true },
+        { ...maxArrived, status: BOOKING_STATUS.COMPLETED },
+      );
+
+      expect(onReadyForPickup).toHaveBeenCalledTimes(1);
+      expect(onReadyForPickup.mock.calls[0][0].id).toBe("booking-bella");
+    });
+
+    it("reopens Bella's notice when Max is moved to another day", async () => {
+      const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
+
+      await updateMax(result, stub, { _to: "2026-05-19" }, { ...maxArrived, booking_date: "2026-05-19" });
+
+      expect(onReadyForPickup).toHaveBeenCalledTimes(1);
+      expect(onReadyForPickup.mock.calls[0][0].id).toBe("booking-bella");
+    });
+
+    it("reopens Bella's notice when Max's booking is deleted", async () => {
+      const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferDelete: true });
+
+      let pending;
+      await act(async () => {
+        pending = result.current.removeBooking("2026-05-18", "booking-max");
+      });
+      await act(async () => {
+        stub.resolveDelete({ error: null });
+        await pending;
+      });
+
+      expect(onReadyForPickup).toHaveBeenCalledTimes(1);
+      expect(onReadyForPickup.mock.calls[0][0].id).toBe("booking-bella");
+    });
+
+    it("stays held while Max is still in the salon after an ordinary edit", async () => {
+      const { result, onReadyForPickup, stub } = await setup([bellaReady, maxArrived], { deferUpdate: true });
+
+      await updateMax(result, stub, { slot: "10:00" }, { ...maxArrived, slot: "10:00" });
+
+      expect(onReadyForPickup).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when no other dog of the owner is Ready", async () => {
+      const bellaStillIn = { ...bellaReady, status: BOOKING_STATUS.ARRIVED };
+      const { result, onReadyForPickup, stub } = await setup([bellaStillIn, maxArrived], { deferUpdate: true });
+
+      await updateMax(
+        result,
+        stub,
+        { status: BOOKING_STATUS.CANCELLED },
+        { ...maxArrived, status: BOOKING_STATUS.CANCELLED },
+      );
+
+      expect(onReadyForPickup).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the Ready dog belongs to a different owner", async () => {
+      const otherOwner = { ...twoDogs, "dog-1": { ...twoDogs["dog-1"], human_id: "human-9" } };
+      const { result, onReadyForPickup, stub } = await setup(
+        [bellaReady, maxArrived],
+        { deferUpdate: true },
+        otherOwner,
+      );
+
+      await updateMax(
+        result,
+        stub,
+        { status: BOOKING_STATUS.CANCELLED },
+        { ...maxArrived, status: BOOKING_STATUS.CANCELLED },
+      );
+
+      expect(onReadyForPickup).not.toHaveBeenCalled();
+    });
+  });
+
   it("fetchBookingHistoryForDog maps the recent bookings for a dog", async () => {
     const stub = makeSupabaseStub({
       historyResult: {

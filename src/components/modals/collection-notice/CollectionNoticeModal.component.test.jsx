@@ -1,31 +1,45 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
 const invoke = vi.fn();
 let trustedLinks = [];
 let trustedHumans = [];
 let contactQueryError = null;
+let ownerDayRows = null;
+// Per-call overrides for the owner-day lookup, consumed in order, so a test
+// can hold one lookup open while a later one resolves.
+let dayLookupQueue = [];
+
+const defaultDayRows = () => [
+  {
+    id: "booking-1",
+    status: "Arrived",
+    dog_name_snapshot: "Bella",
+    dogs: { human_id: "human-1", name: "Bella" },
+  },
+];
+
+const dayRow = (id, status, name) => ({
+  id,
+  status,
+  dog_name_snapshot: name,
+  dogs: { human_id: "human-1", name },
+});
 
 function makeBookingsQuery() {
   const query = {
     eq: vi.fn(() => query),
     neq: vi.fn(() =>
-      Promise.resolve({
-        data: [
-          {
-            id: "booking-1",
-            status: "Arrived",
-            dog_name_snapshot: "Bella",
-            dogs: { human_id: "human-1", name: "Bella" },
-          },
-        ],
-        error: null,
-      }),
+      dayLookupQueue.length
+        ? dayLookupQueue.shift()
+        : Promise.resolve({ data: ownerDayRows ?? defaultDayRows(), error: null }),
     ),
   };
   return query;
 }
+
+const tablesQueried = () => supabase.from.mock.calls.map(([table]) => table);
 
 const supabase = {
   from: vi.fn((table) => {
@@ -95,32 +109,35 @@ describe("CollectionNoticeModal", () => {
     trustedLinks = [];
     trustedHumans = [];
     contactQueryError = null;
+    ownerDayRows = null;
+    dayLookupQueue = [];
   });
 
   it("asks before loading recipient controls", async () => {
     renderModal();
 
-    expect(screen.getByText(/message their humans/i)).toBeInTheDocument();
+    expect(await screen.findByText(/message their humans/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Not now" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Minutes until ready for collection")).not.toBeInTheDocument();
-    expect(supabase.from).not.toHaveBeenCalled();
+    // Only booking statuses are read before staff opt in, never contact details.
+    expect(tablesQueried()).toEqual(["bookings"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     expect(await screen.findByLabelText("Minutes until ready for collection")).toHaveValue(15);
     expect(await screen.findByText("Owner")).toBeInTheDocument();
   });
 
-  it("closes from Not now without loading contacts or sending", () => {
+  it("closes from Not now without loading contacts or sending", async () => {
     const onClose = vi.fn();
 
     renderModal(onClose);
 
-    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(supabase.from).not.toHaveBeenCalled();
+    expect(tablesQueried()).toEqual(["bookings"]);
     expect(invoke).not.toHaveBeenCalled();
   });
 
@@ -134,7 +151,7 @@ describe("CollectionNoticeModal", () => {
       whatsapp_opted_out: false,
     }];
     renderModal();
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     await screen.findByText("Partner");
     expect(screen.getByLabelText("Minutes until ready for collection")).toHaveValue(15);
@@ -145,7 +162,7 @@ describe("CollectionNoticeModal", () => {
   it("sends the existing collection template to the chosen recipient", async () => {
     invoke.mockResolvedValue({ data: { success: true }, error: null });
     renderModal();
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     await screen.findByText("Owner");
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -171,7 +188,7 @@ describe("CollectionNoticeModal", () => {
     });
 
     renderModal();
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     await screen.findByText("Owner");
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -184,7 +201,7 @@ describe("CollectionNoticeModal", () => {
     contactQueryError = new Error("query failed");
     renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn.t load contact details/i);
     expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
@@ -196,7 +213,7 @@ describe("CollectionNoticeModal", () => {
   it("re-runs contact queries and shows recipients after a successful retry", async () => {
     contactQueryError = new Error("query failed");
     renderModal();
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
     await screen.findByRole("alert");
     const callsAfterFailure = supabase.from.mock.calls.length;
@@ -206,5 +223,103 @@ describe("CollectionNoticeModal", () => {
     expect(await screen.findByText("Owner")).toBeInTheDocument();
     expect(supabase.from.mock.calls.length).toBeGreaterThan(callsAfterFailure);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  describe("customers with more than one dog in that day", () => {
+    it("holds the message, and closes without a modal, while a sibling is still in the salon", async () => {
+      ownerDayRows = [
+        dayRow("booking-1", "Ready for collection", "Bella"),
+        dayRow("booking-2", "Arrived", "Max"),
+      ];
+      const onClose = vi.fn();
+
+      renderModal(onClose);
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole("button", { name: "Send message" })).not.toBeInTheDocument();
+      expect(screen.getByText(/Holding the message until Max is ready too/i)).toBeInTheDocument();
+      expect(tablesQueried()).toEqual(["bookings"]);
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it("names both dogs once the last one is ready", async () => {
+      ownerDayRows = [
+        dayRow("booking-1", "Arrived", "Bella"), // the one that just became ready
+        dayRow("booking-2", "Ready for collection", "Max"),
+      ];
+      const onClose = vi.fn();
+
+      renderModal(onClose);
+
+      expect(await screen.findByRole("heading", { name: /Bella and Max are ready/i })).toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("does not wait for, or name, a dog that has already gone home", async () => {
+      ownerDayRows = [
+        dayRow("booking-1", "Ready for collection", "Bella"),
+        dayRow("booking-2", "Completed", "Max"),
+      ];
+      const onClose = vi.fn();
+
+      renderModal(onClose);
+
+      expect(await screen.findByRole("heading", { name: /^Bella is ready$/i })).toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("a reopened notice is not closed by the stale lookup it superseded", async () => {
+      // 1st lookup (Bella just became Ready, Max still in) is held open.
+      let finishStale;
+      dayLookupQueue = [
+        new Promise((resolve) => {
+          finishStale = () =>
+            resolve({
+              data: [
+                dayRow("booking-1", "Ready for collection", "Bella"),
+                dayRow("booking-2", "Arrived", "Max"),
+              ],
+              error: null,
+            });
+        }),
+      ];
+      const onClose = vi.fn();
+      const ui = (booking) => (
+        <ToastProvider>
+          <CollectionNoticeModal booking={booking} onClose={onClose} />
+        </ToastProvider>
+      );
+      const { rerender } = render(ui({ ...bookingFixture }));
+
+      // Max is cancelled before that lookup returns, so Bella's notice is
+      // reopened: a NEW object for the same booking. Its lookup finds Max gone.
+      ownerDayRows = [dayRow("booking-1", "Ready for collection", "Bella")];
+      rerender(ui({ ...bookingFixture }));
+      expect(await screen.findByRole("button", { name: "Send message" })).toBeInTheDocument();
+
+      // The stale lookup now finishes, still seeing Max as waiting.
+      await act(async () => {
+        finishStale();
+      });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
+    });
+
+    it("still lets staff message if the sibling lookup fails", async () => {
+      supabase.from.mockImplementationOnce(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              neq: vi.fn(() => Promise.resolve({ data: null, error: new Error("boom") })),
+            })),
+          })),
+        })),
+      }));
+
+      renderModal();
+
+      expect(await screen.findByRole("button", { name: "Send message" })).toBeInTheDocument();
+    });
   });
 });
