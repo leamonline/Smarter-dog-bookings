@@ -368,3 +368,20 @@ Deno.test("a delivery failure never frees a send claim: the log row stays 'sent'
     assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
   }
 });
+
+Deno.test("a STOP whose staff task could not be created is raised so Twilio retries, and the retry creates it once", async () => {
+  const f = fake({
+    message: SENT_MSG,
+    logs: [LOG],
+    humansOnNumber: [{ id: "h1", phone: "07700 900123" }],
+    failNextInsertOn: "salon_todos",
+  });
+  const event = { sid: "SM1", status: "undelivered", errorCode: "21610", to: "+447700900123" };
+  let threw = false;
+  try { await applySmsStatus(f.client, event); } catch { threw = true; }
+  assertEquals(threw, true);
+  assertEquals(f.db.humans[0].sms_opted_out, true); // the opt-out itself was saved
+  assertEquals(f.db.salon_todos.length, 0); // but staff were not told
+  await applySmsStatus(f.client, event);
+  assertEquals(f.db.salon_todos.filter((t) => String(t.text).startsWith(STOP_TODO_PREFIX)).length, 1);
+});

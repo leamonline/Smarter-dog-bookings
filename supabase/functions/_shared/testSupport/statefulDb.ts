@@ -16,6 +16,8 @@ export interface Fixture {
   todos?: Row[];
   /** Fail the next UPDATE on this table (then behave normally), as a dropped connection would. */
   failNextUpdateOn?: string;
+  /** Fail the next INSERT on this table (then behave normally). */
+  failNextInsertOn?: string;
   /** Fail the next SELECT on this table (then behave normally). */
   failNextSelectOn?: string;
   /** Runs just before the first UPDATE on a table, to model a concurrent callback landing in between. */
@@ -37,6 +39,7 @@ export function fake(fx: Fixture) {
   const hooks = { ...(fx.beforeFirstUpdate ?? {}) };
   let failNext = fx.failNextUpdateOn;
   let failNextSelect = fx.failNextSelectOn;
+  let failNextInsert = fx.failNextInsertOn;
   let nextId = 1;
   const calls: string[] = []; // every table touched, so a test can assert "nothing was read or written"
 
@@ -82,6 +85,7 @@ export function fake(fx: Fixture) {
         limit(n: number) { limitN = n; return q; },
         update(values: Record<string, unknown>) { op = "update"; patch = values; return q; },
         insert(values: Record<string, unknown>) {
+          if (failNextInsert === table) { failNextInsert = undefined; return Promise.resolve({ error: { message: "connection dropped" } }); }
           db[table].push({ id: `new${nextId++}`, ...values });
           writes.push({ table, op: "insert", values });
           return Promise.resolve({ error: null });

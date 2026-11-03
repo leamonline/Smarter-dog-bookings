@@ -71,10 +71,13 @@ export async function recordSmsStop(
       .eq("sms_opted_out", false);
     if (updateErr) throw updateErr;
 
-    await Promise.all(
+    const outcomes = await Promise.all(
       ids.map((id) => raiseFollowUpTodo(supabase, id, "stopped_sms", { reply: "none", now })),
     );
-    return { onNumber: ids.length };
+    // raiseFollowUpTodo swallows its own database errors and answers "failed". Say so:
+    // a caller that can be retried (the delivery callback) must not treat "the opt-out
+    // is saved but staff were never told" as done. Best-effort callers just ignore it.
+    return { onNumber: ids.length, ...(outcomes.includes("failed") ? { failed: true } : {}) };
   } catch (err) {
     console.error(
       "recordSmsStop failed (non-fatal):",
