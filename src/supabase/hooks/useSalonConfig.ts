@@ -52,7 +52,6 @@ function toConfigRow(row: Partial<SalonConfigRow>): DbConfigRow {
   return {
     default_pickup_offset: row.default_pickup_offset ?? null,
     pricing: (row.pricing as DbConfigRow["pricing"]) ?? null,
-    enforce_capacity: row.enforce_capacity ?? null,
     daily_dog_cap: row.daily_dog_cap ?? null,
     settings: (row.settings as DbConfigRow["settings"]) ?? null,
   };
@@ -64,7 +63,6 @@ function toDbPayload(config: SalonConfig): SalonConfigInsert & SalonConfigUpdate
   return {
     default_pickup_offset: out.default_pickup_offset,
     pricing: out.pricing as Json,
-    enforce_capacity: out.enforce_capacity,
     daily_dog_cap: out.daily_dog_cap,
     settings: out.settings as unknown as Json,
   };

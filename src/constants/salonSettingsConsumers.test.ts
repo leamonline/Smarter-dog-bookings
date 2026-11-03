@@ -40,6 +40,7 @@ describe("salon settings keys", () => {
       advanceBookingWeeks: 12,
       autoConfirm: false,
       largeDogSlots: { "12:00": { seats: 2, canShare: true } },
+      enforceCapacity: false,
       notifications: { followUp: { enabled: true, channels: ["email"] } },
       services: [],
       customerPortal: { showUpcoming: true, allowRebooking: true, showHistory: false },

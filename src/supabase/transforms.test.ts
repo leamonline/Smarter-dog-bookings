@@ -596,7 +596,6 @@ describe("dbConfigToApp", () => {
     const row = {
       default_pickup_offset: 90,
       pricing: { small: { "full-groom": "35" } },
-      enforce_capacity: true,
       settings: {
         businessName: "Bleep's Groom Room",
         businessPhone: "07507 731487",
@@ -608,7 +607,7 @@ describe("dbConfigToApp", () => {
     expect(config).not.toBeNull();
     expect(config!.defaultPickupOffset).toBe(90);
     expect(config!.pricing).toEqual({ small: { "full-groom": "35" } });
-    expect(config!.enforceCapacity).toBe(true);
+    expect(config).not.toHaveProperty("enforceCapacity");
     expect(config).not.toHaveProperty("largeDogSlots");
     expect(config!.businessName).toBe("Bleep's Groom Room");
     expect(config!.businessPhone).toBe("07507 731487");
@@ -625,28 +624,29 @@ describe("dbConfigToApp", () => {
     const row = {
       default_pickup_offset: null,
       pricing: null,
-      enforce_capacity: null,
     };
     const config = dbConfigToApp(row);
 
     expect(config).not.toBeNull();
     expect(config!.defaultPickupOffset).toBe(120);
     expect(config!.pricing["full-groom"]).toEqual({ small: 4200, medium: 4600, large: 6000 });
-    expect(config!.enforceCapacity).toBe(true); // null !== false => true
+    expect(config).not.toHaveProperty("enforceCapacity");
     expect(config!.businessName).toBe("Smarter Dog Grooming");
     for (const key of ["advanceBookingWeeks", "notifications", "services", "autoConfirm", "largeDogSlots"]) {
       expect(config).not.toHaveProperty(key);
     }
   });
 
-  it("sets enforceCapacity to false when explicitly false", () => {
+  it("ignores a stored enforceCapacity key and the retired column", () => {
     const row = {
       default_pickup_offset: 60,
       pricing: {},
       enforce_capacity: false,
+      settings: { enforceCapacity: false, businessName: "Kept" },
     };
-    const config = dbConfigToApp(row);
-    expect(config!.enforceCapacity).toBe(false);
+    const config = dbConfigToApp(row as never);
+    expect(config).not.toHaveProperty("enforceCapacity");
+    expect(config!.businessName).toBe("Kept");
   });
 });
 
@@ -672,7 +672,7 @@ describe("appConfigToDb", () => {
 
     expect(dbRow.default_pickup_offset).toBe(90);
     expect(dbRow.pricing).toEqual({ small: { "full-groom": "35" } });
-    expect(dbRow.enforce_capacity).toBe(true);
+    expect(dbRow).not.toHaveProperty("enforce_capacity");
     expect(dbRow).not.toHaveProperty("large_dog_slots");
     expect(dbRow.settings.businessName).toBe("Bleep's Groom Room");
     expect(dbRow.settings.businessPhone).toBe("07507 731487");
@@ -683,6 +683,7 @@ describe("appConfigToDb", () => {
     expect(dbRow.settings).not.toHaveProperty("advanceBookingWeeks");
     expect(dbRow.settings).not.toHaveProperty("largeDogSlots");
     expect(dbRow.settings).not.toHaveProperty("autoConfirm");
+    expect(dbRow.settings).not.toHaveProperty("enforceCapacity");
   });
 
   it("round-trips every editable settings field with dbConfigToApp", () => {
@@ -726,7 +727,7 @@ describe("appConfigToDb", () => {
     expect(restored).not.toBeNull();
     expect(restored!.defaultPickupOffset).toBe(original.defaultPickupOffset);
     expect(restored!.pricing).toEqual(original.pricing);
-    expect(restored!.enforceCapacity).toBe(original.enforceCapacity);
+    expect(restored).not.toHaveProperty("enforceCapacity");
     expect(restored!.businessName).toBe(original.businessName);
     expect(restored!.businessPhone).toBe(original.businessPhone);
     expect(restored!.businessEmail).toBe(original.businessEmail);

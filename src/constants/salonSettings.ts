@@ -19,6 +19,10 @@ export type PersistedSalonSettings = Partial<
 export const RETIRED_SETTINGS_KEYS = [
   "advanceBookingWeeks",
   "autoConfirm",
+  // The old Capacity Engine toggle. Nothing read salon_config.enforce_capacity
+  // or this JSON copy; the real switch is enforce_server_capacity. Stripped
+  // on the next save so a later column drop cannot be written back.
+  "enforceCapacity",
   // Older saves passed the whole config through here, so a camelCase copy of
   // the large-dog slot rules sits in settings too (#1000 review).
   "largeDogSlots",
@@ -141,7 +145,6 @@ export function createDefaultSalonConfig(): SalonConfig {
   return {
     defaultPickupOffset: 120,
     pricing: cloneJson(PRICING),
-    enforceCapacity: true,
     dailyDogCap: DAILY_DOG_CAP,
     ...createDefaultSalonSettings(),
   };

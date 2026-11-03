@@ -201,7 +201,7 @@ describe("useSalonConfig boot prefetch", () => {
     expect(takeBootPrefetch).toHaveBeenCalledWith("salonConfig");
     // Prefetched row flows through dbConfigToApp as usual…
     expect(result.current.config?.defaultPickupOffset).toBe(4);
-    expect(result.current.config?.enforceCapacity).toBe(true);
+    expect(result.current.config).not.toHaveProperty("enforceCapacity");
     expect(result.current.error).toBeNull();
     // …and the client was never asked for the initial read.
     expect(stub.from).not.toHaveBeenCalled();
@@ -250,7 +250,7 @@ describe("useSalonConfig guarded saves", () => {
             ...CONFIG_ROW,
             updated_at: "2026-07-30T10:00:02.000Z",
             default_pickup_offset: 8,
-            enforce_capacity: false,
+            daily_dog_cap: 10,
           },
           error: null,
         }),
@@ -270,15 +270,15 @@ describe("useSalonConfig guarded saves", () => {
       }));
       second = result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: false,
+        dailyDogCap: 10,
       }));
     });
 
     await waitFor(() => expect(updates).toHaveLength(1));
     expect(updates[0].payload).toMatchObject({
       default_pickup_offset: 8,
-      enforce_capacity: true,
     });
+    expect(updates[0].payload).not.toHaveProperty("enforce_capacity");
 
     await act(async () => {
       firstWrite.resolve({
@@ -297,8 +297,9 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates).toHaveLength(2);
     expect(updates[1].payload).toMatchObject({
       default_pickup_offset: 8,
-      enforce_capacity: false,
+      daily_dog_cap: 10,
     });
+    expect(updates[1].payload).not.toHaveProperty("enforce_capacity");
     expect(updates[1]).toMatchObject({
       filters: [
         { op: "eq", column: "id", value: "cfg-1" },
@@ -308,7 +309,7 @@ describe("useSalonConfig guarded saves", () => {
     });
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 8,
-      enforceCapacity: false,
+      dailyDogCap: 10,
     });
   });
 
@@ -323,7 +324,7 @@ describe("useSalonConfig guarded saves", () => {
           data: {
             ...CONFIG_ROW,
             updated_at: "2026-07-30T10:00:01.000Z",
-            enforce_capacity: false,
+            daily_dog_cap: 10,
           },
           error: null,
         }),
@@ -343,7 +344,7 @@ describe("useSalonConfig guarded saves", () => {
       }));
       second = result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: false,
+        dailyDogCap: 10,
       }));
       await Promise.all([first, second]);
     });
@@ -353,11 +354,12 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates).toHaveLength(2);
     expect(updates[1].payload).toMatchObject({
       default_pickup_offset: 4,
-      enforce_capacity: false,
+      daily_dog_cap: 10,
     });
+    expect(updates[1].payload).not.toHaveProperty("enforce_capacity");
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 4,
-      enforceCapacity: false,
+      dailyDogCap: 10,
     });
   });
 
@@ -394,7 +396,7 @@ describe("useSalonConfig guarded saves", () => {
       }));
       const second = result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: false,
+        dailyDogCap: 10,
       }));
       [firstResult, secondResult] = await Promise.all([first, second]);
     });
@@ -408,7 +410,7 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates[1]).toMatchObject({
       payload: {
         default_pickup_offset: 4,
-        enforce_capacity: false,
+        daily_dog_cap: 10,
       },
       filters: [
         { op: "eq", column: "id", value: "cfg-1" },
@@ -417,8 +419,8 @@ describe("useSalonConfig guarded saves", () => {
     });
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 8,
-      enforceCapacity: true,
     });
+    expect(result.current.config).not.toHaveProperty("enforceCapacity");
   });
 
   it("reloads the authoritative config and asks the owner to retry after a version conflict", async () => {
@@ -429,7 +431,7 @@ describe("useSalonConfig guarded saves", () => {
       ...CONFIG_ROW,
       updated_at: "2026-07-30T10:00:03.000Z",
       default_pickup_offset: 11,
-      enforce_capacity: false,
+      daily_dog_cap: 9,
     };
     const { client, updates } = makeWriteStub({
       readResults: [
@@ -458,7 +460,7 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates).toHaveLength(1);
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 11,
-      enforceCapacity: false,
+      dailyDogCap: 9,
     });
   });
 
@@ -470,7 +472,6 @@ describe("useSalonConfig guarded saves", () => {
       ...CONFIG_ROW,
       updated_at: "2026-07-30T10:00:03.000Z",
       default_pickup_offset: 11,
-      enforce_capacity: false,
       settings: { businessName: "External authority" },
     };
     const { client, updates } = makeWriteStub({
@@ -484,7 +485,7 @@ describe("useSalonConfig guarded saves", () => {
           data: {
             ...externalRow,
             updated_at: "2026-07-30T10:00:04.000Z",
-            enforce_capacity: true,
+            daily_dog_cap: 20,
           },
           error: null,
         }),
@@ -510,7 +511,7 @@ describe("useSalonConfig guarded saves", () => {
       const rawSave = result.current.updateConfig(staleValue);
       const updaterSave = result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: true,
+        dailyDogCap: 20,
       }));
       [conflictResult, rawResult, updaterResult] = await Promise.all([
         conflictSave,
@@ -531,12 +532,13 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates).toHaveLength(2);
     expect(updates[1].payload).toMatchObject({
       default_pickup_offset: 11,
-      enforce_capacity: true,
+      daily_dog_cap: 20,
       settings: { businessName: "External authority" },
     });
+    expect(updates[1].payload).not.toHaveProperty("enforce_capacity");
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 11,
-      enforceCapacity: true,
+      dailyDogCap: 20,
       businessName: "External authority",
     });
   });
@@ -560,7 +562,7 @@ describe("useSalonConfig guarded saves", () => {
 
     let saveResult;
     await act(async () => {
-      saveResult = await result.current.updateConfig({ ...result.current.config, enforceCapacity: false });
+      saveResult = await result.current.updateConfig({ ...result.current.config, dailyDogCap: 10 });
     });
     expect(saveResult).toEqual({ ok: true });
 
@@ -602,7 +604,7 @@ describe("useSalonConfig guarded saves", () => {
       ...CONFIG_ROW,
       updated_at: "2026-07-30T10:00:02.000Z",
       default_pickup_offset: 12,
-      enforce_capacity: false,
+      daily_dog_cap: 8,
     };
     const { client, updates } = makeWriteStub({
       readResults: [
@@ -633,7 +635,7 @@ describe("useSalonConfig guarded saves", () => {
     expect(updates).toHaveLength(1);
     expect(result.current.config).toMatchObject({
       defaultPickupOffset: 12,
-      enforceCapacity: false,
+      dailyDogCap: 8,
     });
   });
 
@@ -674,7 +676,7 @@ describe("useSalonConfig guarded saves", () => {
     await act(async () => {
       laterResult = await result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: false,
+        dailyDogCap: 10,
       }));
     });
     expect(laterResult).toEqual({
@@ -702,7 +704,7 @@ describe("useSalonConfig guarded saves", () => {
 
     let saveResult;
     await act(async () => {
-      saveResult = await result.current.updateConfig({ ...result.current.config, enforceCapacity: false });
+      saveResult = await result.current.updateConfig({ ...result.current.config, dailyDogCap: 10 });
     });
     expect(saveResult).toEqual({ ok: true });
 
@@ -773,7 +775,7 @@ describe("useSalonConfig guarded saves", () => {
     await act(async () => {
       saveResult = await result.current.updateConfig((config) => ({
         ...config,
-        enforceCapacity: false,
+        dailyDogCap: 10,
       }));
     });
 
