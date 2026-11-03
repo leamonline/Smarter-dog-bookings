@@ -1,17 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import HoundslySection from './HoundslySection';
+
+const renderSection = () => render(
+  <MemoryRouter>
+    <HoundslySection />
+  </MemoryRouter>,
+);
 
 describe('HoundslySection', () => {
   it('renders core heading copy', () => {
-    render(<HoundslySection />);
+    renderSection();
 
     expect(screen.getByText('Handmade with love')).toBeInTheDocument();
     expect(screen.getByText('Made for sensitive skin')).toBeInTheDocument();
   });
 
   it('renders brand and product visuals', () => {
-    render(<HoundslySection />);
+    renderSection();
 
     expect(screen.getByAltText('Houndsly Pet Products')).toBeInTheDocument();
     expect(screen.getByText('Houndsly Natural Shampoo')).toBeInTheDocument();
@@ -19,7 +26,7 @@ describe('HoundslySection', () => {
   });
 
   it('renders badges and shop CTA', () => {
-    render(<HoundslySection />);
+    renderSection();
 
     expect(screen.getByText('Vegan')).toBeInTheDocument();
     expect(screen.getByText('Small Batch')).toBeInTheDocument();

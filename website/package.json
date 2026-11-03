@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "build:analyze": "ANALYZE=true vite build && open bundle-analysis/stats.html",
     "lint": "eslint .",
     "preview": "vite preview",

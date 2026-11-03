@@ -1,17 +1,18 @@
 import { useEffect } from 'react';
-
-const BASE_TITLE = 'Smarter Dog Grooming Salon';
+import { formatDocumentTitle } from '../seo/documentTitle';
 
 /**
- * Sets the document title on mount and restores the base title on unmount.
- * @param {string} title - Page-specific title segment (prepended to base).
+ * Sets the document title on mount and restores the previous title on unmount.
+ * Pass absolute=true when `title` is already the full <title> string.
+ * @param {string} title
+ * @param {boolean} [absolute]
  */
-export const useDocumentTitle = (title) => {
+export const useDocumentTitle = (title, absolute = false) => {
     useEffect(() => {
         const prev = document.title;
-        document.title = title ? `${title} | ${BASE_TITLE}` : BASE_TITLE;
+        document.title = formatDocumentTitle(title, absolute);
         return () => { document.title = prev; };
-    }, [title]);
+    }, [title, absolute]);
 };
 
 export default useDocumentTitle;

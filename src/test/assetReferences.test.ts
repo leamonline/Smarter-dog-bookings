@@ -5,17 +5,11 @@ import { fileURLToPath } from "node:url";
 
 // Every asset URL the deployment hands a browser must resolve to a real file.
 //
-// Hashed chunks under /assets/ and /app/assets/ are excluded from the marketing
-// catch-all, so a missing one 404s. Every other wrong path does NOT 404:
-// vercel.json's last rewrite sends it to /index.html after the filesystem
-// check, and a typo returns the MARKETING HOMEPAGE with HTTP 200 and
-// content-type text/html. Worse, /app/(fonts|icons|images)/(.*) is served
-// public, max-age=31536000, immutable, and headers match on the request path —
-// so a browser or crawler that touches the typo pins marketing HTML at that
-// URL for a year, and correcting the file later does not dislodge it. A
-// favicon or og:image that silently becomes an HTML document is not a failure
-// anyone notices from the build log. A dangling reference must never be
-// committed.
+// Unknown paths 404. A missing hashed chunk is not rewritten to HTML, so the
+// browser does not try to execute text/html as a module. Headers still match
+// on the request path: /app/(fonts|icons|images)/(.*) is immutable, so a typo
+// under that prefix can cache its 404 for a year. A dangling reference must
+// never be committed.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
