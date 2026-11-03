@@ -12,7 +12,6 @@ const customer = (overrides = {}) => ({
   whatsapp_opted_out: false,
   sms_opted_out: false,
   email_opted_out: false,
-  preferred_channel: null,
   ...overrides,
 });
 
@@ -32,23 +31,16 @@ describe("reminder modal channel availability", () => {
     expect(computeAvailability(customer({ sms_opted_out: true })).sms.reason).toBe("Customer opted out of SMS");
   });
 
-  it("pauses SMS after a WhatsApp STOP, whatever the optional tickbox says, and says so", () => {
+  it("after a WhatsApp STOP, WhatsApp is off and SMS stays available, whatever the optional tickbox says", () => {
     for (const sms of [true, false]) {
       const a = computeAvailability(customer({ whatsapp_opted_out: true, sms }));
-      expect(a.sms.ok).toBe(false);
-      expect(a.sms.reason).toMatch(/STOP on WhatsApp.*paused/i);
+      expect(a.sms).toEqual({ ok: true, reason: "" });
       expect(a.whatsapp).toEqual({ ok: false, reason: "Customer opted out of WhatsApp" });
     }
   });
 
-  it("reopens SMS, and only SMS, once staff record that it's fine", () => {
-    const a = computeAvailability(customer({ whatsapp_opted_out: true, preferred_channel: "sms" }));
-    expect(a.sms.ok).toBe(true);
-    expect(a.whatsapp.ok).toBe(false);
-  });
-
-  it("never reopens SMS for someone who opted out of SMS", () => {
-    const a = computeAvailability(customer({ whatsapp_opted_out: true, preferred_channel: "sms", sms_opted_out: true }));
+  it("an SMS opt-out always blocks SMS, including after a WhatsApp STOP", () => {
+    const a = computeAvailability(customer({ whatsapp_opted_out: true, sms_opted_out: true }));
     expect(a.sms).toEqual({ ok: false, reason: "Customer opted out of SMS" });
   });
 

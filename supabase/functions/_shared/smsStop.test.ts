@@ -102,12 +102,13 @@ Deno.test("bookkeeping failures are swallowed: a refused text never becomes a cr
   assertEquals((await recordSmsStop(null, "+447700900123")).onNumber, 0);
 });
 
-Deno.test("the STOP to-do says what is paused and what staff do next, and never quotes a message", () => {
+Deno.test("the STOP to-do says what is off and what staff do next, and never quotes a message", () => {
   for (const reason of ["stopped_whatsapp", "stopped_sms"] as const) {
     assertEquals(isStopReason(reason), true);
     const text = followUpTodoText("Wendy Rowbottom", reason, "none");
     assertEquals(text.startsWith(`${STOP_TODO_PREFIX} Wendy Rowbottom `), true);
-    assertEquals(text.includes("paused"), true);
+    assertEquals(text.includes("Ring them"), true);
+    assertEquals(text.includes("paused"), false);
     assertEquals(text.includes("Ring them"), true);
   }
   assertEquals(isStopReason("chasing_reply"), false);

@@ -67,12 +67,12 @@ export type FollowUpReason =
 export const FOLLOW_UP_TODO_PREFIX = "WhatsApp follow-up:";
 
 /**
- * A STOP is not a dead end in a chat: it pauses automatic messages to the
- * customer until staff clarify which channels they permit. It gets its own
- * prefix so an unrelated follow-up for the same customer can never make it
- * look like a duplicate and swallow the flag.
+ * A STOP is not a dead end in a chat: it switches the channel it was sent on off
+ * and is worth a person checking which channels the customer is happy with. It
+ * gets its own prefix so an unrelated follow-up for the same customer can never
+ * make it look like a duplicate and swallow the flag.
  */
-export const STOP_TODO_PREFIX = "Messaging paused:";
+export const STOP_TODO_PREFIX = "STOP received:";
 
 /** A second dead end inside this window adds nothing the open to-do doesn't say. */
 export const FOLLOW_UP_DEDUPE_HOURS = 12;
@@ -116,10 +116,14 @@ export function followUpTodoText(
   reply: CustomerReply = "sent",
 ): string {
   const who = customerName?.trim() || "A customer";
-  // A STOP is never overridden automatically (channelPolicy.ts). Say what is
-  // paused and what staff do next; "reply" doesn't apply.
+  // A STOP is honoured for the channel it was sent on and never overridden
+  // automatically (channelPolicy.ts). Say what is off, what carries on, and what
+  // staff do; "reply" doesn't apply.
   if (isStopReason(reason)) {
-    return `${STOP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. Automatic WhatsApp and text messages to them are paused, including reminders. Ring them to check which channels they're happy with, then re-enable WhatsApp or record that texts are fine.`;
+    const effect = reason === "stopped_whatsapp"
+      ? "WhatsApp is off for them. Essential messages (reminders, confirmations) now go by text instead."
+      : "Texts to them are off. WhatsApp still works if they're set up for it.";
+    return `${STOP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. ${effect} Ring them to check which channels they're happy with.`;
   }
   const next = reply === "sent"
     ? "We replied that the team will sort it — follow up in the WhatsApp inbox."

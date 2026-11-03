@@ -44,7 +44,6 @@ interface Human {
   whatsapp_opted_out: boolean;
   sms_opted_out: boolean;
   email_opted_out: boolean;
-  preferred_channel?: string | null;
 }
 
 const HUMAN: Human = {
@@ -497,34 +496,25 @@ Deno.test("flag on: Meta accepting the call but returning no message id is a fai
   assertEquals(patch.provider_message_id, "SM-sms");
 });
 
-Deno.test("flag on: a customer who opted out of WhatsApp is NOT texted (a STOP is never overridden) and goes by email", async () => {
-  // whatsapp_opted_out is how a STOP on WhatsApp is recorded, and an opt-out
-  // belongs to the number, so automatic texts are paused until staff clarify
-  // which channels are permitted (_shared/channelPolicy.ts). Email is the
-  // customer's other channel, and they have not opted out of it.
+Deno.test("flag on: a customer who replied STOP on WhatsApp is texted instead, and WhatsApp is not called", async () => {
+  // A STOP is honoured for the channel it was sent on: whatsapp_opted_out switches
+  // WhatsApp off and the cancellation goes by SMS (_shared/channelPolicy.ts).
   const { calls } = await cancel({ ...HUMAN, whatsapp_opted_out: true }, {}, "true", "10:00", "salon");
-  assertEquals(whatsappCalls(calls).length, 0);
-  assertEquals(twilioCalls(calls).length, 0);
-  assertEquals(emailCalls(calls).length, 1);
-  const claim = claims(calls)[0].body as Record<string, unknown>;
-  assertEquals(claim.channel, "email");
-  assertEquals(finalPatch(calls).channel, "email");
-  assertEquals(finalPatch(calls).status, "sent");
-});
-
-Deno.test("flag on: after a WhatsApp STOP, a customer staff have recorded as fine with SMS is texted", async () => {
-  const { calls } = await cancel(
-    { ...HUMAN, whatsapp_opted_out: true, preferred_channel: "sms" },
-    {},
-    "true",
-    "10:00",
-    "salon",
-  );
   assertEquals(whatsappCalls(calls).length, 0);
   assertEquals(twilioCalls(calls).length, 1);
   assertEquals(emailCalls(calls).length, 0);
+  const claim = claims(calls)[0].body as Record<string, unknown>;
+  assertEquals(claim.channel, "sms");
   assertEquals(finalPatch(calls).channel, "sms");
   assertEquals(finalPatch(calls).status, "sent");
+});
+
+Deno.test("flag on: a customer who stopped BOTH WhatsApp and SMS gets neither, only email", async () => {
+  const { calls } = await cancel({ ...HUMAN, whatsapp_opted_out: true, sms_opted_out: true }, {}, "true", "10:00", "salon");
+  assertEquals(whatsappCalls(calls).length, 0);
+  assertEquals(twilioCalls(calls).length, 0);
+  assertEquals(emailCalls(calls).length, 1);
+  assertEquals(finalPatch(calls).channel, "email");
 });
 
 Deno.test("flag on: whatsapp-send refusing an opt-out falls back to SMS and is not logged sent on WhatsApp", async () => {

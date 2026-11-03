@@ -6,17 +6,17 @@
 //     agree to essential service messages as a condition of booking, so the
 //     optional humans.sms tickbox is NOT a precondition.
 //   - WhatsApp is preferred; SMS is the fallback.
-//   - A STOP is never overridden automatically.
-//   - Marketing is separate, with its own consent.
+//   - A STOP is honoured for the channel it was sent on, and never overridden:
+//     a WhatsApp STOP switches WhatsApp off and essential messages go by SMS;
+//     an SMS opt-out always blocks SMS.
+//   - Marketing is separate, with its own consent, and stays disabled.
 
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
   blockReason,
   blockText,
   canSendMarketing,
-  needsChannelReview,
   operationalChannelAvailable,
-  smsPausedAfterStop,
   type PolicyContact,
 } from "./channelPolicy.ts";
 
@@ -29,7 +29,6 @@ function customer(overrides: Partial<PolicyContact> = {}): PolicyContact {
     whatsapp_opted_out: false,
     sms_opted_out: false,
     email_opted_out: false,
-    preferred_channel: null,
     ...overrides,
   };
 }
@@ -45,11 +44,10 @@ Deno.test("SMS needs a number; a customer with no number has none", () => {
   assertEquals(blockReason(customer({ phone: "" }), "sms"), "no_number");
 });
 
-Deno.test("an SMS opt-out always blocks SMS, and nothing re-enables it automatically", () => {
+Deno.test("an SMS opt-out always blocks SMS, whatever else is true", () => {
   assertEquals(blockReason(customer({ sms_opted_out: true }), "sms"), "opted_out");
-  // Not the tickbox, not a recorded preference, not a WhatsApp re-enable.
   assertEquals(blockReason(customer({ sms_opted_out: true, sms: true }), "sms"), "opted_out");
-  assertEquals(blockReason(customer({ sms_opted_out: true, preferred_channel: "sms" }), "sms"), "opted_out");
+  assertEquals(blockReason(customer({ sms_opted_out: true, whatsapp_opted_out: true }), "sms"), "opted_out");
 });
 
 Deno.test("WhatsApp is still governed by its own setup flag and opt-out", () => {
@@ -65,34 +63,13 @@ Deno.test("email is unchanged: needs an address and no opt-out", () => {
   assertEquals(blockReason(customer({ email_opted_out: true }), "email"), "opted_out");
 });
 
-Deno.test("a WhatsApp STOP pauses automatic texts, however the optional tickbox is set", () => {
-  assertEquals(smsPausedAfterStop(customer({ whatsapp_opted_out: true })), true);
-  assertEquals(blockReason(customer({ whatsapp_opted_out: true }), "sms"), "paused_after_stop");
-  // Join the Pack onboarding ticks the box by default, so it cannot count as clarification.
-  assertEquals(blockReason(customer({ whatsapp_opted_out: true, sms: true }), "sms"), "paused_after_stop");
-});
-
-Deno.test("staff recording that SMS is fine lifts the pause for SMS only", () => {
-  const clarified = customer({ whatsapp_opted_out: true, preferred_channel: "sms" });
-  assertEquals(smsPausedAfterStop(clarified), false);
-  assertEquals(blockReason(clarified, "sms"), null);
-  assertEquals(blockReason(clarified, "whatsapp"), "opted_out"); // WhatsApp stays stopped
-});
-
-Deno.test("another preferred channel does not count as saying SMS is fine", () => {
-  for (const preferred of ["whatsapp", "email", null, ""]) {
-    assertEquals(
-      blockReason(customer({ whatsapp_opted_out: true, preferred_channel: preferred }), "sms"),
-      "paused_after_stop",
-      `preferred=${String(preferred)}`,
-    );
-  }
-});
-
-Deno.test("flagging for staff: needs review exactly while a STOP is unclarified", () => {
-  assertEquals(needsChannelReview(customer()), false);
-  assertEquals(needsChannelReview(customer({ whatsapp_opted_out: true })), true);
-  assertEquals(needsChannelReview(customer({ whatsapp_opted_out: true, preferred_channel: "sms" })), false);
+Deno.test("a WhatsApp STOP switches WhatsApp off and essential messages go by SMS instead", () => {
+  const stopped = customer({ whatsapp_opted_out: true });
+  assertEquals(operationalChannelAvailable(stopped, "whatsapp"), false);
+  assertEquals(operationalChannelAvailable(stopped, "sms"), true);
+  // Whatever the optional tickbox says.
+  assertEquals(operationalChannelAvailable(customer({ whatsapp_opted_out: true, sms: true }), "sms"), true);
+  assertEquals(operationalChannelAvailable(customer({ whatsapp_opted_out: true, sms: false }), "sms"), true);
 });
 
 Deno.test("a customer who stopped both channels has only email left", () => {
@@ -102,7 +79,7 @@ Deno.test("a customer who stopped both channels has only email left", () => {
   assertEquals(operationalChannelAvailable(both, "email"), true);
 });
 
-// ── Marketing: a separate class, never implied ──────────────────────────────
+// ── Marketing: a separate class, never implied, and disabled ────────────────
 
 Deno.test("marketing SMS fails closed: no consent flag means no promotional text", () => {
   assertEquals(canSendMarketing(customer(), "sms"), false);
@@ -111,27 +88,25 @@ Deno.test("marketing SMS fails closed: no consent flag means no promotional text
 });
 
 Deno.test("nothing operational stands in for marketing consent", () => {
-  // Not the SMS tickbox, not a booking, not a preferred channel, not a number.
+  // Not the SMS tickbox, not a booking, not a number.
   assertEquals(canSendMarketing(customer({ sms: true }), "sms"), false);
-  assertEquals(canSendMarketing(customer({ preferred_channel: "sms" }), "sms"), false);
   assertEquals(operationalChannelAvailable(customer(), "sms"), true); // yet operational SMS is available
 });
 
-Deno.test("marketing needs its own consent AND respects every opt-out", () => {
+Deno.test("marketing needs its own consent AND respects a STOP on either channel", () => {
   assertEquals(canSendMarketing(customer({ marketing_sms_consent: true }), "sms"), true);
   assertEquals(canSendMarketing(customer({ marketing_sms_consent: true, sms_opted_out: true }), "sms"), false);
   assertEquals(canSendMarketing(customer({ marketing_sms_consent: true, whatsapp_opted_out: true }), "sms"), false);
   assertEquals(canSendMarketing(customer({ marketing_sms_consent: true, phone: null }), "sms"), false);
+  assertEquals(canSendMarketing(customer({ marketing_sms_consent: true }), "email" as never), false);
 });
 
 // ── Staff wording ───────────────────────────────────────────────────────────
 
-Deno.test("staff-facing wording says why, and names the STOP pause plainly", () => {
+Deno.test("staff-facing wording says why", () => {
   assertEquals(blockText("sms", "no_number"), "No mobile number on file");
   assertEquals(blockText("sms", "opted_out"), "Customer opted out of SMS");
   assertEquals(blockText("whatsapp", "not_set_up"), "Customer isn't set up for WhatsApp");
+  assertEquals(blockText("whatsapp", "opted_out"), "Customer opted out of WhatsApp");
   assertEquals(blockText("email", "no_email"), "No email on file");
-  const paused = blockText("sms", "paused_after_stop");
-  assertEquals(paused.includes("STOP"), true);
-  assertEquals(paused.includes("paused"), true);
 });

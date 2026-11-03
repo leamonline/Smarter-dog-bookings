@@ -228,15 +228,15 @@ async function handleSend(
 
   if (!twilioResult.ok && isRecipientUnsubscribed(twilioResult.errorCode)) {
     // The number has texted STOP to us. Record it on the customer records on
-    // that number and flag staff to clarify which channels are permitted. We
-    // do not try another channel ourselves: a STOP is never overridden
-    // automatically (_shared/channelPolicy.ts).
+    // that number and flag staff to check which channels are permitted. We do
+    // not try to text it another way: a STOP is never overridden automatically
+    // (_shared/channelPolicy.ts).
     await recordSmsStop(supabase, phoneE164);
     return json(
       req,
       {
         error: "recipient opted out",
-        detail: "This number has asked us to stop texting. Automatic messages to them are paused and the team has been flagged to clarify which channels they're happy with.",
+        detail: "This number has asked us to stop texting. Texts to them are now switched off and the team has been flagged to check which channels they're happy with.",
       },
       409,
     );

@@ -24,8 +24,6 @@ export interface CollectionContact {
   phone?: string | null;
   whatsapp_opted_out?: boolean | null;
   sms_opted_out?: boolean | null;
-  /** Staff-recorded "SMS is fine" after a STOP. See channelPolicy.ts. */
-  preferred_channel?: string | null;
 }
 
 export type CollectionRoute =
@@ -44,10 +42,8 @@ export type CollectionRoute =
  *
  *   - the number looks like it isn't on WhatsApp (`whatsappUnreachable`: the last
  *     few WhatsApp sends were all undeliverable) -> text it.
- *   - they opted out of WhatsApp (a STOP) -> NO text: a STOP is never overridden
- *     automatically, and an opt-out belongs to the number, so texts are paused
- *     until staff have clarified which channels are permitted. Recording that SMS
- *     is fine (`preferred_channel = 'sms'`) lifts the pause.
+ *   - they replied STOP on WhatsApp -> WhatsApp stays off and the notice goes by
+ *     SMS instead. A STOP is honoured for the channel it was sent on.
  *   - an SMS opt-out always wins, and no usable mobile means no notice at all.
  *
  * sms-send does not check opt-outs itself, so this is where they are enforced.

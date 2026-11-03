@@ -195,15 +195,14 @@ Deno.test("the optional SMS tickbox is not needed: a customer with it off is tex
   }
 });
 
-Deno.test("a customer who replied STOP on WhatsApp is not texted by the safety net, even with SMS ticked", async () => {
-  // A STOP is never overridden automatically: texts are paused until staff clarify.
+Deno.test("a customer who replied STOP on WhatsApp is texted by the safety net: WhatsApp is off, SMS carries on", async () => {
+  // A STOP is honoured for the channel it was sent on (_shared/channelPolicy.ts).
   for (const trigger of ["cancelled", "reminder", "confirmed"]) {
     const row: LogRow = { ...failedCancellation, id: `log-${trigger}`, trigger_type: trigger };
     const status = trigger === "cancelled" ? "Cancelled" : "Confirmed";
-    const { json, calls } = await sweep([row], [{ id: "booking-1", status }], { ...SMS_CUSTOMER, sms: true, whatsapp_opted_out: true });
-    assertEquals(json.sms_sent, 0, trigger);
-    assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0, trigger);
-    assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0, `${trigger}: nothing claimed`);
+    const { json, calls } = await sweep([row], [{ id: "booking-1", status }], { ...SMS_CUSTOMER, sms: false, whatsapp_opted_out: true });
+    assertEquals(json.sms_sent, 1, trigger);
+    assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 1, trigger);
   }
 });
 

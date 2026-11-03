@@ -507,16 +507,16 @@ Deno.test("a STOP in a later entry of the same webhook is still recorded before 
 const stopTodos = (calls: { method: string; path: string; body: Record<string, unknown> }[]) =>
   calls.filter((c) => c.path === "/rest/v1/salon_todos" && c.method === "POST").map((c) => c.body);
 
-Deno.test("a STOP flags the customer for staff: automatic WhatsApp and texts are paused until someone clarifies", async () => {
+Deno.test("a STOP flags the customer for staff: WhatsApp is off, texts carry on, and someone checks which channels they allow", async () => {
   const { calls, eventPatch } = await send("STOP");
   assertEquals(eventPatch.processing_status, "processed");
   const todos = stopTodos(calls);
   assertEquals(todos.length, 1);
   assertEquals(todos[0].human_id, HUMAN);
   assertEquals(todos[0].kind, "general");
-  assertStringIncludes(String(todos[0].text), "Messaging paused:");
+  assertStringIncludes(String(todos[0].text), "STOP received:");
   assertStringIncludes(String(todos[0].text), "replied STOP on WhatsApp");
-  assertStringIncludes(String(todos[0].text), "paused");
+  assertStringIncludes(String(todos[0].text), "go by text instead");
   assertStringIncludes(String(todos[0].text), "Ring them");
 });
 
@@ -534,7 +534,7 @@ Deno.test("a redelivered STOP raises no second to-do", async () => {
 
 Deno.test("an ordinary message raises no STOP to-do", async () => {
   const { calls } = await send("Can I book Bella in on Tuesday?");
-  assertEquals(stopTodos(calls).filter((t) => String(t.text).startsWith("Messaging paused:")).length, 0);
+  assertEquals(stopTodos(calls).filter((t) => String(t.text).startsWith("STOP received:")).length, 0);
 });
 
 Deno.test("a redelivered STOP that is already stored does not stop the number again", async () => {

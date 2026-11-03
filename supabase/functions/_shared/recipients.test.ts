@@ -68,18 +68,18 @@ Deno.test("channelAvailableFor: SMS does not depend on the optional humans.sms t
   assertEquals(channelAvailableFor(human({ sms: true, sms_opted_out: true }), "sms"), false);
 });
 
-Deno.test("channelAvailableFor: a WhatsApp opt-out pauses automatic texts until staff clarify", () => {
-  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "sms"), false);
-  // Choosing the optional tickbox is not the clarification...
-  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms: true }), "sms"), false);
-  // ...recording that SMS is fine is.
-  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms" }), "sms"), true);
-  // And it never reopens WhatsApp, or SMS for someone who opted out of SMS.
-  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms" }), "whatsapp"), false);
-  assertEquals(
-    channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms", sms_opted_out: true }), "sms"),
-    false,
-  );
+Deno.test("channelAvailableFor: a WhatsApp STOP switches WhatsApp off only; texts continue", () => {
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "whatsapp"), false);
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "sms"), true);
+  // ...whatever the optional tickbox says.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms: false }), "sms"), true);
+  // An SMS opt-out always wins, including for someone who also stopped WhatsApp.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms_opted_out: true }), "sms"), false);
+});
+
+Deno.test("pickChannel: after a WhatsApp STOP the customer is reached by SMS, not email", () => {
+  assertEquals(pickChannel(human({ whatsapp_opted_out: true })), "sms");
+  assertEquals(pickChannel(human({ whatsapp_opted_out: true, sms_opted_out: true })), "email");
 });
 
 Deno.test("resolveConfirmationChannel: 'auto' uses the preference order", () => {

@@ -28,25 +28,20 @@ describe("collectionNoticeRoute", () => {
     ).toEqual({ channel: null, reason: "Not on WhatsApp, and opted out of SMS" });
   });
 
-  it("does not override a WhatsApp STOP: texts are paused until staff clarify", () => {
-    const route = collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true });
-    expect(route.channel).toBeNull();
-    expect((route as { reason: string }).reason).toMatch(/STOP on WhatsApp.*paused/i);
+  it("honours a WhatsApp STOP for WhatsApp only: the notice goes by SMS instead", () => {
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true })).toEqual({
+      channel: "sms",
+      because: "whatsapp_opted_out",
+    });
     // ...including when the number also looks unreachable.
     expect(
       collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true }, { whatsappUnreachable: true }).channel,
-    ).toBeNull();
+    ).toBe("sms");
   });
 
-  it("texts a WhatsApp STOP once staff have recorded that SMS is fine", () => {
+  it("an SMS opt-out beats everything: someone who stopped both channels gets nothing", () => {
     expect(
-      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, preferred_channel: "sms" }),
-    ).toEqual({ channel: "sms", because: "whatsapp_opted_out" });
-  });
-
-  it("lets an SMS opt-out beat a recorded SMS preference", () => {
-    expect(
-      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, preferred_channel: "sms", sms_opted_out: true }),
+      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, sms_opted_out: true }),
     ).toEqual({ channel: null, reason: "Opted out of WhatsApp and SMS" });
   });
 

@@ -11,8 +11,9 @@ export interface BroadcastBookingRow {
 
 // WhatsApp → SMS only (no email). Channel-appropriate fallback: WhatsApp if
 // usable and not opted out, else SMS (a required operational channel, so the
-// optional "SMS reminders" tickbox is not needed), else null (opted out / paused
-// after a STOP / no number) — the caller surfaces those to staff.
+// optional "SMS reminders" tickbox is not needed), else null (opted out of both /
+// no number) — the caller surfaces those to staff. A WhatsApp STOP switches
+// WhatsApp off only, so those customers get the SMS.
 export function pickChannelWaSms(human: RecipientHuman): "whatsapp" | "sms" | null {
   if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
   if (channelAvailableFor(human, "sms")) return "sms";

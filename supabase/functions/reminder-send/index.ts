@@ -75,7 +75,6 @@ interface HumanRow {
   whatsapp_opted_out: boolean;
   sms_opted_out: boolean;
   email_opted_out: boolean;
-  preferred_channel?: string | null;
 }
 
 function json(req: Request, body: unknown, status = 200): Response {
@@ -302,7 +301,7 @@ serve(async (req) => {
     const { data: human, error: humanErr } = await supabase
       .from("humans")
       .select(
-        "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, preferred_channel",
+        "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out",
       )
       .eq("id", humanId)
       .single();
