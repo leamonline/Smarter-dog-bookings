@@ -2946,7 +2946,6 @@ export type Database = {
         Row: {
           daily_dog_cap: number
           default_pickup_offset: number | null
-          enforce_capacity: boolean | null
           enforce_server_capacity: boolean | null
           id: string
           pricing: Json
@@ -2957,7 +2956,6 @@ export type Database = {
         Insert: {
           daily_dog_cap?: number
           default_pickup_offset?: number | null
-          enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
           id?: string
           pricing?: Json
@@ -2968,7 +2966,6 @@ export type Database = {
         Update: {
           daily_dog_cap?: number
           default_pickup_offset?: number | null
-          enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
           id?: string
           pricing?: Json
