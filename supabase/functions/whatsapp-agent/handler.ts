@@ -1580,6 +1580,14 @@ async function recordOptOut(
       throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
     }
     console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
+    // Tell staff. A STOP pauses automatic WhatsApp AND texts to this customer
+    // until someone has clarified which channels they permit
+    // (_shared/channelPolicy.ts), so reminders would otherwise just stop with
+    // nobody told. Best effort and deduplicated per customer, so a retried or
+    // replayed STOP cannot add a second to-do or fail the event.
+    await Promise.all(
+      ids.map((id) => raiseFollowUpTodo(supabase, id, "stopped_whatsapp", { reply: "none" })),
+    );
   }
   return "applied";
 }

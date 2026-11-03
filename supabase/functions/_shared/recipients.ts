@@ -13,6 +13,7 @@ import {
   STAFF_RESCHEDULE_CANCEL_REASON,
   WHATSAPP_RESCHEDULE_CANCEL_REASON,
 } from "./cancelReasons.ts";
+import { operationalChannelAvailable } from "./channelPolicy.ts";
 
 export interface RecipientHuman {
   id: string;
@@ -24,10 +25,12 @@ export interface RecipientHuman {
   whatsapp_opted_out: boolean | null;
   sms_opted_out: boolean | null;
   email_opted_out: boolean | null;
+  /** Staff-recorded "SMS is fine" after a STOP (see channelPolicy.ts). Optional so older callers and fixtures still type-check. */
+  preferred_channel?: string | null;
 }
 
 export const HUMAN_CONTACT_COLUMNS =
-  "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";
+  "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, preferred_channel";
 
 export interface BookingConfirmationRecord {
   confirmation_channel?: unknown;
@@ -332,24 +335,17 @@ export async function fetchHumansByIds(
 
 export type NotifyChannel = "whatsapp" | "sms" | "email";
 
-// Can this customer be reached on a specific channel right now? Encodes the
-// per-channel rule once: the channel must be set up, have the contact detail it
-// needs, and not be opted out (PECR). Used when staff force a specific channel
+// Can this customer be reached on a specific channel right now, for an ESSENTIAL
+// (operational) message? The rule lives in channelPolicy.ts and is shared with
+// the staff UI: SMS is a required operational channel and does not depend on the
+// optional `humans.sms` tickbox, but an opt-out always wins and a STOP pauses
+// automatic texts until staff clarify. Used when staff force a specific channel
 // (confirmation_channel = 'whatsapp'|'sms'|'email') so an opt-out still wins.
 export function channelAvailableFor(
   human: RecipientHuman,
   channel: NotifyChannel,
 ): boolean {
-  switch (channel) {
-    case "whatsapp":
-      return !!(human.whatsapp && human.phone && !human.whatsapp_opted_out);
-    case "sms":
-      return !!(human.sms && human.phone && !human.sms_opted_out);
-    case "email":
-      return !!(human.email && !human.email_opted_out);
-    default:
-      return false;
-  }
+  return operationalChannelAvailable(human, channel);
 }
 
 // Channel preference: WhatsApp -> SMS -> email, skipping any channel the

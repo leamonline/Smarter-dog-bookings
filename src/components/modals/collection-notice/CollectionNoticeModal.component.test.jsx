@@ -196,16 +196,25 @@ describe("CollectionNoticeModal", () => {
       expect(invoke).not.toHaveBeenCalled();
     });
 
-    it("respects a WhatsApp STOP unless they chose SMS", async () => {
+    it("does not text a WhatsApp STOP: it explains the pause and sends nothing", async () => {
       ownerOverrides = { whatsapp_opted_out: true };
       await openCompose();
-      expect(screen.getByText("Opted out of WhatsApp")).toBeInTheDocument();
+      expect(screen.getByText(/STOP on WhatsApp.*paused/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Send SMS" })).not.toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalled();
     });
 
-    it("texts a WhatsApp STOP who chose SMS", async () => {
-      invoke.mockResolvedValue({ data: { ok: true }, error: null });
+    it("an optional SMS tickbox is not the clarification: it still does not text a WhatsApp STOP", async () => {
       ownerOverrides = { whatsapp_opted_out: true, sms: true };
+      await openCompose();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Send SMS" })).not.toBeInTheDocument();
+    });
+
+    it("texts a WhatsApp STOP once staff have recorded that SMS is fine", async () => {
+      invoke.mockResolvedValue({ data: { ok: true }, error: null });
+      ownerOverrides = { whatsapp_opted_out: true, preferred_channel: "sms" };
       await openCompose();
 
       expect(screen.getByText(/Opted out of WhatsApp, will send as SMS/i)).toBeInTheDocument();

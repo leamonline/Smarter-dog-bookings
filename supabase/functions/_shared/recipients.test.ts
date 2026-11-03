@@ -48,10 +48,37 @@ Deno.test("channelAvailableFor honours setup flag, contact detail and opt-out", 
 Deno.test("pickChannel prefers WhatsApp, then SMS, then email", () => {
   assertEquals(pickChannel(human()), "whatsapp");
   assertEquals(pickChannel(human({ whatsapp: false })), "sms");
-  assertEquals(pickChannel(human({ whatsapp: false, sms: false })), "email");
+  // The optional "SMS reminders" tickbox is not needed: SMS is a required
+  // operational channel, so a customer with a number always has one.
+  assertEquals(pickChannel(human({ whatsapp: false, sms: false })), "sms");
+  // Email is the last resort: only for a customer with no usable mobile, or who
+  // opted out of SMS.
+  assertEquals(pickChannel(human({ whatsapp: false, phone: null })), "email");
+  assertEquals(pickChannel(human({ whatsapp: false, sms_opted_out: true })), "email");
   assertEquals(
-    pickChannel(human({ whatsapp: false, sms: false, email: null })),
+    pickChannel(human({ whatsapp: false, phone: null, email: null })),
     null,
+  );
+});
+
+Deno.test("channelAvailableFor: SMS does not depend on the optional humans.sms tickbox", () => {
+  assertEquals(channelAvailableFor(human({ sms: false }), "sms"), true);
+  assertEquals(channelAvailableFor(human({ sms: null }), "sms"), true);
+  // ...but an SMS opt-out always wins, whatever else is true.
+  assertEquals(channelAvailableFor(human({ sms: true, sms_opted_out: true }), "sms"), false);
+});
+
+Deno.test("channelAvailableFor: a WhatsApp opt-out pauses automatic texts until staff clarify", () => {
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "sms"), false);
+  // Choosing the optional tickbox is not the clarification...
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms: true }), "sms"), false);
+  // ...recording that SMS is fine is.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms" }), "sms"), true);
+  // And it never reopens WhatsApp, or SMS for someone who opted out of SMS.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms" }), "whatsapp"), false);
+  assertEquals(
+    channelAvailableFor(human({ whatsapp_opted_out: true, preferred_channel: "sms", sms_opted_out: true }), "sms"),
+    false,
   );
 });
 
@@ -92,7 +119,7 @@ Deno.test("resolveConfirmationChannel: 'none' resolves to a skip", () => {
 
 Deno.test("resolveConfirmationChannel: 'auto' with no usable channel skips", () => {
   assertEquals(
-    resolveConfirmationChannel("auto", human({ whatsapp: false, sms: false, email: null })),
+    resolveConfirmationChannel("auto", human({ whatsapp: false, phone: null, email: null })),
     { channel: null, skip: "no contact method" },
   );
 });

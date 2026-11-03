@@ -179,7 +179,8 @@ export async function getBookingRules(
 // ---------------------------------------------------------------------------
 
 /** The columns the collection-notice recipient list renders. */
-export const CONTACT_CARD_COLS = "id, name, surname, phone, whatsapp_opted_out, sms, sms_opted_out";
+export const CONTACT_CARD_COLS =
+  "id, name, surname, phone, whatsapp_opted_out, sms_opted_out, preferred_channel";
 
 /** One contact card by human id (owner or trusted contact). */
 export function getContactCard(client: SupabaseClient, humanId: string) {
@@ -224,7 +225,7 @@ export function listTrustedContactsWithNames(client: SupabaseClient, humanId: st
 
 /** The columns the reminder channel picker gates on (contact details + opt-outs). */
 export const REMINDER_CONTACT_COLS =
-  "id, name, surname, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";
+  "id, name, surname, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, preferred_channel";
 
 /** One customer's reminder contact details by human id. */
 export function getReminderContact(client: SupabaseClient, humanId: string) {

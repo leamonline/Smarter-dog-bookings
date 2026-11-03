@@ -115,8 +115,8 @@ export function ChannelsPanel({
           activeClass="bg-brand-teal text-white"
           onClick={smsHandler}
           saving={savingPill === "sms"}
-          ariaLabel={`SMS reminders ${smsActive ? "active" : "off"}`}
-          title={smsHandler ? `Toggle SMS ${smsActive ? "off" : "on"}` : undefined}
+          ariaLabel={`SMS preference ${smsActive ? "on" : "off"}`}
+          title={smsHandler ? `Optional SMS preference (${smsActive ? "on" : "off"}). Essential texts about bookings are sent either way. Click to toggle.` : undefined}
         />
         <Pill
           label="WhatsApp"

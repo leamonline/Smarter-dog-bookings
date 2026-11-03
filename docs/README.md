@@ -25,6 +25,7 @@ It does not duplicate those sources.
 | How are exact local database release packages prepared and accepted? | [`local-production-release.md`](local-production-release.md) — implementation and remaining operator gates |
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
+| Who may be messaged on which channel (SMS, WhatsApp, STOP, marketing), and the audit of existing customers? | [`messaging-policy.md`](messaging-policy.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |

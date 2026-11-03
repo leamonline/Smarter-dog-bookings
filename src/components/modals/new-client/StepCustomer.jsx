@@ -67,7 +67,7 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-body text-slate-700">
               <input type="checkbox" checked={human.sms} onChange={(e) => onChange("sms", e.target.checked)} />
-              SMS reminders
+              Optional SMS (essential texts are always sent)
             </label>
             <label className="flex items-center gap-2 text-body text-slate-700">
               <input type="checkbox" checked={human.whatsapp} onChange={(e) => onChange("whatsapp", e.target.checked)} />

@@ -39,6 +39,7 @@ import { sendEmail } from "../_shared/email.ts";
 import { isAuthorizedWebhook, timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sanitise } from "../_shared/format.ts";
+import { operationalChannelAvailable } from "../_shared/channelPolicy.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -69,6 +70,7 @@ interface HumanRow {
   whatsapp_opted_out: boolean | null;
   sms_opted_out: boolean | null;
   email_opted_out: boolean | null;
+  preferred_channel?: string | null;
 }
 
 function json(req: Request, body: unknown, status = 200): Response {
@@ -189,7 +191,7 @@ serve(async (req) => {
     const { data: human, error: humanErr } = await supabase
       .from("humans")
       .select(
-        "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out",
+        "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, preferred_channel",
       )
       .eq("id", humanId)
       .maybeSingle();
@@ -242,8 +244,10 @@ serve(async (req) => {
       `Hi ${firstName}, welcome to the Pack! 🐾 You're all set up with Smarter Dog ` +
       `Grooming Salon and can now book appointments. See you soon!`;
 
-    // 4. FALLBACK: SMS (if WhatsApp didn't go out and SMS is available).
-    if (!sent && !!h.phone && !!h.sms && !h.sms_opted_out) {
+    // 4. FALLBACK: SMS (if WhatsApp didn't go out and SMS is available). SMS is a
+    //    required operational channel, so the optional "SMS reminders" tickbox
+    //    isn't needed; an SMS opt-out or an unclarified STOP still blocks it.
+    if (!sent && h.phone && operationalChannelAvailable(h, "sms")) {
       try {
         const r = await sendSms(h.phone, fallbackText);
         channel = "sms";

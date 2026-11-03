@@ -45,6 +45,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
+import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -223,6 +224,22 @@ async function handleSend(
   } catch (err) {
     console.error("sms-send: Twilio not configured:", err instanceof Error ? err.message : String(err));
     return json(req, { error: "Twilio not configured" }, 500);
+  }
+
+  if (!twilioResult.ok && isRecipientUnsubscribed(twilioResult.errorCode)) {
+    // The number has texted STOP to us. Record it on the customer records on
+    // that number and flag staff to clarify which channels are permitted. We
+    // do not try another channel ourselves: a STOP is never overridden
+    // automatically (_shared/channelPolicy.ts).
+    await recordSmsStop(supabase, phoneE164);
+    return json(
+      req,
+      {
+        error: "recipient opted out",
+        detail: "This number has asked us to stop texting. Automatic messages to them are paused and the team has been flagged to clarify which channels they're happy with.",
+      },
+      409,
+    );
   }
 
   if (!twilioResult.ok) {

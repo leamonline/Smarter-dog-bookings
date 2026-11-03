@@ -11,6 +11,7 @@ import {
   SALON_MATTED_COAT_POLICY_URL,
   SALON_PRIVACY_URL,
   POLICIES_VERSION,
+  ESSENTIAL_MESSAGES_NOTICE,
 } from "../../../constants/salonPolicies.ts";
 import { Input } from "../../ui/index.js";
 
@@ -130,6 +131,9 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
         </fieldset>
 
         {/* Policies */}
+        <p className="text-body text-[var(--color-ink-muted)] leading-relaxed mb-3" data-testid="essential-messages-notice">
+          {ESSENTIAL_MESSAGES_NOTICE}
+        </p>
         <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
           <input
             type="checkbox"

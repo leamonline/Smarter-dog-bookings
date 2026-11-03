@@ -182,14 +182,25 @@ Deno.test("cancellation rows written before this change are never texted", async
   assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0);
 });
 
-Deno.test("a customer who has not chosen SMS is not texted, even though they have not opted out", async () => {
-  // Not opting out is not choosing SMS. Every other SMS the salon sends needs
-  // humans.sms on (recipients.ts channelAvailableFor); the safety net is held
-  // to the same rule, for cancellations and for reminders and confirmations.
+Deno.test("the optional SMS tickbox is not needed: a customer with it off is texted when WhatsApp fails", async () => {
+  // SMS is a required operational channel (_shared/channelPolicy.ts). Until
+  // November 2026 this safety net skipped anyone without humans.sms ticked, which
+  // defaults to off, so a failed WhatsApp notice was silently never chased.
   for (const trigger of ["cancelled", "reminder", "confirmed"]) {
     const row: LogRow = { ...failedCancellation, id: `log-${trigger}`, trigger_type: trigger };
     const status = trigger === "cancelled" ? "Cancelled" : "Confirmed";
     const { json, calls } = await sweep([row], [{ id: "booking-1", status }], { ...SMS_CUSTOMER, sms: false });
+    assertEquals(json.sms_sent, 1, trigger);
+    assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 1, trigger);
+  }
+});
+
+Deno.test("a customer who replied STOP on WhatsApp is not texted by the safety net, even with SMS ticked", async () => {
+  // A STOP is never overridden automatically: texts are paused until staff clarify.
+  for (const trigger of ["cancelled", "reminder", "confirmed"]) {
+    const row: LogRow = { ...failedCancellation, id: `log-${trigger}`, trigger_type: trigger };
+    const status = trigger === "cancelled" ? "Cancelled" : "Confirmed";
+    const { json, calls } = await sweep([row], [{ id: "booking-1", status }], { ...SMS_CUSTOMER, sms: true, whatsapp_opted_out: true });
     assertEquals(json.sms_sent, 0, trigger);
     assertEquals(calls.filter((c) => c.path.endsWith("/functions/v1/sms-send")).length, 0, trigger);
     assertEquals(calls.filter((c) => c.path === "/rest/v1/notification_log" && c.method === "POST").length, 0, `${trigger}: nothing claimed`);
