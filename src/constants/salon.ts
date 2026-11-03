@@ -212,6 +212,20 @@ export function isActiveBooking(status: string | null | undefined): boolean {
 }
 
 /**
+ * PostgREST `or` filter that keeps a NULL status and excludes `excluded`.
+ *
+ * Call `.or(keepingNullStatusOr(excluded))`. SQL `NOT IN` and `<>` are not
+ * true for NULL, so `.not("status", "in", ...)` and `.neq("status", ...)`
+ * drop a booking whose status was never set. `booking_occupies_seat()` treats
+ * that NULL as Booked. Quoted values stop a comma in the list from splitting
+ * the or-clause. The Deno copy in `_shared/salonConstants.ts` must match.
+ */
+export function keepingNullStatusOr(excluded: readonly string[]): string {
+  const list = excluded.map((status) => `"${status}"`).join(",");
+  return `status.is.null,status.not.in.(${list})`;
+}
+
+/**
  * PostgREST `or` filter for rows that still occupy a seat.
  *
  * Call `.or(occupyingStatusOr())`. A missing status counts: `booking_occupies_seat()`
@@ -219,8 +233,18 @@ export function isActiveBooking(status: string | null | undefined): boolean {
  * SQL `NOT IN` is not true for NULL.
  */
 export function occupyingStatusOr(): string {
-  const excluded = TERMINAL_STATUSES.map((status) => `"${status}"`).join(",");
-  return `status.is.null,status.not.in.(${excluded})`;
+  return keepingNullStatusOr(TERMINAL_STATUSES);
+}
+
+/**
+ * PostgREST `or` filter for status Booked, plus a NULL status.
+ *
+ * Call `.or(bookedOrNullStatusOr())` where the query currently matches only
+ * Booked. NULL is treated as Booked. Every other status stays out — a not-in
+ * of the known non-Booked statuses would start matching a status added later.
+ */
+export function bookedOrNullStatusOr(): string {
+  return `status.eq."${BOOKING_STATUS.BOOKED}",status.is.null`;
 }
 
 /** True for the two ended-early states. The inverse of `isActiveBooking`. */

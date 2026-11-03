@@ -27,6 +27,16 @@ describe("collectionNoticeReadiness", () => {
     expect(r.waitingDogNames).toEqual(["Max"]);
   });
 
+  it("holds the notice for a sibling whose status is missing, the same as Booked", () => {
+    const missing: OwnerDayRow = { id: "2", status: null, dog_name_snapshot: "Max" };
+    const r = collectionNoticeReadiness(
+      [row("1", "Ready for collection", "Bella"), missing],
+      "1",
+    );
+    expect(r.readyDogNames).toEqual(["Bella"]);
+    expect(r.waitingDogNames).toEqual(["Max"]);
+  });
+
   it("holds the notice for a sibling who has not arrived yet", () => {
     const r = collectionNoticeReadiness(
       [row("1", "Arrived", "Bella"), row("2", "Booked", "Max"), row("3", "Reconfirmed", "Alfie")],

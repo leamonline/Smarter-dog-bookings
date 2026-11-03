@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — a booking with no status still gets its reminder
+
+- A booking whose status is NULL is an ordinary booked appointment. The
+  database already treats it that way. The queries that choose tomorrow's
+  reminders, the nightly reminder, the manual reminder and the collection
+  notice were skipping it, so that customer could get no message.
+- Those queries now keep a NULL status and still leave out the same
+  cancelled, no-show or completed appointments they left out before.
+- If the WhatsApp reminder for that booking fails, the text chase sends too.
+  Nobody else is added to a reminder or a collection notice.
+
 ## Unreleased — a delivered WhatsApp reminder is no longer chased or repeated
 
 - On 1 November 2026 Meta reported a day-before reminder undeliverable (131026)

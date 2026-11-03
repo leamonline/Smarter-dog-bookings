@@ -112,14 +112,35 @@ export function isActiveBooking(status: string | null | undefined): boolean {
 }
 
 /**
+ * PostgREST `or` filter that keeps a NULL status and excludes `excluded`.
+ *
+ * Mirrors `keepingNullStatusOr` in src/constants/salon.ts. SQL `NOT IN` and
+ * `<>` are not true for NULL, so a bare not.in or neq drops a booking whose
+ * status was never set. booking_occupies_seat() treats that NULL as Booked.
+ */
+export function keepingNullStatusOr(excluded: readonly string[]): string {
+  const list = excluded.map((status) => `"${status}"`).join(",");
+  return `status.is.null,status.not.in.(${list})`;
+}
+
+/**
  * PostgREST `or` filter for rows that still occupy a seat.
  *
  * Mirrors `occupyingStatusOr` in src/constants/salon.ts. NULL status counts,
  * matching booking_occupies_seat(). A bare not.in filter drops NULL.
  */
 export function occupyingStatusOr(): string {
-  const excluded = TERMINAL_STATUSES.map((status) => `"${status}"`).join(",");
-  return `status.is.null,status.not.in.(${excluded})`;
+  return keepingNullStatusOr(TERMINAL_STATUSES);
+}
+
+/**
+ * PostgREST `or` filter for status Booked, plus a NULL status.
+ *
+ * Mirrors `bookedOrNullStatusOr` in src/constants/salon.ts. Other statuses
+ * stay out.
+ */
+export function bookedOrNullStatusOr(): string {
+  return `status.eq."${BOOKING_STATUS.BOOKED}",status.is.null`;
 }
 
 // Customer self-service portal sign-in/sign-up URL (prod default). This

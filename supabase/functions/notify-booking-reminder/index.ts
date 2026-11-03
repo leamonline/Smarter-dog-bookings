@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { bookedOrNullStatusOr, occupyingStatusOr } from "../_shared/salonConstants.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sendEmail } from "../_shared/email.ts";
@@ -277,6 +278,7 @@ serve(async (req) => {
         );
       }
       // Both terminal statuses: a no-show must not be reminded either.
+      // NULL is Booked (booking_occupies_seat) and is still reminded.
       if (anchor.status === "Cancelled" || anchor.status === "No-show") {
         return new Response(
           JSON.stringify({ error: "booking is cancelled — won't remind" }),
@@ -298,20 +300,22 @@ serve(async (req) => {
         .select("id, booking_date, slot, service, group_id, notify_human_ids, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", anchor.booking_date)
         .eq("dogs.human_id", anchorHumanId)
-        .not("status", "in", '("Cancelled","No-show")');
+        .or(occupyingStatusOr());
       if (gatherErr) {
         console.error("Customer-day gather failed:", gatherErr.message);
         return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });
       }
       enriched = toEnriched((rows ?? []) as RawBookingRow[]);
     } else {
-      // Cron path: every active booking for tomorrow, grouped per customer.
+      // Cron path: tomorrow's Booked rows, grouped per customer. NULL status
+      // is Booked (booking_occupies_seat). Equality drops it; the `or` keeps
+      // it and still leaves every other status out.
       const tomorrow = tomorrowDateString();
       const { data: rows, error: cronErr } = await supabase
         .from("bookings")
         .select("id, booking_date, slot, service, group_id, notify_human_ids, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", tomorrow)
-        .eq("status", "Booked");
+        .or(bookedOrNullStatusOr());
       if (cronErr) {
         console.error("Bookings query failed:", cronErr.message);
         return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });

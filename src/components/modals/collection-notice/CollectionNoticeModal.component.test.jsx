@@ -30,7 +30,7 @@ const dayRow = (id, status, name) => ({
 function makeBookingsQuery() {
   const query = {
     eq: vi.fn(() => query),
-    neq: vi.fn(() =>
+    or: vi.fn(() =>
       dayLookupQueue.length
         ? dayLookupQueue.shift()
         : Promise.resolve({ data: ownerDayRows ?? defaultDayRows(), error: null }),
@@ -338,7 +338,7 @@ describe("CollectionNoticeModal", () => {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             eq: vi.fn(() => ({
-              neq: vi.fn(() => Promise.resolve({ data: null, error: new Error("boom") })),
+              or: vi.fn(() => Promise.resolve({ data: null, error: new Error("boom") })),
             })),
           })),
         })),
