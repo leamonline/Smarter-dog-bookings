@@ -254,7 +254,7 @@ Deno.test("out-of-order and repeated callbacks change nothing", async () => {
   f = fake({
     message: { ...SENT_MSG, status: "failed" },
     logs: [{ ...LOG, status: "failed" }],
-    todos: [{ id: "t1", human_id: "h1", done: false, text: `${SMS_FAILURE_TODO_PREFIX} booking confirmation text` }],
+    todos: [{ id: "t1", human_id: "h1", done: false, text: `${SMS_FAILURE_TODO_PREFIX} Wendy's booking confirmation text didn't arrive. (Ref SM1)` }],
   });
   out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
   assertEquals(f.writes.filter((w) => w.table === "notification_log").length, 0);
@@ -405,4 +405,35 @@ Deno.test("a different text for the same customer still gets its own alert", asy
   f.db.notification_log[0].status = "sent";
   await applySmsStatus(f.client, { sid: "SM2", status: "undelivered", errorCode: "30003" });
   assertEquals(f.db.salon_todos.filter((t) => String(t.text).includes("(Ref SM2)")).length, 1);
+});
+
+Deno.test("a delivery landing between our message update and our log update leaves no contradiction and no alert", async () => {
+  const f = fake({
+    message: SENT_MSG,
+    logs: [LOG],
+    // the delivery callback completes (and finds the log still 'sent': nothing to repair)
+    // just before our log update goes through
+    beforeFirstUpdate: { notification_log: (db) => { db.whatsapp_messages[0].status = "delivered"; } },
+  });
+  await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertEquals(f.db.notification_log[0].error_message, null);
+  assertEquals(f.db.salon_todos.length, 0);
+});
+
+Deno.test("two different texts failing for one customer each get their own alert while the first is still open", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG] });
+  await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.salon_todos.length, 1);
+  assertEquals(f.db.salon_todos[0].done, false);
+  // a second text (a cancellation notice, say) fails; the first alert is still open
+  f.db.whatsapp_messages[0].status = "sent";
+  f.db.notification_log[0].status = "sent";
+  f.db.notification_log[0].trigger_type = "cancelled";
+  await applySmsStatus(f.client, { sid: "SM2", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.salon_todos.length, 2);
+  assertStringIncludes(String(f.db.salon_todos[0].text), "(Ref SM1)");
+  assertStringIncludes(String(f.db.salon_todos[1].text), "(Ref SM2)");
+  assertStringIncludes(String(f.db.salon_todos[1].text), "cancellation notice");
 });

@@ -180,16 +180,22 @@ export async function raiseFollowUpTodo(
   try {
     const dedupeHours = isStopReason(reason) ? STOP_DEDUPE_HOURS : FOLLOW_UP_DEDUPE_HOURS;
     const since = new Date(now.getTime() - dedupeHours * 3600_000).toISOString();
-    const { data: open, error: openErr } = await supabase
-      .from("salon_todos")
-      .select("id")
-      .eq("human_id", humanId)
-      .eq("done", false)
-      .like("text", `${todoPrefixFor(reason)}%`)
-      .gte("created_at", since)
-      .limit(1);
-    if (openErr) throw openErr;
-    if (Array.isArray(open) && open.length > 0) return "duplicate";
+    // A caller that identifies the specific thing (a text's Twilio SID, `ref`) has
+    // already deduplicated by it, and must not be suppressed by another open task
+    // for the same customer: a failed cancellation notice is not the failed
+    // confirmation that is already on the list.
+    if (!options.ref) {
+      const { data: open, error: openErr } = await supabase
+        .from("salon_todos")
+        .select("id")
+        .eq("human_id", humanId)
+        .eq("done", false)
+        .like("text", `${todoPrefixFor(reason)}%`)
+        .gte("created_at", since)
+        .limit(1);
+      if (openErr) throw openErr;
+      if (Array.isArray(open) && open.length > 0) return "duplicate";
+    }
 
     const { data: human } = await supabase
       .from("humans")

@@ -218,6 +218,33 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
     result.updatedLog = sentLogIds.length;
   }
 
+  // Close the window a concurrent delivery can slip into: it may have landed after our
+  // guarded message update but before this log update, and would then have found
+  // nothing to repair. Look again; if the text was delivered, undo the log change and
+  // raise nothing. (A single database transaction would close this completely; a
+  // delivery that lands after this check can still leave one avoidable alert, which
+  // staff will see as a text that did arrive.)
+  if (message) {
+    const { data: now, error: nowErr } = await supabase
+      .from("whatsapp_messages")
+      .select("status")
+      .eq("id", message.id)
+      .maybeSingle();
+    if (nowErr) throw new Error(`message re-check failed: ${nowErr.message ?? "unknown"}`);
+    if (now?.status === "delivered" || now?.status === "read") {
+      if (sentLogIds.length > 0) {
+        const { error } = await supabase
+          .from("notification_log")
+          .update({ status: "sent", error_message: null })
+          .in("id", sentLogIds)
+          .eq("status", "failed");
+        if (error) throw new Error(`log revert failed: ${error.message ?? "unknown"}`);
+      }
+      result.updatedLog = 0;
+      return result;
+    }
+  }
+
   // A text STOP: record it and flag staff. recordSmsStop raises its own to-do.
   if (isRecipientUnsubscribed(event.errorCode)) {
     if (event.to) {
