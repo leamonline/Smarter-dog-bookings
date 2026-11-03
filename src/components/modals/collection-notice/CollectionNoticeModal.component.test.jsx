@@ -7,6 +7,10 @@ let trustedLinks = [];
 let trustedHumans = [];
 let contactQueryError = null;
 let ownerDayRows = null;
+// Fields merged over the mocked owner row (sms, sms_opted_out, whatsapp_opted_out…).
+let ownerOverrides = {};
+// Humans whose recent WhatsApp sends all bounced (the "Not on WhatsApp" signal).
+let unreachableIds = new Set();
 // Per-call overrides for the owner-day lookup, consumed in order, so a test
 // can hold one lookup open while a later one resolves.
 let dayLookupQueue = [];
@@ -55,6 +59,7 @@ const supabase = {
                   surname: "Jones",
                   phone: "07123456789",
                   whatsapp_opted_out: false,
+                  ...ownerOverrides,
                 },
                 error: contactQueryError,
               }),
@@ -80,6 +85,9 @@ const supabase = {
 };
 
 vi.mock("../../../supabase/client", () => ({ supabase }));
+vi.mock("../../../supabase/hooks/useDeliveryFailures", () => ({
+  useUnreachableHumans: () => unreachableIds,
+}));
 
 const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 
@@ -110,7 +118,106 @@ describe("CollectionNoticeModal", () => {
     trustedHumans = [];
     contactQueryError = null;
     ownerDayRows = null;
+    ownerOverrides = {};
+    unreachableIds = new Set();
     dayLookupQueue = [];
+  });
+
+  describe("when WhatsApp can't reach the owner", () => {
+    const openCompose = async () => {
+      renderModal();
+      fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
+      await screen.findByText("Owner");
+    };
+
+    it("sends an SMS through sms-send instead of a WhatsApp template", async () => {
+      invoke.mockResolvedValue({ data: { ok: true }, error: null });
+      unreachableIds = new Set(["human-1"]);
+      await openCompose();
+
+      expect(screen.getByText(/Not on WhatsApp, will send as SMS/i)).toBeInTheDocument();
+      expect(screen.getByText(/SMS version, for those not on WhatsApp/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));
+
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+        "sms-send",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            mode: "template",
+            to: "+447123456789",
+            human_id: "human-1",
+            template_name: "ready_for_collection_sms",
+            text: "Hi! We've finished pampering Bella and they're ready to head home in 15 mins. See you soon! X - Smarter Dog Grooming",
+          }),
+        }),
+      ));
+      expect(invoke).not.toHaveBeenCalledWith("whatsapp-send", expect.anything());
+      expect(await screen.findByRole("button", { name: "Sent ✓" })).toBeDisabled();
+    });
+
+    it("sends the edited ETA in the SMS", async () => {
+      invoke.mockResolvedValue({ data: { ok: true }, error: null });
+      unreachableIds = new Set(["human-1"]);
+      await openCompose();
+
+      fireEvent.change(screen.getByLabelText("Minutes until ready for collection"), { target: { value: "5" } });
+      fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));
+
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+        "sms-send",
+        expect.objectContaining({
+          body: expect.objectContaining({ text: expect.stringContaining("ready to head home in 5 mins") }),
+        }),
+      ));
+    });
+
+    it("keeps Ready and shows the reason when the SMS fails", async () => {
+      invoke.mockResolvedValue({ data: { error: "send failed" }, error: null });
+      unreachableIds = new Set(["human-1"]);
+      await openCompose();
+
+      fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("send failed");
+      expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
+    });
+
+    it("does not text someone who has opted out of SMS", async () => {
+      unreachableIds = new Set(["human-1"]);
+      ownerOverrides = { sms_opted_out: true };
+      await openCompose();
+
+      expect(screen.getByText("Not on WhatsApp, and opted out of SMS")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Send SMS" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/SMS version/i)).not.toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it("respects a WhatsApp STOP unless they chose SMS", async () => {
+      ownerOverrides = { whatsapp_opted_out: true };
+      await openCompose();
+      expect(screen.getByText("Opted out of WhatsApp")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    });
+
+    it("texts a WhatsApp STOP who chose SMS", async () => {
+      invoke.mockResolvedValue({ data: { ok: true }, error: null });
+      ownerOverrides = { whatsapp_opted_out: true, sms: true };
+      await openCompose();
+
+      expect(screen.getByText(/Opted out of WhatsApp, will send as SMS/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith("sms-send", expect.anything()));
+    });
+
+    it("still uses WhatsApp, with no SMS preview, for everyone else", async () => {
+      await openCompose();
+      expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+      expect(screen.queryByText(/SMS version/i)).not.toBeInTheDocument();
+    });
   });
 
   it("asks before loading recipient controls", async () => {

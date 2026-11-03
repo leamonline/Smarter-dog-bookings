@@ -7,6 +7,7 @@ import {
   buildWhatsAppReminderParams,
   renderWhatsAppReminderPreview,
   renderSmsReminder,
+  renderSmsCollectionNotice,
   renderEmailReminder,
 } from "./templates.js";
 import { smsSegmentInfo } from "../sms/segments.js";
@@ -105,6 +106,24 @@ describe("renderSmsReminder", () => {
     expect(renderSmsReminder({ dogNames: ["Bella"], date: "2026-05-25", slot: "09:00" })).toContain(
       "Hi there,",
     );
+  });
+});
+
+describe("renderSmsCollectionNotice", () => {
+  it("says who it's from and stays one plain GSM-7 segment for one dog", () => {
+    const text = renderSmsCollectionNotice({ dogNames: ["Toby"], minutes: "5" });
+    expect(text).toBe(
+      "Hi! We've finished pampering Toby and they're ready to head home in 5 mins. See you soon! X - Smarter Dog Grooming",
+    );
+    // An emoji would force UCS-2 and cut a segment from 160 characters to 70.
+    expect(smsSegmentInfo(text)).toMatchObject({ encoding: "GSM-7", segments: 1 });
+  });
+
+  it("names every dog that is ready, and has a fallback for none", () => {
+    expect(renderSmsCollectionNotice({ dogNames: ["Bella", "Max"], minutes: "10" })).toContain(
+      "pampering Bella and Max and they're",
+    );
+    expect(renderSmsCollectionNotice({ dogNames: [], minutes: "10" })).toContain("pampering your dog and");
   });
 });
 

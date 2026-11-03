@@ -55,6 +55,26 @@ export async function sendWhatsAppTemplate(input: {
     });
 }
 
+/**
+ * sms-send in template mode: text already rendered by the caller, sent over Twilio
+ * and logged to the recipient's SMS inbox thread. sms-send does not check opt-outs
+ * itself, so the caller must (see collectionNoticeRoute).
+ */
+export async function sendSmsTemplate(input: {
+  to: string;
+  text: string;
+  templateName: string;
+  humanId: string;
+}) {
+  return invokeStaff("sms-send", {
+    mode: "template",
+    to: input.to,
+    text: input.text,
+    template_name: input.templateName,
+    human_id: input.humanId,
+  });
+}
+
 /** reminder-send: the staff-composed reminder on the chosen channel for one anchor booking. */
 export async function sendReminder(anchorBookingId: string, channelPayload: Record<string, unknown>) {
   return invokeStaff("reminder-send", { booking_id: anchorBookingId, ...channelPayload });
@@ -69,6 +89,7 @@ const messaging = {
   broadcastMessage,
   sendBookingReminder,
   sendWhatsAppTemplate,
+  sendSmsTemplate,
   sendReminder,
 };
 

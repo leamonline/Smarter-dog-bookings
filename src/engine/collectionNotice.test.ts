@@ -2,9 +2,61 @@ import { describe, expect, it } from "vitest";
 import {
   blocksCollectionNotice,
   collectionNoticeReadiness,
+  collectionNoticeRoute,
   releasesHeldNotice,
   type OwnerDayRow,
 } from "./collectionNotice";
+
+describe("collectionNoticeRoute", () => {
+  const mobile = "07123456789";
+
+  it("uses WhatsApp for an ordinary customer, with no SMS preference needed", () => {
+    expect(collectionNoticeRoute({ phone: mobile })).toEqual({ channel: "whatsapp" });
+    expect(collectionNoticeRoute({ phone: mobile, sms: false })).toEqual({ channel: "whatsapp" });
+  });
+
+  it("falls back to SMS when the number looks like it isn't on WhatsApp", () => {
+    // humans.sms defaults to false, and that must not stop a pickup text.
+    expect(collectionNoticeRoute({ phone: mobile, sms: false }, { whatsappUnreachable: true })).toEqual({
+      channel: "sms",
+      because: "whatsapp_unreachable",
+    });
+  });
+
+  it("never texts someone who has opted out of SMS, even when WhatsApp can't reach them", () => {
+    expect(
+      collectionNoticeRoute({ phone: mobile, sms_opted_out: true }, { whatsappUnreachable: true }),
+    ).toEqual({ channel: null, reason: "Not on WhatsApp, and opted out of SMS" });
+  });
+
+  it("treats a WhatsApp STOP as explicit: texts only if they chose SMS", () => {
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true })).toEqual({
+      channel: null,
+      reason: "Opted out of WhatsApp",
+    });
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, sms: false })).toEqual({
+      channel: null,
+      reason: "Opted out of WhatsApp",
+    });
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, sms: true })).toEqual({
+      channel: "sms",
+      because: "whatsapp_opted_out",
+    });
+  });
+
+  it("lets an SMS opt-out beat a chosen SMS preference", () => {
+    expect(
+      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, sms: true, sms_opted_out: true }),
+    ).toEqual({ channel: null, reason: "Opted out of WhatsApp and SMS" });
+  });
+
+  it("sends nothing without a usable UK mobile, whichever channel", () => {
+    const none = { channel: null, reason: "No mobile number on file" };
+    expect(collectionNoticeRoute({ phone: null })).toEqual(none);
+    expect(collectionNoticeRoute({ phone: "01632 960123" }, { whatsappUnreachable: true })).toEqual(none);
+    expect(collectionNoticeRoute(null)).toEqual(none);
+  });
+});
 
 const row = (id: string, status: string, name: string): OwnerDayRow => ({
   id,

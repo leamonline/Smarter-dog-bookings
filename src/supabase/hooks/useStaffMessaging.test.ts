@@ -11,6 +11,7 @@ const {
   resendBookingNotification,
   sendBookingReminder,
   sendReminder,
+  sendSmsTemplate,
   sendWhatsAppTemplate,
   useStaffMessaging,
 } = await import("./useStaffMessaging");
@@ -68,6 +69,24 @@ describe("useStaffMessaging", () => {
         template_name: "ready_for_collection_v1",
         language: "en_GB",
         params: [{ type: "text", text: "Bella" }],
+        human_id: "h1",
+      },
+    });
+  });
+
+  it("sends rendered SMS text with the snake_case body sms-send expects", async () => {
+    await sendSmsTemplate({
+      to: "+447700900111",
+      text: "Hi! Bella is ready",
+      templateName: "ready_for_collection_sms",
+      humanId: "h1",
+    });
+    expect(invoke).toHaveBeenCalledWith("sms-send", {
+      body: {
+        mode: "template",
+        to: "+447700900111",
+        text: "Hi! Bella is ready",
+        template_name: "ready_for_collection_sms",
         human_id: "h1",
       },
     });

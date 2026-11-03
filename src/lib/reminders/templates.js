@@ -96,6 +96,18 @@ export function renderSmsReminder({ firstName, dogNames, date, slot, service }) 
   return `Hi ${name}, just a reminder ${dogs} ${verb} booked in${svc} on ${formatDateShort(date)} at ${formatTime(slot)}. See you then!`;
 }
 
+/**
+ * SMS version of the "ready for collection" notice, for owners WhatsApp can't
+ * reach. Same words as ready_for_collection_v2 minus the emoji (any emoji forces
+ * UCS-2 encoding, which cuts a segment from 160 to 70 characters), plus the salon
+ * name because a text from a number they don't know needs to say who it's from.
+ * One dog stays within a single GSM-7 segment.
+ */
+export function renderSmsCollectionNotice({ dogNames, minutes }) {
+  const dogs = joinNames(dogNames) || "your dog";
+  return `Hi! We've finished pampering ${dogs} and they're ready to head home in ${minutes} mins. See you soon! X - Smarter Dog Grooming`;
+}
+
 /** Email reminder subject + plain-text body (the SendGrid sender is text/plain). */
 export function renderEmailReminder({ firstName, dogNames, date, slot, service }) {
   const name = firstName || "there";
