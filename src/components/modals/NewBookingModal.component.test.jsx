@@ -169,6 +169,29 @@ describe("NewBookingModal — truthful save (Fix C)", () => {
     expect(props.onClose).not.toHaveBeenCalled();
   });
 
+  it("does not treat a no-show in that slot as the dog already being booked", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({
+      initialEntries: [resumeEntry],
+      onAdd,
+      bookingsByDate: {
+        [OPEN_DATE]: [{
+          id: "missed",
+          slot: "09:00",
+          status: "No-show",
+          _dogId: "dog-luna",
+          dogName: "Luna",
+          size: "small",
+        }],
+      },
+    });
+
+    await confirmWithMethod();
+
+    expect(screen.queryByText(/already booked/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+  });
+
   it("closes the wizard only after the save resolves ok", async () => {
     const onAdd = vi.fn().mockResolvedValue({ ok: true });
     const props = renderModal({ initialEntries: [resumeEntry], onAdd });

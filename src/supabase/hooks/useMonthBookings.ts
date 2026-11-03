@@ -3,7 +3,7 @@ import { supabase } from "../client";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
-import { BOOKING_STATUS } from "../../constants/salon";
+import { isActiveBooking } from "../../constants/salon";
 import type { Database } from "../database.types";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
@@ -23,15 +23,13 @@ export interface UseMonthBookingsResult {
   monthBookingsLoading: boolean;
 }
 
-const isCancelled = (row: { status?: string | null } | null | undefined): boolean =>
-  row?.status === BOOKING_STATUS.CANCELLED;
-
-// Exported for tests. Cancelled rows are soft-deletes that free their seat,
-// so they must not inflate the month grid's per-day counts.
+// Exported for tests. Cancelled and No-show free their seat, so they must
+// not inflate the month grid's per-day counts. isActiveBooking is the same
+// predicate as booking_occupies_seat().
 export function groupByDate(rows: ReadonlyArray<MonthBookingEntry>): MonthBookingsByDate {
   const grouped: MonthBookingsByDate = {};
   for (const row of rows) {
-    if (isCancelled(row)) continue;
+    if (!isActiveBooking(row.status)) continue;
     const dateKey = row.booking_date;
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(row);
@@ -106,7 +104,7 @@ export function useMonthBookings(
           const row = payload.new as Partial<BookingRow>;
           if (!row.id || !row.booking_date) return;
           if (row.booking_date < startStr || row.booking_date > endStr) return;
-          if (isCancelled(row)) return;
+          if (!isActiveBooking(row.status)) return;
           const entry: MonthBookingEntry = { id: row.id, booking_date: row.booking_date };
           setBookingsByDate((prev) => {
             const dateKey = entry.booking_date;
@@ -145,9 +143,9 @@ export function useMonthBookings(
             }
             const dateKey = entry.booking_date;
             const existing = (next[dateKey] || []).filter((b) => b.id !== entry.id);
-            // A cancellation is an UPDATE to status — it frees the seat, so
-            // drop the row instead of re-adding it.
-            next[dateKey] = isCancelled(newRow) ? existing : [...existing, entry];
+            // Cancelled and No-show free the seat, so drop the row instead
+            // of re-adding it.
+            next[dateKey] = isActiveBooking(newRow.status) ? [...existing, entry] : existing;
             return next;
           });
         },

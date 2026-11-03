@@ -44,9 +44,8 @@ export function SlotGrid({
 }) {
   const toast = useToast();
 
-  // The capacity engine treats its input as the day's non-cancelled occupancy.
-  // Strip cancelled rows once here so the grid never renders a phantom card or
-  // counts a freed seat, independent of how the caller assembled the day.
+  // Drop rows that do not occupy a seat (Cancelled and No-show) so the grid
+  // never renders a phantom card or counts a freed seat.
   const activeBookings = useMemo(
     () => excludeCancelled(bookings || []),
     [bookings],

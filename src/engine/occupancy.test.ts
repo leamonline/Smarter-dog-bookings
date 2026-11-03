@@ -7,10 +7,19 @@ import type { Booking } from "../types/index";
 const booking = (id: string, status: Booking["status"]) => ({ id, status });
 
 describe("excludeCancelled", () => {
-  it("drops cancelled bookings", () => {
+  it("drops cancelled bookings and keeps a completed visit", () => {
     const result = excludeCancelled([
       booking("a", BOOKING_STATUS.BOOKED),
       booking("b", BOOKING_STATUS.CANCELLED),
+      booking("c", BOOKING_STATUS.COMPLETED),
+    ]);
+    expect(result.map((b) => b.id)).toEqual(["a", "c"]);
+  });
+
+  it("drops a no-show, which frees its seat the same way a cancellation does", () => {
+    const result = excludeCancelled([
+      booking("a", BOOKING_STATUS.BOOKED),
+      booking("b", BOOKING_STATUS.NO_SHOW),
       booking("c", BOOKING_STATUS.COMPLETED),
     ]);
     expect(result.map((b) => b.id)).toEqual(["a", "c"]);

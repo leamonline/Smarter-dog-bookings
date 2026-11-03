@@ -163,9 +163,13 @@ the database would refuse.
 Two things that could look like off-switches but are not:
 
 - The former Capacity Engine settings toggle wrote a **different** column
-  (`salon_config.enforce_capacity`) that nothing read — it was a no-op
-  (AUDIT-1). That toggle has been removed: the current card is read-only and
-  there is no UI kill switch.
+  (`salon_config.enforce_capacity`) and sometimes a JSON copy
+  (`settings.enforceCapacity`). Nothing read either — they were a no-op
+  (AUDIT-1). The toggle has been removed, the app no longer reads or writes
+  the column or the JSON key, and the key is stripped from `settings` on the
+  next save. Dropping the column is a separate migration. The current card
+  is read-only and there is no UI kill switch. The real switch remains
+  `enforce_server_capacity`.
 - Per-booking, staff can set `bookings.staff_capacity_override` to
   bypass capacity for that row only; the trigger honours it for
   staff inserts and forces it off for non-staff.
@@ -176,8 +180,15 @@ Two things that could look like off-switches but are not:
   is normally medium but is being booked into a "small dogs only"
   weekend, staff can override on the booking and capacity is
   enforced on the override.
-- **Cancelled bookings don't count** toward the seat tally. Status
-  values other than `Cancelled` do.
+- **Cancelled and No-show free their seat.** Both are non-occupying, which
+  is `booking_occupies_seat()` in the database and `isActiveBooking()` in
+  the staff app and the Deno capacity mirror. A completed visit still
+  counts: the dog was here. Queries that cannot call the helper (the inbox
+  seat preview, the WhatsApp Flow's day occupancy, the morning Slack day
+  count) use `nonOccupyingStatusIn()`, the same two statuses. The waitlist
+  does not book into a freed seat by itself. Staff fill it from the
+  calendar, which shows the seat as free once the booking is marked
+  No-show.
 - **Chained / multi-dog bookings**: each row counts individually.
   The grouped booking flow validates the whole chain before any
   insert, so it's still atomic.

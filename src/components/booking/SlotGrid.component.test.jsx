@@ -129,6 +129,15 @@ describe("SlotGrid — cancelled bookings", () => {
     ]);
     expect(screen.queryByText("Cancelled Pup")).toBeNull();
   });
+
+  it("frees the seat — a no-show is not drawn as occupying the slot", () => {
+    renderGrid("2026-06-03", [
+      sampleBooking({ id: "shown", dogName: "Active Pup" }),
+      sampleBooking({ id: "missed", dogName: "No Show Pup", status: BOOKING_STATUS.NO_SHOW }),
+    ]);
+    expect(screen.getByText("Active Pup")).toBeInTheDocument();
+    expect(screen.queryByText("No Show Pup")).toBeNull();
+  });
 });
 
 describe("SlotGrid — staff capacity overrides", () => {

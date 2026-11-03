@@ -20,7 +20,7 @@ type Call = { method: string; args: unknown[] };
 function fakeQuery(result: unknown) {
   const calls: Call[] = [];
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lt", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
+  for (const method of ["select", "eq", "lt", "not", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
     builder[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -112,6 +112,7 @@ describe("listSeatsOnDate", () => {
     expect(from).toHaveBeenCalledWith("bookings");
     expect(argsOf(calls, "select")).toEqual([["id, slot, size, dog_id"]]);
     expect(argsOf(calls, "eq")).toEqual([["booking_date", "2026-09-02"]]);
+    expect(argsOf(calls, "not")).toEqual([["status", "in", '("Cancelled","No-show")']]);
     expect(result).toEqual({ rows, error: null });
   });
 

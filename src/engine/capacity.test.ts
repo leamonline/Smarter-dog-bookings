@@ -4,10 +4,15 @@ import { describe, expect, it } from "vitest";
 // seatIndex -> "blocked"). These tests pin the behaviour the booking wizards
 // rely on: a blocked seat removes a free seat from its OWN slot only, without
 // counting toward the daily cap or cascading through the 2-2-1 windowing.
-import { canBookSlot, findGroupedSlots, getSeatStatesForSlot } from "./capacity";
-import { SALON_SLOTS, DAILY_DOG_CAP } from "../constants/salon";
+import { canBookSlot, findGroupedSlots, getSeatStatesForSlot, getSeatsUsed } from "./capacity";
+import { BOOKING_STATUS, SALON_SLOTS, DAILY_DOG_CAP } from "../constants/salon";
 
-type Bk = { slot: string; size: "small" | "medium" | "large"; _dogId?: string };
+type Bk = {
+  slot: string;
+  size: "small" | "medium" | "large";
+  _dogId?: string;
+  status?: string;
+};
 
 function bookings(...rows: Bk[]) {
   return rows as never;
@@ -149,6 +154,60 @@ describe("findGroupedSlots — staff-blocked seats", () => {
       { "10:30": { 0: "blocked" } },
     );
     // The 14th dog still has somewhere to go (10:30 seat 1, 11:00, etc.).
+    expect(results.length).toBeGreaterThan(0);
+  });
+});
+
+describe("no-show frees its seat", () => {
+  const noShow = {
+    slot: "10:00",
+    size: "small" as const,
+    status: BOOKING_STATUS.NO_SHOW,
+    _dogId: "pepper",
+  };
+
+  it("does not count a no-show toward seats used", () => {
+    expect(getSeatsUsed([noShow, { ...noShow, _dogId: "other" }] as never, "10:00")).toBe(0);
+  });
+
+  it("lets the same dog book the slot again", () => {
+    const result = canBookSlot([noShow] as never, "10:00", "small", SALON_SLOTS, {
+      dogId: "pepper",
+    });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("still counts a completed visit", () => {
+    const completed = { ...noShow, status: BOOKING_STATUS.COMPLETED, _dogId: "done" };
+    expect(getSeatsUsed([completed, { ...completed, _dogId: "done-2" }] as never, "10:00")).toBe(2);
+    const result = canBookSlot([completed, { ...completed, _dogId: "done-2" }] as never, "10:00", "small", SALON_SLOTS);
+    expect(result.allowed).toBe(false);
+  });
+
+  it("does not draw a no-show into a seat", () => {
+    const states = getSeatStatesForSlot([noShow] as never, "10:00", SALON_SLOTS);
+    expect(states.filter((seat) => seat.type === "booking")).toHaveLength(0);
+  });
+
+  it("does not let a no-show large dog early-close 13:00", () => {
+    const largeMiss = { slot: "12:00", size: "large" as const, status: BOOKING_STATUS.NO_SHOW };
+    const result = canBookSlot([largeMiss] as never, "13:00", "small", SALON_SLOTS);
+    expect(result.allowed).toBe(true);
+  });
+
+  it("does not count no-shows toward the daily cap", () => {
+    const existing = Array.from({ length: DAILY_DOG_CAP }, (_, i) => ({
+      slot: "08:30",
+      size: "small" as const,
+      status: BOOKING_STATUS.NO_SHOW,
+      _dogId: `ns-${i}`,
+    }));
+    const results = findGroupedSlots(
+      [{ id: "new", size: "small" }],
+      existing as never,
+      SALON_SLOTS,
+      DAILY_DOG_CAP,
+    );
     expect(results.length).toBeGreaterThan(0);
   });
 });

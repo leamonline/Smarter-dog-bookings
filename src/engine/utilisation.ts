@@ -132,7 +132,7 @@ export function computeWeekCapacity(
   let bookings = 0;
   let openDays = 0;
   (dates || []).forEach((d) => {
-    // Cancelled rows are soft-deletes that free their seat — never count them.
+    // Cancelled and No-show free their seat — never count them.
     bookings += excludeCancelled(bookingsByDate?.[d.dateStr] || []).length;
     const isOpen = isDateOpen(d.dateStr, dayOpenState);
     if (isOpen) openDays += 1;
@@ -187,8 +187,8 @@ export function findNextAvailable({
     const extraSlots = settings?.extraSlots ?? [];
     const overridesForSlot = settings?.overrides ?? {};
     const slots = buildSlotGrid(extraSlots);
-    // The capacity engine expects non-cancelled occupancy (occupancy.ts) —
-    // a seat held only by a cancelled booking is free to advertise.
+    // Drop Cancelled and No-show (occupancy.ts) — a seat they held is free
+    // to advertise. The engine applies the same rule if a caller forgets.
     const dayBookings: Booking[] = excludeCancelled(bookingsByDate?.[dateStr] || []);
     for (const slot of slots) {
       if (dateStr === todayStr) {

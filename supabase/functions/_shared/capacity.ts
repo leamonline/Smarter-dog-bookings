@@ -25,6 +25,7 @@ import {
   BOOKING_STATUS,
   DOG_SIZE,
   DAILY_DOG_CAP,
+  isActiveBooking,
   type DogSize,
   type LargeDogSlotRule,
 } from "./salonConstants.ts";
@@ -89,7 +90,7 @@ export function getSeatsNeeded(size: DogSize, slot: string): number {
 
 export function getSeatsUsed(bookings: Booking[], slot: string): number {
   return bookings
-    .filter((b) => b.slot === slot)
+    .filter((b) => b.slot === slot && isActiveBooking(b.status))
     .reduce((total, b) => total + getSeatsNeeded(b.size, slot), 0);
 }
 
@@ -102,7 +103,7 @@ export function getSeatsUsedMap(bookings: Booking[], activeSlots: string[]): Rec
 }
 
 export function hasLargeDog(bookings: Booking[], slot: string): boolean {
-  return bookings.some((b) => b.slot === slot && b.size === DOG_SIZE.LARGE);
+  return bookings.some((b) => b.slot === slot && b.size === DOG_SIZE.LARGE && isActiveBooking(b.status));
 }
 
 // ============================================================
@@ -167,7 +168,7 @@ export function computeSlotCapacities(bookings: Booking[], activeSlots: string[]
       max,
       baseMax: max,
       available: largeFills ? 0 : available,
-      bookings: bookings.filter((b) => b.slot === slot),
+      bookings: bookings.filter((b) => b.slot === slot && isActiveBooking(b.status)),
       isConstrained: max < 2,
       isLargeDogApproved: isLargeDogSlot,
       hasLargeDog: hasLarge,
@@ -194,7 +195,7 @@ export function getSeatStatesForSlot(
 
   if (!cap) return [];
 
-  const slotBookings = bookings.filter((b) => b.slot === slot);
+  const slotBookings = bookings.filter((b) => b.slot === slot && isActiveBooking(b.status));
 
   // Staff-blocked seat indexes (the two physical seats only — junk indexes
   // in legacy data are ignored). A blocked seat always removes one usable
@@ -322,7 +323,7 @@ export function canBookSlot(
 
   if (!cap) return { allowed: false, reason: "Invalid slot" };
 
-  if (dogId && bookings.some((b) => b.slot === slot && b._dogId === dogId)) {
+  if (dogId && bookings.some((b) => isActiveBooking(b.status) && b.slot === slot && b._dogId === dogId)) {
     return {
       allowed: false,
       reason: "This dog is already booked in this slot",
@@ -631,9 +632,10 @@ export function findGroupedSlots(
   // only limit seats *within a slot*; without this guard a near-empty slot on
   // an otherwise-full day is still offered, letting the WhatsApp Flow propose a
   // drop-off the DB trigger (salon_config.daily_dog_cap) then rejects. The
-  // whole group must fit (atomic). `bookings` is this day's non-cancelled
-  // occupancy, one row per dog.
-  if (bookings.length + count > dailyDogCap) return [];
+  // whole group must fit (atomic). Only rows that still occupy a seat count —
+  // Cancelled and No-show free theirs, matching booking_occupies_seat().
+  const occupying = bookings.filter((booking) => isActiveBooking(booking.status));
+  if (occupying.length + count > dailyDogCap) return [];
 
   const results: SlotAllocation[] = [];
   const seenDropOffs = new Set<string>();
@@ -647,14 +649,14 @@ export function findGroupedSlots(
   }
 
   for (const slot of activeSlots) {
-    addResults(searchAllocationsForSlots(dogs, bookings, activeSlots, [slot], overrides));
+    addResults(searchAllocationsForSlots(dogs, occupying, activeSlots, [slot], overrides));
   }
 
   for (let i = 0; i < activeSlots.length - 1; i++) {
     addResults(
       searchAllocationsForSlots(
         dogs,
-        bookings,
+        occupying,
         activeSlots,
         [activeSlots[i], activeSlots[i + 1]],
         overrides,

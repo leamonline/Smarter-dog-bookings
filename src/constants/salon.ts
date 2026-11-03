@@ -211,6 +211,16 @@ export function isActiveBooking(status: string | null | undefined): boolean {
   return !TERMINAL_STATUSES.includes(status as BookingStatus);
 }
 
+/**
+ * PostgREST `in` list for `.not("status", "in", nonOccupyingStatusIn())`.
+ * The two statuses `booking_occupies_seat()` treats as free. A query cannot
+ * call `isActiveBooking`, so the list lives beside it and cannot drift to
+ * "Cancelled" alone.
+ */
+export function nonOccupyingStatusIn(): string {
+  return `(${TERMINAL_STATUSES.map((status) => `"${status}"`).join(",")})`;
+}
+
 /** True for the two ended-early states. The inverse of `isActiveBooking`. */
 export function isTerminalStatus(status: string | null | undefined): boolean {
   return TERMINAL_STATUSES.includes(status as BookingStatus);
