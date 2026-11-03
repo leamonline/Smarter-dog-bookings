@@ -3176,6 +3176,50 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_permission_confirmations: {
+        Row: {
+          action: string
+          confirmed_by: string | null
+          confirmed_by_name: string | null
+          created_at: string
+          human_id: string
+          id: string
+          previous_preferred_channel: string | null
+          reason: string
+          whatsapp_opted_out_at: string | null
+        }
+        Insert: {
+          action: string
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          human_id: string
+          id?: string
+          previous_preferred_channel?: string | null
+          reason: string
+          whatsapp_opted_out_at?: string | null
+        }
+        Update: {
+          action?: string
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          human_id?: string
+          id?: string
+          previous_preferred_channel?: string | null
+          reason?: string
+          whatsapp_opted_out_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_permission_confirmations_human_id_fkey"
+            columns: ["human_id"]
+            isOneToOne: false
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_profiles: {
         Row: {
           created_at: string | null
@@ -4974,6 +5018,14 @@ export type Database = {
       slots_are_hhmm: { Args: { p_slots: string[] }; Returns: boolean }
       staff_customer_cancellation_history: {
         Args: { p_human_id: string }
+        Returns: Json
+      }
+      staff_confirm_sms_permission: {
+        Args: { p_human_id: string; p_reason: string }
+        Returns: Json
+      }
+      staff_withdraw_sms_permission: {
+        Args: { p_human_id: string; p_reason: string }
         Returns: Json
       }
       staff_reenable_whatsapp_number: {

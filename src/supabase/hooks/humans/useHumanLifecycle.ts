@@ -288,5 +288,44 @@ export function useHumanLifecycle({
     [setHumans, setHumansById, setDirectoryHumans],
   );
 
-  return { mergeHumans, linkPendingSignup, approveSignup, rejectSignup, markWhatsappReenabled };
+  /**
+   * Show the customer's texts as confirmed (preferredChannel 'sms') or paused
+   * again (null) after the audited confirm / withdraw action has committed.
+   * Patched rather than refetched, for the reasons markWhatsappReenabled gives:
+   * realtime only refetches the visible directory page.
+   */
+  const markSmsPermissionChanged = useCallback(
+    (humanId: string, preferredChannel: string | null) => {
+      if (!humanId) return;
+      const patch = { preferredChannel };
+      setHumansById((prev) => {
+        const existing = prev[humanId];
+        if (!existing) return prev;
+        return { ...prev, [humanId]: { ...existing, ...patch, preferred_channel: preferredChannel } };
+      });
+      setHumans((prev) => {
+        if (!Object.values(prev).some((h) => h.id === humanId)) return prev;
+        const next = { ...prev };
+        for (const [key, h] of Object.entries(prev)) {
+          if (h.id === humanId) next[key] = { ...h, ...patch };
+        }
+        return next;
+      });
+      setDirectoryHumans((prev) =>
+        prev.some((h) => h.id === humanId)
+          ? prev.map((h) => (h.id === humanId ? { ...h, ...patch } : h))
+          : prev,
+      );
+    },
+    [setHumans, setHumansById, setDirectoryHumans],
+  );
+
+  return {
+    mergeHumans,
+    linkPendingSignup,
+    approveSignup,
+    rejectSignup,
+    markWhatsappReenabled,
+    markSmsPermissionChanged,
+  };
 }

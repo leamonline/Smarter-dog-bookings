@@ -48,9 +48,29 @@ only meant WhatsApp. The policy therefore:
 - **flags staff** with a "Messaging paused:" to-do (one per customer, deduplicated
   for a week) saying to ring them and check which channels they are happy with;
 - is lifted only by an **audited WhatsApp re-enable**
-  (`staff_reenable_whatsapp_number`), or by staff recording that SMS is fine
-  (`preferred_channel = 'sms'`). Ticking the optional SMS box does **not** lift it:
-  Join the Pack onboarding ticks it by default, so it proves nothing.
+  (`staff_reenable_whatsapp_number`), or by staff using **"Confirm texts are
+  fine…"** on the customer card. That records `preferred_channel = 'sms'` as the
+  proof, together with who confirmed it, when and why, in
+  `sms_permission_confirmations`. Ticking the optional SMS box does **not** lift
+  it: Join the Pack onboarding ticks it by default, so it proves nothing.
+
+### Confirming texts after a STOP
+
+On a customer whose WhatsApp is stopped, the card shows "Texts are paused — they
+said STOP on WhatsApp" with **Confirm texts are fine…**. Staff must write how the
+customer told them (at least 10 characters, kept with their name and the time, so
+no health or payment details). Then:
+
+- WhatsApp **stays off**: SMS and WhatsApp permission are separate decisions.
+- The proof can only be written by the audited action
+  (`staff_confirm_sms_permission`); an ordinary edit, the portal or an import
+  cannot set it while WhatsApp is stopped (a trigger refuses).
+- It is per customer record, not per number: another record on the same number
+  stays paused until someone has asked about it too.
+- A customer who opted out of **SMS** cannot be confirmed here.
+- **A new STOP clears it.** If they stop again, the confirmation is removed, the
+  pause returns and the history records "Cleared by a new STOP".
+- **Pause texts again…** takes it back, with a reason, and is recorded the same way.
 
 `sms_opted_out` always blocks SMS. When Twilio refuses a text with error 21610
 (the number has texted STOP to us) `sms-send` records `sms_opted_out`, with
@@ -66,7 +86,8 @@ to-do. It does not try another channel.
 | No mobile number | no | no | if an address is held |
 | Opted out of SMS | unaffected | **never** | last resort |
 | Replied STOP on WhatsApp | no | **paused** until staff clarify | yes, if held |
-| Replied STOP on WhatsApp, staff recorded `preferred_channel = 'sms'` | no | yes | yes |
+| Replied STOP on WhatsApp, staff used **Confirm texts are fine…** | no | yes (audited) | yes |
+| Confirmed, then replied STOP again | no | **paused again** (confirmation cleared and recorded) | yes, if held |
 | Opted out of both | no | no | yes, if held |
 | Any customer, **marketing** SMS | n/a | **no** (no consent flag exists; fails closed) | n/a |
 
@@ -188,11 +209,9 @@ shipped:
 - **Marketing consent column.** `canSendMarketing` exists and fails closed, but no
   consent flag exists to set. Adding `humans.marketing_sms_consent` (with a
   timestamp and source) is a migration, applied by hand
-  ([`migrations.md`](migrations.md)) before any code that depends on it.
-- **A staff control to record "SMS is fine" after a STOP.** The marker
-  (`preferred_channel = 'sms'`) works but nothing in the staff UI sets it yet, so
-  today it is a database edit. A button on the customer profile, and a proper
-  "STOP needs review" flag instead of a to-do, belong with the migration above.
+  ([`migrations.md`](migrations.md)) before any code that depends on it. All
+  promotional SMS stays disabled until a separate, properly designed
+  marketing-permission system exists.
 - **SMS delivery status.** Twilio accepts a text before it is delivered, and
   nothing receives the delivery callback (no `StatusCallback`, no inbound Twilio
   route or signature check), so a text that later fails is logged "sent". Today's

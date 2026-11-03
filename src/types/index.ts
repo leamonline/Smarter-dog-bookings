@@ -61,6 +61,13 @@ export interface Human {
   whatsappOptedOut?: boolean;
   whatsappOptedOutAt?: string | null;
   whatsappOptedOutReason?: string | null;
+  /** The customer asked us to stop texting. Always blocks SMS; cannot be confirmed away. */
+  smsOptedOut?: boolean;
+  /**
+   * 'sms' is staff's proof that texts are fine after a WhatsApp STOP. Written
+   * only by the audited confirm/withdraw actions (supabase/functions/_shared/channelPolicy.ts).
+   */
+  preferredChannel?: string | null;
   trustedIds: string[];
   trustedContacts: TrustedContact[];
 }

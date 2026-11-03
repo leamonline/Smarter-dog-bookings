@@ -26,6 +26,7 @@ import {
   HumanCardConfirmDialogs,
   MobileNewBookingBar,
   WhatsAppStopNotice,
+  SmsPermissionNotice,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 import { ModalShell } from "../ui";
@@ -65,6 +66,9 @@ export function HumanCardModal({
   // link_pending_signup moves the verified number + login here instead.
   onLinkPendingSignup,
   onWhatsappReenabled,
+  // After staff confirm or withdraw texts for a customer who replied STOP:
+  // (humanId, preferredChannel) patches the shared caches.
+  onSmsPermissionChanged,
 }) {
   const [pendingExit, setPendingExit] = useState(false);
 
@@ -267,6 +271,7 @@ export function HumanCardModal({
             onOpenHuman={onOpenHuman}
             onReenabled={onWhatsappReenabled}
           />
+          <SmsPermissionNotice key={human.id} human={human} onChanged={onSmsPermissionChanged} />
           <AtAGlanceStrip
             human={human}
             dogs={dogs}

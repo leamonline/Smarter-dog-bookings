@@ -81,6 +81,7 @@ export function useHumans(
     approveSignup: lifecycle.approveSignup,
     rejectSignup: lifecycle.rejectSignup,
     markWhatsappReenabled: lifecycle.markWhatsappReenabled,
+    markSmsPermissionChanged: lifecycle.markSmsPermissionChanged,
     fetchArchivedHumans: data.fetchArchivedHumans,
     fetchHumanById: lookups.fetchHumanById,
     findHumanByFullName: lookups.findHumanByFullName,

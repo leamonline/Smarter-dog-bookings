@@ -33,7 +33,14 @@ describe("WhatsApp opt-out on human entries", () => {
     });
     expect(
       whatsappOptOutFromRow({ whatsapp_opted_out: null, whatsapp_opted_out_at: null, whatsapp_opted_out_reason: null }),
-    ).toEqual({ whatsappOptedOut: false, whatsappOptedOutAt: null, whatsappOptedOutReason: null });
+    ).toEqual({
+      whatsappOptedOut: false,
+      whatsappOptedOutAt: null,
+      whatsappOptedOutReason: null,
+      // The helper also carries the SMS opt-out and the staff-confirmed channel.
+      smsOptedOut: false,
+      preferredChannel: null,
+    });
   });
 
   it("humanEntryToRow round-trips them", () => {
@@ -62,5 +69,33 @@ describe("WhatsApp opt-out on human entries", () => {
     const relabel: HumanPatch = { whatsappOptedOutReason: "staff" };
     const allowed: HumanPatch = { sms: false, aiWhatsappAllowed: false };
     expect([untick, clearTime, relabel, allowed]).toHaveLength(4);
+  });
+});
+
+describe("SMS permission fields on human entries", () => {
+  it("buildHumanMapEntry carries the SMS opt-out and the staff-confirmed preferred channel", () => {
+    expect(buildHumanMapEntry({ ...stoppedRow, sms_opted_out: true, preferred_channel: "sms" })).toMatchObject({
+      smsOptedOut: true,
+      preferredChannel: "sms",
+    });
+  });
+
+  it("defaults to not opted out and no preferred channel, never undefined", () => {
+    const entry = buildHumanMapEntry(stoppedRow);
+    expect(entry.smsOptedOut).toBe(false);
+    expect(entry.preferredChannel).toBeNull();
+  });
+
+  it("whatsappOptOutFromRow reads them, so every rebuild path carries them", () => {
+    expect(whatsappOptOutFromRow({ sms_opted_out: true, preferred_channel: "sms" })).toMatchObject({
+      smsOptedOut: true,
+      preferredChannel: "sms",
+    });
+    expect(whatsappOptOutFromRow({})).toMatchObject({ smsOptedOut: false, preferredChannel: null });
+  });
+
+  it("humanEntryToRow keeps them for offline and sample rows", () => {
+    const entry = buildHumanMapEntry({ ...stoppedRow, sms_opted_out: true, preferred_channel: "sms" });
+    expect(humanEntryToRow(entry)).toMatchObject({ sms_opted_out: true, preferred_channel: "sms" });
   });
 });

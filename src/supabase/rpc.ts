@@ -652,6 +652,31 @@ export function reenableWhatsappNumber(
   });
 }
 
+// SMS permission after a WhatsApp STOP ----------------------------------
+// preferred_channel = 'sms' is the proof that staff clarified a STOP; these two
+// are the only ways to set or clear it, and each writes the audit row (who,
+// when, why). See docs/messaging-policy.md.
+
+export function confirmSmsPermission(
+  client: SupabaseClient,
+  params: { humanId: string; reason: string },
+) {
+  return client.rpc("staff_confirm_sms_permission", {
+    p_human_id: params.humanId,
+    p_reason: params.reason,
+  });
+}
+
+export function withdrawSmsPermission(
+  client: SupabaseClient,
+  params: { humanId: string; reason: string },
+) {
+  return client.rpc("staff_withdraw_sms_permission", {
+    p_human_id: params.humanId,
+    p_reason: params.reason,
+  });
+}
+
 // Open-day lookup -------------------------------------------------------
 
 // day_settings is staff-only via RLS; this RPC exposes just

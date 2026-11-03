@@ -30,6 +30,8 @@ export type HumanRowLike = Omit<{ [K in keyof DbHumanRow]?: DbHumanRow[K] | null
   whatsapp_opted_out?: boolean | null;
   whatsapp_opted_out_at?: string | null;
   whatsapp_opted_out_reason?: string | null;
+  sms_opted_out?: boolean | null;
+  preferred_channel?: string | null;
 };
 
 /** The app-shaped entry buildHumanMapEntry produces (a Human plus lifecycle fields). */
@@ -128,23 +130,33 @@ export function humanEntryToRow(entry: HumanEntry): RawHumanCacheRow {
     whatsapp_opted_out: entry.whatsappOptedOut ?? null,
     whatsapp_opted_out_at: entry.whatsappOptedOutAt ?? null,
     whatsapp_opted_out_reason: entry.whatsappOptedOutReason ?? null,
+    sms_opted_out: entry.smsOptedOut ?? null,
+    preferred_channel: entry.preferredChannel ?? null,
   };
 }
 
 /**
- * The WhatsApp opt-out, read side only. Every path that rebuilds an entry
- * from a row must carry it, or a save of anything else (an SMS toggle, say)
- * would make a switched-off customer look switched on.
+ * The opt-outs and the SMS-permission proof, read side only. Every path that
+ * rebuilds an entry from a row must carry them, or a save of anything else (an
+ * SMS toggle, say) would make a switched-off customer look switched on, or a
+ * customer whose texts staff confirmed look paused.
  */
 export function whatsappOptOutFromRow(row: {
   whatsapp_opted_out?: boolean | null;
   whatsapp_opted_out_at?: string | null;
   whatsapp_opted_out_reason?: string | null;
-}): Pick<HumanEntry, "whatsappOptedOut" | "whatsappOptedOutAt" | "whatsappOptedOutReason"> {
+  sms_opted_out?: boolean | null;
+  preferred_channel?: string | null;
+}): Pick<
+  HumanEntry,
+  "whatsappOptedOut" | "whatsappOptedOutAt" | "whatsappOptedOutReason" | "smsOptedOut" | "preferredChannel"
+> {
   return {
     whatsappOptedOut: row.whatsapp_opted_out === true,
     whatsappOptedOutAt: row.whatsapp_opted_out_at ?? null,
     whatsappOptedOutReason: row.whatsapp_opted_out_reason ?? null,
+    smsOptedOut: row.sms_opted_out === true,
+    preferredChannel: row.preferred_channel ?? null,
   };
 }
 
