@@ -2,11 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { colors } from '../constants/colors';
 import { initializeAnalytics } from '../utils/analytics';
 
+function readCookieConsent() {
+    try {
+        if (typeof localStorage === 'undefined') return null;
+        return localStorage.getItem('cookieConsent');
+    } catch {
+        return null;
+    }
+}
+
 const CookieConsent = () => {
-    const [isVisible, setIsVisible] = useState(() => !localStorage.getItem('cookieConsent'));
+    // localStorage is missing during the build-time prerender. Treat that the
+    // same as "no choice yet" so the first render matches a new visitor.
+    const [isVisible, setIsVisible] = useState(() => !readCookieConsent());
 
     useEffect(() => {
-        const consent = localStorage.getItem('cookieConsent');
+        const consent = readCookieConsent();
         if (consent === 'true') {
             initializeAnalytics();
         }

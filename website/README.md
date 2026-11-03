@@ -13,6 +13,10 @@ Professional dog grooming salon website featuring:
 - Photo gallery
 - Customer testimonials
 
+## Public pages for crawlers
+
+`npm run build` prerenders the public marketing routes to HTML (`scripts/prerender.mjs`) after the Vite client build. Each route's title, meta description, canonical and LocalBusiness JSON-LD are in that file. The booking and staff app is a separate build and stays client-rendered. Unknown marketing paths are `404.html`. `www.smarterdog.co.uk` redirects to `https://smarterdog.co.uk` from `vercel.json` at the repository root.
+
 ## 🚀 Tech Stack
 
 - **Frontend**: React 19.2.0

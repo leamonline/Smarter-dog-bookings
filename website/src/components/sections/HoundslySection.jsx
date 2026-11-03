@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../../constants/colors';
+import { Link } from 'react-router-dom';
 import FadeIn from '../FadeIn';
 import PolaroidImage from '../PolaroidImage';
 
@@ -104,7 +105,10 @@ const HoundslySection = () => {
 
                                 {/* Salon link - the key differentiator */}
                                 <p className="body-font text-base mb-8 italic" style={{ color: colors.teal, opacity: 0.9 }}>
-                                    These are the products we actually use in the salon every day.
+                                    These are the products we actually use in the salon every day.{' '}
+                                    <Link to="/sensitive-skin-dog-grooming-natural-shampoo" className="font-semibold underline" style={{ color: colors.plum }}>
+                                        Grooming for sensitive skin
+                                    </Link>
                                 </p>
 
                                 {/* Single CTA */}

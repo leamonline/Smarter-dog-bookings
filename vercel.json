@@ -4,6 +4,138 @@
   "outputDirectory": "dist-combined",
   "redirects": [
     {
+      "source": "/",
+      "has": [{ "type": "host", "value": "www.smarterdog.co.uk" }],
+      "destination": "https://smarterdog.co.uk/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.smarterdog.co.uk" }],
+      "destination": "https://smarterdog.co.uk/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/home",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/home/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/about",
+      "destination": "/approach",
+      "permanent": true
+    },
+    {
+      "source": "/about/",
+      "destination": "/approach",
+      "permanent": true
+    },
+    {
+      "source": "/contact-us",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/contact-us/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/f-a-qs",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/f-a-qs/",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/raw-food",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/raw-food/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/services/",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/approach/",
+      "destination": "/approach",
+      "permanent": true
+    },
+    {
+      "source": "/faq/",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/houndsly/",
+      "destination": "/houndsly",
+      "permanent": true
+    },
+    {
+      "source": "/privacy/",
+      "destination": "/privacy",
+      "permanent": true
+    },
+    {
+      "source": "/terms/",
+      "destination": "/terms",
+      "permanent": true
+    },
+    {
+      "source": "/matted-coat-policy/",
+      "destination": "/matted-coat-policy",
+      "permanent": true
+    },
+    {
+      "source": "/community/",
+      "destination": "/community",
+      "permanent": true
+    },
+    {
+      "source": "/nervous-anxious-dog-grooming/",
+      "destination": "/nervous-anxious-dog-grooming",
+      "permanent": true
+    },
+    {
+      "source": "/senior-blind-deaf-dog-grooming/",
+      "destination": "/senior-blind-deaf-dog-grooming",
+      "permanent": true
+    },
+    {
+      "source": "/doodle-grooming-matted-coats/",
+      "destination": "/doodle-grooming-matted-coats",
+      "permanent": true
+    },
+    {
+      "source": "/dog-de-shedding-ashton-under-lyne/",
+      "destination": "/dog-de-shedding-ashton-under-lyne",
+      "permanent": true
+    },
+    {
+      "source": "/sensitive-skin-dog-grooming-natural-shampoo/",
+      "destination": "/sensitive-skin-dog-grooming-natural-shampoo",
+      "permanent": true
+    },
+    {
+      "source": "/independent-dog-groomer-vs-chain/",
+      "destination": "/independent-dog-groomer-vs-chain",
+      "permanent": true
+    },
+    {
       "source": "/customer/book",
       "destination": "/book/new",
       "permanent": true
@@ -150,8 +282,64 @@
       "destination": "/app/index.html"
     },
     {
-      "source": "/((?!assets/|app/assets/).*)",
-      "destination": "/index.html"
+      "source": "/reset-password/",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/services",
+      "destination": "/services/index.html"
+    },
+    {
+      "source": "/approach",
+      "destination": "/approach/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/houndsly",
+      "destination": "/houndsly/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/matted-coat-policy",
+      "destination": "/matted-coat-policy/index.html"
+    },
+    {
+      "source": "/community",
+      "destination": "/community/index.html"
+    },
+    {
+      "source": "/nervous-anxious-dog-grooming",
+      "destination": "/nervous-anxious-dog-grooming/index.html"
+    },
+    {
+      "source": "/senior-blind-deaf-dog-grooming",
+      "destination": "/senior-blind-deaf-dog-grooming/index.html"
+    },
+    {
+      "source": "/doodle-grooming-matted-coats",
+      "destination": "/doodle-grooming-matted-coats/index.html"
+    },
+    {
+      "source": "/dog-de-shedding-ashton-under-lyne",
+      "destination": "/dog-de-shedding-ashton-under-lyne/index.html"
+    },
+    {
+      "source": "/sensitive-skin-dog-grooming-natural-shampoo",
+      "destination": "/sensitive-skin-dog-grooming-natural-shampoo/index.html"
+    },
+    {
+      "source": "/independent-dog-groomer-vs-chain",
+      "destination": "/independent-dog-groomer-vs-chain/index.html"
     }
   ],
   "headers": [
