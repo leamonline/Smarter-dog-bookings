@@ -110,14 +110,44 @@ Before 3 November 2026 an SMS needed `humans.sms` ticked, which defaults to
 And the reverse: a customer who replied STOP on WhatsApp **and** had the box ticked
 (every Join the Pack sign-up) was texted anyway. Under the policy that is now
 paused until staff clarify. **This reduces reminders to those customers**, which
-is why each STOP now raises a to-do. Customers who stopped *before* this change
-get no retroactive to-do; the audit below finds them.
+is why each STOP now raises a to-do. Production had no opt-outs when this was
+checked (below), so nobody is paused by the change itself.
 
 ## Audit of existing customers
 
 The queries below are **read-only and return counts only**: no names, numbers or
-messages. They have not been run against production. Running them is a read of
-customer data and needs the salon's go-ahead for that session.
+messages. Running them is a read of customer data and needs the salon's go-ahead
+for that session; the salon gave it on 3 November 2026 and the results are below.
+
+### Results: production, 3 November 2026 (read-only, counts only)
+
+| Measure | Count |
+|---|---|
+| Current customer records | 961 |
+| With no phone number | 3 |
+| Textable under the **old** rule (SMS box ticked) | 914 |
+| Textable under the **new** rule | **958** (every record with a phone) |
+| Newly textable (box was off, not opted out) | 44 |
+| Had neither SMS nor WhatsApp, so reminders went by email or nowhere | 38 |
+| Opted out of WhatsApp (any reason) | **0** |
+| Opted out of SMS (any reason) | **0** |
+| Texted after a WhatsApp STOP under the old rule, now paused | 0 |
+| Failed WhatsApp notices in the last 60 days that the safety net never chased | 0 |
+| Customers with an upcoming booking being suppressed at the time | 1 |
+
+What this means:
+
+- **The old rule was a smaller problem than it first looked.** Most customers (95%)
+  already had the box ticked, mostly from Join the Pack sign-up. It suppressed 44.
+  It is still the right fix, and it also closes the 38 who had no SMS and no
+  WhatsApp.
+- **No existing customer is paused by the STOP rule**, because nobody has opted out
+  on either channel, so no retroactive to-dos are needed.
+- **Zero opt-outs is worth a second look.** It may simply be that nobody has
+  stopped, or that STOPs before October 2026 were never recorded. These five
+  queries cannot tell the two apart; the number-level record
+  (`whatsapp_conversations.whatsapp_opted_out_at`) could, and was outside what was
+  authorised.
 
 ```sql
 -- 1. How each current customer record is reachable under the OLD rule and the NEW one.
@@ -194,12 +224,10 @@ where l.channel = 'whatsapp'
 group by 1 order by 2 desc;
 ```
 
-**What to do with the results.** Query 4 is the number of people whose reminders
-are being suppressed today. Query 2 and the `paused_awaiting_staff` figure from
-query 1 are the customers who stopped before this change and now need a
-phone call to clarify which channels they allow; nothing has raised a to-do for
-them. Raise those by hand (or with an approved one-off script) rather than letting
-the first sign be a missed appointment.
+**What to do with the queries next time.** Query 4 is the number of people whose
+reminders are being suppressed *now*; query 1's `paused_awaiting_staff` is the
+customers the STOP rule currently pauses (the staff to-do and the confirm control
+only help once someone has actually stopped).
 
 ## SMS delivery tracking
 
