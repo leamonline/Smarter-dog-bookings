@@ -76,10 +76,17 @@ export function smsGroupKey(row: { human_id: string | null; trigger_type: string
  * while the booking IS cancelled — if staff restored it, the customer must not
  * be texted that it was cancelled.
  */
-export function noticeStillRelevant(triggerType: string, bookingStatus: string | undefined): boolean {
-  if (!bookingStatus) return false;
-  if (triggerType === "cancelled") return bookingStatus === "Cancelled";
-  return bookingStatus !== "Cancelled" && bookingStatus !== "Completed" && bookingStatus !== "No-show";
+export function noticeStillRelevant(
+  triggerType: string,
+  bookingStatus: string | null | undefined,
+): boolean {
+  // undefined: the booking row was not found, so there is nothing to chase.
+  // null: the status column is NULL, which booking_occupies_seat treats as Booked.
+  if (bookingStatus === undefined) return false;
+  const status = bookingStatus ?? "Booked";
+  if (!status) return false;
+  if (triggerType === "cancelled") return status === "Cancelled";
+  return status !== "Cancelled" && status !== "Completed" && status !== "No-show";
 }
 
 interface ReminderRow {

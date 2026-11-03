@@ -142,10 +142,17 @@ describe("Supabase security review regressions", () => {
     const confirmed = readProjectFile("supabase/functions/notify-booking-confirmed/index.ts");
     const reminder = readProjectFile("supabase/functions/notify-booking-reminder/index.ts");
 
+    const filters = readProjectFile("supabase/functions/_shared/salonConstants.ts");
+
     expect(confirmed).toContain('"Booked"');
     expect(confirmed).not.toContain('"Not Arrived"');
-    expect(reminder).toContain('"Booked"');
+    // The nightly pass matches Booked or a NULL status (treated as Booked).
+    // The literal lives in the shared filter so a not.in cannot drop NULL.
+    expect(reminder).toContain("bookedOrNullStatusOr()");
     expect(reminder).not.toContain('"Not Arrived"');
+    expect(filters).toContain('BOOKED: "Booked"');
+    expect(filters).toContain('status.eq."${BOOKING_STATUS.BOOKED}"');
+    expect(filters).not.toContain('"Not Arrived"');
   });
 
   it("keeps staff profile creation out of customer-authenticated sessions", () => {

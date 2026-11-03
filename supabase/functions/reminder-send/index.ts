@@ -39,6 +39,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { occupyingStatusOr } from "../_shared/salonConstants.ts";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { normaliseUkPhone } from "../_shared/twilio.ts";
 import { sendEmail } from "../_shared/email.ts";
@@ -282,6 +283,7 @@ serve(async (req) => {
     if (anchorErr || !anchor) return json(req, { error: "booking not found" }, 404);
     // Both terminal statuses, not just Cancelled. A dog that did not turn up
     // must not be chased with a reminder for the appointment it missed.
+    // NULL is Booked (booking_occupies_seat) and is still reminded.
     if (anchor.status === "Cancelled" || anchor.status === "No-show") {
       return json(req, { error: "booking is cancelled or a no-show — won't remind" }, 422);
     }
@@ -295,7 +297,7 @@ serve(async (req) => {
       .select("id, group_id, dogs!inner(human_id)")
       .eq("booking_date", anchor.booking_date)
       .eq("dogs.human_id", humanId)
-      .not("status", "in", '("Cancelled","No-show")');
+      .or(occupyingStatusOr());
     if (gatherErr) {
       console.error("reminder-send: day gather failed:", gatherErr.message);
       return json(req, { error: "bookings query failed" }, 500);

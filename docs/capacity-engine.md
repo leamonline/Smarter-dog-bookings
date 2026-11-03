@@ -165,11 +165,15 @@ Two things that could look like off-switches but are not:
 - The former Capacity Engine settings toggle wrote a **different** column
   (`salon_config.enforce_capacity`) and sometimes a JSON copy
   (`settings.enforceCapacity`). Nothing read either — they were a no-op
-  (AUDIT-1). The toggle has been removed, the app no longer reads or writes
-  the column or the JSON key, and the key is stripped from `settings` on the
-  next save. Dropping the column is a separate migration. The current card
-  is read-only and there is no UI kill switch. The real switch remains
-  `enforce_server_capacity`.
+  (AUDIT-1). The toggle has been removed. #1174 stopped the app reading or
+  writing the column and the JSON key, and the key is stripped from
+  `settings` on the next save.
+  [Migration `20261103120000`](../supabase/migrations/20261103120000_drop_enforce_capacity.sql)
+  drops the column (`IF EXISTS`, no `CASCADE`). Merging does not apply it.
+  Once it is applied, do not roll the frontend back past #1174 (merge
+  `ce6df962e3fbd48c3ba90a1bb5675bed18bca195`), which is the revision that
+  stopped those writes. The current card is read-only and there is no UI
+  kill switch. The real switch remains `enforce_server_capacity`.
 - Per-booking, staff can set `bookings.staff_capacity_override` to
   bypass capacity for that row only; the trigger honours it for
   staff inserts and forces it off for non-staff.
@@ -187,7 +191,10 @@ Two things that could look like off-switches but are not:
   it as Booked. Queries that cannot call the helper (the inbox seat preview,
   the WhatsApp Flow's day occupancy, the morning Slack day count) use
   `occupyingStatusOr()`, which keeps a NULL status and excludes Cancelled
-  and No-show. A bare `not.in` would drop the NULL rows. The waitlist
+  and No-show. A bare `not.in` would drop the NULL rows. Reminder and
+  collection-notice selection uses the same rule (`keepingNullStatusOr`, and
+  `bookedOrNullStatusOr` where the query only wanted status Booked) so a
+  missing status is not skipped. The waitlist
   does not book into a freed seat by itself. Staff fill it from the
   calendar, which shows the seat as free once the booking is marked
   No-show.

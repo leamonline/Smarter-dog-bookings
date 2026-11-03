@@ -7,7 +7,7 @@
 // authenticated customers read/insert/update only their own rows
 // (linked via humans.customer_user_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BOOKING_STATUS, occupyingStatusOr } from "../../constants/salon";
+import { BOOKING_STATUS, keepingNullStatusOr, occupyingStatusOr } from "../../constants/salon";
 import type { Booking, SlotOverrides } from "../../types/index";
 import {
   cancelCustomerBooking as cancelCustomerBookingRpc,
@@ -709,6 +709,8 @@ export async function getDepositSettings(client: SupabaseClient): Promise<Deposi
 /**
  * Every non-cancelled booking on a date whose dog belongs to an owner, with
  * the dog joined — the collection notice names every dog ready for pick-up.
+ * A NULL status is kept: the database treats it as Booked, so that dog still
+ * holds the notice. A bare `neq` would drop the row.
  */
 export function listOwnerBookingsOnDate(client: SupabaseClient, date: string, ownerId: string) {
   return client
@@ -716,7 +718,7 @@ export function listOwnerBookingsOnDate(client: SupabaseClient, date: string, ow
     .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
     .eq("booking_date", date)
     .eq("dogs.human_id", ownerId)
-    .neq("status", "Cancelled");
+    .or(keepingNullStatusOr([BOOKING_STATUS.CANCELLED]));
 }
 
 /** The service on each of a set of bookings (the reminder's service line). */
