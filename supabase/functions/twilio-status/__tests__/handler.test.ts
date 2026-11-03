@@ -5,6 +5,7 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { handleTwilioStatus } from "../handler.ts";
 import { computeTwilioSignature } from "../../_shared/twilioSignature.ts";
+import { fake } from "../../_shared/testSupport/statefulDb.ts";
 
 const TOKEN = "test-auth-token";
 const URL_ = "https://example.supabase.co/functions/v1/twilio-status";
@@ -25,36 +26,13 @@ function withEnv(env: Record<string, string | undefined>, fn: () => Promise<void
 }
 const CONFIGURED = { TWILIO_AUTH_TOKEN: TOKEN, TWILIO_STATUS_CALLBACK_URL: URL_ };
 
-function recorder(message: Record<string, unknown> | null = { id: "m1", status: "sent", content: "[template:booking_confirmed] hi", conversation_id: "c1" }) {
-  const calls: string[] = [];
-  const client = {
-    from(table: string) {
-      const q: any = {
-        select() { return q; }, eq() { return q; }, like() { return q; }, gte() { return q; }, order() { return q; }, limit() { return q; }, filter() { return q; },
-        maybeSingle() {
-          calls.push(`read:${table}`);
-          if (table === "whatsapp_messages") return Promise.resolve({ data: message, error: null });
-          return Promise.resolve({ data: { name: "Wendy", surname: "R", human_id: "h1", sort_order: 1 }, error: null });
-        },
-        then(resolve: (v: unknown) => unknown) {
-          calls.push(`read:${table}`);
-          if (table === "notification_log") return resolve({ data: [{ id: "l1", human_id: "h1", trigger_type: "confirmed", status: "sent" }], error: null });
-          return resolve({ data: [], error: null });
-        },
-        insert() { calls.push(`write:${table}`); return Promise.resolve({ error: null }); },
-        update() {
-          // Conditional updates chain eq / in / not / select and resolve with the changed rows.
-          const u: any = {
-            eq() { return u; }, in() { return u; }, not() { return u; }, select() { return u; },
-            then(resolve: (v: unknown) => unknown) { calls.push(`write:${table}`); return resolve({ data: [{ id: "x" }], error: null }); },
-          };
-          return u;
-        },
-      };
-      return q;
-    },
-  };
-  return { client, calls, writes: () => calls.filter((c) => c.startsWith("write:")) };
+// The stateful in-memory database (see _shared/testSupport/statefulDb.ts), loaded with one
+// accepted confirmation text: its inbox message and its notification-log row.
+const MESSAGE = { id: "m1", status: "sent", content: "[template:booking_confirmed] hi", conversation_id: "c1" };
+const LOG = { id: "l1", human_id: "h1", trigger_type: "confirmed", status: "sent" };
+function recorder(message: typeof MESSAGE | null = MESSAGE) {
+  const f = fake({ message, logs: [{ ...LOG }] });
+  return { ...f, writes: () => f.writes };
 }
 
 async function post(params: Record<string, string>, opts: { signature?: string | null; url?: string; method?: string } = {}) {
@@ -79,7 +57,23 @@ Deno.test("a correctly signed undelivered callback is recorded", withEnv(CONFIGU
   const body = await res.json();
   assertEquals(body.outcome, "undelivered");
   assertEquals(body.matched, true);
-  assertEquals(r.writes().length > 0, true);
+  // what ends up stored
+  assertEquals(r.db.whatsapp_messages[0].status, "failed");
+  assertEquals(String(r.db.whatsapp_messages[0].error_message).startsWith("Text not delivered"), true);
+  assertEquals(r.db.notification_log[0].status, "sent"); // the send claim is kept
+  assertEquals(String(r.db.notification_log[0].error_message).includes("their phone was off"), true);
+  assertEquals(r.db.salon_todos.length, 1);
+  assertEquals(r.db.salon_todos[0].human_id, "h1");
+  assertEquals(String(r.db.salon_todos[0].text).includes("(Ref SM123)"), true);
+}));
+
+Deno.test("a correctly signed delivered callback marks the message delivered and nothing else", withEnv(CONFIGURED, async () => {
+  const r = recorder();
+  const res = await handleTwilioStatus(await post({ MessageSid: "SM123", MessageStatus: "delivered", AccountSid: "AC1" }), { client: r.client });
+  assertEquals(res.status, 200);
+  assertEquals(r.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(r.db.notification_log[0], { ...LOG });
+  assertEquals(r.db.salon_todos.length, 0);
 }));
 
 Deno.test("the signature is checked against the configured URL, not the host the gateway reports", withEnv(CONFIGURED, async () => {

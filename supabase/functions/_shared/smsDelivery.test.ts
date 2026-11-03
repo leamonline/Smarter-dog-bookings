@@ -11,6 +11,7 @@ import {
   smsFailureLine,
 } from "./smsDelivery.ts";
 import { SMS_FAILURE_TODO_PREFIX, STOP_TODO_PREFIX } from "./staffFollowUp.ts";
+import { fake } from "./testSupport/statefulDb.ts";
 
 Deno.test("Twilio statuses map to the four outcomes, and anything unknown is ignored", () => {
   for (const s of ["queued", "accepted", "scheduled", "sending", "sent", "SENT"]) assertEquals(classifyTwilioStatus(s), "accepted", s);
@@ -55,104 +56,6 @@ Deno.test("only essential texts are described, and never by their content", () =
   assertEquals(essentialKind(null, "Hi, just checking you're OK for Tuesday"), null); // staff-typed: they're in the inbox
   assertEquals(essentialKind(undefined, undefined), null);
 });
-
-// ── applySmsStatus against a small STATEFUL in-memory database ─────────────
-// Updates really change rows and honour their filters (eq / in / not / like), so
-// tests assert what ends up STORED, not which arguments a writer was handed. That
-// is what catches ordering races and half-applied retries.
-type Row = Record<string, any>;
-interface Fixture {
-  message?: { id: string; status: string; content: string; conversation_id: string | null; error_message?: string | null } | null;
-  logs?: Array<{ id: string; human_id: string | null; trigger_type: string | null; status: string; error_message?: string | null }>;
-  conversationHuman?: string | null;
-  humansOnNumber?: Array<{ id: string; phone: string | null }>;
-  todos?: Row[];
-  /** Fail the next UPDATE on this table (then behave normally), as a dropped connection would. */
-  failNextUpdateOn?: string;
-  /** Fail the next SELECT on this table (then behave normally). */
-  failNextSelectOn?: string;
-  /** Runs just before the first UPDATE on a table, to model a concurrent callback landing in between. */
-  beforeFirstUpdate?: Record<string, (db: Record<string, Row[]>) => void>;
-}
-
-// Identity columns the fixtures don't model per-sid: every row is "SM1 and sms".
-const IGNORED = new Set(["meta_message_id", "provider_message_id", "channel"]);
-
-function fake(fx: Fixture) {
-  const db: Record<string, Row[]> = {
-    whatsapp_messages: fx.message ? [{ ...fx.message }] : [],
-    notification_log: (fx.logs ?? []).map((l) => ({ ...l })),
-    humans: (fx.humansOnNumber ?? []).map((h) => ({ ...h, sms_opted_out: false, name: "Wendy", surname: "Rowbottom" })),
-    salon_todos: (fx.todos ?? []).map((t) => ({ ...t })),
-    whatsapp_conversations: fx.conversationHuman !== undefined || fx.message ? [{ id: "c1", human_id: fx.conversationHuman ?? null }] : [],
-  };
-  const writes: Array<{ table: string; op: string; values?: Record<string, unknown>; ids?: unknown }> = [];
-  const hooks = { ...(fx.beforeFirstUpdate ?? {}) };
-  let failNext = fx.failNextUpdateOn;
-  let failNextSelect = fx.failNextSelectOn;
-  let nextId = 1;
-
-  const client = {
-    from(table: string) {
-      const filters: Array<(r: Row) => boolean> = [];
-      let op: "select" | "update" = "select";
-      let patch: Record<string, unknown> = {};
-      let limitN: number | undefined;
-      const rows = () => {
-        const m = db[table].filter((r) => filters.every((f) => f(r)));
-        return limitN === undefined ? m : m.slice(0, limitN);
-      };
-      const run = () => {
-        if (op === "update") {
-          if (hooks[table]) { hooks[table](db); delete hooks[table]; }
-          if (failNext === table) { failNext = undefined; return { data: null, error: { message: "connection dropped" } }; }
-          const matched = rows();
-          for (const r of matched) Object.assign(r, patch);
-          if (matched.length > 0) writes.push({ table, op: "update", values: patch, ids: matched.map((r) => r.id) });
-          return { data: matched.map((r) => ({ id: r.id })), error: null };
-        }
-        if (failNextSelect === table) { failNextSelect = undefined; return { data: null, error: { message: "connection dropped" } }; }
-        return { data: rows(), error: null };
-      };
-      const q: any = {
-        select() { return q; },
-        eq(c: string, v: unknown) { if (!IGNORED.has(c)) filters.push((r) => r[c] === v); return q; },
-        in(c: string, vs: unknown[]) { filters.push((r) => vs.includes(r[c])); return q; },
-        not(c: string, op: string, v: unknown) {
-          if (op === "is" && v === null) { filters.push((r) => r[c] !== null && r[c] !== undefined); return q; }
-          const set = String(v).replace(/[()]/g, "").split(",");
-          filters.push((r) => !set.includes(String(r[c])));
-          return q;
-        },
-        like(c: string, pattern: string) {
-          const re = new RegExp("^" + pattern.split("%").map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
-          filters.push((r) => re.test(String(r[c] ?? "")));
-          return q;
-        },
-        gte() { return q; }, order() { return q; }, filter() { return q; },
-        limit(n: number) { limitN = n; return q; },
-        update(values: Record<string, unknown>) { op = "update"; patch = values; return q; },
-        insert(values: Record<string, unknown>) {
-          db[table].push({ id: `new${nextId++}`, ...values });
-          writes.push({ table, op: "insert", values });
-          return Promise.resolve({ error: null });
-        },
-        maybeSingle() {
-          const { data, error } = run();
-          if (error) return Promise.resolve({ data: null, error });
-          if (table === "humans") return Promise.resolve({ data: (data as Row[])[0] ?? { name: "Wendy", surname: "Rowbottom" }, error: null });
-          if (table === "salon_todos") return Promise.resolve({ data: { sort_order: db.salon_todos.length }, error: null });
-          return Promise.resolve({ data: (data as Row[])[0] ?? null, error: null });
-        },
-        then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
-          return Promise.resolve(run()).then(resolve, reject);
-        },
-      };
-      return q;
-    },
-  };
-  return { client, db, writes, todos: () => writes.filter((w) => w.table === "salon_todos" && w.op === "insert") };
-}
 
 const SENT_MSG = { id: "m1", status: "sent", content: "[template:booking_confirmed] hello", conversation_id: "c1" };
 const LOG = { id: "l1", human_id: "h1", trigger_type: "confirmed", status: "sent" };
