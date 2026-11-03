@@ -79,6 +79,28 @@ Production deployment `7296935373` at
 2026 and includes #1060. This is a dated compatible reference, not a direction
 to roll back to it without checking subsequent schema changes.
 
+### Minimum compatible frontend after the enforce_capacity column drop
+
+Once `20261103120000_drop_enforce_capacity.sql` has been applied, every rollback
+or promotion must retain #1174 (merge commit
+`ce6df962e3fbd48c3ba90a1bb5675bed18bca195`) and its removal of
+`enforce_capacity` reads and writes. `enforce_server_capacity` is a different
+column and is unchanged. This is a release requirement, not an automatic Vercel
+restriction. Do not use an older deployment even if it previously worked.
+
+Before selecting a candidate, obtain its full Git SHA from Vercel deployment
+metadata and verify ancestry in a freshly fetched repository:
+
+```bash
+git fetch origin main
+git merge-base --is-ancestor ce6df962e3fbd48c3ba90a1bb5675bed18bca195 <candidate-sha>
+```
+
+A non-zero result (including a missing commit) blocks that candidate. An ancestry
+pass is necessary but not sufficient: also confirm the candidate has not reverted
+#1174 or reintroduced `enforce_capacity` writes. Prefer a known compatible
+production deployment and fix forward if no such candidate is available.
+
 **Limits:** this only swaps the frontend. An Edge Function or migration that
 shipped in the same merge is still live.
 
