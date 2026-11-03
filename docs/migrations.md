@@ -1,5 +1,54 @@
 # Migration history
 
+## Retired capacity settings column (#1176) — production applied 3 November 2026
+
+`20261103120000_drop_enforce_capacity.sql` drops only
+`public.salon_config.enforce_capacity`, with `IF EXISTS`, no `CASCADE` and a
+five-second lock timeout. Nothing ever enforced the column (AUDIT-1), and #1174
+(merge `ce6df962`) removed the app's last read and write first. The live
+switch, `enforce_server_capacity`, is untouched.
+
+**Pre-check** (read-only, both projects): the column present, no dependent
+object on it in `pg_depend`, and no ledger row by version, name or basename.
+Production's live frontend was Vercel deployment
+`dpl_Eksi4DnKa7xiwFbctGFViSmdeSgp` at `8469997d` (#1175), and
+`git merge-base --is-ancestor ce6df962… 8469997d…` passed, so it carries
+#1174. Production's single `salon_config` row held `enforce_capacity = true`;
+that value went with the column.
+
+**Staging** (`btjnxvgkpdbfrrqxvkfj`, `ACTIVE_HEALTHY`): applied on 3 November
+2026 through the Supabase MCP as `drop_enforce_capacity` (ledger version
+`20261103021415`; ledger 80 → 81 rows) with the exact file text at PR #1176
+head `4af787434fcdd9498ddce530e55c568d2644ac6f`: the ledger holds one
+statement whose SHA-256, trailing whitespace trimmed, equals the committed
+file's (`07fefd42836470f2e63cd871828d6e78063f6df61e5f1fea11970a9c94f01ea0`).
+Staging has no `salon_config` row, so the behaviour of
+`260_drop_enforce_capacity.test.sql` was replayed in one block that raised at
+the end, so everything rolled back: the test fixture inserted and its settings
+updated (1 row) without the column, the pull request's postcondition returned
+true as `anon`, and `get_public_salon_facts()` as `anon` returned the updated
+business name. Read back afterwards: column absent, `enforce_server_capacity`
+present, no fixture row left.
+
+**Production** (`nlzhllhkigmsvrzduefz`): the approval-gated workflow was not
+dispatched. The repository is still private, so it would refuse at its first
+step, as runs 41346844911 and 41353951360 did for #1161 above. At the owner's
+request in the session, the same file was applied through the Supabase MCP at
+02:18 GMT on 3 November 2026 as `drop_enforce_capacity` (ledger version
+`20261103021826`; ledger 255 → 256 rows). Read back afterwards through the MCP
+(catalogue and ledger only): the ledger row holds one statement with the same
+trimmed SHA-256 as staging; `enforce_capacity` is absent;
+`enforce_server_capacity` is present and still `true` on the single
+`salon_config` row; `salon_config_updated` is still the table's only user
+trigger, and it is enabled. The pull request's postcondition, run as `anon` in
+a read-only transaction, returned true, and `get_public_salon_facts()` as
+`anon` returned its one row. The row carries no workflow provenance line.
+
+Rollback cannot restore the dropped value. Do not roll the frontend back past
+#1174 (merge `ce6df962`): an older build still writes `enforce_capacity`, and
+its settings saves would fail. #1176 adds the ancestry check to the rollback
+runbook.
+
 ## Meta delivery after a Meta failure (#1161) — production applied 2 November 2026
 
 `20261101120000_notification_log_reconcile_meta_delivery.sql` adds one
