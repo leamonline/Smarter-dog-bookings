@@ -236,6 +236,36 @@ describe("governed fixtures: grouped allocations (findGroupedSlots)", () => {
   });
 });
 
+describe("a no-show frees its seat in both engines", () => {
+  // booking_occupies_seat() already excludes Cancelled and No-show. These
+  // state the answer, rather than only comparing the two engines, because
+  // both copies used to count a no-show and would have agreed on the wrong one.
+  const grid = buildSlotGrid();
+
+  it("lets another dog into a slot whose only booking is a no-show", () => {
+    const existing = [
+      { slot: "10:00", size: "small", status: "No-show" },
+      { slot: "10:00", size: "small", status: "No-show" },
+    ] as never[];
+    const engine = canBookEngine(existing, "10:00", "small", grid);
+    const mirror = canBookMirror(existing, "10:00", "small", grid);
+    expect(mirror.allowed).toBe(true);
+    expect(engine.allowed).toBe(true);
+  });
+
+  it("still counts a completed visit, and ignores a no-show toward the daily cap", () => {
+    const noShows = Array.from({ length: 14 }, (_, i) => ({
+      slot: "08:30",
+      size: "small" as const,
+      status: "No-show",
+      _dogId: `ns-${i}`,
+    }));
+    const dogs = [{ id: "new", size: "small" as const }];
+    expect(findEngine(dogs, noShows as never[], grid, DAILY_DOG_CAP, {}).length).toBeGreaterThan(0);
+    expect(findMirror(dogs, noShows as never[], grid, DAILY_DOG_CAP, {}).length).toBeGreaterThan(0);
+  });
+});
+
 describe("scenarios the governed set does not reach", () => {
   it("a day at the real daily cap offers nothing — both engines agree", () => {
     // The governed group fixtures use reduced caps (4 and 5) to stay readable,

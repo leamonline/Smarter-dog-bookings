@@ -302,7 +302,6 @@ export interface SalonConfig extends SalonSettings {
   /** Guide prices in integer pence (null = size not offered). Legacy "£42"
    *  strings tolerated until the pence migration has run everywhere. */
   pricing: Record<string, Record<string, string | number | null>>;
-  enforceCapacity: boolean;
   /** Maximum total dogs that can be booked in a single day (across all slots). */
   dailyDogCap: number;
 }

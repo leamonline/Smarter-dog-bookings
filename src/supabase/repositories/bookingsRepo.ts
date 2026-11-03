@@ -7,7 +7,7 @@
 // authenticated customers read/insert/update only their own rows
 // (linked via humans.customer_user_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BOOKING_STATUS } from "../../constants/salon";
+import { BOOKING_STATUS, occupyingStatusOr } from "../../constants/salon";
 import type { Booking, SlotOverrides } from "../../types/index";
 import {
   cancelCustomerBooking as cancelCustomerBookingRpc,
@@ -753,7 +753,9 @@ export interface SeatRow {
   dog_id: string;
 }
 
-/** Every booking on one date as seats (id, slot, size, dog) for the capacity engine. */
+/** Seat rows for one date. Cancelled and No-show do not hold a seat. A NULL
+ *  status does: the database treats it as Booked. The `or` keeps that row;
+ *  a bare `not.in` would drop it. */
 export async function listSeatsOnDate(
   client: SupabaseClient,
   date: string,
@@ -761,6 +763,7 @@ export async function listSeatsOnDate(
   const { data, error } = await client
     .from("bookings")
     .select("id, slot, size, dog_id")
-    .eq("booking_date", date);
+    .eq("booking_date", date)
+    .or(occupyingStatusOr());
   return { rows: (data ?? []) as SeatRow[], error: error ?? null };
 }

@@ -126,7 +126,6 @@ export interface DbConfigRow {
   // Integer pence going forward; legacy "£42" strings tolerated during the
   // pence migration (readers normalise via pricePenceFromTableValue).
   pricing: Record<string, Record<string, string | number | null>> | null;
-  enforce_capacity: boolean | null;
   daily_dog_cap?: number | null;
   settings?: PersistedSalonSettings | null;
 }
@@ -134,7 +133,6 @@ export interface DbConfigRow {
 interface DbConfigOut {
   default_pickup_offset: number;
   pricing: Record<string, Record<string, string | number | null>>;
-  enforce_capacity: boolean;
   daily_dog_cap: number;
   settings: SalonSettings;
 }
@@ -486,7 +484,6 @@ export function dbConfigToApp(row: DbConfigRow | null): SalonConfig | null {
     ...settings,
     defaultPickupOffset: row.default_pickup_offset ?? defaults.defaultPickupOffset,
     pricing: row.pricing || defaults.pricing,
-    enforceCapacity: row.enforce_capacity ?? defaults.enforceCapacity,
     dailyDogCap: row.daily_dog_cap ?? defaults.dailyDogCap,
   };
 }
@@ -497,7 +494,6 @@ export function appConfigToDb(config: SalonConfig): DbConfigOut {
   return {
     default_pickup_offset: config.defaultPickupOffset ?? defaults.defaultPickupOffset,
     pricing: config.pricing || defaults.pricing,
-    enforce_capacity: config.enforceCapacity ?? defaults.enforceCapacity,
     daily_dog_cap: config.dailyDogCap ?? defaults.dailyDogCap,
     settings,
   };

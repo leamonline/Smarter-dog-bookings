@@ -111,6 +111,17 @@ export function isActiveBooking(status: string | null | undefined): boolean {
   return !(TERMINAL_STATUSES as readonly string[]).includes(status ?? "");
 }
 
+/**
+ * PostgREST `or` filter for rows that still occupy a seat.
+ *
+ * Mirrors `occupyingStatusOr` in src/constants/salon.ts. NULL status counts,
+ * matching booking_occupies_seat(). A bare not.in filter drops NULL.
+ */
+export function occupyingStatusOr(): string {
+  const excluded = TERMINAL_STATUSES.map((status) => `"${status}"`).join(",");
+  return `status.is.null,status.not.in.(${excluded})`;
+}
+
 // Customer self-service portal sign-in/sign-up URL (prod default). This
 // module stays pure (no Deno/env access); callers in the Edge functions
 // override per-environment via `Deno.env.get("CUSTOMER_PORTAL_URL")`.

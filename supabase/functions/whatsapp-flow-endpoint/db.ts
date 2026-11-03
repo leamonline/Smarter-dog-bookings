@@ -24,7 +24,7 @@ import {
   sanitizeDayOverrides,
 } from "../_shared/flowBooking.ts";
 import type { SlotOverrides } from "../_shared/capacity.ts";
-import type { DogSize, PricingMap } from "../_shared/salonConstants.ts";
+import { occupyingStatusOr, type DogSize, type PricingMap } from "../_shared/salonConstants.ts";
 import { WHATSAPP_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
 /** Pinned (server-resolved) per-dog identity for the booking group. */
@@ -187,13 +187,14 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
     async getBookingsForDate(dateStr: string): Promise<ExistingBooking[]> {
       // Service role bypasses RLS, so this sees every customer's booking —
       // exactly what the 2-2-1 group allocator needs (the portal reaches the
-      // same full occupancy via the get_slot_occupancy RPC). Cancelled rows
-      // don't hold a seat.
+      // same full occupancy via the get_slot_occupancy RPC). Cancelled and
+      // No-show do not hold a seat. NULL status does (booking_occupies_seat
+      // treats it as Booked), so this is an `or`, not a bare not.in.
       const { data, error } = await supabase
         .from("bookings")
         .select("slot, size")
         .eq("booking_date", dateStr)
-        .neq("status", "Cancelled");
+        .or(occupyingStatusOr());
       if (error) {
         console.error("getBookingsForDate failed:", error.message);
         return [];

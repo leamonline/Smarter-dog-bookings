@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
+import { SIZE_THEME, SIZE_FALLBACK, isActiveBooking } from "../../constants/index";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import { DrawerShell } from "../shared/DrawerShell";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
@@ -431,6 +431,7 @@ export function NewBookingModal({
     const existingBookings = bookingsByDate?.[selectedDateStr] || [];
     for (const entry of dogEntries) {
       const duplicate = existingBookings.find((b) => {
+        if (!isActiveBooking(b.status)) return false;
         if (b.slot !== selectedSlot) return false;
         if (b._dogId && entry.dog.id) return b._dogId === entry.dog.id;
         return b.dogName === entry.dog.name;
