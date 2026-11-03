@@ -305,7 +305,8 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `humans.sms` tickbox (default off) is deliberately NOT consulted, and don't reintroduce it. An `sms_opted_out`
   always blocks SMS. A STOP is honoured for the channel it was sent on: a `whatsapp_opted_out` switches **WhatsApp**
   off and essential messages go by SMS instead; either STOP raises a "STOP received:" staff to-do. Marketing is a
-  separate class that stays disabled (no consent flag exists yet). Don't write
+  separate class that stays disabled (no consent flag exists yet). SMS needs a **textable number** (UK mobile or
+  international; a landline stays on email) and `sms-send` itself refuses opted-out numbers for every caller. Don't write
   a per-function copy of the rule. See [docs/messaging-policy.md](docs/messaging-policy.md).
 - **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
   Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/

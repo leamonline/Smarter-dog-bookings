@@ -299,6 +299,19 @@ Deno.test("the optional SMS tickbox is not needed: a customer with it off is sti
   assertEquals(patch.channel, "sms");
 });
 
+Deno.test("a text STOP (Twilio 21610) on this direct send is recorded and flagged for staff, like sms-send does", async () => {
+  const { calls } = await cancel(HUMAN, {
+    twilio: { status: 400, body: { code: 21610, message: "Attempt to send to unsubscribed recipient" } },
+  });
+  const optOut = calls.find((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
+  assertEquals((optOut?.body as Record<string, unknown>)?.sms_opted_out, true);
+  assertEquals((optOut?.body as Record<string, unknown>)?.sms_opted_out_reason, "asked_on_sms");
+  const todo = calls.find((c) => c.path === "/rest/v1/salon_todos" && c.method === "POST");
+  assertStringIncludes(String((todo?.body as Record<string, unknown>)?.text), "STOP received:");
+  // The cancellation itself still falls back to email.
+  assertEquals(emailCalls(calls).length, 1);
+});
+
 Deno.test("a reschedule cancellation is still skipped and nothing is sent, flag on or off", async () => {
   Deno.env.set("CANCELLATION_WHATSAPP_ENABLED", "true");
   const calls: Call[] = [];

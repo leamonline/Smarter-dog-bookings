@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
+import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmailDetailed } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime } from "../_shared/format.ts";
@@ -365,6 +366,9 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
           providerMessageId = sms.sid ?? null;
           return true;
         }
+        // A text STOP (21610) is recorded and flagged for staff the same way as in
+        // sms-send; this path calls Twilio directly so it must do it itself.
+        if (isRecipientUnsubscribed(sms.errorCode)) await recordSmsStop(supabase, human.phone);
         const rejected = smsRejection(sms);
         console.error(`Twilio SMS failed (${sms.status}): ${rejected}`);
         failures.push(rejected);

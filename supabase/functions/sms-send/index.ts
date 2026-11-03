@@ -45,7 +45,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
-import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
+import { isRecipientUnsubscribed, isSmsOptedOutOnNumber, recordSmsStop } from "../_shared/smsStop.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -216,6 +216,25 @@ async function handleSend(
   const phoneE164 = normaliseUkPhone(body.to);
   if (!phoneE164 || !phoneE164.startsWith("+")) {
     return json(req, { error: "to is not a valid phone number" }, 400);
+  }
+
+  // Server-side opt-out guard, for every caller and every mode: a customer who has
+  // asked us to stop texting is never texted, whatever the caller's own snapshot
+  // said. Fails closed: if the check can't be made, nothing is sent.
+  try {
+    if (await isSmsOptedOutOnNumber(supabase, phoneE164)) {
+      return json(
+        req,
+        {
+          error: "recipient opted out",
+          detail: "This customer has opted out of texts, so nothing was sent.",
+        },
+        409,
+      );
+    }
+  } catch (err) {
+    console.error("sms-send: opt-out check failed; refusing to send:", err instanceof Error ? err.message : String(err));
+    return json(req, { error: "could not check opt-out", detail: "Try again in a moment." }, 503);
   }
 
   let twilioResult;
