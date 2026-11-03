@@ -248,8 +248,13 @@ live. A free-text message typed by staff only turns red in the inbox (they are
 already looking at it). A text STOP (error 21610) is recorded as an SMS opt-out
 and flagged as described under [STOP](#stop).
 
-Statuses can arrive out of order, so one never moves backwards, and a repeated
-callback changes nothing.
+Statuses can arrive out of order, so one never moves backwards. The rule is
+enforced in the database itself (a failure only updates a message that is not yet
+delivered, and staff are only alerted if that update really changed a row), so two
+callbacks arriving together cannot overwrite a delivery. A delivery that arrives
+after a failure corrects both the inbox message and the booking's delivery record.
+A repeated callback changes nothing that is already done, and if an earlier attempt
+died half way (answered 500) Twilio's retry finishes the missing steps.
 
 **Security.** The endpoint is public (Twilio has no JWT), so the whole boundary is
 the `X-Twilio-Signature` check against the configured callback URL, which fails

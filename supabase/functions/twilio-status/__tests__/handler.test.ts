@@ -43,7 +43,11 @@ function recorder(message: Record<string, unknown> | null = { id: "m1", status: 
         },
         insert() { calls.push(`write:${table}`); return Promise.resolve({ error: null }); },
         update() {
-          const u: any = { eq() { calls.push(`write:${table}`); return Promise.resolve({ error: null }); }, in() { return { eq: u.eq, then(r: (v: unknown) => unknown) { calls.push(`write:${table}`); return r({ error: null }); } }; } };
+          // Conditional updates chain eq / in / not / select and resolve with the changed rows.
+          const u: any = {
+            eq() { return u; }, in() { return u; }, not() { return u; }, select() { return u; },
+            then(resolve: (v: unknown) => unknown) { calls.push(`write:${table}`); return resolve({ data: [{ id: "x" }], error: null }); },
+          };
           return u;
         },
       };

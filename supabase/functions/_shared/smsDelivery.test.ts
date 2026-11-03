@@ -39,7 +39,7 @@ Deno.test("a status never moves backwards, and delivered may replace a failure",
   assertEquals(shouldApplyStatus("delivered", "failed"), false);
   assertEquals(shouldApplyStatus("delivered", "undelivered"), false);
   assertEquals(shouldApplyStatus("delivered", "delivered"), false);
-  assertEquals(shouldApplyStatus("failed", "failed"), false); // a repeat
+  assertEquals(shouldApplyStatus("failed", "failed"), true); // a repeat may finish half-applied work
   assertEquals(shouldApplyStatus("failed", "delivered"), true); // positive evidence wins
   assertEquals(shouldApplyStatus("sent", "accepted"), false);
   assertEquals(shouldApplyStatus("sent", "ignored"), false);
@@ -56,58 +56,98 @@ Deno.test("only essential texts are described, and never by their content", () =
   assertEquals(essentialKind(undefined, undefined), null);
 });
 
-// ── applySmsStatus against a recording fake ─────────────────────────────────
+// ── applySmsStatus against a small STATEFUL in-memory database ─────────────
+// Updates really change rows and honour their filters (eq / in / not / like), so
+// tests assert what ends up STORED, not which arguments a writer was handed. That
+// is what catches ordering races and half-applied retries.
+type Row = Record<string, any>;
 interface Fixture {
-  message?: { id: string; status: string; content: string; conversation_id: string | null } | null;
-  logs?: Array<{ id: string; human_id: string | null; trigger_type: string | null; status: string }>;
+  message?: { id: string; status: string; content: string; conversation_id: string | null; error_message?: string | null } | null;
+  logs?: Array<{ id: string; human_id: string | null; trigger_type: string | null; status: string; error_message?: string | null }>;
   conversationHuman?: string | null;
   humansOnNumber?: Array<{ id: string; phone: string | null }>;
-  openTodo?: boolean;
+  todos?: Row[];
+  /** Fail the next UPDATE on this table (then behave normally), as a dropped connection would. */
+  failNextUpdateOn?: string;
+  /** Runs just before the first UPDATE on a table, to model a concurrent callback landing in between. */
+  beforeFirstUpdate?: Record<string, (db: Record<string, Row[]>) => void>;
 }
 
+// Identity columns the fixtures don't model per-sid: every row is "SM1 and sms".
+const IGNORED = new Set(["meta_message_id", "provider_message_id", "channel"]);
+
 function fake(fx: Fixture) {
+  const db: Record<string, Row[]> = {
+    whatsapp_messages: fx.message ? [{ ...fx.message }] : [],
+    notification_log: (fx.logs ?? []).map((l) => ({ ...l })),
+    humans: (fx.humansOnNumber ?? []).map((h) => ({ ...h, sms_opted_out: false, name: "Wendy", surname: "Rowbottom" })),
+    salon_todos: (fx.todos ?? []).map((t) => ({ ...t })),
+    whatsapp_conversations: [],
+  };
   const writes: Array<{ table: string; op: string; values?: Record<string, unknown>; ids?: unknown }> = [];
+  const hooks = { ...(fx.beforeFirstUpdate ?? {}) };
+  let failNext = fx.failNextUpdateOn;
+  let nextId = 1;
+
   const client = {
     from(table: string) {
+      const filters: Array<(r: Row) => boolean> = [];
+      let op: "select" | "update" = "select";
+      let patch: Record<string, unknown> = {};
+      let limitN: number | undefined;
+      const rows = () => {
+        const m = db[table].filter((r) => filters.every((f) => f(r)));
+        return limitN === undefined ? m : m.slice(0, limitN);
+      };
+      const run = () => {
+        if (op === "update") {
+          if (hooks[table]) { hooks[table](db); delete hooks[table]; }
+          if (failNext === table) { failNext = undefined; return { data: null, error: { message: "connection dropped" } }; }
+          const matched = rows();
+          for (const r of matched) Object.assign(r, patch);
+          if (matched.length > 0) writes.push({ table, op: "update", values: patch, ids: matched.map((r) => r.id) });
+          return { data: matched.map((r) => ({ id: r.id })), error: null };
+        }
+        return { data: rows(), error: null };
+      };
       const q: any = {
-        select() { return q; }, eq() { return q; }, like() { return q; }, gte() { return q; },
-        order() { return q; }, limit() { return q; }, filter() { return q; },
+        select() { return q; },
+        eq(c: string, v: unknown) { if (!IGNORED.has(c)) filters.push((r) => r[c] === v); return q; },
+        in(c: string, vs: unknown[]) { filters.push((r) => vs.includes(r[c])); return q; },
+        not(c: string, _op: string, v: string) {
+          const set = String(v).replace(/[()]/g, "").split(",");
+          filters.push((r) => !set.includes(String(r[c])));
+          return q;
+        },
+        like(c: string, pattern: string) {
+          const prefix = pattern.replace(/%$/, "");
+          filters.push((r) => String(r[c] ?? "").startsWith(prefix));
+          return q;
+        },
+        gte() { return q; }, order() { return q; }, filter() { return q; },
+        limit(n: number) { limitN = n; return q; },
+        update(values: Record<string, unknown>) { op = "update"; patch = values; return q; },
+        insert(values: Record<string, unknown>) {
+          db[table].push({ id: `new${nextId++}`, ...values });
+          writes.push({ table, op: "insert", values });
+          return Promise.resolve({ error: null });
+        },
         maybeSingle() {
-          if (table === "whatsapp_messages") return Promise.resolve({ data: fx.message ?? null, error: null });
+          const { data, error } = run();
+          if (error) return Promise.resolve({ data: null, error });
           if (table === "whatsapp_conversations") return Promise.resolve({ data: { human_id: fx.conversationHuman ?? null }, error: null });
-          if (table === "humans") return Promise.resolve({ data: { name: "Wendy", surname: "Rowbottom" }, error: null });
-          return Promise.resolve({ data: { sort_order: 1 }, error: null }); // salon_todos sort_order
+          if (table === "humans") return Promise.resolve({ data: (data as Row[])[0] ?? { name: "Wendy", surname: "Rowbottom" }, error: null });
+          if (table === "salon_todos") return Promise.resolve({ data: { sort_order: db.salon_todos.length }, error: null });
+          return Promise.resolve({ data: (data as Row[])[0] ?? null, error: null });
         },
-        then(resolve: (v: unknown) => unknown) {
-          if (table === "notification_log") return resolve({ data: fx.logs ?? [], error: null });
-          if (table === "humans") return resolve({ data: fx.humansOnNumber ?? [], error: null });
-          if (table === "salon_todos") return resolve({ data: fx.openTodo ? [{ id: "t" }] : [], error: null });
-          return resolve({ data: [], error: null });
-        },
-        insert(values: Record<string, unknown>) { writes.push({ table, op: "insert", values }); return Promise.resolve({ error: null }); },
-        update(values: Record<string, unknown>) {
-          const u: any = {
-            eq(_c: string, ids: unknown) { writes.push({ table, op: "update", values, ids }); return Promise.resolve({ error: null }); },
-            in(_c: string, ids: unknown) { u._ids = ids; return u; },
-          };
-          u.eq = (_c: string, v: unknown) => {
-            if (u._ids !== undefined) { writes.push({ table, op: "update", values, ids: u._ids }); return Promise.resolve({ error: null }); }
-            writes.push({ table, op: "update", values, ids: v });
-            return Promise.resolve({ error: null });
-          };
-          const inFn = u.in;
-          u.in = (c: string, ids: unknown) => {
-            u._ids = ids; inFn(c, ids);
-            const t: any = { eq: u.eq, then(r: (v: unknown) => unknown) { writes.push({ table, op: "update", values, ids }); return r({ error: null }); } };
-            return t;
-          };
-          return u;
+        then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
+          return Promise.resolve(run()).then(resolve, reject);
         },
       };
       return q;
     },
   };
-  return { client, writes, todos: () => writes.filter((w) => w.table === "salon_todos" && w.op === "insert") };
+  return { client, db, writes, todos: () => writes.filter((w) => w.table === "salon_todos" && w.op === "insert") };
 }
 
 const SENT_MSG = { id: "m1", status: "sent", content: "[template:booking_confirmed] hello", conversation_id: "c1" };
@@ -194,10 +234,97 @@ Deno.test("out-of-order and repeated callbacks change nothing", async () => {
   f = fake({ message: { ...SENT_MSG, status: "delivered" }, logs: [LOG] });
   out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
   assertEquals(f.writes.length, 0);
-  // the same failure again
-  f = fake({ message: { ...SENT_MSG, status: "failed" }, logs: [{ ...LOG, status: "failed" }] });
+  // the same failure again, with everything already applied: no log change, no second to-do
+  f = fake({
+    message: { ...SENT_MSG, status: "failed" },
+    logs: [{ ...LOG, status: "failed" }],
+    todos: [{ id: "t1", human_id: "h1", done: false, text: `${SMS_FAILURE_TODO_PREFIX} booking confirmation text` }],
+  });
   out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
-  assertEquals(f.writes.length, 0);
+  assertEquals(f.writes.filter((w) => w.table === "notification_log").length, 0);
+  assertEquals(f.todos().length, 0);
+  assertEquals(f.db.whatsapp_messages[0].status, "failed");
+});
+
+// ── Codex findings on the first version ────────────────────────────────────
+
+Deno.test("a late failure cannot overwrite 'delivered' even when both callbacks read 'sent' (ordering is enforced in the database)", async () => {
+  const f = fake({
+    message: SENT_MSG,
+    logs: [LOG],
+    // the delivery callback lands between our read and our write
+    beforeFirstUpdate: { whatsapp_messages: (db) => { db.whatsapp_messages[0].status = "delivered"; } },
+  });
+  const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(f.db.whatsapp_messages[0].error_message, undefined);
+  assertEquals(f.db.notification_log[0].status, "sent"); // the log was not marked failed
+  assertEquals(f.todos().length, 0); // and nobody was alerted
+  assertEquals(out.updatedMessage, false);
+});
+
+Deno.test("delivery after a recorded failure repairs the log row as well as the message", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG] });
+  await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.notification_log[0].status, "failed");
+  const out = await applySmsStatus(f.client, { sid: "SM1", status: "delivered" });
+  assertEquals(f.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(f.db.whatsapp_messages[0].error_message, null);
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertEquals(f.db.notification_log[0].error_message, null);
+  assertEquals(out.updatedLog, 1);
+});
+
+Deno.test("delivery repairs a failed log even when the message is already marked delivered", async () => {
+  const f = fake({ message: { ...SENT_MSG, status: "delivered" }, logs: [{ ...LOG, status: "failed", error_message: "old" }] });
+  await applySmsStatus(f.client, { sid: "SM1", status: "delivered" });
+  assertEquals(f.db.notification_log[0].status, "sent");
+});
+
+Deno.test("a callback that died half way is finished by its retry (message marked, log not)", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG], failNextUpdateOn: "notification_log" });
+  const event = { sid: "SM1", status: "undelivered", errorCode: "30003", to: "+447700900123" };
+  let threw = false;
+  try { await applySmsStatus(f.client, event); } catch { threw = true; }
+  assertEquals(threw, true);
+  // the half-applied state a crash leaves behind
+  assertEquals(f.db.whatsapp_messages[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertEquals(f.db.salon_todos.length, 0);
+  // Twilio re-delivers: the retry completes the log and raises the alert
+  const out = await applySmsStatus(f.client, event);
+  assertEquals(f.db.notification_log[0].status, "failed");
+  assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
+  assertEquals(out.todo, "created");
+  assertEquals(f.db.salon_todos.length, 1);
+  // and a third delivery changes nothing more
+  await applySmsStatus(f.client, event);
+  assertEquals(f.db.salon_todos.length, 1);
+});
+
+Deno.test("a STOP whose log update failed is still recorded on retry", async () => {
+  const f = fake({
+    message: SENT_MSG,
+    logs: [LOG],
+    humansOnNumber: [{ id: "h1", phone: "07700 900123" }],
+    failNextUpdateOn: "notification_log",
+  });
+  const event = { sid: "SM1", status: "undelivered", errorCode: "21610", to: "+447700900123" };
+  let threw = false;
+  try { await applySmsStatus(f.client, event); } catch { threw = true; }
+  assertEquals(threw, true);
+  assertEquals(f.db.humans[0].sms_opted_out, false);
+  const out = await applySmsStatus(f.client, event);
+  assertEquals(out.stopRecorded, true);
+  assertEquals(f.db.humans[0].sms_opted_out, true);
+  assertEquals(f.db.salon_todos.filter((t) => String(t.text).startsWith(STOP_TODO_PREFIX)).length, 1);
+});
+
+Deno.test("a STOP that could not be recorded is raised, not swallowed, so Twilio retries", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG], humansOnNumber: [{ id: "h1", phone: "07700 900123" }], failNextUpdateOn: "humans" });
+  let threw = false;
+  try { await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "21610", to: "+447700900123" }); } catch { threw = true; }
+  assertEquals(threw, true);
 });
 
 Deno.test("an unknown message id is a no-op, not an error", async () => {

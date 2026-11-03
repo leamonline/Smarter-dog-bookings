@@ -24,8 +24,10 @@
 // secret (and the Auth Token) are configured. Deploying it unconfigured is
 // inert: it answers 500 to everything.
 //
-// Replays are harmless: a status never moves backwards and a repeated one
-// changes nothing. No customer details are logged, only the message SID.
+// Replays are harmless: a status never moves backwards (enforced by conditional
+// updates in the database) and a repeated one changes nothing already done. A
+// database error answers 500 so Twilio re-delivers, and the retry finishes any
+// step the first attempt did not reach. No customer details are logged, only the message SID.
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

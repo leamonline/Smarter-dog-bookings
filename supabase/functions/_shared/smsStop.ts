@@ -43,7 +43,7 @@ export async function recordSmsStop(
   supabase: any,
   phoneE164: string,
   now: Date = new Date(),
-): Promise<{ onNumber: number }> {
+): Promise<{ onNumber: number; failed?: boolean }> {
   try {
     const pattern = phoneMatchPattern(phoneE164);
     if (!pattern) return { onNumber: 0 };
@@ -80,7 +80,9 @@ export async function recordSmsStop(
       "recordSmsStop failed (non-fatal):",
       err instanceof Error ? err.message : JSON.stringify(err),
     );
-    return { onNumber: 0 };
+    // Say so: a caller that can be retried (the delivery callback) must not mistake
+    // "the bookkeeping failed" for "nobody is on that number".
+    return { onNumber: 0, failed: true };
   }
 }
 

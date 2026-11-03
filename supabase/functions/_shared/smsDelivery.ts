@@ -82,15 +82,18 @@ export function smsFailureLine(outcome: "undelivered" | "failed", code: string |
 }
 
 /**
- * Whether a newer status may replace the stored one. Statuses can arrive out of
- * order, so one never moves backwards: a late "sent" must not undo "delivered".
- * Delivered is positive evidence, so it may replace a recorded failure.
+ * Whether a newer status may replace the stored one on the MESSAGE. Statuses can
+ * arrive out of order, so one never moves backwards: a late "sent" must not undo
+ * "delivered". Delivered is positive evidence, so it may replace a recorded
+ * failure. A repeated failure is allowed through on purpose: every write behind it
+ * is conditional and idempotent, so a callback whose first attempt died half way
+ * (message marked, log not) is finished by Twilio's re-delivery instead of being
+ * skipped as "already done".
  */
 export function shouldApplyStatus(current: string | null | undefined, next: SmsOutcome): boolean {
   if (next === "ignored" || next === "accepted") return false; // already stored as 'sent'
   if (next === "delivered") return current !== "delivered" && current !== "read";
-  // a failure: only while the message is not yet delivered, and not twice
-  return current !== "delivered" && current !== "read" && current !== "failed";
+  return current !== "delivered" && current !== "read"; // a failure, until it is delivered
 }
 
 /** What an essential text was, for the staff to-do (no message content, ever). */
@@ -123,8 +126,9 @@ export interface SmsStatusResult {
 }
 
 /**
- * Apply one Twilio status callback. Idempotent: a repeated callback changes
- * nothing, so Twilio re-delivering one is harmless.
+ * Apply one Twilio status callback. Safe to repeat: a re-delivered callback
+ * changes nothing that is already done and finishes anything a crashed attempt
+ * left undone.
  */
 export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Promise<SmsStatusResult> {
   const outcome = classifyTwilioStatus(event.status);
@@ -158,33 +162,70 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
   if (!result.matched) return result; // not one of ours, or the row isn't written yet
 
   const current: string | null = message?.status ?? null;
-  if (!shouldApplyStatus(current, outcome)) return result;
+  const failedLogIds = logs.filter((l) => l.status === "failed").map((l) => l.id);
 
   if (outcome === "delivered") {
-    if (message) {
+    // Positive evidence wins everywhere. The message and the log are repaired
+    // independently, so staff surfaces (inbox, booking delivery card) agree even
+    // when the failure callback arrived first.
+    if (message && shouldApplyStatus(current, outcome)) {
       const { error } = await supabase.from("whatsapp_messages").update({ status: "delivered", error_message: null }).eq("id", message.id);
       if (error) throw new Error(`message update failed: ${error.message ?? "unknown"}`);
       result.updatedMessage = true;
     }
+    if (failedLogIds.length > 0) {
+      // notification_log only knows sent / failed / pending: 'sent' is "went out".
+      const { error } = await supabase
+        .from("notification_log")
+        .update({ status: "sent", error_message: null })
+        .in("id", failedLogIds)
+        .eq("status", "failed");
+      if (error) throw new Error(`log update failed: ${error.message ?? "unknown"}`);
+      result.updatedLog = failedLogIds.length;
+    }
     return result;
   }
 
+  if (!shouldApplyStatus(current, outcome)) return result; // already delivered: never move backwards
+
   const line = smsFailureLine(outcome, event.errorCode);
   if (message) {
-    const { error } = await supabase.from("whatsapp_messages").update({ status: "failed", error_message: line }).eq("id", message.id);
+    // The ordering rule is enforced IN the database: two callbacks can both have read
+    // 'sent', so a JavaScript check alone would let a late failure overwrite
+    // 'delivered'. Only when this update really changed a row do we go on to the
+    // side effects; zero rows means a delivery got there first.
+    const { data: changed, error } = await supabase
+      .from("whatsapp_messages")
+      .update({ status: "failed", error_message: line })
+      .eq("id", message.id)
+      .not("status", "in", "(delivered,read)")
+      .select("id");
     if (error) throw new Error(`message update failed: ${error.message ?? "unknown"}`);
+    if (!Array.isArray(changed) || changed.length === 0) return result;
     result.updatedMessage = true;
   }
+  // Each remaining step is derived from current state and safe to repeat (the log
+  // update is conditional on 'sent', STOP recording on not-yet-opted-out, the to-do
+  // is deduplicated), so a retry after a partial failure completes what is missing.
   const sentLogIds = logs.filter((l) => l.status === "sent").map((l) => l.id);
   if (sentLogIds.length > 0) {
-    const { error } = await supabase.from("notification_log").update({ status: "failed", error_message: line }).in("id", sentLogIds);
+    const { error } = await supabase
+      .from("notification_log")
+      .update({ status: "failed", error_message: line })
+      .in("id", sentLogIds)
+      .eq("status", "sent");
     if (error) throw new Error(`log update failed: ${error.message ?? "unknown"}`);
     result.updatedLog = sentLogIds.length;
   }
 
   // A text STOP: record it and flag staff. recordSmsStop raises its own to-do.
   if (isRecipientUnsubscribed(event.errorCode)) {
-    if (event.to) await recordSmsStop(supabase, event.to);
+    if (event.to) {
+      const stop = await recordSmsStop(supabase, event.to);
+      // Raise so the handler answers 500 and Twilio re-delivers: every step above is
+      // already applied and the ones below are safe to repeat.
+      if (stop.failed) throw new Error("STOP could not be recorded");
+    }
     result.stopRecorded = Boolean(event.to);
     result.todo = "skipped";
     return result;
@@ -206,5 +247,6 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
     reply: "none",
     detail: `${kind} text (${describeTwilioError(event.errorCode)})`,
   });
+  if (result.todo === "failed") throw new Error("staff to-do could not be created");
   return result;
 }
