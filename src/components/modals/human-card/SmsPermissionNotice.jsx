@@ -11,7 +11,7 @@
 import { useEffect, useId, useState } from "react";
 import { X } from "lucide-react";
 import { HeaderIconButton } from "../shell/index.js";
-import { Button, InlineError, ModalShell } from "../../ui";
+import { Button, Field, InlineError, ModalShell, Textarea } from "../../ui";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { useSmsPermission } from "../../../supabase/hooks/useSmsPermission";
 import {
@@ -48,7 +48,7 @@ const COPY = {
 function ReasonDialog({ kind, human, onClose, onSaved }) {
   const sms = useSmsPermission();
   const copy = COPY[kind];
-  const ids = { title: useId(), field: useId(), helper: useId(), error: useId() };
+  const titleId = useId();
   const [reason, setReason] = useState("");
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,7 +76,7 @@ function ReasonDialog({ kind, human, onClose, onSaved }) {
     <ModalShell
       onClose={onClose}
       dismissOnEscape={!saving}
-      titleId={ids.title}
+      titleId={titleId}
       accent="var(--color-brand-teal)"
       widthClass="w-[min(520px,95vw)]"
       mobilePresentation="sheet"
@@ -87,7 +87,7 @@ function ReasonDialog({ kind, human, onClose, onSaved }) {
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
             <span className="text-label text-slate-600">{copy.eyebrow}</span>
-            <h2 id={ids.title} className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1">
+            <h2 id={titleId} className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1">
               {copy.title}
             </h2>
           </div>
@@ -122,29 +122,21 @@ function ReasonDialog({ kind, human, onClose, onSaved }) {
           Automatic texts to this customer will stop again until someone confirms they’re fine.
         </p>
       )}
-      <div>
-        <label htmlFor={ids.field} className="block text-xs font-bold text-slate-600 mb-1">
-          {copy.label}
-        </label>
-        <textarea
-          id={ids.field}
+      <Field
+        label={copy.label}
+        hint={`For example: ${copy.example} At least ${SMS_REASON_MIN_LENGTH} characters. It’s kept in the audit log with your name and the time, and other staff can see it, so leave out health or payment details.`}
+        error={showReasonError ? check.error : ""}
+      >
+        <Textarea
           rows={3}
           maxLength={500}
           value={reason}
           disabled={saving}
           onChange={(event) => setReason(event.target.value)}
           onBlur={() => setTouched(true)}
-          aria-invalid={showReasonError || undefined}
-          aria-describedby={showReasonError ? `${ids.helper} ${ids.error}` : ids.helper}
-          className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 bg-white outline-none resize-y focus:border-brand-teal"
         />
-        <p id={ids.helper} className="m-0 mt-1 text-xs text-slate-600">
-          For example: {copy.example} At least {SMS_REASON_MIN_LENGTH} characters. It’s kept in the audit log with your
-          name and the time, and other staff can see it, so leave out health or payment details.
-        </p>
-        <InlineError id={ids.error} message={showReasonError ? check.error : ""} />
-        <InlineError message={serverError} />
-      </div>
+      </Field>
+      <InlineError message={serverError} />
     </ModalShell>
   );
 }
@@ -216,7 +208,7 @@ export function SmsPermissionNotice({ human, onChanged }) {
         </div>
       )}
       {state === "paused" && (
-        <div role="status" className="mb-3 rounded-tile border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-body leading-snug text-amber-950">
+        <div role="status" className="mb-3 rounded-tile border border-brand-mustard-tint bg-feedback-warning-tint px-3.5 py-2.5 text-body leading-snug text-feedback-warning-ink">
           <p className="m-0 font-bold">Texts are paused — they said STOP on WhatsApp.</p>
           <p className="m-0 mt-0.5">
             Reminders, confirmations, cancellations and collection notices won’t be texted to them until you’ve checked
