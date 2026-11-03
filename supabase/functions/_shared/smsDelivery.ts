@@ -126,6 +126,23 @@ export interface SmsStatusResult {
 }
 
 /**
+ * Put log rows that were marked failed back to 'sent' (notification_log only knows
+ * sent / failed / pending). Used whenever the text is known to have been delivered:
+ * the message row is the truth, so this heals a log row that disagrees with it.
+ * Conditional on 'failed', so it is safe to repeat.
+ */
+async function repairFailedLogs(supabase: any, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { error } = await supabase
+    .from("notification_log")
+    .update({ status: "sent", error_message: null })
+    .in("id", ids)
+    .eq("status", "failed");
+  if (error) throw new Error(`log repair failed: ${error.message ?? "unknown"}`);
+  return ids.length;
+}
+
+/**
  * Apply one Twilio status callback. Safe to repeat: a re-delivered callback
  * changes nothing that is already done and finishes anything a crashed attempt
  * left undone.
@@ -173,20 +190,17 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
       if (error) throw new Error(`message update failed: ${error.message ?? "unknown"}`);
       result.updatedMessage = true;
     }
-    if (failedLogIds.length > 0) {
-      // notification_log only knows sent / failed / pending: 'sent' is "went out".
-      const { error } = await supabase
-        .from("notification_log")
-        .update({ status: "sent", error_message: null })
-        .in("id", failedLogIds)
-        .eq("status", "failed");
-      if (error) throw new Error(`log update failed: ${error.message ?? "unknown"}`);
-      result.updatedLog = failedLogIds.length;
-    }
+    result.updatedLog = await repairFailedLogs(supabase, failedLogIds);
     return result;
   }
 
-  if (!shouldApplyStatus(current, outcome)) return result; // already delivered: never move backwards
+  if (!shouldApplyStatus(current, outcome)) {
+    // Already delivered: never move backwards. But if a log row still says failed (an
+    // earlier attempt died part-way), the delivered message is the truth: heal it, so a
+    // retried failure callback ends consistent instead of exiting with the rows disagreeing.
+    result.updatedLog = await repairFailedLogs(supabase, failedLogIds);
+    return result;
+  }
 
   const line = smsFailureLine(outcome, event.errorCode);
   if (message) {
@@ -232,14 +246,7 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
       .maybeSingle();
     if (nowErr) throw new Error(`message re-check failed: ${nowErr.message ?? "unknown"}`);
     if (now?.status === "delivered" || now?.status === "read") {
-      if (sentLogIds.length > 0) {
-        const { error } = await supabase
-          .from("notification_log")
-          .update({ status: "sent", error_message: null })
-          .in("id", sentLogIds)
-          .eq("status", "failed");
-        if (error) throw new Error(`log revert failed: ${error.message ?? "unknown"}`);
-      }
+      await repairFailedLogs(supabase, sentLogIds);
       result.updatedLog = 0;
       return result;
     }

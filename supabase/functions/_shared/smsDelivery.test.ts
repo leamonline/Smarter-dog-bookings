@@ -437,3 +437,17 @@ Deno.test("two different texts failing for one customer each get their own alert
   assertStringIncludes(String(f.db.salon_todos[1].text), "(Ref SM2)");
   assertStringIncludes(String(f.db.salon_todos[1].text), "cancellation notice");
 });
+
+Deno.test("a retried failure heals a log row left 'failed' by a crashed revert (the message is delivered, so it is the truth)", async () => {
+  // the state a failed revert leaves behind: inbox delivered, booking record failed
+  const f = fake({
+    message: { ...SENT_MSG, status: "delivered" },
+    logs: [{ ...LOG, status: "failed", error_message: "Text not delivered: ..." }],
+  });
+  const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertEquals(f.db.notification_log[0].error_message, null);
+  assertEquals(f.db.salon_todos.length, 0);
+  assertEquals(out.updatedLog, 1);
+});
