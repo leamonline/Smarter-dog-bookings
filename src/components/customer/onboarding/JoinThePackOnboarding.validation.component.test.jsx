@@ -53,6 +53,14 @@ describe("signup validation and address recovery", () => {
     expect(actions.submitSignup).not.toHaveBeenCalled();
   });
 
+  it("tells the customer, beside the policy agreement, that essential messages are part of booking", () => {
+    renderForm();
+    const notice = screen.getByTestId("essential-messages-notice");
+    expect(notice).toHaveTextContent(/confirmations, reminders, any changes to it/i);
+    expect(notice).toHaveTextContent(/text you if it doesn.t reach you/i);
+    expect(notice).toHaveTextContent(/promotions .* separately say yes/i);
+  });
+
   it("focuses a missing email after manual address entry, then advances once corrected", () => {
     renderForm();
     fillOwner();

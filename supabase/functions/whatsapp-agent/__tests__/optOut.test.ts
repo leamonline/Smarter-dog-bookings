@@ -504,6 +504,39 @@ Deno.test("a STOP in a later entry of the same webhook is still recorded before 
   assert(numberStop >= 0 && firstInbound > numberStop, "the STOP is recorded before any message of the payload is stored or answered");
 });
 
+const stopTodos = (calls: { method: string; path: string; body: Record<string, unknown> }[]) =>
+  calls.filter((c) => c.path === "/rest/v1/salon_todos" && c.method === "POST").map((c) => c.body);
+
+Deno.test("a STOP flags the customer for staff: WhatsApp is off, texts carry on, and someone checks which channels they allow", async () => {
+  const { calls, eventPatch } = await send("STOP");
+  assertEquals(eventPatch.processing_status, "processed");
+  const todos = stopTodos(calls);
+  assertEquals(todos.length, 1);
+  assertEquals(todos[0].human_id, HUMAN);
+  assertEquals(todos[0].kind, "general");
+  assertStringIncludes(String(todos[0].text), "STOP received:");
+  assertStringIncludes(String(todos[0].text), "replied STOP on WhatsApp");
+  assertStringIncludes(String(todos[0].text), "go by text instead");
+  assertStringIncludes(String(todos[0].text), "Ring them");
+});
+
+Deno.test("a STOP on a shared number flags every customer on it, one to-do each", async () => {
+  const { calls } = await send("STOP", "ai_handling", HUMAN, {
+    onNumber: [{ id: HUMAN, phone: "07700900444" }, { id: "human-partner", phone: "+44 7700 900444" }],
+  });
+  assertEquals(stopTodos(calls).map((t) => t.human_id).sort(), [HUMAN, "human-partner"].sort());
+});
+
+Deno.test("a redelivered STOP raises no second to-do", async () => {
+  const { calls } = await send("STOP", "ai_handling", HUMAN, { storedMessageIds: ["synthetic-0"] });
+  assertEquals(stopTodos(calls).length, 0);
+});
+
+Deno.test("an ordinary message raises no STOP to-do", async () => {
+  const { calls } = await send("Can I book Bella in on Tuesday?");
+  assertEquals(stopTodos(calls).filter((t) => String(t.text).startsWith("STOP received:")).length, 0);
+});
+
 Deno.test("a redelivered STOP that is already stored does not stop the number again", async () => {
   // Staff re-enabled the number after the first delivery; a Meta redelivery
   // or a replayed event must not undo that (#1016 final review).

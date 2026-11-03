@@ -59,13 +59,34 @@ export type FollowUpReason =
   | "flow_reschedule_cutoff"
   | "flow_booking_changed"
   | "arrived_salon_closed"
-  | "chasing_reply";
+  | "chasing_reply"
+  | "stopped_whatsapp"
+  | "stopped_sms";
 
 /** Every follow-up to-do starts with this, which is also how duplicates are found. */
 export const FOLLOW_UP_TODO_PREFIX = "WhatsApp follow-up:";
 
+/**
+ * A STOP is not a dead end in a chat: it switches the channel it was sent on off
+ * and is worth a person checking which channels the customer is happy with. It
+ * gets its own prefix so an unrelated follow-up for the same customer can never
+ * make it look like a duplicate and swallow the flag.
+ */
+export const STOP_TODO_PREFIX = "STOP received:";
+
 /** A second dead end inside this window adds nothing the open to-do doesn't say. */
 export const FOLLOW_UP_DEDUPE_HOURS = 12;
+
+/** A STOP to-do stays the one flag for a customer for a week (replays, repeat STOPs, retries). */
+export const STOP_DEDUPE_HOURS = 24 * 7;
+
+export function isStopReason(reason: FollowUpReason): boolean {
+  return reason === "stopped_whatsapp" || reason === "stopped_sms";
+}
+
+function todoPrefixFor(reason: FollowUpReason): string {
+  return isStopReason(reason) ? STOP_TODO_PREFIX : FOLLOW_UP_TODO_PREFIX;
+}
 
 const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
   manage_deadline_cancel: "wants to cancel a groom that has already started",
@@ -77,6 +98,8 @@ const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
   flow_booking_changed: "tried to move a groom that had changed while they were in the booking form",
   arrived_salon_closed: "arrived for a groom and found the salon closed",
   chasing_reply: "is chasing a reply to an earlier message",
+  stopped_whatsapp: "replied STOP on WhatsApp",
+  stopped_sms: "asked to stop our texts (Twilio refused to send)",
 };
 
 /**
@@ -93,6 +116,15 @@ export function followUpTodoText(
   reply: CustomerReply = "sent",
 ): string {
   const who = customerName?.trim() || "A customer";
+  // A STOP is honoured for the channel it was sent on and never overridden
+  // automatically (channelPolicy.ts). Say what is off, what carries on, and what
+  // staff do; "reply" doesn't apply.
+  if (isStopReason(reason)) {
+    const effect = reason === "stopped_whatsapp"
+      ? "WhatsApp is off for them. Essential messages (reminders, confirmations) now go by text instead."
+      : "Texts to them are off. WhatsApp still works if they're set up for it.";
+    return `${STOP_TODO_PREFIX} ${who} ${WHAT_HAPPENED[reason]}. ${effect} Ring them to check which channels they're happy with.`;
+  }
   const next = reply === "sent"
     ? "We replied that the team will sort it — follow up in the WhatsApp inbox."
     : reply === "none"
@@ -127,13 +159,14 @@ export async function raiseFollowUpTodo(
   // excessively deep" (TS2589). Narrow once here instead.
   const supabase = client as FollowUpClient;
   try {
-    const since = new Date(now.getTime() - FOLLOW_UP_DEDUPE_HOURS * 3600_000).toISOString();
+    const dedupeHours = isStopReason(reason) ? STOP_DEDUPE_HOURS : FOLLOW_UP_DEDUPE_HOURS;
+    const since = new Date(now.getTime() - dedupeHours * 3600_000).toISOString();
     const { data: open, error: openErr } = await supabase
       .from("salon_todos")
       .select("id")
       .eq("human_id", humanId)
       .eq("done", false)
-      .like("text", `${FOLLOW_UP_TODO_PREFIX}%`)
+      .like("text", `${todoPrefixFor(reason)}%`)
       .gte("created_at", since)
       .limit(1);
     if (openErr) throw openErr;

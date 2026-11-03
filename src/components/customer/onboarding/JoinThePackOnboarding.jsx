@@ -14,6 +14,7 @@ import { BREED_LIST } from "../../../constants/breeds";
 import { REFERRAL_SOURCES, REFERRAL_SOURCE_OTHER } from "../../../constants/referralSources.ts";
 import {
   SALON_TERMS_URL,
+  ESSENTIAL_MESSAGES_NOTICE,
   SALON_MATTED_COAT_POLICY_URL,
   SALON_PRIVACY_URL,
   POLICIES_VERSION,
@@ -388,6 +389,10 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               )}
               {fieldError("referral") && <p id="signup-referral-error" className="text-body text-brand-coral mt-1.5">{ownerErrors.referral}</p>}
             </fieldset>
+
+            <p className="text-body text-[var(--color-ink-muted)] leading-relaxed mb-3" data-testid="essential-messages-notice">
+              {ESSENTIAL_MESSAGES_NOTICE}
+            </p>
 
             <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
               <input

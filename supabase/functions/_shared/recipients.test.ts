@@ -48,11 +48,38 @@ Deno.test("channelAvailableFor honours setup flag, contact detail and opt-out", 
 Deno.test("pickChannel prefers WhatsApp, then SMS, then email", () => {
   assertEquals(pickChannel(human()), "whatsapp");
   assertEquals(pickChannel(human({ whatsapp: false })), "sms");
-  assertEquals(pickChannel(human({ whatsapp: false, sms: false })), "email");
+  // The optional "SMS reminders" tickbox is not needed: SMS is a required
+  // operational channel, so a customer with a number always has one.
+  assertEquals(pickChannel(human({ whatsapp: false, sms: false })), "sms");
+  // Email is the last resort: only for a customer with no usable mobile, or who
+  // opted out of SMS.
+  assertEquals(pickChannel(human({ whatsapp: false, phone: null })), "email");
+  assertEquals(pickChannel(human({ whatsapp: false, sms_opted_out: true })), "email");
   assertEquals(
-    pickChannel(human({ whatsapp: false, sms: false, email: null })),
+    pickChannel(human({ whatsapp: false, phone: null, email: null })),
     null,
   );
+});
+
+Deno.test("channelAvailableFor: SMS does not depend on the optional humans.sms tickbox", () => {
+  assertEquals(channelAvailableFor(human({ sms: false }), "sms"), true);
+  assertEquals(channelAvailableFor(human({ sms: null }), "sms"), true);
+  // ...but an SMS opt-out always wins, whatever else is true.
+  assertEquals(channelAvailableFor(human({ sms: true, sms_opted_out: true }), "sms"), false);
+});
+
+Deno.test("channelAvailableFor: a WhatsApp STOP switches WhatsApp off only; texts continue", () => {
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "whatsapp"), false);
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true }), "sms"), true);
+  // ...whatever the optional tickbox says.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms: false }), "sms"), true);
+  // An SMS opt-out always wins, including for someone who also stopped WhatsApp.
+  assertEquals(channelAvailableFor(human({ whatsapp_opted_out: true, sms_opted_out: true }), "sms"), false);
+});
+
+Deno.test("pickChannel: after a WhatsApp STOP the customer is reached by SMS, not email", () => {
+  assertEquals(pickChannel(human({ whatsapp_opted_out: true })), "sms");
+  assertEquals(pickChannel(human({ whatsapp_opted_out: true, sms_opted_out: true })), "email");
 });
 
 Deno.test("resolveConfirmationChannel: 'auto' uses the preference order", () => {
@@ -92,7 +119,7 @@ Deno.test("resolveConfirmationChannel: 'none' resolves to a skip", () => {
 
 Deno.test("resolveConfirmationChannel: 'auto' with no usable channel skips", () => {
   assertEquals(
-    resolveConfirmationChannel("auto", human({ whatsapp: false, sms: false, email: null })),
+    resolveConfirmationChannel("auto", human({ whatsapp: false, phone: null, email: null })),
     { channel: null, skip: "no contact method" },
   );
 });
@@ -399,4 +426,16 @@ Deno.test("reportStaffRescheduleReplacement: normalises a to-one embed and repor
   assertEquals(detail.depositState, "awaiting_payment");
   assertEquals(detail.replacementVisitId, "v-new");
   assertEquals(detail.bookingCount, 1);
+});
+
+Deno.test("pickChannel: a landline-only customer with an email stays on email (not routed to a channel that cannot deliver)", () => {
+  const landlineOnly = human({ phone: "0161 285 5218", whatsapp: false, sms: false });
+  assertEquals(channelAvailableFor(landlineOnly, "sms"), false);
+  assertEquals(pickChannel(landlineOnly), "email");
+  assertEquals(
+    resolveConfirmationChannel("auto", landlineOnly),
+    { channel: "email" },
+  );
+  // With no email either there is genuinely no channel.
+  assertEquals(pickChannel(human({ phone: "0161 285 5218", whatsapp: false, email: null })), null);
 });

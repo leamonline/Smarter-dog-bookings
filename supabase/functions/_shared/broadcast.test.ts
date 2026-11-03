@@ -30,8 +30,18 @@ Deno.test("pickChannelWaSms prefers WhatsApp when usable", () => {
   assertEquals(pickChannelWaSms(human({})), "whatsapp");
 });
 
-Deno.test("pickChannelWaSms falls back to SMS when WhatsApp is opted out", () => {
+Deno.test("pickChannelWaSms falls back to SMS when WhatsApp isn't set up", () => {
+  assertEquals(pickChannelWaSms(human({ whatsapp: false })), "sms");
+});
+
+Deno.test("pickChannelWaSms texts without the optional SMS tickbox: SMS is a required operational channel", () => {
+  assertEquals(pickChannelWaSms(human({ whatsapp: false, sms: false })), "sms");
+  assertEquals(pickChannelWaSms(human({ whatsapp: false, sms: null })), "sms");
+});
+
+Deno.test("pickChannelWaSms texts after a WhatsApp STOP: WhatsApp is off, SMS carries on", () => {
   assertEquals(pickChannelWaSms(human({ whatsapp_opted_out: true })), "sms");
+  assertEquals(pickChannelWaSms(human({ whatsapp_opted_out: true, sms: true })), "sms");
 });
 
 Deno.test("pickChannelWaSms skips SMS when SMS is opted out", () => {

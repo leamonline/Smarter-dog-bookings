@@ -17,11 +17,12 @@ import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
-import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
+import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { formatDateShort, formatTime } from "../../../lib/reminders/templates.js";
 import { SERVICES } from "../../../constants/salon.ts";
 import { WhatsAppComposer } from "./WhatsAppComposer.jsx";
 import { SmsComposer } from "./SmsComposer.jsx";
+import { computeAvailability } from "./channelAvailability.js";
 import { EmailComposer } from "./EmailComposer.jsx";
 import { ModalShell } from "../../ui";
 
@@ -29,41 +30,6 @@ const CHANNEL_LABEL = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
 
 function serviceName(id) {
   return SERVICES.find((s) => s.id === id)?.name ?? id;
-}
-
-// Mirror of the server-side validation in reminder-send so the pills
-// reflect what will actually be allowed. The server re-checks; this is UX.
-function computeAvailability(human) {
-  if (!human) {
-    const reason = "No customer linked to this booking";
-    return {
-      whatsapp: { ok: false, reason },
-      sms: { ok: false, reason },
-      email: { ok: false, reason },
-    };
-  }
-  const phoneValid = !!normaliseUkMobile(human.phone || "");
-  return {
-    whatsapp: !phoneValid
-      ? { ok: false, reason: "No WhatsApp number on file" }
-      : !human.whatsapp
-        ? { ok: false, reason: "Customer isn't set up for WhatsApp" }
-        : human.whatsapp_opted_out
-          ? { ok: false, reason: "Customer opted out of WhatsApp" }
-          : { ok: true, reason: "" },
-    sms: !phoneValid
-      ? { ok: false, reason: "No mobile number on file" }
-      : !human.sms
-        ? { ok: false, reason: "Customer isn't set up for SMS" }
-        : human.sms_opted_out
-          ? { ok: false, reason: "Customer opted out of SMS" }
-          : { ok: true, reason: "" },
-    email: !human.email
-      ? { ok: false, reason: "No email on file" }
-      : human.email_opted_out
-        ? { ok: false, reason: "Customer opted out of email" }
-        : { ok: true, reason: "" },
-  };
 }
 
 function ChannelPill({ channel, available, active, onSelect }) {

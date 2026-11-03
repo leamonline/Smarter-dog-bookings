@@ -3,6 +3,7 @@ import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/boo
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { PawPrint } from "lucide-react";
+import { ESSENTIAL_MESSAGES_NOTICE } from "../../../constants/salonPolicies";
 
 interface BookingConfirmationProps {
   selectedDogs: WizardDog[];
@@ -189,6 +190,14 @@ export function BookingConfirmation({
           </p>
         )
       )}
+
+      <p
+        className="text-xs text-[var(--color-ink-muted)] text-center"
+        style={{ alignSelf: "center" }}
+        data-testid="essential-messages-notice"
+      >
+        {ESSENTIAL_MESSAGES_NOTICE}
+      </p>
 
       <div className="wizard-actions">
         <button

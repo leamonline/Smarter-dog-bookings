@@ -299,6 +299,15 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   `whatsapp-send` refuses in every mode, for every caller; the Twilio notify paths skip opted-out
   customers via `recipients.ts`. Don't loosen casually. See
   [docs/whatsapp-agent.md](docs/whatsapp-agent.md#customer-opt-out).
+- **Who may be messaged on which channel is decided in ONE place:**
+  [`supabase/functions/_shared/channelPolicy.ts`](supabase/functions/_shared/channelPolicy.ts), shared by every
+  notifier, the SMS fallback, the staff UI and the tests. SMS is a **required operational channel**: the optional
+  `humans.sms` tickbox (default off) is deliberately NOT consulted, and don't reintroduce it. An `sms_opted_out`
+  always blocks SMS. A STOP is honoured for the channel it was sent on: a `whatsapp_opted_out` switches **WhatsApp**
+  off and essential messages go by SMS instead; either STOP raises a "STOP received:" staff to-do. Marketing is a
+  separate class that stays disabled (no consent flag exists yet). SMS needs a **textable number** (UK mobile or
+  international; a landline stays on email) and `sms-send` itself refuses opted-out numbers for every caller. Don't write
+  a per-function copy of the rule. See [docs/messaging-policy.md](docs/messaging-policy.md).
 - **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
   Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/
   waitlist. Dark-launched behind `STAFF_PUSH_ENABLED` (default off); changes NOTHING for customers or

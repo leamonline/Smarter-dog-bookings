@@ -1580,6 +1580,14 @@ async function recordOptOut(
       throw new Error("STOP not recorded: the customer's opt-out flag could not be confirmed");
     }
     console.log(`opt-out: flagged ${ids.length} customer record(s) on conversation ${conversation.id}`);
+    // Tell staff. A STOP switches WhatsApp off for this customer and essential
+    // messages then go by text (_shared/channelPolicy.ts); a person should still
+    // check which channels they are happy with. Best effort and deduplicated per
+    // customer, so a retried or replayed STOP cannot add a second to-do or fail
+    // the event.
+    await Promise.all(
+      ids.map((id) => raiseFollowUpTodo(supabase, id, "stopped_whatsapp", { reply: "none" })),
+    );
   }
   return "applied";
 }

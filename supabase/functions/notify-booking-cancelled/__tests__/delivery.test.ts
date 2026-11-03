@@ -277,14 +277,39 @@ Deno.test("SMS and email both rejected is logged failed on email with both reaso
   assertStringIncludes(String(patch.error_message), "verified Sender Identity");
 });
 
-Deno.test("SMS switched off still uses email, and does not try WhatsApp, when a mobile is on file", async () => {
-  const { calls } = await cancel({ ...HUMAN, sms: false, whatsapp: true });
+Deno.test("SMS opted out still uses email, and does not try WhatsApp, when a mobile is on file", async () => {
+  const { calls } = await cancel({ ...HUMAN, sms_opted_out: true, whatsapp: true });
   assertEquals(twilioCalls(calls).length, 0);
   assertEquals(whatsappCalls(calls).length, 0);
   assertEquals(emailCalls(calls).length, 1);
   const patch = finalPatch(calls);
   assertEquals(patch.status, "sent");
   assertEquals(patch.channel, "email");
+});
+
+Deno.test("the optional SMS tickbox is not needed: a customer with it off is still texted, not emailed", async () => {
+  // SMS is a required operational channel, so a cancellation reaches anyone with a
+  // mobile who hasn't opted out of SMS. (Before November 2026 this went to email.)
+  const { calls } = await cancel({ ...HUMAN, sms: false, whatsapp: true });
+  assertEquals(whatsappCalls(calls).length, 0);
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(emailCalls(calls).length, 0);
+  const patch = finalPatch(calls);
+  assertEquals(patch.status, "sent");
+  assertEquals(patch.channel, "sms");
+});
+
+Deno.test("a text STOP (Twilio 21610) on this direct send is recorded and flagged for staff, like sms-send does", async () => {
+  const { calls } = await cancel(HUMAN, {
+    twilio: { status: 400, body: { code: 21610, message: "Attempt to send to unsubscribed recipient" } },
+  });
+  const optOut = calls.find((c) => c.path === "/rest/v1/humans" && c.method === "PATCH");
+  assertEquals((optOut?.body as Record<string, unknown>)?.sms_opted_out, true);
+  assertEquals((optOut?.body as Record<string, unknown>)?.sms_opted_out_reason, "asked_on_sms");
+  const todo = calls.find((c) => c.path === "/rest/v1/salon_todos" && c.method === "POST");
+  assertStringIncludes(String((todo?.body as Record<string, unknown>)?.text), "STOP received:");
+  // The cancellation itself still falls back to email.
+  assertEquals(emailCalls(calls).length, 1);
 });
 
 Deno.test("a reschedule cancellation is still skipped and nothing is sent, flag on or off", async () => {
@@ -484,7 +509,9 @@ Deno.test("flag on: Meta accepting the call but returning no message id is a fai
   assertEquals(patch.provider_message_id, "SM-sms");
 });
 
-Deno.test("flag on: a customer who opted out of WhatsApp is texted and WhatsApp is not called", async () => {
+Deno.test("flag on: a customer who replied STOP on WhatsApp is texted instead, and WhatsApp is not called", async () => {
+  // A STOP is honoured for the channel it was sent on: whatsapp_opted_out switches
+  // WhatsApp off and the cancellation goes by SMS (_shared/channelPolicy.ts).
   const { calls } = await cancel({ ...HUMAN, whatsapp_opted_out: true }, {}, "true", "10:00", "salon");
   assertEquals(whatsappCalls(calls).length, 0);
   assertEquals(twilioCalls(calls).length, 1);
@@ -493,6 +520,14 @@ Deno.test("flag on: a customer who opted out of WhatsApp is texted and WhatsApp 
   assertEquals(claim.channel, "sms");
   assertEquals(finalPatch(calls).channel, "sms");
   assertEquals(finalPatch(calls).status, "sent");
+});
+
+Deno.test("flag on: a customer who stopped BOTH WhatsApp and SMS gets neither, only email", async () => {
+  const { calls } = await cancel({ ...HUMAN, whatsapp_opted_out: true, sms_opted_out: true }, {}, "true", "10:00", "salon");
+  assertEquals(whatsappCalls(calls).length, 0);
+  assertEquals(twilioCalls(calls).length, 0);
+  assertEquals(emailCalls(calls).length, 1);
+  assertEquals(finalPatch(calls).channel, "email");
 });
 
 Deno.test("flag on: whatsapp-send refusing an opt-out falls back to SMS and is not logged sent on WhatsApp", async () => {
@@ -522,9 +557,25 @@ Deno.test("flag on: WhatsApp only, with SMS switched off, sends the template and
   assertEquals(patch.provider_message_id, "wamid.CANCELLED");
 });
 
-Deno.test("flag on: Meta rejection with SMS switched off uses email and does not text", async () => {
+Deno.test("flag on: Meta rejection with the optional SMS tickbox off still falls back to SMS", async () => {
   const { calls } = await cancel(
     { ...HUMAN, sms: false },
+    { whatsapp: { status: 502, body: { error: "Meta send failed" } } },
+    "true",
+    "10:00",
+    "salon",
+  );
+  assertEquals(whatsappCalls(calls).length, 1);
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(emailCalls(calls).length, 0);
+  const patch = finalPatch(calls);
+  assertEquals(patch.status, "sent");
+  assertEquals(patch.channel, "sms");
+});
+
+Deno.test("flag on: Meta rejection with SMS opted out uses email and does not text", async () => {
+  const { calls } = await cancel(
+    { ...HUMAN, sms_opted_out: true },
     { whatsapp: { status: 502, body: { error: "Meta send failed" } } },
     "true",
     "10:00",
@@ -561,9 +612,9 @@ Deno.test("flag on: Meta, SMS and email all rejected is logged failed on email w
   assertStringIncludes(String(patch.error_message), "verified Sender Identity");
 });
 
-Deno.test("flag on: Meta rejection with no SMS and no email is logged failed on whatsapp and nothing else is sent", async () => {
+Deno.test("flag on: Meta rejection with SMS opted out and no email is logged failed on whatsapp and nothing else is sent", async () => {
   const { calls } = await cancel(
-    { ...HUMAN, sms: false, email: null },
+    { ...HUMAN, sms_opted_out: true, email: null },
     { whatsapp: { status: 502, body: { error: "Template name does not exist in the translation" } } },
     "true",
     "10:00",

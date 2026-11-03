@@ -63,9 +63,12 @@ export function normaliseUkPhone(raw: string): string {
   // unchanged → toValidE164() rejects it (or the marks reach Twilio → 21211).
   const stripped = raw.replace(/[\s\-().]|\p{Cf}/gu, "");
   // Already E.164 (any country) — pass through
-  if (stripped.startsWith("+")) return stripped;
+  // A UK number typed "+44 (0)7…" keeps the national trunk zero after the
+  // country code, which is not valid E.164 — drop it. channelPolicy.ts
+  // (isSmsCapableNumber) accepts that form, so the sender must send what it validated.
+  if (stripped.startsWith("+")) return stripped.replace(/^\+440/, "+44");
   // 00-prefixed international (UK convention) — convert to +
-  if (stripped.startsWith("00")) return "+" + stripped.slice(2);
+  if (stripped.startsWith("00")) return ("+" + stripped.slice(2)).replace(/^\+440/, "+44");
   // UK 11-digit national format starting with 07 — strip leading 0, prepend +44
   if (/^07\d{9}$/.test(stripped)) return "+44" + stripped.slice(1);
   // 12-digit format starting with 447 (no plus) — just prepend +

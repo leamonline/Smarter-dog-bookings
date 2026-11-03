@@ -44,6 +44,7 @@ import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { normaliseUkPhone } from "../_shared/twilio.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
+import { blockReason, blockText } from "../_shared/channelPolicy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -117,29 +118,18 @@ function toValidE164(phone: string | null): string | null {
   return e164.startsWith("+") ? e164 : null;
 }
 
+// The rules are shared with every other sender and the staff UI
+// (_shared/channelPolicy.ts). SMS is a required operational channel, so the
+// optional `humans.sms` tickbox is no longer needed; an opt-out, or a STOP that
+// staff haven't yet clarified, still blocks it. A phone only counts if it
+// normalises to a real number.
 function channelAvailability(human: HumanRow): Record<Channel, { ok: boolean; reason: string }> {
-  const phoneE164 = toValidE164(human.phone);
-  return {
-    whatsapp: !phoneE164
-      ? { ok: false, reason: "No valid WhatsApp number on file" }
-      : !human.whatsapp
-        ? { ok: false, reason: "Customer isn't set up for WhatsApp" }
-        : human.whatsapp_opted_out
-          ? { ok: false, reason: "Customer opted out of WhatsApp" }
-          : { ok: true, reason: "" },
-    sms: !phoneE164
-      ? { ok: false, reason: "No valid mobile number on file" }
-      : !human.sms
-        ? { ok: false, reason: "Customer isn't set up for SMS" }
-        : human.sms_opted_out
-          ? { ok: false, reason: "Customer opted out of SMS" }
-          : { ok: true, reason: "" },
-    email: !human.email
-      ? { ok: false, reason: "No email on file" }
-      : human.email_opted_out
-        ? { ok: false, reason: "Customer opted out of email" }
-        : { ok: true, reason: "" },
+  const contact = { ...human, phone: toValidE164(human.phone) };
+  const check = (channel: Channel) => {
+    const reason = blockReason(contact, channel);
+    return reason ? { ok: false, reason: blockText(channel, reason) } : { ok: true, reason: "" };
   };
+  return { whatsapp: check("whatsapp"), sms: check("sms"), email: check("email") };
 }
 
 /** Call another edge function service-to-service via the shared internal secret. */
