@@ -59,9 +59,15 @@ export async function handleTwilioStatus(req: Request, deps: TwilioStatusDeps = 
   const raw = await req.text();
   const params: Record<string, string> = Object.fromEntries(new URLSearchParams(raw));
 
+  // The configured URL may carry Twilio connection overrides after a "#", e.g.
+  // ".../twilio-status#rc=3&rp=5xx,ct" (retry up to three times on a 5xx answer as
+  // well as on connection failures; Twilio's default policy is connection failures
+  // only, so without this a 500 from us is never retried). Twilio leaves the
+  // fragment out of the signed URL, so it must be left out here too.
+  const signedUrl = callbackUrl.split("#")[0];
   const valid = await isValidTwilioSignature(
     authToken,
-    callbackUrl,
+    signedUrl,
     params,
     req.headers.get("x-twilio-signature"),
   );

@@ -159,3 +159,15 @@ Deno.test("a database failure is a 500, so it is visible rather than silently lo
   const res = await handleTwilioStatus(await post(UNDELIVERED), { client: broken });
   assertEquals(res.status, 500);
 }));
+
+Deno.test("connection overrides after '#' in the configured URL are left out of the signed URL (Twilio omits the fragment)", withEnv(
+  { TWILIO_AUTH_TOKEN: TOKEN, TWILIO_STATUS_CALLBACK_URL: `${URL_}#rc=3&rp=5xx,ct` },
+  async () => {
+    // Twilio signs the URL without the fragment
+    const res = await handleTwilioStatus(await post(UNDELIVERED, { url: URL_ }), { client: recorder().client });
+    assertEquals(res.status, 200);
+    // a signature over the URL WITH the fragment is not what Twilio sends, so it is refused
+    const bad = await handleTwilioStatus(await post(UNDELIVERED, { url: `${URL_}#rc=3&rp=5xx,ct` }), { client: recorder().client });
+    assertEquals(bad.status, 403);
+  },
+));

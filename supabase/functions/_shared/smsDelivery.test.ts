@@ -118,7 +118,8 @@ function fake(fx: Fixture) {
         select() { return q; },
         eq(c: string, v: unknown) { if (!IGNORED.has(c)) filters.push((r) => r[c] === v); return q; },
         in(c: string, vs: unknown[]) { filters.push((r) => vs.includes(r[c])); return q; },
-        not(c: string, _op: string, v: string) {
+        not(c: string, op: string, v: unknown) {
+          if (op === "is" && v === null) { filters.push((r) => r[c] !== null && r[c] !== undefined); return q; }
           const set = String(v).replace(/[()]/g, "").split(",");
           filters.push((r) => !set.includes(String(r[c])));
           return q;
@@ -177,7 +178,7 @@ Deno.test("undelivered essential text: message and log fail with a reason, and s
   const msg = f.db.whatsapp_messages[0];
   assertEquals(msg.status, "failed");
   assertStringIncludes(String(msg.error_message), "Text not delivered");
-  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "sent"); // the claim holds: the row is never freed
   assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
   assertEquals(f.db.salon_todos.length, 1);
   const todo = f.db.salon_todos[0];
@@ -207,7 +208,8 @@ Deno.test("a text STOP (21610) opts the number out and flags staff, without a de
   assertEquals(f.db.humans[0].sms_opted_out, true);
   assertEquals(f.db.humans[0].sms_opted_out_reason, "asked_on_sms");
   assertEquals(f.db.whatsapp_messages[0].status, "failed");
-  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertStringIncludes(String(f.db.notification_log[0].error_message), "STOP");
   assertEquals(f.db.salon_todos.length, 1);
   assertStringIncludes(String(f.db.salon_todos[0].text), STOP_TODO_PREFIX);
   assertEquals(String(f.db.salon_todos[0].text).includes(SMS_FAILURE_TODO_PREFIX), false);
@@ -227,7 +229,8 @@ Deno.test("a cancellation notice sent straight through Twilio (log row only) sti
   const f = fake({ message: null, logs: [{ id: "l9", human_id: "h9", trigger_type: "cancelled", status: "sent" }] });
   const out = await applySmsStatus(f.client, { sid: "SM9", status: "undelivered", errorCode: "30006" });
   assertEquals(out.updatedLog, 1);
-  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "sent");
+  assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
   assertEquals(f.db.salon_todos.length, 1);
   assertStringIncludes(String(f.db.salon_todos[0].text), "cancellation notice text");
   assertEquals(f.db.salon_todos[0].human_id, "h9");
@@ -253,7 +256,7 @@ Deno.test("out-of-order and repeated callbacks change nothing", async () => {
   // the same failure again, with everything already applied: no log change, no second to-do
   f = fake({
     message: { ...SENT_MSG, status: "failed" },
-    logs: [{ ...LOG, status: "failed" }],
+    logs: [{ ...LOG, error_message: smsFailureLine("undelivered", "30003") }],
     todos: [{ id: "t1", human_id: "h1", done: false, text: `${SMS_FAILURE_TODO_PREFIX} Wendy's booking confirmation text didn't arrive. (Ref SM1)` }],
   });
   out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
@@ -282,7 +285,7 @@ Deno.test("a late failure cannot overwrite 'delivered' even when both callbacks 
 Deno.test("delivery after a recorded failure repairs the log row as well as the message", async () => {
   const f = fake({ message: SENT_MSG, logs: [LOG] });
   await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
-  assertEquals(f.db.notification_log[0].status, "failed");
+  assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
   const out = await applySmsStatus(f.client, { sid: "SM1", status: "delivered" });
   assertEquals(f.db.whatsapp_messages[0].status, "delivered");
   assertEquals(f.db.whatsapp_messages[0].error_message, null);
@@ -292,7 +295,7 @@ Deno.test("delivery after a recorded failure repairs the log row as well as the 
 });
 
 Deno.test("delivery repairs a failed log even when the message is already marked delivered", async () => {
-  const f = fake({ message: { ...SENT_MSG, status: "delivered" }, logs: [{ ...LOG, status: "failed", error_message: "old" }] });
+  const f = fake({ message: { ...SENT_MSG, status: "delivered" }, logs: [{ ...LOG, error_message: "old" }] });
   await applySmsStatus(f.client, { sid: "SM1", status: "delivered" });
   assertEquals(f.db.notification_log[0].status, "sent");
 });
@@ -309,7 +312,7 @@ Deno.test("a callback that died half way is finished by its retry (message marke
   assertEquals(f.db.salon_todos.length, 0);
   // Twilio re-delivers: the retry completes the log and raises the alert
   const out = await applySmsStatus(f.client, event);
-  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "sent");
   assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
   assertEquals(out.todo, "created");
   assertEquals(f.db.salon_todos.length, 1);
@@ -386,7 +389,7 @@ Deno.test("a replayed failure never resurrects an alert staff already completed"
 Deno.test("nor does an old alert stop mattering after the usual 12-hour window", async () => {
   const f = fake({
     message: { ...SENT_MSG, status: "failed" },
-    logs: [{ ...LOG, status: "failed" }],
+    logs: [{ ...LOG, error_message: smsFailureLine("undelivered", "30003") }],
     todos: [{ id: "old", human_id: "h1", done: false, created_at: "2000-01-01T00:00:00Z", text: `${SMS_FAILURE_TODO_PREFIX} Wendy's reminder text didn't arrive. (Ref SM1)` }],
   });
   const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
@@ -442,7 +445,7 @@ Deno.test("a retried failure heals a log row left 'failed' by a crashed revert (
   // the state a failed revert leaves behind: inbox delivered, booking record failed
   const f = fake({
     message: { ...SENT_MSG, status: "delivered" },
-    logs: [{ ...LOG, status: "failed", error_message: "Text not delivered: ..." }],
+    logs: [{ ...LOG, error_message: "Text not delivered: ..." }],
   });
   const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
   assertEquals(f.db.whatsapp_messages[0].status, "delivered");
@@ -450,4 +453,15 @@ Deno.test("a retried failure heals a log row left 'failed' by a crashed revert (
   assertEquals(f.db.notification_log[0].error_message, null);
   assertEquals(f.db.salon_todos.length, 0);
   assertEquals(out.updatedLog, 1);
+});
+
+Deno.test("a delivery failure never frees a send claim: the log row stays 'sent' for every sender, including the SMS fallback", async () => {
+  for (const trigger of ["reminder", "confirmed", "cancelled", "reminder_sms_fallback", "cancelled_sms_fallback"]) {
+    const f = fake({ message: SENT_MSG, logs: [{ ...LOG, trigger_type: trigger }] });
+    await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+    // 'pending'/'sent' rows are what the unique index (booking, trigger, customer) checks;
+    // a 'failed' row would let the next run text the same customer again.
+    assertEquals(f.db.notification_log[0].status, "sent", trigger);
+    assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
+  }
 });
