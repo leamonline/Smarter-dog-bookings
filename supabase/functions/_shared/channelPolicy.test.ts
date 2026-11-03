@@ -16,6 +16,7 @@ import {
   blockReason,
   blockText,
   canSendMarketing,
+  isSmsCapableNumber,
   operationalChannelAvailable,
   type PolicyContact,
 } from "./channelPolicy.ts";
@@ -109,4 +110,36 @@ Deno.test("staff-facing wording says why", () => {
   assertEquals(blockText("whatsapp", "not_set_up"), "Customer isn't set up for WhatsApp");
   assertEquals(blockText("whatsapp", "opted_out"), "Customer opted out of WhatsApp");
   assertEquals(blockText("email", "no_email"), "No email on file");
+});
+
+// ── A text must be able to reach the number ─────────────────────────────────
+// Records hold landlines as contact numbers on purpose. A landline-only customer
+// with an email must stay on email, not be sent to a channel that cannot deliver.
+
+Deno.test("UK mobiles, however typed, and well-formed international numbers can receive texts", () => {
+  for (const n of ["07123456789", "07123 456 789", "+447123456789", "447123456789", "+44 (0)7123 456789", "0044 7123 456789", "+33612345678", "0033612345678", "+14158675310"]) {
+    assertEquals(isSmsCapableNumber(n), true, n);
+  }
+});
+
+Deno.test("landlines, fragments and empty values cannot", () => {
+  for (const n of ["0161 285 5218", "01612855218", "+441612855218", "07123", "12345", "", null, undefined]) {
+    assertEquals(isSmsCapableNumber(n as string | null | undefined), false, String(n));
+  }
+});
+
+Deno.test("a landline-only customer is not routed to SMS: it is blocked, so they stay on email", () => {
+  const landline = customer({ phone: "0161 285 5218", whatsapp: false });
+  assertEquals(blockReason(landline, "sms"), "not_textable");
+  assertEquals(operationalChannelAvailable(landline, "sms"), false);
+  assertEquals(operationalChannelAvailable(landline, "email"), true);
+  assertEquals(blockText("sms", "not_textable").includes("landline"), true);
+  // ...but a mobile with the same settings is textable.
+  assertEquals(operationalChannelAvailable(customer({ phone: "07123456789", whatsapp: false }), "sms"), true);
+  // And no number at all stays its own reason.
+  assertEquals(blockReason(customer({ phone: null }), "sms"), "no_number");
+});
+
+Deno.test("marketing needs a textable number too", () => {
+  assertEquals(canSendMarketing(customer({ marketing_sms_consent: true, phone: "0161 285 5218" }), "sms"), false);
 });

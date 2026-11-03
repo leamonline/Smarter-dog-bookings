@@ -60,13 +60,27 @@ texts until staff clarified, was rejected).
 
 Ticking the optional SMS box has no effect either way: it is not consulted.
 
+**`sms-send` enforces SMS opt-outs itself, for every caller.** Before it calls
+Twilio it checks the stored `sms_opted_out` on any record with that number, so a
+stale screen, a notifier or the fallback job can never text someone who has opted
+out. If the check cannot be made it refuses to send (503) rather than guess. The
+two notifiers that call Twilio directly (cancellation notices and the welcome
+text) record a text STOP and flag staff the same way `sms-send` does.
+
+**A text must be able to reach the number.** Records hold landlines as contact
+numbers on purpose, so "has a phone" is not enough: only UK mobiles and
+well-formed international numbers count as textable
+(`isSmsCapableNumber` in `channelPolicy.ts`). A landline-only customer with an
+email stays on email instead of being sent to a channel that cannot deliver.
+
 ## Scenarios
 
 | Customer | WhatsApp | SMS | Email |
 |---|---|---|---|
 | Ordinary, WhatsApp set up | yes | fallback | last resort |
 | WhatsApp not set up, optional SMS box off (the default) | no | **yes** | last resort |
-| No mobile number | no | no | if an address is held |
+| No number | no | no | if an address is held |
+| Landline-only number (UK landlines can't receive texts) | only if set up | **no** (stays on email) | yes |
 | Opted out of SMS | unaffected | **never** | last resort |
 | Replied STOP on WhatsApp | no | **yes, instead** (+ staff to-do) | yes, if held |
 | Replied STOP to our texts | unaffected | **never** (+ staff to-do) | yes, if held |

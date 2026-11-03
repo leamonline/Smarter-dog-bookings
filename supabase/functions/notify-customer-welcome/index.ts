@@ -35,6 +35,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
+import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { isAuthorizedWebhook, timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
@@ -249,6 +250,7 @@ serve(async (req) => {
     if (!sent && h.phone && operationalChannelAvailable(h, "sms")) {
       try {
         const r = await sendSms(h.phone, fallbackText);
+        if (isRecipientUnsubscribed(r.errorCode)) await recordSmsStop(supabase, h.phone);
         channel = "sms";
         sent = r.ok;
         if (!sent) failDetail = `${r.errorCode ?? "?"} ${r.errorMessage ?? "SMS send failed"}`.trim();

@@ -83,3 +83,28 @@ export async function recordSmsStop(
     return { onNumber: 0 };
   }
 }
+
+/**
+ * Has anyone on this number opted out of texts? sms-send asks this before it
+ * calls Twilio, so the rule holds for EVERY caller (a stale browser snapshot, a
+ * notifier, the fallback job) and not only for the ones that checked. An opt-out
+ * belongs to the number, so any record on it counts.
+ *
+ * Throws on a failed lookup: the caller refuses to send rather than guess.
+ * (Twilio itself also refuses a number that texted STOP, with 21610; this is the
+ * app's own record, which also covers opt-outs staff recorded.)
+ */
+export async function isSmsOptedOutOnNumber(supabase: any, phoneE164: string): Promise<boolean> {
+  const pattern = phoneMatchPattern(phoneE164);
+  if (!pattern) return false;
+  const { data, error } = await supabase
+    .from("humans")
+    .select("id, phone")
+    .eq("sms_opted_out", true)
+    .filter("phone", "match", pattern);
+  if (error) throw new Error(`opt-out lookup failed: ${error.message ?? "unknown"}`);
+  const key = phoneMatchKey(phoneE164);
+  return ((data ?? []) as { id: string; phone: string | null }[]).some(
+    (row) => phoneMatchKey(row.phone) === key,
+  );
+}

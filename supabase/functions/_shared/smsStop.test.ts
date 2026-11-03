@@ -2,7 +2,7 @@
 // Run locally:  deno test --node-modules-dir=none --allow-env supabase/functions/_shared/smsStop.test.ts
 
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { isRecipientUnsubscribed, recordSmsStop, SMS_STOP_REASON } from "./smsStop.ts";
+import { isRecipientUnsubscribed, isSmsOptedOutOnNumber, recordSmsStop, SMS_STOP_REASON } from "./smsStop.ts";
 import { followUpTodoText, isStopReason, STOP_TODO_PREFIX } from "./staffFollowUp.ts";
 
 interface Recorded {
@@ -113,4 +113,24 @@ Deno.test("the STOP to-do says what is off and what staff do next, and never quo
   }
   assertEquals(isStopReason("chasing_reply"), false);
   assertEquals(followUpTodoText(null, "stopped_whatsapp").startsWith(`${STOP_TODO_PREFIX} A customer `), true);
+});
+
+// ── The server-side opt-out guard sms-send applies for every caller ─────────
+
+Deno.test("a number with an SMS-opted-out record is refused, however either side was typed", async () => {
+  const { client } = fakeClient([{ id: "h1", phone: "07700 900123" }]);
+  assertEquals(await isSmsOptedOutOnNumber(client, "+447700900123"), true);
+});
+
+Deno.test("another number, or no record, is not refused", async () => {
+  assertEquals(await isSmsOptedOutOnNumber(fakeClient([{ id: "h1", phone: "07700 900999" }]).client, "+447700900123"), false);
+  assertEquals(await isSmsOptedOutOnNumber(fakeClient([]).client, "+447700900123"), false);
+  assertEquals(await isSmsOptedOutOnNumber(fakeClient([{ id: "h1", phone: null }]).client, "+447700900123"), false);
+});
+
+Deno.test("a failed lookup throws, so the sender refuses rather than guesses", async () => {
+  const broken = { from: () => ({ select: () => ({ eq: () => ({ filter: () => Promise.resolve({ data: null, error: { message: "boom" } }) }) }) }) };
+  let threw = false;
+  try { await isSmsOptedOutOnNumber(broken, "+447700900123"); } catch { threw = true; }
+  assertEquals(threw, true);
 });

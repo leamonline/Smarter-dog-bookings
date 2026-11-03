@@ -427,3 +427,15 @@ Deno.test("reportStaffRescheduleReplacement: normalises a to-one embed and repor
   assertEquals(detail.replacementVisitId, "v-new");
   assertEquals(detail.bookingCount, 1);
 });
+
+Deno.test("pickChannel: a landline-only customer with an email stays on email (not routed to a channel that cannot deliver)", () => {
+  const landlineOnly = human({ phone: "0161 285 5218", whatsapp: false, sms: false });
+  assertEquals(channelAvailableFor(landlineOnly, "sms"), false);
+  assertEquals(pickChannel(landlineOnly), "email");
+  assertEquals(
+    resolveConfirmationChannel("auto", landlineOnly),
+    { channel: "email" },
+  );
+  // With no email either there is genuinely no channel.
+  assertEquals(pickChannel(human({ phone: "0161 285 5218", whatsapp: false, email: null })), null);
+});
