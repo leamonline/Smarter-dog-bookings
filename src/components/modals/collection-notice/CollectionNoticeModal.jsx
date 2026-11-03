@@ -2,16 +2,21 @@
 // src/components/modals/collection-notice/CollectionNoticeModal.jsx
 //
 // Pops up when a booking transitions to "Ready for collection" (fired
-// centrally from useBookings.updateBooking). Lets staff send a WhatsApp
-// "ready for collection" template to the owner and/or any trusted
+// centrally from useBookings.updateBooking). Lets staff send a
+// "ready for collection" notice to the owner and/or any trusted
 // contact, with a staff-entered ETA in minutes. Staff opt in before
 // recipient data is loaded; each recipient then has its own Send button.
 //
-// Sending reuses the whatsapp-send edge function (Meta Cloud API
-// template) — the same path the inbox compose-new flow uses — so the
-// message goes out from the salon's WhatsApp Business number and is
-// logged to the recipient's inbox thread. The ready_for_collection_v2
-// template must be Approved in Meta before live sends succeed.
+// WhatsApp is the default: the whatsapp-send edge function (Meta Cloud API
+// template, the same path the inbox compose-new flow uses) sends from the
+// salon's WhatsApp Business number and logs to the recipient's inbox thread.
+// The ready_for_collection_v2 template must be Approved in Meta before live
+// sends succeed.
+//
+// When WhatsApp can't reach someone (their number looks like it isn't on
+// WhatsApp, or they replied STOP to it) the same button sends the same words
+// as an SMS through sms-send instead. Which channel, and who may not be
+// messaged at all, is decided in engine/collectionNotice.ts.
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,39 +24,43 @@ import { X } from "lucide-react";
 import { HeaderIconButton } from "../shell/index.js";
 import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
+import { useUnreachableHumans } from "../../../supabase/hooks/useDeliveryFailures";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/whatsappTemplates.js";
-import { joinNames } from "../../../lib/reminders/templates.js";
+import { joinNames, renderSmsCollectionNotice } from "../../../lib/reminders/templates.js";
 import { titleCase } from "../../../utils/text";
-import { collectionNoticeReadiness } from "../../../engine/collectionNotice";
+import { collectionNoticeReadiness, collectionNoticeRoute } from "../../../engine/collectionNotice";
 import { Button, ModalShell } from "../../ui";
 
 const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v2");
+// Audit name written into the inbox thread beside the SMS ("[template:…] text").
+const SMS_TEMPLATE_NAME = "ready_for_collection_sms";
 
 function displayName(h) {
   return `${h?.name ?? ""} ${h?.surname ?? ""}`.trim() || "this contact";
 }
 
-// WhatsApp availability for a collection notice. Unlike the reminder
-// flow we do NOT require the `whatsapp` preference boolean (it defaults
-// to false on most rows, incl. trusted contacts) — a valid UK mobile
-// that hasn't opted out is enough for an operational pickup template.
-function whatsappAvailability(h) {
-  if (!normaliseUkMobile(h?.phone || "")) {
-    return { ok: false, reason: "No mobile number on file" };
-  }
-  if (h?.whatsapp_opted_out) {
-    return { ok: false, reason: "Opted out of WhatsApp" };
-  }
-  return { ok: true, reason: "" };
+// What the row says under the name: the number when WhatsApp will do, and
+// when it won't, why this one goes by SMS (or can't be messaged at all).
+function routeNote(route, phone) {
+  if (route.channel === null) return route.reason;
+  const number = formatPhoneForDisplay(phone);
+  if (route.channel === "whatsapp") return number;
+  return route.because === "whatsapp_opted_out"
+    ? `${number} · Opted out of WhatsApp, will send as SMS`
+    : `${number} · Not on WhatsApp, will send as SMS`;
 }
 
 export function CollectionNoticeModal({ booking, onClose }) {
   const toast = useToast();
   const contacts = useStaffContacts();
   const messaging = useStaffMessaging();
+  // Customers whose recent WhatsApp sends all bounced: the same signal the
+  // Today card uses for "Not on WhatsApp". Empty until it has loaded, in which
+  // case everyone simply goes by WhatsApp as before.
+  const unreachableHumans = useUnreachableHumans();
   const [step, setStep] = useState("ask");
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -203,9 +212,26 @@ export function CollectionNoticeModal({ booking, onClose }) {
     };
   }, [step, ownerId, contactLoadAttempt, contacts]);
 
+  // One channel decision per recipient, shared by the row, the button and the
+  // SMS preview so they can't disagree.
+  const routes = new Map(
+    recipients.map((r) => [
+      r.id,
+      collectionNoticeRoute(r, { whatsappUnreachable: unreachableHumans.has(r.id) }),
+    ]),
+  );
+  const anySms = [...routes.values()].some((route) => route.channel === "sms");
+
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
     READY_TEMPLATE?.preview({ dog_name: dogName, minutes: minutes.trim() || "__" }) ?? "";
+
+  // The SMS wording is plain text, so it is built from the names, not from the
+  // WhatsApp preview (which carries emoji).
+  const smsText = renderSmsCollectionNotice({
+    dogNames: readyDogNames.map((n) => titleCase(n)),
+    minutes: minutes.trim() || "__",
+  });
 
   const handleSend = useCallback(
     async (recipient) => {
@@ -214,39 +240,67 @@ export function CollectionNoticeModal({ booking, onClose }) {
         toast.show("Let us know how many minutes until collection", "error");
         return;
       }
+      // Decided here, at send time, from the same rule that drew the button,
+      // so a stale click can never reach an opted-out number.
+      const route = collectionNoticeRoute(recipient, {
+        whatsappUnreachable: unreachableHumans.has(recipient.id),
+      });
+      if (!route.channel) {
+        toast.show(route.reason, "error");
+        return;
+      }
       const phoneE164 = normaliseUkMobile(recipient.phone || "");
       if (!phoneE164) {
         toast.show("No valid mobile number for this contact.", "error");
         return;
       }
-      if (!READY_TEMPLATE) {
+      const viaSms = route.channel === "sms";
+      if (!viaSms && !READY_TEMPLATE) {
         toast.show("The collection template isn't set up yet", "error");
         return;
       }
       setSendingId(recipient.id);
       try {
-        const params = buildTemplateParams(READY_TEMPLATE, {
-          dog_name: dogName,
-          minutes: minutes.trim(),
-        });
-        const { data, error } = await messaging.sendWhatsAppTemplate({
-          to: phoneE164,
-          templateName: READY_TEMPLATE.name,
-          language: READY_TEMPLATE.language,
-          params,
-          humanId: recipient.id,
-        });
-        if (error) throw new Error(await parseSupabaseFunctionError(error, "WhatsApp send failed"));
+        let result;
+        if (viaSms) {
+          result = await messaging.sendSmsTemplate({
+            to: phoneE164,
+            text: smsText,
+            templateName: SMS_TEMPLATE_NAME,
+            humanId: recipient.id,
+          });
+        } else {
+          const params = buildTemplateParams(READY_TEMPLATE, {
+            dog_name: dogName,
+            minutes: minutes.trim(),
+          });
+          result = await messaging.sendWhatsAppTemplate({
+            to: phoneE164,
+            templateName: READY_TEMPLATE.name,
+            language: READY_TEMPLATE.language,
+            params,
+            humanId: recipient.id,
+          });
+        }
+        const { data, error } = result;
+        if (error) {
+          throw new Error(
+            await parseSupabaseFunctionError(error, viaSms ? "SMS send failed" : "WhatsApp send failed"),
+          );
+        }
         if (data?.error) throw new Error(data.detail || data.error);
         setSentIds((prev) => new Set(prev).add(recipient.id));
-        toast.show(`Collection notice sent to ${displayName(recipient)}.`, "success");
+        toast.show(
+          `Collection notice sent to ${displayName(recipient)}${viaSms ? " by SMS" : ""}.`,
+          "success",
+        );
       } catch (err) {
         toast.show(err instanceof Error ? err.message : String(err), "error");
       } finally {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, toast, messaging],
+    [sendingId, minutesValid, dogName, minutes, smsText, unreachableHumans, toast, messaging],
   );
 
   const askBody = (
@@ -323,7 +377,10 @@ export function CollectionNoticeModal({ booking, onClose }) {
         <>
           {/* Body */}
           <p className="text-body text-slate-600 m-0">
-            Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
+            Send a collection notice for <span className="font-semibold">{dogName}</span>?
+            <span className="block mt-1 text-xs text-slate-500">
+              By WhatsApp, or by SMS where they aren&apos;t on WhatsApp.
+            </span>
             {isPlural && (
               <span className="block mt-1 text-xs text-slate-500">
                 One message covers all of this owner's dogs that are ready.
@@ -377,12 +434,21 @@ export function CollectionNoticeModal({ booking, onClose }) {
               This booking isn’t linked to a customer record, so there’s no contact to notify.
             </div>
           ) : (
+            <>
+            {anySms && (
+              <div className="rounded-tile bg-sky-50 border border-sky-100 p-3 text-xs text-sky-900">
+                <span className="font-semibold not-italic">SMS version, for those not on WhatsApp</span>
+                <span className="block mt-1 italic">“{smsText}”</span>
+              </div>
+            )}
             <ul className="flex flex-col gap-2 list-none p-0 m-0">
               {recipients.map((r) => {
-                const avail = whatsappAvailability(r);
+                const route = routes.get(r.id);
+                const sendable = route.channel !== null;
+                const viaSms = route.channel === "sms";
                 const isSent = sentIds.has(r.id);
                 const isSending = sendingId === r.id;
-                const disabled = !avail.ok || isSent || isSending || !minutesValid || !!sendingId;
+                const disabled = !sendable || isSent || isSending || !minutesValid || !!sendingId;
                 return (
                   <li
                     key={r.id}
@@ -396,14 +462,14 @@ export function CollectionNoticeModal({ booking, onClose }) {
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 tabular-nums">
-                        {avail.ok ? formatPhoneForDisplay(r.phone) : avail.reason}
+                        {routeNote(route, r.phone)}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleSend(r)}
                       disabled={disabled}
-                      title={avail.ok ? `Send WhatsApp to ${displayName(r)}` : avail.reason}
+                      title={sendable ? `Send ${viaSms ? "SMS" : "WhatsApp"} to ${displayName(r)}` : route.reason}
                       className={[
                         "shrink-0 inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-body font-semibold font-[inherit] transition-colors",
                         isSent
@@ -413,12 +479,13 @@ export function CollectionNoticeModal({ booking, onClose }) {
                             : "bg-brand-ink text-white hover:bg-brand-ink/90 cursor-pointer",
                       ].join(" ")}
                     >
-                      {isSent ? "Sent ✓" : isSending ? "Sending…" : "Send"}
+                      {isSent ? "Sent ✓" : isSending ? "Sending…" : viaSms ? "Send SMS" : "Send"}
                     </button>
                   </li>
                 );
               })}
             </ul>
+            </>
           )}
         </>
       )}

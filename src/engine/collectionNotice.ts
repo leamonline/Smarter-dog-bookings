@@ -17,6 +17,62 @@
 // ============================================================
 
 import { BOOKING_STATUS } from "../constants/salon";
+import { normaliseUkMobile } from "../utils/phone.js";
+
+export interface CollectionContact {
+  phone?: string | null;
+  whatsapp_opted_out?: boolean | null;
+  sms?: boolean | null;
+  sms_opted_out?: boolean | null;
+}
+
+export type CollectionRoute =
+  | { channel: "whatsapp" }
+  | { channel: "sms"; because: "whatsapp_unreachable" | "whatsapp_opted_out" }
+  | { channel: null; reason: string };
+
+/**
+ * Which channel a collection notice goes out on for one recipient.
+ *
+ * WhatsApp first. It falls back to SMS when WhatsApp cannot reach them:
+ *
+ *   - the number looks like it isn't on WhatsApp (`whatsappUnreachable`: the
+ *     last few WhatsApp sends were all undeliverable). Text it. A pickup notice
+ *     is an operational message, so, like the WhatsApp path, it doesn't need the
+ *     "SMS reminders" preference ticked (`humans.sms` defaults to false, so
+ *     requiring it would leave almost everyone unreachable).
+ *   - they replied STOP to WhatsApp. That is an explicit request, so SMS is used
+ *     only if they have chosen SMS (`sms`). The same rule as the reminder
+ *     fallback (recipients.ts channelAvailableFor).
+ *
+ * An SMS opt-out always wins, and no usable mobile means no notice at all.
+ * sms-send does not check opt-outs itself, so this is where they are enforced.
+ */
+export function collectionNoticeRoute(
+  contact: CollectionContact | null | undefined,
+  opts: { whatsappUnreachable?: boolean } = {},
+): CollectionRoute {
+  if (!normaliseUkMobile(contact?.phone || "")) {
+    return { channel: null, reason: "No mobile number on file" };
+  }
+  const whatsappOptedOut = Boolean(contact?.whatsapp_opted_out);
+  const unreachable = Boolean(opts.whatsappUnreachable);
+
+  if (!whatsappOptedOut && !unreachable) return { channel: "whatsapp" };
+
+  if (contact?.sms_opted_out) {
+    return {
+      channel: null,
+      reason: whatsappOptedOut ? "Opted out of WhatsApp and SMS" : "Not on WhatsApp, and opted out of SMS",
+    };
+  }
+  if (whatsappOptedOut) {
+    return contact?.sms
+      ? { channel: "sms", because: "whatsapp_opted_out" }
+      : { channel: null, reason: "Opted out of WhatsApp" };
+  }
+  return { channel: "sms", because: "whatsapp_unreachable" };
+}
 
 export interface OwnerDayRow {
   id: string;
