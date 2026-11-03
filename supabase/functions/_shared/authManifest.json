@@ -152,6 +152,17 @@
       ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "No secret participates in the caller check. Abuse is bounded by rate limiting rather than rejected by authentication, so these functions are held to the additional data-exposure rule above."
+    },
+    "twilio-signature": {
+      "description": "Twilio-originated request authenticated by X-Twilio-Signature: a base64 HMAC-SHA1, keyed with the Twilio Auth Token, over the configured callback URL and every form parameter sorted by key. An API key secret cannot verify it.",
+      "requiredPrimitives": [
+        "isValidTwilioSignature"
+      ],
+      "unauthorizedStatuses": [
+        403
+      ],
+      "failsClosedOnEmptySecret": true,
+      "emptySecretRationale": "isValidTwilioSignature returns false for an empty token, URL or header, and timingSafeEqualHeader returns false when either side is empty. The handler also answers 500 before reading the body when TWILIO_AUTH_TOKEN or TWILIO_STATUS_CALLBACK_URL is unset."
     }
   },
   "functions": {
@@ -546,6 +557,20 @@
       "unauthorizedResponse": "401 Unauthorized (missing or invalid token), 403 Forbidden (not staff, not an owner, or origin not allowed)",
       "emptySecretBehaviour": "n/a — no shared secret",
       "notes": "Creates staff accounts. Staff is not enough: the handler also requires staff_profiles.role = 'owner' under the caller's own token. Creates the login first (so an existing account of any kind is refused with a 409 and never touched), then the staff row, then sends the invite email; rollback deletes only the account this request created. redirectTo is built only from an allowlisted origin."
+    },
+    "twilio-status": {
+      "authFamily": "twilio-signature",
+      "authSource": "handler.ts",
+      "caller": "Twilio delivery-status callbacks for texts",
+      "role": "external",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "none at the transport; a status never moves backwards and a repeated one changes nothing, so a replay is harmless",
+      "unauthorizedResponse": "403 invalid signature (nothing is written); 500 not configured when TWILIO_AUTH_TOKEN or TWILIO_STATUS_CALLBACK_URL is unset",
+      "emptySecretBehaviour": "closed — an unset auth token or callback URL answers 500 before the body is read, and isValidTwilioSignature is false for any empty input",
+      "notes": "Dark-launched: sendSms only asks Twilio for callbacks when TWILIO_STATUS_CALLBACK_URL is set, so deploying this without that secret is inert. It validates against the configured URL, not the request host."
     }
   }
 }

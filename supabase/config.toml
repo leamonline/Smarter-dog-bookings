@@ -63,6 +63,8 @@ enable_confirmations = false
 verify_jwt = false
 [functions.whatsapp-flow-endpoint]
 verify_jwt = false
+[functions.twilio-status]
+verify_jwt = false
 [functions.whatsapp-agent]
 verify_jwt = false
 [functions.whatsapp-send]
