@@ -1,27 +1,26 @@
 name: Apply named migrations to production
 
-# Production only, by hand, behind the `production` GitHub environment.
-# Nothing here runs on push, pull request or schedule: an operator dispatches
-# it with the exact production ref typed as confirmation, the environment's
-# required reviewers approve the run, and only then does the job link
-# production. It runs scripts/apply-hosted-migrations.sh, the same script the
-# staging workflow uses, with that script's explicit production opt-in, so
-# there is one apply path to review.
+# Production only, by hand. Nothing here runs on push, pull request or
+# schedule. The operator dispatches it from main and types the exact production
+# project ref. That typed ref is the confirmation that this run is aimed at
+# production. There is no required-reviewer step: GitHub Free, Pro and Team
+# only offer required reviewers on a public repository, and this repository is
+# private, so that rule cannot exist and a check for it always stops the run.
+# One owner approving their own run would not be a second person anyway.
 #
 # The access token is read from PRODUCTION_SUPABASE_ACCESS_TOKEN, a secret that
 # must exist ONLY on the `production` environment (never at repository level):
 # GitHub creates a referenced environment with no protection rules if it does
 # not exist yet, so an unconfigured environment would otherwise run with the
 # repository-level token. Without that secret the first step fails closed.
+# The same step refuses unless the environment allows exactly the branch main,
+# which is what stops any other branch from receiving the token.
 #
-# Dispatch it from `main`: the environment's deployment branch policy allows
-# only `main`, so the workflow and the apply script always run as reviewed
-# there. The migration FILES come from the commit named in `ref` (normally the
-# reviewed pull request head, which may not be merged yet): only
-# supabase/migrations/ is taken from it, so a branch can never carry a
-# weakened workflow or script into production.
-# Procedure, evidence and what to do after a partial failure:
-# docs/migrations.md ("Applying migrations to production") and ADR 006.
+# The migration FILES come from the commit named in `ref` (normally the open
+# pull request head, which may not be merged yet): only supabase/migrations/
+# is taken from it, so a branch can never carry a weakened workflow or script
+# into production. The workflow and the apply script always run from main.
+# Procedure: docs/migrations.md ("How to apply a migration") and ADR 006.
 on:
   workflow_dispatch:
     inputs:
@@ -94,23 +93,27 @@ jobs:
             echo "::error::This workflow runs only when dispatched from main (dispatched from $GITHUB_REF)."
             exit 1
           fi
-          # Running under the production environment only means a reviewer
-          # approved this run if that environment exists with a required-reviewers
-          # rule: a referenced environment that does not exist is created with no
+          # A referenced environment that does not exist is created with no
           # rules, and a secret of the same name at repository or organisation
           # level would still reach this job. So the environment itself is
-          # checked, not the presence of a specially named secret.
+          # checked, not the presence of a specially named secret. Required
+          # reviewers are not the check: this private repository cannot have
+          # them on the current plan. The deployment branch rule is. Exactly
+          # one rule, type branch, name main, means only a workflow running as
+          # main receives the production token.
           if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then
             echo "::error::Could not read the production environment (it must exist, and the workflow needs actions: read); refusing to continue."
             exit 1
           fi
-          reviewers="$(printf '%s' "$environment" | jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers | length] | add // 0')"
-          if [ "$reviewers" -lt 1 ]; then
-            echo "::error::The production environment has no required reviewers, so no approval gated this run. Configure it before dispatching (docs/migrations.md)."
+          env_name="$(printf '%s' "$environment" | jq -r '.name')"
+          if ! policies="$(gh api "repos/$GITHUB_REPOSITORY/environments/${env_name}/deployment-branch-policies")"; then
+            echo "::error::Could not read the production environment's deployment branch rules; refusing to continue."
             exit 1
           fi
-          if [ "$(printf '%s' "$environment" | jq '.deployment_branch_policy == null')" = "true" ]; then
-            echo "::error::The production environment has no deployment branch policy; restrict it to main before dispatching (docs/migrations.md)."
+          branch_names="$(printf '%s' "$policies" | jq -r '[.branch_policies[]? | .name] | sort | join(" ")')"
+          branch_types="$(printf '%s' "$policies" | jq -r '[.branch_policies[]? | .type] | sort | join(" ")')"
+          if [ "$branch_names" != "main" ] || [ "$branch_types" != "branch" ]; then
+            echo "::error::The production environment must allow exactly the branch main, and it currently allows: ${branch_names:-nothing} (types: ${branch_types:-none}). This run stops before it connects to the database. On GitHub open Settings, then Environments, then Production. Under Deployment branches and tags choose Selected branches and tags. Add one branch rule named main and delete every other rule. Then run this workflow again (docs/migrations.md)."
             exit 1
           fi
           if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then
@@ -143,7 +146,7 @@ jobs:
             echo "| Postcondition | \`$POSTCONDITION_SQL\` |"
             echo "| Exact-ref confirmation | passed |"
             echo "| Dispatched from | \`$GITHUB_REF\` |"
-            echo "| Production environment | exists; required reviewers: $reviewers; deployment branch policy: set |"
+            echo "| Production environment | exists; deployment branch rule: exactly main |"
             echo "| Production environment secret present | yes |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -163,10 +166,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # One current main, resolved now, after the environment approval and
-          # any concurrency wait, during which main may have moved on from the
-          # dispatched checkout. The provenance check here and the append-only
-          # check in the next step both use this one SHA, and it is recorded.
+          # One current main, resolved now, after any concurrency wait, during
+          # which main may have moved on from the dispatched checkout. The
+          # provenance check here and the append-only check in the next step
+          # both use this one SHA, and it is recorded.
           git fetch --no-tags --depth=1 origin main
           main_sha="$(git rev-parse FETCH_HEAD)"
           echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
@@ -244,8 +247,8 @@ jobs:
               exit 1
             fi
             # Applied history is append-only: a file that already exists on
-            # current main (the SHA the overlay step resolved after the
-            # approval wait, never the dispatch-time checkout) must be
+            # current main (the SHA the overlay step resolved after any
+            # concurrency wait, never the dispatch-time checkout) must be
             # byte-identical to that copy, or the fix belongs in a new, later
             # migration.
             if git cat-file -e "$MAIN_SHA:supabase/migrations/$migration" 2>/dev/null &&

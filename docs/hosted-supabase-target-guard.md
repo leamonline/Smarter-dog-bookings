@@ -31,7 +31,7 @@ the separate human authority defined in [ADR 006](architecture/decisions/006-man
 | `.github/workflows/staging-apply-migrations.yml` | `supabase link --project-ref "$STAGING_PROJECT_REF"` | Explicit staging ref; staging ref must differ from production | Sets local link state | Named `staging` GitHub environment and manual exact-ref confirmation |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase migration list --linked` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration-state read | Named `staging` environment |
 | `scripts/apply-hosted-migrations.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded ref of the declared target: staging by default, production only with `HOSTED_MIGRATION_TARGET=production` and a matching `CONFIRM_PRODUCTION_REF`; the two refs must differ; adjacent link-state assertion | Retrieves ephemeral connection details, then applies the named committed migration files with `psql`, one transaction per file including its ledger row, and fails unless every requested name is recorded afterwards | Staging by default; production only through the manual-only workflow under the `production` environment |
-| `.github/workflows/production-apply-migrations.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref, typed again by the operator as the first step before checkout | Sets local link state | Named `production` GitHub environment with required reviewers and the environment-only `PRODUCTION_SUPABASE_ACCESS_TOKEN` secret (the first step fails closed without it); manual-only dispatch |
+| `.github/workflows/production-apply-migrations.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref, typed again by the operator as the first step before checkout | Sets local link state | Named `production` GitHub environment whose deployment branch rule is exactly `main`, plus the environment-only `PRODUCTION_SUPABASE_ACCESS_TOKEN` secret (the first step fails closed without either); manual-only dispatch. Required reviewers are not used: a private repository on the current plan cannot have them |
 | `.github/workflows/production-apply-migrations.yml` | `supabase migration list --linked` (before and after the apply) | Adjacent assertion of `PRODUCTION_PROJECT_REF` | Hosted migration-state read | Named `production` environment |
 | `.github/workflows/database-backup.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref; staging ref must differ; the environment's reviewers (manual runs), its main-only branch policy and both environment secrets checked before checkout | Sets local link state | Manual runs: named `production` environment with required reviewers. Scheduled runs: `production-scheduled-backup`, no reviewers, deployable only from `main` and only by the `schedule` event. Each holds its own environment-only `PRODUCTION_SUPABASE_ACCESS_TOKEN`; skipped unless repository variable `DATABASE_BACKUP_ENABLED` is `true` |
 | `.github/workflows/database-backup.yml` | `supabase migration list --linked` | Adjacent assertion of `PRODUCTION_PROJECT_REF` | Hosted migration-state read, recorded inside the encrypted bundle | `production` (manual) or `production-scheduled-backup` (scheduled) |
@@ -69,8 +69,10 @@ environment.
 
 ## Draft local release wrapper (adoption and operator acceptance pending)
 
-The working hosted production reviewer gate remains the current route; this
-draft alternative does not adopt or recommend replacing it.
+The hosted production workflow remains the current route. Since 3 November
+2026 its confirmation is the typed production project ref and a deployment
+branch rule of exactly `main`, because a private repository on this plan
+cannot store a required reviewer. This draft alternative does not replace it.
 
 The [local release runbook](local-production-release.md) governs
 `scripts/release/local-release.mjs`. Preparation and validation use only Git/GitHub.

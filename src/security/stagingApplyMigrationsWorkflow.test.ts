@@ -42,6 +42,9 @@ describe("staging apply-migrations workflow", () => {
       /^ {6}confirm_staging_ref:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
     );
     expect(trigger).toMatch(
+      /^ {6}ref:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
+    );
+    expect(trigger).toMatch(
       /^ {6}migrations:\n(?: {8}.+\n)* {8}required: true\n {8}type: string$/m,
     );
     expect(trigger).not.toMatch(/^ {2}(?:push|pull_request|schedule):/m);
@@ -71,6 +74,16 @@ describe("staging apply-migrations workflow", () => {
     );
     expect(workflow).toContain(
       '          if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then',
+    );
+    expect(workflow).toContain('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then');
+    expect(workflow).toContain(
+      "          branch_names=\"$(printf '%s' \"$policies\" | jq -r '[.branch_policies[]? | .name] | sort | join(\" \")')\"",
+    );
+    expect(workflow).toMatch(
+      /if \[ "\$branch_names" != "main" \] \|\| \[ "\$branch_types" != "branch" \]; then\n {12}echo "::error::The staging environment must allow exactly the branch main/,
+    );
+    expect(positionOf('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then')).toBeLessThan(
+      positionOf("        uses: actions/checkout@v7"),
     );
     expect(workflow).not.toContain(
       'supabase link --project-ref "$PRODUCTION_PROJECT_REF"',
@@ -119,6 +132,19 @@ describe("staging apply-migrations workflow", () => {
     );
     // The script's production opt-in is never set here, so this workflow can only ever reach staging.
     expect(workflow).not.toMatch(/HOSTED_MIGRATION_TARGET|CONFIRM_PRODUCTION_REF/);
+    // Files come from the named commit, judged by the same provenance script as production.
+    const overlay = positionOf("      - name: Take supabase/migrations from the named commit");
+    const link = positionOf('supabase link --project-ref "$STAGING_PROJECT_REF"');
+    expect(positionOf("        uses: actions/checkout@v7")).toBeLessThan(overlay);
+    expect(overlay).toBeLessThan(link);
+    expect(workflow).toContain(
+      '          scripts/production-ref-provenance.sh "$main_sha" "$MIGRATION_REF" | tee provenance.out',
+    );
+    expect(workflow).toContain(
+      '          scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out',
+    );
+    expect(workflow).toContain('git checkout "$MIGRATION_REF" -- supabase/migrations/');
+    expect(workflow).not.toMatch(/git checkout "\$MIGRATION_REF"(?! -- supabase\/migrations\/)/);
   });
 
   it("keeps the script staging by default, production only by explicit opt-in, and transactional with its ledger row", () => {

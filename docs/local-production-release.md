@@ -6,12 +6,18 @@ Design: [local release contract](plans/active/2026-10-15-local-production-releas
 
 The commands prepare and validate exact SQL without database credentials. Execution
 uses a signed macOS helper and the data-protection Keychain to request fresh user
-presence, then a single PostgreSQL session for the complete apply sequence. The
-existing production workflow retains its environment-reviewer guard. This change
-does not configure an account, enrol a credential, install database objects or
-authorise any production run.
+presence, then a single PostgreSQL session for the complete apply sequence. This
+change does not configure an account, enrol a credential, install database objects
+or authorise any production run.
 
-## Current release route (16 October 2026)
+## Current release route (3 November 2026)
+
+Apply production migrations with the GitHub workflow. The steps are
+[How to apply a migration](migrations.md#how-to-apply-a-migration). The
+required-reviewer guard was removed on 3 November 2026 because a private
+repository on this plan cannot store that rule. This local tool stays unused.
+
+## Release route on 16 October 2026
 
 The hosted production gate is available: the `production` environment now has
 required reviewer `leamonline`, and production apply run

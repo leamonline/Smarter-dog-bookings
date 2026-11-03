@@ -255,14 +255,23 @@ describe("production apply-migrations workflow", () => {
     const secretCheck = positionOf('          if [ -z "${PRODUCTION_SUPABASE_ACCESS_TOKEN:-}" ]; then');
     expect(secretCheck).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
     // A same-named secret at repository level must never stand in for the
-    // environment's approval: the job reads the environment itself and refuses
-    // without a required-reviewers rule and a deployment branch policy, and it
-    // only runs when dispatched from main. All before checkout.
+    // environment: the job reads the environment itself and refuses unless its
+    // deployment branch rules are exactly the branch main, and it only runs
+    // when dispatched from main. Required reviewers are not a gate. A private
+    // repository on GitHub Free, Pro or Team cannot have them, so that check
+    // stopped every run. All of this is before checkout.
     expect(workflow).toContain('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then');
     expect(workflow).toContain('          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production")"; then');
-    expect(workflow).toContain("          reviewers=\"$(printf '%s' \"$environment\" | jq '[.protection_rules[]? | select(.type == \"required_reviewers\") | .reviewers | length] | add // 0')\"");
-    expect(workflow).toMatch(/if \[ "\$reviewers" -lt 1 \]; then\n {12}echo "::error::The production environment has no required reviewers[^\n]*\n {12}exit 1/);
-    expect(workflow).toMatch(/if \[ "\$\(printf '%s' "\$environment" \| jq '\.deployment_branch_policy == null'\)" = "true" \]; then\n {12}echo "::error::The production environment has no deployment branch policy[^\n]*\n {12}exit 1/);
+    expect(workflow).not.toContain("required_reviewers");
+    expect(workflow).toContain(
+      "          branch_names=\"$(printf '%s' \"$policies\" | jq -r '[.branch_policies[]? | .name] | sort | join(\" \")')\"",
+    );
+    expect(workflow).toContain(
+      "          branch_types=\"$(printf '%s' \"$policies\" | jq -r '[.branch_policies[]? | .type] | sort | join(\" \")')\"",
+    );
+    expect(workflow).toMatch(
+      /if \[ "\$branch_names" != "main" \] \|\| \[ "\$branch_types" != "branch" \]; then\n {12}echo "::error::The production environment must allow exactly the branch main[^\n]*\n {12}exit 1/,
+    );
     expect(positionOf('          if ! environment="$(gh api')).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
     expect(positionOf('          if [ "$GITHUB_REF" != "refs/heads/main" ]; then')).toBeLessThan(positionOf("        uses: actions/checkout@v7"));
     // The ref and the postcondition are validated before checkout too.

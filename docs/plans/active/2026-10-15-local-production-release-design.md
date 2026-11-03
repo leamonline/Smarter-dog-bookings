@@ -114,3 +114,9 @@ private again (required reviewers stop working) or a second person starts
 operating releases. Recorded in
 [`docs/migrations.md`](../../migrations.md#production-route-decision-1024--20-october-2026).
 
+On 3 November 2026 the repository is private and the hosted workflow's
+required-reviewer check was removed, because that rule cannot be stored on a
+private repository on this plan. The local tool was not adopted. The apply
+path is the GitHub workflow in
+[How to apply a migration](../../migrations.md#how-to-apply-a-migration).
+

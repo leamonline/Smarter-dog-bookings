@@ -1,6 +1,7 @@
 # Production migration workflow and the Supabase MCP permission guard
 
 **Status:** Active
+**Update, 3 November 2026:** The required-reviewer check was removed. GitHub Free, Pro and Team only offer required reviewers on a public repository, and this repository is private, so the check stopped every run. The confirmation is the typed production project ref, and the production environment must allow exactly the branch `main`. The steps are [How to apply a migration](../../migrations.md#how-to-apply-a-migration). The rest of this file is the 6 October snapshot.
 **Authority:** Implementation plan for the production apply path (ADR 006's manual gate, made executable)
 **Issue:** [#957](https://github.com/leamonline/Smarter-dog-bookings/issues/957) (opened retrospectively on 6 October 2026; delivered by [PR #956](https://github.com/leamonline/Smarter-dog-bookings/pull/956))
 **Base:** `main@a45d298` (6 October 2026)

@@ -5,7 +5,10 @@
 # bare call can reach; production is refused unless the caller opts in with
 # HOSTED_MIGRATION_TARGET=production AND repeats the exact production ref in
 # CONFIRM_PRODUCTION_REF. Both workflows that call this script run under a
-# named GitHub environment with its own required reviewers.
+# named GitHub environment whose deployment branch rule is exactly main.
+# Production also requires the operator to type the production project ref.
+# Required reviewers are not used: a private repository on GitHub Free, Pro
+# or Team cannot have them.
 #
 # Why this exists: the MCP migration tool refuses to run any SQL text that
 # contains a destructive keyword (DROP FUNCTION, DROP TRIGGER, DROP COLUMN,
