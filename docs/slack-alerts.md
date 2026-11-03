@@ -217,11 +217,14 @@ no reason.
 
 ## What this does not do
 
-- **No Twilio delivery alerts yet.** A failed reminder SMS is not detectable
-  today: nothing sets `StatusCallback`, and there is no inbound Twilio route or
-  signature verification anywhere in the repo. It is a separate piece of work
-  and covers **SMS only** — WhatsApp reminders go via Meta, so their failures
-  arrive as `whatsapp_events` status events instead.
+- **No Slack alert for texts that fail after Twilio accepts them.** Twilio delivery
+  callbacks are handled by the `twilio-status` function
+  ([`messaging-policy.md`](messaging-policy.md#sms-delivery-tracking)), which marks the
+  text failed and raises a **staff to-do** (and a staff push where that is switched
+  on). It deliberately
+  does not post to Slack: the to-do names the customer, and nothing identifying a
+  customer may reach Slack (the hard rule above). WhatsApp reminders go via Meta, so their
+  failures arrive as `whatsapp_events` status events instead.
 - **No Sentry handler.** Sentry → Slack is configured in the Sentry UI. Point
   it at a **different** channel: a stack trace is not "something a human must
   do today", and mixing the two dilutes both.

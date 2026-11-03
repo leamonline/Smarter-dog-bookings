@@ -201,6 +201,60 @@ phone call to clarify which channels they allow; nothing has raised a to-do for
 them. Raise those by hand (or with an approved one-off script) rather than letting
 the first sign be a missed appointment.
 
+## SMS delivery tracking
+
+Twilio accepts a text before it is delivered, so until now every text was logged
+"sent" on that alone. The `twilio-status` function receives Twilio's delivery
+callbacks and records four distinct outcomes:
+
+| Outcome | Meaning | What we record |
+|---|---|---|
+| accepted | Twilio has it (queued, sending, sent) | nothing: it stays "sent" |
+| delivered | the carrier confirmed it reached the handset | the message shows delivered |
+| undelivered | the carrier took it and could not deliver it | message and log row **failed**: "Text not delivered: … (reason)" |
+| failed | Twilio could not send it at all | message and log row **failed**: "Text failed to send: … (reason)" |
+
+Twilio's error code is turned into a reason staff can act on ("their phone was off
+or out of signal", "that number can't receive texts (it may be a landline)").
+
+**Essential texts that do not arrive raise a staff to-do**: "Text not delivered:
+Wendy's reminder text (their phone was off or out of signal) didn't arrive. Ring
+them, or check the number on their record." It names the kind of text, never its
+content or the number, and appears with the other to-dos (and as a push where staff
+push is switched on). The
+booking's delivery card and the dashboard failures list pick up the failed log row
+live. A free-text message typed by staff only turns red in the inbox (they are
+already looking at it). A text STOP (error 21610) is recorded as an SMS opt-out
+and flagged as described under [STOP](#stop).
+
+Statuses can arrive out of order, so one never moves backwards, and a repeated
+callback changes nothing.
+
+**Security.** The endpoint is public (Twilio has no JWT), so the whole boundary is
+the `X-Twilio-Signature` check against the configured callback URL, which fails
+closed: no token or URL configured answers 500 and reads nothing, and a missing or
+wrong signature answers 403 and writes nothing
+([`edge-function-auth.md`](edge-function-auth.md)).
+
+**Dark launch: nothing changes until it is configured.** Merging deploys the
+function, but it answers 500 to everything, and `sendSms` asks Twilio for callbacks
+only when `TWILIO_STATUS_CALLBACK_URL` is set. Turning it on is a Twilio and secrets
+change that needs its own approval:
+
+1. Set `TWILIO_AUTH_TOKEN` (the account **Auth Token**; an API key secret cannot
+   verify signatures) and `TWILIO_STATUS_CALLBACK_URL`
+   (`https://<project-ref>.supabase.co/functions/v1/twilio-status`) with
+   `supabase secrets set`. Set the token first.
+2. No change in the Twilio console is needed: the URL is sent with each text.
+3. Check: send one text; the function's log shows `delivered`, and that message
+   shows delivered in the inbox.
+4. **Roll back** by unsetting `TWILIO_STATUS_CALLBACK_URL`: new texts stop asking for
+   callbacks at once and the function goes back to inert.
+
+Known limit: a failure that arrives before the sending function has finished
+writing its own log row (milliseconds) would find nothing to update. Failures
+normally arrive seconds later.
+
 ## What is not done yet
 
 These need something outside a normal code change, so they are staged rather than
@@ -212,14 +266,6 @@ shipped:
   ([`migrations.md`](migrations.md)) before any code that depends on it. All
   promotional SMS stays disabled until a separate, properly designed
   marketing-permission system exists.
-- **SMS delivery status.** Twilio accepts a text before it is delivered, and
-  nothing receives the delivery callback (no `StatusCallback`, no inbound Twilio
-  route or signature check), so a text that later fails is logged "sent". Today's
-  alerting therefore covers texts Twilio **rejects** at send time (those show on the
-  dashboard's delivery-failure card, and a STOP now raises a to-do), not texts that
-  fail afterwards. Closing that needs a new signature-verified inbound endpoint,
-  the Twilio Auth Token as a function secret and a Twilio-side setting; see
-  [`slack-alerts.md`](slack-alerts.md#what-this-does-not-do).
 - **The customer-facing Terms and Privacy text** on smarterdog.co.uk should say what
   the sign-up notice says, and `POLICIES_VERSION` should be bumped when it does.
   That text is not in this repository.

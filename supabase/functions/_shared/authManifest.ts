@@ -23,6 +23,7 @@ export type AuthFamilyId =
   | "internal-secret"
   | "agent-secret"
   | "meta-signature"
+  | "twilio-signature"
   | "feed-token"
   | "public-rate-limited";
 

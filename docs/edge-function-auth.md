@@ -52,6 +52,7 @@ the build.
 | `internal-secret` | `x-internal-secret` only; no browser path | 401 |
 | `agent-secret` | `x-agent-secret: <AGENT_CALLBACK_SECRET>` | 401 |
 | `meta-signature` | HMAC-SHA256 `X-Hub-Signature-256` over the raw body, and/or the `hub.verify_token` handshake | 403, or 200-and-not-processed (see below) |
+| `twilio-signature` | HMAC-SHA1 `X-Twilio-Signature` over the configured callback URL and every form parameter, keyed with the Twilio Auth Token | 403, or 500 when the token or callback URL is unset |
 | `feed-token` | Opaque token from `calendar_feed_tokens`, in the URL | 401 / 403 |
 | `public-rate-limited` | None by design — origin allowlist plus per-IP and global rate limits | 400 / 429 |
 
