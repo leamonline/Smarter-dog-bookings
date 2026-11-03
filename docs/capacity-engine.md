@@ -183,9 +183,11 @@ Two things that could look like off-switches but are not:
 - **Cancelled and No-show free their seat.** Both are non-occupying, which
   is `booking_occupies_seat()` in the database and `isActiveBooking()` in
   the staff app and the Deno capacity mirror. A completed visit still
-  counts: the dog was here. Queries that cannot call the helper (the inbox
-  seat preview, the WhatsApp Flow's day occupancy, the morning Slack day
-  count) use `nonOccupyingStatusIn()`, the same two statuses. The waitlist
+  counts: the dog was here. A missing status counts too: the database treats
+  it as Booked. Queries that cannot call the helper (the inbox seat preview,
+  the WhatsApp Flow's day occupancy, the morning Slack day count) use
+  `occupyingStatusOr()`, which keeps a NULL status and excludes Cancelled
+  and No-show. A bare `not.in` would drop the NULL rows. The waitlist
   does not book into a freed seat by itself. Staff fill it from the
   calendar, which shows the seat as free once the booking is marked
   No-show.

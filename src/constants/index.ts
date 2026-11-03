@@ -17,7 +17,7 @@ export {
   RANK_COMPLETED,
   TERMINAL_STATUSES,
   isActiveBooking,
-  nonOccupyingStatusIn,
+  occupyingStatusOr,
   isTerminalStatus,
   ACTIVE_STACK_STATUSES,
   isStackVisibleStatus,

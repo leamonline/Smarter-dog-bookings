@@ -4,6 +4,7 @@
 // through, so the query bodies can't drift from what the hooks assumed.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
+import { occupyingStatusOr } from "../../constants/salon";
 import { listRecentPastForOwner, listSeatsOnDate } from "./bookingsRepo";
 import { listCustomerContextDogs } from "./dogsRepo";
 import { getCustomerContextProfile, listTrustedContactsWithNames } from "./humansRepo";
@@ -20,7 +21,7 @@ type Call = { method: string; args: unknown[] };
 function fakeQuery(result: unknown) {
   const calls: Call[] = [];
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lt", "not", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
+  for (const method of ["select", "eq", "lt", "or", "not", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
     builder[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -103,7 +104,9 @@ describe("listRecentPastForOwner", () => {
 });
 
 describe("listSeatsOnDate", () => {
-  it("returns the seat rows for the date", async () => {
+  it("keeps a NULL status, which still occupies a seat", async () => {
+    // booking_occupies_seat() treats NULL as Booked. A bare not.in drops
+    // those rows, because SQL NOT IN is not true for NULL.
     const rows = [{ id: "b1", slot: "09:00", size: "small", dog_id: "d1" }];
     const { client, from, calls } = fakeQuery({ data: rows, error: null });
 
@@ -112,7 +115,11 @@ describe("listSeatsOnDate", () => {
     expect(from).toHaveBeenCalledWith("bookings");
     expect(argsOf(calls, "select")).toEqual([["id, slot, size, dog_id"]]);
     expect(argsOf(calls, "eq")).toEqual([["booking_date", "2026-09-02"]]);
-    expect(argsOf(calls, "not")).toEqual([["status", "in", '("Cancelled","No-show")']]);
+    expect(occupyingStatusOr()).toBe(
+      'status.is.null,status.not.in.("Cancelled","No-show")',
+    );
+    expect(argsOf(calls, "or")).toEqual([[occupyingStatusOr()]]);
+    expect(argsOf(calls, "not")).toEqual([]);
     expect(result).toEqual({ rows, error: null });
   });
 

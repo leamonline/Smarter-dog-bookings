@@ -212,13 +212,15 @@ export function isActiveBooking(status: string | null | undefined): boolean {
 }
 
 /**
- * PostgREST `in` list for `.not("status", "in", nonOccupyingStatusIn())`.
- * The two statuses `booking_occupies_seat()` treats as free. A query cannot
- * call `isActiveBooking`, so the list lives beside it and cannot drift to
- * "Cancelled" alone.
+ * PostgREST `or` filter for rows that still occupy a seat.
+ *
+ * Call `.or(occupyingStatusOr())`. A missing status counts: `booking_occupies_seat()`
+ * treats NULL as Booked. `.not("status", "in", ...)` drops those rows, because
+ * SQL `NOT IN` is not true for NULL.
  */
-export function nonOccupyingStatusIn(): string {
-  return `(${TERMINAL_STATUSES.map((status) => `"${status}"`).join(",")})`;
+export function occupyingStatusOr(): string {
+  const excluded = TERMINAL_STATUSES.map((status) => `"${status}"`).join(",");
+  return `status.is.null,status.not.in.(${excluded})`;
 }
 
 /** True for the two ended-early states. The inverse of `isActiveBooking`. */

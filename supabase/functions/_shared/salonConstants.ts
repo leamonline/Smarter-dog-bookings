@@ -112,12 +112,14 @@ export function isActiveBooking(status: string | null | undefined): boolean {
 }
 
 /**
- * PostgREST `in` list for `.not("status", "in", nonOccupyingStatusIn())`.
- * Mirrors `nonOccupyingStatusIn` in src/constants/salon.ts and
- * booking_occupies_seat(): Cancelled and No-show both free the seat.
+ * PostgREST `or` filter for rows that still occupy a seat.
+ *
+ * Mirrors `occupyingStatusOr` in src/constants/salon.ts. NULL status counts,
+ * matching booking_occupies_seat(). A bare not.in filter drops NULL.
  */
-export function nonOccupyingStatusIn(): string {
-  return `(${TERMINAL_STATUSES.map((status) => `"${status}"`).join(",")})`;
+export function occupyingStatusOr(): string {
+  const excluded = TERMINAL_STATUSES.map((status) => `"${status}"`).join(",");
+  return `status.is.null,status.not.in.(${excluded})`;
 }
 
 // Customer self-service portal sign-in/sign-up URL (prod default). This

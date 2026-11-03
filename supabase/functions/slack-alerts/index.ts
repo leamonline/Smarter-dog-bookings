@@ -43,7 +43,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
-import { buildSlotGrid, DAILY_DOG_CAP, nonOccupyingStatusIn, type DogSize } from "../_shared/salonConstants.ts";
+import { buildSlotGrid, DAILY_DOG_CAP, occupyingStatusOr, type DogSize } from "../_shared/salonConstants.ts";
 import { visitStartInstant } from "../_shared/manageBooking.ts";
 import {
   buildPipelineHealthLine,
@@ -608,7 +608,7 @@ async function handleSummary(
     .from("bookings")
     .select("slot, status")
     .eq("booking_date", today)
-    .not("status", "in", nonOccupyingStatusIn());
+    .or(occupyingStatusOr());
 
   const slots = ((data ?? []) as { slot: string }[])
     .map((b) => b.slot)
