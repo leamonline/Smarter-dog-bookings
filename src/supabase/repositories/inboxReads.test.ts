@@ -4,8 +4,8 @@
 // through, so the query bodies can't drift from what the hooks assumed.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { occupyingStatusOr } from "../../constants/salon";
-import { listRecentPastForOwner, listSeatsOnDate } from "./bookingsRepo";
+import { BOOKING_STATUS, keepingNullStatusOr, occupyingStatusOr } from "../../constants/salon";
+import { listOwnerBookingsOnDate, listRecentPastForOwner, listSeatsOnDate } from "./bookingsRepo";
 import { listCustomerContextDogs } from "./dogsRepo";
 import { getCustomerContextProfile, listTrustedContactsWithNames } from "./humansRepo";
 import { escapeLike, searchMessageConversationIds } from "./whatsappRepo";
@@ -21,7 +21,7 @@ type Call = { method: string; args: unknown[] };
 function fakeQuery(result: unknown) {
   const calls: Call[] = [];
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lt", "or", "not", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
+  for (const method of ["select", "eq", "lt", "or", "not", "neq", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
     builder[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -100,6 +100,25 @@ describe("listRecentPastForOwner", () => {
     await listRecentPastForOwner(client, { humanId: HUMAN, before: "2026-09-02", limit: 5 });
 
     expect(argsOf(calls, "limit")).toEqual([[5]]);
+  });
+});
+
+describe("listOwnerBookingsOnDate", () => {
+  it("keeps a NULL status, which is treated as Booked, and still drops Cancelled", async () => {
+    const { client, from, calls } = fakeQuery({ data: [], error: null });
+
+    await listOwnerBookingsOnDate(client, "2026-09-02", HUMAN);
+
+    expect(from).toHaveBeenCalledWith("bookings");
+    expect(argsOf(calls, "eq")).toEqual([
+      ["booking_date", "2026-09-02"],
+      ["dogs.human_id", HUMAN],
+    ]);
+    expect(keepingNullStatusOr([BOOKING_STATUS.CANCELLED])).toBe(
+      'status.is.null,status.not.in.("Cancelled")',
+    );
+    expect(argsOf(calls, "or")).toEqual([[keepingNullStatusOr([BOOKING_STATUS.CANCELLED])]]);
+    expect(argsOf(calls, "neq")).toEqual([]);
   });
 });
 

@@ -34,10 +34,10 @@ const SMS_CUSTOMER = {
 
 async function sweep(
   rows: LogRow[],
-  bookings: { id: string; status: string }[],
+  bookings: { id: string; status: string | null }[],
   customer: Record<string, unknown> = SMS_CUSTOMER,
   // What a re-read of the bookings returns after the claim (default: the same).
-  bookingsAtSend: { id: string; status: string }[] = bookings,
+  bookingsAtSend: { id: string; status: string | null }[] = bookings,
   messages: { meta_message_id: string; status: string }[] = [],
 ) {
   let bookingReads = 0;
@@ -121,6 +121,18 @@ Deno.test("a reminder for a cancelled booking is still not chased (unchanged)", 
   assertEquals(json.sms_sent, 0);
 });
 
+Deno.test("a failed reminder for a NULL-status booking is chased, same as Booked", async () => {
+  const reminder: LogRow = {
+    ...failedCancellation,
+    id: "log-rem-null",
+    trigger_type: "reminder",
+    message_text: "See you tomorrow",
+  };
+  const { json, calls } = await sweep([reminder], [{ id: "booking-1", status: null }]);
+  assertEquals(json.sms_sent, 1);
+  assert(calls.some((c) => c.path.endsWith("/functions/v1/sms-send")));
+});
+
 Deno.test("noticeStillRelevant: cancellations invert the active-booking rule", () => {
   assertEquals(noticeStillRelevant("cancelled", "Cancelled"), true);
   assertEquals(noticeStillRelevant("cancelled", "Confirmed"), false);
@@ -128,6 +140,11 @@ Deno.test("noticeStillRelevant: cancellations invert the active-booking rule", (
   assertEquals(noticeStillRelevant("reminder", "Cancelled"), false);
   assertEquals(noticeStillRelevant("confirmed", "No-show"), false);
   assertEquals(noticeStillRelevant("confirmed", undefined), false);
+  // A missing status is Booked. A missing row (undefined) is still not chased.
+  assertEquals(noticeStillRelevant("reminder", null), true);
+  assertEquals(noticeStillRelevant("confirmed", null), true);
+  assertEquals(noticeStillRelevant("cancelled", null), false);
+  assertEquals(noticeStillRelevant("reminder", "Completed"), false);
 });
 
 Deno.test("two dogs cancelled together get one SMS each, each naming its own dog", async () => {

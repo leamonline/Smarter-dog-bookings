@@ -21,7 +21,8 @@
 // ============================================================
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { BOOKING_STATUS, keepingNullStatusOr } from "../../constants/salon";
 import { supabase } from "../client";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
@@ -111,6 +112,22 @@ function setState(next: Partial<TomorrowRemindersState>) {
   for (const listener of listeners) listener();
 }
 
+const TOMORROW_REMINDER_COLUMNS =
+  "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot, reminder_confirmed_at, reminder_confirmed_source, dogs(human_id, name)" as const;
+
+/**
+ * Tomorrow's reminder rows. Cancelled and Completed stay out. A NULL status
+ * stays in: the database treats it as Booked, and a bare `not.in` would drop it.
+ */
+export function selectTomorrowReminderBookings(client: SupabaseClient<Database>, targetDate: string) {
+  return client
+    .from("bookings")
+    .select(TOMORROW_REMINDER_COLUMNS)
+    .eq("booking_date", targetDate)
+    .or(keepingNullStatusOr([BOOKING_STATUS.CANCELLED, BOOKING_STATUS.COMPLETED]))
+    .order("slot", { ascending: true });
+}
+
 async function refresh(): Promise<void> {
   if (!supabase) {
     if (state.loading) setState({ loading: false });
@@ -124,15 +141,11 @@ async function refresh(): Promise<void> {
     // Embed dogs(human_id, name) so we can group by customer — bookings
     // has no human_id of its own. Plain embed (not !inner) so a booking
     // whose dog was deleted still appears (it falls back to the snapshot
-    // name and an orphan key). Excludes Cancelled + Completed.
-    const { data: bookings, error: bookingsErr } = await supabase
-      .from("bookings")
-      .select(
-        "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot, reminder_confirmed_at, reminder_confirmed_source, dogs(human_id, name)",
-      )
-      .eq("booking_date", targetDate)
-      .not("status", "in", "(Cancelled,Completed)")
-      .order("slot", { ascending: true });
+    // name and an orphan key). Excludes Cancelled + Completed. NULL stays.
+    const { data: bookings, error: bookingsErr } = await selectTomorrowReminderBookings(
+      supabase,
+      targetDate,
+    );
     if (bookingsErr) throw bookingsErr;
 
     const bookingIds = (bookings ?? []).map((b) => b.id);

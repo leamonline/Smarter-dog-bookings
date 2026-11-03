@@ -191,7 +191,10 @@ Two things that could look like off-switches but are not:
   it as Booked. Queries that cannot call the helper (the inbox seat preview,
   the WhatsApp Flow's day occupancy, the morning Slack day count) use
   `occupyingStatusOr()`, which keeps a NULL status and excludes Cancelled
-  and No-show. A bare `not.in` would drop the NULL rows. The waitlist
+  and No-show. A bare `not.in` would drop the NULL rows. Reminder and
+  collection-notice selection uses the same rule (`keepingNullStatusOr`, and
+  `bookedOrNullStatusOr` where the query only wanted status Booked) so a
+  missing status is not skipped. The waitlist
   does not book into a freed seat by itself. Staff fill it from the
   calendar, which shows the seat as free once the booking is marked
   No-show.
