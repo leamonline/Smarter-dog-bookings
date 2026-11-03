@@ -9,6 +9,7 @@ import ProcessTimeline from '../ProcessTimeline';
 import { colors } from '../../constants/colors';
 import { services, timeline, additionalServices } from '../../constants/servicesData';
 import { goToBooking } from '../../utils/booking';
+import GuideLinks from '../GuideLinks';
 
 const ServicesPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -141,6 +142,12 @@ const ServicesPage = () => {
                 </section>
 
                 <SectionDivider type="slant" color="white" backgroundColor={colors.blueSlate} />
+
+                <section className="py-16 px-6" style={{ backgroundColor: colors.offWhite }}>
+                    <div className="max-w-3xl mx-auto">
+                        <GuideLinks heading="More about how we groom" />
+                    </div>
+                </section>
 
                 <CTASection onBookClick={() => goToBooking('Services Page')} />
             </main>

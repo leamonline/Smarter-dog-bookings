@@ -38,32 +38,53 @@ describe("vercel routing table", () => {
     expect(manifest.start_url).toBe("/staff/");
     expect(manifest.scope).toBe("/staff/");
     expect(rewriteFor(manifest.start_url)?.destination).toBe(BOOKING_SHELL);
-    expect(indexOfRewrite(manifest.start_url)).toBeLessThan(
-      indexOfRewrite("/((?!assets/|app/assets/).*)"),
-    );
     expect(resolveMount(manifest.start_url)).not.toBeNull();
   });
 
-  it("keeps the marketing catch-all last and lets missing hashed assets 404", () => {
-    // A catch-all placed above the booking rewrites would swallow them.
-    // The negative lookahead is the form Vercel documents for "everything
-    // except this prefix". Files that exist are still served from the
-    // filesystem before any rewrite, so /app/assets/real-hash.js is unchanged.
-    // A missing hash used to match /(.*) and come back as index.html with
-    // HTTP 200, which the browser refuses as a module (MIME type text/html).
-    const source = "/((?!assets/|app/assets/).*)";
-    const catchAll = indexOfRewrite(source);
-    expect(catchAll).toBe(config.rewrites.length - 1);
-    expect(config.rewrites[catchAll].destination).toBe("/index.html");
+  it("does not rewrite unknown paths onto the marketing homepage", () => {
+    // Public marketing routes are real HTML files, so Vercel serves them from
+    // the filesystem. Anything else with no file and no rewrite is a 404
+    // (404.html). A catch-all to /index.html used to answer those with HTTP 200
+    // and the homepage shell, and it also turned a missing hashed asset into
+    // text/html, which the browser refuses as a module.
+    const destinations = config.rewrites.map((r: { destination: string }) => r.destination);
+    // The marketing homepage is a file at /index.html. Rewriting other URLs
+    // there is what made unknown paths return HTTP 200. Route HTML is served
+    // from its own file instead.
+    expect(destinations).not.toContain("/index.html");
+    expect(indexOfRewrite("/((?!assets/|app/assets/).*)")).toBe(-1);
     expect(indexOfRewrite("/(.*)")).toBe(-1);
+    expect(rewriteFor("/services").destination).toBe("/services/index.html");
+    expect(rewriteFor("/nervous-anxious-dog-grooming").destination).toBe("/nervous-anxious-dog-grooming/index.html");
+    expect(rewriteFor("/nonexistent-xyz")).toBeUndefined();
+    for (const source of ["/book", "/book/:path*", "/staff", "/staff/", "/staff/:path*", "/reset-password"]) {
+      expect(rewriteFor(source).destination, source).toBe(BOOKING_SHELL);
+    }
+  });
 
-    const re = new RegExp(`^${source}$`);
-    expect(re.test("/services")).toBe(true);
-    expect(re.test("/")).toBe(true);
-    expect(re.test("/book/new")).toBe(true);
-    expect(re.test("/app/assets/TodayView-abc.js")).toBe(false);
-    expect(re.test("/assets/index-abc.js")).toBe(false);
-    expect(re.test("/app/assets/TodayView-abc.css")).toBe(false);
+  it("sends www to the apex host and retires the old Website Builder paths", () => {
+    const wwwRoot = config.redirects.find((r: { source: string; has?: { value: string }[] }) =>
+      r.source === "/" && r.has?.[0]?.value === "www.smarterdog.co.uk");
+    const wwwRest = config.redirects.find((r: { source: string; has?: { value: string }[] }) =>
+      r.source === "/:path*" && r.has?.[0]?.value === "www.smarterdog.co.uk");
+    expect(wwwRoot.destination).toBe("https://smarterdog.co.uk/");
+    expect(wwwRoot.permanent).toBe(true);
+    expect(wwwRest.destination).toBe("https://smarterdog.co.uk/:path*");
+    expect(wwwRest.permanent).toBe(true);
+    // Wayback Machine, 200 responses on the old site: /home, /about,
+    // /contact-us, /f-a-qs, /raw-food. /services already exists.
+    expect(redirectFor("/home").destination).toBe("/");
+    expect(redirectFor("/home/").destination).toBe("/");
+    expect(redirectFor("/about").destination).toBe("/approach");
+    expect(redirectFor("/about/").destination).toBe("/approach");
+    expect(redirectFor("/contact-us").destination).toBe("/");
+    expect(redirectFor("/f-a-qs").destination).toBe("/faq");
+    expect(redirectFor("/f-a-qs/").destination).toBe("/faq");
+    expect(redirectFor("/raw-food").destination).toBe("/");
+    expect(redirectFor("/raw-food/").destination).toBe("/");
+    for (const rule of [wwwRoot, wwwRest, redirectFor("/home"), redirectFor("/about"), redirectFor("/f-a-qs"), redirectFor("/raw-food")]) {
+      expect(rule.permanent).toBe(true);
+    }
   });
 
   it("agrees with the client-side resolver about where old URLs go", () => {
@@ -94,10 +115,9 @@ describe("vercel routing table", () => {
   it("redirects the staff paths that existed before the move", () => {
     // These used to be top-level: /today, /dogs, /inbox. The booking app's own
     // resolver handles them, but on the merged origin they never reach it —
-    // "/" is the marketing site, so an unmatched path falls through to the
-    // website's catch-all and a staff bookmark lands on the salon's homepage.
-    // Caught on production after merge; the preview check had only tried an
-    // invented path, which is genuinely meant to reach the website.
+    // an unmatched path is now a real 404, so a staff bookmark would miss the
+    // app entirely without these redirects. Caught on production after the
+    // marketing site moved to "/".
     for (const path of [
       "/today", "/dogs", "/humans", "/inbox", "/reports",
       "/settings", "/whatsapp", "/needs-attention", "/booking-workspace",
@@ -118,8 +138,13 @@ describe("vercel routing table", () => {
   it("never redirects a marketing page to the staff app", () => {
     // The website owns these; a stray rule here would take the salon's own
     // pages off the air.
-    const marketing = ["/approach", "/community", "/faq", "/houndsly",
-                       "/matted-coat-policy", "/privacy", "/services", "/terms"];
+    const marketing = [
+      "/approach", "/community", "/faq", "/houndsly",
+      "/matted-coat-policy", "/privacy", "/services", "/terms",
+      "/nervous-anxious-dog-grooming", "/senior-blind-deaf-dog-grooming",
+      "/doodle-grooming-matted-coats", "/dog-de-shedding-ashton-under-lyne",
+      "/sensitive-skin-dog-grooming-natural-shampoo", "/independent-dog-groomer-vs-chain",
+    ];
     const sources = config.redirects.map((r: { source: string }) => r.source);
     for (const path of marketing) expect(sources, path).not.toContain(path);
   });

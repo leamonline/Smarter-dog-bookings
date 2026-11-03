@@ -6,6 +6,7 @@ import BackgroundSticker from '../BackgroundSticker';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
 import { whatsAppUrl } from '../../constants/salonFacts';
 import { STAFF_LOGIN_URL } from '../../constants/links';
+import GuideLinks from '../GuideLinks';
 
 // Accessible SVG Social Icons
 const FacebookIcon = () => (
@@ -193,6 +194,10 @@ const FooterSection = () => {
                             </a>
                         </div>
                     </div>
+                </div>
+
+                <div className="mb-10">
+                    <GuideLinks heading="Guides" tone="light" />
                 </div>
 
                 <div

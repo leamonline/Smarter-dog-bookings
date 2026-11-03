@@ -23,6 +23,15 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
 # Sitemaps
 Sitemap: https://smarterdog.co.uk/sitemap.xml
 

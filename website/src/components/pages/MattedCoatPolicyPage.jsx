@@ -5,6 +5,7 @@ import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
 import { whatsAppUrl } from '../../constants/salonFacts';
+import { Link } from 'react-router-dom';
 
 const MattedCoatPolicyPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -134,6 +135,13 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                             style={{ color: colors.teal }}
                         >
                             Our goal is always a calm, safe, and positive grooming experience.
+                        </p>
+                        <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                            For cockapoos, cavapoos and other doodle coats, see our{' '}
+                            <Link to="/doodle-grooming-matted-coats" className="font-semibold underline" style={{ color: colors.cyanText }}>
+                                doodle and matted coat guide
+                            </Link>
+                            .
                         </p>
                         <p className="body-font text-base" style={{ color: colors.teal }}>
                             If you have questions about your dog's coat or how to care for it between grooms, please message us on{' '}

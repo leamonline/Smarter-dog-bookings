@@ -4,6 +4,7 @@ import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
 import DogSilhouette from '../DogSilhouette';
+import GuideLinks from '../GuideLinks';
 
 const OurApproachPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -83,6 +84,10 @@ const OurApproachPage = ({ onBookClick }) => {
                                 </p>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="mt-16">
+                        <GuideLinks heading="More about how we groom" />
                     </div>
 
                     {/* CTA */}

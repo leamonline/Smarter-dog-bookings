@@ -5,6 +5,7 @@ import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
 import { whatsAppUrl } from '../../constants/salonFacts';
+import GuideLinks from '../GuideLinks';
 
 const FAQPage = ({ onBookClick }) => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -108,6 +109,10 @@ const FAQPage = ({ onBookClick }) => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="mt-16">
+                        <GuideLinks heading="More about how we groom" />
                     </div>
 
                     {/* CTA */}
