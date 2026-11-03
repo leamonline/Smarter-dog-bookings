@@ -126,13 +126,14 @@ export function followUpTodoText(
   reason: FollowUpReason,
   reply: CustomerReply = "sent",
   detail?: string,
+  ref?: string,
 ): string {
   const who = customerName?.trim() || "A customer";
   // An essential text that never arrived. `detail` says which and why, e.g.
   // "reminder text (their phone was off or out of signal)". Never message content.
   if (reason === "sms_undelivered") {
     const what = detail?.trim() || "text";
-    return `${SMS_FAILURE_TODO_PREFIX} ${who}'s ${what} didn't arrive. Ring them, or check the number on their record, so they know about it.`;
+    return `${SMS_FAILURE_TODO_PREFIX} ${who}'s ${what} didn't arrive. Ring them, or check the number on their record, so they know about it.${ref ? ` (Ref ${ref})` : ""}`;
   }
   // A STOP is honoured for the channel it was sent on and never overridden
   // automatically (channelPolicy.ts). Say what is off, what carries on, and what
@@ -163,7 +164,7 @@ export async function raiseFollowUpTodo(
   client: { from(table: string): unknown },
   humanId: string | null | undefined,
   reason: FollowUpReason,
-  options: { reply?: CustomerReply; now?: Date; detail?: string } = {},
+  options: { reply?: CustomerReply; now?: Date; detail?: string; ref?: string } = {},
 ): Promise<FollowUpOutcome> {
   const now = options.now ?? new Date();
   // Without a customer there is nothing to link to and no name to show; the
@@ -211,6 +212,7 @@ export async function raiseFollowUpTodo(
         reason,
         options.reply ?? "sent",
         options.detail,
+        options.ref,
       ),
       done: false,
       sort_order: sortOrder,

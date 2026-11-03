@@ -69,6 +69,8 @@ interface Fixture {
   todos?: Row[];
   /** Fail the next UPDATE on this table (then behave normally), as a dropped connection would. */
   failNextUpdateOn?: string;
+  /** Fail the next SELECT on this table (then behave normally). */
+  failNextSelectOn?: string;
   /** Runs just before the first UPDATE on a table, to model a concurrent callback landing in between. */
   beforeFirstUpdate?: Record<string, (db: Record<string, Row[]>) => void>;
 }
@@ -82,11 +84,12 @@ function fake(fx: Fixture) {
     notification_log: (fx.logs ?? []).map((l) => ({ ...l })),
     humans: (fx.humansOnNumber ?? []).map((h) => ({ ...h, sms_opted_out: false, name: "Wendy", surname: "Rowbottom" })),
     salon_todos: (fx.todos ?? []).map((t) => ({ ...t })),
-    whatsapp_conversations: [],
+    whatsapp_conversations: fx.conversationHuman !== undefined || fx.message ? [{ id: "c1", human_id: fx.conversationHuman ?? null }] : [],
   };
   const writes: Array<{ table: string; op: string; values?: Record<string, unknown>; ids?: unknown }> = [];
   const hooks = { ...(fx.beforeFirstUpdate ?? {}) };
   let failNext = fx.failNextUpdateOn;
+  let failNextSelect = fx.failNextSelectOn;
   let nextId = 1;
 
   const client = {
@@ -108,6 +111,7 @@ function fake(fx: Fixture) {
           if (matched.length > 0) writes.push({ table, op: "update", values: patch, ids: matched.map((r) => r.id) });
           return { data: matched.map((r) => ({ id: r.id })), error: null };
         }
+        if (failNextSelect === table) { failNextSelect = undefined; return { data: null, error: { message: "connection dropped" } }; }
         return { data: rows(), error: null };
       };
       const q: any = {
@@ -120,8 +124,8 @@ function fake(fx: Fixture) {
           return q;
         },
         like(c: string, pattern: string) {
-          const prefix = pattern.replace(/%$/, "");
-          filters.push((r) => String(r[c] ?? "").startsWith(prefix));
+          const re = new RegExp("^" + pattern.split("%").map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
+          filters.push((r) => re.test(String(r[c] ?? "")));
           return q;
         },
         gte() { return q; }, order() { return q; }, filter() { return q; },
@@ -135,7 +139,6 @@ function fake(fx: Fixture) {
         maybeSingle() {
           const { data, error } = run();
           if (error) return Promise.resolve({ data: null, error });
-          if (table === "whatsapp_conversations") return Promise.resolve({ data: { human_id: fx.conversationHuman ?? null }, error: null });
           if (table === "humans") return Promise.resolve({ data: (data as Row[])[0] ?? { name: "Wendy", surname: "Rowbottom" }, error: null });
           if (table === "salon_todos") return Promise.resolve({ data: { sort_order: db.salon_todos.length }, error: null });
           return Promise.resolve({ data: (data as Row[])[0] ?? null, error: null });
@@ -154,13 +157,14 @@ const SENT_MSG = { id: "m1", status: "sent", content: "[template:booking_confirm
 const LOG = { id: "l1", human_id: "h1", trigger_type: "confirmed", status: "sent" };
 
 Deno.test("delivered: the message is marked delivered, nothing else changes and nobody is alerted", async () => {
-  const { client, writes } = fake({ message: SENT_MSG, logs: [LOG] });
-  const out = await applySmsStatus(client, { sid: "SM1", status: "delivered" });
+  const f = fake({ message: SENT_MSG, logs: [LOG] });
+  const out = await applySmsStatus(f.client, { sid: "SM1", status: "delivered" });
   assertEquals(out.outcome, "delivered");
   assertEquals(out.updatedMessage, true);
-  assertEquals(writes.filter((w) => w.table === "whatsapp_messages")[0].values, { status: "delivered", error_message: null });
-  assertEquals(writes.filter((w) => w.table === "notification_log").length, 0);
-  assertEquals(writes.filter((w) => w.table === "salon_todos").length, 0);
+  assertEquals(f.db.whatsapp_messages[0].status, "delivered");
+  assertEquals(f.db.whatsapp_messages[0].error_message, null);
+  assertEquals(f.db.notification_log[0], { ...LOG }); // untouched
+  assertEquals(f.db.salon_todos.length, 0);
 });
 
 Deno.test("undelivered essential text: message and log fail with a reason, and staff get an actionable to-do", async () => {
@@ -170,37 +174,44 @@ Deno.test("undelivered essential text: message and log fail with a reason, and s
   assertEquals(out.updatedMessage, true);
   assertEquals(out.updatedLog, 1);
   assertEquals(out.todo, "created");
-  const msg = f.writes.find((w) => w.table === "whatsapp_messages")!;
-  assertEquals(msg.values?.status, "failed");
-  assertStringIncludes(String(msg.values?.error_message), "Text not delivered");
-  const log = f.writes.find((w) => w.table === "notification_log")!;
-  assertEquals(log.values?.status, "failed");
-  const todo = f.todos()[0];
-  assertEquals(todo.values?.human_id, "h1");
-  assertStringIncludes(String(todo.values?.text), SMS_FAILURE_TODO_PREFIX);
-  assertStringIncludes(String(todo.values?.text), "booking confirmation text");
-  assertStringIncludes(String(todo.values?.text), "their phone was off");
-  assertStringIncludes(String(todo.values?.text), "Ring them");
+  const msg = f.db.whatsapp_messages[0];
+  assertEquals(msg.status, "failed");
+  assertStringIncludes(String(msg.error_message), "Text not delivered");
+  assertEquals(f.db.notification_log[0].status, "failed");
+  assertStringIncludes(String(f.db.notification_log[0].error_message), "Text not delivered");
+  assertEquals(f.db.salon_todos.length, 1);
+  const todo = f.db.salon_todos[0];
+  assertEquals(todo.human_id, "h1");
+  assertEquals(todo.done, false);
+  assertStringIncludes(String(todo.text), SMS_FAILURE_TODO_PREFIX);
+  assertStringIncludes(String(todo.text), "booking confirmation text");
+  assertStringIncludes(String(todo.text), "their phone was off");
+  assertStringIncludes(String(todo.text), "Ring them");
+  assertStringIncludes(String(todo.text), "(Ref SM1)"); // the per-text marker
   // never the message content or the number
-  assertEquals(String(todo.values?.text).includes("hello"), false);
-  assertEquals(String(todo.values?.text).includes("+4477"), false);
+  assertEquals(String(todo.text).includes("hello"), false);
+  assertEquals(String(todo.text).includes("+4477"), false);
 });
 
 Deno.test("failed (Twilio couldn't send) is recorded as failed, not undelivered", async () => {
   const f = fake({ message: SENT_MSG, logs: [LOG] });
   await applySmsStatus(f.client, { sid: "SM1", status: "failed", errorCode: "21211" });
-  assertStringIncludes(String(f.writes.find((w) => w.table === "whatsapp_messages")!.values?.error_message), "Text failed to send");
+  assertStringIncludes(String(f.db.whatsapp_messages[0].error_message), "Text failed to send");
+  assertEquals(f.db.whatsapp_messages[0].status, "failed");
 });
 
 Deno.test("a text STOP (21610) opts the number out and flags staff, without a delivery to-do", async () => {
   const f = fake({ message: SENT_MSG, logs: [LOG], humansOnNumber: [{ id: "h1", phone: "07700 900123" }] });
   const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "21610", to: "+447700900123" });
   assertEquals(out.stopRecorded, true);
-  assertEquals(f.writes.some((w) => w.table === "humans" && w.values?.sms_opted_out === true), true);
-  const todos = f.todos();
-  assertEquals(todos.length, 1);
-  assertStringIncludes(String(todos[0].values?.text), STOP_TODO_PREFIX);
-  assertEquals(String(todos[0].values?.text).includes(SMS_FAILURE_TODO_PREFIX), false);
+  assertEquals(f.db.humans[0].sms_opted_out, true);
+  assertEquals(f.db.humans[0].sms_opted_out_reason, "asked_on_sms");
+  assertEquals(f.db.whatsapp_messages[0].status, "failed");
+  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.salon_todos.length, 1);
+  assertStringIncludes(String(f.db.salon_todos[0].text), STOP_TODO_PREFIX);
+  assertEquals(String(f.db.salon_todos[0].text).includes(SMS_FAILURE_TODO_PREFIX), false);
+  assertEquals(f.db.salon_todos[0].human_id, "h1");
 });
 
 Deno.test("a free-text message typed by staff that fails is marked failed but raises no to-do", async () => {
@@ -208,20 +219,25 @@ Deno.test("a free-text message typed by staff that fails is marked failed but ra
   const out = await applySmsStatus(f.client, { sid: "SM2", status: "undelivered", errorCode: "30003" });
   assertEquals(out.updatedMessage, true);
   assertEquals(out.todo, "none");
-  assertEquals(f.todos().length, 0);
+  assertEquals(f.db.whatsapp_messages[0].status, "failed");
+  assertEquals(f.db.salon_todos.length, 0);
 });
 
 Deno.test("a cancellation notice sent straight through Twilio (log row only) still alerts", async () => {
   const f = fake({ message: null, logs: [{ id: "l9", human_id: "h9", trigger_type: "cancelled", status: "sent" }] });
   const out = await applySmsStatus(f.client, { sid: "SM9", status: "undelivered", errorCode: "30006" });
   assertEquals(out.updatedLog, 1);
-  assertStringIncludes(String(f.todos()[0].values?.text), "cancellation notice text");
+  assertEquals(f.db.notification_log[0].status, "failed");
+  assertEquals(f.db.salon_todos.length, 1);
+  assertStringIncludes(String(f.db.salon_todos[0].text), "cancellation notice text");
+  assertEquals(f.db.salon_todos[0].human_id, "h9");
 });
 
 Deno.test("the human is found through the conversation when the log has none", async () => {
   const f = fake({ message: SENT_MSG, logs: [], conversationHuman: "h-conv" });
   await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
-  assertEquals(f.todos()[0].values?.human_id, "h-conv");
+  assertEquals(f.db.salon_todos.length, 1);
+  assertEquals(f.db.salon_todos[0].human_id, "h-conv");
 });
 
 Deno.test("out-of-order and repeated callbacks change nothing", async () => {
@@ -242,7 +258,7 @@ Deno.test("out-of-order and repeated callbacks change nothing", async () => {
   });
   out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
   assertEquals(f.writes.filter((w) => w.table === "notification_log").length, 0);
-  assertEquals(f.todos().length, 0);
+  assertEquals(f.db.salon_todos.length, 1); // still just the one
   assertEquals(f.db.whatsapp_messages[0].status, "failed");
 });
 
@@ -259,7 +275,7 @@ Deno.test("a late failure cannot overwrite 'delivered' even when both callbacks 
   assertEquals(f.db.whatsapp_messages[0].status, "delivered");
   assertEquals(f.db.whatsapp_messages[0].error_message, undefined);
   assertEquals(f.db.notification_log[0].status, "sent"); // the log was not marked failed
-  assertEquals(f.todos().length, 0); // and nobody was alerted
+  assertEquals(f.db.salon_todos.length, 0); // and nobody was alerted
   assertEquals(out.updatedMessage, false);
 });
 
@@ -339,4 +355,54 @@ Deno.test("a database error is raised, never swallowed", async () => {
   let threw = false;
   try { await applySmsStatus(client, { sid: "SM1", status: "undelivered" }); } catch { threw = true; }
   assertEquals(threw, true);
+});
+
+// ── Second round of review ─────────────────────────────────────────────────
+
+Deno.test("a failed conversation lookup is raised, not mistaken for an unlinked conversation", async () => {
+  const f = fake({ message: SENT_MSG, logs: [], conversationHuman: "h-conv", failNextSelectOn: "whatsapp_conversations" });
+  const event = { sid: "SM1", status: "undelivered", errorCode: "30003" };
+  let threw = false;
+  try { await applySmsStatus(f.client, event); } catch { threw = true; }
+  assertEquals(threw, true);
+  assertEquals(f.db.salon_todos.length, 0);
+  // the retry succeeds and links the right customer
+  await applySmsStatus(f.client, event);
+  assertEquals(f.db.salon_todos.length, 1);
+  assertEquals(f.db.salon_todos[0].human_id, "h-conv");
+});
+
+Deno.test("a replayed failure never resurrects an alert staff already completed", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG] });
+  const event = { sid: "SM1", status: "undelivered", errorCode: "30003" };
+  await applySmsStatus(f.client, event);
+  assertEquals(f.db.salon_todos.length, 1);
+  f.db.salon_todos[0].done = true; // staff rang them and ticked it off
+  const out = await applySmsStatus(f.client, event);
+  assertEquals(out.todo, "duplicate");
+  assertEquals(f.db.salon_todos.length, 1);
+});
+
+Deno.test("nor does an old alert stop mattering after the usual 12-hour window", async () => {
+  const f = fake({
+    message: { ...SENT_MSG, status: "failed" },
+    logs: [{ ...LOG, status: "failed" }],
+    todos: [{ id: "old", human_id: "h1", done: false, created_at: "2000-01-01T00:00:00Z", text: `${SMS_FAILURE_TODO_PREFIX} Wendy's reminder text didn't arrive. (Ref SM1)` }],
+  });
+  const out = await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  assertEquals(out.todo, "duplicate");
+  assertEquals(f.db.salon_todos.length, 1);
+});
+
+Deno.test("a different text for the same customer still gets its own alert", async () => {
+  const f = fake({ message: SENT_MSG, logs: [LOG] });
+  await applySmsStatus(f.client, { sid: "SM1", status: "undelivered", errorCode: "30003" });
+  f.db.salon_todos[0].done = true;
+  f.db.whatsapp_messages.push({ ...SENT_MSG, id: "m2", status: "sent" });
+  f.db.notification_log.push({ ...LOG, id: "l2" });
+  // (the fake ignores per-sid rows, so reset both to 'sent' and replay with a new sid)
+  f.db.whatsapp_messages[0].status = "sent";
+  f.db.notification_log[0].status = "sent";
+  await applySmsStatus(f.client, { sid: "SM2", status: "undelivered", errorCode: "30003" });
+  assertEquals(f.db.salon_todos.filter((t) => String(t.text).includes("(Ref SM2)")).length, 1);
 });

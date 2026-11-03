@@ -234,18 +234,38 @@ export async function applySmsStatus(supabase: any, event: SmsStatusEvent): Prom
   // An essential text that did not arrive is something staff can act on.
   const kind = essentialKind(logs[0]?.trigger_type, message?.content);
   if (!kind) return result;
+
+  // One alert per TEXT, however old and whether or not staff have since ticked it
+  // off: the Twilio SID rides on the to-do ("Ref SM..."), so a replayed callback
+  // can't resurrect work that was already done. (raiseFollowUpTodo's own check only
+  // sees open tasks from the last few hours.) A genuinely failed insert leaves no
+  // marker behind, so a retry still creates it.
+  const { data: prior, error: priorErr } = await supabase
+    .from("salon_todos")
+    .select("id")
+    .like("text", `%(Ref ${event.sid})%`)
+    .limit(1);
+  if (priorErr) throw new Error(`alert lookup failed: ${priorErr.message ?? "unknown"}`);
+  if (Array.isArray(prior) && prior.length > 0) {
+    result.todo = "duplicate";
+    return result;
+  }
+
   let humanId: string | null = logs.find((l) => l.human_id)?.human_id ?? null;
   if (!humanId && message?.conversation_id) {
-    const { data: conv } = await supabase
+    const { data: conv, error: convErr } = await supabase
       .from("whatsapp_conversations")
       .select("human_id")
       .eq("id", message.conversation_id)
       .maybeSingle();
+    // A failed lookup is not "an unlinked conversation": raise, so the callback is retried.
+    if (convErr) throw new Error(`conversation lookup failed: ${convErr.message ?? "unknown"}`);
     humanId = conv?.human_id ?? null;
   }
   result.todo = await raiseFollowUpTodo(supabase, humanId, "sms_undelivered", {
     reply: "none",
     detail: `${kind} text (${describeTwilioError(event.errorCode)})`,
+    ref: event.sid,
   });
   if (result.todo === "failed") throw new Error("staff to-do could not be created");
   return result;
