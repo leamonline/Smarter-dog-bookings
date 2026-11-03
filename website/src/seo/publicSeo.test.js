@@ -79,4 +79,20 @@ describe('public route SEO', () => {
     expect(faqSchemaFor('/faq').mainEntity.length).toBeGreaterThan(0);
     expect(faqSchemaFor('/services')).toBeNull();
   });
+
+  it('treats a trailing slash as the same public route', () => {
+    for (const path of PRERENDER_PATHS) {
+      if (path === '/') continue;
+      const slashed = `${path}/`;
+      expect(routeSeoFor(slashed)).toEqual(routeSeoFor(path));
+      expect(routeSeoFor(slashed).robots).toBe('index,follow');
+      expect(routeSeoFor(slashed).title).not.toMatch(/Page Not Found/);
+      expect(routeSeoFor(slashed).canonical).toBe(path);
+      expect(faqSchemaFor(slashed)).toEqual(faqSchemaFor(path));
+    }
+    expect(faqSchemaFor('/nervous-anxious-dog-grooming/')).not.toBeNull();
+    expect(faqSchemaFor('/services/')).toBeNull();
+    expect(routeSeoFor('/no-such-page/').robots).toBe('noindex,nofollow');
+    expect(routeSeoFor('/no-such-page/').canonical).toBe('/no-such-page');
+  });
 });

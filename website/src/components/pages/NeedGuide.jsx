@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
 import { SALON_FACTS_NOTE } from '../../content/needPages';
+import { linkLabelFor } from '../../content/linkLabel';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
@@ -32,10 +33,12 @@ function Parts({ parts }) {
     if (typeof part === 'string') return <span key={index}>{part}</span>;
     if (part.strong) return <strong key={index}>{part.strong}</strong>;
     if (part.em) return <em key={index}>{part.em}</em>;
-    if (part.link) return <TextLink key={index} href={part.link}>{part.text}</TextLink>;
-    if (part.href) return <TextLink key={index} href={part.href}>{part.text}</TextLink>;
-    if (part.wa) return <TextLink key={index} href={whatsAppUrl(part.wa)}>{part.text}</TextLink>;
-    if (part.book) return <TextLink key={index} href={BOOKING_URL}>{part.text}</TextLink>;
+    const label = linkLabelFor(part);
+    if (!label) return null;
+    if (part.link) return <TextLink key={index} href={part.link}>{label}</TextLink>;
+    if (part.href) return <TextLink key={index} href={part.href}>{label}</TextLink>;
+    if (part.wa) return <TextLink key={index} href={whatsAppUrl(part.wa)}>{label}</TextLink>;
+    if (part.book) return <TextLink key={index} href={BOOKING_URL}>{label}</TextLink>;
     return null;
   });
 }

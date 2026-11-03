@@ -283,17 +283,25 @@ function faqPageFromQuestions(questions) {
   };
 }
 
+/** `/services/` and `/services` are the same page. The canonical form has no trailing slash. */
+export function canonicalPath(pathname) {
+  if (!pathname) return '/';
+  return pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+}
+
 export function faqSchemaFor(pathname, facts = SALON_FACTS_FALLBACK) {
-  if (pathname === '/faq') return buildFaqPageSchema(facts);
-  const page = NEED_PAGES.find((candidate) => candidate.path === pathname);
+  const path = canonicalPath(pathname);
+  if (path === '/faq') return buildFaqPageSchema(facts);
+  const page = NEED_PAGES.find((candidate) => candidate.path === path);
   if (!page) return null;
   return faqPageFromQuestions(page.faqs);
 }
 
 export function routeSeoFor(pathname) {
-  return ROUTE_SEO[pathname] || {
+  const path = canonicalPath(pathname);
+  return ROUTE_SEO[path] || {
     title: NOT_FOUND_SEO.title,
-    canonical: pathname || '/',
+    canonical: path || '/',
     description: 'Smarter Dog Grooming Salon in Ashton-under-Lyne.',
     robots: 'noindex,nofollow',
   };

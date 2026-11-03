@@ -372,7 +372,7 @@ export const NEED_PAGES = [
           ' ',
           { wa: '07873 329440', text: 'WhatsApp 07873 329440' },
           ', or ',
-          { book: 'book online' },
+          { text: 'book online', book: true },
           '.',
         ],
       },

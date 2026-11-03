@@ -57,8 +57,30 @@ describe("vercel routing table", () => {
     expect(rewriteFor("/services").destination).toBe("/services/index.html");
     expect(rewriteFor("/nervous-anxious-dog-grooming").destination).toBe("/nervous-anxious-dog-grooming/index.html");
     expect(rewriteFor("/nonexistent-xyz")).toBeUndefined();
-    for (const source of ["/book", "/book/:path*", "/staff", "/staff/", "/staff/:path*", "/reset-password"]) {
+    for (const source of ["/book", "/book/:path*", "/staff", "/staff/", "/staff/:path*", "/reset-password", "/reset-password/"]) {
       expect(rewriteFor(source).destination, source).toBe(BOOKING_SHELL);
+    }
+  });
+
+  it("redirects a trailing slash on a marketing page to the page without one", () => {
+    // A rewrite that served /services/ as HTML left the browser on the slashed
+    // URL. The client SEO map is keyed without the slash, so that page became
+    // noindex with a Page Not Found title. Redirect first, then the unslashed
+    // rewrite serves the file.
+    const marketing = [
+      "/approach", "/community", "/faq", "/houndsly",
+      "/matted-coat-policy", "/privacy", "/services", "/terms",
+      "/nervous-anxious-dog-grooming", "/senior-blind-deaf-dog-grooming",
+      "/doodle-grooming-matted-coats", "/dog-de-shedding-ashton-under-lyne",
+      "/sensitive-skin-dog-grooming-natural-shampoo", "/independent-dog-groomer-vs-chain",
+    ];
+    for (const path of marketing) {
+      const rule = redirectFor(`${path}/`);
+      expect(rule, path).toBeDefined();
+      expect(rule.destination, path).toBe(path);
+      expect(rule.permanent, path).toBe(true);
+      expect(rewriteFor(`${path}/`), path).toBeUndefined();
+      expect(rewriteFor(path).destination, path).toBe(`${path}/index.html`);
     }
   });
 
@@ -150,7 +172,7 @@ describe("vercel routing table", () => {
   });
 
   it("mounts every rewritten path in the app the rewrite implies", () => {
-    for (const path of ["/book", "/book/new", "/staff", "/staff/today", "/reset-password"]) {
+    for (const path of ["/book", "/book/new", "/staff", "/staff/today", "/reset-password", "/reset-password/"]) {
       expect(resolveMount(path), path).not.toBeNull();
     }
   });

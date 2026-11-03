@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import NeedGuide from './NeedGuide';
+import { linkLabelFor } from '../../content/linkLabel';
 import { NEED_PAGES, SALON_FACTS_NOTE } from '../../content/needPages';
 
 function renderPage(path) {
@@ -38,6 +39,28 @@ describe('need pages', () => {
     expect(screen.getByText(/Sam & Liam are the best – so caring/)).toBeInTheDocument();
     expect(screen.getByText(/4\.9 on Google, and 500\+ reviews across all review sites/)).toBeInTheDocument();
     expect(screen.queryByText(/Pets at Home/i)).not.toBeInTheDocument();
+  });
+
+  it('gives every link visible text, including a book link whose words were stored on book', () => {
+    expect(linkLabelFor({ book: 'book online' })).toBe('book online');
+    expect(linkLabelFor({ text: 'book online', book: true })).toBe('book online');
+    expect(linkLabelFor({ link: '/matted-coat-policy', text: 'matted coat policy' })).toBe('matted coat policy');
+    expect(linkLabelFor({ href: 'https://houndsly.co.uk' })).toBe('https://houndsly.co.uk');
+    expect(linkLabelFor({ book: true })).toBe('');
+
+    for (const page of NEED_PAGES) {
+      const { unmount } = renderPage(page.path);
+      const links = screen.getAllByRole('link');
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link, `${page.path} ${link.getAttribute('href')}`).toHaveAccessibleName(/\S/);
+      }
+      unmount();
+    }
+
+    renderPage('/dog-de-shedding-ashton-under-lyne');
+    const bookingLinks = screen.getAllByRole('link', { name: 'book online' });
+    expect(bookingLinks.some((link) => link.getAttribute('href') === 'https://smarterdog.co.uk/book/login')).toBe(true);
   });
 
   it('links the matted-coat policy and names De-shed', () => {
