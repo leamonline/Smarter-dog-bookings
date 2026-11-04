@@ -61,7 +61,8 @@ export type FollowUpReason =
   | "arrived_salon_closed"
   | "chasing_reply"
   | "stopped_whatsapp"
-  | "stopped_sms";
+  | "stopped_sms"
+  | "sms_undelivered";
 
 /** Every follow-up to-do starts with this, which is also how duplicates are found. */
 export const FOLLOW_UP_TODO_PREFIX = "WhatsApp follow-up:";
@@ -74,6 +75,12 @@ export const FOLLOW_UP_TODO_PREFIX = "WhatsApp follow-up:";
  */
 export const STOP_TODO_PREFIX = "STOP received:";
 
+/**
+ * An essential text that Twilio or the carrier reported as not delivered. Its own
+ * prefix so it is never swallowed by, or mistaken for, a chat follow-up.
+ */
+export const SMS_FAILURE_TODO_PREFIX = "Text not delivered:";
+
 /** A second dead end inside this window adds nothing the open to-do doesn't say. */
 export const FOLLOW_UP_DEDUPE_HOURS = 12;
 
@@ -85,7 +92,9 @@ export function isStopReason(reason: FollowUpReason): boolean {
 }
 
 function todoPrefixFor(reason: FollowUpReason): string {
-  return isStopReason(reason) ? STOP_TODO_PREFIX : FOLLOW_UP_TODO_PREFIX;
+  if (isStopReason(reason)) return STOP_TODO_PREFIX;
+  if (reason === "sms_undelivered") return SMS_FAILURE_TODO_PREFIX;
+  return FOLLOW_UP_TODO_PREFIX;
 }
 
 const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
@@ -100,6 +109,8 @@ const WHAT_HAPPENED: Readonly<Record<FollowUpReason, string>> = {
   chasing_reply: "is chasing a reply to an earlier message",
   stopped_whatsapp: "replied STOP on WhatsApp",
   stopped_sms: "asked to stop our texts (Twilio refused to send)",
+  // Never rendered through this table: followUpTodoText builds it from `detail`.
+  sms_undelivered: "had a text that didn't arrive",
 };
 
 /**
@@ -114,8 +125,16 @@ export function followUpTodoText(
   customerName: string | null | undefined,
   reason: FollowUpReason,
   reply: CustomerReply = "sent",
+  detail?: string,
+  ref?: string,
 ): string {
   const who = customerName?.trim() || "A customer";
+  // An essential text that never arrived. `detail` says which and why, e.g.
+  // "reminder text (their phone was off or out of signal)". Never message content.
+  if (reason === "sms_undelivered") {
+    const what = detail?.trim() || "text";
+    return `${SMS_FAILURE_TODO_PREFIX} ${who}'s ${what} didn't arrive. Ring them, or check the number on their record, so they know about it.${ref ? ` (Ref ${ref})` : ""}`;
+  }
   // A STOP is honoured for the channel it was sent on and never overridden
   // automatically (channelPolicy.ts). Say what is off, what carries on, and what
   // staff do; "reply" doesn't apply.
@@ -145,7 +164,7 @@ export async function raiseFollowUpTodo(
   client: { from(table: string): unknown },
   humanId: string | null | undefined,
   reason: FollowUpReason,
-  options: { reply?: CustomerReply; now?: Date } = {},
+  options: { reply?: CustomerReply; now?: Date; detail?: string; ref?: string } = {},
 ): Promise<FollowUpOutcome> {
   const now = options.now ?? new Date();
   // Without a customer there is nothing to link to and no name to show; the
@@ -161,16 +180,22 @@ export async function raiseFollowUpTodo(
   try {
     const dedupeHours = isStopReason(reason) ? STOP_DEDUPE_HOURS : FOLLOW_UP_DEDUPE_HOURS;
     const since = new Date(now.getTime() - dedupeHours * 3600_000).toISOString();
-    const { data: open, error: openErr } = await supabase
-      .from("salon_todos")
-      .select("id")
-      .eq("human_id", humanId)
-      .eq("done", false)
-      .like("text", `${todoPrefixFor(reason)}%`)
-      .gte("created_at", since)
-      .limit(1);
-    if (openErr) throw openErr;
-    if (Array.isArray(open) && open.length > 0) return "duplicate";
+    // A caller that identifies the specific thing (a text's Twilio SID, `ref`) has
+    // already deduplicated by it, and must not be suppressed by another open task
+    // for the same customer: a failed cancellation notice is not the failed
+    // confirmation that is already on the list.
+    if (!options.ref) {
+      const { data: open, error: openErr } = await supabase
+        .from("salon_todos")
+        .select("id")
+        .eq("human_id", humanId)
+        .eq("done", false)
+        .like("text", `${todoPrefixFor(reason)}%`)
+        .gte("created_at", since)
+        .limit(1);
+      if (openErr) throw openErr;
+      if (Array.isArray(open) && open.length > 0) return "duplicate";
+    }
 
     const { data: human } = await supabase
       .from("humans")
@@ -192,6 +217,8 @@ export async function raiseFollowUpTodo(
         customerDisplayName(human as { name?: string; surname?: string } | null),
         reason,
         options.reply ?? "sent",
+        options.detail,
+        options.ref,
       ),
       done: false,
       sort_order: sortOrder,

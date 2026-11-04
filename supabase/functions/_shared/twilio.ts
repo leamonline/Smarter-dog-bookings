@@ -115,7 +115,7 @@ async function postMessage(
     },
   );
   // Twilio returns JSON on both success and error. Pull the SID on success
-  // (we'll want it later when we wire up the status webhook in Phase 2),
+  // (the twilio-status callback matches on it),
   // and the error code/message on failure for the notification_log row.
   let body: Record<string, unknown> = {};
   try {
@@ -144,6 +144,11 @@ export async function sendSms(
   body: string,
 ): Promise<TwilioPostResult> {
   const params: Record<string, string> = { To: normaliseUkPhone(to), Body: body };
+  // Delivery receipts: only when the twilio-status endpoint has been configured
+  // (its URL secret). Until then nothing changes and Twilio sends no callbacks,
+  // so merging this is inert. Read per call so it follows the secret.
+  const statusCallback = Deno.env.get("TWILIO_STATUS_CALLBACK_URL");
+  if (statusCallback) params.StatusCallback = statusCallback;
   if (TWILIO_MESSAGING_SERVICE_SID) {
     params.MessagingServiceSid = TWILIO_MESSAGING_SERVICE_SID;
   } else if (TWILIO_SMS_FROM) {

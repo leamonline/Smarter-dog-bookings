@@ -110,8 +110,40 @@ asks staff to check which channels they want.
 ## Audit of existing customers
 
 The queries below are **read-only and return counts only**: no names, numbers or
-messages. They have not been run against production. Running them is a read of
-customer data and needs the salon's go-ahead for that session.
+messages. Running them is a read of customer data and needs the salon's go-ahead
+for that session; the salon gave it on 3 November 2026 and the results are below.
+
+### Results: production, 3 November 2026 (read-only, counts only)
+
+| Measure | Count |
+|---|---|
+| Current customer records | 961 |
+| With no phone number | 3 |
+| Textable under the **old** rule (SMS box ticked) | 914 |
+| Textable under the **new** rule | **958** (every record with a phone) |
+| Newly textable (box was off, not opted out) | 44 |
+| Had neither SMS nor WhatsApp, so reminders went by email or nowhere | 38 |
+| Opted out of WhatsApp (any reason) | **0** |
+| Opted out of SMS (any reason) | **0** |
+| Failed WhatsApp notices in the last 60 days that the safety net never chased | 0 |
+| Customers with an upcoming booking being suppressed at the time | 1 |
+
+(These were produced by an earlier wording of the queries that also counted "paused"
+customers; with no opt-outs on production the two wordings give the same numbers.)
+
+What this means:
+
+- **The old rule was a smaller problem than it first looked.** 95% of customers
+  already had the box ticked, mostly from Join the Pack sign-up. It suppressed 44.
+  It is still the right fix, and it also closes the 38 who had no SMS and no
+  WhatsApp.
+- **No existing customer is affected by the STOP rules**, because nobody has opted
+  out on either channel.
+- **Zero opt-outs is worth a second look.** It may simply be that nobody has
+  stopped, or that STOPs before October 2026 were never recorded. These queries
+  cannot tell the two apart; the number-level record
+  (`whatsapp_conversations.whatsapp_opted_out_at`) could, and was outside what was
+  authorised.
 
 ```sql
 -- 1. How each current customer record is reachable under the OLD rule and the NEW one.
@@ -190,6 +222,77 @@ group by 1 order by 2 desc;
 suppressed at the time (before this change). `whatsapp_stopped` is how many
 customers have replied STOP on WhatsApp; they are all still reachable by text.
 
+## SMS delivery tracking
+
+Twilio accepts a text before it is delivered, so until now every text was logged
+"sent" on that alone. The `twilio-status` function receives Twilio's delivery
+callbacks and records four distinct outcomes:
+
+| Outcome | Meaning | What we record |
+|---|---|---|
+| accepted | Twilio has it (queued, sending, sent) | nothing: it stays "sent" |
+| delivered | the carrier confirmed it reached the handset | the message shows delivered |
+| undelivered | the carrier took it and could not deliver it | the inbox message turns **failed**: "Text not delivered: … (reason)"; the reason is also written on the log row |
+| failed | Twilio could not send it at all | the inbox message turns **failed**: "Text failed to send: … (reason)"; the reason is also written on the log row |
+
+Twilio's error code is turned into a reason staff can act on ("their phone was off
+or out of signal", "that number can't receive texts (it may be a landline)").
+
+**Essential texts that do not arrive raise a staff to-do**: "Text not delivered:
+Wendy's reminder text (their phone was off or out of signal) didn't arrive. Ring
+them, or check the number on their record." It names the kind of text, never its
+content or the number, and appears with the other to-dos (and as a push where staff
+push is switched on); each text gets its own to-do, marked "(Ref SM…)", and is never
+re-raised for the same text. A free-text message typed by staff only turns red in the inbox (they are
+already looking at it). A text STOP (error 21610) is recorded as an SMS opt-out
+and flagged as described under [STOP](#stop).
+
+**The log row stays "sent" on purpose.** Every sender (reminders, confirmations,
+cancellations, the SMS fallback) claims its (booking, message, customer) slot with a
+"pending"/"sent" row before it texts, and that row is the only thing that stops the
+next run from texting the same customer again. Marking an accepted text "failed"
+would free the slot, and a phone that is switched off would be texted over and over.
+So a delivery failure leaves the log row "sent" and only writes the reason on it; the
+inbox message and the staff to-do are where staff see it. (A text that fails at send
+time is still logged "failed", exactly as before, because nothing was sent.)
+
+Statuses can arrive out of order, so one never moves backwards. The rule is
+enforced in the database itself (a failure only updates a message that is not yet
+delivered, and staff are only alerted if that update really changed a row), so two
+callbacks arriving together cannot overwrite a delivery. A delivery that arrives
+after a failure corrects both the inbox message and the reason on the log row.
+A repeated callback changes nothing that is already done, and if an earlier attempt
+died half way (answered 500) Twilio's retry finishes the missing steps.
+
+**Security.** The endpoint is public (Twilio has no JWT), so the whole boundary is
+the `X-Twilio-Signature` check against the configured callback URL, which fails
+closed: no token or URL configured answers 500 and reads nothing, and a missing or
+wrong signature answers 403 and writes nothing
+([`edge-function-auth.md`](edge-function-auth.md)).
+
+**Dark launch: nothing changes until it is configured.** Merging deploys the
+function, but it answers 500 to everything, and `sendSms` asks Twilio for callbacks
+only when `TWILIO_STATUS_CALLBACK_URL` is set. Turning it on is a Twilio and secrets
+change that needs its own approval:
+
+1. Set `TWILIO_AUTH_TOKEN` (the account **Auth Token**; an API key secret cannot
+   verify signatures) and `TWILIO_STATUS_CALLBACK_URL`
+   (`https://<project-ref>.supabase.co/functions/v1/twilio-status#rc=3&rp=5xx,ct`)
+   with `supabase secrets set`. Set the token first. The part after `#` is a Twilio
+   connection override: by default Twilio only retries when it cannot connect, so
+   without `rp=5xx` a temporary database error (we answer 500 so the callback is
+   retried) would never be retried. Twilio leaves that part out when it signs the
+   request, and the function does the same.
+2. No change in the Twilio console is needed: the URL is sent with each text.
+3. Check: send one text; the function's log shows `delivered`, and that message
+   shows delivered in the inbox.
+4. **Roll back** by unsetting `TWILIO_STATUS_CALLBACK_URL`: new texts stop asking for
+   callbacks at once and the function goes back to inert.
+
+Known limit: a failure that arrives before the sending function has finished
+writing its own log row (milliseconds) would find nothing to update. Failures
+normally arrive seconds later.
+
 ## What is not done yet
 
 These need something outside a normal code change, so they are staged rather than
@@ -198,15 +301,9 @@ shipped:
 - **Marketing consent column.** `canSendMarketing` exists and fails closed, but no
   consent flag exists to set. Adding `humans.marketing_sms_consent` (with a
   timestamp and source) is a migration, applied by hand
-  ([`migrations.md`](migrations.md)) before any code that depends on it.
-- **SMS delivery status.** Twilio accepts a text before it is delivered, and
-  nothing receives the delivery callback (no `StatusCallback`, no inbound Twilio
-  route or signature check), so a text that later fails is logged "sent". Today's
-  alerting therefore covers texts Twilio **rejects** at send time (those show on the
-  dashboard's delivery-failure card, and a STOP now raises a to-do), not texts that
-  fail afterwards. Closing that needs a new signature-verified inbound endpoint,
-  the Twilio Auth Token as a function secret and a Twilio-side setting; see
-  [`slack-alerts.md`](slack-alerts.md#what-this-does-not-do).
+  ([`migrations.md`](migrations.md)) before any code that depends on it. All
+  promotional SMS stays disabled until a separate, properly designed
+  marketing-permission system exists.
 - **The customer-facing Terms and Privacy text** on smarterdog.co.uk should say what
   the sign-up notice says, and `POLICIES_VERSION` should be bumped when it does.
   That text is not in this repository.
