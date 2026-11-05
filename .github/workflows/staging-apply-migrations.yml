@@ -1,13 +1,19 @@
 name: Apply named migrations to staging
 
 # Staging only. Production is never linked here; the script refuses any other
-# ref by construction. Use this for migrations the MCP tool cannot apply (any
-# file containing DROP FUNCTION / DROP TRIGGER / DROP COLUMN / DELETE FROM text).
+# ref by construction. Dispatch from main. The migration files come from the
+# commit named in `ref`, so a file that is not on main yet can be rehearsed
+# before production. The staging environment must allow exactly the branch
+# main, which is what stops any other branch from receiving the staging token.
 on:
   workflow_dispatch:
     inputs:
       confirm_staging_ref:
         description: Type the exact staging project ref to continue
+        required: true
+        type: string
+      ref:
+        description: Full 40-character commit SHA whose supabase/migrations/ files to apply (the open pull request head, or a commit on main)
         required: true
         type: string
       migrations:
@@ -22,6 +28,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # only to confirm `ref` is the current head of an open pull request
+  actions: read # only to confirm the staging environment allows exactly main
 
 concurrency:
   group: staging-apply-migrations
@@ -31,6 +39,7 @@ jobs:
   apply:
     runs-on: ubuntu-24.04
     environment: staging
+    timeout-minutes: 30
     env:
       PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
       STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
@@ -39,6 +48,9 @@ jobs:
         shell: bash
         env:
           CONFIRM_STAGING_REF: ${{ inputs.confirm_staging_ref }}
+          MIGRATION_REF: ${{ inputs.ref }}
+          STAGING_SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ "$CONFIRM_STAGING_REF" != "$STAGING_PROJECT_REF" ]; then
@@ -49,6 +61,35 @@ jobs:
             echo "::error::Staging and production project refs must differ."
             exit 1
           fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::This workflow runs only when dispatched from main (dispatched from $GITHUB_REF)."
+            exit 1
+          fi
+          if [[ ! "$MIGRATION_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::ref must be the full 40-character lower-case commit SHA whose migration files to apply."
+            exit 1
+          fi
+          if ! environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/staging")"; then
+            echo "::error::Could not read the staging environment (it must exist, and the workflow needs actions: read); refusing to continue."
+            exit 1
+          fi
+          env_name="$(printf '%s' "$environment" | jq -r '.name')"
+          if ! policies="$(gh api "repos/$GITHUB_REPOSITORY/environments/${env_name}/deployment-branch-policies")"; then
+            echo "::error::Could not read the staging environment's deployment branch rules; refusing to continue."
+            exit 1
+          fi
+          branch_names="$(printf '%s' "$policies" | jq -r '[.branch_policies[]? | .name] | sort | join(" ")')"
+          branch_types="$(printf '%s' "$policies" | jq -r '[.branch_policies[]? | .type] | sort | join(" ")')"
+          if [ "$branch_names" != "main" ] || [ "$branch_types" != "branch" ]; then
+            echo "::error::The staging environment must allow exactly the branch main, and it currently allows: ${branch_names:-nothing} (types: ${branch_types:-none}). On GitHub open Settings, then Environments, then staging. Under Deployment branches and tags choose Selected branches and tags. Add one branch rule named main and delete every other rule. Then run this workflow again (docs/migrations.md)."
+            exit 1
+          fi
+          if [ -z "${STAGING_SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::No STAGING_SUPABASE_ACCESS_TOKEN reached this job. Add it as a secret of the staging environment before dispatching (docs/migrations.md)."
+            exit 1
+          fi
+          echo "Target: STAGING ($STAGING_PROJECT_REF); migration files from commit $MIGRATION_REF"
+          echo "| Staging environment | exists; deployment branch rule: exactly main |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check out repository
         uses: actions/checkout@v7
@@ -57,6 +98,59 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24
+
+      - name: Take supabase/migrations from the named commit
+        id: overlay
+        shell: bash
+        env:
+          MIGRATION_REF: ${{ inputs.ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          main_sha="$(git rev-parse FETCH_HEAD)"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          # Same rule as production: on main, or the current head of one open,
+          # non-draft pull request into main, with no outstanding changes request.
+          scripts/production-ref-provenance.sh "$main_sha" "$MIGRATION_REF" | tee provenance.out
+          pr_number="$(sed -n 's/^pr_number=//p' provenance.out)"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags --depth=1 origin "$MIGRATION_REF"
+          rm -rf supabase/migrations
+          git checkout "$MIGRATION_REF" -- supabase/migrations/
+          echo "Migration files taken from commit $MIGRATION_REF"
+
+      - name: Validate the requested names
+        shell: bash
+        env:
+          MIGRATION_REF: ${{ inputs.ref }}
+          MIGRATIONS: ${{ inputs.migrations }}
+          REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          for migration in $MIGRATIONS $REAPPLY_MIGRATIONS; do
+            if [[ ! "$migration" =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
+              echo "::error::Refusing '$migration': expected <14-digit version>_<snake_case_name>.sql"
+              exit 1
+            fi
+            mode="$(git ls-tree "$MIGRATION_REF" -- "supabase/migrations/$migration" | awk '{print $1}')"
+            if [ "$mode" != "100644" ] && [ "$mode" != "100755" ]; then
+              echo "::error::supabase/migrations/$migration is not a regular file in commit $MIGRATION_REF (tree mode: ${mode:-absent})."
+              exit 1
+            fi
+          done
+          # shellcheck disable=SC2086
+          for candidate in $REAPPLY_MIGRATIONS; do
+            listed=0
+            for migration in $MIGRATIONS; do
+              [ "$migration" = "$candidate" ] && listed=1
+            done
+            if [ "$listed" != 1 ]; then
+              echo "::error::reapply entry '$candidate' is not in migrations, so it would never run."
+              exit 1
+            fi
+          done
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v3
@@ -80,8 +174,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
           MIGRATIONS: ${{ inputs.migrations }}
           REAPPLY_MIGRATIONS: ${{ inputs.reapply }}
+          MIGRATION_REF: ${{ inputs.ref }}
+          MAIN_SHA: ${{ steps.overlay.outputs.main_sha }}
+          PR_NUMBER: ${{ steps.overlay.outputs.pr_number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The commit must still qualify, so a pull request that closed or
+          # moved on since the overlay is refused with nothing applied.
+          scripts/production-ref-provenance.sh "$MAIN_SHA" "$MIGRATION_REF" | tee provenance-now.out
+          if [ "$(sed -n 's/^pr_number=//p' provenance-now.out)" != "$PR_NUMBER" ]; then
+            echo "::error::The commit's provenance changed since the overlay step; nothing was applied. Dispatch again."
+            exit 1
+          fi
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
           # Word-splitting the input is intentional; the script validates each name.
           # shellcheck disable=SC2086
           scripts/apply-hosted-migrations.sh "$STAGING_PROJECT_REF" $MIGRATIONS

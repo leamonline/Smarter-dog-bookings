@@ -132,10 +132,23 @@ local tests and a populated migration ledger do not establish production accepta
 
 ## Decision, 20 October 2026 (#1024)
 
-The owner chose option A: the hosted, approval-gated **Apply named migrations
-to production** workflow is the production route, and the local operator
-alternative stays a **dormant contingency**. Its code stays; nothing is retired
-and no credential is provisioned for it. Revisit only if the repository goes
-private again (required reviewers stop working) or a second person starts
+The owner chose option A: the hosted **Apply named migrations to production**
+workflow is the production route, and the local operator alternative stays a
+**dormant contingency**. Its code stays; nothing is retired and no credential
+is provisioned for it. Revisit the local tool only if a second person starts
 operating releases. Recorded in
 [`docs/migrations.md`](../../migrations.md#production-route-decision-1024--20-october-2026).
+
+## Amendment, 3 November 2026
+
+The repository is private. GitHub Free, Pro and Team offer required reviewers
+only on a public repository, so the production environment has no such rule
+and the workflow's check for one stopped every run before checkout (runs
+41346844911 and 41353951360). The required-reviewer check is removed. The
+confirmation is the operator typing the production project ref, checked twice.
+The production environment must allow exactly the branch `main`, which is what
+keeps the production token off every other branch. The steps are
+[How to apply a migration](../../migrations.md#how-to-apply-a-migration).
+The decision is otherwise unchanged: rollout stays manual, the files come from
+a named reviewed commit, a postcondition is required, and the ledger row is
+what the merge check reads.

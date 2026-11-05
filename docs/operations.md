@@ -67,8 +67,12 @@ digests matched its manifest. This is a successful rerun of a scheduled event;
 the next newly scheduled Sunday execution remains an observation gate.
 
 **How it proves its target.** It is the read-only twin of
-*Apply named migrations to production*. A run started **by hand** runs under
-the `production` GitHub environment, so the same required reviewer approves it.
+*Apply named migrations to production*. A run started **by hand** still looks
+for a required reviewer on the `production` environment. That check was left
+in place here when the migration workflow dropped it on 3 November 2026, so a
+backup you start by hand will still refuse while the repository is private.
+The migration steps are in [migrations.md](migrations.md#how-to-apply-a-migration).
+A run started **by hand** runs under the `production` GitHub environment.
 The **scheduled** Sunday run runs under `production-scheduled-backup`, which
 has no reviewers (see "Scheduled runs need no approval" below). Either way its
 first step checks, before checkout, that the environment for this trigger

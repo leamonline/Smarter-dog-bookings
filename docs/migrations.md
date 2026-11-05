@@ -853,10 +853,13 @@ statements (signature-changing `drop function if exists`, trigger re-creation,
 retention `delete from`), which is how staging fell behind the repository.
 
 Use the manual workflow **Apply named migrations to staging**
-(`.github/workflows/staging-apply-migrations.yml`) instead. It runs under the
-`staging` GitHub environment, demands the exact staging ref as confirmation,
-links staging only, and hands the space-separated list of migration file names
-to `scripts/apply-hosted-migrations.sh`, which:
+(`.github/workflows/staging-apply-migrations.yml`) for every staging apply,
+including a file that is not on `main` yet. Run it from `main` and pass that
+commit as `ref`. The job takes `supabase/migrations/` from that commit, the
+same way production does, and only when the commit is on `main` or is the
+current head of an open, non-draft pull request. It demands the exact staging
+ref as confirmation, links staging only, and hands the space-separated list of
+migration file names to `scripts/apply-hosted-migrations.sh`, which:
 
 - accepts only basenames under `supabase/migrations/` matching
   `<14-digit version>_<snake_case_name>.sql`;
@@ -922,19 +925,26 @@ below does.
 
 ## Production route decision (#1024) — 20 October 2026
 
-**Primary:** the hosted, approval-gated **Apply named migrations to production**
-workflow (below). **Contingency:** the local human-operated release tool,
-kept **dormant**: its code stays, nothing is retired, and no credential is
-provisioned for it. Decided by the owner on 20 October 2026 (option A on #1024).
+**Primary:** **Apply named migrations to production**, dispatched by hand from
+GitHub. The operator types the production project ref. That typed ref is the
+confirmation. **Contingency:** the local human-operated release tool stays
+dormant. Its code stays, nothing is retired, and no credential is provisioned
+for it. Decided by the owner on 20 October 2026 (option A on #1024).
 
-Revisit the contingency only if one of these happens:
+On 3 November 2026 the required-reviewer step was removed from that workflow.
+The repository is private. [GitHub's deployment rules](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments#required-reviewers)
+say that on GitHub Free, Pro and Team, required reviewers exist only for a
+public repository. The live `Production` environment has a branch rule and no
+required-reviewer rule, and runs
+[41346844911](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/41346844911)
+and
+[41353951360](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/41353951360)
+stopped on that missing rule before they checked out any code. One owner
+approving a run they started is the same person twice. The typed project ref
+is the check that the run is aimed at production.
 
-- the repository goes private again (required reviewers were refused on the
-  private plan, so the hosted gate would stop working), or
-- a second person starts operating production releases.
-
-Until then, approval of a production run is a guard against accidents and wrong
-targets by the one owner, not a separation of duties.
+Revisit the local tool only if a second person starts operating production
+releases. The steps you run are [How to apply a migration](#how-to-apply-a-migration).
 
 ## Local production release alternative: dormant contingency
 
@@ -943,11 +953,13 @@ package preparation/validation and the human-operated execution path implemented
 for issue #1024. Production acceptance still requires signed Keychain enrolment,
 proven per-release user presence, the separately approved private attempt-table
 bootstrap and synthetic staging rehearsal. No production operation is authorised
-by merging the tooling. The existing workflow below retains its required-reviewer
-check. As of 16 October it has required reviewer `leamonline`, and successful
-production run 38805066741 is recorded above. Retain that working hosted gate;
-the draft alternative is not adopted or recommended as its replacement. The
-15 October reviewer limitation is historical, not a current blocker.
+by merging the tooling. From 16 October the public repository had required
+reviewer `leamonline`, and production run 38805066741 is recorded above. On
+3 November 2026 the repository is private again, so that reviewer rule cannot
+be saved, and the workflow no longer looks for it. The local tool stays
+unused: it needs a signed macOS keychain prompt and a second copy of the
+credentials, and the GitHub workflow already names the files, checks the
+result and writes the ledger row.
 
 Both named-file workflow paths now use the shared single-session migration engine.
 Its database advisory lock spans all file transactions and final verification.
@@ -955,6 +967,201 @@ Local releases also consume approval digests durably before writing; a failed or
 unknown local postcondition blocks `migrations-applied` despite populated SQL rows.
 Preserve the package and sanitised receipt, reconcile unknown writes and prepare a
 new approval for any subsequent attempt. Never delete an attempt to force a retry.
+
+## How to apply a migration
+
+This is how you apply a migration. You run it yourself from GitHub.
+You type the project ref. The workflow applies only the file names you give
+it, taken from `main` or from an open pull request, then checks one result
+query and writes a ledger row. That row is what the `migrations-applied`
+check reads, so the pull request can merge.
+
+Leave the Supabase SQL editor alone for this. Leave the Supabase MCP apply
+tool alone for this. Both skip the record the merge check wants, which is
+why the Messenger pull request stayed blocked and why the 2 November and
+3 November changes were applied by hand.
+
+Do staging first, then production, then merge. Merging does not apply the
+SQL. You apply the SQL, and the merge check only looks to see that you did.
+
+### One-time setup
+
+Do this once, before the first production run after 3 November 2026.
+
+The `Production` environment must allow the branch `main` and no other
+branch. Checked on 3 November 2026: it is set to selected branches, and the
+list of branches is empty. The first step of the run stops, before it
+connects to the database, until the list is exactly `main`. The `staging`
+environment already has that rule. Leave
+staging's rule as it is.
+
+Why: GitHub gives the production database token only to a workflow running
+on an allowed branch. Exactly `main` means a workflow on any other branch
+does not receive the token.
+
+1. Open the repository on GitHub.
+2. Click **Settings**.
+3. In the left sidebar, click **Environments**.
+4. Click **Production**.
+5. Find **Deployment branches and tags**.
+6. Select **Selected branches and tags**.
+7. Click **Add deployment branch or tag rule**.
+8. Leave the type as **Branch**.
+9. In the name box, type `main`.
+10. Save the rule.
+11. If any other branch or tag rule is listed, delete it.
+
+Do not add a required reviewer. GitHub will not keep one on this private
+repository. The account can store environment secrets and deployment branch
+rules here (that is what a Pro plan allows on a private repository). Required
+reviewers stay limited to public repositories on Free, Pro and Team.
+
+The production token stays an environment secret named
+`PRODUCTION_SUPABASE_ACCESS_TOKEN` on **Production**. If a run says that
+secret did not reach the job, add it there. Do not add it as a repository
+secret. Do not paste the token into the workflow form, a chat, or a log.
+
+### Every migration
+
+**The pull request is open, and it is not a draft.**
+
+Why: the workflow accepts files from a commit on `main`, or from the current
+head of one open, non-draft pull request into `main` from this repository.
+A closed pull request, a draft, or an old commit that is no longer the head
+is refused, and nothing is written.
+
+On the pull request, copy the full 40-character SHA of the latest commit.
+If you push again, copy the new SHA. The old one will be refused.
+
+If the run says the commit lacks migrations that `main` carries, click
+**Update branch** on the pull request (or merge `main` into the branch), wait
+for the new commit, copy that SHA, and start again from staging. Why: the
+SQL that runs has to be the SQL a merge of that pull request would contain.
+
+**1. Apply the same file to staging.**
+
+Why: staging is the rehearsal database. A failure there does not change
+customer bookings.
+
+1. Click **Actions**.
+2. Click **Apply named migrations to staging**.
+3. Click **Run workflow**.
+4. Set **Use workflow from** to the branch `main`. The script runs from
+   `main`. The migration file is taken from the SHA you paste. For a file
+   that is already on `main`, paste the full SHA of that `main` commit.
+5. Fill in:
+   - `confirm_staging_ref`: `btjnxvgkpdbfrrqxvkfj`
+   - `ref`: the 40-character SHA
+   - `migrations`: the file name, for example `20261102150000_messenger_channel.sql`
+   - `reapply`: leave empty
+6. Click the green **Run workflow** button.
+7. Open the run and wait until it is green. A red run means stop. Read the
+   first error. Do not start the production workflow.
+
+If the run says the staging project is paused, open that project in the
+Supabase dashboard and resume it, then run this workflow again. Resuming
+does not apply SQL.
+
+**2. Apply that file to production.**
+
+Why: this writes the schema customers use, and it writes the ledger row the
+merge check reads.
+
+1. Click **Actions**.
+2. Click **Apply named migrations to production**.
+3. Click **Run workflow**.
+4. Set **Use workflow from** to the branch `main`.
+5. Fill in:
+   - `confirm_production_ref`: `nlzhllhkigmsvrzduefz`
+     Why: a wrong value stops the run before it connects. The workflow
+     compares it with the production project, and the apply script compares
+     it again.
+   - `ref`: the same SHA you used for staging
+   - `migrations`: the same file name
+   - `postcondition`: one `SELECT`, with no semicolon, that returns true when
+     the change is present. The rules for that query are in the next section.
+   - `reapply`: leave empty
+6. Click the green **Run workflow** button.
+7. Open the run. It does not wait for a second person. Keep the run URL.
+   That URL is the record of who ran it, which SHA the files came from, and
+   whether the check passed.
+
+**3. Merge the pull request.**
+
+Why: `migrations-applied` reads the production ledger. It passes when the
+file's name and SQL match the row this run wrote. Then you merge. The merge
+deploys the website and the staff app. It does not apply the migration.
+
+### Worked example: the Messenger migration (pull request 1167)
+
+Pull request 1167 is closed, and it was not merged. Reopen it, or open a new
+pull request that contains `supabase/migrations/20261102150000_messenger_channel.sql`.
+The workflow refuses a closed pull request.
+
+The file name is `20261102150000_messenger_channel.sql`. The head SHA when
+the pull request was closed was
+`b61c47f03032375fb5e87e673a2e13e133f105ec`. `main` has moved since
+2 November 2026, so update the branch first and use the new SHA.
+
+Staging ref: `btjnxvgkpdbfrrqxvkfj`. Production ref: `nlzhllhkigmsvrzduefz`.
+
+Postcondition, one line, no semicolon:
+
+```text
+select exists (select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'whatsapp_conversations' and a.attname = 'messenger_psid' and not a.attisdropped)
+```
+
+Why this query: the migration adds the column `messenger_psid`. The query is
+true when that column is in the catalogue. The workflow runs it as the `anon`
+role, read-only, after the apply. A query written against `information_schema`
+can return false for a change that succeeded, because that view hides objects
+`anon` cannot select.
+
+### If the run is red
+
+Read the first red line.
+
+- A wrong ref, a missing `main` branch rule, a missing token, a closed pull
+  request, or a bad SHA stops the run before it connects. Fix the input or
+  the one-time setup and run again. Nothing was written.
+- A failure in the middle means earlier files in that run are applied and
+  recorded, the failing file is rolled back, and later files were not
+  started. Run again with the same SHA and the same names. A file whose
+  stored SQL matches the file is skipped.
+- A red postcondition after a successful apply does not undo the SQL. The
+  ledger row is there. Correct the `SELECT` and run again. The file is
+  skipped, and the new query is checked.
+
+The longer note is the paragraph below that starts "If a run fails part-way."
+
+### What was removed, and why
+
+- **Required reviewers.** GitHub cannot store that rule on a private
+  repository on the current plan, so the workflow stopped every time and the
+  SQL was applied through the Supabase MCP instead. For one owner, the
+  reviewer would be the person who clicked Run. The typed project ref is the
+  confirmation that the target is production.
+- **The local Mac release tool, as the way you apply SQL.** It stays in the
+  repository, unused. It needs a signed keychain prompt and a second
+  credential. It does not name the files, check the result or write the
+  ledger any more carefully than the GitHub workflow does.
+- **Applying a migration by pasting SQL, or by the Supabase MCP, as the
+  normal path.** Those were the bypass. They do not give the merge check a
+  provenance line it can hold a later push to.
+
+What stayed:
+
+- You name the files. The workflow does not apply every file on `main`.
+- The files come from `main`, or from the current head of an open pull request.
+- Production requires a postcondition.
+- The ledger row is what `migrations-applied` reads.
+- The token is an environment secret. The log does not print it.
+- One production run at a time. A second run waits. It does not cancel the first.
+- Staging first, on the staging project that already exists.
+
+A backup you start by hand still looks for a required reviewer, and it will
+still refuse. The Sunday scheduled backup uses a different environment and
+does not look for a reviewer. That workflow was left as it is.
 
 ## Applying migrations to production: the production workflow
 
@@ -968,15 +1175,14 @@ reach:
 | | Staging workflow | Production workflow |
 |---|---|---|
 | Trigger | Manual dispatch only | Manual dispatch only; never push, pull request or schedule |
-| Environment | `staging`, required reviewer | `production`, required reviewer: a person approves the run before it links anything |
+| Environment | `staging`; deployment branch rule exactly `main` | `production`; deployment branch rule exactly `main`; no required reviewer |
 | Confirmation | Type the staging ref | Type the production ref; the script demands it again as `CONFIRM_PRODUCTION_REF` |
 | Target | Links staging; refuses production | Links production only after the exact-ref check; fails closed on any other ref |
 | Concurrency | One staging run at a time | One production run at a time; a second dispatch queues and never cancels the first |
-| Files applied | From the branch dispatched | From the commit named in `ref` (normally the reviewed pull request head); the workflow and script always run from `main` |
+| Files applied | From the commit named in `ref`; the workflow runs from `main` | From the commit named in `ref` (normally the open pull request head); the workflow and script always run from `main` |
 | Postcondition | None | Required: one read-only `SELECT` that must return exactly one boolean true after the apply (ADR 006) |
 
-**When to use which.** Staging first, always: the staging workflow (or the MCP
-tool for files it accepts), then the pgTAP checks. Use the production workflow
+**When to use which.** The click-by-click steps are [How to apply a migration](#how-to-apply-a-migration). Staging first, with the staging workflow, then the production workflow. Use the production workflow
 once the same files have run on staging and the pull request that needs them
 is reviewed, and run it **before** that pull request merges: the
 `migrations-applied` check refuses a merge whose migration is not in the
@@ -1004,19 +1210,16 @@ the pull request is one the production workflow could never have applied
 from; a same-repository pull request by a person without the token fails,
 because what was applied from it cannot be looked up.
 
-**Before the first run (one-off GitHub setup).** Create the `production`
-environment (Settings → Environments) with a required reviewer and a
-deployment branch policy allowing `main`, the same shape as `staging`, and add
-`PRODUCTION_SUPABASE_ACCESS_TOKEN` (a Supabase Management API token) as an
-**environment** secret there, never as a repository secret. GitHub creates a
-referenced environment with no protection rules if it does not exist, so the
-environment-only secret is what makes an unconfigured environment fail closed:
-the workflow's first step refuses to continue without it.
+**Before the first run.** The one-time branch rule and the environment secret
+are in [How to apply a migration](#how-to-apply-a-migration). The environment
+already exists. `PRODUCTION_SUPABASE_ACCESS_TOKEN` stays an environment secret
+on `production`, never a repository secret. GitHub creates a referenced
+environment with no protection rules if it does not exist, so a missing
+environment secret fails the first step closed.
 
-**How to run it.** Actions → **Apply named migrations to production** → *Run
-workflow* **from `main`** (the environment's branch policy allows only `main`,
-which is deliberate: the workflow and the apply script then always run as
-reviewed there). Fill in:
+**Fields.** Run the workflow from `main`. The branch rule and the script both
+require that, so the workflow and the apply script are the copies on `main`.
+Fill in:
 
 - `confirm_production_ref`: `nlzhllhkigmsvrzduefz`;
 - `ref`: the full 40-character SHA of the reviewed pull request head (shown
@@ -1034,7 +1237,7 @@ reviewed there). Fill in:
   commit, and a file that already exists on `main` must be byte-identical to
   `main`'s copy (history is append-only: a fix is a new, later migration).
   `main` here is the branch as it is when the run executes, fetched once
-  after the approval wait and recorded in the summary, never the checkout
+  after any concurrency wait and recorded in the summary, never the checkout
   the dispatch pinned; and if `main` has changed this workflow or the apply
   scripts since the dispatch, the run refuses and must be dispatched again;
 - `migrations`: the space-separated file basenames in the order they must run,
@@ -1054,19 +1257,19 @@ reviewed there). Fill in:
 - `reapply`: only for the out-of-order repair case described above; every
   name here must also be in `migrations`, or the run is refused.
 
-The run then waits for the `production` environment's required reviewer, who
-sees every input; nothing is checked out or linked until that approval is
-given.
+The run does not wait for a second person. The checks below run as soon as a
+runner picks up the job. Nothing is checked out until the typed ref, the
+`main` branch rule and the token check have passed.
 
 **What the run proves**, in order, each step failing the run if it does not
 hold:
 
 1. the typed ref equals the production ref and differs from staging, the run
-   was dispatched from `main`, the `production` environment exists with at
-   least one required reviewer and a deployment branch policy (read through
-   the API, so a same-named secret at repository level cannot stand in for the
-   environment's approval), the environment token is present, `ref` is a full
-   SHA and a postcondition was given, all before checkout, so a wrong ref or an
+   was dispatched from `main`, the `production` environment exists and its
+   deployment branch rules are exactly one branch named `main` (read through
+   the API, so a same-named secret at repository level cannot stand in for
+   that rule), the environment token is present, `ref` is a full SHA and a
+   postcondition was given, all before checkout, so a wrong ref or an
    unconfigured environment never reaches the repository or the CLI;
 2. `main` is checked out; the current `main` tip is fetched and recorded, and
    the run refuses if it has changed this workflow, the apply scripts or the
