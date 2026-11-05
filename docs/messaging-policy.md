@@ -270,10 +270,30 @@ closed: no token or URL configured answers 500 and reads nothing, and a missing 
 wrong signature answers 403 and writes nothing
 ([`edge-function-auth.md`](edge-function-auth.md)).
 
-**Dark launch: nothing changes until it is configured.** Merging deploys the
-function, but it answers 500 to everything, and `sendSms` asks Twilio for callbacks
-only when `TWILIO_STATUS_CALLBACK_URL` is set. Turning it on is a Twilio and secrets
-change that needs its own approval:
+### Production verification recorded 5 November 2026
+
+The owner confirmed that an SMS arrived and supplied an inbox screenshot showing
+**delivered** for the message labelled **4 November 2026, 00:50**. This demonstrates
+successful delivery tracking for that message. The evidence is owner confirmation
+and the displayed inbox status; the callback request, message SID and production
+secret configuration were not independently inspected.
+
+Live failure alerts, STOP handling and retry behaviour remain unverified by this
+test. The earlier PR #1184 statement that real Twilio traffic had not been tested
+describes the evidence available when that PR was merged; this is the subsequent
+verification record. No recipient number, customer message content or screenshot
+is included in this record.
+
+### Configuration and rollback
+
+**Configuration-gated launch.** An unconfigured deployment is inert: POST requests
+answer 500 before database access when either required setting is absent.
+`sendSms` requests callbacks only when `TWILIO_STATUS_CALLBACK_URL` is set.
+The production evidence above supersedes any assumption that the feature is still
+unconfigured; it does not independently verify the exact current secret values.
+Enabling it in an unconfigured environment is a Twilio and secrets change that
+needs its own approval:
+
 
 1. Set `TWILIO_AUTH_TOKEN` (the account **Auth Token**; an API key secret cannot
    verify signatures) and `TWILIO_STATUS_CALLBACK_URL`
@@ -287,7 +307,9 @@ change that needs its own approval:
 3. Check: send one text; the function's log shows `delivered`, and that message
    shows delivered in the inbox.
 4. **Roll back** by unsetting `TWILIO_STATUS_CALLBACK_URL`: new texts stop asking for
-   callbacks at once and the function goes back to inert.
+   callbacks and the function goes back to inert. Callbacks still in flight are
+   also refused while the URL is unset; existing statuses, to-dos and opt-outs
+   are not reverted.
 
 Known limit: a failure that arrives before the sending function has finished
 writing its own log row (milliseconds) would find nothing to update. Failures
