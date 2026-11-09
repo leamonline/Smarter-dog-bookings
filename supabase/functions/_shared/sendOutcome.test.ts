@@ -3,6 +3,7 @@ import {
   classifyProviderResponse,
   isUnknownOutcomeBody,
   isUnknownOutcomeLogMessage,
+  sendCallMayHaveGone,
   UNKNOWN_OUTCOME_PREFIX,
   unknownOutcomeLogMessage,
 } from "./sendOutcome.ts";
@@ -55,7 +56,7 @@ Deno.test("unknown outcomes are recognised in bodies and log messages", () => {
   assertEquals(isUnknownOutcomeLogMessage(null), false);
 });
 
-import { sendCallMayHaveGone } from "./sendOutcome.ts";
+
 
 const call = (status: number, body: Record<string, unknown> = {}) => ({ ok: status >= 200 && status < 300, status, body });
 
@@ -74,4 +75,17 @@ Deno.test("a call may have gone out unless something proves it did not", () => {
   assertEquals(sendCallMayHaveGone(call(0, {})), true, "the call itself timed out");
   assertEquals(sendCallMayHaveGone(call(200, {})), true, "a 2xx that is not ok:true");
   assertEquals(sendCallMayHaveGone(call(500, { error: "internal error" })), true);
+});
+
+import { failedSendMayHaveGone } from "./sendOutcome.ts";
+
+Deno.test("failedSendMayHaveGone also covers an ok:true that named no message", () => {
+  // Reached only by a caller that needs a message id and did not get one.
+  assertEquals(failedSendMayHaveGone(call(200, { ok: true, meta_message_id: null })), true);
+  assertEquals(failedSendMayHaveGone(call(200, { ok: true })), true);
+  // Unchanged for everything sendCallMayHaveGone already decides.
+  assertEquals(failedSendMayHaveGone(call(502, { ok: false, outcome: "not_sent" })), false);
+  assertEquals(failedSendMayHaveGone(call(409, { error: "opted out" })), false);
+  assertEquals(failedSendMayHaveGone(call(502, { ok: false, outcome: "unknown" })), true);
+  assertEquals(failedSendMayHaveGone(call(0, {})), true);
 });

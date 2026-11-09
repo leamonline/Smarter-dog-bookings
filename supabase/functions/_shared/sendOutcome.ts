@@ -136,3 +136,15 @@ export function sendCallMayHaveGone(result: SendCallResult): boolean {
   if (result.ok && result.body?.ok === true) return false; // accepted: handled as a success
   return true;
 }
+
+/**
+ * Having called a send function and NOT got a clean success with a message id,
+ * may the message still have gone out? This is the one question every caller
+ * that logs a failure or considers another channel asks. It is
+ * sendCallMayHaveGone() plus the case a caller reaches only when it requires a
+ * message id: `ok: true` with none, which is a provider that took the message
+ * and did not name it.
+ */
+export function failedSendMayHaveGone(result: SendCallResult): boolean {
+  return sendCallMayHaveGone(result) || (result.ok && result.body?.ok === true);
+}

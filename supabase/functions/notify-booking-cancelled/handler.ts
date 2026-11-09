@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
 import {
   ProviderOutcomeUnknownError,
-  sendCallMayHaveGone,
+  failedSendMayHaveGone,
   unknownOutcomeLogMessage,
 } from "../_shared/sendOutcome.ts";
 import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
@@ -444,10 +444,9 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         } else {
           const why = whatsappRejection(result);
           console.error(`cancelled whatsapp-send failed: ${why}`);
-          // A 200 `ok: true` with no message id is no clearer: Meta may have
-          // taken the message.
-          const acceptedWithoutId = result.ok && result.body.ok === true;
-          if (sendCallMayHaveGone(result) || acceptedWithoutId) {
+          // (This includes a 200 `ok: true` with no message id: Meta may have
+          // taken the message and not named it.)
+          if (failedSendMayHaveGone(result)) {
             // Meta may have taken it. Texting or emailing now could send the
             // customer the same cancellation twice.
             outcomeUnknown = true;
