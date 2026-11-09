@@ -45,6 +45,7 @@ import { normaliseUkPhone } from "../_shared/twilio.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { blockReason, blockText } from "../_shared/channelPolicy.ts";
+import { failedSendMayHaveGone, UNKNOWN_OUTCOME_TEXT, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -339,6 +340,9 @@ serve(async (req) => {
     let sent = false;
     let providerMessageId: string | null = null;
     let failDetail = "Delivery failed — check provider logs";
+    // May have gone out but was never confirmed: staff are told to check
+    // before sending again, and the log row is marked (_shared/sendOutcome.ts).
+    let outcomeUnknown = false;
 
     if (channel === "whatsapp") {
       const wa = body.whatsapp;
@@ -355,6 +359,7 @@ serve(async (req) => {
         human_id: humanId,
       });
       sent = result.ok && result.body.ok === true;
+      outcomeUnknown = !sent && failedSendMayHaveGone(result);
       providerMessageId = (result.body.meta_message_id as string | null) ?? null;
       if (!sent) failDetail = String(result.body.detail ?? result.body.error ?? `whatsapp-send ${result.status}`);
     } else if (channel === "sms") {
@@ -371,6 +376,7 @@ serve(async (req) => {
         human_id: humanId,
       });
       sent = result.ok && result.body.ok === true;
+      outcomeUnknown = !sent && failedSendMayHaveGone(result);
       providerMessageId = (result.body.twilio_sid as string | null) ?? null;
       if (!sent) failDetail = String(result.body.detail ?? result.body.error ?? `sms-send ${result.status}`);
     } else {
@@ -395,12 +401,21 @@ serve(async (req) => {
       .update({
         status: sent ? "sent" : "failed",
         sent_at: sent ? new Date().toISOString() : null,
-        error_message: sent ? null : failDetail,
+        error_message: sent ? null : outcomeUnknown ? unknownOutcomeLogMessage() : failDetail,
       })
       .in("id", pendingIds);
 
     if (!sent) {
-      console.error(`reminder-send: ${channel} send failed:`, failDetail);
+      console.error(`reminder-send: ${channel} send failed:`, outcomeUnknown ? "outcome unknown" : failDetail);
+      if (outcomeUnknown) {
+        return json(req, {
+          ok: false,
+          outcome: "unknown",
+          code: "delivery_outcome_unknown",
+          error: UNKNOWN_OUTCOME_TEXT,
+          channel,
+        }, 502);
+      }
       return json(req, { error: "send failed", channel }, 502);
     }
     return json(req, { ok: true, channel, provider_message_id: providerMessageId });

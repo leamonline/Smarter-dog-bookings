@@ -35,6 +35,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { channelAvailableFor, HUMAN_CONTACT_COLUMNS, type RecipientHuman } from "../_shared/recipients.ts";
+import {
+  failedSendMayHaveGone,
+  isUnknownOutcomeLogMessage,
+  UNKNOWN_OUTCOME_PREFIX,
+  unknownOutcomeLogMessage,
+} from "../_shared/sendOutcome.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -98,6 +104,7 @@ interface ReminderRow {
   status: string;
   trigger_type: string;
   created_at: string;
+  error_message: string | null;
 }
 
 // POST to another edge function with the trusted server-to-server creds
@@ -106,15 +113,22 @@ async function invokeInternal(
   fn: string,
   payload: unknown,
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": SEND_INTERNAL_SECRET,
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": SEND_INTERNAL_SECRET,
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // No answer at all: the text may or may not have been sent. Status 0 is read
+    // as "may have gone" by sendCallMayHaveGone(), never as a clean failure.
+    return { ok: false, status: 0, body: {} };
+  }
   let body: Record<string, unknown> = {};
   try {
     body = await res.json();
@@ -153,7 +167,7 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
 
     const { data: rows, error } = await supabase
       .from("notification_log")
-      .select("id, booking_id, human_id, message_text, provider_message_id, status, trigger_type, created_at")
+      .select("id, booking_id, human_id, message_text, provider_message_id, status, trigger_type, created_at, error_message")
       .in("trigger_type", Object.keys(CHASED_TRIGGERS))
       .eq("channel", "whatsapp")
       .in("status", ["sent", "failed"])
@@ -216,6 +230,10 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
     const needsSms = candidates.filter((r) => {
       if (!r.message_text) return false; // nothing to resend
       if (!r.booking_id || !noticeStillRelevant(r.trigger_type, bookingStatus.get(r.booking_id))) return false;
+      // The WhatsApp send may have gone out but was never confirmed. It has no
+      // message id, so no delivery receipt can ever clear it, and texting now
+      // could be a second copy. Staff see the row as failed and decide.
+      if (isUnknownOutcomeLogMessage(r.error_message)) return false;
       // Meta accepted this cancellation. SMS here would be a second notice.
       // Send-time rejection is already SMS or email on a row whose channel
       // is no longer whatsapp, so it never reaches this list.
@@ -289,6 +307,27 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
         }
       }
       const bookingRows = [...newestByBooking.values()];
+
+      // An earlier SMS chase for one of these bookings whose outcome was never
+      // confirmed. A failed claim row normally lets the next run try again;
+      // after an unknown outcome that would send the customer a second text.
+      const { data: unconfirmed, error: unconfirmedErr } = await supabase
+        .from("notification_log")
+        .select("id")
+        .eq("trigger_type", fallbackTrigger)
+        .like("error_message", `${UNKNOWN_OUTCOME_PREFIX}%`)
+        .in("booking_id", bookingRows.map((r) => r.booking_id!))
+        .limit(1);
+      if (unconfirmedErr) {
+        // Cannot rule out a duplicate: do not send this run.
+        console.error("reminder-sms-fallback: unconfirmed-chase lookup failed:", unconfirmedErr.message);
+        skipped++;
+        continue;
+      }
+      if ((unconfirmed ?? []).length > 0) {
+        skipped++;
+        continue;
+      }
       const pendingEntries = bookingRows.map((r) => ({
         booking_id: r.booking_id,
         human_id: humanId,
@@ -353,6 +392,7 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
         human_id: humanId,
       });
       const ok = result.ok && result.body.ok === true;
+      const outcomeUnknown = !ok && failedSendMayHaveGone(result);
       const sid = (result.body.twilio_sid as string | null) ?? null;
       if (ok) {
         smsSent++;
@@ -371,7 +411,11 @@ export async function handleSmsFallback(req: Request): Promise<Response> {
           status: ok ? "sent" : "failed",
           sent_at: ok ? new Date().toISOString() : null,
           provider_message_id: ok ? sid : null,
-          error_message: ok ? null : "SMS fallback failed — check provider logs",
+          error_message: ok
+            ? null
+            : outcomeUnknown
+            ? unknownOutcomeLogMessage()
+            : "SMS fallback failed — check provider logs",
         })
         .in("id", ids);
     }

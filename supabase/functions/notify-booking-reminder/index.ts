@@ -6,6 +6,7 @@ import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
 import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
+import { failedSendMayHaveGone, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -415,6 +416,10 @@ serve(async (req) => {
         //    send can be chased by SMS). SMS via sms-send (also inbox-recorded).
         //    Email stays direct via SendGrid.
         let sent = false;
+        // A send that may have gone out but was never confirmed. Logged with a
+        // marker so the hourly SMS chase does not text a customer whose
+        // WhatsApp may have arrived (_shared/sendOutcome.ts).
+        let outcomeUnknown = false;
         let providerMessageId: string | null = null;
         if (channel === "whatsapp") {
           const result = await invokeInternal("whatsapp-send", {
@@ -429,6 +434,7 @@ serve(async (req) => {
           // A null meta_message_id means whatsapp-send returned ok but Meta
           // produced no message — treat as a failure, not a silent 'sent'.
           sent = result.ok && result.body.ok === true && providerMessageId != null;
+          outcomeUnknown = !sent && failedSendMayHaveGone(result);
           if (!sent) {
             console.error(`reminder whatsapp-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
           }
@@ -441,6 +447,7 @@ serve(async (req) => {
             human_id: human.id,
           });
           sent = result.ok && result.body.ok === true;
+          outcomeUnknown = !sent && failedSendMayHaveGone(result);
           providerMessageId = (result.body.twilio_sid as string | null) ?? null;
           if (!sent) {
             console.error(`reminder sms-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
@@ -461,7 +468,11 @@ serve(async (req) => {
             status: sent ? "sent" : "failed",
             sent_at: sent ? new Date().toISOString() : null,
             provider_message_id: sent ? providerMessageId : null,
-            error_message: sent ? null : "Delivery failed — check provider logs",
+            error_message: sent
+              ? null
+              : outcomeUnknown
+              ? unknownOutcomeLogMessage()
+              : "Delivery failed — check provider logs",
           })
           .in("id", pendingIds);
 

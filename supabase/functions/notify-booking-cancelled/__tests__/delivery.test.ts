@@ -62,6 +62,9 @@ interface Providers {
   twilio?: { status: number; body: Record<string, unknown> };
   email?: { status: number; body?: unknown };
   whatsapp?: { status: number; body: Record<string, unknown> };
+  /** The connection drops with no answer at all (the request may or may not have arrived). */
+  twilioThrows?: boolean;
+  whatsappThrows?: boolean;
 }
 
 async function cancel(
@@ -105,13 +108,19 @@ async function cancel(
       headers: new Headers(init?.headers),
     });
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
-    if (url.hostname === "api.twilio.com") return reply(twilio.body, twilio.status);
+    if (url.hostname === "api.twilio.com") {
+      if (providers.twilioThrows) throw new TypeError("connection reset");
+      return reply(twilio.body, twilio.status);
+    }
     if (url.hostname === "api.sendgrid.com") {
       return email.body === undefined
         ? new Response(null, { status: email.status })
         : reply(email.body, email.status);
     }
-    if (url.pathname === "/functions/v1/whatsapp-send") return reply(whatsapp.body, whatsapp.status);
+    if (url.pathname === "/functions/v1/whatsapp-send") {
+      if (providers.whatsappThrows) throw new TypeError("connection reset");
+      return reply(whatsapp.body, whatsapp.status);
+    }
     if (url.pathname === "/rest/v1/dogs") return reply({ id: "dog-1", name: "Bella", human_id: HUMAN.id });
     if (url.pathname === "/rest/v1/humans") return reply([human]);
     if (url.pathname === "/rest/v1/notification_log") {
@@ -472,7 +481,7 @@ Deno.test("flag on: a WhatsApp customer gets the Meta template, logged sent on w
 
 Deno.test("flag on: a Meta rejection falls back to SMS on the same row and does not also email", async () => {
   const { calls } = await cancel(HUMAN, {
-    whatsapp: { status: 502, body: { error: "Meta send failed" } },
+    whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } },
   }, "true", "10:00", "salon");
   assertEquals(whatsappCalls(calls).length, 1);
   assertEquals(twilioCalls(calls).length, 1);
@@ -497,16 +506,20 @@ Deno.test("flag on: a Meta rejection falls back to SMS on the same row and does 
   assertEquals(patch.error_message, null);
 });
 
-Deno.test("flag on: Meta accepting the call but returning no message id is a failure and falls back to SMS", async () => {
+Deno.test("flag on: Meta accepting the call but returning no message id MAY have sent: nothing else is tried", async () => {
+  // A second copy of a cancellation is worse than one a person chases, so a
+  // WhatsApp the provider may have taken is never followed by SMS or email.
   const { calls } = await cancel(HUMAN, {
     whatsapp: { status: 200, body: { ok: true, meta_message_id: null } },
   }, "true", "10:00", "salon");
-  assertEquals(twilioCalls(calls).length, 1);
-  assertEquals(emailCalls(calls).length, 0);
+  assertEquals(whatsappCalls(calls).length, 1);
+  assertEquals(twilioCalls(calls).length, 0, "no SMS after a WhatsApp that may have gone");
+  assertEquals(emailCalls(calls).length, 0, "no email either");
   const patch = finalPatch(calls);
-  assertEquals(patch.status, "sent");
-  assertEquals(patch.channel, "sms");
-  assertEquals(patch.provider_message_id, "SM-sms");
+  assertEquals(patch.status, "failed");
+  assertEquals(patch.channel, "whatsapp", "the row stays on WhatsApp so staff see where it may have gone");
+  assertEquals(patch.provider_message_id, null);
+  assertEquals(String(patch.error_message).startsWith("outcome unknown:"), true);
 });
 
 Deno.test("flag on: a customer who replied STOP on WhatsApp is texted instead, and WhatsApp is not called", async () => {
@@ -560,7 +573,7 @@ Deno.test("flag on: WhatsApp only, with SMS switched off, sends the template and
 Deno.test("flag on: Meta rejection with the optional SMS tickbox off still falls back to SMS", async () => {
   const { calls } = await cancel(
     { ...HUMAN, sms: false },
-    { whatsapp: { status: 502, body: { error: "Meta send failed" } } },
+    { whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } } },
     "true",
     "10:00",
     "salon",
@@ -576,7 +589,7 @@ Deno.test("flag on: Meta rejection with the optional SMS tickbox off still falls
 Deno.test("flag on: Meta rejection with SMS opted out uses email and does not text", async () => {
   const { calls } = await cancel(
     { ...HUMAN, sms_opted_out: true },
-    { whatsapp: { status: 502, body: { error: "Meta send failed" } } },
+    { whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } } },
     "true",
     "10:00",
     "salon",
@@ -594,7 +607,7 @@ Deno.test("flag on: Meta rejection with SMS opted out uses email and does not te
 
 Deno.test("flag on: Meta, SMS and email all rejected is logged failed on email with each reason", async () => {
   const { calls } = await cancel(HUMAN, {
-    whatsapp: { status: 502, body: { error: "Meta send failed" } },
+    whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } },
     twilio: { status: 400, body: { code: 21211, message: "Invalid 'To' Phone Number" } },
     email: { status: 403, body: { errors: [{ message: "The from address does not match a verified Sender Identity." }] } },
   }, "true", "10:00", "salon");
@@ -615,7 +628,7 @@ Deno.test("flag on: Meta, SMS and email all rejected is logged failed on email w
 Deno.test("flag on: Meta rejection with SMS opted out and no email is logged failed on whatsapp and nothing else is sent", async () => {
   const { calls } = await cancel(
     { ...HUMAN, sms_opted_out: true, email: null },
-    { whatsapp: { status: 502, body: { error: "Template name does not exist in the translation" } } },
+    { whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Template name does not exist in the translation" } } },
     "true",
     "10:00",
     "salon",
@@ -629,4 +642,76 @@ Deno.test("flag on: Meta rejection with SMS opted out and no email is logged fai
   assertEquals(patch.sent_at, null);
   assertEquals(patch.provider_message_id, null);
   assertStringIncludes(String(patch.error_message), "Template name does not exist");
+});
+
+// ── Uncertain outcomes never cascade (Stage 1, PR A) ────────────────
+
+function assertMarkedUnknown(calls: Call[], channel: string) {
+  const patch = finalPatch(calls);
+  assertEquals(patch.status, "failed", "never logged sent");
+  assertEquals(patch.channel, channel);
+  assertEquals(patch.provider_message_id, null);
+  assertEquals(String(patch.error_message).startsWith("outcome unknown:"), true, "the chase and staff can tell it from a clean failure");
+}
+
+Deno.test("flag on: whatsapp-send says the outcome is unknown: no SMS, no email, row marked unknown", async () => {
+  const { calls } = await cancel(HUMAN, {
+    whatsapp: {
+      status: 502,
+      body: { ok: false, outcome: "unknown", code: "delivery_outcome_unknown", error: "We couldn't confirm whether this message was sent." },
+    },
+  }, "true", "10:00", "salon");
+  assertEquals(whatsappCalls(calls).length, 1);
+  assertEquals(twilioCalls(calls).length, 0);
+  assertEquals(emailCalls(calls).length, 0);
+  assertMarkedUnknown(calls, "whatsapp");
+});
+
+Deno.test("flag on: a 5xx from whatsapp-send with no outcome (an older deploy, a crash) is treated as unknown too", async () => {
+  const { calls } = await cancel(HUMAN, { whatsapp: { status: 502, body: { error: "Meta send failed" } } }, "true", "10:00", "salon");
+  assertEquals(twilioCalls(calls).length, 0);
+  assertEquals(emailCalls(calls).length, 0);
+  assertMarkedUnknown(calls, "whatsapp");
+});
+
+Deno.test("flag on: the call to whatsapp-send getting no answer at all is unknown: nothing else is tried", async () => {
+  const { calls } = await cancel(HUMAN, { whatsappThrows: true }, "true", "10:00", "salon");
+  assertEquals(whatsappCalls(calls).length, 1);
+  assertEquals(twilioCalls(calls).length, 0);
+  assertEquals(emailCalls(calls).length, 0);
+  assertMarkedUnknown(calls, "whatsapp");
+});
+
+Deno.test("flag on: a definite WhatsApp refusal still falls back to SMS (unchanged)", async () => {
+  const { calls } = await cancel(HUMAN, {
+    whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } },
+  }, "true", "10:00", "salon");
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(finalPatch(calls).status, "sent");
+  assertEquals(finalPatch(calls).channel, "sms");
+});
+
+Deno.test("an SMS whose connection drops may have been sent: no email follows, row marked unknown", async () => {
+  const { calls } = await cancel(HUMAN, { twilioThrows: true });
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(emailCalls(calls).length, 0, "one notice, not two");
+  assertMarkedUnknown(calls, "sms");
+});
+
+Deno.test("an SMS Twilio answers with a 5xx may have been sent: no email follows, row marked unknown", async () => {
+  const { calls } = await cancel(HUMAN, { twilio: { status: 503, body: { code: 20503, message: "Service unavailable" } } });
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(emailCalls(calls).length, 0);
+  assertMarkedUnknown(calls, "sms");
+});
+
+Deno.test("a WhatsApp refusal followed by an SMS that may have gone: still no email", async () => {
+  const { calls } = await cancel(HUMAN, {
+    whatsapp: { status: 502, body: { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" } },
+    twilioThrows: true,
+  }, "true", "10:00", "salon");
+  assertEquals(whatsappCalls(calls).length, 1);
+  assertEquals(twilioCalls(calls).length, 1);
+  assertEquals(emailCalls(calls).length, 0);
+  assertMarkedUnknown(calls, "sms");
 });

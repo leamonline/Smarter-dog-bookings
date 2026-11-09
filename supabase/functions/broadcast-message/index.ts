@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sanitise } from "../_shared/format.ts";
 import { fetchHumansByIds } from "../_shared/recipients.ts";
+import { failedSendMayHaveGone, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
 import {
   pickChannelWaSms,
   renderMessage,
@@ -187,6 +188,8 @@ serve(async (req) => {
 
       // 7. Send via the template (not free text) so the 24h window never blocks it.
       let ok = false;
+      // May have gone out but was never confirmed (_shared/sendOutcome.ts).
+      let outcomeUnknown = false;
       let providerId: string | null = null;
       if (channel === "whatsapp") {
         const res = await invokeInternal("whatsapp-send", {
@@ -199,6 +202,7 @@ serve(async (req) => {
         });
         providerId = (res.body.meta_message_id as string | null) ?? null;
         ok = res.ok && res.body.ok === true && providerId != null;
+        outcomeUnknown = !ok && failedSendMayHaveGone(res);
         if (!ok) console.error(`broadcast whatsapp-send failed for ${humanId}:`, res.status, JSON.stringify(res.body));
       } else {
         const res = await invokeInternal("sms-send", {
@@ -209,6 +213,7 @@ serve(async (req) => {
           human_id: humanId,
         });
         ok = res.ok && res.body.ok === true;
+        outcomeUnknown = !ok && failedSendMayHaveGone(res);
         providerId = (res.body.twilio_sid as string | null) ?? null;
         if (!ok) console.error(`broadcast sms-send failed for ${humanId}:`, res.status, JSON.stringify(res.body));
       }
@@ -220,7 +225,11 @@ serve(async (req) => {
           status: ok ? "sent" : "failed",
           sent_at: ok ? new Date().toISOString() : null,
           provider_message_id: ok ? providerId : null,
-          error_message: ok ? null : "Delivery failed — check provider logs",
+          error_message: ok
+            ? null
+            : outcomeUnknown
+            ? unknownOutcomeLogMessage()
+            : "Delivery failed — check provider logs",
         })
         .in("id", pendingIds);
 

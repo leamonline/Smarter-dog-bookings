@@ -50,7 +50,8 @@ async function sweep(
     calls.push({ method, path: url.pathname, search: decodeURIComponent(url.search), body });
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
     if (url.pathname === "/rest/v1/notification_log") {
-      if (method === "GET") return reply(rows);
+      // The lookup for an earlier, unconfirmed SMS chase (trigger *_sms_fallback) finds nothing here.
+      if (method === "GET") return reply(url.searchParams.get("trigger_type")?.endsWith("_sms_fallback") ? [] : rows);
       if (method === "POST") return reply((body as unknown[]).map((_, i) => ({ id: `claim-${i}` })), 201);
       return new Response(null, { status: 204 });
     }

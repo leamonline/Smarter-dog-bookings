@@ -33,6 +33,14 @@
 //     'awaiting_customer_confirm' with a 24h TTL. On Meta failure
 //     the row stays at 'pending' for staff to handle via the inbox.
 //
+// Response contract (Stage 1, PR A; see docs/send-outcomes.md):
+//   Success:  { ok: true, recorded: boolean, warnings: string[], … }
+//             `recorded: false` means the message WENT but is not in the inbox.
+//             A warning is never a reason to resend.
+//   Failure:  { ok: false, outcome: "not_sent" | "unknown", code, error }
+//             `unknown` means it MAY have been sent; do not retry or fall
+//             through to another channel.
+//
 // Auth:
 //   Gateway JWT verification is DISABLED (verify_jwt=false) because
 //   the Supabase gateway currently rejects ES256-signed user session
@@ -90,6 +98,14 @@ import {
   phoneMatchPattern,
   type OptOutRecipient,
 } from "../_shared/optOut.ts";
+import {
+  classifyProviderResponse,
+  ProviderNotConfiguredError,
+  ProviderOutcomeUnknownError,
+  ProviderRejectedError,
+  UNKNOWN_OUTCOME_TEXT,
+} from "../_shared/sendOutcome.ts";
+import { type IdentityDb, observeSendIdentity } from "../_shared/sendIdentity.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -238,27 +254,98 @@ function toE164(digits: string): string {
   return d ? `+${d}` : "";
 }
 
-async function callMeta(body: unknown): Promise<MetaSendSuccess> {
-  const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${META_PHONE_NUMBER_ID}/messages`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+// A request that outlives this is an unknown outcome, not a hang.
+const META_REQUEST_TIMEOUT_MS = 15_000;
 
-  const json: MetaSendSuccess & MetaSendError = await res.json();
-  if (!res.ok) {
-    const err = json.error;
-    throw new Error(
-      `Meta ${res.status} — ${err?.type ?? "error"} ${err?.code ?? ""}: ${
-        err?.message ?? JSON.stringify(json)
-      }`,
+/**
+ * Send to Meta. Resolves only for an ACCEPTED message (a message id came
+ * back). Otherwise it throws one of three typed errors, and callers must keep
+ * them apart (_shared/sendOutcome.ts):
+ *   ProviderNotConfiguredError  our credentials are missing: not sent.
+ *   ProviderRejectedError       Meta answered and refused: not sent.
+ *   ProviderOutcomeUnknownError we cannot tell (network failure, timeout, 5xx,
+ *                               2xx with no message id): it MAY have been sent.
+ */
+async function callMeta(body: unknown): Promise<MetaSendSuccess> {
+  if (!META_ACCESS_TOKEN || !META_PHONE_NUMBER_ID) {
+    throw new ProviderNotConfiguredError("Meta WhatsApp credentials not configured");
+  }
+  const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${META_PHONE_NUMBER_ID}/messages`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${META_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(META_REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    // The request may have reached Meta before the connection failed.
+    throw new ProviderOutcomeUnknownError(
+      `Meta request failed before an answer arrived: ${err instanceof Error ? err.name : "error"}`,
     );
   }
-  return json;
+
+  let json: MetaSendSuccess & MetaSendError = {} as MetaSendSuccess & MetaSendError;
+  let jsonParsed = false;
+  try {
+    json = await res.json();
+    jsonParsed = true;
+  } catch {
+    // Unreadable body: classified below.
+  }
+  const messageId = json.messages?.[0]?.id;
+  const outcome = classifyProviderResponse({
+    ok: res.ok,
+    status: res.status,
+    jsonParsed,
+    hasMessageId: typeof messageId === "string" && messageId.length > 0,
+  });
+  if (outcome === "accepted") return json;
+
+  const err = json.error;
+  const detail = `Meta ${res.status} — ${err?.type ?? "error"} ${err?.code ?? ""}: ${
+    err?.message ?? (jsonParsed ? JSON.stringify(json) : "unreadable response")
+  }`;
+  if (outcome === "rejected") throw new ProviderRejectedError(detail, res.status);
+  throw new ProviderOutcomeUnknownError(detail);
+}
+
+/**
+ * The response for a send that did not return an accepted message. Only a
+ * definite refusal says "not sent"; anything else we cannot classify is
+ * treated as unknown, never as a clean failure.
+ */
+function providerFailure(req: Request, err: unknown, where: string): Response {
+  console.error(
+    `whatsapp-send ${where}: Meta send failed:`,
+    err instanceof Error ? err.message : String(err),
+  );
+  if (err instanceof ProviderNotConfiguredError) {
+    return json(req, {
+      ok: false,
+      outcome: "not_sent",
+      code: "provider_not_configured",
+      error: "WhatsApp isn't set up on the server, so nothing was sent.",
+    }, 500);
+  }
+  if (err instanceof ProviderRejectedError) {
+    return json(req, { ok: false, outcome: "not_sent", code: "provider_rejected", error: "Meta send failed" }, 502);
+  }
+  return json(req, {
+    ok: false,
+    outcome: "unknown",
+    code: "delivery_outcome_unknown",
+    error: UNKNOWN_OUTCOME_TEXT,
+  }, 502);
+}
+
+/** Only a definite refusal lets the caller undo its claim: after an unknown outcome the message may be out. */
+function canUndoAfter(err: unknown): boolean {
+  return err instanceof ProviderRejectedError || err instanceof ProviderNotConfiguredError;
 }
 
 // Note: whatsapp_messages.role has a CHECK constraint allowing only
@@ -266,14 +353,23 @@ async function callMeta(body: unknown): Promise<MetaSendSuccess> {
 // regardless of whether it came from the AI or from a staff compose box.
 // If we later want the inbox to visually distinguish staff vs AI replies,
 // extend the CHECK with 'staff' in a follow-up migration.
+interface RecordResult {
+  /** When the row was written, or would have been; null when there was no conversation to write to. */
+  sentAt: string | null;
+  /** The whatsapp_messages row exists. False means staff will not see this message in the thread. */
+  recorded: boolean;
+  /** The conversation's last_outbound_at moved. */
+  conversationUpdated: boolean;
+}
+
 async function recordOutbound(
   supabase: SupabaseClient,
   conversationId: string | null,
   metaMessageId: string | null,
   content: string | null,
   raw: unknown,
-): Promise<string | null> {
-  if (!conversationId) return null;
+): Promise<RecordResult> {
+  if (!conversationId) return { sentAt: null, recorded: false, conversationUpdated: false };
   const sentAt = new Date().toISOString();
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
@@ -292,7 +388,24 @@ async function recordOutbound(
     .update({ last_outbound_at: sentAt })
     .eq("id", conversationId);
   if (convError) console.error("recordOutbound conversation update failed:", convError);
-  return sentAt;
+  return { sentAt, recorded: !error, conversationUpdated: !convError };
+}
+
+/**
+ * The success body's bookkeeping: `recorded`, and `warnings`, a list of stable
+ * codes for things that did not go perfectly AFTER the message went out. A
+ * warning is never a reason to resend: the message is on its way.
+ */
+function sentBody(
+  rec: RecordResult,
+  observed: string[],
+  extra: string[] = [],
+): { recorded: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  if (!rec.recorded) warnings.push("message_not_recorded");
+  else if (!rec.conversationUpdated) warnings.push("conversation_not_updated");
+  warnings.push(...extra, ...observed);
+  return { recorded: rec.recorded, warnings };
 }
 
 // ── A staff reply supersedes the AI drafts it answers (#1063) ──
@@ -304,8 +417,21 @@ async function recordOutbound(
 // outbound row is role 'assistant'), so the sender marks it: a top-level
 // `sent_by: "staff"` beside Meta's own keys in `raw`, which leaves
 // `raw.messages[0].id` where its readers expect it. No migration.
-function outboundRaw(metaRes: MetaSendSuccess, staffUserId: string | undefined): unknown {
-  return staffUserId ? { ...metaRes, sent_by: "staff" } : metaRes;
+//
+// `sent_kind: "text"` marks a free-text send. Meta's own response does not say
+// what was sent, so without this a failed message cannot be told apart from a
+// template or an interactive one, and the inbox must not offer to re-send it
+// as plain text unless it is certain (only rows carrying this mark qualify).
+function outboundRaw(
+  metaRes: MetaSendSuccess,
+  staffUserId: string | undefined,
+  kind?: "text",
+): unknown {
+  return {
+    ...metaRes,
+    ...(kind ? { sent_kind: kind } : {}),
+    ...(staffUserId ? { sent_by: "staff" } : {}),
+  };
 }
 
 // After a staff member's text has gone, the conversation's older pending
@@ -320,7 +446,7 @@ async function supersedeDraftsAfterStaffReply(
   conversationId: string,
   sentAt: string,
   keepDraftId?: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const { data: pending, error: pendingErr } = await supabase
       .from("whatsapp_drafts")
@@ -334,7 +460,7 @@ async function supersedeDraftsAfterStaffReply(
       .filter((d) => d.id !== keepDraftId)
       .filter((d) => String(d.tool_calls?.opt_out_acknowledgement) !== "true")
       .map((d) => d.id);
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) return true;
 
     const { data: actions, error: actionsErr } = await supabase
       .from("whatsapp_booking_actions")
@@ -344,7 +470,7 @@ async function supersedeDraftsAfterStaffReply(
     if (actionsErr) throw new Error(actionsErr.message);
     const held = new Set(((actions ?? []) as { draft_id: string | null }[]).map((a) => a.draft_id));
     const ids = candidates.filter((id) => !held.has(id));
-    if (ids.length === 0) return;
+    if (ids.length === 0) return true;
 
     const { data: superseded, error: updateErr } = await supabase
       .from("whatsapp_drafts")
@@ -356,11 +482,13 @@ async function supersedeDraftsAfterStaffReply(
     console.log(
       `whatsapp-send: staff reply on conversation ${conversationId} superseded ${superseded?.length ?? 0} older pending draft(s)`,
     );
+    return true;
   } catch (err) {
     console.error(
       `whatsapp-send: superseding drafts after a staff reply on ${conversationId} failed (the reply was sent):`,
       err instanceof Error ? err.message : String(err),
     );
+    return false;
   }
 }
 
@@ -714,6 +842,7 @@ async function handleDraftMode(
   supabase: SupabaseClient,
   body: DraftMode,
   userId: string | undefined,
+  observed: string[],
 ): Promise<Response> {
   const { data: draft, error: draftErr } = await supabase
     .from("whatsapp_drafts")
@@ -791,33 +920,40 @@ async function handleDraftMode(
       text: { body: textToSend },
     });
   } catch (err) {
-    await supabase
-      .from("whatsapp_drafts")
-      .update({
-        state: "pending",
-        edited_text: null,
-        decided_by: null,
-        decided_at: null,
-      })
-      .eq("id", draft.id);
-
-    console.error(
-      "whatsapp-send draft mode: Meta send failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return json(req, { error: "Meta send failed" }, 502);
+    // Only a definite "not sent" hands the draft back for another approval.
+    // After an unknown outcome the message may be out: the draft stays claimed
+    // (approved / sent_after_edit) so nobody can approve it a second time and
+    // send the customer a duplicate.
+    if (canUndoAfter(err)) {
+      await supabase
+        .from("whatsapp_drafts")
+        .update({
+          state: "pending",
+          edited_text: null,
+          decided_by: null,
+          decided_at: null,
+        })
+        .eq("id", draft.id);
+    } else {
+      console.error(`whatsapp-send draft mode: draft ${draft.id} left claimed: the send outcome is unknown`);
+    }
+    return providerFailure(req, err, "draft mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  const sentAt = await recordOutbound(supabase, conv.id, metaMessageId, textToSend, outboundRaw(metaRes, userId));
-  if (userId && sentAt) await supersedeDraftsAfterStaffReply(supabase, conv.id, sentAt, draft.id);
+  const rec = await recordOutbound(supabase, conv.id, metaMessageId, textToSend, outboundRaw(metaRes, userId, "text"));
+  const extra: string[] = [];
+  if (userId && rec.sentAt && !(await supersedeDraftsAfterStaffReply(supabase, conv.id, rec.sentAt, draft.id))) {
+    extra.push("draft_supersede_failed");
+  }
 
   return json(req, {
     ok: true,
     meta_message_id: metaMessageId,
     sent_text: textToSend,
     draft_id: draft.id,
+    ...sentBody(rec, observed, extra),
   });
 }
 
@@ -831,6 +967,7 @@ async function handleManualMode(
   supabase: SupabaseClient,
   body: ManualMode,
   userId: string | undefined,
+  observed: string[],
 ): Promise<Response> {
   if (!body.conversation_id) {
     return json(req, { error: "conversation_id is required" }, 400);
@@ -885,23 +1022,23 @@ async function handleManualMode(
       text: { body: text },
     });
   } catch (err) {
-    console.error(
-      "whatsapp-send manual mode: Meta send failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return json(req, { error: "Meta send failed" }, 502);
+    return providerFailure(req, err, "manual mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  const sentAt = await recordOutbound(supabase, conv.id, metaMessageId, text, outboundRaw(metaRes, userId));
-  if (userId && sentAt) await supersedeDraftsAfterStaffReply(supabase, conv.id, sentAt);
+  const rec = await recordOutbound(supabase, conv.id, metaMessageId, text, outboundRaw(metaRes, userId, "text"));
+  const extra: string[] = [];
+  if (userId && rec.sentAt && !(await supersedeDraftsAfterStaffReply(supabase, conv.id, rec.sentAt))) {
+    extra.push("draft_supersede_failed");
+  }
 
   return json(req, {
     ok: true,
     meta_message_id: metaMessageId,
     sent_text: text,
     conversation_id: conv.id,
+    ...sentBody(rec, observed, extra),
   });
 }
 
@@ -909,6 +1046,7 @@ async function handleTemplateMode(
   req: Request,
   supabase: SupabaseClient,
   body: TemplateMode,
+  observed: string[],
 ): Promise<Response> {
   if (!body.to || !body.template_name) {
     return json(req, { error: "to and template_name are required" }, 400);
@@ -942,11 +1080,7 @@ async function handleTemplateMode(
       },
     });
   } catch (err) {
-    console.error(
-      "whatsapp-send template mode: Meta send failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return json(req, { error: "Meta send failed" }, 502);
+    return providerFailure(req, err, "template mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -1006,12 +1140,17 @@ async function handleTemplateMode(
   }
 
   const content = `[template:${body.template_name}] ${params.join(" · ")}`.trim();
-  await recordOutbound(supabase, conversationId, metaMessageId, content, metaRes);
+  const rec = await recordOutbound(supabase, conversationId, metaMessageId, content, metaRes);
+  const extra: string[] = [];
+  // No conversation to record on: the send went out, but it will not appear in
+  // the inbox. (Not the same as a failed write, so it gets its own code.)
+  if (!conversationId) extra.push("conversation_unavailable");
 
   // A booking confirmation leaves nothing for staff to do in the thread, so
   // mark it complete, unless a request for a person is still unanswered.
   if (metaMessageId && conversationId && CONVERSATION_COMPLETING_TEMPLATES.has(body.template_name)) {
-    await completeConversationAfterConfirmation(supabase, conversationId);
+    const completion = await completeConversationAfterConfirmation(supabase, conversationId);
+    if (completion === "failed") extra.push("conversation_not_completed");
   }
 
   return json(req, {
@@ -1019,6 +1158,7 @@ async function handleTemplateMode(
     meta_message_id: metaMessageId,
     template: body.template_name,
     language: lang,
+    ...sentBody(rec, observed, extra),
   });
 }
 
@@ -1098,6 +1238,7 @@ async function handleFlowMode(
   req: Request,
   supabase: SupabaseClient,
   body: FlowMode,
+  observed: string[],
 ): Promise<Response> {
   const initialScreen = body.initial_screen ?? "WELCOME";
   const flowToken = crypto.randomUUID();
@@ -1162,12 +1303,12 @@ async function handleFlowMode(
   try {
     metaRes = await callMeta(metaBody);
   } catch (err) {
-    await supabase.from("whatsapp_flow_sessions").update({ status: "failed" }).eq("flow_token", flowToken);
-    console.error(
-      "whatsapp-send flow mode: Meta send failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return json(req, { error: "Meta send failed" }, 502);
+    // After an unknown outcome the Flow message may have arrived, so its
+    // session stays active: failing it would break a Flow the customer can open.
+    if (canUndoAfter(err)) {
+      await supabase.from("whatsapp_flow_sessions").update({ status: "failed" }).eq("flow_token", flowToken);
+    }
+    return providerFailure(req, err, "flow mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -1203,9 +1344,10 @@ async function handleFlowMode(
       }
     }
   }
-  await recordOutbound(supabase, conversationId, metaMessageId, `[flow:${body.flow_id}] ${body.body_text}`, metaBody);
+  const rec = await recordOutbound(supabase, conversationId, metaMessageId, `[flow:${body.flow_id}] ${body.body_text}`, metaBody);
+  const extra = conversationId ? [] : ["conversation_unavailable"];
 
-  return json(req, { ok: true, flow_token: flowToken, meta_message_id: metaMessageId });
+  return json(req, { ok: true, flow_token: flowToken, meta_message_id: metaMessageId, ...sentBody(rec, observed, extra) });
 }
 
 // ── Booking-entry handler ─────────────────────────────────────
@@ -1219,6 +1361,7 @@ async function handleBookEntryMode(
   req: Request,
   supabase: SupabaseClient,
   body: BookEntryMode,
+  observed: string[],
 ): Promise<Response> {
   if (!body.to || !body.conversation_id) {
     return json(req, { error: "book_entry requires to + conversation_id" }, 400);
@@ -1244,17 +1387,13 @@ async function handleBookEntryMode(
   try {
     metaRes = await callMeta(metaBody);
   } catch (err) {
-    console.error(
-      "whatsapp-send book_entry mode: Meta send failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return json(req, { error: "Meta send failed" }, 502);
+    return providerFailure(req, err, "book_entry mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
-  await recordOutbound(supabase, body.conversation_id, metaMessageId, `[book_entry] ${bodyText}`, metaBody);
+  const rec = await recordOutbound(supabase, body.conversation_id, metaMessageId, `[book_entry] ${bodyText}`, metaBody);
 
-  return json(req, { ok: true, meta_message_id: metaMessageId });
+  return json(req, { ok: true, meta_message_id: metaMessageId, ...sentBody(rec, observed) });
 }
 
 // ── Interactive list handler ──────────────────────────────────
@@ -1266,6 +1405,7 @@ async function handleListMode(
   req: Request,
   supabase: SupabaseClient,
   body: ListMode,
+  observed: string[],
 ): Promise<Response> {
   if (!body.to || !body.conversation_id || !Array.isArray(body.rows) || body.rows.length === 0) {
     return json(req, { error: "list requires to + conversation_id + rows" }, 400);
@@ -1296,13 +1436,12 @@ async function handleListMode(
   try {
     metaRes = await callMeta(metaBody);
   } catch (err) {
-    console.error("whatsapp-send list mode: Meta send failed:", err instanceof Error ? err.message : String(err));
-    return json(req, { error: "Meta send failed" }, 502);
+    return providerFailure(req, err, "list mode");
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
-  await recordOutbound(supabase, body.conversation_id, metaMessageId, `[manage_list] ${body.body_text}`, metaBody);
-  return json(req, { ok: true, meta_message_id: metaMessageId });
+  const rec = await recordOutbound(supabase, body.conversation_id, metaMessageId, `[manage_list] ${body.body_text}`, metaBody);
+  return json(req, { ok: true, meta_message_id: metaMessageId, ...sentBody(rec, observed) });
 }
 
 function json(req: Request, body: unknown, status = 200): Response {
@@ -1365,6 +1504,8 @@ export async function handleSendRequest(req: Request): Promise<Response> {
       return json(
         req,
         {
+          ok: false,
+          outcome: "not_sent",
           error: "Could not check whether this customer has opted out of WhatsApp, so nothing was sent. Try again.",
           reason: "opt_out_check_failed",
         },
@@ -1428,20 +1569,36 @@ export async function handleSendRequest(req: Request): Promise<Response> {
       );
     }
 
+    // Observe-only (Stage 1, PR A): do the destination, customer, conversation
+    // and channel agree? Disagreements come back as `warnings` and are logged;
+    // nothing is refused. confirm_buttons derives its destination from the
+    // conversation and checks its action belongs to it, so it is skipped.
+    const observed = parsed.mode === "confirm_buttons"
+      ? []
+      : await observeSendIdentity(supabase as unknown as IdentityDb, {
+        endpoint: "whatsapp-send",
+        endpointChannel: "whatsapp",
+        mode: parsed.mode,
+        to: "to" in parsed ? parsed.to : null,
+        humanId: "human_id" in parsed ? parsed.human_id : null,
+        conversationId: "conversation_id" in parsed ? parsed.conversation_id : null,
+        draftId: parsed.mode === "draft" ? parsed.draft_id : null,
+      });
+
     if (parsed.mode === "draft") {
-      return await handleDraftMode(req, supabase, parsed, auth.userId);
+      return await handleDraftMode(req, supabase, parsed, auth.userId, observed);
     } else if (parsed.mode === "manual") {
-      return await handleManualMode(req, supabase, parsed, auth.userId);
+      return await handleManualMode(req, supabase, parsed, auth.userId, observed);
     } else if (parsed.mode === "template") {
-      return await handleTemplateMode(req, supabase, parsed);
+      return await handleTemplateMode(req, supabase, parsed, observed);
     } else if (parsed.mode === "confirm_buttons") {
       return await handleConfirmButtons(req, supabase, parsed);
     } else if (parsed.mode === "flow") {
-      return await handleFlowMode(req, supabase, parsed);
+      return await handleFlowMode(req, supabase, parsed, observed);
     } else if (parsed.mode === "book_entry") {
-      return await handleBookEntryMode(req, supabase, parsed);
+      return await handleBookEntryMode(req, supabase, parsed, observed);
     } else if (parsed.mode === "list") {
-      return await handleListMode(req, supabase, parsed);
+      return await handleListMode(req, supabase, parsed, observed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }

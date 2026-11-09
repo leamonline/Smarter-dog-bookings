@@ -392,7 +392,7 @@
     },
     "sms-send": {
       "authFamily": "staff-jwt-or-internal-secret",
-      "authSource": "index.ts",
+      "authSource": "handler.ts",
       "caller": "staff dashboard browser, or a service-role Edge Function such as reminder-sms-fallback",
       "role": "staff or service",
       "gatewayVerifyJwt": false,
@@ -402,7 +402,7 @@
       "replayDefence": "none at the transport",
       "unauthorizedResponse": "401 missing authorization / invalid token, 403 not staff",
       "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when SEND_INTERNAL_SECRET is empty",
-      "notes": "Spends Twilio credit, so an auth regression here has a direct financial cost."
+      "notes": "Spends Twilio credit, so an auth regression here has a direct financial cost. index.ts is a serve() shim; the handler and its gate live in handler.ts so the request contract is importable under deno test."
     },
     "whatsapp-admin": {
       "authFamily": "internal-secret",

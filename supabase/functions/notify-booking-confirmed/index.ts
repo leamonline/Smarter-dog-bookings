@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
+import { failedSendMayHaveGone, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
 import {
   recipientIdsForBooking,
@@ -199,6 +200,9 @@ serve(async (req) => {
       // SMS via sms-send — both record to the staff inbox with a delivery
       // status. Email stays direct via SendGrid.
       let sent = false;
+      // May have gone out but was never confirmed: logged with a marker so the
+      // hourly SMS chase leaves it alone (_shared/sendOutcome.ts).
+      let outcomeUnknown = false;
       let providerMessageId: string | null = null;
       if (channel === "whatsapp") {
         const result = await invokeInternal("whatsapp-send", {
@@ -213,6 +217,7 @@ serve(async (req) => {
         // A null meta_message_id means whatsapp-send returned ok but Meta
         // produced no message — treat as a failure, not a silent 'sent'.
         sent = result.ok && result.body.ok === true && providerMessageId != null;
+        outcomeUnknown = !sent && failedSendMayHaveGone(result);
         if (!sent) console.error("confirmed whatsapp-send failed:", result.status, JSON.stringify(result.body));
       } else if (channel === "sms") {
         const result = await invokeInternal("sms-send", {
@@ -223,6 +228,7 @@ serve(async (req) => {
           human_id: human.id,
         });
         sent = result.ok && result.body.ok === true;
+        outcomeUnknown = !sent && failedSendMayHaveGone(result);
         providerMessageId = (result.body.twilio_sid as string | null) ?? null;
         if (!sent) console.error("confirmed sms-send failed:", result.status, JSON.stringify(result.body));
       } else {
@@ -238,7 +244,11 @@ serve(async (req) => {
           status: sent ? "sent" : "failed",
           sent_at: sent ? new Date().toISOString() : null,
           provider_message_id: sent ? providerMessageId : null,
-          error_message: sent ? null : "Delivery failed — check provider logs",
+          error_message: sent
+            ? null
+            : outcomeUnknown
+            ? unknownOutcomeLogMessage()
+            : "Delivery failed — check provider logs",
         })
         .in("id", pendingIds);
 

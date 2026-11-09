@@ -38,7 +38,8 @@ async function sweep(messages: { meta_message_id: string; status: string }[], ro
     const method = init?.method ?? "GET";
     const reply = (value: unknown, status = 200) => Response.json(value, { status });
     if (url.pathname === "/rest/v1/notification_log") {
-      if (method === "GET") return reply([row]);
+      // The lookup for an earlier, unconfirmed SMS chase (trigger *_sms_fallback) finds nothing here.
+      if (method === "GET") return reply(url.searchParams.get("trigger_type")?.endsWith("_sms_fallback") ? [] : [row]);
       if (method === "POST") return reply([{ id: "claim-0" }], 201);
       return new Response(null, { status: 204 });
     }
