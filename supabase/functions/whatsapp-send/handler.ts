@@ -1504,6 +1504,8 @@ export async function handleSendRequest(req: Request): Promise<Response> {
       return json(
         req,
         {
+          ok: false,
+          outcome: "not_sent",
           error: "Could not check whether this customer has opted out of WhatsApp, so nothing was sent. Try again.",
           reason: "opt_out_check_failed",
         },

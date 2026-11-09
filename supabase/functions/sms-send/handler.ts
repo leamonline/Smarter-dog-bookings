@@ -258,7 +258,7 @@ async function handleSend(
     }
   } catch (err) {
     console.error("sms-send: opt-out check failed; refusing to send:", err instanceof Error ? err.message : String(err));
-    return json(req, { error: "could not check opt-out", detail: "Try again in a moment." }, 503);
+    return json(req, { ok: false, outcome: "not_sent", error: "could not check opt-out", detail: "Try again in a moment." }, 503);
   }
 
   // Observe-only (Stage 1, PR A): do the destination, customer, conversation

@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSms } from "../_shared/twilio.ts";
+import {
+  ProviderOutcomeUnknownError,
+  sendCallMayHaveGone,
+  unknownOutcomeLogMessage,
+} from "../_shared/sendOutcome.ts";
 import { isRecipientUnsubscribed, recordSmsStop } from "../_shared/smsStop.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmailDetailed } from "../_shared/email.ts";
@@ -162,15 +167,23 @@ async function invokeInternal(
   fn: string,
   payload: unknown,
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": Deno.env.get("SEND_INTERNAL_SECRET") ?? "",
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": Deno.env.get("SEND_INTERNAL_SECRET") ?? "",
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // No answer at all (the call timed out or the connection dropped). The send
+    // function may already have handed the message to the provider, so this is
+    // reported as status 0, which sendCallMayHaveGone() reads as "may have gone".
+    return { ok: false, status: 0, body: {} };
+  }
   let body: Record<string, unknown> = {};
   try {
     body = await res.json();
@@ -339,6 +352,11 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
       let sent = false;
       let providerMessageId: string | null = null;
       const failures: string[] = [];
+      // Set when a send may have gone out but we cannot tell. From then on no
+      // other channel is tried: a second copy of a cancellation notice is worse
+      // than one staff chase by hand, and this row is marked so the hourly SMS
+      // chase leaves it alone too (UNKNOWN_OUTCOME_PREFIX).
+      let outcomeUnknown = false;
 
       const retarget = async (next: "sms" | "email"): Promise<boolean> => {
         if (used === next) return true;
@@ -358,13 +376,29 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
       };
 
       const trySms = async (): Promise<boolean> => {
+        if (outcomeUnknown) return false;
         if (!channelAvailableFor(human, "sms") || !human.phone) return false;
         if (!(await retarget("sms"))) return false;
-        const sms = await sendSms(human.phone, message);
-        if (sms.ok) {
+        let sms;
+        try {
+          sms = await sendSms(human.phone, message);
+        } catch (err) {
+          if (!(err instanceof ProviderOutcomeUnknownError)) throw err;
+          outcomeUnknown = true;
+          console.error(`Twilio SMS outcome unknown: ${err.message}`);
+          failures.push("The text may have been sent: Twilio did not answer.");
+          return false;
+        }
+        if (sms.ok && sms.outcome === "accepted") {
           sent = true;
           providerMessageId = sms.sid ?? null;
           return true;
+        }
+        if (sms.outcome === "unknown") {
+          outcomeUnknown = true;
+          console.error(`Twilio SMS outcome unknown (HTTP ${sms.status})`);
+          failures.push(`The text may have been sent: Twilio answered HTTP ${sms.status} without confirming it.`);
+          return false;
         }
         // A text STOP (21610) is recorded and flagged for staff the same way as in
         // sms-send; this path calls Twilio directly so it must do it itself.
@@ -376,6 +410,7 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
       };
 
       const tryEmail = async (): Promise<boolean> => {
+        if (outcomeUnknown) return false;
         if (!channelAvailableFor(human, "email") || !human.email) return false;
         if (!(await retarget("email"))) return false;
         const email = await sendEmailDetailed(human.email, subject, message);
@@ -409,8 +444,18 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         } else {
           const why = whatsappRejection(result);
           console.error(`cancelled whatsapp-send failed: ${why}`);
-          failures.push(why);
-          if (!(await trySms())) await tryEmail();
+          // A 200 `ok: true` with no message id is no clearer: Meta may have
+          // taken the message.
+          const acceptedWithoutId = result.ok && result.body.ok === true;
+          if (sendCallMayHaveGone(result) || acceptedWithoutId) {
+            // Meta may have taken it. Texting or emailing now could send the
+            // customer the same cancellation twice.
+            outcomeUnknown = true;
+            failures.push("The WhatsApp notice may have been sent: it was not confirmed, so no other channel was tried.");
+          } else {
+            failures.push(why);
+            if (!(await trySms())) await tryEmail();
+          }
         }
       } else if (channel === "sms") {
         if (!(await trySms())) await tryEmail();
@@ -418,7 +463,11 @@ export async function handleBookingCancelled(req: Request): Promise<Response> {
         await tryEmail();
       }
 
-      const errorMessage = sent ? null : (failures.join(" ") || "Delivery failed");
+      const errorMessage = sent
+        ? null
+        : outcomeUnknown
+        ? unknownOutcomeLogMessage(failures.join(" "))
+        : (failures.join(" ") || "Delivery failed");
 
       await supabase
         .from("notification_log")

@@ -108,3 +108,31 @@ export function unknownOutcomeLogMessage(detail?: string): string {
 export function isUnknownOutcomeLogMessage(message: string | null | undefined): boolean {
   return typeof message === "string" && message.startsWith(UNKNOWN_OUTCOME_PREFIX);
 }
+
+export interface SendCallResult {
+  ok: boolean;
+  status: number;
+  body: Record<string, unknown>;
+}
+
+/**
+ * Having called whatsapp-send or sms-send, may the message have gone out?
+ *
+ * Only an answer that proves nothing was sent says no: the function's own
+ * `outcome: "not_sent"`, or a 4xx (refused at the door: authorisation,
+ * validation, opt-out, a closed window). Everything else that is not a clean
+ * success could have happened after the provider took the message: a 5xx
+ * with no body, a call that timed out (status 0), a gateway page. Callers use
+ * this to decide whether falling through to another channel is safe, and
+ * whether to mark a log row with UNKNOWN_OUTCOME_PREFIX.
+ *
+ * A 2xx that is not `ok: true` (or an `ok: true` with no message id, which the
+ * send functions now report as unknown) is treated as may-have-gone too.
+ */
+export function sendCallMayHaveGone(result: SendCallResult): boolean {
+  if (isUnknownOutcomeBody(result.body)) return true;
+  if (result.body?.outcome === "not_sent") return false;
+  if (result.status >= 400 && result.status < 500) return false;
+  if (result.ok && result.body?.ok === true) return false; // accepted: handled as a success
+  return true;
+}

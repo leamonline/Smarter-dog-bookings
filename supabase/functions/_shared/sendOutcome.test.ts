@@ -54,3 +54,24 @@ Deno.test("unknown outcomes are recognised in bodies and log messages", () => {
   assertEquals(isUnknownOutcomeLogMessage("Delivery failed — check provider logs"), false);
   assertEquals(isUnknownOutcomeLogMessage(null), false);
 });
+
+import { sendCallMayHaveGone } from "./sendOutcome.ts";
+
+const call = (status: number, body: Record<string, unknown> = {}) => ({ ok: status >= 200 && status < 300, status, body });
+
+Deno.test("a call may have gone out unless something proves it did not", () => {
+  // Proves nothing was sent.
+  assertEquals(sendCallMayHaveGone(call(502, { ok: false, outcome: "not_sent" })), false);
+  assertEquals(sendCallMayHaveGone(call(503, { ok: false, outcome: "not_sent", reason: "opt_out_check_failed" })), false);
+  assertEquals(sendCallMayHaveGone(call(409, { error: "opted out" })), false);
+  assertEquals(sendCallMayHaveGone(call(422, { error: "24h window closed" })), false);
+  assertEquals(sendCallMayHaveGone(call(401, { error: "invalid token" })), false);
+  // A clean success is handled as a success.
+  assertEquals(sendCallMayHaveGone(call(200, { ok: true })), false);
+  // May have gone.
+  assertEquals(sendCallMayHaveGone(call(502, { ok: false, outcome: "unknown" })), true);
+  assertEquals(sendCallMayHaveGone(call(500, {})), true, "a 5xx with no body");
+  assertEquals(sendCallMayHaveGone(call(0, {})), true, "the call itself timed out");
+  assertEquals(sendCallMayHaveGone(call(200, {})), true, "a 2xx that is not ok:true");
+  assertEquals(sendCallMayHaveGone(call(500, { error: "internal error" })), true);
+});
