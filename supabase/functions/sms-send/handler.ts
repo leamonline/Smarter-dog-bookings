@@ -23,7 +23,13 @@
 //     already have a template + params pair. Records the template
 //     name in the message content for audit.
 //
-// Auth, CORS, and recordOutbound conventions match whatsapp-send.
+// Auth, CORS, and recordOutbound conventions match whatsapp-send, and so does
+// the response contract (Stage 1, PR A; see docs/send-outcomes.md):
+//   Success:  { ok: true, recorded: boolean, warnings: string[], … }
+//             `recorded: false` means the text WENT but is not in the inbox.
+//   Failure:  { ok: false, outcome: "not_sent" | "unknown", code, error }
+//             `unknown` means it MAY have been sent; do not retry or fall
+//             through to another channel.
 //
 // Env vars required (all already set on the project for the
 // notify-booking-* path):
@@ -45,6 +51,8 @@ import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { isRecipientUnsubscribed, isSmsOptedOutOnNumber, recordSmsStop } from "../_shared/smsStop.ts";
+import { ProviderNotConfiguredError, UNKNOWN_OUTCOME_TEXT } from "../_shared/sendOutcome.ts";
+import { type IdentityDb, observeSendIdentity } from "../_shared/sendIdentity.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -162,14 +170,21 @@ async function resolveOrCreateConversation(
   return null;
 }
 
+interface RecordResult {
+  /** The whatsapp_messages row exists. False means staff will not see this text in the thread. */
+  recorded: boolean;
+  /** The conversation's last_outbound_at moved. */
+  conversationUpdated: boolean;
+}
+
 async function recordOutbound(
   supabase: SupabaseClient,
   conversationId: string | null,
   twilioSid: string | null,
   content: string,
   raw: unknown,
-): Promise<void> {
-  if (!conversationId) return;
+): Promise<RecordResult> {
+  if (!conversationId) return { recorded: false, conversationUpdated: false };
   const sentAt = new Date().toISOString();
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
@@ -189,6 +204,16 @@ async function recordOutbound(
     .update({ last_outbound_at: sentAt })
     .eq("id", conversationId);
   if (convError) console.error("sms-send: conversation update failed:", convError);
+  return { recorded: !error, conversationUpdated: !convError };
+}
+
+function unknownOutcome(req: Request): Response {
+  return json(req, {
+    ok: false,
+    outcome: "unknown",
+    code: "delivery_outcome_unknown",
+    error: UNKNOWN_OUTCOME_TEXT,
+  }, 502);
 }
 
 async function handleSend(
@@ -236,12 +261,36 @@ async function handleSend(
     return json(req, { error: "could not check opt-out", detail: "Try again in a moment." }, 503);
   }
 
+  // Observe-only (Stage 1, PR A): do the destination, customer, conversation
+  // and channel agree? Disagreements come back as `warnings` and are logged;
+  // nothing is refused yet.
+  const observed = await observeSendIdentity(supabase as unknown as IdentityDb, {
+    endpoint: "sms-send",
+    endpointChannel: "sms",
+    mode: body.mode,
+    to: body.to,
+    humanId: body.human_id ?? null,
+    conversationId: body.conversation_id ?? null,
+  });
+
   let twilioResult;
   try {
     twilioResult = await sendSms(phoneE164, body.text.trim());
   } catch (err) {
-    console.error("sms-send: Twilio not configured:", err instanceof Error ? err.message : String(err));
-    return json(req, { error: "Twilio not configured" }, 500);
+    if (err instanceof ProviderNotConfiguredError) {
+      console.error("sms-send: Twilio not configured:", err.message);
+      return json(req, {
+        ok: false,
+        outcome: "not_sent",
+        code: "provider_not_configured",
+        error: "Twilio not configured",
+      }, 500);
+    }
+    // Anything else (a network failure or timeout after the request went) means
+    // we cannot say whether Twilio created the message. It is NOT a config
+    // fault, and must not invite a plain retry.
+    console.error("sms-send: send outcome unknown:", err instanceof Error ? err.message : String(err));
+    return unknownOutcome(req);
   }
 
   if (!twilioResult.ok && isRecipientUnsubscribed(twilioResult.errorCode)) {
@@ -260,12 +309,17 @@ async function handleSend(
     );
   }
 
-  if (!twilioResult.ok) {
+  if (twilioResult.outcome === "rejected") {
     console.error(
       "sms-send: Twilio send failed:",
       `${twilioResult.errorCode ?? twilioResult.status}: ${twilioResult.errorMessage ?? "(no message)"}`,
     );
-    return json(req, { error: "send failed" }, 502);
+    return json(req, { ok: false, outcome: "not_sent", code: "provider_rejected", error: "send failed" }, 502);
+  }
+  if (twilioResult.outcome === "unknown") {
+    // A 5xx, an unreadable answer, or a 2xx with no message sid.
+    console.error("sms-send: send outcome unknown: Twilio answered HTTP", twilioResult.status);
+    return unknownOutcome(req);
   }
 
   let conversationId = body.conversation_id ?? null;
@@ -282,7 +336,7 @@ async function handleSend(
       ? `[template:${body.template_name}] ${body.text.trim()}`
       : body.text.trim();
 
-  await recordOutbound(
+  const rec = await recordOutbound(
     supabase,
     conversationId,
     twilioResult.sid ?? null,
@@ -290,11 +344,21 @@ async function handleSend(
     twilioResult,
   );
 
+  // Stable codes for what did not go perfectly AFTER the text went out. A
+  // warning is never a reason to resend.
+  const warnings: string[] = [];
+  if (!conversationId) warnings.push("conversation_unavailable");
+  if (!rec.recorded) warnings.push("message_not_recorded");
+  else if (!rec.conversationUpdated) warnings.push("conversation_not_updated");
+  warnings.push(...observed);
+
   return json(req, {
     ok: true,
     twilio_sid: twilioResult.sid,
     sent_text: body.text.trim(),
     conversation_id: conversationId,
+    recorded: rec.recorded,
+    warnings,
   });
 }
 
