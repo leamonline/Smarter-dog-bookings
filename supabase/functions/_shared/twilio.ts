@@ -22,7 +22,18 @@
 // WhatsApp doesn't go through Messaging Service in our setup — it always
 // uses `From: whatsapp:<TWILIO_WHATSAPP_FROM>`.
 
+import {
+  classifyProviderResponse,
+  ProviderNotConfiguredError,
+  ProviderOutcomeUnknownError,
+  type SendOutcome,
+} from "./sendOutcome.ts";
+
 const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID")!;
+
+// A request that outlives this is an unknown outcome (the message may still
+// have been created), not a hang. Twilio normally answers in well under 2s.
+const TWILIO_REQUEST_TIMEOUT_MS = 15_000;
 
 // Auth — prefer API key, fall back to Auth Token
 const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
@@ -87,48 +98,73 @@ function authHeader(): string {
   if (TWILIO_AUTH_TOKEN) {
     return "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
   }
-  throw new Error(
+  throw new ProviderNotConfiguredError(
     "Twilio auth not configured: set TWILIO_API_KEY+TWILIO_API_SECRET (preferred) or TWILIO_AUTH_TOKEN",
   );
 }
 
-interface TwilioPostResult {
+export interface TwilioPostResult {
   ok: boolean;
   status: number;
   sid?: string;
   errorCode?: string;
   errorMessage?: string;
+  /**
+   * accepted: Twilio created the message (a sid came back).
+   * rejected: Twilio answered and refused; nothing was created.
+   * unknown:  we cannot tell (5xx, unreadable body, 2xx with no sid). A caller
+   *           must not retry or fall through to another channel on this.
+   * A request that never gets an answer (network failure, timeout) does not
+   * return: it throws ProviderOutcomeUnknownError.
+   */
+  outcome: SendOutcome;
 }
 
 async function postMessage(
   params: Record<string, string>,
 ): Promise<TwilioPostResult> {
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: authHeader(),
-        "Content-Type": "application/x-www-form-urlencoded",
+  // Credentials first: a missing key is a definite "not sent", and must not be
+  // mistaken for the network failure below.
+  const authorization = authHeader();
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(params),
+        signal: AbortSignal.timeout(TWILIO_REQUEST_TIMEOUT_MS),
       },
-      body: new URLSearchParams(params),
-    },
-  );
+    );
+  } catch (err) {
+    // The request may have reached Twilio before the connection failed.
+    throw new ProviderOutcomeUnknownError(
+      `Twilio request failed before an answer arrived: ${err instanceof Error ? err.name : "error"}`,
+    );
+  }
   // Twilio returns JSON on both success and error. Pull the SID on success
   // (the twilio-status callback matches on it),
   // and the error code/message on failure for the notification_log row.
   let body: Record<string, unknown> = {};
+  let jsonParsed = false;
   try {
     body = await res.json();
+    jsonParsed = true;
   } catch {
     // Non-JSON response (rare) — leave body empty
   }
+  const sid = typeof body.sid === "string" && body.sid ? body.sid : undefined;
   return {
     ok: res.ok,
     status: res.status,
-    sid: typeof body.sid === "string" ? body.sid : undefined,
+    sid,
     errorCode: body.code != null ? String(body.code) : undefined,
     errorMessage: typeof body.message === "string" ? body.message : undefined,
+    outcome: classifyProviderResponse({ ok: res.ok, status: res.status, jsonParsed, hasMessageId: !!sid }),
   };
 }
 
@@ -154,7 +190,7 @@ export async function sendSms(
   } else if (TWILIO_SMS_FROM) {
     params.From = TWILIO_SMS_FROM;
   } else {
-    throw new Error(
+    throw new ProviderNotConfiguredError(
       "SMS sender not configured: set TWILIO_MESSAGING_SERVICE_SID (preferred) or TWILIO_SMS_FROM",
     );
   }
@@ -173,7 +209,7 @@ export async function sendWhatsApp(
   body: string,
 ): Promise<TwilioPostResult> {
   if (!TWILIO_WHATSAPP_FROM) {
-    throw new Error("WhatsApp sender not configured: set TWILIO_WHATSAPP_FROM");
+    throw new ProviderNotConfiguredError("WhatsApp sender not configured: set TWILIO_WHATSAPP_FROM");
   }
   // The TWILIO_WHATSAPP_FROM env var SHOULD be a bare E.164 number, but
   // historical data shows it's sometimes been set as "whatsapp:+1..." too —
