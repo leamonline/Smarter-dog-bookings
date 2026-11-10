@@ -130,7 +130,7 @@ async function bookAndReadFootnote() {
   await vi.waitFor(() => expect(mocks.changeDeadlinePreview).toHaveBeenCalled());
   await user.click(await screen.findByRole("button", { name: "Confirm appointment" }));
   await screen.findByRole("heading", { name: "All booked in!" });
-  return screen.getByText(/need to change something|too close to the day/i);
+  return screen.getByText(/need to (change something|cancel|move it)|too close to the day/i);
 }
 
 describe("BookingWizard — receipt guidance for changing the booking", () => {
@@ -179,6 +179,41 @@ describe("BookingWizard — receipt guidance for changing the booking", () => {
   it("points to WhatsApp when online changes are switched off", async () => {
     mocks.changeDeadlinePreview.mockResolvedValue(
       preview({ passed: false, allowCancellations: false }),
+    );
+
+    const footnote = await bookAndReadFootnote();
+
+    expect(footnote).toHaveTextContent(/message us on whatsapp/i);
+    expect(footnote).not.toHaveTextContent(/dashboard/i);
+  });
+
+  it("does not promise moving when only rescheduling is switched off", async () => {
+    mocks.changeDeadlinePreview.mockResolvedValue(
+      preview({ passed: false, allowCancellations: true, allowRescheduling: false }),
+    );
+
+    const footnote = await bookAndReadFootnote();
+
+    expect(footnote).toHaveTextContent(/need to cancel\? you can do that from your dashboard/i);
+    expect(footnote).toHaveTextContent(/to move it, message us on whatsapp/i);
+    expect(footnote).not.toHaveTextContent(/move or cancel/i);
+  });
+
+  it("does not promise cancelling when only cancellations are switched off", async () => {
+    mocks.changeDeadlinePreview.mockResolvedValue(
+      preview({ passed: false, allowCancellations: false, allowRescheduling: true }),
+    );
+
+    const footnote = await bookAndReadFootnote();
+
+    expect(footnote).toHaveTextContent(/need to move it\? you can do that from your dashboard/i);
+    expect(footnote).toHaveTextContent(/to cancel, message us on whatsapp/i);
+    expect(footnote).not.toHaveTextContent(/move or cancel/i);
+  });
+
+  it("points only to WhatsApp when cancelling is off and the move deadline has passed", async () => {
+    mocks.changeDeadlinePreview.mockResolvedValue(
+      preview({ passed: true, allowCancellations: false, allowRescheduling: true }),
     );
 
     const footnote = await bookAndReadFootnote();

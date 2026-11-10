@@ -123,11 +123,25 @@ describe("parseChangeDeadlinePreview", () => {
     deadline: "2026-09-01T08:30:00",
     passed: true,
     allowCancellations: true,
+    allowRescheduling: true,
     minCancellationHours: 24,
   };
 
   it("accepts a complete payload verbatim", () => {
     expect(parseChangeDeadlinePreview(complete)).toEqual(complete);
+  });
+
+  it("reads a missing or malformed rescheduling switch as not established", () => {
+    // A server from before 20261110140000 sends no allowRescheduling. That is
+    // "unknown", and must never be read as permission to move a booking.
+    const { allowRescheduling: _omitted, ...older } = complete;
+    expect(parseChangeDeadlinePreview(older)?.allowRescheduling).toBeNull();
+    expect(
+      parseChangeDeadlinePreview({ ...complete, allowRescheduling: "yes" })?.allowRescheduling,
+    ).toBeNull();
+    expect(
+      parseChangeDeadlinePreview({ ...complete, allowRescheduling: false })?.allowRescheduling,
+    ).toBe(false);
   });
 
   it("accepts a numeric that arrived as a string", () => {
