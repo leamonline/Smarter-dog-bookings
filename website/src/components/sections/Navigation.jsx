@@ -112,7 +112,7 @@ const Navigation = ({ isLoaded }) => {
                             href={BOOKING_URL}
                             className="inline-block px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
                             style={{
-                                backgroundColor: colors.green,
+                                backgroundColor: colors.yellow,
                                 color: colors.plum
                             }}
                         >
@@ -191,7 +191,7 @@ const Navigation = ({ isLoaded }) => {
                         href={BOOKING_URL}
                         onClick={closeMenu}
                         className="block w-full py-3 rounded-full font-bold mt-2 text-center active-squish"
-                        style={{ backgroundColor: colors.green, color: colors.plum }}
+                        style={{ backgroundColor: colors.yellow, color: colors.plum }}
                         role="menuitem"
                     >
                         Book online
