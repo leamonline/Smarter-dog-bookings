@@ -182,7 +182,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     const label = STATUS_DISPLAY[nextStatus]?.label ?? nextStatus;
     let result;
     try {
-      result = await onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
+      // _changedFields limits the write to the status: `booking` is this
+      // card's snapshot, and the Undo below keeps it for as long as the toast
+      // is up, so its payment and slot must never be written back.
+      result = await onUpdate({ ...booking, status: nextStatus, _changedFields: ["status"] }, currentDateStr, currentDateStr);
     } catch {
       result = null;
     }
@@ -193,7 +196,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     toast.show(
       `Marked as ${label}`,
       "info",
-      () => onUpdate({ ...booking, status: previous }, currentDateStr, currentDateStr),
+      () => onUpdate({ ...booking, status: previous, _changedFields: ["status"] }, currentDateStr, currentDateStr),
     );
   };
 

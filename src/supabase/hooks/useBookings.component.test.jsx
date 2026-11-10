@@ -613,6 +613,113 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("10:00");
   });
 
+  // Two devices, one booking. The write used to carry every column from the
+  // caller's snapshot, so a status tap on a device that had not yet heard
+  // about a payment wrote "unpaid" back over it.
+  describe("updateBooking writes only what changed", () => {
+    const unpaidRow = {
+      id: "booking-9",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+      payment_method: null,
+      paid_amount: null,
+      deposit_amount: null,
+    };
+    const PAYMENT_COLUMNS = ["payment", "payment_method", "paid_amount", "deposit_amount"];
+
+    it("a status change from a device that has not heard about a payment leaves the payment columns out", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, status: "Arrived" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateBooking(
+          { ...result.current.bookingsByDate["2026-05-18"][0], status: "Arrived" },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      const sent = stub.getLastPayload("update");
+      expect(sent.status).toBe("Arrived");
+      for (const column of PAYMENT_COLUMNS) expect(sent).not.toHaveProperty(column);
+      // The same staleness could move a rescheduled booking back.
+      expect(sent).not.toHaveProperty("slot");
+      expect(sent).not.toHaveProperty("booking_date");
+    });
+
+    it("an Undo holding an old snapshot writes only the fields it names", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, payment: "Paid in Full" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      // What an Undo toast closed over, before the other device took payment.
+      const heldSnapshot = result.current.bookingsByDate["2026-05-18"][0];
+      act(() => {
+        stub._channel.fire("UPDATE", {
+          new: { ...unpaidRow, status: "Arrived", payment: "Paid in Full", payment_method: "card", paid_amount: 42 },
+          old: { id: unpaidRow.id, booking_date: unpaidRow.booking_date },
+        });
+      });
+      expect(result.current.bookingsByDate["2026-05-18"][0].payment).toBe("Paid in Full");
+
+      await act(async () => {
+        await result.current.updateBooking(
+          { ...heldSnapshot, status: "Booked", _changedFields: ["status"] },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      const sent = stub.getLastPayload("update");
+      expect(sent.status).toBe("Booked");
+      for (const column of PAYMENT_COLUMNS) expect(sent).not.toHaveProperty(column);
+    });
+
+    it("still writes a payment when the payment is what changed", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, payment: "Paid in Full" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateBooking(
+          {
+            ...result.current.bookingsByDate["2026-05-18"][0],
+            payment: "Paid in Full",
+            paymentMethod: "card",
+            paidAmount: 42,
+          },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      expect(stub.getLastPayload("update")).toMatchObject({
+        payment: "Paid in Full",
+        payment_method: "card",
+        paid_amount: 42,
+      });
+    });
+  });
+
   it("keeps a journey update failure out of the booking-load error surface", async () => {
     const initialRow = {
       id: "booking-7",
