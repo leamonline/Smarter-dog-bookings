@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { HeaderIconButton } from "./shell/index.js";
-import { SIZE_FALLBACK } from "../../constants/index";
+import { SIZE_FALLBACK, isActiveBooking } from "../../constants/index";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { getDefaultOpenForDate } from "../../engine/utils";
@@ -10,7 +10,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings";
 import { useStaffAvailability } from "../../supabase/hooks/useStaffAvailability";
-import { IconButton, ModalShell } from "../ui";
+import { Button, IconButton, ModalShell } from "../ui";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -36,6 +36,18 @@ function formatDayLong(dateStr) {
 }
 
 /**
+ * The day's occupancy with the booking being moved taken out. The occupancy
+ * read carries only (slot, size) per booking and no ids, so on the booking's
+ * own day its seat looks like somebody else's and it competes with itself.
+ * A cancelled or no-show booking holds no seat, so nothing is removed for it.
+ */
+function withoutBookingBeingMoved(dayBookings, booking) {
+  if (!isActiveBooking(booking.status)) return dayBookings;
+  const index = dayBookings.findIndex((b) => b.slot === booking.slot && b.size === booking.size);
+  return index === -1 ? dayBookings : dayBookings.filter((_, i) => i !== index);
+}
+
+/**
  * Staff reschedule picker. A month calendar drives the day choice — only
  * available days (open + under capacity) are green/bold/selectable; closed,
  * fully-booked or past days are greyed out. Picking a day reveals the times,
@@ -47,6 +59,7 @@ function formatDayLong(dateStr) {
 export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm, onClose }) {
   const theme = sizeTheme || SIZE_FALLBACK;
   const todayStr = toDateStr(new Date());
+  const bookingDateStr = booking._bookingDate || toDateStr(currentDateObj);
 
   const [viewYear, setViewYear] = useState(currentDateObj.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDateObj.getMonth());
@@ -70,17 +83,31 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
   const availability = useStaffAvailability();
   const [dayBookings, setDayBookings] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // A failed read is not an empty day. Showing its empty list would offer
+  // every time as free, and staff saves are not held back by the capacity
+  // gate, so the picker says it could not check and offers nothing.
+  const [slotsError, setSlotsError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
+    setSlotsError(false);
     if (!selectedDateStr) { setDayBookings([]); return; }
     let cancelled = false;
     (async () => {
       setSlotsLoading(true);
       if (!availability.connected) { setDayBookings([]); setSlotsLoading(false); return; }
-      const { bookings } = await availability.loadDayOccupancy(selectedDateStr);
-      if (!cancelled) { setDayBookings(bookings); setSlotsLoading(false); }
+      let result;
+      try {
+        result = await availability.loadDayOccupancy(selectedDateStr);
+      } catch (error) {
+        result = { bookings: [], error };
+      }
+      if (cancelled) return;
+      setDayBookings(result.error ? [] : result.bookings);
+      setSlotsError(Boolean(result.error));
+      setSlotsLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [selectedDateStr, availability]);
+  }, [selectedDateStr, availability, reloadKey]);
 
   // Calendar day state. Past / closed / fully-booked → greyed (not selectable).
   const dayStatus = (date) => {
@@ -89,7 +116,9 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
     if (monthLoading) return "loading";
     const isOpen = monthDayOpenState[dateStr] ?? getDefaultOpenForDate(date);
     if (!isOpen) return "closed";
-    const count = (monthBookingsByDate[dateStr] || []).length;
+    // The booking being moved already has its place on its own day.
+    const count = (monthBookingsByDate[dateStr] || [])
+      .filter((b) => !(dateStr === bookingDateStr && b.id === booking.id)).length;
     if (count >= DAY_CAPACITY) return "full";
     return "available";
   };
@@ -97,12 +126,15 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
   // Per-slot states for the chosen day: available (free) or full (overbookable).
   // Data-integrity rejections (the same dog already in that slot) stay hidden.
   const slotStates = useMemo(() => {
-    if (!selectedDateStr) return [];
+    if (!selectedDateStr || slotsError) return [];
+    const occupancy = selectedDateStr === bookingDateStr
+      ? withoutBookingBeingMoved(dayBookings, booking)
+      : dayBookings;
     const settings = monthDaySettings[selectedDateStr] || { overrides: {}, extraSlots: [] };
     const activeSlots = buildSlotGrid(settings.extraSlots || []);
     const out = [];
     for (const slot of activeSlots) {
-      const result = canBookSlot(dayBookings, slot, booking.size, activeSlots, {
+      const result = canBookSlot(occupancy, slot, booking.size, activeSlots, {
         overrides: settings.overrides?.[slot] || {},
         dogId: booking._dogId,
         staffOverride: true,
@@ -111,7 +143,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
       else if (isCapacityRejection(result.reason)) out.push({ slot, state: "full" });
     }
     return out;
-  }, [selectedDateStr, monthDaySettings, dayBookings, booking.size, booking._dogId]);
+  }, [selectedDateStr, slotsError, bookingDateStr, monthDaySettings, dayBookings, booking]);
 
   const pickDay = (dateStr) => {
     setSelectedDateStr(dateStr);
@@ -231,6 +263,13 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
             </div>
             {slotsLoading ? (
               <div className="text-body text-slate-400 py-2" role="status">Checking availability…</div>
+            ) : slotsError ? (
+              <div role="alert" className="text-body text-brand-coral font-semibold py-1">
+                Couldn't check this day's times, so none are shown.{" "}
+                <Button variant="link" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+                  Try again
+                </Button>
+              </div>
             ) : slotStates.length === 0 ? (
               <p className="text-body text-brand-coral font-semibold py-1">No times available on this day.</p>
             ) : (
