@@ -103,7 +103,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
         <p className="text-caption leading-snug text-feedback-warning-ink">
           <span aria-hidden="true">⏱ </span>
           <span className="font-bold">24-hour reply window closed.</span>{" "}
-          <span className="text-feedback-warning-ink">Send a template to reopen the chat.</span>
+          <span className="text-feedback-warning-ink">Send an approved template. You can reply freely once the customer responds.</span>
         </p>
       )}
 
