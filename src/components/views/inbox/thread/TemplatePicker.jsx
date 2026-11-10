@@ -112,7 +112,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
           id="wa-template-select"
           aria-label="Template"
           title={template?.description}
-          className="flex-1 min-w-0 text-body h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
+          className="flex-1 min-w-0 text-body h-11 pointer-fine:h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
           value={selectedTemplateName}
           onChange={(e) => setSelectedTemplateName(e.target.value)}
         >
@@ -123,6 +123,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
         </select>
         {template && (
           <button
+            type="button"
             onClick={handleSend}
             disabled={!allFilled || sending}
             aria-label={
@@ -131,7 +132,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
                 : "Send template"
             }
             title={!allFilled ? `Fill in ${missingLabels.join(", ")}` : "Send template"}
-            className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+            className="shrink-0 inline-flex items-center h-11 pointer-fine:h-8 px-3.5 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
           >
             {sending ? "Sending…" : "Send"}
           </button>
@@ -158,7 +159,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
                     {isDogSelect ? (
                       <select
                         id={fieldId}
-                        className="w-full text-body h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
+                        className="w-full text-body h-11 pointer-fine:h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
                         value={paramValues[param.key] ?? ""}
                         onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
                       >
@@ -171,7 +172,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
                       <input
                         id={fieldId}
                         type="text"
-                        className="w-full text-body h-8 border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-yellow"
+                        className="w-full text-body h-11 pointer-fine:h-8 border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-yellow"
                         value={paramValues[param.key] ?? ""}
                         onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
                         placeholder={param.label.replace(/\s*\(.+\)\s*$/, "")}
