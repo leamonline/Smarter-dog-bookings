@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { readLocalStack } from "./scripts/customer-e2e/localStack.mjs";
+import { CUSTOMER_E2E_ORIGIN, CUSTOMER_E2E_PORT } from "./scripts/customer-e2e/localTarget.mjs";
 
 // Customer journey tests: the real customer portal against a disposable LOCAL
 // Supabase stack carrying every committed migration. Nothing here is faked:
@@ -11,7 +12,7 @@ import { readLocalStack } from "./scripts/customer-e2e/localStack.mjs";
 // config cannot be pointed at staging or production by a stray env file.
 const stack = readLocalStack();
 
-const PORT = Number(process.env.CUSTOMER_E2E_PORT) || 4175;
+const PORT = CUSTOMER_E2E_PORT;
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 
 export default defineConfig({
@@ -24,7 +25,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["line"], ["github"], ["html", { open: "never" }]] : "list",
   globalSetup: "./e2e-customer/support/globalSetup.ts",
   use: {
-    baseURL: `http://127.0.0.1:${PORT}`,
+    baseURL: CUSTOMER_E2E_ORIGIN,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
@@ -42,7 +43,7 @@ export default defineConfig({
     // An explicit process env wins over any .env file, so a developer's
     // .env.local (which usually names production) cannot leak in.
     command: `npx vite --host 127.0.0.1 --port ${PORT} --strictPort`,
-    url: `http://127.0.0.1:${PORT}/book`,
+    url: `${CUSTOMER_E2E_ORIGIN}/book`,
     reuseExistingServer: false,
     timeout: 120_000,
     env: {

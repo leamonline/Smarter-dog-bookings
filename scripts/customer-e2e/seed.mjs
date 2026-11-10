@@ -25,6 +25,8 @@ set local session_replication_role = replica;
 truncate table public.bookings cascade;
 delete from public.waitlist_entries;
 delete from public.day_settings;
+-- The phone lookup allows five tries a minute per address; every journey signs in.
+delete from public.customer_phone_lookup_attempts;
 delete from public.dogs;
 delete from public.humans;
 delete from public.salon_config;

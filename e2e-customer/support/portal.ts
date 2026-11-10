@@ -41,8 +41,7 @@ export function execute(sql: string): void {
  * pre-sign-in lookup in the browser. It decides nothing about bookings, and CI
  * never sets it.
  */
-export async function signIn(page: Page, key: "sam" | "alex" = "sam") {
-  const who = customer(key);
+export async function enterPhone(page: Page, phoneTyped: string) {
   if (process.env.CUSTOMER_E2E_STUB_PHONE_CHECK === "1") {
     await page.route("**/functions/v1/customer-phone-on-file", (route) =>
       route.fulfill({
@@ -53,8 +52,26 @@ export async function signIn(page: Page, key: "sam" | "alex" = "sam") {
     );
   }
   await page.goto("/book");
-  await page.locator('input[type="tel"]').fill(who.phoneTyped);
+  await page.locator('input[type="tel"]').fill(phoneTyped);
+  // Name the lookup in the failure: without this, a refused or broken function
+  // shows up only as "the password field never appeared".
+  const lookup = page.waitForResponse(
+    (response) =>
+      response.url().includes("/functions/v1/customer-phone-on-file") &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Continue" }).click();
+  const answer = await lookup;
+  expect(answer.status(), "customer-phone-on-file answered").toBe(200);
+  expect(
+    answer.headers()["access-control-allow-origin"] ?? "(stubbed)",
+    "customer-phone-on-file accepts the test app's origin",
+  ).toMatch(/^(http:\/\/127\.0\.0\.1:4175|\(stubbed\))$/);
+}
+
+export async function signIn(page: Page, key: "sam" | "alex" = "sam") {
+  const who = customer(key);
+  await enterPhone(page, who.phoneTyped);
   await page.locator('input[type="password"]').fill(SYNTHETIC_PASSWORD);
   await expect(page.getByText("Security check complete.")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Sign in" }).click();

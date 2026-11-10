@@ -12,9 +12,10 @@
 // synthetic number has a fixed code, so no text message can be sent.
 // The repository's own supabase/config.toml is never touched.
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CUSTOMER_E2E_ORIGIN } from "./localTarget.mjs";
 import { SYNTHETIC_CUSTOMERS } from "./syntheticData.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -60,4 +61,14 @@ ${testCodes}
 `;
 
 writeFileSync(configPath, config.replace(anchor, phoneSignIn + anchor));
+
+// The login page asks the customer-phone-on-file function whether a number is
+// known. Browser-callable functions answer only the salon's own domains unless
+// told otherwise (supabase/functions/_shared/cors.ts, #875), so the copy is
+// told to accept the test app's address as well. This file is read by the
+// local Edge runtime only; it is never deployed.
+appendFileSync(
+  join(resolve(target), "supabase", "functions", ".env"),
+  `\nCUSTOMER_PHONE_ALLOWED_ORIGINS=${CUSTOMER_E2E_ORIGIN}\n`,
+);
 console.log(`Customer journey project ready in ${resolve(target)} (phone sign-in on, fixed codes, no SMS).`);
