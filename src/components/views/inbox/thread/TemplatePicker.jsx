@@ -61,7 +61,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
   if (sent) {
     return (
       <div className="p-3 text-sm text-green-700 bg-green-50 rounded-lg border border-green-200">
-        ✓ Template sent. The customer will receive the message shortly.
+        ✓ Template sent. Check its delivery status in the conversation.
       </div>
     );
   }
