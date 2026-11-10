@@ -165,6 +165,19 @@ jobs:
           set -euo pipefail
           # Every linked command from here targets staging.
           supabase link --project-ref "$STAGING_PROJECT_REF"
+          # Diagnosis only; it never stops the run. A hosted runner has no
+          # IPv6 route and a project's direct database host is IPv6-only, so
+          # the CLI depends on the IPv4 pooler address that link saves. When
+          # that is missing, the next command fails with "IPv6 is not
+          # supported on your current network", which names the symptom and
+          # not the cause (runs 42846080538, 10 November 2026). Only file
+          # names and the pooler host are printed: no user, no password.
+          echo "Files link saved: $(ls -1 supabase/.temp | tr '\n' ' ')"
+          if [ -s supabase/.temp/pooler-url ]; then
+            echo "Pooler host saved by link: $(sed -E 's#^[a-z]+://([^@/]*@)?([^:/?]+).*$#\2#' supabase/.temp/pooler-url)"
+          else
+            echo "::warning::supabase link saved no pooler address for staging. If the next command reports that IPv6 is not supported, that is why: open the staging project in the Supabase dashboard, click Connect, and check that a Session pooler connection is offered."
+          fi
           test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
           supabase migration list --linked
 
