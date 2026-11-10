@@ -21,8 +21,7 @@ export function WhatsAppComposer({ firstName, dogNames, date, slot, onSend, send
         <div className="text-xs leading-snug text-emerald-900">
           <p className="font-bold m-0">Approved WhatsApp template</p>
           <p className="text-emerald-800 m-0">
-            Sent via Meta as the <code>{template.name}</code> template. The wording is
-            fixed by Meta — preview below is exactly what the customer receives.
+            This message uses approved wording. Check the details below before sending.
           </p>
         </div>
       </div>
