@@ -129,8 +129,16 @@ const ServicesSection = () => {
                         </FadeIn>
                     </div>
 
+                    <div className="max-w-7xl mx-auto mt-16 relative z-10 text-center">
+                        <h3 className="heading-font text-2xl font-bold" style={{ color: colors.plum }}>
+                            Walk-ins — no booking needed
+                        </h3>
+                        <p className="body-font mt-2" style={{ color: colors.plum }}>
+                            Nail clipping, ear cleaning and anal glands: Monday to Wednesday before 1pm.
+                        </p>
+                    </div>
                     {/* Additional services row */}
-                    <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8 mt-16 relative z-10">
+                    <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8 mt-6 relative z-10">
                         <FadeIn delay={1000} className="h-full">
                             <div
                                 className="p-8 rounded-3xl flex items-center gap-6 transition-all duration-300 hover:shadow-lg h-full hover-lift"
