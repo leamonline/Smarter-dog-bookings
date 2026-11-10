@@ -279,9 +279,11 @@ select throws_ok(
   'a cancellation reason longer than 500 characters is rejected'
 );
 
+-- The switch is the typed column Settings writes (20261110140000). The legacy
+-- JSON key still says "true" here and must not matter.
 set local role postgres;
-update public.salon_config
-set settings = '{"minCancellationHours":24,"customerPortal":{"allowCancellations":false}}'::jsonb;
+update public.booking_policy_settings
+   set allow_customer_cancellations = false;
 set local role authenticated;
 
 select throws_ok(
@@ -293,6 +295,8 @@ select throws_ok(
 );
 
 set local role postgres;
+update public.booking_policy_settings
+   set allow_customer_cancellations = true;
 update public.salon_config
 set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
 set local role authenticated;

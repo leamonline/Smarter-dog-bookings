@@ -113,7 +113,7 @@ interface RepoErrorShape {
 
 // Reschedule rejections the wizard recognises and writes specific copy for.
 // They are ordinary outcomes, not faults, so they are not reported as errors.
-const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04"];
+const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04", "SDR05"];
 
 // What the receipt says about changing the booking just made. It reads the
 // same server answer as the confirm step's warning — the change deadline for
@@ -898,6 +898,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             ? "You already have a change request waiting for the team."
           : cause?.code === "SDC04"
             ? "Please select the same dog or dogs as the groom you’re moving."
+          : cause?.code === "SDR05"
+            ? "Appointments can’t be moved online at the moment. Please message us and the team will help."
           : isTriggerError || isAccountRefusalError
             ? friendlyDenialMessage(msg, denialDetails)
             : "Sorry, we couldn’t save that booking change. Please try again, or message us if it keeps happening.",

@@ -198,7 +198,7 @@ describe("BookingWizard reports failures it cannot explain", () => {
 
   it("does NOT report a known reschedule rejection", async () => {
     // Each of these has its own customer copy, so it is a handled outcome.
-    for (const code of ["SDC02", "SDR01", "SDR02", "SDC04"]) {
+    for (const code of ["SDC02", "SDR01", "SDR02", "SDC04", "SDR05"]) {
       cleanup();
       vi.clearAllMocks();
       mocks.createMany.mockResolvedValue({
@@ -208,6 +208,17 @@ describe("BookingWizard reports failures it cannot explain", () => {
       await confirmAndReadRefusal();
       expect(submitFailures(), `${code} should be a handled outcome`).toEqual([]);
     }
+  });
+
+  it("tells the customer when moving appointments online is switched off", async () => {
+    // SDR05: the Settings "Allow rescheduling" switch is off (20261110140000).
+    mocks.createMany.mockResolvedValue({
+      ids: [],
+      error: { code: "SDR05", message: "online_rescheduling_disabled", details: null },
+    });
+    const shown = await confirmAndReadRefusal();
+    expect(shown).toContain("can’t be moved online at the moment");
+    expect(shown).not.toContain("couldn’t save that booking change");
   });
 
   it("carries the shape of the attempt without naming the customer or dogs", async () => {
