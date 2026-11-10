@@ -46,9 +46,11 @@ export type StaffBookingUpdate = Booking & {
   _changedFields?: string[];
 };
 
-// App field → bookings column, for `_changedFields`. `null` marks a field
-// that is written through its own explicit marker (`_confirmArrival`).
-const FIELD_COLUMNS: Record<string, string | null> = {
+// App field → bookings column, for `_changedFields`. Every column
+// `updateBooking` can write has a name here, so a name that is missing has no
+// column of its own: it is in-memory state (`reminderState`) or is written
+// through an explicit marker (`_confirmArrival`).
+const FIELD_COLUMNS: Record<string, string> = {
   status: "status",
   slot: "slot",
   service: "service",
@@ -61,8 +63,8 @@ const FIELD_COLUMNS: Record<string, string | null> = {
   paidAmount: "paid_amount",
   priceOverride: "price_override",
   cancelReason: "cancel_reason",
+  _cancellationCause: "cancellation_cause",
   confirmed: "confirmed",
-  reminderConfirmedAt: null,
 };
 
 function sameColumnValue(a: unknown, b: unknown): boolean {
@@ -89,12 +91,12 @@ export function columnsToWrite<T extends Record<string, unknown>>(
   changedFields: string[] | undefined,
   dateMoved: boolean,
 ): Partial<T> {
-  const named = (changedFields ?? []).filter((field) => !field.startsWith("_") || field in FIELD_COLUMNS);
-  // An unrecognised name means the caller knows about a field this map does
-  // not: fall back to comparing rather than silently dropping its change.
-  const declared = changedFields !== undefined && named.every((field) => field in FIELD_COLUMNS);
-  if (declared) {
-    const keep = new Set(named.map((field) => FIELD_COLUMNS[field]).filter(Boolean));
+  // Named fields are a promise about what this update touches, and the write
+  // keeps to it. A name with no column adds nothing: falling back to a full
+  // comparison there let a held snapshot's old payment through (Confirm names
+  // `reminderState`, which is not a column).
+  if (changedFields !== undefined) {
+    const keep = new Set(changedFields.map((field) => FIELD_COLUMNS[field]).filter(Boolean));
     if (dateMoved) keep.add("booking_date");
     return Object.fromEntries(Object.entries(columns).filter(([column]) => keep.has(column))) as Partial<T>;
   }
