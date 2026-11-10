@@ -81,6 +81,18 @@ jobs:
           export CUSTOMER_E2E_STACK_DIR="$RUNNER_TEMP/customer-e2e-project"
           npm run customer-e2e -- --trace off
 
+      # The login page's phone lookup is an Edge Function that fails closed: any
+      # error inside it reaches the browser only as "rate limited". Its own log
+      # is the one place that says why. Local stack, synthetic data only.
+      - name: Show the local Edge Function log when a journey fails
+        if: failure()
+        run: |
+          for container in $(docker ps -a --format '{{.Names}}' | grep -E 'edge_runtime|kong' || true); do
+            echo "::group::$container (last 80 lines)"
+            docker logs --tail 80 "$container" 2>&1 || true
+            echo "::endgroup::"
+          done
+
       - name: Save the report when a journey fails
         if: failure()
         uses: actions/upload-artifact@v7
