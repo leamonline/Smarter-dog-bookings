@@ -123,7 +123,14 @@ export function useBookingActions({
 
     let result: Booking | null | false;
     try {
-      result = await onUpdateBooking({ ...booking, ...changes } as Booking, date, date);
+      // Naming the fields limits the write to them. `booking` can be an old
+      // snapshot here (Retry, Undo), and without the names its payment, slot
+      // and date would be written back over whatever another device saved.
+      result = await onUpdateBooking(
+        { ...booking, ...changes, _changedFields: Object.keys(changes) } as Booking,
+        date,
+        date,
+      );
     } catch {
       result = null;
     } finally {

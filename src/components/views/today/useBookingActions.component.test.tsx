@@ -261,6 +261,14 @@ describe("walking a booking through its lifecycle", () => {
     expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.RECONFIRMED);
   });
 
+  it("names the fields it means to change, so a held snapshot cannot write the rest", async () => {
+    // Retry and Undo re-send the booking as it was when the action began. The
+    // write path limits itself to these names, so a payment taken on another
+    // device in the meantime is not written back to unpaid.
+    const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.RECONFIRMED), "checkIn");
+    expect(writtenRow(onUpdateBooking)._changedFields).toEqual(["status"]);
+  });
+
   it("Reconfirmed → Arrived", async () => {
     const { onUpdateBooking } = await runAction(at(BOOKING_STATUS.RECONFIRMED), "checkIn");
     expect(writtenRow(onUpdateBooking).status).toBe(BOOKING_STATUS.ARRIVED);

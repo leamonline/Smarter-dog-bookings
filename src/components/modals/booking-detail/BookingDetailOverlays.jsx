@@ -179,7 +179,7 @@ export function BookingDetailOverlays({
               }
               setShowReschedule(false);
               toast.show("Booking rescheduled", "success", () => {
-                onUpdate({ ...booking, slot: oldSlot }, newDateStr, oldDateStr);
+                onUpdate({ ...booking, slot: oldSlot, _changedFields: ["slot"] }, newDateStr, oldDateStr);
               });
               onClose();
             }}

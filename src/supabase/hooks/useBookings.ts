@@ -34,7 +34,77 @@ export type StaffBookingInput = Partial<Booking> &
   };
 
 /** An edited booking; the reschedule/edit flows may set the snake_case override flag. */
-export type StaffBookingUpdate = Booking & { staff_capacity_override?: boolean; _cancellationCause?: "customer" | "salon" };
+export type StaffBookingUpdate = Booking & {
+  staff_capacity_override?: boolean;
+  _cancellationCause?: "customer" | "salon";
+  /**
+   * The app-level fields this update means to change (e.g. `["status"]`).
+   * When present the write is limited to them. Callers that re-send a booking
+   * they have been holding (an Undo toast, a Retry) must pass it: their
+   * snapshot can be older than this device's own row.
+   */
+  _changedFields?: string[];
+};
+
+// App field → bookings column, for `_changedFields`. Every column
+// `updateBooking` can write has a name here, so a name that is missing has no
+// column of its own: it is in-memory state (`reminderState`) or is written
+// through an explicit marker (`_confirmArrival`).
+const FIELD_COLUMNS: Record<string, string> = {
+  status: "status",
+  slot: "slot",
+  service: "service",
+  addons: "addons",
+  pickupBy: "pickup_by_id",
+  _pickupById: "pickup_by_id",
+  payment: "payment",
+  depositAmount: "deposit_amount",
+  paymentMethod: "payment_method",
+  paidAmount: "paid_amount",
+  priceOverride: "price_override",
+  cancelReason: "cancel_reason",
+  _cancellationCause: "cancellation_cause",
+  confirmed: "confirmed",
+};
+
+function sameColumnValue(a: unknown, b: unknown): boolean {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a) === JSON.stringify(b);
+  // numeric columns can arrive as strings
+  if (typeof a === "number" || typeof b === "number") return Number(a) === Number(b);
+  return a === b;
+}
+
+/**
+ * Cut a full column set down to what this update should actually write, so a
+ * save never carries columns it did not mean to touch. Without this a status
+ * tap on one device wrote its old "unpaid" over a payment just taken on
+ * another: every column went out, every time, matched by id alone.
+ *
+ * Named fields win. Otherwise only columns that differ from the row this
+ * device holds are sent; with no row to compare against, everything is.
+ */
+export function columnsToWrite<T extends Record<string, unknown>>(
+  columns: T,
+  currentRow: Record<string, unknown> | null,
+  changedFields: string[] | undefined,
+  dateMoved: boolean,
+): Partial<T> {
+  // Named fields are a promise about what this update touches, and the write
+  // keeps to it. A name with no column adds nothing: falling back to a full
+  // comparison there let a held snapshot's old payment through (Confirm names
+  // `reminderState`, which is not a column).
+  if (changedFields !== undefined) {
+    const keep = new Set(changedFields.map((field) => FIELD_COLUMNS[field]).filter(Boolean));
+    if (dateMoved) keep.add("booking_date");
+    return Object.fromEntries(Object.entries(columns).filter(([column]) => keep.has(column))) as Partial<T>;
+  }
+  if (!currentRow) return columns;
+  return Object.fromEntries(
+    Object.entries(columns).filter(([column, value]) => !sameColumnValue(value, currentRow[column])),
+  ) as Partial<T>;
+}
 
 export interface UseBookingsOptions {
   onError?: (message: string) => void;
@@ -568,7 +638,7 @@ export function useBookings(
             )?.id
           : null);
 
-      const updatePayload = {
+      const allColumns = {
         booking_date: toDateStrValue,
         slot: updatedBooking.slot,
         service: updatedBooking.service,
@@ -592,6 +662,17 @@ export function useBookings(
         cancel_reason: updatedBooking.cancelReason ?? null,
         ...(updatedBooking._cancellationCause ? { cancellation_cause: updatedBooking._cancellationCause } : {}),
         confirmed: updatedBooking.confirmed ?? false,
+      };
+      const currentRow =
+        (rowsRef.current ?? []).find((r) => r.id === updatedBooking.id) ?? null;
+      const updatePayload = {
+        ...columnsToWrite(
+          allColumns,
+          currentRow as Record<string, unknown> | null,
+          updatedBooking._changedFields,
+          _fromDateStr !== toDateStrValue,
+        ),
+        // Everything below is explicit intent and is always written.
         // Reschedule / Edit flows that override capacity flip
         // this flag on the in-memory booking before calling onUpdate.
         // Mirrors the insert path: trigger validates and stamps _by/_at.
@@ -636,6 +717,12 @@ export function useBookings(
             }
           : {}),
       };
+
+      // Nothing differs from the row this device holds: there is nothing to
+      // write, and an empty UPDATE is not worth a round trip.
+      if (currentRow && Object.keys(updatePayload).length === 0) {
+        return dbBookingsToArray([currentRow], dogsById, humansById)[0];
+      }
 
       // Optimistic: patch the raw row (incl. booking_date, so a move to
       // another day regroups automatically). Snapshot the previous row

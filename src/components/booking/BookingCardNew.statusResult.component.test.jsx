@@ -72,6 +72,17 @@ describe("BookingCardNew — the status picker reads the saved result", () => {
     expect(screen.queryByText(/^Marked as/)).toBeNull();
   });
 
+  it("tells the write path that only the status changed", async () => {
+    // The card spreads its whole booking prop into the update, and the Undo
+    // toast keeps that prop for as long as it is on screen. Naming the field
+    // stops a payment taken elsewhere being written back to unpaid.
+    const onUpdate = vi.fn().mockImplementation(async (b) => b);
+    renderCard(makeBooking(), onUpdate);
+    pickStatus("Arrived");
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+    expect(onUpdate.mock.calls[0][0]._changedFields).toEqual(["status"]);
+  });
+
   it("only says Marked as once the row came back", async () => {
     const onUpdate = vi.fn().mockImplementation(async (b) => b);
     renderCard(makeBooking(), onUpdate);

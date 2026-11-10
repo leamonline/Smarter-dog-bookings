@@ -60,6 +60,9 @@ vi.mock("../../lib/logger", () => ({
 }));
 
 const { useBookings } = await import("./useBookings");
+const { useBookingActions } = await import("../../components/views/today/useBookingActions");
+const { BookingCardNew } = await import("../../components/booking/BookingCardNew.jsx");
+const { SalonProvider } = await import("../../contexts/SalonContext");
 const { logger } = await import("../../lib/logger");
 
 function makeChannel() {
@@ -611,6 +614,260 @@ describe("useBookings", () => {
     expect(returned?.status).toBe("Arrived");
     expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("10:00");
+  });
+
+  // Two devices, one booking. The write used to carry every column from the
+  // caller's snapshot, so a status tap on a device that had not yet heard
+  // about a payment wrote "unpaid" back over it.
+  describe("updateBooking writes only what changed", () => {
+    const unpaidRow = {
+      id: "booking-9",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+      payment_method: null,
+      paid_amount: null,
+      deposit_amount: null,
+    };
+    const PAYMENT_COLUMNS = ["payment", "payment_method", "paid_amount", "deposit_amount"];
+    const PAID_ELSEWHERE = {
+      ...unpaidRow,
+      payment: "Paid in Full",
+      payment_method: "card",
+      paid_amount: 42,
+    };
+    const OLD_KEY = { id: unpaidRow.id, booking_date: unpaidRow.booking_date };
+
+    it("a status change from a device that has not heard about a payment leaves the payment columns out", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, status: "Arrived" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateBooking(
+          { ...result.current.bookingsByDate["2026-05-18"][0], status: "Arrived" },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      const sent = stub.getLastPayload("update");
+      expect(sent.status).toBe("Arrived");
+      for (const column of PAYMENT_COLUMNS) expect(sent).not.toHaveProperty(column);
+      // The same staleness could move a rescheduled booking back.
+      expect(sent).not.toHaveProperty("slot");
+      expect(sent).not.toHaveProperty("booking_date");
+    });
+
+    it("an Undo holding an old snapshot writes only the fields it names", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, payment: "Paid in Full" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      // What an Undo toast closed over, before the other device took payment.
+      const heldSnapshot = result.current.bookingsByDate["2026-05-18"][0];
+      act(() => {
+        stub._channel.fire("UPDATE", {
+          new: { ...unpaidRow, status: "Arrived", payment: "Paid in Full", payment_method: "card", paid_amount: 42 },
+          old: { id: unpaidRow.id, booking_date: unpaidRow.booking_date },
+        });
+      });
+      expect(result.current.bookingsByDate["2026-05-18"][0].payment).toBe("Paid in Full");
+
+      await act(async () => {
+        await result.current.updateBooking(
+          { ...heldSnapshot, status: "Booked", _changedFields: ["status"] },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      const sent = stub.getLastPayload("update");
+      expect(sent.status).toBe("Booked");
+      for (const column of PAYMENT_COLUMNS) expect(sent).not.toHaveProperty(column);
+    });
+
+    it("still writes a payment when the payment is what changed", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, payment: "Paid in Full" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateBooking(
+          {
+            ...result.current.bookingsByDate["2026-05-18"][0],
+            payment: "Paid in Full",
+            paymentMethod: "card",
+            paidAmount: 42,
+          },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      expect(stub.getLastPayload("update")).toMatchObject({
+        payment: "Paid in Full",
+        payment_method: "card",
+        paid_amount: 42,
+      });
+    });
+
+    it("a named field the write path has no column for does not widen the write", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, status: "Arrived" }, error: null },
+      });
+      setSupabase(stub);
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      const heldSnapshot = result.current.bookingsByDate["2026-05-18"][0];
+      act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+
+      await act(async () => {
+        await result.current.updateBooking(
+          { ...heldSnapshot, status: "Arrived", _changedFields: ["status", "reminderState"] },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      expect(stub.getLastPayload("update")).toEqual({ status: "Arrived" });
+    });
+
+    // The rows below are the UPDATE payloads the real actions produce, end to
+    // end: the Today actions hook and the calendar card are wired to the real
+    // updateBooking, another device takes payment, and then the action (or
+    // its Undo) fires from the snapshot it has been holding.
+
+    function renderActions(stub) {
+      setSupabase(stub);
+      const toast = { show: vi.fn() };
+      const rendered = renderHook(() => {
+        const bookings = useBookings(weekStart, dogsById, humansById);
+        const actions = useBookingActions({
+          dateStr: "2026-05-18",
+          toast,
+          onUpdateBooking: bookings.updateBooking,
+          onSendCollection: vi.fn(),
+          onMessageOwner: vi.fn(),
+          amountDueFor: () => 0,
+        });
+        return { bookings, actions };
+      });
+      return { ...rendered, toast };
+    }
+    const lastToastAction = (toast) => toast.show.mock.calls.at(-1)[2];
+
+    it("Today: a status action and its Undo write the status and leave a newer payment alone", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, status: "Arrived" }, error: null },
+      });
+      const { result, toast } = renderActions(stub);
+      await waitFor(() => expect(result.current.bookings.loading).toBe(false));
+      const heldSnapshot = result.current.bookings.bookingsByDate["2026-05-18"][0];
+      act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+
+      await act(async () => {
+        await result.current.actions.runTokenAction({ booking: heldSnapshot }, { id: "checkIn" });
+      });
+      expect(stub.getLastPayload("update")).toEqual({ status: "Arrived" });
+
+      await act(async () => {
+        lastToastAction(toast).onClick();
+      });
+      await waitFor(() => expect(stub.getLastPayload("update")).toEqual({ status: "Booked" }));
+    });
+
+    it("Today: Confirm and its Undo write the confirmation and leave a newer payment alone", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...PAID_ELSEWHERE, reminder_confirmed_source: "staff" }, error: null },
+      });
+      const { result, toast } = renderActions(stub);
+      await waitFor(() => expect(result.current.bookings.loading).toBe(false));
+      const heldSnapshot = result.current.bookings.bookingsByDate["2026-05-18"][0];
+      act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+
+      await act(async () => {
+        await result.current.actions.runTokenAction({ booking: heldSnapshot }, { id: "confirm" });
+      });
+      const confirmed = stub.getLastPayload("update");
+      expect(Object.keys(confirmed).sort()).toEqual(["reminder_confirmed_at", "reminder_confirmed_source"]);
+      expect(confirmed.reminder_confirmed_source).toBe("staff");
+
+      await act(async () => {
+        lastToastAction(toast).onClick();
+      });
+      await waitFor(() =>
+        expect(stub.getLastPayload("update")).toEqual({
+          reminder_confirmed_at: null,
+          reminder_confirmed_source: null,
+        }),
+      );
+    });
+
+    it("Calendar card: a status change and its Undo write the status and leave a newer payment alone", async () => {
+      const stub = makeSupabaseStub({
+        selectResult: { data: [unpaidRow], error: null },
+        updateResult: { data: { ...unpaidRow, status: "Arrived" }, error: null },
+      });
+      setSupabase(stub);
+      // The card keeps the booking it first rendered with, the way a card
+      // does when the device it is on has not heard about the payment.
+      let held = null;
+      function CardHarness() {
+        const bookings = useBookings(weekStart, dogsById, humansById);
+        held = held ?? bookings.bookingsByDate["2026-05-18"]?.[0] ?? null;
+        if (!held) return null;
+        return (
+          <SalonProvider
+            dogs={{}}
+            humans={{}}
+            bookingsByDate={{}}
+            daySettings={{}}
+            dayOpenState={true}
+            currentDateStr="2026-05-18"
+            currentDateObj={new Date(2026, 4, 18)}
+            onAdd={vi.fn()}
+            onUpdate={bookings.updateBooking}
+            onRemove={vi.fn()}
+            onUpdateDog={vi.fn()}
+            onUpdateHuman={vi.fn()}
+            onOpenHuman={vi.fn()}
+            onOpenDog={vi.fn()}
+          >
+            <BookingCardNew booking={{ dogName: "Bella", breed: "Cockapoo", owner: "Sarah", ...held }} />
+          </SalonProvider>
+        );
+      }
+      render(<ToastProvider><CardHarness /></ToastProvider>);
+      fireEvent.click(await screen.findByRole("button", { name: /^Change status/ }));
+      act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+
+      fireEvent.click(screen.getByRole("option", { name: /Arrived/ }));
+      await waitFor(() => expect(stub.getLastPayload("update")).toEqual({ status: "Arrived" }));
+
+      fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(stub.getLastPayload("update")).toEqual({ status: "Booked" }));
+    });
   });
 
   it("keeps a journey update failure out of the booking-load error surface", async () => {
