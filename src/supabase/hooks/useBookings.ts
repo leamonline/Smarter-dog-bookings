@@ -718,6 +718,18 @@ export function useBookings(
           : {}),
       };
 
+      // Undoing a staff Confirm puts Booked back only while the booking is
+      // still Reconfirmed. If the dog has arrived in the meantime, the undo
+      // clears the confirmation and leaves the arrival alone.
+      if (
+        updatedBooking._unconfirmArrival
+        && "status" in updatePayload
+        && currentRow
+        && currentRow.status !== BOOKING_STATUS.RECONFIRMED
+      ) {
+        delete (updatePayload as { status?: string }).status;
+      }
+
       // Nothing differs from the row this device holds: there is nothing to
       // write, and an empty UPDATE is not worth a round trip.
       if (currentRow && Object.keys(updatePayload).length === 0) {
