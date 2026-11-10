@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — the Customer Portal switches now do what they say
+
+- Settings → Customer Portal saved "Allow cancellations" and "Allow
+  rescheduling" to one table while the database checked a legacy setting no
+  screen writes. Switching cancellations off changed nothing for customers,
+  and "Allow rescheduling" was not enforced anywhere.
+- The cancel and reschedule commands now read the table Settings writes. Each
+  switch governs only its own action: cancellations off leaves rescheduling
+  available, and the reverse.
+- A reschedule refused because the switch is off has its own code (`SDR05`)
+  and its own wording in the booking wizard.
+- Deadline behaviour is unchanged: the notice hours still close rescheduling
+  only, and a customer can still cancel until the appointment starts.
+- Migration `20261110140000` has to be applied to production by hand before
+  this merges. It replaces two functions and touches no table or row. Before
+  applying, check that the legacy setting and the Settings table agree, or the
+  change will alter live behaviour the moment it lands.
+
 ## Unreleased — a booking with no status still gets its reminder
 
 - A booking whose status is NULL is an ordinary booked appointment. The

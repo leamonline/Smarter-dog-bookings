@@ -113,6 +113,12 @@ export interface ChangeDeadlinePreview {
   passed: boolean;
   /** False when online cancellation is switched off, or the config is ambiguous. */
   allowCancellations: boolean;
+  /**
+   * False when online rescheduling is switched off. Its own switch since
+   * migration 20261110140000; `null` when the server predates it and sends no
+   * answer, in which case a caller must not promise that moving is possible.
+   */
+  allowRescheduling: boolean | null;
   minCancellationHours: number;
 }
 
@@ -125,10 +131,11 @@ export interface ChangeDeadlinePreview {
 export function parseChangeDeadlinePreview(payload: unknown): ChangeDeadlinePreview | null {
   if (!payload || typeof payload !== "object") return null;
 
-  const { deadline, passed, allowCancellations, minCancellationHours } = payload as {
+  const { deadline, passed, allowCancellations, allowRescheduling, minCancellationHours } = payload as {
     deadline?: unknown;
     passed?: unknown;
     allowCancellations?: unknown;
+    allowRescheduling?: unknown;
     minCancellationHours?: unknown;
   };
 
@@ -145,7 +152,13 @@ export function parseChangeDeadlinePreview(payload: unknown): ChangeDeadlinePrev
         : NaN;
   if (!Number.isFinite(hours) || hours < 0) return null;
 
-  return { deadline, passed, allowCancellations, minCancellationHours: hours };
+  return {
+    deadline,
+    passed,
+    allowCancellations,
+    allowRescheduling: typeof allowRescheduling === "boolean" ? allowRescheduling : null,
+    minCancellationHours: hours,
+  };
 }
 
 export async function resolveChangeDeadlinePreview(

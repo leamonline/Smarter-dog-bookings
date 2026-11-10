@@ -159,11 +159,12 @@ select is(
 );
 
 update public.salon_config
-   set settings = settings
-                  || jsonb_build_object('minCancellationHours', 24)
-                  || jsonb_build_object(
-                       'customerPortal',
-                       jsonb_build_object('allowCancellations', false));
+   set settings = settings || jsonb_build_object('minCancellationHours', 24);
+
+-- The switch lives in booking_policy_settings, the table Settings writes and
+-- the gate reads (20261110140000), not in the legacy JSON key.
+update public.booking_policy_settings
+   set allow_customer_cancellations = false;
 
 select is(
   (public.customer_change_deadline_preview(date '2026-12-15', '08:30')
@@ -176,15 +177,10 @@ select is(
 -- that as online cancellation being off (SDC01); so must the preview, or the
 -- portal would promise a change the gate will refuse.
 --
--- BOTH rows say cancellations are ON, deliberately: the function picks the
--- lowest id when it reads settings, and the ids are random, so a test where
--- only one row said "off" would pass or fail on whichever row sorted first.
--- With both on, "off" can only come from the ambiguity guard itself.
-update public.salon_config
-   set settings = settings
-                  || jsonb_build_object(
-                       'customerPortal',
-                       jsonb_build_object('allowCancellations', true));
+-- The switch itself is ON, deliberately, so "off" can only come from the
+-- ambiguity guard.
+update public.booking_policy_settings
+   set allow_customer_cancellations = true;
 
 insert into public.salon_config (settings)
 values (jsonb_build_object(

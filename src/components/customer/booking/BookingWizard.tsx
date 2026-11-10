@@ -113,7 +113,7 @@ interface RepoErrorShape {
 
 // Reschedule rejections the wizard recognises and writes specific copy for.
 // They are ordinary outcomes, not faults, so they are not reported as errors.
-const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04"];
+const HANDLED_RESCHEDULE_CODES = ["SDC02", "SDR01", "SDR02", "SDC04", "SDR05"];
 
 // What the receipt says about changing the booking just made. It reads the
 // same server answer as the confirm step's warning — the change deadline for
@@ -124,12 +124,24 @@ function receiptChangeGuidance(
   preview: ChangeDeadlinePreview | null,
   policy: CustomerPortalPolicy,
 ): string {
-  if (preview?.allowCancellations === false || policy.allowCancellations === false) {
+  const cancelOff = preview?.allowCancellations === false || policy.allowCancellations === false;
+  // Moving has its own switch. A server that does not report it (null) is the
+  // older one, where moving followed the cancellation answer.
+  const moveOff =
+    preview?.allowRescheduling === false ||
+    (preview?.allowRescheduling == null && cancelOff);
+  if (cancelOff && (moveOff || preview?.passed === true)) {
     return "Need to change something? Message us on WhatsApp.";
   }
+  if (cancelOff) {
+    return "Need to move it? You can do that from your dashboard. To cancel, message us on WhatsApp.";
+  }
   if (preview?.allowCancellations === true) {
-    return preview.passed
-      ? "It's too close to the day to change online, so if anything comes up, message us on WhatsApp."
+    if (preview.passed) {
+      return "It's too close to the day to change online, so if anything comes up, message us on WhatsApp.";
+    }
+    return moveOff
+      ? "Need to cancel? You can do that from your dashboard. To move it, message us on WhatsApp."
       : "Need to change something? You can move or cancel it from your dashboard.";
   }
   return "Need to change something? Head to your dashboard, or message us on WhatsApp.";
@@ -898,6 +910,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             ? "You already have a change request waiting for the team."
           : cause?.code === "SDC04"
             ? "Please select the same dog or dogs as the groom you’re moving."
+          : cause?.code === "SDR05"
+            ? "Appointments can’t be moved online at the moment. Please message us and the team will help."
           : isTriggerError || isAccountRefusalError
             ? friendlyDenialMessage(msg, denialDetails)
             : "Sorry, we couldn’t save that booking change. Please try again, or message us if it keeps happening.",

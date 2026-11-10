@@ -36,7 +36,7 @@
 export const CONFIRM_FAILURE_CODES = [
   /** A BEFORE INSERT gate refused the booking (P0001). Also in booking_denials. */
   "gate_rejected",
-  /** A handled reschedule rule (SDC02/SDR01/SDR02/SDC04) — customer saw specific copy. */
+  /** A handled reschedule rule (SDC02/SDR01/SDR02/SDC04/SDR05) — customer saw specific copy. */
   "reschedule_rule",
   /** The client-side final re-check found the slot taken; customer sent back to the time step. */
   "slot_taken_recheck",
