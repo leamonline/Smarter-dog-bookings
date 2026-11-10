@@ -24,10 +24,6 @@ written, not the button that was pressed.
 - **Use customer data.** Every person, dog and phone number is invented
   (`scripts/customer-e2e/syntheticData.mjs`). The numbers are from Ofcom's
   drama range, 07700 900000 to 900999, which is never given to a subscriber.
-- **Loosen the live functions.** Browser-callable Edge Functions answer only
-  the salon's own domains. The copied project alone is told to accept the test
-  app's address, `http://127.0.0.1:4175`, in a file only the local runtime
-  reads.
 - **Send a message.** The local auth server needs an SMS provider configured
   before it allows phone sign-in. It is given a placeholder with no account
   behind it, and each synthetic number has a fixed code.

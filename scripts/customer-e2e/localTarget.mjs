@@ -21,9 +21,7 @@ export function assertLoopbackUrl(value, label) {
 }
 
 export const LOCAL_API_URL = "http://127.0.0.1:54321";
-// One fixed address for the app under test. The local Edge Functions are told
-// to accept browser calls from exactly this origin and no other, so the port
-// is not configurable.
+// One fixed address for the app under test.
 export const CUSTOMER_E2E_PORT = 4175;
 export const CUSTOMER_E2E_ORIGIN = `http://127.0.0.1:${CUSTOMER_E2E_PORT}`;
 export const LOCAL_DB = {
