@@ -31,14 +31,24 @@ describe('public route SEO', () => {
     }
   });
 
-  it('uses the approved LocalBusiness block and not the old phone number', () => {
-    expect(LOCAL_BUSINESS_SCHEMA.telephone).toBe('+44 7873 329440');
+  it('publishes the booking WhatsApp chat as a contact URL, not a telephone', () => {
+    const schema = JSON.stringify(LOCAL_BUSINESS_SCHEMA);
     expect(LOCAL_BUSINESS_SCHEMA['@type']).toBe('LocalBusiness');
+    expect(LOCAL_BUSINESS_SCHEMA).not.toHaveProperty('telephone');
+    expect(LOCAL_BUSINESS_SCHEMA.contactPoint).not.toHaveProperty('telephone');
+    expect(LOCAL_BUSINESS_SCHEMA.contactPoint.contactType).toBe('reservations');
+    expect(LOCAL_BUSINESS_SCHEMA.contactPoint.name).toBe('WhatsApp');
+    expect(LOCAL_BUSINESS_SCHEMA.contactPoint.description).toBe(
+      'WhatsApp message only. There is no phone line.',
+    );
+    expect(LOCAL_BUSINESS_SCHEMA.contactPoint.url).toBe('https://wa.me/447873329440');
     expect(LOCAL_BUSINESS_SCHEMA.openingHoursSpecification[0].dayOfWeek).toEqual([
       'Monday', 'Tuesday', 'Wednesday',
     ]);
-    expect(JSON.stringify(LOCAL_BUSINESS_SCHEMA)).not.toContain('07507');
-    expect(JSON.stringify(LOCAL_BUSINESS_SCHEMA)).not.toContain('PetGroomer');
+    expect(schema).not.toMatch(/"telephone"/);
+    expect(schema).not.toContain('tel:');
+    expect(schema).not.toContain('07507');
+    expect(schema).not.toContain('PetGroomer');
   });
 
   it('stamps one LocalBusiness script, the route head, and the page body', () => {
@@ -55,6 +65,8 @@ describe('public route SEO', () => {
     expect(html).toContain('Bath &amp; Brush');
     expect(html).toContain('rel="canonical" href="https://smarterdog.co.uk/services"');
     expect(html).toContain('<main>Bath &amp; De-shed</main>');
+    expect(html).toContain('"url": "https://wa.me/447873329440"');
+    expect(html).not.toMatch(/"telephone"/);
     expect(html).not.toContain('client-dog-1-640.avif');
     expect(html).not.toContain(LOCAL_BUSINESS_SCRIPT_ID + '"></script><script');
   });

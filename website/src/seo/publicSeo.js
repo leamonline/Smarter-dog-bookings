@@ -1,15 +1,22 @@
 import { NEED_PAGES } from '../content/needPages';
-import { SALON_FACTS_FALLBACK } from '../constants/salonFacts';
+import { SALON_FACTS_FALLBACK, whatsAppUrl } from '../constants/salonFacts';
 import { HOME_DESCRIPTION, HOME_TITLE, formatDocumentTitle } from './documentTitle';
 
 export const SITE_URL = 'https://smarterdog.co.uk';
 export const OG_IMAGE = `${SITE_URL}/assets/logo-text.png`;
 
 /**
- * LocalBusiness block approved 3 Nov 2026. It is stamped into the built HTML
- * and the client hook writes this same object into the same script id, so
- * hydration does not add a second copy and does not swap in a thinner one.
- * Bank-holiday exceptions are left out; the pages say those in prose.
+ * LocalBusiness block. The 3 Nov 2026 pages approved the business facts.
+ * It is stamped into the built HTML and the client hook writes this same
+ * object into the same script id, so hydration does not add a second copy
+ * and does not swap in a thinner one. Bank-holiday exceptions are left out;
+ * the pages say those in prose.
+ *
+ * 07873 329440 is the booking WhatsApp chat, not a voice line. schema.org
+ * `telephone` means a telephone number, and Google describes
+ * LocalBusiness.telephone as the number customers phone. This block therefore
+ * has no `telephone` property. The chat is the contact point's `url`.
+ * The support number is a separate contact and is not published here.
  */
 export const LOCAL_BUSINESS_SCHEMA = {
   '@context': 'https://schema.org',
@@ -23,7 +30,6 @@ export const LOCAL_BUSINESS_SCHEMA = {
   image: OG_IMAGE,
   foundingDate: '1982',
   email: 'bookings@smarterdog.co.uk',
-  telephone: '+44 7873 329440',
   priceRange: '££',
   address: {
     '@type': 'PostalAddress',
@@ -35,8 +41,10 @@ export const LOCAL_BUSINESS_SCHEMA = {
   },
   contactPoint: {
     '@type': 'ContactPoint',
-    telephone: '+44 7873 329440',
-    contactType: 'Bookings by WhatsApp message only (there is no phone line)',
+    contactType: 'reservations',
+    name: 'WhatsApp',
+    description: 'WhatsApp message only. There is no phone line.',
+    url: whatsAppUrl(SALON_FACTS_FALLBACK.businessPhone),
     email: 'bookings@smarterdog.co.uk',
     availableLanguage: 'en-GB',
   },
