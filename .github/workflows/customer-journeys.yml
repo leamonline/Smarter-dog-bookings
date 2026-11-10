@@ -1,0 +1,104 @@
+name: Customer journeys (local stack)
+
+# The customer portal driven in a real browser against a disposable LOCAL
+# Supabase stack built from every committed migration. Sign-in goes through the
+# local auth server; bookings go through the real database functions and gates.
+#
+# The job has no hosted Supabase credentials and never links to, queries or
+# dumps staging or production. Every script it runs refuses a target that is
+# not the runner itself (scripts/customer-e2e/localTarget.mjs). All customers,
+# dogs and phone numbers are synthetic; no SMS provider account exists behind
+# the placeholder the local auth server is given, so nothing can be sent.
+#
+# Not a required check yet: it is new, and it depends on the security-check
+# widget's public test key loading from Cloudflare. Promote it once it has a
+# record. See docs/customer-journey-tests.md.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - 'supabase/functions/customer-phone-on-file/**'
+      - 'supabase/functions/_shared/**'
+      - 'src/components/customer/**'
+      - 'src/components/auth/CustomerLoginPage.jsx'
+      - 'src/CustomerApp.jsx'
+      - 'src/supabase/hooks/useCustomer*'
+      - 'e2e-customer/**'
+      - 'scripts/customer-e2e/**'
+      - 'scripts/prepare-db-test-project.mjs'
+      - 'playwright.customer.config.ts'
+      - '.github/workflows/customer-journeys.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: customer-journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  customer-journeys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.109.1
+
+      - name: Prove the target guard refuses hosted projects
+        run: node --test scripts/customer-e2e/localTarget.test.mjs
+
+      - name: Prepare isolated local project with phone sign-in
+        run: node scripts/customer-e2e/prepare.mjs "$RUNNER_TEMP/customer-e2e-project"
+
+      - name: Rebuild local database from committed migrations
+        timeout-minutes: 10
+        run: supabase --workdir "$RUNNER_TEMP/customer-e2e-project" start
+
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the customer journeys
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          export CUSTOMER_E2E_STACK_DIR="$RUNNER_TEMP/customer-e2e-project"
+          npm run customer-e2e -- --trace off
+
+      # The login page's phone lookup is an Edge Function that fails closed: any
+      # error inside it reaches the browser only as "rate limited". Its own log
+      # is the one place that says why. Local stack, synthetic data only.
+      - name: Show the local Edge Function log when a journey fails
+        if: failure()
+        run: |
+          for container in $(docker ps -a --format '{{.Names}}' | grep -E 'edge_runtime|kong' || true); do
+            echo "::group::$container (last 80 lines)"
+            docker logs --tail 80 "$container" 2>&1 || true
+            echo "::endgroup::"
+          done
+
+      - name: Save the report when a journey fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: customer-journeys-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

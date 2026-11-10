@@ -27,6 +27,7 @@ It does not duplicate those sources.
 | Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
 | Who may be messaged on which channel (SMS, WhatsApp, STOP, marketing), and the audit of existing customers? | [`messaging-policy.md`](messaging-policy.md) |
 | What do `whatsapp-send` and `sms-send` promise when a send is uncertain, unrecorded, or aimed at the wrong thread? | [`send-outcomes.md`](send-outcomes.md) |
+| How is the customer portal tested in a browser against a real local database? | [`customer-journey-tests.md`](customer-journey-tests.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
 | Which facts remain uncertain? | [`research/`](research/) |
 | Where are detailed behavioural contracts? | [`specifications/`](specifications/) and the domain references below |
