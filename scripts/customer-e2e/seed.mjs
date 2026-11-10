@@ -27,6 +27,13 @@ delete from public.waitlist_entries;
 delete from public.day_settings;
 -- The phone lookup allows five tries a minute per address; every journey signs in.
 delete from public.customer_phone_lookup_attempts;
+-- The phone lookup runs as the service role. A hosted project grants that
+-- role EXECUTE on these by default; the disposable project closes default
+-- grants (scripts/prepare-db-test-project.mjs), and on CI's CLI that left the
+-- function refused with 42501, which the lookup reports as "rate limited".
+-- Restore what production already has, for these two functions only.
+grant execute on function public.customer_phone_lookup_rate_limit(text, int, int) to service_role;
+grant execute on function public.customer_phone_login_state(text) to service_role;
 delete from public.dogs;
 delete from public.humans;
 delete from public.salon_config;
