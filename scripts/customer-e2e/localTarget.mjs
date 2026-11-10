@@ -20,14 +20,6 @@ export function assertLoopbackUrl(value, label) {
   return url;
 }
 
-export const LOCAL_API_URL = "http://127.0.0.1:54321";
 // One fixed address for the app under test.
 export const CUSTOMER_E2E_PORT = 4175;
 export const CUSTOMER_E2E_ORIGIN = `http://127.0.0.1:${CUSTOMER_E2E_PORT}`;
-export const LOCAL_DB = {
-  host: "127.0.0.1",
-  port: "54322",
-  user: "postgres",
-  password: "postgres",
-  database: "postgres",
-};

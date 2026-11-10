@@ -1,7 +1,6 @@
 import { expect, type Page } from "@playwright/test";
-import { readLocalStack } from "../../scripts/customer-e2e/localStack.mjs";
+import { psqlInvocation, readLocalStack } from "../../scripts/customer-e2e/localStack.mjs";
 import { seed } from "../../scripts/customer-e2e/seed.mjs";
-import { LOCAL_DB } from "../../scripts/customer-e2e/localTarget.mjs";
 import { customer, SYNTHETIC_PASSWORD } from "../../scripts/customer-e2e/syntheticData.mjs";
 import { spawnSync } from "node:child_process";
 
@@ -17,12 +16,8 @@ export async function resetDatabase() {
  * Returns one array of column values per row.
  */
 export function query(sql: string): string[][] {
-  const result = spawnSync(
-    "psql",
-    ["-h", LOCAL_DB.host, "-p", LOCAL_DB.port, "-U", LOCAL_DB.user, "-d", LOCAL_DB.database,
-      "-X", "-q", "-At", "-F", "\t", "-v", "ON_ERROR_STOP=1", "-c", sql],
-    { encoding: "utf8", env: { ...process.env, PGPASSWORD: LOCAL_DB.password } },
-  );
+  const { args, env } = psqlInvocation(readLocalStack().db);
+  const result = spawnSync("psql", [...args, "-At", "-F", "\t", "-c", sql], { encoding: "utf8", env });
   if (result.status !== 0) throw new Error(result.stderr);
   return result.stdout.split("\n").filter(Boolean).map((line) => line.split("\t"));
 }

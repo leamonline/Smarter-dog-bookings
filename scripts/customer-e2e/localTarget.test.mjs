@@ -22,3 +22,13 @@ test("refuses every hosted or look-alike target", () => {
     assert.throws(() => assertLoopbackUrl(url, "url"), /local Supabase stack/, String(url));
   }
 });
+
+test("the reset follows the stack's own database, not an assumed port", async () => {
+  const { psqlInvocation } = await import("./localStack.mjs");
+  const { args, env } = psqlInvocation({
+    host: "127.0.0.1", port: "55432", user: "postgres", password: "local-pw", database: "postgres",
+  });
+  assert.deepEqual(args.slice(0, 8), ["-h", "127.0.0.1", "-p", "55432", "-U", "postgres", "-d", "postgres"]);
+  assert.equal(env.PGPASSWORD, "local-pw");
+  assert.ok(!args.includes("54322"));
+});

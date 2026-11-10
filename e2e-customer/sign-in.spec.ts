@@ -22,8 +22,21 @@ test("a wrong password is refused and no session starts", async ({ page }) => {
   await enterPhone(page, sam.phoneTyped);
   await page.locator('input[type="password"]').fill("definitely-not-the-password");
   await expect(page.getByText("Security check complete.")).toBeVisible({ timeout: 30_000 });
+  // Wait for the auth server's own answer. The page keeps an empty alert
+  // mounted for screen readers, so "an alert exists" proves nothing, and
+  // "no greeting yet" is true before any answer arrives.
+  const answer = page.waitForResponse(
+    (response) =>
+      response.url().includes("/auth/v1/token") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Sign in" }).click();
+  expect((await answer).status(), "the auth server refuses the password").toBe(400);
 
-  await expect(page.getByRole("alert")).toBeVisible();
+  // The refusal is shown, in words.
+  await expect(page.locator(".portal-alert--error")).toHaveText(/\S/);
+  // Still on the password step, not the dashboard.
+  await expect(page.locator('input[type="password"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: `Hi, ${sam.name}` })).toHaveCount(0);
+  // And the auth server holds no session for this customer.
+  expect(query(`select count(*) from auth.sessions where user_id = '${sam.authUserId}'`)).toEqual([["0"]]);
 });

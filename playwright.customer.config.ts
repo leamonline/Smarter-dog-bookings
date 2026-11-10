@@ -51,6 +51,10 @@ export default defineConfig({
       VITE_SUPABASE_PUBLISHABLE_KEY: stack.anonKey,
       VITE_SUPABASE_ANON_KEY: stack.anonKey,
       VITE_FORCE_OFFLINE: "",
+      // Cloudflare's published always-pass test key, set explicitly: a real
+      // key from a developer's environment would otherwise win and could
+      // refuse this address or demand interaction (src/lib/turnstile.ts).
+      VITE_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
       VITE_SENTRY_DSN: "",
       VITE_POSTHOG_KEY: "",
     },

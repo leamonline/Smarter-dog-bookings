@@ -9,8 +9,7 @@
 // reset would destroy real records anywhere else.
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { readLocalStack } from "./localStack.mjs";
-import { LOCAL_DB } from "./localTarget.mjs";
+import { psqlInvocation, readLocalStack } from "./localStack.mjs";
 import { SYNTHETIC_CUSTOMERS, SYNTHETIC_PASSWORD } from "./syntheticData.mjs";
 
 const quote = (value) => `'${String(value).replace(/'/g, "''")}'`;
@@ -98,20 +97,16 @@ async function ensureAuthUser(stack, c) {
   }
 }
 
-function runSql(sql) {
-  const psql = spawnSync(
-    "psql",
-    ["-h", LOCAL_DB.host, "-p", LOCAL_DB.port, "-U", LOCAL_DB.user, "-d", LOCAL_DB.database,
-      "-X", "-q", "-v", "ON_ERROR_STOP=1", "-f", "-"],
-    { input: sql, encoding: "utf8", env: { ...process.env, PGPASSWORD: LOCAL_DB.password } },
-  );
+function runSql(db, sql) {
+  const { args, env } = psqlInvocation(db);
+  const psql = spawnSync("psql", [...args, "-f", "-"], { input: sql, encoding: "utf8", env });
   if (psql.status !== 0) throw new Error(`Seeding failed:\n${psql.stderr}`);
 }
 
 export async function seed(stack = readLocalStack()) {
-  runSql(buildResetSql());
+  runSql(stack.db, buildResetSql());
   for (const c of SYNTHETIC_CUSTOMERS) await ensureAuthUser(stack, c);
-  runSql(buildSeedSql());
+  runSql(stack.db, buildSeedSql());
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
