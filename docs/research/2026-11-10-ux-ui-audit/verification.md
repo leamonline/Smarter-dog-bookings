@@ -76,3 +76,12 @@ GitHub CLI issue reads were network-blocked; the connected GitHub reader
 worked. Automatic approval review rejected creating a tracking issue, so no
 issue exists for this audit. The user's explicitly requested draft PR remains
 the intended handoff.
+
+## Publication handoff
+
+The verified branch was pushed to `origin/ux/ui-audit-2026-11`. Automatic
+approval review rejected opening the requested draft PR because it could not
+establish explicit publication/destination authorisation from the visible
+user messages. No PR was created. The exact draft proposal is prepared in
+`/workspace/audit-scratch/draft-pr.md`; creation requires an explicit user
+confirmation naming `leamonline/Smarter-dog-bookings`. No merge is authorised.
