@@ -116,7 +116,7 @@ export function BusinessSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit =
           />
         </div>
         {error && (
-          <div role="alert" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
+          <div role="alert" className="text-body text-brand-coral-text font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
             {error}
           </div>
         )}

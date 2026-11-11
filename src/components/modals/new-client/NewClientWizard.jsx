@@ -202,7 +202,7 @@ export function NewClientWizard({
   const footer = (
     <div className="px-5 py-3 bg-[var(--color-brand-paper)] border-t border-slate-100 flex flex-col gap-2">
       {error && (
-        <div role="alert" className="text-xs text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
+        <div role="alert" className="text-xs text-brand-coral-text font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
           {error}
         </div>
       )}
