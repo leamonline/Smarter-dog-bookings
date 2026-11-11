@@ -97,3 +97,10 @@ checks. Report preserves live and customer-journey gaps and every historical
 recheck's actual confidence. PR stays draft. Owner decisions remain signup
 ordering, consent layout, recurring result handling, reschedule preflight,
 expanded action grouping, terminology and sender/template work.
+
+## Review handoff
+
+[Draft PR #1200](https://github.com/leamonline/Smarter-dog-bookings/pull/1200)
+contains the verified safe slice. The plan remains blocked on live access and
+a complete authenticated customer sample journey; the draft is not a claim
+that those checks were completed. No merge is authorised.

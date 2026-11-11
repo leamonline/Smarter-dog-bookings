@@ -79,9 +79,10 @@ the intended handoff.
 
 ## Publication handoff
 
-The verified branch was pushed to `origin/ux/ui-audit-2026-11`. Automatic
-approval review rejected opening the requested draft PR because it could not
-establish explicit publication/destination authorisation from the visible
-user messages. No PR was created. The exact draft proposal is prepared in
-`/workspace/audit-scratch/draft-pr.md`; creation requires an explicit user
-confirmation naming `leamonline/Smarter-dog-bookings`. No merge is authorised.
+The verified branch is pushed to `origin/ux/ui-audit-2026-11`.
+[Draft PR #1200](https://github.com/leamonline/Smarter-dog-bookings/pull/1200)
+was opened on 11 November 2026 after explicit user confirmation of the
+repository, head and target. The earlier automatic approval rejection is
+resolved for PR creation. The optional tracking issue remains uncreated.
+The PR stays draft; no merge or deployment is authorised. Live/full customer
+verification remains blocked as described above.
