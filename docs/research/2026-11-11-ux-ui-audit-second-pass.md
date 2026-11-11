@@ -476,7 +476,15 @@ under their ceilings), `npm run test` (479 files, 5,344 tests), `npm run build`,
 was re-checked on sample data at 390 and 1440px; the before and after screenshots are in
 the session scratchpad, not the repository. After the N-02 rename the same checks were
 re-run, plus the four Playwright specs that pinned the old labels (34 tests, desktop
-Chromium, sample data); the rest of the Playwright suite was not run.
+Chromium, sample data); the rest of the Playwright suite was not run at that point.
+
+**Re-verified after merging `main` (#1202, the booking-drawer rework), 11 November:** the
+merge was clean, and the N-04 and N-02 changes to the drawer survived it. On the merged
+head: lint, `check:docs`, `typecheck`, `check:migrations`, `check:design-system`, build,
+`npm run test` (5,396 tests), `website:lint`, `website:test` (237) and `website:build` all
+passed. Playwright as CI's pull-request job runs it: every spec on desktop Chromium (119
+passed), and the four changed specs on tablet and phone (50 passed, 18 skipped by design
+for those devices). WebKit was not run: this environment has no WebKit browser.
 N-03 (the sign-in error) and N-04 (error text) cannot be triggered on sample data, so
 those two were checked by reading the change and by the test suite, not by eye.
 
