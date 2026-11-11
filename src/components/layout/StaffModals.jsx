@@ -251,6 +251,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               initialHumanId={showNewBooking.initialHumanId}
               initialDogId={showNewBooking.initialDogId}
               initialEntries={showNewBooking.initialEntries}
+              initialConfirmationChannel={showNewBooking.initialConfirmationChannel}
               initialService={showNewBooking.initialService}
               initialAddons={showNewBooking.initialAddons}
               initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
