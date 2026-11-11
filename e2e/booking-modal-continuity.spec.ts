@@ -99,7 +99,7 @@ test.describe("Booking and modal resize continuity", () => {
       await expect(service).toBeFocused();
       await expect(scrollBody).toHaveAttribute("data-continuity-marker", "staff-booking-draft");
       await expect.poll(() => scrollBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-      await expectInsideViewport(dialog.getByRole("button", { name: /confirm booking/i }));
+      await expectInsideViewport(dialog.getByRole("button", { name: /book & send confirmation/i }));
       expect(await dialog.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
       expect(page.url()).toBe(url);
       expect(await page.evaluate(() => history.length)).toBe(historyLength);

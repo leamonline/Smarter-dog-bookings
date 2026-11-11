@@ -9,8 +9,8 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
   // we don't need to track real-time midnight rollovers, and a stable
   // reference lets the dateStatuses memo skip unnecessary recomputation.
   const today = useMemo(() => new Date(), []);
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [viewYear, setViewYear] = useState(() => selectedDateStr ? Number(selectedDateStr.slice(0, 4)) : today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => selectedDateStr ? Number(selectedDateStr.slice(5, 7)) - 1 : today.getMonth());
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;

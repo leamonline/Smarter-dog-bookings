@@ -29,6 +29,7 @@ export function DogSearchSection({
   onClearAll,
   onOpenAddDog,
   onOpenNewClient,
+  draftLocked = false,
   onSearchDogs,
   isSearchingDogs,
   setError,
@@ -146,6 +147,7 @@ export function DogSearchSection({
                 <button
                   type="button"
                   onClick={() => onRemoveDog(entry.dog.id)}
+                  disabled={draftLocked}
                   aria-label={`Remove ${titleCase(entry.dog.name)}`}
                   className="bg-transparent border-none cursor-pointer text-lg text-slate-500 font-bold py-1 px-2 rounded-md transition-all hover:text-brand-coral"
                 >
@@ -198,7 +200,8 @@ export function DogSearchSection({
             <button
               type="button"
               onClick={() => setAddingAnotherDog(true)}
-              className="flex-1 py-2 px-3 rounded-lg border-[1.5px] border-dashed bg-white text-xs font-bold cursor-pointer font-inherit transition-all"
+              disabled={draftLocked}
+              className="flex-1 py-2 px-3 rounded-lg border-[1.5px] border-dashed bg-white text-xs font-bold cursor-pointer font-inherit transition-all disabled:cursor-not-allowed disabled:opacity-60"
               style={{ borderColor: primaryTheme.gradient[0], color: primaryTheme.gradient[0] }}
               onMouseEnter={(e) => { e.currentTarget.style.background = primaryTheme.light; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-surface-card)"; }}
@@ -208,7 +211,8 @@ export function DogSearchSection({
             <button
               type="button"
               onClick={onClearAll}
-              className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-500 text-xs font-bold cursor-pointer font-inherit transition-all hover:border-brand-coral hover:text-brand-coral"
+              disabled={draftLocked}
+              className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-500 text-xs font-bold cursor-pointer font-inherit transition-all hover:border-brand-coral hover:text-brand-coral disabled:cursor-not-allowed disabled:opacity-60"
             >
               Start over
             </button>

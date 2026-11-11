@@ -223,6 +223,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               onDraftTargetChange={setDraftTarget}
               onClose={closeNewBooking}
               onAdd={commitBookingList}
+              configPricing={data.salonConfig?.pricing}
               dogs={dogs}
               humans={humans}
               dogsByHumanId={dogsApi.dogsByHumanId}
@@ -250,6 +251,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               initialHumanId={showNewBooking.initialHumanId}
               initialDogId={showNewBooking.initialDogId}
               initialEntries={showNewBooking.initialEntries}
+              initialConfirmationChannel={showNewBooking.initialConfirmationChannel}
               initialService={showNewBooking.initialService}
               initialAddons={showNewBooking.initialAddons}
               initialStaffCapacityOverride={showNewBooking.capacityOverride === true}

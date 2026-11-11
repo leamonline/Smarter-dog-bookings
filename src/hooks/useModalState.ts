@@ -27,6 +27,8 @@ export interface NewBookingData {
   // Resume prefill — dog entries (existing + any newly created) restored when
   // the wizard re-opens after staff stepped out to add a dog/human mid-booking.
   initialEntries?: BookingEntryDraft[];
+  // Confirmation choice parked with the draft. Omitted on older parked drafts.
+  initialConfirmationChannel?: string;
   // Staff-only capacity override requested by the caller (e.g. the inbox).
   capacityOverride?: boolean;
   // WhatsApp hand-off: the conversation + message the booking came from.
@@ -45,6 +47,7 @@ export interface PendingBooking {
   slot: string;
   entries: BookingEntryDraft[];
   owner: { id: string; label: string; phone: string } | null;
+  confirmationChannel?: string;
 }
 
 export interface CollectionNoticeRequest {
