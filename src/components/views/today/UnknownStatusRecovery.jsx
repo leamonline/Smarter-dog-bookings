@@ -34,8 +34,8 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
           : `${bookings.length} bookings need their status fixed`}
         <span className="font-medium text-ink-muted">
           {bookings.length === 1
-            ? "— it won't show in the day until then"
-            : "— they won't show in the day until then"}
+            ? "— it may be missing from the day below"
+            : "— they may be missing from the day below"}
         </span>
       </h2>
       <ul className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
