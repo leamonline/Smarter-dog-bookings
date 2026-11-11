@@ -30,6 +30,8 @@ branch.
 
 ### Top ten new or sharpened frictions
 
+(N-10, the doubled security check, is written up in section 4 as an eleventh.)
+
 Ranked by who it hurts × how often × how badly. "Sharpened" means the first audit has the
 item and this adds evidence or changes the recommendation.
 
@@ -44,7 +46,7 @@ item and this adds evidence or changes the recommendation.
 | 7 | N-07 | Three places change a status, with different safeguards | Low | New | Needs a decision |
 | 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Needs a decision |
 | 9 | N-09 | The approval wait does not say you can close the page, and the step before it says "you're all done" | Low | Sharpened (P-01) | Fixed (copy) |
-| 10 | N-10 | The security check is solved twice on every sign-in | Low | New | Needs a decision |
+| 10 | N-34 | Every no-show raises a red "needs its status fixed" alert on Today | Medium | New | Needs a decision |
 
 ## 2. Scorecard
 
@@ -234,6 +236,21 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Fix.** "Password saved." and one added sentence: "You can close this page; you don't
   need to wait here." No timing promise is added. S.
 
+### N-34 A no-show sets off the "status needs fixing" alert (Medium, new, needs a decision)
+
+- **What happens.** Mark a dog as a no-show and Today shows it correctly as a No-show
+  card, and also lists it in the red alert "bookings need their status fixed".
+- **Evidence.** Seen on sample data (figure 1: Dog B at 12:30 is in the alert and is also
+  a No-show card further down). `src/engine/dailyBrief.ts:333-336` treats every status
+  without a lane as broken, except Cancelled. No-show became a status of its own later and
+  was not added to the exception.
+- **Why it matters.** That alert exists so a dog never silently vanishes from the day. An
+  alert that fires on every ordinary no-show teaches staff to ignore it.
+- **Fix.** Add No-show to the exception. One line, S, but it is in `src/engine/`, which is
+  off-limits here. I found this by looking, not from a reviewer, and it has not been
+  through the adversarial checker; the screenshot and the four lines of code are the
+  evidence.
+
 ### N-10 The security check, twice (Low, new, needs a decision)
 
 - **Evidence.** The check is re-created at each stage of sign-in
@@ -293,7 +310,7 @@ Only items the first audit does not already hold.
 | ID | Finding and evidence | Fix; effort; disposition |
 |---|---|---|
 | N-21 | "2 bookings need their status fixed — it has no place in the day". Plural, then "it". `UnknownStatusRecovery.jsx:33-35`. | Agree the pronoun and say what it means. S. Fixed. |
-| N-22 | The calendar's good-news strip shows "All sorted" in red. `RightWorkflowSidebar.jsx:194` (`hue: "rose"`). | Green, like "Inbox clear". S. Fixed. |
+| N-22 | The calendar's good-news strip shows "All sorted" in red. `RightWorkflowSidebar.jsx:194` (`hue: "rose"`). The colour is deliberate: each chip keeps its card's identity colour (`RightRailCalmRow.jsx:8`), and the to-do card is rose. | Use a neutral or green tone for every calm chip, and keep identity colours for cards that need attention. S. Awaiting a yes: it overrides a design choice. |
 | N-23 | Times are written three ways: 08:30 on Today, 8:30 on the calendar, 8:30am in the booking drawer. | Pick one. S/M. Needs a decision. |
 | N-24 | The same screen is "Daily Brief" in the menu and page title, "Today" in the address, the keyboard shortcut and the docs. The calendar is "Bookings" in the menu and "the diary" in instructions (`HoursSettings.jsx:98`, `BookingActionsPane.jsx:61`). | "Today" and "Bookings" throughout. S. Needs a decision: menu labels are test-pinned. |
 | N-25 | Every inbox row in the sample says "Waiting time unavailable". `useInboxWaitingTimes.ts:41`. If that also happens with real data it is noise on every row. | Show nothing when there is no figure. S. Could not confirm on live; listed. |
@@ -344,7 +361,7 @@ business in a quieter room. It does not read as a different business.
 | Sign-in, security check down | "…or give the salon a ring and we'll sort you out." | "…or message us on WhatsApp and we'll sort you out." | Fixed |
 | Password step toast | "Password set — you're all done" | "Password saved" | Fixed |
 | Approval wait | (ends at "…then you can book your first appointment.") | adds "You can close this page; you don't need to wait here." | Fixed |
-| Today warning | "2 bookings need their status fixed — it has no place in the day" | "2 bookings need their status fixed — they won't show in the day until then" | Fixed |
+| Today warning | "2 bookings need their status fixed — it has no place in the day" | "2 bookings need their status fixed — they may be missing from the day below" | Fixed |
 | AI draft, why held | "Held because the intent (booking_query) isn't on the auto-send allowlist. Bookings, time confirmations, and unusual asks always wait for you." | "Not sent automatically. Replies about bookings, times and anything unusual always wait for you." | Fixed |
 | Website booking band | (hours only) | adds "New here? You'll set up a free account first, and we check new sign-ups on salon days (Monday to Wednesday) before your first booking." | Fixed |
 | Website FAQ | (no question) | "How do I book?" with the same facts | Fixed |
@@ -418,7 +435,7 @@ Then the settled decisions.
 ## 11. Fix plan
 
 **Done on this branch** (one commit each, named by ID): N-01, N-03, N-04, N-05, N-09,
-N-11, N-12, N-21, N-22.
+N-11, N-12, N-21.
 
 **Awaiting a yes** (small flow or default changes; not coded):
 
@@ -431,16 +448,29 @@ N-11, N-12, N-21, N-22.
   disabled button, and add "Not sure" to birth year. *Why:* removes a silent dead end.
   *Risk:* "Not sure" must not upset the Puppy Groom age check, so that part needs your
   word on how an unknown age should be treated.
+- **N-22 Calm chips.** *What:* show "All sorted" and the other all-clear chips in one calm
+  colour instead of each card's identity colour. *Why:* red text saying "All sorted" reads
+  as a problem. *Risk:* the chips lose the colour link to their cards; the labels still
+  name them.
 - **N-14 FAQ closing band.** *What:* swap the order so WhatsApp leads under "Got a
   question?". *Why:* the button should answer the sentence above it. *Risk:* one fewer
   prominent Book button on that page; the sticky bar still carries it.
 
 **Needs a decision** (off-limits here, or yours to choose): N-02 and N-24 naming; N-07 one
 status path; N-08 Terms wording; N-10 double security check; N-15 homepage prices; N-16
-bank-holiday pop-up; N-18 and N-28 test-pinned labels; N-23 one time format; N-29 to N-33
+bank-holiday pop-up; N-18 and N-28 test-pinned labels; N-23 one time format; N-34 no-show false alarm (one line in the engine); N-29 to N-33
 message wording, gaps and the salon's name. From the first audit, still open and still the
 bigger items: ST-01 recurring series results, P-01 sign-up order, P-02 reschedule
 deadline, WEB-02 cookie notice over the Book bar, MSG-01 raw service names in messages.
+
+**Verification on this branch** (Node 24.22.2, 11 November 2026): `npm run lint`,
+`check:docs`, `typecheck`, `check:migrations`, `check:design-system` (all ratchets at or
+under their ceilings), `npm run test` (479 files, 5,344 tests), `npm run build`,
+`website:lint`, `website:test` (237 tests) and `website:build` all passed. Each visual fix
+was re-checked on sample data at 390 and 1440px; the before and after screenshots are in
+the session scratchpad, not the repository. Playwright end-to-end specs were not run.
+N-03 (the sign-in error) and N-04 (error text) cannot be triggered on sample data, so
+those two were checked by reading the change and by the test suite, not by eye.
 
 ## Figures
 
