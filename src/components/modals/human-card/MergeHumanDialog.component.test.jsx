@@ -46,7 +46,7 @@ function renderDialog(overrides = {}) {
 }
 
 function pickDuplicateAndOpenConfirm() {
-  fireEvent.change(screen.getByLabelText("Search for a duplicate human"), {
+  fireEvent.change(screen.getByLabelText("Search for a duplicate customer"), {
     target: { value: "sara" },
   });
   // Only the other record is offered (self is filtered out).
@@ -66,7 +66,7 @@ describe("MergeHumanDialog", () => {
 
   it("swapping which record to keep flips the winner and loser", async () => {
     const { onMerge } = renderDialog();
-    fireEvent.change(screen.getByLabelText("Search for a duplicate human"), {
+    fireEvent.change(screen.getByLabelText("Search for a duplicate customer"), {
       target: { value: "sara" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Sara Jones/ }));

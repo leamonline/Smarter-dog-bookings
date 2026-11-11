@@ -173,7 +173,7 @@ export function NewClientWizard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-label text-ink-muted">
-            Add client · Step {step} of 3
+            Add customer · Step {step} of 3
           </div>
           <h2 id={titleId} className="text-xl font-bold font-display text-brand-ink leading-tight mt-0.5 truncate">
             {STEP_TITLES[step - 1]}
@@ -243,7 +243,7 @@ export function NewClientWizard({
               disabled={submitting}
               className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
             >
-              {submitting ? "Saving…" : dogs.length === 0 ? "Save client" : "Continue to booking"}
+              {submitting ? "Saving…" : dogs.length === 0 ? "Save customer" : "Continue to booking"}
             </button>
           </div>
         ) : (

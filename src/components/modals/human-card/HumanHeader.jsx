@@ -145,7 +145,7 @@ export function HumanHeader({
                 id="human-card-title"
                 className="text-xl md:text-2xl font-bold font-display text-brand-ink leading-tight mt-1 truncate"
               >
-                {titleCase(humanFullName) || "Unnamed human"}
+                {titleCase(humanFullName) || "Unnamed customer"}
               </h2>
               <div className="flex items-center gap-2 mt-1.5 min-h-[20px] max-sm:min-h-[44px]">
                 {human.phone ? (

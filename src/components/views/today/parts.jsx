@@ -107,7 +107,7 @@ export function serviceLabel(service) {
 
 /** "Rik Patel" → "Rik". Contact actions address a person, not a record. */
 export function firstName(name) {
-  return String(name || "the human").trim().split(/\s+/)[0] || "the human";
+  return String(name || "the customer").trim().split(/\s+/)[0] || "the customer";
 }
 
 /** A dialable `tel:` href, or null when there is no usable number on file. */

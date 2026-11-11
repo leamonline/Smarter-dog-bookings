@@ -4,7 +4,7 @@ for (const directory of ["dogs", "humans"]) {
   test(`${directory} search keeps a usable phone row and returns focus on clear`, async ({ page, isMobile }) => {
     await page.goto(`/${directory}`);
     const search = page.getByRole("searchbox");
-    const action = page.getByRole("button", { name: directory === "dogs" ? "Add dog" : "Add client", exact: true });
+    const action = page.getByRole("button", { name: directory === "dogs" ? "Add dog" : "Add customer", exact: true });
     await expect(search).toBeVisible();
     await expect(action).toBeVisible();
     const searchBox = await search.boundingBox();

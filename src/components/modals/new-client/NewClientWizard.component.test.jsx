@@ -38,17 +38,17 @@ async function addValidDog(user, name) {
 }
 
 describe("NewClientWizard", () => {
-  it("uses Add client as the visible flow label", () => {
+  it("uses Add customer as the visible flow label", () => {
     renderWizard();
-    expect(screen.getByText("Add client · Step 1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Add customer · Step 1 of 3")).toBeInTheDocument();
   });
 
-  it("saves a client from the optional dog step without adding a dog", async () => {
+  it("saves a customer from the optional dog step without adding a dog", async () => {
     const user = userEvent.setup();
     const props = renderWizard();
     await enterValidClient(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(screen.getByRole("button", { name: "Save client" }));
+    await user.click(screen.getByRole("button", { name: "Save customer" }));
 
     await waitFor(() => expect(props.addHuman).toHaveBeenCalledTimes(1));
     expect(props.addDog).not.toHaveBeenCalled();

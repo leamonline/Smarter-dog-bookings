@@ -71,13 +71,13 @@ describe("AppToolbar", () => {
     expect(active.className).toContain("bg-brand-ink/[0.07]");
   });
 
-  it("fires the New booking and New client handlers", () => {
+  it("fires the New booking and New customer handlers", () => {
     const onNewBooking = vi.fn();
     const onNewClient = vi.fn();
     renderToolbar({ onNewBooking, onNewClient });
     fireEvent.click(screen.getByRole("button", { name: "New booking (press N)" }));
     expect(onNewBooking).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "New client" }));
+    fireEvent.click(screen.getByRole("button", { name: "New customer" }));
     expect(onNewClient).toHaveBeenCalledTimes(1);
   });
 
@@ -89,7 +89,7 @@ describe("AppToolbar", () => {
     expect(within(menu).getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
-  it("keeps the badge counts in the Inbox and Humans accessible names", () => {
+  it("keeps the badge counts in the Inbox and Customers accessible names", () => {
     unreadState.unread = 12;
     signupState.count = 2;
     renderToolbar();
@@ -99,7 +99,7 @@ describe("AppToolbar", () => {
     ).toBeInTheDocument();
     expect(
       within(nav).getByRole("link", {
-        name: "Humans — 2 new customers awaiting approval",
+        name: "Customers — 2 new customers awaiting approval",
       }),
     ).toBeInTheDocument();
   });
@@ -112,7 +112,7 @@ describe("MobileNavStrip", () => {
     for (const item of PRIMARY_NAV) {
       expect(within(nav).getByRole("link", { name: item.label })).toBeInTheDocument();
     }
-    const active = within(nav).getByRole("link", { name: "Humans" });
+    const active = within(nav).getByRole("link", { name: "Customers" });
     expect(active).toHaveAttribute("aria-current", "page");
     expect(active.className).toContain("bg-brand-ink/[0.07]");
   });

@@ -347,7 +347,7 @@ export function DogSearchSection({
                               <span
                                 className="text-[9px] font-bold py-0.5 px-[7px] rounded-md shrink-0 uppercase tracking-wide"
                                 style={{ background: labelBg, color: labelColor }}
-                              >{human.isTrusted ? "Trusted" : "Owner"}</span>
+                              >{human.isTrusted ? "Trusted" : "Customer"}</span>
                               {stillLoading ? (
                                 <SkeletonBlock className="h-3 w-24" />
                               ) : (

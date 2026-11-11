@@ -6,7 +6,7 @@ const ROUTES: Array<[string, RegExp]> = [
   ["/staff/today", /^Daily Brief · Smarter Dog$/],
   ["/staff/inbox", /^Inbox · Smarter Dog$/],
   ["/staff/dogs", /^Dogs · Smarter Dog$/],
-  ["/staff/humans", /^Humans · Smarter Dog$/],
+  ["/staff/humans", /^Customers · Smarter Dog$/],
   ["/reset-password", /^Reset password · Smarter Dog Bookings$/],
   ["/book", / · Smarter Dog Bookings$/],
 ];

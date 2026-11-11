@@ -90,9 +90,9 @@ describe("HumansView directory", () => {
     expect(screen.queryByText("2 humans registered")).not.toBeInTheDocument();
   });
 
-  it("offers one Add client action and opens the guided flow", () => {
+  it("offers one Add customer action and opens the guided flow", () => {
     const { onNewClient } = renderView();
-    const action = screen.getByRole("button", { name: "Add client" });
+    const action = screen.getByRole("button", { name: "Add customer" });
     expect(screen.queryByRole("button", { name: /add human/i })).not.toBeInTheDocument();
     fireEvent.click(action);
     expect(onNewClient).toHaveBeenCalledTimes(1);

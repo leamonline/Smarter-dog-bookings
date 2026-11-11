@@ -215,7 +215,7 @@ export function DogDetailsSection({
                   <Input
                     type="text"
                     placeholder="Search by name or phone..."
-                    aria-label="Search owners"
+                    aria-label="Search customers"
                     value={ownerSearchQuery}
                     onChange={(e) => setOwnerSearchQuery(e.target.value)}
                     autoFocus
@@ -390,7 +390,7 @@ export function DogDetailsSection({
       ) : (
         <PanelShell eyebrow="Dog details" icon={DogIcon} accent="slate" className="mb-3">
           <CardRow
-            label="Owner"
+            label="Customer"
             value={ownerValue}
             onClick={ownerOpenValue ? () => {
               onClose();

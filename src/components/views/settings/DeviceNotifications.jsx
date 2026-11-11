@@ -10,7 +10,7 @@ const CATEGORIES = [
   { key: "newBooking", label: "New bookings", sub: "A booking is made" },
   { key: "cancellation", label: "Cancellations", sub: "A booking is cancelled" },
   { key: "reschedule", label: "Reschedules", sub: "A booking is moved" },
-  { key: "newClient", label: "New client signups", sub: "Join the Pack — needs review" },
+  { key: "newClient", label: "New customer sign-ups", sub: "Join the Pack — needs review" },
   { key: "waitlist", label: "Waitlist joins", sub: "Someone joins the waitlist" },
 ];
 

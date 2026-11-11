@@ -128,7 +128,7 @@ export function AppointmentDetailsCard({
           isEditing={isEditing}
         />
         <DetailRow
-          label={<LogisticsLabel text="Owner" />}
+          label={<LogisticsLabel text="Customer" />}
           value={titleCase(booking.owner)}
           isEditing={isEditing}
         />
@@ -159,7 +159,7 @@ export function AppointmentDetailsCard({
         value={`${booking.slot} · ${formatFullDate(currentDateObj)}`}
       />
       <Row
-        label="Owner"
+        label="Customer"
         value={titleCase(booking.owner)}
         onClick={() => onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner)}
       />
