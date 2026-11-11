@@ -43,6 +43,8 @@ export interface UseStaffAppDataOptions {
 export interface CommitBookingListResult {
   ok: boolean;
   error: string | null;
+  /** Actual saved identities, never the draft's provisional UUIDs. */
+  bookings: Booking[];
 }
 
 /** A booking draft that may carry its own target date (multi-date series). */
@@ -228,6 +230,8 @@ export function useStaffAppData({
       const ok = results.every((r) => r !== null && r !== false);
       return {
         ok,
+        bookings: results.flatMap((result) => result && typeof result === "object"
+          ? (Array.isArray(result) ? result : [result]) : []),
         error: ok
           ? null
           : bookingInsertErrorRef.current ||

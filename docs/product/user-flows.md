@@ -262,3 +262,53 @@ Implemented for issue #782, verified against synthetic data and merged on
 Existing profile approval, rejection and duplicate-linking paths remain
 available. No booking policy, database schema or notification delivery semantics
 change in this flow.
+
+## Staff creates a booking — review and confirmation receipt
+
+The new-booking drawer keeps only its header and action footer fixed. Dog cards,
+date/time selection, repeat settings and the final review share one scrolling
+body, including on a phone in landscape. Once a valid date and time are chosen,
+the pickers collapse to a summary. **Change date or time** reopens them without
+clearing dogs, services, extras or confirmation choice; staff can also keep the
+current date/time without changing it.
+
+The review names each dog, service and extras and the selected date/time.
+Pricing follows the existing engine: a saved agreed dog price wins over the
+configured guide, with extras included in either case. Agreed totals are labelled
+as such. Variable guide totals say **Final price may vary with coat condition.**
+Repeating bookings label the total per appointment and retain the full-date skip
+rule.
+
+The default method reads **Send via preferred service - [SMS]** or **[WhatsApp]**
+from the selected owner's saved preference (Email is also supported). The chosen
+preference is recorded as the explicit confirmation channel; server-side contact
+settings and opt-outs still apply. An absent preference is shown as **[not set]**,
+with the existing automatic first-eligible route explained, rather than inventing
+a preference. Loading/read errors are explicit and prevent the preferred route
+until resolved or staff choose another method. A saved but unavailable service
+requires a different choice. Selecting a service applies to all recipients chosen
+for this booking; it does not change anyone's saved preference.
+
+Staff selects **Book & send confirmation**, or **Create booking** when messaging
+is suppressed. There is no second method dialog. Trusted-recipient selection,
+historical-date confirmation and capacity overrides remain explicit. Saving
+disables the action and method selector; a rejected or uncertain save retains the
+draft with an inline error.
+
+After a successful insert, a receipt shows **Booking created** independently from
+confirmation pending, accepted with delivery unconfirmed, delivered, failed or
+unknown. It uses the actual saved booking IDs returned by the writer, not draft
+UUIDs. Delivery requires matching provider receipts for every selected recipient
+and saved booking. Missing logs, read failures and provider acceptance never
+establish delivery. Suppressed confirmations, deposit-held confirmations and
+sample-data mode each have explicit copy.
+
+The receipt polls while open and supports manual refresh. **Retry confirmation
+only** refreshes the evidence before using the existing staff resend path, once
+per failed appointment/group. Unknown outcomes, missing logs, pending or accepted
+sends, and unresolved safety-net sends cannot be retried here. Recovery never
+inserts another booking. **Done** closes the receipt; **Book another** starts a
+fresh booking for the same owner. This change adds no initial send path, schema
+change or automatic retry.
+
+Tracked in [issue #1201](https://github.com/leamonline/Smarter-dog-bookings/issues/1201).

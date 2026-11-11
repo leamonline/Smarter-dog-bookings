@@ -10,7 +10,7 @@
 // capacity/duplicate race after the client preflight) surfaces in-modal and
 // keeps the wizard open instead of toasting a false success.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { NewBookingModal } from "./NewBookingModal.jsx";
 
@@ -61,16 +61,14 @@ function renderModal(overrides = {}) {
   return props;
 }
 
-// The flow now always asks "Send a booking confirmation?" after Confirm. Drive
-// that dialog: open it, optionally pick a method (default is Auto), then confirm.
+// Choose the method in the drawer, then create the booking with one action.
 async function confirmWithMethod(method) {
-  fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
-  await screen.findByText(/send a booking confirmation/i);
-  if (method) fireEvent.click(screen.getByRole("radio", { name: method }));
-  // Two "Confirm booking" buttons now exist (modal + dialog); the dialog's
-  // renders last in the DOM.
-  const buttons = screen.getAllByRole("button", { name: /confirm booking/i });
-  fireEvent.click(buttons[buttons.length - 1]);
+  if (method) {
+    const picker = await screen.findByRole("combobox", { name: "Customer confirmation" });
+    const option = Array.from(picker.options).find((item) => method.test(item.text));
+    fireEvent.change(picker, { target: { value: option.value } });
+  }
+  fireEvent.click(await screen.findByRole("button", { name: /book & send confirmation|create .*booking/i }));
 }
 
 const resumeEntry = {
@@ -86,7 +84,7 @@ describe("NewBookingModal — cold-start continuity (Fix A)", () => {
   it("hydrates a pre-selected dog from initialEntries instead of a fresh search", async () => {
     renderModal({ initialEntries: [resumeEntry] });
     // The just-created dog is selected straight away…
-    expect(await screen.findByText("Luna")).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Service for Luna" })).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: /service for luna/i }),
     ).toBeInTheDocument();
@@ -192,13 +190,16 @@ describe("NewBookingModal — truthful save (Fix C)", () => {
     await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
   });
 
-  it("closes the wizard only after the save resolves ok", async () => {
+  it("shows a receipt only after the save resolves ok", async () => {
     const onAdd = vi.fn().mockResolvedValue({ ok: true });
     const props = renderModal({ initialEntries: [resumeEntry], onAdd });
 
     await confirmWithMethod();
 
-    await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("heading", { name: "Booking created" })).toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
     expect(onAdd).toHaveBeenCalledTimes(1);
   });
 });
@@ -222,31 +223,31 @@ describe("NewBookingModal — book another for owner (C-2)", () => {
 
     await confirmWithMethod();
 
-    const again = await screen.findByRole("button", { name: /book another for emma/i });
-    // The wizard still closes on success (truthful-save contract preserved);
-    // the re-book offer rides on the toast.
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    const again = (await screen.findAllByRole("button", { name: /book another for emma/i }))[0];
+    // The receipt stays open until staff dismiss it or book another.
+    expect(props.onClose).not.toHaveBeenCalled();
 
     fireEvent.click(again);
     expect(onBookAnother).toHaveBeenCalledWith("emma-id");
   });
 });
 
-// Confirmation method: staff are asked, after Confirm, whether to send a
-// confirmation and how. The choice rides into each booking as
-// confirmation_channel; the edge function reads it to suppress or force a method.
+// The visible method is part of the draft; no second confirmation is needed.
 describe("NewBookingModal — confirmation method", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("asks for a confirmation method after Confirm, before saving", async () => {
+  it("shows the booking summary and message choice before saving", async () => {
     const onAdd = vi.fn().mockResolvedValue({ ok: true });
     renderModal({ initialEntries: [resumeEntry], onAdd });
 
-    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
-
-    // The method dialog is shown and the save hasn't happened yet.
-    expect(await screen.findByText(/send a booking confirmation/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Ready to book" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toHaveValue("auto");
+    expect(screen.getByText("Guide total: £42+")).toBeInTheDocument();
+    expect(screen.getByText(/No preferred service is saved/i)).toBeInTheDocument();
     expect(onAdd).not.toHaveBeenCalled();
+    await confirmWithMethod();
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Send a booking confirmation?")).not.toBeInTheDocument();
   });
 
   it("defaults to 'auto' when staff just confirm", async () => {
@@ -278,6 +279,113 @@ describe("NewBookingModal — confirmation method", () => {
 
     await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
     expect(onAdd.mock.calls[0][0][0].confirmation_channel).toBe("none");
+  });
+});
+
+describe("NewBookingModal — inline confirmation recovery", () => {
+  it.each(["sms", "whatsapp"])("shows and uses the saved %s preference", async (preferredChannel) => {
+    const stored = [];
+    renderModal({
+      initialEntries: [resumeEntry],
+      humans: { owner: { id: "emma-id", fullName: "Emma Wilson", preferredChannel, phone: "+447700900123", whatsapp: true } },
+      onAdd: async (rows) => { stored.push(...structuredClone(rows)); return { ok: true, bookings: stored }; },
+    });
+    expect(await screen.findByText(`Send via preferred service - [${preferredChannel === "sms" ? "SMS" : "WhatsApp"}]`)).toBeInTheDocument();
+    await confirmWithMethod();
+    await screen.findByRole("heading", { name: "Booking created" });
+    expect(stored).toHaveLength(1);
+    expect(stored[0].confirmation_channel).toBe(preferredChannel);
+  });
+
+  it("does not invent a saved preference", async () => {
+    renderModal({ initialEntries: [resumeEntry] });
+    expect(await screen.findByText("Send via preferred service - [not set]")).toBeInTheDocument();
+  });
+
+  it("blocks an unavailable saved preference until staff choose another service", async () => {
+    renderModal({ initialEntries: [resumeEntry], humans: { owner: {
+      id: "emma-id", preferredChannel: "whatsapp", phone: "+447700900123", whatsapp: true, whatsappOptedOut: true,
+    } } });
+    expect(await screen.findByRole("button", { name: "Book & send confirmation" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("combobox", { name: "Customer confirmation" }), { target: { value: "sms" } });
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeEnabled();
+  });
+
+  it("keeps extras in a saved agreed price instead of using the guide", async () => {
+    renderModal({ initialEntries: [{ ...resumeEntry, dog: { ...luna, customPrice: 55 }, addons: ["Flea Bath"] }] });
+    expect(await screen.findByText("Agreed total: £65")).toBeInTheDocument();
+    expect(screen.queryByText(/Final price may vary/)).not.toBeInTheDocument();
+  });
+
+  it("collapses the chosen appointment and lets staff edit without losing the draft", async () => {
+    renderModal({ initialEntries: [resumeEntry] });
+    expect(await screen.findByRole("region", { name: "Selected appointment time" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next month" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Customer confirmation" }), { target: { value: "sms" } });
+    fireEvent.click(screen.getByRole("button", { name: "Change date or time" }));
+    expect(screen.getByRole("button", { name: "Next month" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Keep selected date and time" }));
+    expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toHaveValue("sms");
+    expect(screen.getByRole("combobox", { name: "Service for Luna" })).toHaveValue("full-groom");
+  });
+
+  it.each(["auto", "whatsapp", "sms", "email", "none"])("creates rows with the visible %s choice", async (channel) => {
+    const savedRows = [];
+    const onAdd = vi.fn(async (rows) => {
+      savedRows.push(...structuredClone(rows));
+      return { ok: true };
+    });
+    renderModal({ initialEntries: [resumeEntry], onAdd });
+    const picker = await screen.findByRole("combobox", { name: "Customer confirmation" });
+    fireEvent.change(picker, { target: { value: channel } });
+    fireEvent.click(screen.getByRole("button", {
+      name: channel === "none" ? "Create booking" : "Book & send confirmation",
+    }));
+    await waitFor(() => expect(savedRows).toHaveLength(1));
+    expect(savedRows[0]).toMatchObject({
+      confirmation_channel: channel, _dogId: luna.id, _bookingDate: OPEN_DATE,
+    });
+  });
+
+  it("keeps the selected method after a rejected save and prevents repeat submission while saving", async () => {
+    let finishSave;
+    const onAdd = vi.fn(() => new Promise((resolve) => { finishSave = resolve; }));
+    const props = renderModal({ initialEntries: [resumeEntry], onAdd });
+    await confirmWithMethod(/email/i);
+    expect(screen.getByRole("button", { name: "Creating booking…" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Creating booking…" }));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    finishSave({ ok: false, error: "That slot was just taken." });
+    expect(await screen.findByText("That slot was just taken.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toHaveValue("email");
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeEnabled();
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText("Booking saved — nice one")).not.toBeInTheDocument();
+  });
+
+  it("preserves the method when staff cancel a capacity override", async () => {
+    const props = renderModal({
+      initialEntries: [resumeEntry],
+      daySettings: { [OPEN_DATE]: { overrides: { "09:00": { 0: "blocked", 1: "blocked" } } } },
+    });
+    await confirmWithMethod(/sms/i);
+    await screen.findByText("This booking breaks the capacity rule");
+    fireEvent.click(screen.getByRole("button", { name: "Pick another time" }));
+    expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toHaveValue("sms");
+    expect(props.onAdd).not.toHaveBeenCalled();
+  });
+
+  it("updates the guide total to include extras and changed services", async () => {
+    renderModal({ initialEntries: [{ ...resumeEntry, addons: ["Flea Bath"] }] });
+    const summary = await screen.findByRole("region", { name: "Ready to book" });
+    expect(within(summary).getByText("Guide total: £52+")).toBeInTheDocument();
+    expect(within(summary).getByText("Flea Bath")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Service for Luna" }), {
+      target: { value: "puppy-groom" },
+    });
+    expect(within(summary).getByText("Guide total: £48")).toBeInTheDocument();
+    expect(within(summary).getByText(/Puppy Groom/)).toBeInTheDocument();
   });
 });
 
@@ -377,7 +485,7 @@ describe("NewBookingModal — a dog with no recorded size (#683)", () => {
 
   it("says the size is not set instead of showing a size the record lacks", async () => {
     renderModal({ initialEntries: [unsizedEntry] });
-    expect(await screen.findByText("Pip")).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Service for Pip" })).toBeInTheDocument();
     expect(screen.getByText(/size not set/i)).toBeInTheDocument();
     // "Small" exists only as an option to choose — the dog is not labelled it.
     // (The old behaviour rendered a "small" badge for this dog.)
@@ -396,7 +504,7 @@ describe("NewBookingModal — a dog with no recorded size (#683)", () => {
   it("refuses to save until a size is chosen, naming the dog", async () => {
     const onAdd = vi.fn().mockResolvedValue({ ok: true });
     renderModal({ initialEntries: [unsizedEntry], onAdd });
-    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /book & send confirmation/i }));
     expect(await screen.findByText(/set pip's size/i)).toBeInTheDocument();
     // Critically: no booking was written with a guessed size.
     expect(onAdd).not.toHaveBeenCalled();
@@ -418,7 +526,7 @@ describe("NewBookingModal — a dog with no recorded size (#683)", () => {
 describe("NewBookingModal — explicit booking decisions (#1003)", () => {
   it("explains that a time is needed beside the disabled confirmation", () => {
     renderModal({ initialEntries: [resumeEntry], initialSlot: "" });
-    const confirm = screen.getByRole("button", { name: "Confirm Booking" });
+    const confirm = screen.getByRole("button", { name: "Book & send confirmation" });
     expect(confirm).toBeDisabled();
     expect(confirm).toHaveAccessibleDescription("Choose a time to continue");
   });

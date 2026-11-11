@@ -12,16 +12,19 @@ export function BookingActions({
   dogEntries,
   selectedDateStr,
   selectedSlot,
+  confirmationChannel = "auto",
+  isSaving = false,
+  preferenceUnavailable = false,
   error,
   onConfirm,
   onClose,
 }) {
   const hintId = useId();
-  const hint = !hasDogs ? "Choose a dog to continue" : !selectedDateStr ? "Choose a date to continue" : !selectedSlot ? "Choose a time to continue" : null;
+  const hint = !hasDogs ? "Choose a dog to continue" : !selectedDateStr ? "Choose a date to continue" : !selectedSlot ? "Choose a time to continue" : preferenceUnavailable ? "Choose an available confirmation service to continue" : null;
   const ready = hasDogs && selectedDateStr && selectedSlot;
-  const label = dogEntries.length > 1
-    ? `Confirm ${dogEntries.length} Bookings`
-    : "Confirm Booking";
+  const label = confirmationChannel === "none"
+    ? (dogEntries.length > 1 ? `Create ${dogEntries.length} bookings` : "Create booking")
+    : "Book & send confirmation";
 
   return (
     <div className="shrink-0 px-6 pt-3 pb-5 border-t border-brand-paper-line bg-[var(--color-brand-paper)] max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
@@ -37,11 +40,12 @@ export function BookingActions({
       <div className="flex gap-2.5">
         <button
           onClick={onConfirm}
-          disabled={!ready}
+          disabled={!ready || isSaving || preferenceUnavailable}
+          aria-busy={isSaving}
           aria-describedby={hint ? hintId : undefined}
-          className="flex-1 py-[13px] rounded-tile border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
+          className="flex-1 min-w-0 px-3 py-[13px] rounded-tile border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-teal"
         >
-          {label}
+          {isSaving ? "Creating booking…" : label}
         </button>
         <button onClick={onClose} className="py-[13px] px-5 rounded-tile border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit transition-colors active:scale-[0.98] motion-safe:transition-transform hover:border-slate-300 hover:text-slate-700">Cancel</button>
       </div>

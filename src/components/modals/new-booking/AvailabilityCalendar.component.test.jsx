@@ -23,6 +23,10 @@ function renderCal(overrides = {}) {
 }
 
 describe("AvailabilityCalendar — a11y", () => {
+  it("opens on the selected appointment's month when staff change its date", () => {
+    renderCal({ selectedDateStr: "2099-07-14", dayOpenState: { "2099-07-14": true } });
+    expect(screen.getByRole("button", { name: "14 July 2099, selected" })).toBeInTheDocument();
+  });
   it("labels the previous/next month controls", () => {
     renderCal();
     expect(screen.getByRole("button", { name: /previous month/i })).toBeInTheDocument();
