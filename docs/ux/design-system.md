@@ -35,7 +35,7 @@ extra illustration or branded loading effects in this consistency slice.
 - Use `Field` with `Input`, `Textarea` or `Select`: these exist. Field connects
   label/hint/error. `PageHeaderSearch` composes Input and IconButton, retains its
   accessible name and input ref, and returns focus to search after clearing.
-- Dogs/Humans put view/key/Add controls in the first phone row and search in a
+- Dogs/Customers put view/key/Add controls in the first phone row and search in a
   full-width second row. Count remains available to assistive technology and
   appears visually at wide widths. Directory footer counts remain unchanged.
 - Use the shared charcoal focus recipe, with white focus on dark surfaces.

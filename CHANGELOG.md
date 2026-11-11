@@ -5,6 +5,7 @@
 - Record the [11 November second-pass audit](docs/research/2026-11-11-ux-ui-audit-second-pass.md): live website and sign-in evidence, new findings and an adversarial check, building on the 10 November audit.
 - Tell website visitors that booking starts with an account and a sign-up check, name the real services in link previews and widen the phone menu button.
 - Point locked-out customers to WhatsApp instead of a phone call, and set honest expectations around the sign-up wait.
+- Call the paying person "Customer" across the staff app (was Humans, client, human and owner), keeping "Trusted humans" for collectors, and list the four bookable services in the Terms.
 - Make staff error text readable, describe held AI drafts in plain words and correct the unknown-status warning's grammar.
 - Appointment operations, auth behaviour, the engine, message senders and operational colour tokens are unchanged.
 

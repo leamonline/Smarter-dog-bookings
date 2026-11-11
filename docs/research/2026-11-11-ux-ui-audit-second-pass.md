@@ -38,13 +38,13 @@ item and this adds evidence or changes the recommendation.
 | Rank | ID | Friction | Severity | Status | On this branch |
 |---|---|---|---|---|---|
 | 1 | N-01 | The website never says booking needs an account, or that new accounts are checked first | Medium | New | Fixed (copy) |
-| 2 | N-02 | One customer, four names in the staff app (Human, client, customer, owner) | Medium | New | Needs a decision |
+| 2 | N-02 | One customer, four names in the staff app (Human, client, customer, owner) | Medium | New | Fixed (decided 11 Nov) |
 | 3 | N-03 | Sign-in failure says "give the salon a ring"; there is no phone line | Low | New | Fixed (copy) |
 | 4 | N-04 | Staff error messages are pale coral on pale coral, about 2.9:1 | Medium | New | Fixed (visual) |
 | 5 | N-05 | AI draft cards show machine labels to salon staff | Medium | New | Fixed (copy) |
 | 6 | N-06 | On a phone, more than half of the first Today screen is header before the first dog | Medium | New | Awaiting a yes |
 | 7 | N-07 | Three places change a status, with different safeguards | Low | New | Needs a decision |
-| 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Needs a decision |
+| 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Fixed (wording approved 11 Nov) |
 | 9 | N-09 | The approval wait does not say you can close the page, and the step before it says "you're all done" | Low | Sharpened (P-01) | Fixed (copy) |
 | 10 | N-34 | Every no-show raises a red "needs its status fixed" alert on Today | Medium | New | Needs a decision |
 
@@ -137,7 +137,7 @@ Effort: S is under an hour, M is half a day, L is more.
   greet an unknown number with "New here? … Join the Pack", so the account is explained at
   the point of need. What nobody is told before committing is the approval wait.
 
-### N-02 One customer, four names (Medium, new, needs a decision)
+### N-02 One customer, four names (Medium, new, fixed after a decision)
 
 - **What happens.** The Humans page header reads "Humans" in the menu, "7 humans
   registered" in the count, "Add client" on the button and "Search clients…" in the search
@@ -150,7 +150,13 @@ Effort: S is under an hour, M is half a day, L is more.
   It also makes search feel unreliable: do I look for a client or a human?
 - **Fix.** Pick one word for the person who pays (I would use **Customer**, see section 8)
   and keep "Trusted humans" for the people allowed to collect. M, mostly find-and-replace,
-  but the menu label and page heading are pinned by end-to-end tests, so it needs your yes.
+  but the menu label and page heading are pinned by end-to-end tests, so it needed a yes.
+- **Decision, 11 November.** The owner chose "Customer" for the paying person and kept
+  "Trusted humans" for collectors. Done on this branch: menu, page title, directory,
+  toolbar, add-customer wizard, profile, and the "Owner" field labels on Today, booking
+  details, the dog profile and the booking drawer. Not changed: the `/humans` address and
+  code names (routing is off-limits), and sentences about a dog's owner such as "search by
+  name, breed or owner", where "owner" is plain English for the relationship.
 
 ### N-03 "Give the salon a ring" (Low, new, fixed)
 
@@ -218,14 +224,14 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Fix.** Ask the same care-step question in the detail window. S to M; it changes
   behaviour, so it is a decision, not a branch fix.
 
-### N-08 Terms says "full grooms only" (Medium, new, needs a decision)
+### N-08 Terms says "full grooms only" (Medium, new, fixed after approval)
 
 - **Evidence.** `website/src/components/pages/TermsPage.jsx:40`: "We offer full grooms
   only. The only pre-bookable add-on is a flea bath." The website and the portal sell Full
   Groom, Bath & Brush, Bath & De-shed and Puppy Groom, with three add-ons.
 - **Why it matters.** It is the page a customer is asked to agree to at sign-up.
-- **Fix.** Proposed wording in section 7. It is a legal page, so the words are yours to
-  approve; I have not changed it.
+- **Fix.** Proposed wording in section 7. It is a legal page, so the words were yours to
+  approve. Approved on 11 November and changed on this branch.
 
 ### N-09 The wait, and the step before it (Low, sharpened, fixed)
 
@@ -366,7 +372,7 @@ business in a quieter room. It does not read as a different business.
 | Website booking band | (hours only) | adds "New here? You'll set up a free account first, and we check new sign-ups on salon days (Monday to Wednesday) before your first booking." | Fixed |
 | Website FAQ | (no question) | "How do I book?" with the same facts | Fixed |
 | Link preview | "Full groom, bath & tidy, and specialty services." | "Full Groom, Bath & Brush, Bath & De-shed and Puppy Groom." | Fixed |
-| Terms | "We offer full grooms only. The only pre-bookable add-on is a flea bath." | "You can book a Full Groom, Bath & Brush, Bath & De-shed or Puppy Groom. Flea bath, sensitive shampoo and anal glands can be added when you book." | Needs a decision |
+| Terms | "We offer full grooms only. The only pre-bookable add-on is a flea bath." | "You can book a Full Groom, Bath & Brush, Bath & De-shed or Puppy Groom. Flea bath, sensitive shampoo and anal glands can be added when you book." | Fixed (approved) |
 | Booking receipt | "We'll text a reminder the day before." | "We'll message you a reminder the day before." | Needs a decision (test-pinned) |
 | Capacity prompt | "Override the capacity rule and book anyway?" | "That time is already full. Book Dog A in anyway?" | Needs a decision |
 | Settings, portal | "…when the server says the visit is eligible" | "…when the appointment is far enough ahead" | Listed |
@@ -435,7 +441,7 @@ Then the settled decisions.
 ## 11. Fix plan
 
 **Done on this branch** (one commit each, named by ID): N-01, N-03, N-04, N-05, N-09,
-N-11, N-12, N-21.
+N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08.
 
 **Awaiting a yes** (small flow or default changes; not coded):
 
@@ -456,8 +462,8 @@ N-11, N-12, N-21.
   question?". *Why:* the button should answer the sentence above it. *Risk:* one fewer
   prominent Book button on that page; the sticky bar still carries it.
 
-**Needs a decision** (off-limits here, or yours to choose): N-02 and N-24 naming; N-07 one
-status path; N-08 Terms wording; N-10 double security check; N-15 homepage prices; N-16
+**Needs a decision** (off-limits here, or yours to choose): N-24 naming of Today and Bookings; N-07 one
+status path; N-10 double security check; N-15 homepage prices; N-16
 bank-holiday pop-up; N-18 and N-28 test-pinned labels; N-23 one time format; N-34 no-show false alarm (one line in the engine); N-29 to N-33
 message wording, gaps and the salon's name. From the first audit, still open and still the
 bigger items: ST-01 recurring series results, P-01 sign-up order, P-02 reschedule
@@ -468,7 +474,9 @@ deadline, WEB-02 cookie notice over the Book bar, MSG-01 raw service names in me
 under their ceilings), `npm run test` (479 files, 5,344 tests), `npm run build`,
 `website:lint`, `website:test` (237 tests) and `website:build` all passed. Each visual fix
 was re-checked on sample data at 390 and 1440px; the before and after screenshots are in
-the session scratchpad, not the repository. Playwright end-to-end specs were not run.
+the session scratchpad, not the repository. After the N-02 rename the same checks were
+re-run, plus the four Playwright specs that pinned the old labels (34 tests, desktop
+Chromium, sample data); the rest of the Playwright suite was not run.
 N-03 (the sign-in error) and N-04 (error text) cannot be triggered on sample data, so
 those two were checked by reading the change and by the test suite, not by eye.
 
