@@ -5,6 +5,7 @@ import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
+import { SALON_WHATSAPP_URL } from "../../constants/salonContact";
 import { turnstileConfig, CAPTCHA_PENDING_ERROR, getTurnstileErrorMessage } from "../../lib/turnstile";
 
 const OTP_RESEND_SECONDS = 60;
@@ -363,8 +364,16 @@ export function CustomerLoginPage({
           </p>
           <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
             The security check can&apos;t load, so we can&apos;t sign you in
-            just yet. Please try again shortly — or give the salon a ring and
-            we&apos;ll sort you out.
+            just yet. Please try again shortly, or{" "}
+            <a
+              href={SALON_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[var(--color-ink)] underline"
+            >
+              message us on WhatsApp
+            </a>{" "}
+            and we&apos;ll sort you out.
           </p>
         </div>
       ) : (
