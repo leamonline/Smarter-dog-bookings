@@ -10,10 +10,12 @@ import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
 import { CapacityOverrideDialog } from "../booking/CapacityOverrideDialog.jsx";
 import { BookingActions } from "./new-booking/BookingActions.jsx";
 import { NotifyRecipientsDialog } from "./new-booking/NotifyRecipientsDialog.jsx";
-import { ConfirmationMethodDialog } from "./new-booking/ConfirmationMethodDialog.jsx";
-import { useToast } from "../../contexts/ToastContext.jsx";
+import { BookingConfirmationSection } from "./new-booking/BookingConfirmationSection.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
+import { useConfirmationContact } from "../../supabase/hooks/useBookingConfirmation";
+import { confirmationChoiceAvailable, preferredServiceAvailable } from "../../engine/bookingConfirmation";
+import { BookingReceipt } from "./new-booking/BookingReceipt.jsx";
 
 // A dog whose record carries no size must have one CHOSEN, never assumed.
 // bookings.size drives both the capacity engine and validate_booking_capacity,
@@ -56,6 +58,7 @@ export function NewBookingModal({
   // restored when the wizard re-opens after staff stepped out to add a
   // dog/human mid-booking. Carries full dog objects, so no map lookup is needed.
   initialEntries,
+  initialConfirmationChannel,
   initialService,
   initialAddons,
   // When true, saveBooking skips the over-capacity ConfirmDialog and
@@ -69,8 +72,8 @@ export function NewBookingModal({
   isSearchingDogs,
   draftPick,
   onDraftTargetChange,
+  configPricing,
 }) {
-  const toast = useToast();
 
   const [dogQuery, setDogQuery] = useState(() => {
     if (initialHumanId) {
@@ -88,6 +91,9 @@ export function NewBookingModal({
   const [selectedDateStr, setSelectedDateStr] = useState(initialDateStr || "");
   const [selectedSlot, setSelectedSlot] = useState(initialSlot || "");
   const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [receipt, setReceipt] = useState(null);
+  const savingRef = useRef(false);
   const [recurringWeeks, setRecurringWeeks] = useState(0);
   // Past-date booking confirmation. Set when handleConfirm runs against a
   // date earlier than today; the actual save happens inside the confirm
@@ -105,13 +111,13 @@ export function NewBookingModal({
   const [ownerTrusted, setOwnerTrusted] = useState([]);
   const notifyHumanIdsRef = useRef(null);
 
-  // Confirmation-method picker. Shown after "Confirm booking" on every save so
-  // staff decide whether to message the customer and how. The chosen channel
-  // ('auto' | 'whatsapp' | 'sms' | 'email' | 'none') rides into each booking via
-  // confirmationChannelRef (synchronous, like notifyHumanIdsRef); null means
-  // "not asked yet" so the capacity-override re-entry doesn't re-prompt.
-  const [pendingConfirmMethod, setPendingConfirmMethod] = useState(false);
-  const confirmationChannelRef = useRef(null);
+  // The visible inline choice is carried through every save/override path.
+  // Delivery eligibility remains server-owned and is checked when sending.
+  const [confirmationChannel, setConfirmationChannel] = useState(
+    ["auto", "whatsapp", "sms", "email", "none"].includes(initialConfirmationChannel)
+      ? initialConfirmationChannel
+      : "auto",
+  );
 
   // When the modal opens from a WhatsApp message the humans map may not
   // have hydrated yet, so dogQuery falls back to the conversation's
@@ -250,6 +256,21 @@ export function NewBookingModal({
   // load the owner's full dog list for the "add another dog" picker, which
   // can't rely on the paginated `dogs` map containing siblings.
   const selectedHumanId = dogEntries[0]?.dog?._humanId || null;
+  const selectedOwner = Object.values(humans || {}).find((human) => human?.id === selectedHumanId);
+  const contactState = useConfirmationContact(selectedHumanId, selectedOwner ? {
+    preferredService: selectedOwner.preferredChannel || null,
+    phone: selectedOwner.phone || null, whatsapp: selectedOwner.whatsapp === true,
+    email: selectedOwner.email || null, whatsappOptedOut: selectedOwner.whatsappOptedOut === true,
+    smsOptedOut: selectedOwner.smsOptedOut === true, emailOptedOut: selectedOwner.emailOptedOut === true,
+  } : null);
+  const explicitChannel = confirmationChannel === "whatsapp" || confirmationChannel === "sms" || confirmationChannel === "email";
+  const preferenceUnavailable = confirmationChannel === "auto" && (contactState.loading || contactState.error || !preferredServiceAvailable(contactState.contact));
+  // Block a forced channel once this owner's record shows it cannot be used,
+  // and while that record is still loading so staff do not save blind.
+  const explicitUnavailable = explicitChannel && (
+    contactState.loading || (contactState.contact && !confirmationChoiceAvailable(contactState.contact, confirmationChannel))
+  );
+  const confirmationBlocked = preferenceUnavailable || explicitUnavailable;
   const primaryTheme = hasDogs ? (SIZE_THEME[entrySize(dogEntries[0])] || SIZE_FALLBACK) : SIZE_FALLBACK;
   // Availability preview only counts dogs whose size is actually known. A dog
   // awaiting a size choice is briefly absent from the preview rather than
@@ -264,7 +285,6 @@ export function NewBookingModal({
   // humans map often doesn't carry them yet. Also clears any prior choice.
   useEffect(() => {
     notifyHumanIdsRef.current = null;
-    confirmationChannelRef.current = null;
     let cancelled = false;
     if (!selectedHumanId) {
       setOwnerTrusted([]);
@@ -290,6 +310,7 @@ export function NewBookingModal({
   // ─── handlers ───────────────────────────────────────────────────────────
 
   const handleSelectEntry = (entry) => {
+    setConfirmationChannel("auto");
     setDogEntries([{ dog: entry.dog, humanKey: entry.humanKey, service: "full-groom", addons: [] }]);
     setSelectedHumanKey(entry.humanKey);
     setDogQuery(entry.dog.name);
@@ -323,9 +344,13 @@ export function NewBookingModal({
       owner: owner
         ? { id: owner.id, label: owner.fullName || selectedHumanKey, phone: owner.phone || "" }
         : null,
+      confirmationChannel,
     };
   };
-  const handleOpenAddDog = () => onOpenAddDog?.(captureDraft());
+  const handleOpenAddDog = () => {
+    if (savingRef.current) return;
+    onOpenAddDog?.(captureDraft());
+  };
 
   const handleAddAnotherDog = (dog) => {
     setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom", addons: [] }]);
@@ -334,6 +359,7 @@ export function NewBookingModal({
   };
 
   const handleRemoveDog = (dogId) => {
+    if (savingRef.current) return;
     setDogEntries(prev => {
       const next = prev.filter(e => e.dog.id !== dogId);
       if (next.length === 0) {
@@ -373,6 +399,8 @@ export function NewBookingModal({
   };
 
   const handleClearAll = () => {
+    if (savingRef.current) return;
+    setConfirmationChannel("auto");
     setDogEntries([]);
     setSelectedHumanKey("");
     setDogQuery("");
@@ -391,7 +419,13 @@ export function NewBookingModal({
     setSelectedSlot(slot);
   };
 
+  const requestClose = () => {
+    if (savingRef.current) return;
+    onClose();
+  };
+
   const handleConfirm = () => {
+    if (confirmationBlocked || receipt || savingRef.current) return;
     // Collect every missing field in one pass so staff don't have to re-submit
     // three times to find out what's still empty. Closed-day + duplicate-dog
     // checks remain separate because they only make sense once the basics
@@ -465,30 +499,15 @@ export function NewBookingModal({
     runSaveFlow();
   };
 
-  // Confirmation-method picker (always), then past-date guard, then save. Split
-  // out so the recipient picker can run first and then resume the normal save
-  // path. The confirmation picker is gated on the ref (not state) so the
-  // capacity-override re-entry — which re-runs the save without re-asking —
-  // doesn't pop the dialog a second time.
+  // Recipient choice resumes here; historical and capacity decisions stay
+  // explicit, while the message method is already visible in the drawer.
   const runSaveFlow = () => {
-    if (confirmationChannelRef.current === null) {
-      setPendingConfirmMethod(true);
-      return;
-    }
     const todayStr = toDateStr(new Date());
     if (selectedDateStr < todayStr) {
       setPendingPastConfirm(true);
       return;
     }
     saveBooking();
-  };
-
-  // Resolve the confirmation-method picker: store the chosen channel, then
-  // resume the save flow.
-  const confirmConfirmationMethod = (channel) => {
-    confirmationChannelRef.current = channel;
-    setPendingConfirmMethod(false);
-    runSaveFlow();
   };
 
   // Resolve the recipient picker: store the chosen ids (owner-only collapses to
@@ -574,9 +593,8 @@ export function NewBookingModal({
             ...(notifyHumanIdsRef.current?.length
               ? { notify_human_ids: notifyHumanIdsRef.current }
               : {}),
-            ...(confirmationChannelRef.current
-              ? { confirmation_channel: confirmationChannelRef.current }
-              : {}),
+            confirmation_channel: confirmationChannel === "auto"
+              ? contactState.contact?.preferredService || "auto" : confirmationChannel,
           });
         });
       } else if (i === 0) {
@@ -589,31 +607,51 @@ export function NewBookingModal({
   };
 
   // Persist the built bookings, then report honestly. onAdd now awaits the real
-  // DB insert and resolves { ok, error }: we only toast "Booking created" and
-  // close once the database has accepted it. A late rejection — e.g. a
+  // DB insert and resolves { ok, error, bookings }: show a receipt only once
+  // the database has accepted it. A late rejection — e.g. a
   // capacity/duplicate race after the client preflight — surfaces in-modal so
   // staff can pick another slot, instead of a green toast that lied while the
   // optimistic row was quietly rolled back off the calendar.
   const commitBookings = async (bookings) => {
-    const res = await onAdd(bookings, selectedDateStr);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setIsSaving(true);
+    // Snapshot the submitted draft before the await. Start over and dog
+    // removal clear the live ref while the insert is still running; the
+    // receipt must describe the recipients and booking that were saved.
+    const owner = selectedHumanId
+      ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
+      : null;
+    const submitted = {
+      humanIds: notifyHumanIdsRef.current?.length
+        ? [...notifyHumanIdsRef.current]
+        : selectedHumanId ? [selectedHumanId] : [],
+      suppressed: confirmationChannel === "none",
+      summary: `${dogEntries.map((entry) => titleCase(entry.dog.name)).join(", ")} · ${selectedDateDisplay} · ${selectedSlotLabel}`,
+      ownerId: selectedHumanId,
+      ownerName: owner?.name || owner?.fullName?.split(" ")[0] || "this customer",
+    };
+    let res;
+    try {
+      res = await onAdd(bookings, selectedDateStr);
+    } catch {
+      // An unknown save outcome must not be represented as success.
+      res = { ok: false };
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
     if (res?.ok) {
-      // Offer a one-tap path to a second booking for the same owner so the next
-      // date (e.g. another dog another day) doesn't start from a cold search.
-      // The wizard still closes here; the offer rides on the toast action.
-      const owner = selectedHumanId
-        ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
-        : null;
-      const ownerFirstName =
-        owner?.name || owner?.fullName?.split(" ")[0] || "this customer";
-      if (onBookAnother && selectedHumanId) {
-        toast.show("Booking saved — nice one", "success", {
-          label: `Book another for ${ownerFirstName}`,
-          onClick: () => onBookAnother(selectedHumanId),
-        });
-      } else {
-        toast.show("Booking saved — nice one", "success");
-      }
-      onClose();
+      const saved = res.bookings || [];
+      setReceipt({
+        bookingIds: saved.map((booking) => booking.id).filter(Boolean),
+        humanIds: submitted.humanIds,
+        suppressed: submitted.suppressed,
+        awaitingDeposit: saved.length > 0 && saved.every((booking) => booking.depositRequired && !booking.depositReceivedAt && !["Deposit Paid", "Paid in Full"].includes(booking.payment)),
+        summary: submitted.summary,
+        count: saved.length || bookings.length,
+        ownerId: submitted.ownerId, ownerName: submitted.ownerName,
+      });
     } else {
       setError(res?.error || "Couldn't confirm the booking. Your choices are still here. Check the calendar before trying again, in case it went through.");
     }
@@ -700,11 +738,12 @@ export function NewBookingModal({
 
   return (
     <DrawerShell
-      onClose={onClose}
+      onClose={requestClose}
       titleId="new-booking-title"
       modal={false}
       zIndex={900}
       widthClass="sm:max-w-[500px]"
+      dismissOnEscape={!isSaving}
     >
         {/* Header \u2014 paper, matching /today. The size cue now lives on each
             selected dog's row (Task 6), not the shell. */}
@@ -722,12 +761,15 @@ export function NewBookingModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
+            disabled={isSaving}
             aria-label="Close new booking"
             className="tap-target bg-transparent hover:bg-slate-100 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink/40"
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
+        {receipt ? <BookingReceipt receipt={receipt} onClose={onClose} onBookAnother={onBookAnother} /> : <>
+        <div className="overflow-y-auto flex-1 min-h-0 overscroll-contain">
         {/* ─── WhatsApp context banner ─── */}
         {sourceMessageText && (
           <div className="mx-6 mt-4 rounded-tile border border-l-4 border-brand-paper-line border-l-brand-teal bg-white px-3.5 py-2.5 text-body text-slate-700">
@@ -757,6 +799,7 @@ export function NewBookingModal({
           onAddonsChange={handleAddonsChange}
           onClearAll={handleClearAll}
           onOpenAddDog={handleOpenAddDog}
+          draftLocked={isSaving}
           onOpenNewClient={onOpenNewClient}
           onSearchDogs={onSearchDogs}
           isSearchingDogs={isSearchingDogs}
@@ -772,23 +815,42 @@ export function NewBookingModal({
           selectedDateStr={selectedDateStr}
           selectedDateDisplay={selectedDateDisplay}
           selectedSlot={selectedSlot}
+          selectedSlotLabel={selectedSlotLabel}
           selectedDogs={selectedDogs}
           recurringWeeks={recurringWeeks}
           setRecurringWeeks={setRecurringWeeks}
           primaryTheme={primaryTheme}
           onSelectDate={handleSelectDate}
           onSelectSlot={handleSelectSlot}
-        />
+        >
+          {hasDogs && selectedDateStr && selectedSlot && (
+            <BookingConfirmationSection
+              dogEntries={dogEntries}
+              selectedDateDisplay={selectedDateDisplay}
+              selectedSlotLabel={selectedSlotLabel}
+              recurringWeeks={recurringWeeks}
+              confirmationChannel={confirmationChannel}
+              isSaving={isSaving}
+              onChannelChange={setConfirmationChannel}
+              contactState={contactState}
+              configPricing={configPricing}
+            />
+          )}
+        </BookingFormFields>
+        </div>
 
-        {/* ─── Pinned footer: error + Confirm / Cancel ─── */}
+        {/* ─── Pinned footer: error + booking action / Cancel ─── */}
         <BookingActions
           hasDogs={hasDogs}
           dogEntries={dogEntries}
           selectedDateStr={selectedDateStr}
           selectedSlot={selectedSlot}
+          confirmationChannel={confirmationChannel}
+          isSaving={isSaving}
+          preferenceUnavailable={confirmationBlocked}
           error={error}
           onConfirm={handleConfirm}
-          onClose={onClose}
+          onClose={requestClose}
         />
 
         {pendingPastConfirm && (
@@ -819,13 +881,7 @@ export function NewBookingModal({
             onCancel={() => setPendingNotifyPicker(null)}
           />
         )}
-
-        {pendingConfirmMethod && (
-          <ConfirmationMethodDialog
-            onConfirm={confirmConfirmationMethod}
-            onCancel={() => setPendingConfirmMethod(false)}
-          />
-        )}
+        </>}
     </DrawerShell>
   );
 }

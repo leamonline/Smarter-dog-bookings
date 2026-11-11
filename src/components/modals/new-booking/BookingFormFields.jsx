@@ -1,6 +1,8 @@
 import { AvailabilityCalendar } from "./AvailabilityCalendar.jsx";
 import { TimeSlotPicker } from "./TimeSlotPicker.jsx";
 import { isDateOpen } from "./helpers.js";
+import { useState } from "react";
+import { Button } from "../../ui";
 
 export function BookingFormFields({
   hasDogs,
@@ -10,19 +12,36 @@ export function BookingFormFields({
   selectedDateStr,
   selectedDateDisplay,
   selectedSlot,
+  selectedSlotLabel,
   selectedDogs,
   recurringWeeks,
   setRecurringWeeks,
   primaryTheme,
   onSelectDate,
   onSelectSlot,
+  children,
 }) {
   const selectedDayOpen = isDateOpen(selectedDateStr, dayOpenState);
+  const [editingDateTime, setEditingDateTime] = useState(false);
+  const compact = selectedDateStr && selectedSlot && selectedDayOpen && !editingDateTime;
   return (
-    <div className="px-6 py-4 pb-5 flex flex-col gap-4 overflow-y-auto flex-1 overscroll-contain">
+    <div className="px-6 py-4 pb-5 flex flex-col gap-4">
+
+      {hasDogs && compact && (
+        <section aria-label="Selected appointment time" className="rounded-card border border-brand-paper-line bg-white p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-brand-ink">
+            {selectedDateDisplay} · {selectedSlotLabel || selectedSlot}
+          </div>
+          <Button variant="ghost" type="button" onClick={() => setEditingDateTime(true)}>Change date or time</Button>
+        </section>
+      )}
+
+      {hasDogs && editingDateTime && selectedSlot && selectedDayOpen && (
+        <Button variant="ghost" type="button" onClick={() => setEditingDateTime(false)}>Keep selected date and time</Button>
+      )}
 
       {/* ─── STEP 2: Date Selection ─── */}
-      {hasDogs && (
+      {hasDogs && !compact && (
         <div className="rounded-card border border-brand-paper-line bg-white p-3">
           <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
           <AvailabilityCalendar
@@ -37,7 +56,7 @@ export function BookingFormFields({
       )}
 
       {/* ─── STEP 3: Time Slot Selection ─── */}
-      {selectedDateStr && hasDogs && (
+      {selectedDateStr && hasDogs && !compact && (
         <div className="rounded-card border border-brand-paper-line bg-white p-3">
           <label className="text-caption font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
@@ -48,7 +67,7 @@ export function BookingFormFields({
               bookingsByDate={bookingsByDate}
               daySettings={daySettings}
               selectedDogs={selectedDogs}
-              onSelectSlot={onSelectSlot}
+              onSelectSlot={(slot) => { onSelectSlot(slot); setEditingDateTime(false); }}
               selectedSlot={selectedSlot}
               sizeTheme={primaryTheme}
             />
@@ -82,6 +101,7 @@ export function BookingFormFields({
           )}
         </div>
       )}
+      {children}
     </div>
   );
 }

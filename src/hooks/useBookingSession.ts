@@ -157,6 +157,7 @@ export function useBookingSession({
         dateStr: draft.dateStr || currentDateStr,
         slot: draft.slot || "",
         initialEntries: hasEntries ? entries : undefined,
+        initialConfirmationChannel: draft.confirmationChannel,
         initialHumanId:
           (newDog && (newDog._humanId || draft.owner?.id)) ||
           draft.owner?.id ||
