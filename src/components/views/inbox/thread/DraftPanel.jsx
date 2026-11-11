@@ -13,7 +13,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { confidenceLabel, formatShortDate } from "../helpers.js";
+import { confidenceLabel, formatShortDate, intentLabel } from "../helpers.js";
 import { RiskPill } from "../RiskPill.jsx";
 import { WhyHeldExplainer } from "./WhyHeldExplainer.jsx";
 import { Button } from "../../../ui";
@@ -76,11 +76,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-3">
       <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold uppercase tracking-wide text-feedback-warning-ink">
+          <span
+            className="text-xs font-bold uppercase tracking-wide text-feedback-warning-ink"
+            title={draft.model ? `Drafted by ${draft.model}` : undefined}
+          >
             AI Draft
           </span>
           <span className="text-xs text-feedback-warning-ink">
-            {draft.intent} · {confidenceLabel(draft.confidence)} confidence
+            {intentLabel(draft.intent)} · {confidenceLabel(draft.confidence)} confidence
           </span>
           <RiskPill risk={draft.risk_level} />
           {draft.handoff_required && (
@@ -100,7 +103,6 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             </span>
           )}
         </div>
-        <span className="text-xs text-slate-500">{draft.model}</span>
       </div>
 
       {editing ? (

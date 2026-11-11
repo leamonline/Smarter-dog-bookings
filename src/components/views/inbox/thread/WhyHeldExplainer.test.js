@@ -62,8 +62,11 @@ describe("whyHeld", () => {
       aiAutoConversation,
     );
     expect(r.tone).toBe("info");
-    expect(r.text).toMatch(/booking_propose/);
-    expect(r.text).toMatch(/allowlist/);
+    // Staff-facing words, not the assistant's ids (audit N-05): the intent is
+    // still named, in plain words, and the sentence says it waits for a person.
+    expect(r.text).toMatch(/booking propose/);
+    expect(r.text).not.toMatch(/booking_propose|allowlist/);
+    expect(r.text).toMatch(/always waits for you/);
   });
 
   it("explains 'global setting off' when nothing draft-side blocks it", () => {
