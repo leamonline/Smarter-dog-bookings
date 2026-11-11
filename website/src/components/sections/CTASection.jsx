@@ -60,10 +60,16 @@ const CTASection = ({ onBookClick }) => {
                             Book your visit
                         </h3>
                         <p
-                            className="body-font text-lg mb-8"
+                            className="body-font text-lg mb-3"
                             style={{ color: colors.plum }}
                         >
                             {openHoursSentence(facts.businessHours)}
+                        </p>
+                        <p
+                            className="body-font text-base mb-6"
+                            style={{ color: colors.plum }}
+                        >
+                            New here? You&apos;ll set up an account first, and we check new sign-ups on salon days (Monday to Wednesday) before your first booking.
                         </p>
                         <div className="flex flex-wrap justify-center gap-4 mb-10">
                             <button

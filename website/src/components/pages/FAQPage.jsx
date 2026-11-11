@@ -21,6 +21,10 @@ const FAQPage = ({ onBookClick }) => {
 
     const faqs = [
         {
+            question: "How do I book?",
+            answer: "Tap Book online and sign in with your mobile number. If you're new, you'll set up an account with a few details about you and your dog. We check new sign-ups on salon days (Monday to Wednesday) and message you as soon as you're ready to book. Prefer to ask first? Message us on WhatsApp."
+        },
+        {
             question: "My dog is nervous or reactive — can you still groom them?",
             answer: "Absolutely. We've worked with anxious, reactive, and fearful dogs for over 40 years. We take our time, read their body language, and never force anything. Many nervous dogs who come to us eventually relax and even enjoy their visits."
         },
