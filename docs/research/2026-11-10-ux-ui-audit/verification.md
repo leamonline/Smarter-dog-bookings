@@ -86,3 +86,18 @@ repository, head and target. The earlier automatic approval rejection is
 resolved for PR creation. The optional tracking issue remains uncreated.
 The PR stays draft; no merge or deployment is authorised. Live/full customer
 verification remains blocked as described above.
+
+## PR browser-check correction
+
+The first CI run on `c7ae5dc1` passed build, coverage, release tooling, Edge
+checks, Website and Customer journeys, but production smoke failed one of
+117 desktop tests. Its layout assertion selected Monday 13 July with the
+clock frozen on Tuesday 14 July and still expected “No online slots today”.
+ST-10 correctly renders “No online slots on this day” for that historical date.
+This is a layout/copy assertion, not an approved template or denial-code contract.
+
+The existing assertion now checks the correct historical-date wording. An
+additional browser test verifies past, current and future dates, including the
+accessible availability control name. The production-build interface-consistency
+suite passed all 12 tests across desktop, tablet and mobile Chromium locally.
+No runtime implementation, assertion strength, workflow or release gate changed.
