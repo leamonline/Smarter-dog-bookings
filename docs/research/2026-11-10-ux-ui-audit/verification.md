@@ -101,3 +101,19 @@ additional browser test verifies past, current and future dates, including the
 accessible availability control name. The production-build interface-consistency
 suite passed all 12 tests across desktop, tablet and mobile Chromium locally.
 No runtime implementation, assertion strength, workflow or release gate changed.
+
+## Vercel preview account-configuration follow-up
+
+The GitHub Actions workflows passed on `7766acd7`, but the separate Vercel
+status remained failed. Its deployment was blocked before building, with no
+build events and an account-configuration troubleshooting link. The dedicated
+PR-check diagnostics tool was unavailable; current GitHub/Vercel APIs supplied
+this evidence.
+
+GitHub did not associate that commit's workspace-default author identity with
+a user account. In contrast, the existing main-branch author identity maps to
+`leamonline`, which Vercel confirms is the project team's owner. This follow-up
+uses that established repository identity for the new commit and a normal
+branch-preview retry. Existing commits, Vercel access controls and production
+configuration are unchanged. This is a metadata correction hypothesis until
+the new preview status confirms the outcome.
