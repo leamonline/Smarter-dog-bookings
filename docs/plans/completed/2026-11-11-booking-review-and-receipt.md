@@ -1,5 +1,6 @@
-Status: Active
+Status: Completed
 Issue: #1201
+Pull request: https://github.com/leamonline/Smarter-dog-bookings/pull/1202
 Base: feat/inline-booking-confirmation, cb7e653050852ced09782e5dc742de51764a343e plus current local changes
 Last verified: 2026-11-11
 Owners: booking drawer, confirmation read model and tests
@@ -119,4 +120,5 @@ None blocking. When preference is absent, show [not set] rather than invent one.
   were inspected and retained with the task.
 - No schema, provider, production or deployment operation was performed.
 - Implementation is locally verified. Publication and merge were authorised on
-  11 November 2026; hosted checks and the pull-request reference are pending.
+  11 November 2026. Pull request #1202 carries hosted checks and the merge/release
+  outcome; no manual database or provider operation is needed.
