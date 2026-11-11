@@ -2,15 +2,21 @@
 // clears the live recipient ref while the insert is still running; reading
 // that ref afterwards would hide a trusted person's failed or unknown send.
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
 const captured = vi.hoisted(() => ({ receipts: [] }));
+// The drawer can be booked as soon as the dog and slot are ready. Trusted
+// contacts arrive on a later promise. Releasing that promise from the test
+// keeps the click from skipping the recipient step under a slow coverage run.
+const trustedGate = vi.hoisted(() => {
+  let release = () => {};
+  const pending = new Promise((resolve) => { release = resolve; });
+  return { pending, release, fetch: vi.fn(() => pending) };
+});
 
 vi.mock("../../supabase/hooks/humans/useTrustedContacts", () => ({
-  fetchTrustedContactsForHuman: vi.fn().mockResolvedValue({
-    trustedContacts: [{ id: "trusted-id", fullName: "Sam Trusted", relationship: "partner" }],
-  }),
+  fetchTrustedContactsForHuman: trustedGate.fetch,
 }));
 
 vi.mock("../../supabase/hooks/useBookingConfirmation", async (importOriginal) => {
@@ -58,7 +64,17 @@ describe("booking receipt recipient scope", () => {
         />
       </ToastProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Book & send confirmation" }));
+    const book = await screen.findByRole("button", { name: "Book & send confirmation" });
+    await waitFor(() => expect(book).toBeEnabled());
+    expect(trustedGate.fetch).toHaveBeenCalledWith("emma-id");
+    await act(async () => {
+      trustedGate.release({
+        trustedContacts: [{ id: "trusted-id", fullName: "Sam Trusted", relationship: "partner" }],
+      });
+      await trustedGate.pending;
+    });
+    fireEvent.click(book);
+    expect(onAdd).not.toHaveBeenCalled();
     expect(await screen.findByRole("heading", { name: "Who should we notify?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: /Sam Trusted/i }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm booking" }));
