@@ -1,9 +1,9 @@
 # Customer and staff UX/UI audit
 
-Status: Active
+Status: Blocked (safe presentation slice verified; live/full customer audit unavailable)
 Issue: Not created; automatic approval review rejected issue publication
 Base: `origin/main@aa0929bd`, branch `ux/ui-audit-2026-11`
-Last verified: 2026-11-10
+Last verified: 2026-11-11
 Owners: primary agent for browser/report/edits; five read-only surface reviewers and a separate adversarial checker
 Dependencies: Browser fallback explicitly authorised in chat; live browser access unavailable
 Related requirements: [product requirements](../../product/requirements.md)

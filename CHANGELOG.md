@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — UX/UI audit and safe presentation fixes
+
+- Record the [10 November UX/UI audit](docs/research/2026-11-10-ux-ui-audit.md), sample screenshots, historical rechecks and live-access limits before changing the UI.
+- Align main website booking actions with the existing yellow, clarify homepage walk-ins and use UK cookie spelling.
+- Name customer cancellation fields, make signup/size guidance accurate and raise appointment detail labels to 12px.
+- Explain WhatsApp reply-window and delivery limits, enlarge template controls on touch, and describe the selected staff date accurately.
+- Keep appointment operations, auth, approved message bodies and operational colour tokens unchanged.
+
 ## Unreleased — the Customer Portal switches now do what they say
 
 - Settings → Customer Portal saved "Allow cancellations" and "Allow
