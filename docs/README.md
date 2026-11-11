@@ -72,6 +72,8 @@ architecture convergence tracked by [issue #603](https://github.com/leamonline/S
   [`research/2026-10-12-end-to-end-audit.md`](research/2026-10-12-end-to-end-audit.md)
 - UX/UI audit (10 November 2026; local sample screenshots, ranked friction, historical rechecks and live-access limits):
   [`research/2026-11-10-ux-ui-audit.md`](research/2026-11-10-ux-ui-audit.md)
+- UX/UI audit, second pass (11 November 2026; live website and sign-in evidence, new findings and an adversarial check, building on the 10 November audit):
+  [`research/2026-11-11-ux-ui-audit-second-pass.md`](research/2026-11-11-ux-ui-audit-second-pass.md)
 - Traceability: [`traceability.md`](traceability.md)
 
 ## Existing authoritative domain references
