@@ -60,7 +60,8 @@ export function PendingApprovalGate({ claimsExisting = false, onRefresh, onSignO
               We&apos;ve got your details and one of the team will check everything
               over. We usually look at new sign-ups on salon days, Monday to
               Wednesday, and we&apos;ll message you as soon as you&apos;re approved —
-              then you can book your first appointment.
+              then you can book your first appointment. You can close this page;
+              you don&apos;t need to wait here.
             </p>
           </>
         )}
