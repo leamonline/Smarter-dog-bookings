@@ -291,9 +291,18 @@ for this booking; it does not change anyone's saved preference.
 
 Staff selects **Book & send confirmation**, or **Create booking** when messaging
 is suppressed. There is no second method dialog. Trusted-recipient selection,
-historical-date confirmation and capacity overrides remain explicit. Saving
-disables the action and method selector; a rejected or uncertain save retains the
-draft with an inline error.
+historical-date confirmation and capacity overrides remain explicit. An explicit
+WhatsApp, SMS or email choice is blocked while this owner's contact record is
+loading, and when that record shows the channel cannot be used. Saving disables
+the action, Cancel, close, Escape and the method selector, and ignores draft
+changes such as Start over or removing a dog, so the receipt can appear for the
+booking that was submitted. A rejected or uncertain save retains the draft with
+an inline error. Stepping out to add a dog parks the confirmation choice with
+the date, time and selected dogs, and restores it when the drawer reopens.
+
+The review guide price is the salon's configured price (`salonConfig.pricing`),
+with the built-in table used only when Settings has no price for that service
+and size.
 
 After a successful insert, a receipt shows **Booking created** independently from
 confirmation pending, accepted with delivery unconfirmed, delivered, failed or
@@ -303,11 +312,15 @@ and saved booking. Missing logs, read failures and provider acceptance never
 establish delivery. Suppressed confirmations, deposit-held confirmations and
 sample-data mode each have explicit copy.
 
-The receipt polls while open and supports manual refresh. **Retry confirmation
+The receipt polls while open and supports manual refresh. It checks every
+recipient chosen for that save, including a trusted person, even if the draft
+changes while the insert is still running. A newer confirmation attempt is not
+hidden by an older failed SMS fallback: unknown stays unknown, and a pending or
+accepted send stays open rather than being shown as failed. **Retry confirmation
 only** refreshes the evidence before using the existing staff resend path, once
-per failed appointment/group. Unknown outcomes, missing logs, pending or accepted
-sends, and unresolved safety-net sends cannot be retried here. Recovery never
-inserts another booking. **Done** closes the receipt; **Book another** starts a
+per failed appointment/group, and the receipt offers it only when that retry is
+safe. Unknown outcomes, missing logs, pending or accepted sends, and unresolved
+safety-net sends cannot be retried here. Recovery never inserts another booking. **Done** closes the receipt; **Book another** starts a
 fresh booking for the same owner. This change adds no initial send path, schema
 change or automatic retry.
 

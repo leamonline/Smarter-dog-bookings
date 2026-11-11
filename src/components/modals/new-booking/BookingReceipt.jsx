@@ -6,7 +6,7 @@ const STATES = {
   pending: ["Confirmation pending", "Delivery has not been confirmed yet."],
   accepted: ["Confirmation sent — delivery unconfirmed", "The service accepted the message. This does not confirm that it reached the customer."],
   delivered: ["Confirmation delivered", "Delivery receipts confirm the message reached every selected recipient."],
-  failed: ["Confirmation failed for one or more recipients", "The booking is saved. Check the contact details. A message-only retry is available once all send outcomes are known."],
+  failed: ["Confirmation failed for one or more recipients", "The booking is saved. Check the message status before sending again."],
   unknown: ["Confirmation outcome unknown", "The message may have arrived. Check the customer conversation before sending again."],
 };
 
@@ -36,6 +36,9 @@ export function BookingReceipt({ receipt, onClose, onBookAnother }) {
           <h3 className="m-0 text-sm font-bold text-brand-ink">{title}</h3>
           <p className="mt-2 mb-0 text-sm text-slate-600">{detail}</p>
           {status.error && <p role="alert" className="mt-2 text-sm text-brand-coral-text">{status.error}</p>}
+          {status.state === "failed" && status.retryBookingIds.length > 0 && !status.error && (
+            <p className="mt-2 mb-0 text-sm text-slate-600">A message-only retry is available.</p>
+          )}
         </section>
         {!receipt.suppressed && !receipt.awaitingDeposit && !status.sample && !unavailable && (
           <div className="flex flex-wrap gap-2">

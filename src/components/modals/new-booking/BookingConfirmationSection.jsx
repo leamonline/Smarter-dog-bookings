@@ -2,7 +2,7 @@ import { useId } from "react";
 import { SERVICES } from "../../../constants/index";
 import { FROM_PRICED_SERVICES } from "../../../constants/salon";
 import { computeBookingPricing } from "../../../engine/bookingRules";
-import { confirmationServiceLabel, preferredServiceAvailable } from "../../../engine/bookingConfirmation";
+import { confirmationChoiceAvailable, confirmationServiceLabel, preferredServiceAvailable } from "../../../engine/bookingConfirmation";
 import { formatGBP, poundsToPence } from "../../../utils/money";
 import { titleCase } from "./helpers.js";
 import { Button, Field, Select } from "../../ui";
@@ -31,6 +31,8 @@ export function BookingConfirmationSection({
   const contact = contactState?.contact;
   const preferredLabel = contactState?.loading ? "loading…" : contactState?.error ? "unavailable" : confirmationServiceLabel(contact?.preferredService);
   const preferenceBlocked = contact && !preferredServiceAvailable(contact);
+  const explicitChannel = confirmationChannel === "whatsapp" || confirmationChannel === "sms" || confirmationChannel === "email";
+  const explicitBlocked = explicitChannel && contact && !confirmationChoiceAvailable(contact, confirmationChannel);
   const methodHelp = confirmationChannel === "auto"
     ? contactState?.loading ? "Loading the customer's saved preference."
       : contactState?.error ? "Couldn't load the preferred service. Choose a service or try again."
@@ -39,7 +41,11 @@ export function BookingConfirmationSection({
             : "No preferred service is saved. Choose a service, or use the first available method: WhatsApp, SMS, then email."
     : confirmationChannel === "none"
       ? "Creates the booking without sending a confirmation."
-      : "Uses this method only if the recipient can be contacted on it. Contact preferences still apply.";
+      : contactState?.loading
+        ? "Checking whether this customer can be contacted on this service."
+        : explicitBlocked
+          ? "This service is unavailable in this customer's contact settings. Choose another service or don't send."
+          : "Uses this method only if the recipient can be contacted on it. Contact preferences still apply.";
 
   return (
     <section aria-labelledby={`${id}-title`} className="rounded-card border border-brand-paper-line bg-white p-3.5">

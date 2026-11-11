@@ -47,7 +47,7 @@ export function BookingActions({
         >
           {isSaving ? "Creating booking…" : label}
         </button>
-        <button onClick={onClose} className="py-[13px] px-5 rounded-tile border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit transition-colors active:scale-[0.98] motion-safe:transition-transform hover:border-slate-300 hover:text-slate-700">Cancel</button>
+        <button type="button" onClick={onClose} disabled={isSaving} className="py-[13px] px-5 rounded-tile border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit transition-colors active:scale-[0.98] motion-safe:transition-transform hover:border-slate-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
       </div>
     </div>
   );

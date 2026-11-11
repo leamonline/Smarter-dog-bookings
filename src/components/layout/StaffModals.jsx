@@ -223,7 +223,7 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               onDraftTargetChange={setDraftTarget}
               onClose={closeNewBooking}
               onAdd={commitBookingList}
-              configPricing={data.config?.pricing}
+              configPricing={data.salonConfig?.pricing}
               dogs={dogs}
               humans={humans}
               dogsByHumanId={dogsApi.dogsByHumanId}

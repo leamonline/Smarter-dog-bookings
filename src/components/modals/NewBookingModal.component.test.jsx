@@ -347,6 +347,58 @@ describe("NewBookingModal — inline confirmation recovery", () => {
     });
   });
 
+  it("stays open when staff dismiss during a save, then shows the receipt", async () => {
+    let finishSave;
+    const onAdd = vi.fn(() => new Promise((resolve) => { finishSave = resolve; }));
+    const props = renderModal({ initialEntries: [resumeEntry], onAdd });
+    await confirmWithMethod(/sms/i);
+    expect(await screen.findByRole("button", { name: "Creating booking…" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close new booking" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(props.onClose).not.toHaveBeenCalled();
+    finishSave({ ok: true, bookings: [{ id: "saved-real-id" }] });
+    expect(await screen.findByRole("heading", { name: "Booking created" })).toBeInTheDocument();
+    expect(screen.getByText("Luna · Monday 5 January · 9:00am")).toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("blocks an explicit channel this customer cannot use", async () => {
+    renderModal({ initialEntries: [resumeEntry], humans: { owner: {
+      id: "emma-id", fullName: "Emma Wilson", preferredChannel: "sms",
+      phone: "+447700900123", whatsapp: true, whatsappOptedOut: true, email: "owner@example.test",
+    } } });
+    const picker = await screen.findByRole("combobox", { name: "Customer confirmation" });
+    fireEvent.change(picker, { target: { value: "whatsapp" } });
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeDisabled();
+    expect(screen.getByText(/unavailable in this customer's contact settings/)).toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: "sms" } });
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeEnabled();
+  });
+
+  it("parks and restores the chosen confirmation option", async () => {
+    const props = renderModal({ initialEntries: [resumeEntry] });
+    fireEvent.change(await screen.findByRole("combobox", { name: "Customer confirmation" }), { target: { value: "none" } });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add another dog" }));
+    fireEvent.mouseDown(screen.getByText("+ New dog for Emma Wilson"));
+    expect(props.onOpenAddDog).toHaveBeenCalledWith(expect.objectContaining({ confirmationChannel: "none" }));
+  });
+
+  it("reopens a parked draft on the saved confirmation option", async () => {
+    renderModal({ initialEntries: [resumeEntry], initialConfirmationChannel: "email" });
+    expect(await screen.findByRole("combobox", { name: "Customer confirmation" })).toHaveValue("email");
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeEnabled();
+  });
+
+  it("uses the configured guide price passed into the review", async () => {
+    renderModal({
+      initialEntries: [resumeEntry],
+      configPricing: { "full-groom": { small: 4400 } },
+    });
+    expect(await screen.findByText("Guide total: £44+")).toBeInTheDocument();
+  });
+
   it("keeps the selected method after a rejected save and prevents repeat submission while saving", async () => {
     let finishSave;
     const onAdd = vi.fn(() => new Promise((resolve) => { finishSave = resolve; }));

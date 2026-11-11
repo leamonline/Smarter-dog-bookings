@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmationOutcome, preferredServiceAvailable } from "./bookingConfirmation";
+import { confirmationChoiceAvailable, confirmationOutcome, preferredServiceAvailable } from "./bookingConfirmation";
 import type { ConfirmationContact, ConfirmationLog, ConfirmationSnapshot } from "../supabase/repositories/bookingConfirmationRepo";
 
 const row = (patch: Partial<ConfirmationLog> = {}): ConfirmationLog => ({
@@ -55,6 +55,31 @@ describe("booking confirmation outcomes", () => {
     const value = snapshot([row({ status: "failed" }), row({ trigger: "confirmed_sms_fallback", channel: "sms" })]);
     expect(outcome(value)).toEqual({ state: "accepted", retryBookingIds: [] });
   });
+  it("keeps a newer confirmation retry ahead of an older failed SMS fallback", () => {
+    const fallback = row({
+      trigger: "confirmed_sms_fallback", channel: "sms", status: "failed",
+      createdAt: "2026-11-11T09:00:00Z", providerId: null, error: "SMS failed",
+    });
+    expect(outcome(snapshot([
+      fallback,
+      row({ status: "sent", createdAt: "2026-11-11T12:00:00Z", providerId: "SM-new" }),
+    ]))).toEqual({ state: "accepted", retryBookingIds: [] });
+    expect(outcome(snapshot([
+      fallback,
+      row({ status: "pending", createdAt: "2026-11-11T12:00:00Z", providerId: null, error: null }),
+    ]))).toEqual({ state: "pending", retryBookingIds: [] });
+    expect(outcome(snapshot([
+      fallback,
+      row({ status: "failed", createdAt: "2026-11-11T12:00:00Z", providerId: null, error: "Provider refused" }),
+    ])).retryBookingIds).toEqual(["saved-1"]);
+  });
+  it("does not retry a newer failure while an older safety-net send is still accepted", () => {
+    const value = snapshot([
+      row({ trigger: "confirmed_sms_fallback", channel: "sms", status: "sent", createdAt: "2026-11-11T09:00:00Z", providerId: "SM-old" }),
+      row({ status: "failed", createdAt: "2026-11-11T12:00:00Z", providerId: null, error: "Provider refused" }),
+    ]);
+    expect(outcome(value)).toEqual({ state: "accepted", retryBookingIds: [] });
+  });
   it("a definite failure can coexist with a delivered recipient without resending the booking", () => {
     const value = snapshot([row(), row({ humanId: "trusted", status: "failed", providerId: null })], "delivered");
     expect(outcome(value, ["saved-1"], ["owner", "trusted"])).toEqual({ state: "failed", retryBookingIds: ["saved-1"] });
@@ -71,5 +96,13 @@ describe("saved preferred service", () => {
     expect(preferredServiceAvailable({ ...contact, smsOptedOut: true })).toBe(false);
     expect(preferredServiceAvailable({ ...contact, phone: null })).toBe(false);
     expect(preferredServiceAvailable({ ...contact, preferredService: "whatsapp", whatsappOptedOut: true })).toBe(false);
+  });
+  it("blocks an explicit channel the saved contact cannot use", () => {
+    expect(confirmationChoiceAvailable(contact, "auto")).toBe(true);
+    expect(confirmationChoiceAvailable(contact, "none")).toBe(true);
+    expect(confirmationChoiceAvailable(null, "whatsapp")).toBe(true);
+    expect(confirmationChoiceAvailable({ ...contact, whatsappOptedOut: true }, "whatsapp")).toBe(false);
+    expect(confirmationChoiceAvailable({ ...contact, email: null }, "email")).toBe(false);
+    expect(confirmationChoiceAvailable(contact, "sms")).toBe(true);
   });
 });

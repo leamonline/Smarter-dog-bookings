@@ -6,13 +6,28 @@ import type { ConfirmationContact, ConfirmationLog, ConfirmationSnapshot } from 
 export const confirmationServiceLabel = (service: string | null | undefined): string =>
   service === "whatsapp" ? "WhatsApp" : service === "sms" ? "SMS" : service === "email" ? "Email" : "not set";
 
-export function preferredServiceAvailable(contact: ConfirmationContact | null): boolean {
-  if (!contact?.preferredService) return true;
-  return operationalChannelAvailable({
+function policyContact(contact: ConfirmationContact) {
+  return {
     phone: contact.phone, whatsapp: contact.whatsapp, email: contact.email,
     whatsapp_opted_out: contact.whatsappOptedOut, sms_opted_out: contact.smsOptedOut,
     email_opted_out: contact.emailOptedOut,
-  }, contact.preferredService);
+  };
+}
+
+export function preferredServiceAvailable(contact: ConfirmationContact | null): boolean {
+  if (!contact?.preferredService) return true;
+  return operationalChannelAvailable(policyContact(contact), contact.preferredService);
+}
+
+// An explicit WhatsApp, SMS or email choice is blocked only when this owner's
+// saved contact record shows that channel cannot be used. Auto and "don't
+// send" stay selectable. A missing record does not invent a block: the server
+// still checks eligibility and opt-outs when it sends.
+export function confirmationChoiceAvailable(contact: ConfirmationContact | null, channel: string): boolean {
+  if (channel === "none" || channel === "auto") return true;
+  if (channel !== "whatsapp" && channel !== "sms" && channel !== "email") return true;
+  if (!contact) return true;
+  return operationalChannelAvailable(policyContact(contact), channel);
 }
 
 export type ConfirmationState = "pending" | "accepted" | "delivered" | "failed" | "unknown";
@@ -48,12 +63,15 @@ export function confirmationOutcome(snapshot: ConfirmationSnapshot, bookingIds: 
     for (const humanId of recipients) {
       const original = latest.get(`${bookingId}|${humanId}|confirmed`);
       const fallback = latest.get(`${bookingId}|${humanId}|confirmed_sms_fallback`);
-      let state: ConfirmationState = original ? rowState(original) : "pending";
-      if (fallback) {
-        const fallbackState = rowState(fallback);
-        // An accepted/pending safety-net send may still arrive: no resend.
-        if (state !== "delivered" && state !== "unknown") state = fallbackState;
-      }
+      // Unknown stays unknown. A delivered or still-open attempt (pending or
+      // accepted) is not replaced by the other attempt's failure, so an older
+      // failed SMS fallback cannot hide a newer confirmation retry.
+      const attemptStates = [original, fallback].flatMap((log) => log ? [rowState(log)] : []);
+      const state: ConfirmationState = attemptStates.includes("unknown") ? "unknown"
+        : attemptStates.includes("delivered") ? "delivered"
+        : attemptStates.includes("pending") || !attemptStates.length ? "pending"
+        : attemptStates.includes("accepted") ? "accepted"
+        : "failed";
       statuses.push(state);
       if (state === "failed" && original?.status === "failed") retries.set(original.groupId || bookingId, bookingId);
     }
