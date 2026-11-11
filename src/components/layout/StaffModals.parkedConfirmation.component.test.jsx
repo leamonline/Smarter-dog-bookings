@@ -3,7 +3,7 @@
 // StaffModals has to read it back off showNewBooking after the drawer remounts.
 import { useEffect } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { useModalState } from "../../hooks/useModalState";
 import { useBookingSession } from "../../hooks/useBookingSession";
 
@@ -18,6 +18,15 @@ vi.mock("../modals/AddDogModal.jsx", () => ({
 }));
 
 const { StaffModals } = await import("./StaffModals.jsx");
+
+// StaffModals loads the drawer with React.lazy. The full coverage run instruments
+// that import, and the default one-second query can expire while Suspense is
+// still showing "Loading…". Load the module first, then allow the boundary time
+// to settle. The assertion is unchanged.
+const DRAWER_LOAD_MS = 15000;
+beforeAll(async () => {
+  await import("../modals/NewBookingModal.jsx");
+}, DRAWER_LOAD_MS);
 
 const OPEN_DATE = "2099-01-05";
 const luna = {
@@ -84,7 +93,7 @@ function BookingShell() {
 describe("staff booking parked confirmation", () => {
   it("restores Don't send after adding a dog and reopening the drawer", async () => {
     render(<BookingShell />);
-    const method = await screen.findByRole("combobox", { name: "Customer confirmation" });
+    const method = await screen.findByRole("combobox", { name: "Customer confirmation" }, { timeout: DRAWER_LOAD_MS });
     fireEvent.change(method, { target: { value: "none" } });
     expect(screen.getByRole("button", { name: "Create booking" })).toBeEnabled();
 
@@ -95,5 +104,5 @@ describe("staff booking parked confirmation", () => {
     expect(await screen.findByRole("combobox", { name: "Customer confirmation" })).toHaveValue("none");
     expect(screen.getByRole("button", { name: "Create booking" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Book & send confirmation" })).not.toBeInTheDocument();
-  });
+  }, 20000);
 });
