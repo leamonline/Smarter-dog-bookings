@@ -44,7 +44,7 @@ const CookieConsent = () => {
                         🍪 We use cookies
                     </h3>
                     <p className="body-font text-sm text-gray-600">
-                        We use cookies to analyze our traffic and improve your experience.
+                        We use cookies to analyse our traffic and improve your experience.
                         We don't sell your data to anyone.
                     </p>
                 </div>

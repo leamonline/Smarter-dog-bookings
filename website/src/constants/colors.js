@@ -15,8 +15,8 @@ export const colors = {
 
     // === ACTION (CTAs Only — never decorative) ===
     // If it's this colour, it must do something
-    green: '#00D94A',       // Primary action button
-    yellow: '#FECC13',      // Secondary action / accents
+    green: '#00D94A',       // Retained accent; booking actions use yellow
+    yellow: '#FECC13',      // Lead booking actions and existing accents
 
     // === JOY (Personality, Warmth) ===
     // Never stacked back-to-back. Joy must be brief to feel special.

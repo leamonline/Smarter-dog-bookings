@@ -18,10 +18,6 @@ const ServicesPage = () => {
         color === colors.orange || color === colors.yellow ? colors.plum : color
     );
 
-    const getServiceButtonTextColor = (color) => (
-        color === colors.orange || color === colors.yellow ? colors.plum : 'white'
-    );
-
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
         return () => clearTimeout(timer);
@@ -78,8 +74,8 @@ const ServicesPage = () => {
                                         onClick={() => goToBooking('Services Page')}
                                         className="w-full py-4 rounded-full font-bold text-lg transition-opacity hover:opacity-90"
                                         style={{
-                                            backgroundColor: service.color,
-                                            color: getServiceButtonTextColor(service.color),
+                                            backgroundColor: colors.yellow,
+                                            color: colors.plum,
                                         }}
                                     >
                                         Book online

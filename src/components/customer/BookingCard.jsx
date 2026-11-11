@@ -260,6 +260,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
               Cancel the appointment for {dogName}?
             </div>
             <Select
+              aria-label="Reason for cancelling"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               surface="paper" size="portal" className="mb-2.5"
@@ -273,6 +274,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             {reason === "Other" && (
               <Input
                 type="text"
+                aria-label="Tell us why you're cancelling"
                 value={otherReason}
                 onChange={(e) => setOtherReason(e.target.value)}
                 placeholder="Please tell us why…"

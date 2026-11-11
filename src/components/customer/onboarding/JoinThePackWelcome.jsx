@@ -34,10 +34,9 @@ export function JoinThePackWelcome({ onStart, onSignOut }) {
           Join the Pack
         </h1>
         <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-          We don&apos;t have you on file yet — let&apos;s get you set up. It
-          takes a minute: choose a password, then tell us about you and your
-          dog. We&apos;ll check everything over and text you when you&apos;re
-          ready to book.
+          Choose a password, then tell us about you and your dog. The team
+          will review your details and message you when you&apos;re ready
+          to book.
         </p>
 
         {error && (

@@ -34,7 +34,7 @@ export function TodayHeader({
   const availabilityLabel = nextOnlineSlot
     ? `Next online ${nextOnlineSlot}`
     : isDayOpen
-      ? "No online slots today"
+      ? isToday ? "No online slots today" : "No online slots on this day"
       : "Online booking closed";
   const overCap = dogsBooked > capacityTotal;
   const shape = zoneCounts.filter((entry) => entry.count > 0);

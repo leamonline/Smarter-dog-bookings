@@ -34,7 +34,7 @@ const MobileQuickActions = ({ onBookClick }) => {
                         type="button"
                         onClick={() => onBookClick?.('Mobile Quick Actions')}
                         className="w-full rounded-xl px-4 py-3 font-bold text-sm"
-                        style={{ backgroundColor: colors.green, color: colors.plum }}
+                        style={{ backgroundColor: colors.yellow, color: colors.plum }}
                     >
                         Book now
                     </button>

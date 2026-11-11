@@ -70,6 +70,8 @@ architecture convergence tracked by [issue #603](https://github.com/leamonline/S
 - Roadmap and stop/go gate: [`../ROADMAP.md`](../ROADMAP.md)
 - End-to-end audit (12 Oct 2026, research; findings and a prioritised roadmap, not a decision):
   [`research/2026-10-12-end-to-end-audit.md`](research/2026-10-12-end-to-end-audit.md)
+- UX/UI audit (10 November 2026; local sample screenshots, ranked friction, historical rechecks and live-access limits):
+  [`research/2026-11-10-ux-ui-audit.md`](research/2026-11-10-ux-ui-audit.md)
 - Traceability: [`traceability.md`](traceability.md)
 
 ## Existing authoritative domain references

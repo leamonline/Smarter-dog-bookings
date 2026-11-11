@@ -81,7 +81,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         />
         {breed && getSizeForBreed(breed) && (
           <span className="text-xs text-[var(--color-brand-cyan-dark)]">
-            Estimated size: {getSizeForBreed(breed)} — we’ll confirm this before online booking.
+            Size guide: {getSizeForBreed(breed)}. Availability is checked when you book.
           </span>
         )}
       </div>

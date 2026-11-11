@@ -44,7 +44,8 @@ test("Daily Brief keeps recovery ahead of unchanged cards and groups quieter tot
   const warning = await recovery.boundingBox();
   expect(warning!.y + warning!.height).toBeLessThanOrEqual(card!.y);
   await expect(page.getByRole("group", { name: "Day totals" })).toContainText("Salon open");
-  await expect(page.getByRole("group", { name: "Day totals" })).toContainText("No online slots today");
+  // The selected Monday is yesterday relative to the frozen Tuesday clock.
+  await expect(page.getByRole("group", { name: "Day totals" })).toContainText("No online slots on this day");
   await expect(page.getByRole("group", { name: "Needs attention" })).toBeVisible();
   await expect(first.locator("[data-stack-header]")).toHaveCSS("height", "144px");
   if (isMobile) {
@@ -54,4 +55,18 @@ test("Daily Brief keeps recovery ahead of unchanged cards and groups quieter tot
   }
   await page.getByRole("button", { name: /Manage availability/ }).click();
   await expect(page.getByRole("heading", { name: "Manage availability", exact: true })).toBeVisible();
+});
+
+test("Daily Brief availability describes the selected date", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-14T09:15:00+01:00"));
+
+  for (const [date, availability] of [
+    ["2026-07-13", "No online slots on this day"],
+    ["2026-07-14", "No online slots today"],
+    ["2026-07-15", "No online slots on this day"],
+  ]) {
+    await page.goto(`/today?date=${date}`);
+    await expect(page.getByRole("group", { name: "Day totals" })).toContainText(availability);
+    await expect(page.getByRole("button", { name: `Manage availability — ${availability}`, exact: true })).toBeVisible();
+  }
 });
