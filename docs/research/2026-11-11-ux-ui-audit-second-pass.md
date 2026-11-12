@@ -42,7 +42,7 @@ item and this adds evidence or changes the recommendation.
 | 3 | N-03 | Sign-in failure says "give the salon a ring"; there is no phone line | Low | New | Fixed (copy) |
 | 4 | N-04 | Staff error messages are pale coral on pale coral, about 2.9:1 | Medium | New | Fixed (visual) |
 | 5 | N-05 | AI draft cards show machine labels to salon staff | Medium | New | Fixed (copy) |
-| 6 | N-06 | On a phone, more than half of the first Today screen is header before the first dog | Medium | New | Awaiting a yes |
+| 6 | N-06 | On a phone, more than half of the first Today screen is header before the first dog | Medium | New | Built and measured; not shipped. Needs a decision |
 | 7 | N-07 | Three places change a status, with different safeguards | Low | New | Needs a decision |
 | 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Fixed (wording approved 11 Nov) |
 | 9 | N-09 | The approval wait does not say you can close the page, and the step before it says "you're all done" | Low | Sharpened (P-01) | Fixed (copy) |
@@ -196,7 +196,7 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Fix.** Plain labels ("Booking question"), drop the model name from the card, and "Not
   sent automatically: replies about bookings and times always wait for you." S.
 
-### N-06 Half the phone screen is gone before the first dog (Medium, new, awaiting a yes)
+### N-06 Half the phone screen is gone before the first dog (Medium, new, needs a decision)
 
 - **What happens.** On a 390 × 844 phone the first dog card on Today starts about 465px
   down. Above it: logo row, six-item menu, date, Availability, a waiting and money line,
@@ -206,6 +206,15 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Why it matters.** The first audit called the hierarchy healthy, and on desktop it is.
   On the phone staff carry round the salon, the list they came for is below the fold.
 - **Proposal.** See section 11. This reorders what is on screen, so it waits for a yes.
+- **Outcome, 12 November.** Approved, built and measured, then not shipped, because the
+  measured gain did not match the estimate above. On sample data across two phone sizes and
+  four dates, folding the totals moved the first dog up by about 50px only on a 390px-wide
+  phone with a short date; it saved nothing for long dates or on an iPhone SE, and made the
+  header 44px taller on an empty day. The reason: the two total lines are small text (about
+  18px each), and any tappable replacement must be at least 44px tall, so the most it can
+  save is about 36px. The estimate of "about two cards" was wrong. A real gain would need a
+  different change, such as putting the Availability button beside the date on phones or a
+  shorter date format, which is a new decision.
 
 ### N-07 Three places change a status, with different safeguards (Low, new, needs a decision)
 
@@ -297,7 +306,7 @@ Only items the first audit does not already hold.
 |---|---|---|
 | N-11 | Link previews say "Full groom, bath & tidy, and specialty services", a name the salon no longer uses. `website/index.html:42,50`. This is the text shown when the site is shared on WhatsApp or Facebook. | Use the four real service names. S. Fixed. |
 | N-12 | The menu button is 22px wide on a phone (measured live); the footer's legal links are 29px tall and the social icons 40px. The floor is 44px. | Widen the menu button. S. Fixed. Footer links listed for a later pass. |
-| N-14 | The FAQ ends "Got a question we haven't answered? Send us a message" and then leads with **Book online**. | Lead with WhatsApp on that one band. S. Awaiting a yes (changes a default). |
+| N-14 | The FAQ ends "Got a question we haven't answered? Send us a message" and then leads with **Book online**. | Fixed (approved 12 Nov). |
 | N-15 | Homepage shows no prices at all; Services does. A phone visitor must find the menu to learn a Full Groom is from £42. | Add "from £…" to the four homepage cards. S. Needs a decision: prices are yours to place. |
 | N-16 | The bank-holiday pop-up's wording is typed into the code, so it will be wrong at the next bank holiday. `LandingPopup.jsx:215-225`. | Drive it from the holiday notices the footer already uses. M. Needs a decision. |
 
@@ -305,7 +314,7 @@ Only items the first audit does not already hold.
 
 | ID | Finding and evidence | Fix; effort; disposition |
 |---|---|---|
-| N-13 | "Finish sign-up" is disabled until every dog field is filled, with no hint which is missing. Birth month and year are compulsory, which blocks a rescue dog of unknown age. `JoinThePackOnboarding.jsx:76-79,611`. | Say what is still needed; allow "Not sure". S/M. Awaiting a yes. |
+| N-13 | "Finish sign-up" is disabled until every dog field is filled, with no hint which is missing. Birth month and year are compulsory, which blocks a rescue dog of unknown age. `JoinThePackOnboarding.jsx:76-79,611`. | Fixed (approved 12 Nov). |
 | N-17 | Wizard step names are system words: "Select dogs", "Choose services", and the button "Confirm bookings". `BookingWizard.tsx:150-156`. | "Who's coming in?", "Pick a service", "Pick a date", "Pick a drop-off time", "Check and confirm". S. Listed; several are test-pinned. |
 | N-18 | The booking receipt says "We'll text a reminder the day before." Reminders go by WhatsApp first. `BookingWizard.tsx:1109`. | "We'll message you a reminder the day before." S. Needs a decision: a test pins the current words. |
 | N-19 | Some hint text is slate-400 on white, about 2.6:1. `JoinThePackOnboarding.jsx:329`, `AddressPicker.jsx:326`. | Use slate-500. S. Listed. |
@@ -316,7 +325,7 @@ Only items the first audit does not already hold.
 | ID | Finding and evidence | Fix; effort; disposition |
 |---|---|---|
 | N-21 | "2 bookings need their status fixed — it has no place in the day". Plural, then "it". `UnknownStatusRecovery.jsx:33-35`. | Agree the pronoun and say what it means. S. Fixed. |
-| N-22 | The calendar's good-news strip shows "All sorted" in red. `RightWorkflowSidebar.jsx:194` (`hue: "rose"`). The colour is deliberate: each chip keeps its card's identity colour (`RightRailCalmRow.jsx:8`), and the to-do card is rose. | Use a neutral or green tone for every calm chip, and keep identity colours for cards that need attention. S. Awaiting a yes: it overrides a design choice. |
+| N-22 | The calendar's good-news strip shows "All sorted" in red. `RightWorkflowSidebar.jsx:194` (`hue: "rose"`). The colour is deliberate: each chip keeps its card's identity colour (`RightRailCalmRow.jsx:8`), and the to-do card is rose. | Fixed (approved 12 Nov). |
 | N-23 | Times are written three ways: 08:30 on Today, 8:30 on the calendar, 8:30am in the booking drawer. | Pick one. S/M. Needs a decision. |
 | N-24 | The same screen is "Daily Brief" in the menu and page title, "Today" in the address, the keyboard shortcut and the docs. The calendar is "Bookings" in the menu and "the diary" in instructions (`HoursSettings.jsx:98`, `BookingActionsPane.jsx:61`). | Fixed in its own PR (12 Nov): "Today" and "Bookings" throughout; engine and code names unchanged. |
 | N-25 | Every inbox row in the sample says "Waiting time unavailable". `useInboxWaitingTimes.ts:41`. If that also happens with real data it is noise on every row. | Show nothing when there is no figure. S. Could not confirm on live; listed. |
@@ -443,7 +452,7 @@ Then the settled decisions.
 **Done on this branch** (one commit each, named by ID): N-01, N-03, N-04, N-05, N-09,
 N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08.
 
-**Awaiting a yes** (small flow or default changes; not coded):
+**Was awaiting a yes; all four approved on 12 November.** N-13, N-14 and N-22 shipped; N-06 was built, measured and not shipped (see its section):
 
 - **N-06 Today header on phones.** *What:* below 640px, fold the two summary lines (salon
   open and online slots; arriving, with us, ready, collected) into one tappable summary
