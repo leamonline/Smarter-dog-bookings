@@ -196,12 +196,12 @@ export function DogDetailsSection({
         <PanelShell eyebrow="Dog details" icon={DogIcon} accent="slate" className="mb-3">
           {/* Owner edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Owner</div>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Customer</div>
             <div
               onClick={() => setShowOwnerSearch(!showOwnerSearch)}
               className={`${INPUT_CLS} cursor-pointer flex justify-between items-center ${showOwnerSearch ? "bg-blue-50" : "bg-white"}`}
             >
-              <span className="font-semibold">{editOwnerLabel || "Select owner..."}</span>
+              <span className="font-semibold">{editOwnerLabel || "Select customer..."}</span>
               <span className="text-caption text-slate-500">
                 {showOwnerSearch ? "\u25b2" : "\u25bc"}
               </span>
@@ -248,7 +248,7 @@ export function DogDetailsSection({
                 )}
                 {ownerSearchQuery.trim() && ownerSearchResults.length === 0 && (
                   <div className="text-xs text-slate-500 mt-1.5 text-center">
-                    No matching humans found
+                    No matching customers found
                   </div>
                 )}
               </div>

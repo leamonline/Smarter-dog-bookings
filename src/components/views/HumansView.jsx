@@ -498,13 +498,13 @@ export function HumansView({
   const headerCountText = showArchived
     ? `${archivedCount} archived`
     : narrowed
-      ? `${total} matching human${total !== 1 ? "s" : ""}`
+      ? `${total} matching customer${total !== 1 ? "s" : ""}`
       : `${total} customer${total !== 1 ? "s" : ""} registered`;
   const footerText = showArchived
-    ? `${archivedCount} archived human${archivedCount !== 1 ? "s" : ""}`
+    ? `${archivedCount} archived customer${archivedCount !== 1 ? "s" : ""}`
     : hasSearchQuery
       ? `Showing ${loadedCount} of ${total} match${total !== 1 ? "es" : ""} for "${searchQuery.trim()}"${filterSuffix}`
-      : `Showing ${loadedCount} of ${total} human${total !== 1 ? "s" : ""}${filterSuffix}`;
+      : `Showing ${loadedCount} of ${total} customer${total !== 1 ? "s" : ""}${filterSuffix}`;
 
   const visibleHumanIdsKey = useMemo(
     () => displayList.map((h) => h.id).filter(Boolean).join(","),
