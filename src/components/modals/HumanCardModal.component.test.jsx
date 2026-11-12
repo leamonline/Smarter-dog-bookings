@@ -603,9 +603,14 @@ describe("HumanCardModal — WhatsApp switched off", () => {
       "staff_reenable_whatsapp_number",
     ]);
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Switch WhatsApp back on?" })).toBeNull());
-    expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
-    expect(screen.queryByText("WhatsApp stopped")).toBeNull();
-    expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
+    // The notice, badge and link follow a later state update (the humans maps
+    // learn the number is back on), which can land after the dialog closes on
+    // a loaded runner, so wait for it rather than asserting synchronously.
+    await waitFor(() => {
+      expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
+      expect(screen.queryByText("WhatsApp stopped")).toBeNull();
+      expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
+    });
   });
 
   it("keeps a record that moved off the number shown as switched off", async () => {
