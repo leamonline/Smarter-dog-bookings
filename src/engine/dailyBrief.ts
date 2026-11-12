@@ -1,5 +1,5 @@
 import { BOOKING_STATUS } from "../constants/index";
-import { paymentMethodLabel } from "../constants/salon";
+import { paymentMethodLabel, TERMINAL_STATUSES, type BookingStatus } from "../constants/salon";
 import type { Booking } from "../types/index";
 import {
   buildFutureDayFeed,
@@ -330,9 +330,12 @@ export function buildDailyBriefBoard(
   now: Date,
 ): DailyBriefBoard {
   const included = bookings.filter((booking) => !!BOARD_LANE_BY_STATUS[booking.status]);
+  // Terminal statuses (Cancelled, No-show) are real states with no lane, not
+  // broken data: the day stack shows a no-show on its own card. Only a status
+  // nothing recognises belongs in the "needs its status fixed" list.
   const excludedBookings = bookings.filter(
     (booking) => !BOARD_LANE_BY_STATUS[booking.status]
-      && booking.status !== BOOKING_STATUS.CANCELLED,
+      && !TERMINAL_STATUSES.includes(booking.status as BookingStatus),
   );
   const feed = buildDailyBriefFeed(included, selectedDateStr, now);
   const isToday = selectedDateStr === londonDateStr(now);

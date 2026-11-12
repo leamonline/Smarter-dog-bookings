@@ -280,6 +280,23 @@ describe("Daily Brief status board", () => {
     expect(board.excludedBookings.map((entry) => entry.id)).toEqual(["unknown"]);
   });
 
+  it("does not flag a no-show as a status that needs fixing", () => {
+    // A no-show is a real, terminal status that the day stack shows on its
+    // own card. Listing it in the unknown-status alert as well raised a red
+    // "needs its status fixed" warning on every ordinary no-show.
+    const board = buildDailyBriefBoard(
+      [
+        booking({ id: "no-show", status: BOOKING_STATUS.NO_SHOW }),
+        booking({ id: "unknown", status: "Awaiting magic" as Booking["status"] }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.excludedBookings.map((entry) => entry.id)).toEqual(["unknown"]);
+    expect(board.excludedCount).toBe(1);
+  });
+
   it("orders overdue arrivals first, then upcoming arrivals, with a stable id tie-break", () => {
     const board = buildDailyBriefBoard(
       [

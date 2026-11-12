@@ -46,7 +46,7 @@ item and this adds evidence or changes the recommendation.
 | 7 | N-07 | Three places change a status, with different safeguards | Low | New | Needs a decision |
 | 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Fixed (wording approved 11 Nov) |
 | 9 | N-09 | The approval wait does not say you can close the page, and the step before it says "you're all done" | Low | Sharpened (P-01) | Fixed (copy) |
-| 10 | N-34 | Every no-show raises a red "needs its status fixed" alert on Today | Medium | New | Needs a decision |
+| 10 | N-34 | Every no-show raises a red "needs its status fixed" alert on Today | Medium | New | Fixed in its own PR (12 Nov) |
 
 ## 2. Scorecard
 
@@ -242,7 +242,7 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Fix.** "Password saved." and one added sentence: "You can close this page; you don't
   need to wait here." No timing promise is added. S.
 
-### N-34 A no-show sets off the "status needs fixing" alert (Medium, new, needs a decision)
+### N-34 A no-show sets off the "status needs fixing" alert (Medium, new, fixed in its own PR)
 
 - **What happens.** Mark a dog as a no-show and Today shows it correctly as a No-show
   card, and also lists it in the red alert "bookings need their status fixed".

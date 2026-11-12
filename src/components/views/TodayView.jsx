@@ -460,7 +460,8 @@ export function TodayView({
   });
   const isEmptyDay = selectedBookings.length === 0
     || (tokens.due.length + tokens.withUs.length + tokens.ready.length + tokens.home.length === 0
-      && board.excludedCount === 0);
+      && board.excludedCount === 0
+      && stackRows.length === 0);
   const isRefreshing = bookingsLoading && selectedBookings.length > 0;
 
   /**
