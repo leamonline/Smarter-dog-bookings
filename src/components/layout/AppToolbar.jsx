@@ -173,10 +173,10 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             variant="ghost"
             onClick={onNewClient}
             className="h-10 shrink-0 px-3.5"
-            aria-label="New client"
+            aria-label="New customer"
             iconLeft={<UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />}
           >
-            <span className="hidden xl:inline">Client</span>
+            <span className="hidden xl:inline">Customer</span>
           </Button>
         )}
 
@@ -330,7 +330,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                   className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-ink bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
                 >
                   <UserPlus size={16} strokeWidth={2.2} className="shrink-0 text-slate-500" aria-hidden="true" />
-                  New client
+                  New customer
                 </button>
               )}
               {onOpenOverview && (

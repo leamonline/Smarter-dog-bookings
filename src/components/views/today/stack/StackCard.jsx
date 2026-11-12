@@ -179,7 +179,7 @@ export function StackCard({
         </p>
       )}
       <div className="my-3 text-sm">
-        {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}
+        {ownerName ? <DetailRow label="Customer">{ownerName}</DetailRow> : null}
         {display.ownerPhone ? (
           <DetailRow label="Phone">
             <a

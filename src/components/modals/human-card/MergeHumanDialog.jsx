@@ -203,7 +203,7 @@ export function MergeHumanDialog({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search by name or phone…"
-                    aria-label="Search for a duplicate human"
+                    aria-label="Search for a duplicate customer"
                     className="w-full pl-8 pr-2.5 py-2 rounded-control border border-slate-200 text-sm font-inherit outline-none text-brand-ink bg-white focus:border-brand-teal transition-colors"
                   />
                 </div>

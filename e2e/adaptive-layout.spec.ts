@@ -35,7 +35,7 @@ const CALENDAR: Section = {
 };
 const FLOWING: Section[] = [
   { nav: /Dogs/, url: /\/staff\/dogs$/, label: "Dogs", rendered: (p) => p.getByRole("heading", { level: 1, name: "Dogs" }) },
-  { nav: /Humans/, url: /\/staff\/humans$/, label: "Humans", rendered: (p) => p.getByRole("heading", { level: 1, name: "Humans" }) },
+  { nav: /Customers/, url: /\/staff\/humans$/, label: "Customers", rendered: (p) => p.getByRole("heading", { level: 1, name: "Customers" }) },
 ];
 
 /**

@@ -37,7 +37,7 @@ const TermsPage = ({ onBookClick }) => {
         {
             title: "Grooming Services",
             items: [
-                "We offer full grooms only. The only pre-bookable add-on is a flea bath.",
+                "You can book a Full Groom, Bath & Brush, Bath & De-shed or Puppy Groom. Flea bath, sensitive shampoo and anal glands can be added when you book.",
                 "Nail trims, ear cleaning, and anal gland expression are included within a full groom or available as walk-in services.",
                 "Final grooming style depends on the dog's coat condition, behaviour, and overall welfare at the time of the appointment."
             ]

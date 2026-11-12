@@ -123,7 +123,7 @@ const Navigation = ({ isLoaded }) => {
 
                 {/* Mobile Menu Toggle */}
                 <button
-                    className="md:hidden text-2xl focus:outline-none"
+                    className="md:hidden text-2xl min-w-[44px] min-h-[44px] focus:outline-none"
                     onClick={toggleMenu}
                     style={{ color: navLinkColor }}
                     aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}

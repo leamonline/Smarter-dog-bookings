@@ -182,7 +182,7 @@ describe("HumanCardModal", () => {
     const onNewBookingForHuman = vi.fn();
     renderModal({ onNewBookingForHuman });
     fireEvent.click(
-      screen.getByRole("button", { name: "Book a new appointment for this human" }),
+      screen.getByRole("button", { name: "Book a new appointment for this customer" }),
     );
     expect(onNewBookingForHuman).toHaveBeenCalledWith("human-1");
   });
@@ -370,7 +370,7 @@ describe("HumanCardModal", () => {
       });
 
       // First paint: nothing to resolve yet, so the placeholder shows.
-      expect(screen.getByText("Unnamed human")).toBeInTheDocument();
+      expect(screen.getByText("Unnamed customer")).toBeInTheDocument();
 
       // Once the on-demand fetch lands the card hydrates from the returned
       // row, even though the shared humans map was never updated.

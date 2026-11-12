@@ -309,7 +309,7 @@ describe("DogCardModal characterisation", () => {
       fireEvent.change(screen.getByPlaceholderText("Search by name or phone..."), {
         target: { value: "zzz" },
       });
-      expect(screen.getByText("No matching humans found")).toBeInTheDocument();
+      expect(screen.getByText("No matching customers found")).toBeInTheDocument();
     });
   });
 

@@ -86,13 +86,13 @@ describe("HumansView directory", () => {
 
   it("labels the count as 'matching' (not 'registered') when only a letter filter is active", () => {
     renderView({ activeLetter: "D", totalCount: 2 });
-    expect(screen.getByText("2 matching humans")).toBeInTheDocument();
+    expect(screen.getByText("2 matching customers")).toBeInTheDocument();
     expect(screen.queryByText("2 humans registered")).not.toBeInTheDocument();
   });
 
-  it("offers one Add client action and opens the guided flow", () => {
+  it("offers one Add customer action and opens the guided flow", () => {
     const { onNewClient } = renderView();
-    const action = screen.getByRole("button", { name: "Add client" });
+    const action = screen.getByRole("button", { name: "Add customer" });
     expect(screen.queryByRole("button", { name: /add human/i })).not.toBeInTheDocument();
     fireEvent.click(action);
     expect(onNewClient).toHaveBeenCalledTimes(1);
@@ -332,7 +332,7 @@ describe("HumansView directory", () => {
 
   it("footer shows loaded-of-total", () => {
     renderView({ totalCount: 5 });
-    expect(screen.getByText("Showing 2 of 5 humans")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 of 5 customers")).toBeInTheDocument();
   });
 
   it("shows the email on a card when present", () => {
@@ -395,7 +395,7 @@ describe("HumansView directory", () => {
       totalCount: 4,
     });
     expect(screen.getByRole("button", { name: "Flagged" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText(/Showing 2 of 4 humans · Flagged, No phone/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 4 customers · Flagged, No phone/)).toBeInTheDocument();
   });
 
   it("a no-dogs human shows the add-a-dog hint, which opens the profile", () => {

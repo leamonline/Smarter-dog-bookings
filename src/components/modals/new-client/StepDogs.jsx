@@ -53,7 +53,7 @@ export function StepDogs({ dogs, onAddDog, onRemoveDog }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500 m-0">
-        Add dog details now, or save the client and come back later.
+        Add dog details now, or save the customer and come back later.
       </p>
       {dogs.length > 0 && (
         <ul className="flex flex-col gap-2">

@@ -498,13 +498,13 @@ export function HumansView({
   const headerCountText = showArchived
     ? `${archivedCount} archived`
     : narrowed
-      ? `${total} matching human${total !== 1 ? "s" : ""}`
-      : `${total} human${total !== 1 ? "s" : ""} registered`;
+      ? `${total} matching customer${total !== 1 ? "s" : ""}`
+      : `${total} customer${total !== 1 ? "s" : ""} registered`;
   const footerText = showArchived
-    ? `${archivedCount} archived human${archivedCount !== 1 ? "s" : ""}`
+    ? `${archivedCount} archived customer${archivedCount !== 1 ? "s" : ""}`
     : hasSearchQuery
       ? `Showing ${loadedCount} of ${total} match${total !== 1 ? "es" : ""} for "${searchQuery.trim()}"${filterSuffix}`
-      : `Showing ${loadedCount} of ${total} human${total !== 1 ? "s" : ""}${filterSuffix}`;
+      : `Showing ${loadedCount} of ${total} customer${total !== 1 ? "s" : ""}${filterSuffix}`;
 
   const visibleHumanIdsKey = useMemo(
     () => displayList.map((h) => h.id).filter(Boolean).join(","),
@@ -561,15 +561,15 @@ export function HumansView({
       {/* Page identity and directory controls share a compact two-row system. */}
       <section
         data-testid="humans-directory-shell"
-        aria-label="Humans directory controls"
+        aria-label="Customers directory controls"
       >
-        <PageHeader title="Humans Directory">
+        <PageHeader title="Customers Directory">
           <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
             <PageHeaderSegmented
               value={viewMode}
               onChange={setViewMode}
               options={VIEW_OPTIONS}
-              ariaLabel="Human directory view"
+              ariaLabel="Customer directory view"
             />
             <div className="sr-only lg:not-sr-only">
               <PageHeaderPill>
@@ -583,8 +583,8 @@ export function HumansView({
             <div className="flex-1" />
             <DirectoryHeaderKey />
             {onNewClient && (
-              <PageHeaderAction variant="primary" icon={Plus} onClick={onNewClient} aria-label="Add client">
-                Add client
+              <PageHeaderAction variant="primary" icon={Plus} onClick={onNewClient} aria-label="Add customer">
+                Add customer
               </PageHeaderAction>
             )}
           </div>
@@ -592,8 +592,8 @@ export function HumansView({
             value={searchQuery}
             onChange={(event) => onSearch(event.target.value)}
             onClear={() => onSearch("")}
-            ariaLabel="Search humans"
-            placeholder="Search clients..."
+            ariaLabel="Search customers"
+            placeholder="Search customers..."
           />
         </PageHeader>
 
@@ -670,10 +670,10 @@ export function HumansView({
       {/* Surface the fetch error inline when the directory ended up empty. */}
       {loadError && displayList.length === 0 && !isInitialLoading && (
         <ErrorBanner
-          title="Couldn't load the humans directory"
+          title="Couldn't load the customers directory"
           message="Check your connection, then try again"
           retry={() => window.location.reload()}
-          retryLabel="Reload humans"
+          retryLabel="Reload customers"
         />
       )}
 
@@ -684,14 +684,14 @@ export function HumansView({
             <CardGridSkeleton rows={3} cols={3} />
           ) : showArchived && archivedList === null && archivedError ? (
             <ErrorBanner
-              title="Couldn't load archived humans"
+              title="Couldn't load archived customers"
               message="Check your connection, then try again"
               retry={retryArchived}
-              retryLabel="Load archived humans again"
+              retryLabel="Load archived customers again"
             />
           ) : showArchived && archivedList === null ? (
             <div className="py-12 text-center text-body text-slate-500 italic">
-              Loading archived humans…
+              Loading archived customers…
             </div>
           ) : (
             <div
@@ -721,17 +721,17 @@ export function HumansView({
                     mark={!showArchived && !searchQuery ? "dog" : null}
                     title={
                       showArchived
-                        ? "No archived humans here"
+                        ? "No archived customers here"
                         : searchQuery
-                          ? `No humans matching "${searchQuery}"`
-                          : "No humans just yet"
+                          ? `No customers matching "${searchQuery}"`
+                          : "No customers just yet"
                     }
                     description={
                       showArchived
                         ? null
                         : searchQuery
                           ? "Try searching by phone number or dog breed instead."
-                          : "Add a client and they'll appear here."
+                          : "Add a customer and they'll appear here."
                     }
                     action={
                       searchQuery ? (

@@ -159,7 +159,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
             {closures.map((c, i) => (
               <span
                 key={`${c.date}-${i}`}
-                className="inline-flex items-center gap-1.5 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-tile text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 bg-brand-coral-light text-brand-coral-text px-3 py-[5px] rounded-tile text-xs font-semibold"
               >
                 {c.date}
                 {c.label ? ` — ${c.label}` : ""}
@@ -207,7 +207,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
         </div>
 
         {error && (
-          <div role="alert" className="text-body text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mt-3.5 mb-1">
+          <div role="alert" className="text-body text-brand-coral-text font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mt-3.5 mb-1">
             {error}
           </div>
         )}

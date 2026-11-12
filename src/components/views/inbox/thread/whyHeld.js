@@ -1,3 +1,4 @@
+import { intentLabel } from "../helpers.js";
 // ============================================================
 // src/components/views/inbox/thread/whyHeld.js
 //
@@ -65,7 +66,7 @@ export function whyHeld(draft, conversation) {
   if (draft.auto_send_eligible === false) {
     return {
       tone: "info",
-      text: `Held because the intent (${draft.intent ?? "unclassified"}) isn't on the auto-send allowlist. Bookings, time confirmations, and unusual asks always wait for you.`,
+      text: `Not sent automatically: this kind of reply (${intentLabel(draft.intent).toLowerCase()}) always waits for you, as do bookings, time confirmations and anything unusual.`,
     };
   }
 

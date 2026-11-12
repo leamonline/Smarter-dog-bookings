@@ -93,7 +93,7 @@ export function StepFirstBooking({
               sizeTheme={theme}
             />
           ) : (
-            <div role="status" className="text-body font-semibold text-brand-coral bg-brand-coral-light px-3 py-2 rounded-lg">
+            <div role="status" className="text-body font-semibold text-brand-coral-text bg-brand-coral-light px-3 py-2 rounded-lg">
               The salon's closed that day — pick an open day above.
             </div>
           )}

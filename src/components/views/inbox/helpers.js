@@ -71,6 +71,14 @@ export function confidenceLabel(c) {
   return "low";
 }
 
+// The assistant's intent ids are snake_case ("booking_query"). Staff read them
+// on the draft card, so show them as plain words ("Booking query").
+export function intentLabel(intent) {
+  if (!intent) return "Unclassified";
+  const words = String(intent).replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 // Human-friendly service name. Falls back to the raw id if unknown.
 export function serviceLabel(service) {
   const labels = {

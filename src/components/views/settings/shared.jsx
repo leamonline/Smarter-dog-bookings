@@ -121,7 +121,7 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
         </div>
       </div>
       {error && (
-        <div id={errId} role="alert" className="text-xs text-brand-coral font-semibold text-right pb-2.5">
+        <div id={errId} role="alert" className="text-xs text-brand-coral-text font-semibold text-right pb-2.5">
           {error}
         </div>
       )}
@@ -176,7 +176,7 @@ export function useAutosaveStatus(onUpdateConfig, { canEdit = true } = {}) {
 const SAVE_STATUS_DISPLAY = {
   saving: { text: "Saving…", cls: "text-slate-500" },
   saved: { text: "✓ Saved", cls: "text-brand-teal" },
-  error: { text: "Couldn't save", cls: "text-brand-coral" },
+  error: { text: "Couldn't save", cls: "text-brand-coral-text" },
 };
 
 // Inline autosave indicator for an autosave tab's CardHead. Always renders the

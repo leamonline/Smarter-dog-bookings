@@ -66,7 +66,7 @@ describe("useHumanCardActions", () => {
   it("overflow menu only grows Merge/Archive entries when handlers are wired", () => {
     const { result: bare } = renderActions();
     expect(bare.current.overflowItems.map((i) => i.label)).toEqual([
-      "New booking for this human",
+      "New booking for this customer",
       "Send message",
     ]);
 
@@ -75,7 +75,7 @@ describe("useHumanCardActions", () => {
       onArchiveHuman: vi.fn(),
     });
     expect(wired.current.overflowItems.map((i) => i.label)).toEqual([
-      "New booking for this human",
+      "New booking for this customer",
       "Send message",
       "Merge duplicate",
       "Archive",

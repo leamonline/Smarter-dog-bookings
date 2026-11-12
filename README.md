@@ -56,7 +56,7 @@ The evidence and distinctions behind this table live in
 - **Weekly calendar** with slot-based booking (08:30–13:00)
 - **Capacity engine** — enforces the 2-2-1 rule for large dogs
 - **Booking workflow** — Booked → Reconfirmed → Arrived → Ready for collection → Completed, plus Cancelled and No-show (the `BOOKING_STATUS` constants, mirroring the database check constraint)
-- **Dogs & Humans directories** — full contact management with alerts, notes, and trusted contacts
+- **Dogs & Customers directories** — full contact management with alerts, notes, and trusted contacts
 - **WhatsApp inbox** — two-way customer messaging with AI-drafted replies and AI-proposed booking actions, staff-approved before anything goes live
 - **Reminders & notifications** — multi-channel (WhatsApp, SMS, email) booking confirmations, reminders, ready-for-pickup and cancellations
 - **Waitlist** — track overflow requests and notify when slots open

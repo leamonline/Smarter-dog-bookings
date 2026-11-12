@@ -32,7 +32,11 @@ export function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
         {bookings.length === 1
           ? "1 booking needs its status fixed"
           : `${bookings.length} bookings need their status fixed`}
-        <span className="font-medium text-ink-muted">— it has no place in the day</span>
+        <span className="font-medium text-ink-muted">
+          {bookings.length === 1
+            ? "— it may be missing from the day below"
+            : "— they may be missing from the day below"}
+        </span>
       </h2>
       <ul className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
         {bookings.map((booking) => {

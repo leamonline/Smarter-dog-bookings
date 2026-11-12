@@ -101,7 +101,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
     }
 
     toast.show(
-      isReset ? "Password updated" : "Password set — you're all done",
+      isReset ? "Password updated" : "Password saved",
       "success",
     );
     await onComplete?.();

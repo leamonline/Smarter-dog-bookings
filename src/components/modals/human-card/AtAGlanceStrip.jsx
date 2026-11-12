@@ -208,7 +208,7 @@ export function AtAGlanceStrip({
             onNewBookingForHuman ? () => onNewBookingForHuman(human.id) : undefined
           }
           disabled={!onNewBookingForHuman}
-          ariaLabel="Book a new appointment for this human"
+          ariaLabel="Book a new appointment for this customer"
         />
       )}
       <Tile

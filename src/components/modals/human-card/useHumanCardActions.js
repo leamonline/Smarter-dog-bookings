@@ -61,7 +61,7 @@ export function useHumanCardActions({
     };
     const items = [
       {
-        label: "New booking for this human",
+        label: "New booking for this customer",
         onClick: call(onNewBookingForHuman, "onNewBookingForHuman"),
       },
       {

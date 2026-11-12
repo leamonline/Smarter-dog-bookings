@@ -72,7 +72,7 @@ export function BookingFormFields({
               sizeTheme={primaryTheme}
             />
           ) : (
-            <div role="status" aria-live="polite" className="text-body font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
+            <div role="status" aria-live="polite" className="text-body font-semibold text-brand-coral-text bg-brand-coral-light px-3.5 py-2.5 rounded-control">
               We're closed that day. Pick another date from the calendar, or open the day in day view first.
             </div>
           )}
