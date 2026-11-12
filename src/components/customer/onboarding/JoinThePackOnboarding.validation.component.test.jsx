@@ -74,6 +74,38 @@ describe("signup validation and address recovery", () => {
     expect(actions.submitSignup).not.toHaveBeenCalled();
   });
 
+  it("names the dog details still needed, and accepts Not sure for an unknown age", async () => {
+    // Audit N-13: a greyed-out Finish button with no reason was a dead end,
+    // and a rescue dog of unknown age could not sign up at all.
+    actions.submitSignup.mockResolvedValue({ data: { ok: true }, error: null });
+    renderForm();
+    fillOwner();
+    attemptContinue();
+    await screen.findByLabelText("Dog's name");
+
+    const finish = screen.getByRole("button", { name: "Finish sign-up" });
+    expect(finish).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Still needed: name, breed, sex, birth month, birth year",
+    );
+    expect(finish).toHaveAccessibleDescription(/Still needed/);
+
+    change("Dog's name", "Dog A");
+    fireEvent.change(screen.getAllByLabelText("Breed")[0], { target: { value: "__other__" } });
+    fireEvent.change(screen.getAllByLabelText("Breed")[1], { target: { value: "Rescue mix" } });
+    change("Sex", "female");
+    expect(screen.getByRole("status")).toHaveTextContent("Still needed: birth month, birth year");
+
+    change("Birth year", "unknown");
+    expect(screen.queryByText(/Still needed/)).toBeNull();
+    expect(finish).toBeEnabled();
+
+    fireEvent.submit(finish.closest("form"));
+    await waitFor(() => expect(actions.submitSignup).toHaveBeenCalledTimes(1));
+    const { dogs } = actions.submitSignup.mock.calls[0][0];
+    expect(dogs[0].dob).toBeNull();
+  });
+
   it("explains the conditional Other referral field", () => {
     renderForm();
     fillOwner();
