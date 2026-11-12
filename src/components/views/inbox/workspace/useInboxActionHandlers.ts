@@ -110,7 +110,7 @@ export function useInboxActionHandlers({
 
   const handleApplyBookingAction = useCallback(async (actionId: string, editedPayload?: unknown) => {
     const res = await applyBookingAction(actionId, editedPayload);
-    if (res?.ok) toast.show("Booking added to the diary", "success");
+    if (res?.ok) toast.show("Booking added to Bookings", "success");
     return res;
   }, [applyBookingAction, toast]);
 

@@ -40,7 +40,7 @@ export function TodayHeader({
   const shape = zoneCounts.filter((entry) => entry.count > 0);
 
   return (
-    <PageHeader title="Daily Brief" className="!mb-2 !min-h-0 !gap-1.5 !py-2 sm:!mb-4 sm:!py-3">
+    <PageHeader title="Today" className="!mb-2 !min-h-0 !gap-1.5 !py-2 sm:!mb-4 sm:!py-3">
       <div className="grid w-full gap-1.5">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
           <button

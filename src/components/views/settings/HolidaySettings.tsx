@@ -10,7 +10,7 @@ import { Card, CardBody, CardHead, INPUT_CLS, ReadOnlyNotice, SECTION_LABEL_CLS 
 
 const FIELDS: { key: 'notice_from' | 'closed_from' | 'reopens_on'; label: string; hint: string }[] = [
   { key: 'notice_from', label: 'Show advance notice from', hint: 'The website and booking calendar start mentioning the holiday on this date.' },
-  { key: 'closed_from', label: 'First closed date', hint: 'Every day from here up to the day before you reopen is closed in the diary.' },
+  { key: 'closed_from', label: 'First closed date', hint: 'Every day from here up to the day before you reopen is closed in Bookings.' },
   { key: 'reopens_on', label: 'Reopening date', hint: 'Must be a day you are open: a normal Mon–Wed, or a date you have opened in Bookings.' },
 ];
 
@@ -42,7 +42,7 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
       await saveHoliday(draft);
       setMessage(draft.enabled
         ? 'Holiday saved. Those dates are now closed and any affected appointments are flagged in Tasks for rearrangement.'
-        : 'Notice removed. The diary dates stay closed; reopen them in Bookings if you need to.');
+        : 'Notice removed. Those dates stay closed; reopen them in Bookings if you need to.');
       setDraft(null); await reload();
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
@@ -60,7 +60,7 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
       <CardHead
         variant="yellow"
         title="Holidays"
-        desc="Tell customers about a break, backed by real closed dates in the diary."
+        desc="Tell customers about a break, backed by real closed dates in Bookings."
         right={<Button variant="ghost" size="sm" disabled={busy || draft !== null} onClick={() => void reload()}>Reload holidays</Button>}
       />
       <CardBody>
@@ -127,8 +127,8 @@ export function HolidaySettings({ canEdit = true, onDirtyChange }: { canEdit?: b
             )}
             <p className="text-xs text-slate-600">
               {draft.enabled
-                ? 'Existing appointments on closed days stay in the diary and are flagged for rearrangement. Changing the dates never reopens days from the previous range.'
-                : 'Removing the notice does not reopen any diary dates or remove rearrangement tasks.'}
+                ? 'Existing appointments on closed days stay in Bookings and are flagged for rearrangement. Changing the dates never reopens days from the previous range.'
+                : 'Removing the notice does not reopen any dates in Bookings or remove rearrangement tasks.'}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button type="submit" variant="primary" disabled={!valid || busy || !canEdit}>

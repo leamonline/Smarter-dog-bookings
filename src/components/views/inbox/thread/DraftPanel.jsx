@@ -143,7 +143,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             aria-label="Safe booking and reply order"
             className="mt-2 pt-2 border-t border-brand-mustard-tint font-semibold"
           >
-            Apply or reject the booking below first. Check the diary, then come back here to send this reply.
+            Apply or reject the booking below first. Check Bookings, then come back here to send this reply.
           </div>
         </div>
       )}

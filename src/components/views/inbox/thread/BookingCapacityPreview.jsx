@@ -37,7 +37,7 @@ export function BookingCapacityPreview({ date, slot, size }) {
   if (preview.error) {
     return (
       <p className="mt-2 text-caption text-slate-500">
-        Couldn&apos;t check capacity ({preview.error}). The diary will reject the apply if it doesn&apos;t fit.
+        Couldn&apos;t check capacity ({preview.error}). Bookings will refuse it if it doesn&apos;t fit.
       </p>
     );
   }

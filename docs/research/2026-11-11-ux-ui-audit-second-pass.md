@@ -318,7 +318,7 @@ Only items the first audit does not already hold.
 | N-21 | "2 bookings need their status fixed — it has no place in the day". Plural, then "it". `UnknownStatusRecovery.jsx:33-35`. | Agree the pronoun and say what it means. S. Fixed. |
 | N-22 | The calendar's good-news strip shows "All sorted" in red. `RightWorkflowSidebar.jsx:194` (`hue: "rose"`). The colour is deliberate: each chip keeps its card's identity colour (`RightRailCalmRow.jsx:8`), and the to-do card is rose. | Use a neutral or green tone for every calm chip, and keep identity colours for cards that need attention. S. Awaiting a yes: it overrides a design choice. |
 | N-23 | Times are written three ways: 08:30 on Today, 8:30 on the calendar, 8:30am in the booking drawer. | Pick one. S/M. Needs a decision. |
-| N-24 | The same screen is "Daily Brief" in the menu and page title, "Today" in the address, the keyboard shortcut and the docs. The calendar is "Bookings" in the menu and "the diary" in instructions (`HoursSettings.jsx:98`, `BookingActionsPane.jsx:61`). | "Today" and "Bookings" throughout. S. Needs a decision: menu labels are test-pinned. |
+| N-24 | The same screen is "Daily Brief" in the menu and page title, "Today" in the address, the keyboard shortcut and the docs. The calendar is "Bookings" in the menu and "the diary" in instructions (`HoursSettings.jsx:98`, `BookingActionsPane.jsx:61`). | Fixed in its own PR (12 Nov): "Today" and "Bookings" throughout; engine and code names unchanged. |
 | N-25 | Every inbox row in the sample says "Waiting time unavailable". `useInboxWaitingTimes.ts:41`. If that also happens with real data it is noise on every row. | Show nothing when there is no figure. S. Could not confirm on live; listed. |
 | N-26 | The cancel-notice gap the first audit raised (ST-08) is still open, and the settings page says a message is sent on cancellation, so the two screens disagree. | As ST-08. |
 | N-27 | Phone and email on the Humans cards render at 8 to 10px (measured). `index.css:989,1006,1386-1399`. | 12px. S. Listed: it is the detail staff dial from, and worth doing next. |
@@ -462,7 +462,7 @@ N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08
   question?". *Why:* the button should answer the sentence above it. *Risk:* one fewer
   prominent Book button on that page; the sticky bar still carries it.
 
-**Needs a decision** (off-limits here, or yours to choose): N-24 naming of Today and Bookings; N-07 one
+**Needs a decision** (off-limits here, or yours to choose): N-07 one
 status path; N-10 double security check; N-15 homepage prices; N-16
 bank-holiday pop-up; N-18 and N-28 test-pinned labels; N-23 one time format; N-34 no-show false alarm (one line in the engine); N-29 to N-33
 message wording, gaps and the salon's name. From the first audit, still open and still the

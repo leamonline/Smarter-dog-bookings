@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — one name each for Today and Bookings
+
+- The staff landing screen is now "Today" in the menu, heading and browser tab (was "Daily Brief"), matching its address and keyboard shortcut. It also fits the phone menu on one line.
+- Instructions that sent staff to "the diary" now say "Bookings", the menu's name for the calendar: Settings → Hours and Holidays, the Inbox booking pane and its messages (audit N-24).
+
 ## Unreleased — no-shows no longer raise the status alert on Today
 
 - A no-show was listed in Today's red "needs its status fixed" alert as well as on its own card. Terminal statuses (Cancelled, No-show) are now left out of that alert, which keeps it for statuses nothing recognises (audit N-34).

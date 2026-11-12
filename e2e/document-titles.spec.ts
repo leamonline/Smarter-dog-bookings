@@ -3,7 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 const ROUTES: Array<[string, RegExp]> = [
-  ["/staff/today", /^Daily Brief · Smarter Dog$/],
+  ["/staff/today", /^Today · Smarter Dog$/],
   ["/staff/inbox", /^Inbox · Smarter Dog$/],
   ["/staff/dogs", /^Dogs · Smarter Dog$/],
   ["/staff/humans", /^Customers · Smarter Dog$/],
@@ -20,7 +20,7 @@ for (const [path, title] of ROUTES) {
 
 test("moving between staff sections updates the title", async ({ page }) => {
   await page.goto("/staff/today");
-  await expect(page).toHaveTitle(/^Daily Brief/);
+  await expect(page).toHaveTitle(/^Today ·/);
   await page.goto("/staff/dogs");
   await expect(page).toHaveTitle(/^Dogs/);
 });

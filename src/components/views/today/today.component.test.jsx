@@ -715,7 +715,7 @@ describe("TodayHeader", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Daily Brief" })).toHaveClass("sr-only");
+    expect(screen.getByRole("heading", { name: "Today" })).toHaveClass("sr-only");
     fireEvent.click(screen.getByRole("button", { name: "Tuesday 14 July — choose a different date" }));
     expect(onOpenDatePicker).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Manage availability — No online slots today" })).toBeInTheDocument();
