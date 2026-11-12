@@ -93,7 +93,7 @@ is one row of a `role="menu"`: a real `role="menuitem"` button, with a `danger`
 tone for the single destructive row. The menu still owns opening, Escape and
 placement. The `menusAndToggles` ratchet counts the hand-written ones left.
 
-## Daily Brief hierarchy
+## Today screen hierarchy
 
 Keep the selected date and availability action first. Keep actionable attention
 segments prominent and separate from the labelled Day totals group. Put salon

@@ -60,7 +60,7 @@ function EntryChoice({ onChoose }) {
         Book from Inbox (not available)
       </button>
       <p id="inbox-booking-unavailable" className="-mt-1 text-center text-xs text-slate-500">
-        Booking straight from the Inbox is not available yet. Use the diary to make a booking.
+        Booking straight from the Inbox is not available yet. Use Bookings to make a booking.
       </p>
     </div>
   );
@@ -135,7 +135,7 @@ export function BookingActionsPane({
           <BookingPane
             dogs={selectedDogs}
             emptyStateTitle="Choose a dog to see availability"
-            emptyStateBody="The diary checks capacity against each dog's recorded size."
+            emptyStateBody="Bookings checks capacity against each dog's recorded size."
             offerActionLabel="Offer this time"
             dates={dates}
             currentDateStr={currentDateStr}

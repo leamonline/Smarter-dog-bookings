@@ -38,7 +38,7 @@ export function formatDate(dateStr, options = {}) {
 // from `sm` up, where the height is there to spend.
 function DateStrip({ dates, currentDateStr, daySettings, bookingsByDate, dailyCap, onPickDate }) {
   return (
-    <div role="tablist" aria-label="Diary dates" className="hidden shrink-0 grid-cols-5 border-y border-slate-200 bg-white sm:grid">
+    <div role="tablist" aria-label="Booking dates" className="hidden shrink-0 grid-cols-5 border-y border-slate-200 bg-white sm:grid">
       {dates.slice(0, 5).map((date) => {
         const active = date.dateStr === currentDateStr;
         const open = isDateOpen(date.dateStr, null, daySettings);
@@ -114,7 +114,7 @@ export function DraftOffer({
             {formatDate(choice.dateStr)} · {choice.slot}
           </span>
         )) : (
-          <span className="text-caption text-slate-500">Choose two or three suitable times from the diary.</span>
+          <span className="text-caption text-slate-500">Choose two or three suitable times from Bookings.</span>
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -155,7 +155,7 @@ export function BookingPane({
   request,
   dogs,
   emptyStateTitle = "Choose a request first",
-  emptyStateBody = "The diary will then check capacity for that recorded dog size.",
+  emptyStateBody = "Bookings will then check capacity for that recorded dog size.",
   offerActionLabel = "Choose",
   dates,
   currentDateStr,
@@ -239,7 +239,7 @@ export function BookingPane({
               the date and its two arrows. */}
           <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
             <div className="hidden sm:block">
-              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-ink">Diary</h2>
+              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-ink">Bookings</h2>
               <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
             </div>
             <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">

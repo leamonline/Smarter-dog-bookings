@@ -6,6 +6,10 @@
 
 ## What this is
 
+Staff see this screen as **Today** in the menu, page heading and browser tab
+(it was labelled "Daily Brief" until November 2026, audit N-24). "Daily Brief"
+survives only as the name of the engine module and older design documents.
+
 Two staff-facing surfaces built on one pure engine:
 
 - **`/today`** — the default landing screen after staff login: a **time-ordered

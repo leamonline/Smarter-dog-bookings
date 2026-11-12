@@ -21,7 +21,7 @@ import { expect, test } from "@playwright/test";
 type Ceilings = Record<string, number>;
 
 const SCREENS: Array<{ name: string; path: string; ceilings: Ceilings }> = [
-  { name: "Daily Brief", path: "/staff/today?date=2026-10-26", ceilings: {} },
+  { name: "Today", path: "/staff/today?date=2026-10-26", ceilings: {} },
   { name: "Calendar", path: "/staff?date=2026-10-26", ceilings: {} },
   { name: "Dogs", path: "/staff/dogs", ceilings: {} },
   { name: "Customers", path: "/staff/humans", ceilings: {} },

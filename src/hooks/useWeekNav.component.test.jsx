@@ -51,7 +51,7 @@ async function expectDailyBriefNavigationKeepsSelectedDate(mobile) {
   });
 
   const primaryNav = screen.getByRole("navigation", { name: "Primary" });
-  fireEvent.click(within(primaryNav).getByRole("link", { name: "Daily Brief" }));
+  fireEvent.click(within(primaryNav).getByRole("link", { name: "Today" }));
 
   await waitFor(() => {
     expect(screen.getByLabelText("Current location")).toHaveTextContent("/today?date=2026-07-16");

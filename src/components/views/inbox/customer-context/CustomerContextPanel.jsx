@@ -177,7 +177,7 @@ export function CustomerContextPanel({
               )}
 
               <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                Booking from Inbox is not available yet. Use the diary to make a booking.
+                Booking from Inbox is not available yet. Use Bookings to make a booking.
               </p>
 
               {(onOpenHuman || onUpdateNotes) && displayHuman && (

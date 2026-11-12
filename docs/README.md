@@ -117,7 +117,7 @@ These files remain authoritative for their bounded topics:
 - [`interface-capability-truth.md`](interface-capability-truth.md) — current
   user-facing capability, error and sample-data boundaries verified against
   code.
-- [`today-command-centre.md`](today-command-centre.md) — Daily Brief and report
+- [`today-command-centre.md`](today-command-centre.md) — the Today screen and report
   behaviour.
 - [`payment-history.md`](payment-history.md) — prepared payment-history schema,
   operator recovery contract and release prerequisites; not yet live.

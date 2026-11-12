@@ -44,7 +44,7 @@ test("the stack lists the whole day in appointment order", async ({ page }) => {
   await page.goto(MONDAY);
   await settle(page);
 
-  const pageHeading = page.getByRole("heading", { level: 1, name: "Daily Brief" });
+  const pageHeading = page.getByRole("heading", { level: 1, name: "Today" });
   await expect(pageHeading).toBeAttached();
   await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
 

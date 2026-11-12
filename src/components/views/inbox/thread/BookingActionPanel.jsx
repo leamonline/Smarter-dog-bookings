@@ -190,7 +190,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                       disabled={inFlight}
                       className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-ink text-xs font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
                     >
-                      Add to diary
+                      Add to Bookings
                     </button>
                     <button
                       onClick={() => setRejectingId(action.id)}

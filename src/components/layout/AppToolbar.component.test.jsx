@@ -53,7 +53,7 @@ describe("AppToolbar", () => {
   it("marks the current section with one uniform quiet active state", () => {
     renderToolbar({}, { route: "/today" });
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    const active = within(nav).getByRole("link", { name: "Daily Brief" });
+    const active = within(nav).getByRole("link", { name: "Today" });
     expect(active).toHaveAttribute("aria-current", "page");
     // The active treatment is the same soft purple tint for every section —
     // no per-section saturated fill (the quiet-nav contract).

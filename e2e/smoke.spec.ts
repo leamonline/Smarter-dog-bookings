@@ -26,7 +26,7 @@ test.describe("Smoke", () => {
     await expect(page).toHaveURL(/\/today/);
     // Exactly one page heading — the shell's context row stands down here.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Daily Brief" }),
+      page.getByRole("heading", { level: 1, name: "Today" }),
     ).toBeVisible();
     // The open/closed pill renders in both the richer md+ header and the
     // compact mobile header, on every day state, so it's the one operational
@@ -39,7 +39,7 @@ test.describe("Smoke", () => {
     await expect(
       page
         .getByRole("navigation", { name: "Primary" })
-        .getByRole("link", { name: "Daily Brief" })
+        .getByRole("link", { name: "Today", exact: true })
         .first(),
     ).toBeVisible();
   });

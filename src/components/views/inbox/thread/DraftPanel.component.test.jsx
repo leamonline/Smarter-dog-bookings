@@ -37,7 +37,7 @@ describe("DraftPanel booking-action guard", () => {
     expect(
       screen.getByRole("note", { name: "Safe booking and reply order" }),
     ).toHaveTextContent(
-      "Apply or reject the booking below first. Check the diary, then come back here to send this reply.",
+      "Apply or reject the booking below first. Check Bookings, then come back here to send this reply.",
     );
     expect(
       screen.queryByRole("button", { name: /send|apply/i }),
