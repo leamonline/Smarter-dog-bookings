@@ -127,7 +127,18 @@ const FAQPage = ({ onBookClick }) => {
                         <p className="body-font mb-6" style={{ color: colors.teal }}>
                             Send us a message — we're happy to help.
                         </p>
+                        {/* The question above is answered by a message, so WhatsApp leads
+                            (audit N-14). Booking stays beside it and in the sticky bar. */}
                         <div className="flex flex-wrap justify-center gap-4">
+                            <a
+                                href={whatsAppUrl(facts.businessPhone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                                style={{ backgroundColor: '#25D366', color: colors.plum }}
+                            >
+                                WhatsApp us
+                            </a>
                             <button
                                 onClick={() => onBookClick?.('FAQ Page')}
                                 className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
@@ -138,15 +149,6 @@ const FAQPage = ({ onBookClick }) => {
                             >
                                 Book online
                             </button>
-                            <a
-                                href={whatsAppUrl(facts.businessPhone)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
-                                style={{ backgroundColor: '#25D366', color: colors.plum }}
-                            >
-                                WhatsApp us
-                            </a>
                         </div>
                     </div>
                 </div>
