@@ -178,20 +178,19 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onOpenRemind
   const calmChipFor = (key) => {
     switch (key) {
       case "inbox":
-        return { key, label: "Inbox clear", hue: "emerald", onClick: () => navigate("/whatsapp") };
+        return { key, label: "Inbox clear", onClick: () => navigate("/whatsapp") };
       case "reminders":
         return {
           key,
           label: remindersData.totalCount > 0 ? "All reminders sent" : "No bookings tomorrow",
-          hue: "amber",
           onClick: () => {
             /* no destination — TomorrowRemindersCard owns the loud UI */
           },
         };
       case "waitlist":
-        return { key, label: "Waitlist empty", hue: "sky", onClick: onOpenWaitlist };
+        return { key, label: "Waitlist empty", onClick: onOpenWaitlist };
       case "todos":
-        return { key, label: "All sorted", hue: "rose", onClick: onOpenTodos };
+        return { key, label: "All sorted", onClick: onOpenTodos };
       default:
         return null;
     }
