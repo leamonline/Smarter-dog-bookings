@@ -73,12 +73,15 @@ function blankDog() {
   };
 }
 
-// "Not sure" in the birth month or year list. A rescue dog of unknown age can
-// still sign up; the birth date is then saved as empty, never guessed.
+// "Not sure" in the birth year list. A rescue dog of unknown age can still sign
+// up; the birth date is then saved as empty, never guessed. It is offered on
+// the year only: everything that reads a birth date expects "YYYY-MM", so a
+// known year with an unknown month cannot be stored without inventing a month,
+// and it must never be dropped silently either.
 const DOB_UNKNOWN = "unknown";
 
 function dobKnown(d) {
-  return Boolean(d.dobYear && d.dobMonth && d.dobYear !== DOB_UNKNOWN && d.dobMonth !== DOB_UNKNOWN);
+  return Boolean(d.dobYear && d.dobMonth && d.dobYear !== DOB_UNKNOWN);
 }
 
 /** Which required dog details are still missing, in the order they appear. */
@@ -519,18 +522,20 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                     aria-label="Birth month"
                     value={dog.dobMonth}
                     onChange={(e) => updateDog(i, { dobMonth: e.target.value })}
+                    disabled={dog.dobYear === DOB_UNKNOWN}
                     surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Birth month</option>
                     {MONTHS.map(([v, label]) => (
                       <option key={v} value={v}>{label}</option>
                     ))}
-                    <option value={DOB_UNKNOWN}>Not sure</option>
                   </Select>
                   <Select
                     aria-label="Birth year"
                     value={dog.dobYear}
-                    onChange={(e) => updateDog(i, { dobYear: e.target.value })}
+                    onChange={(e) => updateDog(i, e.target.value === DOB_UNKNOWN
+                      ? { dobYear: DOB_UNKNOWN, dobMonth: "" }
+                      : { dobYear: e.target.value })}
                     surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Year</option>

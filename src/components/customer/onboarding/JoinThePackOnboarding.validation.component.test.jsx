@@ -96,7 +96,14 @@ describe("signup validation and address recovery", () => {
     change("Sex", "female");
     expect(screen.getByRole("status")).toHaveTextContent("Still needed: birth month, birth year");
 
+    // A real year still needs its month: the year is never dropped silently.
+    change("Birth year", "2021");
+    expect(screen.getByRole("status")).toHaveTextContent("Still needed: birth month");
+    expect(finish).toBeDisabled();
+    // "Not sure" is on the year only, and it switches the month off.
+    expect(screen.getByLabelText("Birth month")).not.toHaveTextContent("Not sure");
     change("Birth year", "unknown");
+    expect(screen.getByLabelText("Birth month")).toBeDisabled();
     expect(screen.queryByText(/Still needed/)).toBeNull();
     expect(finish).toBeEnabled();
 
