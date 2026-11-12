@@ -119,6 +119,22 @@ describe("the day stack page — selected-date operations", () => {
     expect(screen.getByText("No bookings on this date")).toBeInTheDocument();
   });
 
+  it("shows a no-show as its own card, with no status-fix alert and no empty-day message", () => {
+    // A day whose only booking is a no-show is not an empty day, and a
+    // no-show is not a broken status. Before audit N-34 the alert fired on
+    // every no-show; the stack must still show the card so a mistaken mark
+    // can be corrected.
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "No-show", cancelReason: "No-show" }],
+      },
+    });
+
+    expect(card()).not.toBeNull();
+    expect(screen.queryByText(/needs? (its|their) status fixed/)).toBeNull();
+    expect(screen.queryByText("No bookings on this date")).toBeNull();
+  });
+
   it("offers only the next care outcome, and keeps payment independent of it", () => {
     const confirm = vi.spyOn(window, "confirm");
     renderToday({

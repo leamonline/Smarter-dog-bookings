@@ -221,6 +221,12 @@ uncountable in all of them. `FeedStage` gains `noShow`, because `Cancelled` rank
 -1 and would otherwise fall back to `booked`, which is what the "Next" scan and
 the late-arrival lists key on.
 
+A no-show is not a broken status. `buildDailyBriefBoard` leaves terminal statuses
+(`TERMINAL_STATUSES`: Cancelled and No-show) out of `excludedBookings`, so the
+"needs its status fixed" alert lists only a status nothing recognises. A day whose
+only booking is a no-show is not an empty day: the empty-day message also waits
+for the stack itself to be empty.
+
 A no-show card has no board zone and exposes **They turned up** through a
 zone-less `TokenActionSubject`. The correction returns the booking to `Booked`
 and clears `cancel_reason`; it does not claim the dog is already checked in.

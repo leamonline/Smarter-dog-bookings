@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — no-shows no longer raise the status alert on Today
+
+- A no-show was listed in Today's red "needs its status fixed" alert as well as on its own card. Terminal statuses (Cancelled, No-show) are now left out of that alert, which keeps it for statuses nothing recognises (audit N-34).
+- A day whose only booking is a no-show still shows the no-show card instead of "No bookings on this date".
+
 ## Unreleased — UX/UI audit, second pass
 
 - Record the [11 November second-pass audit](docs/research/2026-11-11-ux-ui-audit-second-pass.md): live website and sign-in evidence, new findings and an adversarial check, building on the 10 November audit.
