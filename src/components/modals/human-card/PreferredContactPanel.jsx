@@ -25,10 +25,11 @@ export function PreferredContactPanel({ isEditing, human, onUpdateHuman, editWha
 
   const choose = (option) => {
     if (!canChange || option.value === prefersWhatsApp) return;
-    if (isEditing) {
-      setEditWhatsapp(option.value);
-      return;
-    }
+    // Always update the profile draft. A view-mode click writes immediately,
+    // but the draft is only reseeded when a different human is opened — so
+    // Save would otherwise send the previous flag and undo this choice.
+    setEditWhatsapp(option.value);
+    if (isEditing) return;
     setSavingKey(option.key);
     setTimeout(() => setSavingKey((current) => (current === option.key ? null : current)), 200);
     onUpdateHuman(human.id, { whatsapp: option.value });

@@ -133,6 +133,23 @@ describe("HumanCardModal", () => {
     expect(screen.getByPlaceholderText("Surname")).toHaveValue("Jones");
   });
 
+  it("does not revert a live preferred-contact choice when the profile is saved", async () => {
+    const onUpdateHuman = vi.fn().mockResolvedValue(undefined);
+    renderModal({ onUpdateHuman });
+    fireEvent.click(screen.getByRole("radio", { name: "SMS" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+    fireEvent.change(screen.getByPlaceholderText("First name"), {
+      target: { value: "Sara" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => {
+      expect(onUpdateHuman).toHaveBeenCalledWith(
+        "human-1",
+        expect.objectContaining({ name: "Sara", whatsapp: false }),
+      );
+    });
+  });
+
   it("copy-phone button calls navigator.clipboard.writeText with the phone number", () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.assign(navigator, { clipboard: { writeText } });
