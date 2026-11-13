@@ -59,221 +59,233 @@ Deno.test("the wording falls back to 'your dog' when no name is given", () => {
   assertEquals(collectionSmsText("", "10").includes("pampering your dog and"), true);
 });
 
-// ── the IO path, with a scripted Supabase ───────────────────
-interface Script {
-  claimed?: unknown[];
-  claimError?: { message: string };
-  conversation?: { phone_e164: string | null; human_id: string | null } | null;
-  /** The number's SMS conversation, where sms-send records texts. */
-  smsThread?: { id: string } | null;
-  smsThreadError?: { message: string };
-  earlier?: unknown[];
-  earlierError?: { message: string };
-  /** Earlier failed collection notices in the WhatsApp thread, inside the window. */
-  chased?: unknown[];
-  chasedError?: { message: string };
-}
+// ── the IO path, against a small in-memory database ─────────
+//
+// A write path is judged by the ROW it leaves, not by the arguments handed to
+// the writer (AGENTS.md). So this is a stateful fake, not a script: it holds
+// whatsapp_messages and whatsapp_conversations rows, applies every filter the
+// code chains, and really performs the update. A claim that matched no row, or
+// one that failed to store the provider's errors, fails these tests.
 
-interface Recorded {
-  calls: string[];
-  claimPatch?: Record<string, unknown>;
-  earlierConversationId?: unknown;
-  chasedFilters?: string[];
-}
+type Row = Record<string, any>;
 
-// A scripted Supabase that keeps the real channel separation: the WhatsApp
-// conversation is read by id, the SMS conversation by phone + channel 'sms',
-// and the earlier-text query records WHICH conversation it searched.
-function fakeSupabase(script: Script, rec: Recorded) {
+function memoryDb(tables: Record<string, Row[]>, failOn: (table: string, op: string) => string | null = () => null) {
   return {
+    tables,
     from(table: string) {
-      const eqs: Record<string, unknown> = {};
-      let updating = false;
-      const builder: Record<string, any> = {};
-      const filters: string[] = [];
-      for (const m of ["neq", "like", "gte", "lt"]) {
-        builder[m] = (col: string, value: unknown) => {
-          filters.push(`${m}:${col}:${value}`);
-          return builder;
-        };
-      }
-      builder.update = (patch: Record<string, unknown>) => {
-        updating = true;
-        rec.claimPatch = patch;
-        return builder;
+      const preds: Array<(r: Row) => boolean> = [];
+      let patch: Row | null = null;
+      let max = Infinity;
+      const run = () => {
+        const failure = failOn(table, patch ? "update" : "select");
+        if (failure) return { data: null, error: { message: failure } };
+        const hits = (tables[table] ?? []).filter((r) => preds.every((p) => p(r)));
+        if (patch) for (const r of hits) Object.assign(r, patch);
+        return { data: hits.slice(0, max).map((r) => ({ ...r })), error: null };
       };
-      builder.eq = (col: string, value: unknown) => {
-        eqs[col] = value;
-        return builder;
+      const b: Record<string, any> = {
+        update: (p: Row) => ((patch = p), b),
+        select: () => b,
+        eq: (c: string, v: unknown) => (preds.push((r) => r[c] === v), b),
+        neq: (c: string, v: unknown) => (preds.push((r) => r[c] !== v), b),
+        gte: (c: string, v: string) => (preds.push((r) => r[c] >= v), b),
+        lt: (c: string, v: string) => (preds.push((r) => r[c] < v), b),
+        like: (c: string, pattern: string) => {
+          const prefix = pattern.replace(/%$/, "");
+          preds.push((r) => typeof r[c] === "string" && r[c].startsWith(prefix));
+          return b;
+        },
+        limit: (n: number) => ((max = n), b),
+        maybeSingle: () => {
+          const res = run();
+          return Promise.resolve({ data: res.data ? res.data[0] ?? null : null, error: res.error });
+        },
+        then: (resolve: (v: unknown) => void) => resolve(run()),
       };
-      builder.select = () => {
-        if (updating) {
-          rec.calls.push(`claim:${table}`);
-          return Promise.resolve({ data: script.claimed ?? [], error: script.claimError ?? null });
-        }
-        return builder;
-      };
-      builder.maybeSingle = () => {
-        if (eqs.channel === "sms") {
-          rec.calls.push(`smsThread:${eqs.phone_e164}`);
-          return Promise.resolve({ data: script.smsThread ?? null, error: script.smsThreadError ?? null });
-        }
-        rec.calls.push(`conversation:${eqs.id}`);
-        return Promise.resolve({ data: script.conversation ?? null, error: null });
-      };
-      builder.limit = () => {
-        if (eqs.status === "failed") {
-          // The earlier-attempt check: this WhatsApp thread, strictly earlier.
-          rec.calls.push(`chased:${eqs.conversation_id}`);
-          rec.chasedFilters = filters;
-          return Promise.resolve({ data: script.chased ?? [], error: script.chasedError ?? null });
-        }
-        rec.calls.push("earlier");
-        rec.earlierConversationId = eqs.conversation_id;
-        return Promise.resolve({ data: script.earlier ?? [], error: script.earlierError ?? null });
-      };
-      return builder;
+      return b;
     },
   };
 }
 
-const MESSAGE = { id: "m1", content: CONTENT, sent_at: FRESH, conversation_id: "c1" };
-const CONVERSATION = { phone_e164: "+447700900111", human_id: "h1" };
-
+const PHONE = "+447700900111";
 const ERRORS = JSON.stringify([{ code: 131026, title: "Message undeliverable" }]);
 
-async function run(script: Script, send = { ok: true } as { ok: boolean; detail?: string }) {
-  const rec: Recorded = { calls: [] };
-  const sent: Record<string, unknown>[] = [];
-  const outcome = await chaseFailedCollectionNotice("wamid.1", ERRORS, {
-    supabase: fakeSupabase(script, rec),
+function waMessage(over: Row = {}): Row {
+  return {
+    id: "m1",
+    conversation_id: "wa-1",
+    channel: "whatsapp",
+    direction: "outbound",
+    meta_message_id: "wamid.1",
+    content: CONTENT,
+    status: "sent",
+    error_message: null,
+    sent_at: FRESH,
+    ...over,
+  };
+}
+
+function seed(over: { messages?: Row[]; conversations?: Row[] } = {}) {
+  return {
+    whatsapp_conversations: over.conversations ?? [
+      { id: "wa-1", phone_e164: PHONE, channel: "whatsapp", human_id: "h1" },
+    ],
+    whatsapp_messages: over.messages ?? [waMessage()],
+  };
+}
+
+async function chase(
+  tables: Record<string, Row[]>,
+  opts: {
+    send?: { ok: boolean; detail?: string };
+    failOn?: (table: string, op: string) => string | null;
+    wamid?: string;
+  } = {},
+) {
+  const sent: Row[] = [];
+  const outcome = await chaseFailedCollectionNotice(opts.wamid ?? "wamid.1", ERRORS, {
+    supabase: memoryDb(tables, opts.failOn),
     sendSms: (body) => {
       sent.push(body);
-      return Promise.resolve(send);
+      return Promise.resolve(opts.send ?? { ok: true });
     },
     now: () => NOW,
     log: () => {},
   });
-  return { outcome, sent, calls: rec.calls, rec };
+  return { outcome, sent };
 }
 
-Deno.test("the first failure of a fresh collection notice sends one SMS through sms-send", async () => {
-  const { outcome, sent } = await run({ claimed: [MESSAGE], conversation: CONVERSATION });
+const stored = (tables: Record<string, Row[]>, id: string) => tables.whatsapp_messages.find((r) => r.id === id)!;
+
+Deno.test("the first failure sends one SMS and leaves the message stored as failed with the provider's errors", async () => {
+  const tables = seed();
+  const { outcome, sent } = await chase(tables);
   assertEquals(outcome, "sent");
   assertEquals(sent, [{
     mode: "template",
-    to: "+447700900111",
+    to: PHONE,
     text: "Hi! We've finished pampering Busby and they're ready to head home in 5 mins. See you soon! X - Smarter Dog Grooming",
     template_name: "ready_for_collection_sms",
     human_id: "h1",
   }]);
+  // The row, not the call: status and the real reason are both on it, which is
+  // what the notification_log trigger reads on this first transition.
+  assertEquals(stored(tables, "m1").status, "failed");
+  assertEquals(stored(tables, "m1").error_message, ERRORS);
 });
 
-Deno.test("a status Meta delivers twice texts once: the second claim returns nothing", async () => {
-  const { outcome, sent, calls } = await run({ claimed: [] });
-  assertEquals(outcome, "not_first_failure");
-  assertEquals(sent.length, 0);
-  assertEquals(calls, ["claim:whatsapp_messages"]);
+Deno.test("a status Meta delivers twice texts once: the row is already failed, so nothing is claimed", async () => {
+  const tables = seed();
+  assertEquals((await chase(tables)).outcome, "sent");
+  const again = await chase(tables);
+  assertEquals(again.outcome, "not_first_failure");
+  assertEquals(again.sent.length, 0);
 });
 
-Deno.test("another template's failure is claimed but never texted", async () => {
-  const { outcome, sent } = await run({
-    claimed: [{ ...MESSAGE, content: "[template:appointment_reminder_v2] x" }],
-    conversation: CONVERSATION,
+Deno.test("the claim touches only the outbound message with that id", async () => {
+  const tables = seed({
+    messages: [
+      waMessage(),
+      waMessage({ id: "in", direction: "inbound" }), // Meta reuses ids across directions
+      waMessage({ id: "other", meta_message_id: "wamid.2" }),
+    ],
   });
+  await chase(tables);
+  assertEquals(stored(tables, "m1").status, "failed");
+  assertEquals(stored(tables, "in").status, "sent");
+  assertEquals(stored(tables, "other").status, "sent");
+  // An id that matches no message claims nothing and texts nobody.
+  const none = await chase(seed(), { wamid: "wamid.unknown" });
+  assertEquals([none.outcome, none.sent.length], ["not_first_failure", 0]);
+});
+
+Deno.test("another template's failure is stored as failed with its reason, but never texted", async () => {
+  const tables = seed({ messages: [waMessage({ content: "[template:appointment_reminder_v2] x" })] });
+  const { outcome, sent } = await chase(tables);
   assertEquals(outcome, "not_collection_notice");
   assertEquals(sent.length, 0);
+  assertEquals(stored(tables, "m1").status, "failed");
+  assertEquals(stored(tables, "m1").error_message, ERRORS);
 });
 
-Deno.test("the claim writes the provider's errors with the status, so the log trigger sees the real reason", async () => {
-  const { rec } = await run({ claimed: [MESSAGE], conversation: CONVERSATION });
-  assertEquals(rec.claimPatch, { status: "failed", error_message: ERRORS });
-});
+Deno.test("no second text when a collection SMS is already in that number's SMS thread", async () => {
+  // sms-send records texts in the number's own conversation (channel 'sms'),
+  // never in the WhatsApp one.
+  const smsRow = {
+    id: "s1",
+    conversation_id: "sms-1",
+    channel: "sms",
+    direction: "outbound",
+    content: "[template:ready_for_collection_sms] Hi! ...",
+    status: "sent",
+    sent_at: "2026-11-13T10:01:00Z",
+  };
+  const conversations = [
+    { id: "wa-1", phone_e164: PHONE, channel: "whatsapp", human_id: "h1" },
+    { id: "sms-1", phone_e164: PHONE, channel: "sms", human_id: "h1" },
+  ];
+  const blocked = await chase(seed({ conversations, messages: [waMessage(), smsRow] }));
+  assertEquals([blocked.outcome, blocked.sent.length], ["already_texted", 0]);
 
-Deno.test("no second text when a collection SMS already went to that number's SMS thread", async () => {
-  const { outcome, sent, rec, calls } = await run({
-    claimed: [MESSAGE],
-    conversation: CONVERSATION,
-    smsThread: { id: "sms-1" },
-    earlier: [{ id: "s1" }],
-  });
-  assertEquals(outcome, "already_texted");
-  assertEquals(sent.length, 0);
-  // It looked in the SMS conversation for that number, not the WhatsApp one.
-  assertEquals(calls.includes("smsThread:+447700900111"), true);
-  assertEquals(rec.earlierConversationId, "sms-1");
-});
-
-Deno.test("an SMS thread with no recent collection text does not block the fallback", async () => {
-  const { outcome, sent } = await run({
-    claimed: [MESSAGE],
-    conversation: CONVERSATION,
-    smsThread: { id: "sms-1" },
-    earlier: [],
-  });
-  assertEquals(outcome, "sent");
-  assertEquals(sent.length, 1);
-});
-
-Deno.test("a number never texted before has no SMS thread to search, and is texted", async () => {
-  const { outcome, calls } = await run({ claimed: [MESSAGE], conversation: CONVERSATION, smsThread: null });
-  assertEquals(outcome, "sent");
-  assertEquals(calls.includes("earlier"), false);
-});
-
-Deno.test("if either duplicate check cannot be made, it does not risk a second text", async () => {
-  const a = await run({
-    claimed: [MESSAGE],
-    conversation: CONVERSATION,
-    smsThread: { id: "sms-1" },
-    earlierError: { message: "boom" },
-  });
-  assertEquals([a.outcome, a.sent.length], ["already_texted", 0]);
-  const b = await run({ claimed: [MESSAGE], conversation: CONVERSATION, smsThreadError: { message: "boom" } });
-  assertEquals([b.outcome, b.sent.length], ["already_texted", 0]);
+  // An old one, another template, or another number's thread does not block.
+  for (const other of [
+    { ...smsRow, sent_at: "2026-11-13T09:00:00Z" },
+    { ...smsRow, content: "[template:appointment_reminder] Hi" },
+    { ...smsRow, conversation_id: "sms-other" },
+  ]) {
+    const ok = await chase(seed({ conversations, messages: [waMessage(), other] }));
+    assertEquals(ok.outcome, "sent");
+  }
 });
 
 Deno.test("one automatic attempt per number per window: an earlier failed notice blocks a second text", async () => {
   // The first chase may have reached the phone with no record (sms-send
-  // "outcome unknown"), so the failed notice itself is the evidence.
-  const { outcome, sent, calls, rec } = await run({
-    claimed: [MESSAGE],
-    conversation: CONVERSATION,
-    chased: [{ id: "m0" }],
+  // "outcome unknown" records nothing), so the failed notice is the evidence.
+  const earlier = waMessage({
+    id: "m0",
+    meta_message_id: "wamid.0",
+    status: "failed",
+    sent_at: "2026-11-13T09:58:00Z",
   });
-  assertEquals(outcome, "already_chased");
-  assertEquals(sent.length, 0);
-  assertEquals(calls.includes("chased:c1"), true);
-  // Only strictly earlier notices inside the window count, so two failures
-  // handled at once cannot both defer to each other.
-  assertEquals(rec.chasedFilters?.includes(`lt:sent_at:${FRESH}`), true);
-  assertEquals(rec.chasedFilters?.includes("gte:sent_at:2026-11-13T09:40:00.000Z"), true);
-});
-
-Deno.test("an unconfirmed send is reported and never retried by this call", async () => {
-  const { outcome, sent } = await run(
-    { claimed: [MESSAGE], conversation: CONVERSATION },
-    { ok: false, detail: "sms-send 502: outcome unknown" },
-  );
-  assertEquals(outcome, "send_failed");
-  assertEquals(sent.length, 1);
-});
-
-Deno.test("if the earlier-attempt check cannot be made, it sends nothing", async () => {
-  const { outcome, sent } = await run({
-    claimed: [MESSAGE],
-    conversation: CONVERSATION,
-    chasedError: { message: "boom" },
-  });
+  const tables = seed({ messages: [earlier, waMessage()] });
+  const { outcome, sent } = await chase(tables);
   assertEquals([outcome, sent.length], ["already_chased", 0]);
+  assertEquals(stored(tables, "m1").status, "failed");
+
+  // Outside the window, or not a collection notice, it does not block.
+  for (const over of [{ sent_at: "2026-11-13T09:00:00Z" }, { content: "[template:appointment_reminder_v2] x" }]) {
+    const ok = await chase(seed({ messages: [{ ...earlier, ...over }, waMessage()] }));
+    assertEquals(ok.outcome, "sent");
+  }
 });
 
-Deno.test("no number, a failed claim or a refused send never throw", async () => {
-  assertEquals((await run({ claimed: [MESSAGE], conversation: null })).outcome, "no_number");
-  assertEquals((await run({ claimError: { message: "boom" } })).outcome, "not_first_failure");
-  // sms-send refusing (opted out, untextable, Twilio down) is reported, not retried.
-  assertEquals(
-    (await run({ claimed: [MESSAGE], conversation: CONVERSATION }, { ok: false, detail: "409" })).outcome,
-    "send_failed",
-  );
+Deno.test("two failures handled at once cannot both defer: the earlier notice still texts", async () => {
+  const later = waMessage({ id: "m2", meta_message_id: "wamid.2", status: "failed", sent_at: "2026-11-13T10:05:00Z" });
+  const { outcome, sent } = await chase(seed({ messages: [waMessage(), later] }));
+  assertEquals([outcome, sent.length], ["sent", 1]);
+});
+
+Deno.test("an unconfirmed send is reported, and a later failed notice does not text again", async () => {
+  const tables = seed();
+  const first = await chase(tables, { send: { ok: false, detail: "sms-send 502: outcome unknown" } });
+  assertEquals([first.outcome, first.sent.length], ["send_failed", 1]);
+  // Staff press Retry; that WhatsApp fails too. No SMS row exists for the
+  // first attempt, yet no second text goes.
+  tables.whatsapp_messages.push(waMessage({ id: "m2", meta_message_id: "wamid.2", sent_at: "2026-11-13T10:06:00Z" }));
+  const second = await chase(tables, { wamid: "wamid.2" });
+  assertEquals([second.outcome, second.sent.length], ["already_chased", 0]);
+});
+
+Deno.test("when a check cannot be made it sends nothing, and never throws", async () => {
+  // The claim itself failing: nothing is known, nothing is sent.
+  const claim = await chase(seed(), { failOn: (t, op) => (t === "whatsapp_messages" && op === "update" ? "boom" : null) });
+  assertEquals([claim.outcome, claim.sent.length], ["not_first_failure", 0]);
+  // The duplicate checks failing after a good claim.
+  const dup = await chase(seed(), { failOn: (t, op) => (t === "whatsapp_messages" && op === "select" ? "boom" : null) });
+  assertEquals([dup.outcome, dup.sent.length], ["already_chased", 0]);
+});
+
+Deno.test("no number on the conversation means no text", async () => {
+  const { outcome, sent } = await chase(seed({ conversations: [] }));
+  assertEquals([outcome, sent.length], ["no_number", 0]);
 });
