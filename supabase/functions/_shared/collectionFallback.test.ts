@@ -64,34 +64,56 @@ interface Script {
   claimed?: unknown[];
   claimError?: { message: string };
   conversation?: { phone_e164: string | null; human_id: string | null } | null;
+  /** The number's SMS conversation, where sms-send records texts. */
+  smsThread?: { id: string } | null;
+  smsThreadError?: { message: string };
   earlier?: unknown[];
   earlierError?: { message: string };
 }
 
-function fakeSupabase(script: Script, calls: string[]) {
+interface Recorded {
+  calls: string[];
+  claimPatch?: Record<string, unknown>;
+  earlierConversationId?: unknown;
+}
+
+// A scripted Supabase that keeps the real channel separation: the WhatsApp
+// conversation is read by id, the SMS conversation by phone + channel 'sms',
+// and the earlier-text query records WHICH conversation it searched.
+function fakeSupabase(script: Script, rec: Recorded) {
   return {
     from(table: string) {
-      const state: { op?: string } = {};
-      const builder: Record<string, unknown> = {};
-      const chain = (name: string) => (..._args: unknown[]) => {
-        if (name === "update" || name === "select") state.op ??= name;
+      const eqs: Record<string, unknown> = {};
+      let updating = false;
+      const builder: Record<string, any> = {};
+      for (const m of ["neq", "like", "gte"]) builder[m] = () => builder;
+      builder.update = (patch: Record<string, unknown>) => {
+        updating = true;
+        rec.claimPatch = patch;
         return builder;
       };
-      for (const m of ["update", "eq", "neq", "like", "gte"]) builder[m] = chain(m);
-      builder.select = (..._a: unknown[]) => {
-        if (state.op === "update") {
-          calls.push(`claim:${table}`);
+      builder.eq = (col: string, value: unknown) => {
+        eqs[col] = value;
+        return builder;
+      };
+      builder.select = () => {
+        if (updating) {
+          rec.calls.push(`claim:${table}`);
           return Promise.resolve({ data: script.claimed ?? [], error: script.claimError ?? null });
         }
-        state.op = "select";
         return builder;
       };
       builder.maybeSingle = () => {
-        calls.push(`conversation:${table}`);
+        if (eqs.channel === "sms") {
+          rec.calls.push(`smsThread:${eqs.phone_e164}`);
+          return Promise.resolve({ data: script.smsThread ?? null, error: script.smsThreadError ?? null });
+        }
+        rec.calls.push(`conversation:${eqs.id}`);
         return Promise.resolve({ data: script.conversation ?? null, error: null });
       };
       builder.limit = () => {
-        calls.push(`earlier:${table}`);
+        rec.calls.push("earlier");
+        rec.earlierConversationId = eqs.conversation_id;
         return Promise.resolve({ data: script.earlier ?? [], error: script.earlierError ?? null });
       };
       return builder;
@@ -102,11 +124,13 @@ function fakeSupabase(script: Script, calls: string[]) {
 const MESSAGE = { id: "m1", content: CONTENT, sent_at: FRESH, conversation_id: "c1" };
 const CONVERSATION = { phone_e164: "+447700900111", human_id: "h1" };
 
+const ERRORS = JSON.stringify([{ code: 131026, title: "Message undeliverable" }]);
+
 async function run(script: Script, send = { ok: true } as { ok: boolean; detail?: string }) {
-  const calls: string[] = [];
+  const rec: Recorded = { calls: [] };
   const sent: Record<string, unknown>[] = [];
-  const outcome = await chaseFailedCollectionNotice("wamid.1", {
-    supabase: fakeSupabase(script, calls),
+  const outcome = await chaseFailedCollectionNotice("wamid.1", ERRORS, {
+    supabase: fakeSupabase(script, rec),
     sendSms: (body) => {
       sent.push(body);
       return Promise.resolve(send);
@@ -114,7 +138,7 @@ async function run(script: Script, send = { ok: true } as { ok: boolean; detail?
     now: () => NOW,
     log: () => {},
   });
-  return { outcome, sent, calls };
+  return { outcome, sent, calls: rec.calls, rec };
 }
 
 Deno.test("the first failure of a fresh collection notice sends one SMS through sms-send", async () => {
@@ -145,20 +169,52 @@ Deno.test("another template's failure is claimed but never texted", async () => 
   assertEquals(sent.length, 0);
 });
 
-Deno.test("no second text when a collection SMS already went to that thread", async () => {
-  const { outcome, sent } = await run({ claimed: [MESSAGE], conversation: CONVERSATION, earlier: [{ id: "s1" }] });
-  assertEquals(outcome, "already_texted");
-  assertEquals(sent.length, 0);
+Deno.test("the claim writes the provider's errors with the status, so the log trigger sees the real reason", async () => {
+  const { rec } = await run({ claimed: [MESSAGE], conversation: CONVERSATION });
+  assertEquals(rec.claimPatch, { status: "failed", error_message: ERRORS });
 });
 
-Deno.test("if the earlier-text check cannot be made, it does not risk a duplicate", async () => {
-  const { outcome, sent } = await run({
+Deno.test("no second text when a collection SMS already went to that number's SMS thread", async () => {
+  const { outcome, sent, rec, calls } = await run({
     claimed: [MESSAGE],
     conversation: CONVERSATION,
-    earlierError: { message: "boom" },
+    smsThread: { id: "sms-1" },
+    earlier: [{ id: "s1" }],
   });
   assertEquals(outcome, "already_texted");
   assertEquals(sent.length, 0);
+  // It looked in the SMS conversation for that number, not the WhatsApp one.
+  assertEquals(calls.includes("smsThread:+447700900111"), true);
+  assertEquals(rec.earlierConversationId, "sms-1");
+});
+
+Deno.test("an SMS thread with no recent collection text does not block the fallback", async () => {
+  const { outcome, sent } = await run({
+    claimed: [MESSAGE],
+    conversation: CONVERSATION,
+    smsThread: { id: "sms-1" },
+    earlier: [],
+  });
+  assertEquals(outcome, "sent");
+  assertEquals(sent.length, 1);
+});
+
+Deno.test("a number never texted before has no SMS thread to search, and is texted", async () => {
+  const { outcome, calls } = await run({ claimed: [MESSAGE], conversation: CONVERSATION, smsThread: null });
+  assertEquals(outcome, "sent");
+  assertEquals(calls.includes("earlier"), false);
+});
+
+Deno.test("if either duplicate check cannot be made, it does not risk a second text", async () => {
+  const a = await run({
+    claimed: [MESSAGE],
+    conversation: CONVERSATION,
+    smsThread: { id: "sms-1" },
+    earlierError: { message: "boom" },
+  });
+  assertEquals([a.outcome, a.sent.length], ["already_texted", 0]);
+  const b = await run({ claimed: [MESSAGE], conversation: CONVERSATION, smsThreadError: { message: "boom" } });
+  assertEquals([b.outcome, b.sent.length], ["already_texted", 0]);
 });
 
 Deno.test("no number, a failed claim or a refused send never throw", async () => {

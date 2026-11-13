@@ -102,21 +102,27 @@ export interface FallbackDeps {
 
 /**
  * Called for every FAILED delivery status, BEFORE the status handler writes
- * 'failed' itself: the first query both marks the message failed and proves
- * this is the first time, in one statement. Never throws: a fault here must
+ * 'failed' itself: the first query marks the message failed (with the
+ * provider's errors) and proves this is the first time, in one statement. Never throws: a fault here must
  * not stop the status being recorded.
  */
 export async function chaseFailedCollectionNotice(
   metaMessageId: string,
+  /** The provider's errors, serialised exactly as the status handler stores them. */
+  errorMessage: string,
   deps: FallbackDeps,
 ): Promise<FallbackOutcome> {
   const log = deps.log ?? ((m: string) => console.warn(m));
   const now = (deps.now ?? (() => new Date()))();
   try {
-    // The claim. Only the first transition to 'failed' returns a row.
+    // The claim. Only the first transition to 'failed' returns a row. The
+    // provider's errors are written in the SAME statement: a database trigger
+    // copies error_message to notification_log on that first transition (for
+    // every template, not just this one), so writing the status alone here
+    // would replace the real failure reason with a generic one for good.
     const { data: claimed, error: claimErr } = await deps.supabase
       .from("whatsapp_messages")
-      .update({ status: "failed" })
+      .update({ status: "failed", error_message: errorMessage })
       .eq("meta_message_id", metaMessageId)
       .eq("direction", "outbound")
       .neq("status", "failed")
@@ -138,23 +144,37 @@ export async function chaseFailedCollectionNotice(
       .maybeSingle();
     if (!conversation?.phone_e164) return "no_number";
 
-    // A collection text already in this thread, inside the window: staff sent
-    // one by hand, or an earlier failed attempt was already chased.
-    const since = new Date(now.getTime() - FRESH_MINUTES * 60_000).toISOString();
-    const { data: earlier, error: earlierErr } = await deps.supabase
-      .from("whatsapp_messages")
+    // A collection text already sent to this number, inside the window: staff
+    // sent one by hand, or an earlier failed attempt was already chased. Texts
+    // are NOT in the WhatsApp thread: sms-send records them in the number's own
+    // SMS conversation (phone_e164 + channel 'sms'), so that is where to look.
+    // If either lookup fails we can't tell, and don't risk a second text.
+    const { data: smsThread, error: smsThreadErr } = await deps.supabase
+      .from("whatsapp_conversations")
       .select("id")
-      .eq("conversation_id", message.conversation_id)
-      .eq("direction", "outbound")
-      .like("content", `[template:${COLLECTION_SMS_TEMPLATE}]%`)
-      .gte("sent_at", since)
-      .limit(1);
-    if (earlierErr) {
-      // Can't tell whether they were texted already: don't risk a second one.
-      log(`collection fallback: earlier-text check failed for ${metaMessageId}: ${earlierErr.message}`);
+      .eq("phone_e164", conversation.phone_e164)
+      .eq("channel", "sms")
+      .maybeSingle();
+    if (smsThreadErr) {
+      log(`collection fallback: SMS thread lookup failed for ${metaMessageId}: ${smsThreadErr.message}`);
       return "already_texted";
     }
-    if ((earlier ?? []).length > 0) return "already_texted";
+    if (smsThread?.id) {
+      const since = new Date(now.getTime() - FRESH_MINUTES * 60_000).toISOString();
+      const { data: earlier, error: earlierErr } = await deps.supabase
+        .from("whatsapp_messages")
+        .select("id")
+        .eq("conversation_id", smsThread.id)
+        .eq("direction", "outbound")
+        .like("content", `[template:${COLLECTION_SMS_TEMPLATE}]%`)
+        .gte("sent_at", since)
+        .limit(1);
+      if (earlierErr) {
+        log(`collection fallback: earlier-text check failed for ${metaMessageId}: ${earlierErr.message}`);
+        return "already_texted";
+      }
+      if ((earlier ?? []).length > 0) return "already_texted";
+    }
 
     const result = await deps.sendSms({
       mode: "template",

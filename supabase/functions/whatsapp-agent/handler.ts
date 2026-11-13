@@ -2602,9 +2602,11 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
     // A failed "ready for collection" notice is texted at once: the owner is
     // waiting to hear, and the hourly SMS fallback would be far too late. This
     // must run BEFORE the update below, because it claims the message's first
-    // move to 'failed' and that is what stops a repeated status texting twice.
+    // move to 'failed' (writing the provider's errors with it, which the
+    // notification_log trigger reads) and that is what stops a repeated status
+    // texting twice.
     // It never throws (see _shared/collectionFallback.ts).
-    const outcome = await chaseFailedCollectionNotice(status.id, {
+    const outcome = await chaseFailedCollectionNotice(status.id, patch.error_message as string, {
       supabase,
       sendSms: sendCollectionFallbackSms,
     });
