@@ -69,12 +69,16 @@ interface Script {
   smsThreadError?: { message: string };
   earlier?: unknown[];
   earlierError?: { message: string };
+  /** Earlier failed collection notices in the WhatsApp thread, inside the window. */
+  chased?: unknown[];
+  chasedError?: { message: string };
 }
 
 interface Recorded {
   calls: string[];
   claimPatch?: Record<string, unknown>;
   earlierConversationId?: unknown;
+  chasedFilters?: string[];
 }
 
 // A scripted Supabase that keeps the real channel separation: the WhatsApp
@@ -86,7 +90,13 @@ function fakeSupabase(script: Script, rec: Recorded) {
       const eqs: Record<string, unknown> = {};
       let updating = false;
       const builder: Record<string, any> = {};
-      for (const m of ["neq", "like", "gte"]) builder[m] = () => builder;
+      const filters: string[] = [];
+      for (const m of ["neq", "like", "gte", "lt"]) {
+        builder[m] = (col: string, value: unknown) => {
+          filters.push(`${m}:${col}:${value}`);
+          return builder;
+        };
+      }
       builder.update = (patch: Record<string, unknown>) => {
         updating = true;
         rec.claimPatch = patch;
@@ -112,6 +122,12 @@ function fakeSupabase(script: Script, rec: Recorded) {
         return Promise.resolve({ data: script.conversation ?? null, error: null });
       };
       builder.limit = () => {
+        if (eqs.status === "failed") {
+          // The earlier-attempt check: this WhatsApp thread, strictly earlier.
+          rec.calls.push(`chased:${eqs.conversation_id}`);
+          rec.chasedFilters = filters;
+          return Promise.resolve({ data: script.chased ?? [], error: script.chasedError ?? null });
+        }
         rec.calls.push("earlier");
         rec.earlierConversationId = eqs.conversation_id;
         return Promise.resolve({ data: script.earlier ?? [], error: script.earlierError ?? null });
@@ -215,6 +231,41 @@ Deno.test("if either duplicate check cannot be made, it does not risk a second t
   assertEquals([a.outcome, a.sent.length], ["already_texted", 0]);
   const b = await run({ claimed: [MESSAGE], conversation: CONVERSATION, smsThreadError: { message: "boom" } });
   assertEquals([b.outcome, b.sent.length], ["already_texted", 0]);
+});
+
+Deno.test("one automatic attempt per number per window: an earlier failed notice blocks a second text", async () => {
+  // The first chase may have reached the phone with no record (sms-send
+  // "outcome unknown"), so the failed notice itself is the evidence.
+  const { outcome, sent, calls, rec } = await run({
+    claimed: [MESSAGE],
+    conversation: CONVERSATION,
+    chased: [{ id: "m0" }],
+  });
+  assertEquals(outcome, "already_chased");
+  assertEquals(sent.length, 0);
+  assertEquals(calls.includes("chased:c1"), true);
+  // Only strictly earlier notices inside the window count, so two failures
+  // handled at once cannot both defer to each other.
+  assertEquals(rec.chasedFilters?.includes(`lt:sent_at:${FRESH}`), true);
+  assertEquals(rec.chasedFilters?.includes("gte:sent_at:2026-11-13T09:40:00.000Z"), true);
+});
+
+Deno.test("an unconfirmed send is reported and never retried by this call", async () => {
+  const { outcome, sent } = await run(
+    { claimed: [MESSAGE], conversation: CONVERSATION },
+    { ok: false, detail: "sms-send 502: outcome unknown" },
+  );
+  assertEquals(outcome, "send_failed");
+  assertEquals(sent.length, 1);
+});
+
+Deno.test("if the earlier-attempt check cannot be made, it sends nothing", async () => {
+  const { outcome, sent } = await run({
+    claimed: [MESSAGE],
+    conversation: CONVERSATION,
+    chasedError: { message: "boom" },
+  });
+  assertEquals([outcome, sent.length], ["already_chased", 0]);
 });
 
 Deno.test("no number, a failed claim or a refused send never throw", async () => {

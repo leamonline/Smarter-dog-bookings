@@ -95,9 +95,11 @@ in the customer's inbox thread.
 - Only `ready_for_collection_v2`, and only within 30 minutes of sending. After
   that a "ready in 15 mins" text would mislead, and staff see the failure in the
   inbox instead.
-- Once per WhatsApp message, however many times Meta reports the failure, and
-  never if a collection text already went to that number in the same 30 minutes
-  (staff sent one by hand, or pressed Retry and that failed too).
+- One automatic text per number per 30 minutes. Meta reporting the same failure
+  twice texts once. A second collection notice that also fails in that window
+  (staff pressed Retry) is not texted again, because the first text may have
+  arrived without leaving a record. Nor is one sent if a collection text is
+  already in that number's SMS thread (staff sent it by hand).
 - `sms-send` still refuses an opted-out or untextable number.
 - If the text cannot be sent it is not retried; the failed WhatsApp message stays
   visible in the inbox.

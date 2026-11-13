@@ -19,8 +19,10 @@
 //     'failed' atomically, so a status Meta delivers twice texts once;
 //   - not if the notice is older than FRESH_MINUTES: a late "ready in 15 mins"
 //     would mislead, and staff see the failure in the inbox instead;
-//   - not if a collection text already went to that number in the same window
-//     (staff sent one by hand, or pressed Retry and that failed too);
+//   - one automatic attempt per number per window: not if an earlier collection
+//     notice to that number also failed in the window (it was already chased,
+//     and an SMS whose outcome is unknown leaves no record to check), and not
+//     if a collection text is already recorded there (staff sent one by hand);
 //   - opt-outs are not decided here: sms-send refuses an opted-out or
 //     untextable number for every caller, and this goes through sms-send.
 //
@@ -88,6 +90,7 @@ export type FallbackOutcome =
   | "unreadable"
   | "stale"
   | "no_number"
+  | "already_chased"
   | "already_texted"
   | "sent"
   | "send_failed";
@@ -144,6 +147,34 @@ export async function chaseFailedCollectionNotice(
       .maybeSingle();
     if (!conversation?.phone_e164) return "no_number";
 
+    const since = new Date(now.getTime() - FRESH_MINUTES * 60_000).toISOString();
+
+    // One automatic attempt per number per window, whatever became of it. An
+    // EARLIER collection notice in this WhatsApp thread that also failed inside
+    // the window was already chased, and that chase may have reached the phone
+    // without leaving a trace: sms-send answers "outcome unknown" when Twilio
+    // times out after accepting a text, and records nothing. So the evidence
+    // used here is the failed notice itself, which the claim above always
+    // leaves behind, not the SMS record. Ambiguous outcomes fail closed
+    // (AGENTS.md): staff see the failure and decide. Only strictly earlier
+    // notices count, so two failures handled at once cannot each defer to the
+    // other and leave the owner with nothing.
+    const { data: chased, error: chasedErr } = await deps.supabase
+      .from("whatsapp_messages")
+      .select("id")
+      .eq("conversation_id", message.conversation_id)
+      .eq("direction", "outbound")
+      .eq("status", "failed")
+      .like("content", `[template:${COLLECTION_TEMPLATE}]%`)
+      .gte("sent_at", since)
+      .lt("sent_at", message.sent_at)
+      .limit(1);
+    if (chasedErr) {
+      log(`collection fallback: earlier-attempt check failed for ${metaMessageId}: ${chasedErr.message}`);
+      return "already_chased";
+    }
+    if ((chased ?? []).length > 0) return "already_chased";
+
     // A collection text already sent to this number, inside the window: staff
     // sent one by hand, or an earlier failed attempt was already chased. Texts
     // are NOT in the WhatsApp thread: sms-send records them in the number's own
@@ -160,7 +191,6 @@ export async function chaseFailedCollectionNotice(
       return "already_texted";
     }
     if (smsThread?.id) {
-      const since = new Date(now.getTime() - FRESH_MINUTES * 60_000).toISOString();
       const { data: earlier, error: earlierErr } = await deps.supabase
         .from("whatsapp_messages")
         .select("id")
@@ -184,7 +214,9 @@ export async function chaseFailedCollectionNotice(
       human_id: conversation.human_id ?? null,
     });
     if (!result.ok) {
-      log(`collection fallback: SMS not sent for ${metaMessageId}: ${result.detail ?? "unknown"}`);
+      // Not sent, or not known to be sent. Either way it is not retried: the
+      // check above stops a later failed notice texting this number again.
+      log(`collection fallback: SMS not confirmed for ${metaMessageId}: ${result.detail ?? "unknown"}`);
       return "send_failed";
     }
     return "sent";
