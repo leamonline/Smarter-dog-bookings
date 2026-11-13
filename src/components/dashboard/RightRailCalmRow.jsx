@@ -5,26 +5,23 @@
 // stack of muted cards with a single one-line strip of tertiary-link
 // chips — used both when every card is calm (the full four) and when
 // only some are (the calm remainder sitting below the loud cards).
-// Each chip keeps its card's hue so it stays identifiable at a glance.
+// Every chip shares one calm colour: they all mean "nothing needs you here",
+// and the label names the card. Identity colours belong to the loud cards,
+// so colour only appears when something needs attention (audit N-22: a red
+// "All sorted" read as a problem).
 // ============================================================
 
 import { Fragment } from "react";
 import { ArrowRight } from "lucide-react";
 
-function Chip({ label, onClick, hue }) {
-  // Per-card hue is preserved (faintly) so each chip is identifiable
-  // at a glance even at this compact size.
-  const colour = {
-    emerald: "text-emerald-700 hover:bg-emerald-50",
-    amber: "text-feedback-warning-ink hover:bg-feedback-warning-tint",
-    sky: "text-sky-700 hover:bg-sky-50",
-    rose: "text-rose-700 hover:bg-rose-50",
-  }[hue];
+const CALM_CHIP_COLOUR = "text-emerald-800 hover:bg-emerald-50";
+
+function Chip({ label, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-transparent border-none cursor-pointer font-[inherit] text-xs font-semibold ${colour}`}
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-transparent border-none cursor-pointer font-[inherit] text-xs font-semibold ${CALM_CHIP_COLOUR}`}
     >
       {label}
       <ArrowRight size={11} strokeWidth={2.5} aria-hidden="true" />
@@ -32,7 +29,7 @@ function Chip({ label, onClick, hue }) {
   );
 }
 
-// chips: [{ key, label, onClick, hue }] — one per calm card, in display order.
+// chips: [{ key, label, onClick }] — one per calm card, in display order.
 export function RightRailCalmRow({ chips }) {
   if (!chips || chips.length === 0) return null;
   // The full four collapsing means "all clear"; a calm remainder sitting
@@ -52,7 +49,7 @@ export function RightRailCalmRow({ chips }) {
           {i > 0 && (
             <span className="text-neutral-300" aria-hidden="true">·</span>
           )}
-          <Chip label={chip.label} onClick={chip.onClick} hue={chip.hue} />
+          <Chip label={chip.label} onClick={chip.onClick} />
         </Fragment>
       ))}
     </div>

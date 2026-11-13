@@ -73,9 +73,34 @@ function blankDog() {
   };
 }
 
-function dogReady(d) {
+// "Not sure" in the birth year list. A rescue dog of unknown age can still sign
+// up; the birth date is then saved as empty, never guessed. It is offered on
+// the year only: everything that reads a birth date expects "YYYY-MM", so a
+// known year with an unknown month cannot be stored without inventing a month,
+// and it must never be dropped silently either.
+const DOB_UNKNOWN = "unknown";
+
+function dobKnown(d) {
+  return Boolean(d.dobYear && d.dobMonth && d.dobYear !== DOB_UNKNOWN);
+}
+
+/** Which required dog details are still missing, in the order they appear. */
+function missingDogFields(d) {
   const breed = d.breed === "__other__" ? d.customBreed.trim() : d.breed.trim();
-  return Boolean(d.name.trim() && breed && d.sex && d.dobMonth && d.dobYear);
+  const missing = [];
+  if (!d.name.trim()) missing.push("name");
+  if (!breed) missing.push("breed");
+  if (!d.sex) missing.push("sex");
+  // A year of "Not sure" answers the whole question; otherwise both are needed.
+  if (d.dobYear !== DOB_UNKNOWN) {
+    if (!d.dobMonth) missing.push("birth month");
+    if (!d.dobYear) missing.push("birth year");
+  }
+  return missing;
+}
+
+function dogReady(d) {
+  return missingDogFields(d).length === 0;
 }
 
 /**
@@ -153,6 +178,18 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     referralValid &&
     policiesAccepted;
   const dogsValid = dogs.length > 0 && dogs.every(dogReady);
+  // One line naming what is missing, so a greyed-out button is never a mystery.
+  // With more than one dog, each gap is named against its dog.
+  const stillNeeded = dogs
+    .map((d, i) => {
+      const missing = missingDogFields(d);
+      if (missing.length === 0) return null;
+      if (dogs.length === 1) return missing.join(", ");
+      const label = d.name.trim() || `dog ${i + 1}`;
+      return `${label}: ${missing.join(", ")}`;
+    })
+    .filter(Boolean)
+    .join("; ");
   const ownerErrors = {
     name: !isRealPersonName(name) ? "Enter your first name." : null,
     surname: !surname.trim() ? "Enter your surname." : null,
@@ -212,7 +249,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
         name: d.name.trim(),
         breed,
         sex: d.sex || null,
-        dob: d.dobYear && d.dobMonth ? `${d.dobYear}-${d.dobMonth}` : null,
+        dob: dobKnown(d) ? `${d.dobYear}-${d.dobMonth}` : null,
         size: getSizeForBreed(breed) || null,
         microchip: d.microchip.trim() || null,
         neutered: d.neutered === "yes" ? true : d.neutered === "no" ? false : null,
@@ -485,6 +522,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                     aria-label="Birth month"
                     value={dog.dobMonth}
                     onChange={(e) => updateDog(i, { dobMonth: e.target.value })}
+                    disabled={dog.dobYear === DOB_UNKNOWN}
                     surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Birth month</option>
@@ -495,13 +533,16 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                   <Select
                     aria-label="Birth year"
                     value={dog.dobYear}
-                    onChange={(e) => updateDog(i, { dobYear: e.target.value })}
+                    onChange={(e) => updateDog(i, e.target.value === DOB_UNKNOWN
+                      ? { dobYear: DOB_UNKNOWN, dobMonth: "" }
+                      : { dobYear: e.target.value })}
                     surface="paper" size="portal" className="flex-1"
                   >
                     <option value="">Year</option>
                     {YEARS.map((y) => (
                       <option key={y} value={y}>{y}</option>
                     ))}
+                    <option value={DOB_UNKNOWN}>Not sure</option>
                   </Select>
                 </div>
 
@@ -608,10 +649,20 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
               >
                 Back
               </button>
-              <button type="submit" className="portal-btn portal-btn--cta flex-[2]" disabled={!dogsValid || saving}>
+              <button
+                type="submit"
+                className="portal-btn portal-btn--cta flex-[2]"
+                disabled={!dogsValid || saving}
+                aria-describedby={stillNeeded ? "join-dogs-still-needed" : undefined}
+              >
                 {saving ? "Sending…" : "Finish sign-up"}
               </button>
             </div>
+            {stillNeeded && (
+              <p id="join-dogs-still-needed" role="status" className="text-body text-slate-600 mt-2 text-center">
+                Still needed: {stillNeeded}
+              </p>
+            )}
           </>
         )}
 

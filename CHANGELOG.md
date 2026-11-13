@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — three small layout fixes from the UX audit
+
+- Sign-up: the dog step names the details still needed under the greyed-out button, and birth month and year offer "Not sure" for dogs of unknown age (N-13).
+- Website FAQ: the closing "Got a question?" band leads with WhatsApp (N-14).
+- Calendar: every all-clear link in the summary strip uses one calm colour, so "All sorted" is no longer red (N-22).
+
 ## Unreleased — one name each for Today and Bookings
 
 - The staff landing screen is now "Today" in the menu, heading and browser tab (was "Daily Brief"), matching its address and keyboard shortcut. It also fits the phone menu on one line.
