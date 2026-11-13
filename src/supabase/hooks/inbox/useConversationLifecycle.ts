@@ -14,7 +14,7 @@
 // Pulled out of useWhatsAppInbox so the transitions can be tested in
 // isolation against a stubbed supabase client, and so the monolith
 // shrinks without the InboxView consumer noticing.
-import { useCallback } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "../../client";
 import { logger } from "../../../lib/logger";
 
@@ -34,6 +34,7 @@ export interface UseConversationLifecycleArgs<T extends LifecycleConversation> {
   actionInFlight: boolean;
   setActionInFlight: (inFlight: boolean) => void;
   conversations: ReadonlyArray<T>;
+  setConversations?: Dispatch<SetStateAction<T[]>>;
 }
 
 export interface UseConversationLifecycleResult {
@@ -68,6 +69,7 @@ export function useConversationLifecycle<T extends LifecycleConversation>({
   actionInFlight,
   setActionInFlight,
   conversations,
+  setConversations,
 }: UseConversationLifecycleArgs<T>): UseConversationLifecycleResult {
   const takeoverConversation = useCallback(async (): Promise<LifecycleResult> => {
     if (!selectedId || actionInFlight) return { ok: false };
@@ -122,17 +124,22 @@ export function useConversationLifecycle<T extends LifecycleConversation>({
       const { data: userRes } = await client.auth.getUser();
       const userId = userRes?.user?.id ?? null;
 
+      const closure = {
+        closed_at: new Date().toISOString(),
+        closed_by: userId,
+        closure_reason: reason,
+        closure_suggested_at: null,
+        closure_suggested_reason: null,
+      };
+
       const { error } = await client
         .from("whatsapp_conversations")
-        .update({
-          closed_at: new Date().toISOString(),
-          closed_by: userId,
-          closure_reason: reason,
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
+        .update(closure)
         .eq("id", selectedId);
       if (error) throw error;
+      // Do not offer this thread again while realtime is still catching up.
+      setConversations?.((rows) => rows.map((row) =>
+        row.id === selectedId ? { ...row, ...closure } : row));
       return { ok: true, reason };
     } catch (err) {
       logger.error("resolveConversation failed", err, {
@@ -142,7 +149,7 @@ export function useConversationLifecycle<T extends LifecycleConversation>({
     } finally {
       setActionInFlight(false);
     }
-  }, [selectedId, actionInFlight, setActionInFlight, conversations]);
+  }, [selectedId, actionInFlight, setActionInFlight, conversations, setConversations]);
 
   const reopenConversation = useCallback(async (conversationId?: string | null): Promise<LifecycleResult> => {
     const id = conversationId ?? selectedId;
@@ -154,6 +161,8 @@ export function useConversationLifecycle<T extends LifecycleConversation>({
         .update(CLEARED_CLOSURE)
         .eq("id", id);
       if (error) throw error;
+      setConversations?.((rows) => rows.map((row) =>
+        row.id === id ? { ...row, ...CLEARED_CLOSURE } : row));
       return { ok: true };
     } catch (err) {
       logger.error("reopenConversation failed", err, {
@@ -163,7 +172,7 @@ export function useConversationLifecycle<T extends LifecycleConversation>({
     } finally {
       setActionInFlight(false);
     }
-  }, [selectedId, actionInFlight, setActionInFlight]);
+  }, [selectedId, actionInFlight, setActionInFlight, setConversations]);
 
   // Bulk close: the same write as resolveConversation but across many rows in a
   // single round-trip (.in instead of .eq). The closure_reason is always

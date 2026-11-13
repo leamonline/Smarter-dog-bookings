@@ -209,6 +209,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
     actionInFlight,
     setActionInFlight,
     conversations,
+    setConversations,
   });
 
   const { updateConversationNotes } = useConversationNotes({

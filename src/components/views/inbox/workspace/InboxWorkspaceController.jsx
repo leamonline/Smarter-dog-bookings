@@ -193,6 +193,29 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   });
 
   const list = useInboxListState({ conversations });
+  const completionQueueRef = useRef(null);
+  completionQueueRef.current = { selectedId, conversations: list.displayedConversations };
+
+  const handleResolveConversation = useCallback(async () => {
+    const targetId = selectedId;
+    // Capture the visible order before realtime removes the completed row.
+    const queue = list.displayedConversations;
+    const index = queue.findIndex((conversation) => conversation.id === targetId);
+    const nextInOrder = [...queue.slice(index + 1), ...queue.slice(0, index + 1)];
+    const res = await actions.resolveConversation();
+    const latest = completionQueueRef.current;
+    // Staff may have opened another customer while the close was saving.
+    if (res?.ok && latest.selectedId === targetId) {
+      const openIds = new Set(latest.conversations
+        .filter((conversation) => !conversation.closed_at && conversation.id !== targetId)
+        .map((conversation) => conversation.id));
+      const next = nextInOrder.find((conversation) => openIds.has(conversation.id))
+        ?? latest.conversations.find((conversation) => openIds.has(conversation.id));
+      workspaceActions.selectConversation(next?.id ?? null);
+    }
+    return res;
+  }, [actions, list.displayedConversations, selectedId, workspaceActions]);
+
   const { selectedIds, clearSelection } = list;
   const { bulkClose } = actions;
   const handleBulkClose = useCallback(async () => {
@@ -277,7 +300,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       onGenerateReply={actions.generateReply}
       onRetryLoad={() => selectConversation(selectedId)}
       onBack={workspaceActions.paneBack}
-      onResolve={actions.resolveConversation}
+      onResolve={handleResolveConversation}
       onReopen={actions.reopenConversation}
       onOpenBooking={() => workspaceActions.openContext("booking")}
       onOpenCustomer={() => workspaceActions.openContext("customer")}
