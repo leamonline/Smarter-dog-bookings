@@ -225,6 +225,25 @@ describe("InboxView", () => {
       await waitFor(() => expect(state.selectConversation).toHaveBeenCalledWith("d"));
     });
 
+    it("opens a newly visible conversation if search changes during the save", async () => {
+      let finishClose;
+      const selected = conversation("a", { humans: { name: "Only match" } });
+      const state = baseState({
+        conversations: [selected, conversation("b")],
+        selectedId: selected.id,
+        selectedConversation: selected,
+        resolveConversation: vi.fn(() => new Promise((resolve) => { finishClose = resolve; })),
+      });
+      renderInbox(state);
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search all messages" }), {
+        target: { value: "Only match" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      await act(async () => { finishClose({ ok: true }); });
+      expect(state.selectConversation).toHaveBeenCalledWith("b");
+    });
+
     it.each(["different customer", "next customer closed"])("uses current state when saving finishes: %s", async (scenario) => {
       let finishClose;
       const selected = conversation("a");

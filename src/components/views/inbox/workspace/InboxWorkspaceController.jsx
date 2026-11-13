@@ -209,7 +209,8 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       const openIds = new Set(latest.conversations
         .filter((conversation) => !conversation.closed_at && conversation.id !== targetId)
         .map((conversation) => conversation.id));
-      const next = nextInOrder.find((conversation) => openIds.has(conversation.id));
+      const next = nextInOrder.find((conversation) => openIds.has(conversation.id))
+        ?? latest.conversations.find((conversation) => openIds.has(conversation.id));
       workspaceActions.selectConversation(next?.id ?? null);
     }
     return res;

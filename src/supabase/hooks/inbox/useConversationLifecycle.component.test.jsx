@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { useState } from "react";
 
 function setSupabase(value) {
   globalThis.__supabaseMockLifecycle = value;
@@ -49,6 +50,42 @@ describe("useConversationLifecycle", () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each([false, true])("keeps local closure state in step with stored rows (write fails: %s)", async (writeFails) => {
+    const initial = [{ id: "c-1", closed_at: null }, { id: "c-2", closed_at: null }];
+    let storedRows = initial.map((row) => ({ ...row }));
+    setSupabase({
+      auth: { getUser: async () => ({ data: { user: { id: "user-1" } } }) },
+      from: () => ({ update: (patch) => ({ eq: async (_, id) => {
+        if (writeFails) return { error: new Error("Save failed") };
+        storedRows = storedRows.map((row) => row.id === id ? { ...row, ...patch } : row);
+        return { error: null };
+      } }) }),
+    });
+    const { result } = renderHook(() => {
+      const [conversations, setConversations] = useState(initial);
+      const [selectedId, select] = useState("c-1");
+      const actions = useConversationLifecycle({
+        selectedId, conversations, setConversations,
+        actionInFlight: false, setActionInFlight: () => {},
+      });
+      return { conversations, select, ...actions };
+    });
+    await act(async () => { await result.current.resolveConversation(); });
+    expect(result.current.conversations).toEqual(storedRows);
+    if (writeFails) {
+      expect(storedRows).toEqual(initial);
+      return;
+    }
+    expect(storedRows[0].closed_at).toEqual(expect.any(String));
+    act(() => result.current.select("c-2"));
+    await act(async () => { await result.current.resolveConversation(); });
+    expect(result.current.conversations.filter((row) => !row.closed_at)).toEqual([]);
+    expect(result.current.conversations).toEqual(storedRows);
+    await act(async () => { await result.current.reopenConversation("c-1"); });
+    expect(result.current.conversations.filter((row) => !row.closed_at).map((row) => row.id)).toEqual(["c-1"]);
+    expect(result.current.conversations).toEqual(storedRows);
   });
 
   it("takeoverConversation flips state to human_takeover", async () => {
