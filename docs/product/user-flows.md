@@ -166,6 +166,16 @@ with append-only attempts, and staff reschedule does not create that intent.
 
 **Requirements:** `REQ-AI-001`, `REQ-CAP-002`, `REQ-UX-001`.
 
+### Completing a conversation
+
+When staff mark an Inbox conversation complete, a successful close opens the
+next open conversation in the current filtered or searched list. Completed
+search results are skipped. At the end, selection wraps to the first remaining
+open conversation; when none remain, the thread clears and phones return to
+the list. A failed close keeps the current thread open. If staff select another
+customer while the close is saving, that selection is preserved. The undo toast
+still reopens the conversation that was completed.
+
 ### Mobile reply visibility
 
 Opening a conversation on a phone replaces the Inbox page heading with the

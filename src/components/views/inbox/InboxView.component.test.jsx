@@ -141,6 +141,112 @@ describe("InboxView", () => {
     expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
   });
 
+  describe("mark complete advances to the next open conversation", () => {
+    const conversation = (id, overrides = {}) => ({
+      id,
+      phone_e164: "+447700900123",
+      humans: { name: `Customer ${id}` },
+      closed_at: null,
+      ...overrides,
+    });
+
+    it.each([
+      ["next row", [conversation("a"), conversation("b"), conversation("c")], "a", "b"],
+      ["wraps at the end", [conversation("a"), conversation("b")], "b", "a"],
+      ["last open row", [conversation("a")], "a", null],
+    ])("opens the %s after a successful close", async (_, conversations, selectedId, expectedId) => {
+      const state = baseState({
+        conversations,
+        selectedId,
+        selectedConversation: conversations.find((item) => item.id === selectedId),
+        resolveConversation: vi.fn().mockResolvedValue({ ok: true }),
+      });
+      const view = renderInbox(state);
+      state.selectConversation.mockImplementation((id) => {
+        state.selectedId = id;
+        state.selectedConversation = conversations.find((item) => item.id === id) ?? null;
+        setInboxState({ ...state });
+        view.rerender(<MemoryRouter><ToastProvider><InboxView /></ToastProvider></MemoryRouter>);
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+
+      await waitFor(() => expect(state.selectConversation).toHaveBeenCalledWith(expectedId));
+      const props = threadPaneSpy.props.at(-1);
+      expect(props.selectedId).toBe(expectedId);
+      expect(props.conversation?.id ?? null).toBe(expectedId);
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      expect(state.reopenConversation).toHaveBeenCalledWith(selectedId);
+    });
+
+    it("keeps the current conversation selected when closing fails", async () => {
+      const selected = conversation("a");
+      const state = baseState({
+        conversations: [selected, conversation("b")],
+        selectedId: selected.id,
+        selectedConversation: selected,
+        resolveConversation: vi.fn().mockResolvedValue({ ok: false, reason: "Please try again" }),
+      });
+      renderInbox(state);
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+      await screen.findByText("Could not close: Please try again");
+      expect(state.selectConversation).not.toHaveBeenCalled();
+    });
+
+    it("respects the active filter", async () => {
+      const selected = conversation("a", { unread_count: 1 });
+      const state = baseState({
+        conversations: [selected, conversation("b"), conversation("c", { unread_count: 1 })],
+        selectedId: selected.id,
+        selectedConversation: selected,
+        resolveConversation: vi.fn().mockResolvedValue({ ok: true }),
+      });
+      renderInbox(state);
+      fireEvent.click(screen.getByRole("button", { name: /^Unread:/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+      await waitFor(() => expect(state.selectConversation).toHaveBeenCalledWith("c"));
+    });
+
+    it("skips closed search results and conversations outside the search", async () => {
+      const selected = conversation("a", { humans: { name: "Match A" } });
+      const state = baseState({
+        conversations: [selected,
+          conversation("b", { humans: { name: "Match B" }, closed_at: "2026-11-12T09:00:00Z" }),
+          conversation("c"), conversation("d", { humans: { name: "Match D" } })],
+        selectedId: selected.id,
+        selectedConversation: selected,
+        resolveConversation: vi.fn().mockResolvedValue({ ok: true }),
+      });
+      renderInbox(state);
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search all messages" }), {
+        target: { value: "Match" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+      await waitFor(() => expect(state.selectConversation).toHaveBeenCalledWith("d"));
+    });
+
+    it.each(["different customer", "next customer closed"])("uses current state when saving finishes: %s", async (scenario) => {
+      let finishClose;
+      const selected = conversation("a");
+      const state = baseState({
+        conversations: [selected, conversation("b"), conversation("c")],
+        selectedId: selected.id,
+        selectedConversation: selected,
+        resolveConversation: vi.fn(() => new Promise((resolve) => { finishClose = resolve; })),
+      });
+      const view = renderInbox(state);
+      fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+      const changed = scenario === "different customer"
+        ? { selectedId: "c", selectedConversation: state.conversations[2] }
+        : { conversations: [selected, conversation("b", { closed_at: "2026-11-13T09:00:00Z" }), conversation("c")] };
+      setInboxState({ ...state, ...changed });
+      view.rerender(<MemoryRouter><ToastProvider><InboxView /></ToastProvider></MemoryRouter>);
+      await act(async () => { finishClose({ ok: true }); });
+      if (scenario === "different customer") expect(state.selectConversation).not.toHaveBeenCalled();
+      else expect(state.selectConversation).toHaveBeenCalledWith("c");
+    });
+  });
+
   it("composes the Inbox through the three workspace regions", () => {
     renderInbox();
 
