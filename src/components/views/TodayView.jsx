@@ -458,6 +458,18 @@ export function TodayView({
     day: "numeric",
     month: "long",
   });
+  // Phones show "Wed 18 November" (and "Wed 18 Nov" below 360px) so the date
+  // fits beside Availability without being cut off (N-06).
+  const dateLabelShort = dateObj.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+  });
+  const dateLabelNarrow = dateObj.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
   const isEmptyDay = selectedBookings.length === 0
     || (tokens.due.length + tokens.withUs.length + tokens.ready.length + tokens.home.length === 0
       && board.excludedCount === 0
@@ -488,6 +500,8 @@ export function TodayView({
     <PullToRefresh onRefresh={onRefresh} className="min-h-full bg-brand-paper">
       <TodayHeader
         dateLabel={dateLabel}
+        dateLabelShort={dateLabelShort}
+        dateLabelNarrow={dateLabelNarrow}
         dogsBooked={summary.dogsBooked}
         capacityTotal={DAY_CAPACITY}
         attention={attention}

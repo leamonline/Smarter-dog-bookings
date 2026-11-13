@@ -15,6 +15,10 @@ export { NEEDS_ATTENTION_DEFINITION };
 
 export function TodayHeader({
   dateLabel,
+  /** Phones only: the same date with a short weekday, e.g. "Wed 18 November". */
+  dateLabelShort = dateLabel,
+  /** The narrowest phones (below 360px): short weekday and month, e.g. "Wed 18 Nov". */
+  dateLabelNarrow = dateLabelShort,
   dogsBooked,
   capacityTotal = DAY_CAPACITY,
   attention = { count: 0, headline: "", ids: [], reasons: { late: [], toConfirm: [], waiting: [], unpaid: [] } },
@@ -42,7 +46,11 @@ export function TodayHeader({
   return (
     <PageHeader title="Today" className="!mb-2 !min-h-0 !gap-1.5 !py-2 sm:!mb-4 sm:!py-3">
       <div className="grid w-full gap-1.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* On phones the date and Availability share one line (audit N-06), so the
+            dog stack starts higher. The calendar icon steps aside there (the
+            chevron still marks the date as a picker) and the date truncates
+            only as a last resort. From 640px up nothing changes. */}
+        <div className="flex min-w-0 flex-nowrap items-center gap-x-2 gap-y-1.5 sm:flex-wrap sm:gap-x-3">
           <button
             type="button"
             data-testid="daily-brief-date"
@@ -50,15 +58,17 @@ export function TodayHeader({
             aria-label={`${dateLabel} — choose a different date`}
             className="mr-auto inline-flex min-h-11 min-w-0 items-center gap-2 rounded-control px-1 -ml-1 text-left outline-none transition-colors hover:bg-brand-ink/[0.04] focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2"
           >
-            <CalendarDays size={18} aria-hidden="true" className="shrink-0 text-brand-ink/45" />
+            <CalendarDays size={18} aria-hidden="true" className="hidden shrink-0 text-brand-ink/45 sm:block" />
             <strong className="min-w-0 truncate font-display text-lg font-bold leading-none tracking-[-0.02em] text-brand-ink sm:text-2xl">
-              {dateLabel}
+              <span className="min-[360px]:hidden">{dateLabelNarrow}</span>
+              <span className="hidden min-[360px]:inline sm:hidden">{dateLabelShort}</span>
+              <span className="hidden sm:inline">{dateLabel}</span>
             </strong>
             <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-ink/45" />
           </button>
           <Button variant="quiet" onClick={onManageAvailability}
             aria-label={`Manage availability — ${availabilityLabel}`}
-            className="min-h-11 shrink-0"
+            className="min-h-11 shrink-0 max-sm:!gap-1.5 max-sm:!px-2"
             iconLeft={<Clock3 size={15} aria-hidden="true" />}>
             <span className="sm:hidden">Availability</span>
             <span className="hidden sm:inline">Manage availability</span>

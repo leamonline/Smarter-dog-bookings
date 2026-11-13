@@ -837,6 +837,32 @@ describe("TodayHeader", () => {
     expect(overCap).toHaveClass("text-brand-coral-text");
   });
 
+  it("keeps the date and Availability on one line on phones, with a date that fits", () => {
+    // Audit N-06: the full date ("Wednesday 18 November") wrapped Availability
+    // onto its own line on phones. Phones now show a short weekday, and the
+    // narrowest phones a short month too; the button keeps the full date.
+    render(
+      <TodayHeader
+        dateLabel="Wednesday 18 November"
+        dateLabelShort="Wed 18 November"
+        dateLabelNarrow="Wed 18 Nov"
+        dogsBooked={0}
+        attention={attention()}
+        zoneCounts={[]}
+        isDayOpen
+        onOpenDatePicker={noop}
+        onManageAvailability={noop}
+        onSelectAttentionReason={noop}
+      />,
+    );
+    const dateButton = screen.getByRole("button", { name: "Wednesday 18 November — choose a different date" });
+    expect(screen.getByText("Wed 18 Nov")).toHaveClass("min-[360px]:hidden");
+    expect(screen.getByText("Wed 18 November")).toHaveClass("hidden", "min-[360px]:inline", "sm:hidden");
+    expect(screen.getByText("Wednesday 18 November")).toHaveClass("hidden", "sm:inline");
+    // One line on phones; the row may wrap again from the sm breakpoint up.
+    expect(dateButton.parentElement).toHaveClass("flex-nowrap", "sm:flex-wrap");
+  });
+
   it("keeps availability management visible when the salon is closed", () => {
     render(
       <TodayHeader
