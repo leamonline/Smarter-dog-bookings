@@ -42,6 +42,7 @@ page is wrong.
 | Channel choice for confirmations, reminders, cancellations, SMS fallback | [`_shared/recipients.ts`](../supabase/functions/_shared/recipients.ts) (`channelAvailableFor`, `pickChannel`) |
 | Day-closure broadcast, staff-composed reminders, welcome message | `_shared/broadcast.ts`, `reminder-send`, `notify-customer-welcome` |
 | Collection notice (by preferred method of contact; SMS too where WhatsApp can't reach them) | [`src/engine/collectionNotice.ts`](../src/engine/collectionNotice.ts) |
+| Automatic SMS when a WhatsApp collection notice fails | [`_shared/collectionFallback.ts`](../supabase/functions/_shared/collectionFallback.ts), called from `whatsapp-agent`'s delivery-status handler |
 | Staff reminder modal's channel pills | `src/components/modals/send-reminder/channelAvailability.js` |
 | STOP on texts: record it and flag staff | [`_shared/smsStop.ts`](../supabase/functions/_shared/smsStop.ts), called by `sms-send` |
 | STOP on WhatsApp: record it | `whatsapp-agent` (`recordOptOut`) and [`whatsapp-agent.md`](whatsapp-agent.md#customer-opt-out) |
@@ -81,6 +82,29 @@ numbers on purpose, so "has a phone" is not enough: only UK mobiles and
 well-formed international numbers count as textable
 (`isSmsCapableNumber` in `channelPolicy.ts`). A landline-only customer with an
 email stays on email instead of being sent to a channel that cannot deliver.
+
+## A collection notice that fails on WhatsApp
+
+Meta accepts a template first and reports a failure afterwards, so the collection
+modal can say "sent" for a notice that never arrives (error 131026, the number is
+not reachable on WhatsApp). The hourly SMS fallback is too slow for "ready in 15
+mins", so this one is chased at once: when the failed status reaches
+`whatsapp-agent`, the same words go by SMS through `sms-send`, and the text shows
+in the customer's inbox thread.
+
+- Only `ready_for_collection_v2`, and only within 30 minutes of sending. After
+  that a "ready in 15 mins" text would mislead, and staff see the failure in the
+  inbox instead.
+- One automatic text per number per 30 minutes. Meta reporting the same failure
+  twice texts once. A second collection notice that also fails in that window
+  (staff pressed Retry) is not texted again, because the first text may have
+  arrived without leaving a record. Nor is one sent if a collection text is
+  already in that number's SMS thread (staff sent it by hand).
+  This holds whatever order the failures arrive in. If two failures are handled
+  at the very same moment, both can stand down and no text goes: never two.
+- `sms-send` still refuses an opted-out or untextable number.
+- If the text cannot be sent it is not retried; the failed WhatsApp message stays
+  visible in the inbox.
 
 ## Scenarios
 
