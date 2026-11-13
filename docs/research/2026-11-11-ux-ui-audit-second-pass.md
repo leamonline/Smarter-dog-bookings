@@ -459,6 +459,8 @@ N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08
   row, leaving the date, the attention counts and any warning. *Why:* brings the first dog
   from about 465px to about 330px, so two cards show instead of one. *Risk:* totals take
   one tap to see on a phone; the 144px card header and all stack sizing stay untouched.
+  *Outcome:* built and measured, then not shipped: the real gain was far smaller than this
+  estimate. See the N-06 section above.
 - **N-13 Sign-up, dog step.** *What:* show "Still needed: breed, birth year" under the
   disabled button, and add "Not sure" to birth year. *Why:* removes a silent dead end.
   *Risk:* none found on checking: nothing reads a dog's age for eligibility (Puppy Groom
