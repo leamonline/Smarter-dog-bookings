@@ -348,7 +348,9 @@ export function channelAvailableFor(
 }
 
 // Channel preference: WhatsApp -> SMS -> email, skipping any channel the
-// customer has opted out of (PECR). null means no usable channel.
+// customer has opted out of (PECR). null means no usable channel. WhatsApp is
+// only "available" for a customer whose preferred method of contact is WhatsApp
+// (humans.whatsapp); one who prefers SMS is texted.
 export function pickChannel(human: RecipientHuman): NotifyChannel | null {
   if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
   if (channelAvailableFor(human, "sms")) return "sms";

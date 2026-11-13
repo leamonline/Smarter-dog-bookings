@@ -9,14 +9,16 @@ import {
 
 describe("collectionNoticeRoute", () => {
   const mobile = "07123456789";
+  // Preferred method of contact = WhatsApp, unless a test says otherwise.
+  const onWhatsApp = { phone: mobile, whatsapp: true };
 
   it("uses WhatsApp for an ordinary customer", () => {
-    expect(collectionNoticeRoute({ phone: mobile })).toEqual({ channel: "whatsapp" });
+    expect(collectionNoticeRoute(onWhatsApp)).toEqual({ channel: "whatsapp" });
   });
 
   it("falls back to SMS when the number looks like it isn't on WhatsApp, with no SMS tickbox involved", () => {
     // humans.sms defaults to false; SMS is a required operational channel, so it must not matter.
-    expect(collectionNoticeRoute({ phone: mobile }, { whatsappUnreachable: true })).toEqual({
+    expect(collectionNoticeRoute(onWhatsApp, { whatsappUnreachable: true })).toEqual({
       channel: "sms",
       because: "whatsapp_unreachable",
     });
@@ -24,25 +26,39 @@ describe("collectionNoticeRoute", () => {
 
   it("never texts someone who has opted out of SMS, even when WhatsApp can't reach them", () => {
     expect(
-      collectionNoticeRoute({ phone: mobile, sms_opted_out: true }, { whatsappUnreachable: true }),
+      collectionNoticeRoute({ ...onWhatsApp, sms_opted_out: true }, { whatsappUnreachable: true }),
     ).toEqual({ channel: null, reason: "Not on WhatsApp, and opted out of SMS" });
   });
 
   it("honours a WhatsApp STOP for WhatsApp only: the notice goes by SMS instead", () => {
-    expect(collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true })).toEqual({
+    expect(collectionNoticeRoute({ ...onWhatsApp, whatsapp_opted_out: true })).toEqual({
       channel: "sms",
       because: "whatsapp_opted_out",
     });
     // ...including when the number also looks unreachable.
     expect(
-      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true }, { whatsappUnreachable: true }).channel,
+      collectionNoticeRoute({ ...onWhatsApp, whatsapp_opted_out: true }, { whatsappUnreachable: true }).channel,
     ).toBe("sms");
   });
 
   it("an SMS opt-out beats everything: someone who stopped both channels gets nothing", () => {
     expect(
-      collectionNoticeRoute({ phone: mobile, whatsapp_opted_out: true, sms_opted_out: true }),
+      collectionNoticeRoute({ ...onWhatsApp, whatsapp_opted_out: true, sms_opted_out: true }),
     ).toEqual({ channel: null, reason: "Opted out of WhatsApp and SMS" });
+  });
+
+  it("texts a customer whose preferred method of contact is SMS (the WhatsApp pill is off)", () => {
+    const sms = { channel: "sms", because: "sms_preferred" };
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp: false })).toEqual(sms);
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp: null })).toEqual(sms);
+    expect(collectionNoticeRoute({ phone: mobile })).toEqual(sms);
+  });
+
+  it("does not try WhatsApp for an SMS-preferring customer who has opted out of SMS", () => {
+    expect(collectionNoticeRoute({ phone: mobile, whatsapp: false, sms_opted_out: true })).toEqual({
+      channel: null,
+      reason: "Prefers SMS, and opted out of SMS",
+    });
   });
 
   it("sends nothing without a usable UK mobile, whichever channel", () => {
