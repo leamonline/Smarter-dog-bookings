@@ -603,9 +603,15 @@ describe("HumanCardModal — WhatsApp switched off", () => {
       "staff_reenable_whatsapp_number",
     ]);
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Switch WhatsApp back on?" })).toBeNull());
-    expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
-    expect(screen.queryByText("WhatsApp stopped")).toBeNull();
-    expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
+    // The notice, badge and link follow the shared customer record, which
+    // updates on a later render than the dialog closing. Wait for it rather
+    // than racing it: under load the old notice could still be on screen for
+    // one tick. Every assertion is unchanged.
+    await waitFor(() => {
+      expect(screen.queryByText("WhatsApp is off — they said STOP.")).toBeNull();
+      expect(screen.queryByText("WhatsApp stopped")).toBeNull();
+      expect(screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" })).toBeInTheDocument();
+    });
   });
 
   it("keeps a record that moved off the number shown as switched off", async () => {
