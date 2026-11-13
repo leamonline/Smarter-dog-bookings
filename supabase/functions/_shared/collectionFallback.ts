@@ -149,16 +149,21 @@ export async function chaseFailedCollectionNotice(
 
     const since = new Date(now.getTime() - FRESH_MINUTES * 60_000).toISOString();
 
-    // One automatic attempt per number per window, whatever became of it. An
-    // EARLIER collection notice in this WhatsApp thread that also failed inside
-    // the window was already chased, and that chase may have reached the phone
-    // without leaving a trace: sms-send answers "outcome unknown" when Twilio
-    // times out after accepting a text, and records nothing. So the evidence
-    // used here is the failed notice itself, which the claim above always
-    // leaves behind, not the SMS record. Ambiguous outcomes fail closed
-    // (AGENTS.md): staff see the failure and decide. Only strictly earlier
-    // notices count, so two failures handled at once cannot each defer to the
-    // other and leave the owner with nothing.
+    // One automatic attempt per number per window, whatever became of it. ANY
+    // OTHER collection notice in this WhatsApp thread that has failed inside
+    // the window means a chase was already attempted, and that chase may have
+    // reached the phone without leaving a trace: sms-send answers "outcome
+    // unknown" when Twilio times out after accepting a text, and records
+    // nothing. So the evidence is the failed notice itself, which the claim
+    // above always leaves behind, not the SMS record. Ambiguous outcomes fail
+    // closed (AGENTS.md): staff see the failure and decide.
+    //
+    // This holds whatever order the failures arrive in, and it can never text
+    // twice: each handler marks its own notice failed BEFORE it looks, so of
+    // any two, the one that looks second always sees the other. The price is
+    // that two failures handled at the very same moment can each see the other
+    // and both stand down, leaving no automatic text. That is the safe side,
+    // and it is what happened before this fallback existed.
     const { data: chased, error: chasedErr } = await deps.supabase
       .from("whatsapp_messages")
       .select("id")
@@ -167,7 +172,7 @@ export async function chaseFailedCollectionNotice(
       .eq("status", "failed")
       .like("content", `[template:${COLLECTION_TEMPLATE}]%`)
       .gte("sent_at", since)
-      .lt("sent_at", message.sent_at)
+      .neq("id", message.id)
       .limit(1);
     if (chasedErr) {
       log(`collection fallback: earlier-attempt check failed for ${metaMessageId}: ${chasedErr.message}`);

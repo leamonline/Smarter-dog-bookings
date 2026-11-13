@@ -259,10 +259,28 @@ Deno.test("one automatic attempt per number per window: an earlier failed notice
   }
 });
 
-Deno.test("two failures handled at once cannot both defer: the earlier notice still texts", async () => {
-  const later = waMessage({ id: "m2", meta_message_id: "wamid.2", status: "failed", sent_at: "2026-11-13T10:05:00Z" });
-  const { outcome, sent } = await chase(seed({ messages: [waMessage(), later] }));
-  assertEquals([outcome, sent.length], ["sent", 1]);
+Deno.test("failures arriving in reverse send order still text once, even when the first outcome is unknown", async () => {
+  // The NEWER notice fails first and its SMS outcome is unknown (no SMS row).
+  // The older notice's failure arrives afterwards and must not text again.
+  const older = waMessage();
+  const newer = waMessage({ id: "m2", meta_message_id: "wamid.2", sent_at: "2026-11-13T10:05:00Z" });
+  const tables = seed({ messages: [older, newer] });
+  const first = await chase(tables, { wamid: "wamid.2", send: { ok: false, detail: "outcome unknown" } });
+  assertEquals([first.outcome, first.sent.length], ["send_failed", 1]);
+  const second = await chase(tables, { wamid: "wamid.1" });
+  assertEquals([second.outcome, second.sent.length], ["already_chased", 0]);
+  // And in send order, for completeness: one text, then none.
+  const inOrder = seed({ messages: [waMessage(), waMessage({ id: "m2", meta_message_id: "wamid.2", sent_at: "2026-11-13T10:05:00Z" })] });
+  assertEquals((await chase(inOrder, { wamid: "wamid.1" })).outcome, "sent");
+  assertEquals((await chase(inOrder, { wamid: "wamid.2" })).outcome, "already_chased");
+});
+
+Deno.test("two failures handled at the same moment can both stand down, never both text", async () => {
+  // Both notices are already marked failed when either handler looks: each
+  // sees the other. No text is the safe outcome; two texts is impossible.
+  const other = waMessage({ id: "m2", meta_message_id: "wamid.2", status: "failed", sent_at: "2026-11-13T10:05:00Z" });
+  const { outcome, sent } = await chase(seed({ messages: [waMessage(), other] }));
+  assertEquals([outcome, sent.length], ["already_chased", 0]);
 });
 
 Deno.test("an unconfirmed send is reported, and a later failed notice does not text again", async () => {

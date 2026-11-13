@@ -100,6 +100,8 @@ in the customer's inbox thread.
   (staff pressed Retry) is not texted again, because the first text may have
   arrived without leaving a record. Nor is one sent if a collection text is
   already in that number's SMS thread (staff sent it by hand).
+  This holds whatever order the failures arrive in. If two failures are handled
+  at the very same moment, both can stand down and no text goes: never two.
 - `sms-send` still refuses an opted-out or untextable number.
 - If the text cannot be sent it is not retried; the failed WhatsApp message stays
   visible in the inbox.
