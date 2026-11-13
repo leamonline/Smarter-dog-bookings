@@ -136,7 +136,7 @@ describe("CollectionNoticeModal", () => {
       await openCompose();
 
       expect(screen.getByText(/Not on WhatsApp, will send as SMS/i)).toBeInTheDocument();
-      expect(screen.getByText(/SMS version, for those not on WhatsApp/i)).toBeInTheDocument();
+      expect(screen.getByText(/SMS version, for those who get a text instead/i)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));

@@ -18,6 +18,8 @@ import {
   canSendMarketing,
   isSmsCapableNumber,
   operationalChannelAvailable,
+  prefersSms,
+  smsBeforeWhatsApp,
   type PolicyContact,
 } from "./channelPolicy.ts";
 
@@ -142,4 +144,31 @@ Deno.test("a landline-only customer is not routed to SMS: it is blocked, so they
 
 Deno.test("marketing needs a textable number too", () => {
   assertEquals(canSendMarketing(customer({ marketing_sms_consent: true, phone: "0161 285 5218" }), "sms"), false);
+});
+
+Deno.test("a customer prefers SMS only when their reminder preferences name SMS and not WhatsApp", () => {
+  assertEquals(prefersSms(customer({ reminder_channels: ["sms"] })), true);
+  assertEquals(prefersSms(customer({ reminder_channels: ["sms", "email"] })), true);
+  // WhatsApp is the default, and choosing both is not a preference for SMS.
+  assertEquals(prefersSms(customer({ reminder_channels: ["whatsapp"] })), false);
+  assertEquals(prefersSms(customer({ reminder_channels: ["whatsapp", "sms"] })), false);
+  assertEquals(prefersSms(customer({ reminder_channels: ["email"] })), false);
+  // Missing or malformed is not a preference.
+  assertEquals(prefersSms(customer()), false);
+  assertEquals(prefersSms(customer({ reminder_channels: null })), false);
+  assertEquals(prefersSms(customer({ reminder_channels: "sms" })), false);
+  // The optional tickbox is still not consulted, either way.
+  assertEquals(prefersSms(customer({ sms: true, whatsapp: false })), false);
+});
+
+Deno.test("an SMS preference puts SMS first only when a text may actually go", () => {
+  const prefers = { reminder_channels: ["sms"] };
+  assertEquals(smsBeforeWhatsApp(customer(prefers)), true);
+  // Even with WhatsApp set up: the preference is the point.
+  assertEquals(smsBeforeWhatsApp(customer({ ...prefers, whatsapp: true })), true);
+  // It never beats an SMS opt-out, a landline or a missing number.
+  assertEquals(smsBeforeWhatsApp(customer({ ...prefers, sms_opted_out: true })), false);
+  assertEquals(smsBeforeWhatsApp(customer({ ...prefers, phone: "0161 285 5218" })), false);
+  assertEquals(smsBeforeWhatsApp(customer({ ...prefers, phone: null })), false);
+  assertEquals(smsBeforeWhatsApp(customer()), false);
 });

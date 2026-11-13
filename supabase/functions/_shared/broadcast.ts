@@ -1,6 +1,7 @@
 // Pure logic for the broadcast-message function (day-closure broadcast).
 // Kept free of Deno/HTTP imports so it runs under `deno test` (and Vitest).
 
+import { smsBeforeWhatsApp } from "./channelPolicy.ts";
 import { channelAvailableFor, recipientIdsForBooking, type RecipientHuman } from "./recipients.ts";
 
 export interface BroadcastBookingRow {
@@ -13,8 +14,10 @@ export interface BroadcastBookingRow {
 // usable and not opted out, else SMS (a required operational channel, so the
 // optional "SMS reminders" tickbox is not needed), else null (opted out of both /
 // no number) — the caller surfaces those to staff. A WhatsApp STOP switches
-// WhatsApp off only, so those customers get the SMS.
+// WhatsApp off only, so those customers get the SMS. So does a customer whose
+// reminder preferences ask for SMS rather than WhatsApp.
 export function pickChannelWaSms(human: RecipientHuman): "whatsapp" | "sms" | null {
+  if (smsBeforeWhatsApp(human)) return "sms";
   if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
   if (channelAvailableFor(human, "sms")) return "sms";
   return null;

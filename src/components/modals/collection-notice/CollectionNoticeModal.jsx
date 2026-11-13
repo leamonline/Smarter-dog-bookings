@@ -14,7 +14,8 @@
 // sends succeed.
 //
 // When WhatsApp can't reach someone (their number looks like it isn't on
-// WhatsApp, or they replied STOP to it) the same button sends the same words
+// WhatsApp, or they replied STOP to it), or their reminder preferences ask for
+// SMS rather than WhatsApp, the same button sends the same words
 // as an SMS through sms-send instead. Which channel, and who may not be
 // messaged at all, is decided in engine/collectionNotice.ts.
 // ============================================================
@@ -48,6 +49,7 @@ function routeNote(route, phone) {
   if (route.channel === null) return route.reason;
   const number = formatPhoneForDisplay(phone);
   if (route.channel === "whatsapp") return number;
+  if (route.because === "sms_preferred") return `${number} · Prefers SMS, will send as SMS`;
   return route.because === "whatsapp_opted_out"
     ? `${number} · Opted out of WhatsApp, will send as SMS`
     : `${number} · Not on WhatsApp, will send as SMS`;
@@ -379,7 +381,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           <p className="text-body text-slate-600 m-0">
             Send a collection notice for <span className="font-semibold">{dogName}</span>?
             <span className="block mt-1 text-xs text-slate-500">
-              By WhatsApp, or by SMS where they aren&apos;t on WhatsApp.
+              By WhatsApp, or by SMS where they prefer it or aren&apos;t on WhatsApp.
             </span>
             {isPlural && (
               <span className="block mt-1 text-xs text-slate-500">
@@ -437,7 +439,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
             <>
             {anySms && (
               <div className="rounded-tile bg-sky-50 border border-sky-100 p-3 text-xs text-sky-900">
-                <span className="font-semibold not-italic">SMS version, for those not on WhatsApp</span>
+                <span className="font-semibold not-italic">SMS version, for those who get a text instead</span>
                 <span className="block mt-1 italic">“{smsText}”</span>
               </div>
             )}

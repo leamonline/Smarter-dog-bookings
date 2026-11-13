@@ -61,6 +61,21 @@ Deno.test("pickChannel prefers WhatsApp, then SMS, then email", () => {
   );
 });
 
+Deno.test("pickChannel texts a customer whose reminder preferences ask for SMS rather than WhatsApp", () => {
+  assertEquals(pickChannel(human({ reminder_channels: ["sms"] })), "sms");
+  // WhatsApp among the preferences (the default) keeps WhatsApp first.
+  assertEquals(pickChannel(human({ reminder_channels: ["whatsapp"] })), "whatsapp");
+  assertEquals(pickChannel(human({ reminder_channels: ["whatsapp", "sms"] })), "whatsapp");
+  // The preference never beats an SMS opt-out: WhatsApp is used as usual.
+  assertEquals(pickChannel(human({ reminder_channels: ["sms"], sms_opted_out: true })), "whatsapp");
+  // An explicit staff choice on the booking still wins over the preference.
+  assertEquals(
+    resolveConfirmationChannel("whatsapp", human({ reminder_channels: ["sms"] })),
+    { channel: "whatsapp" },
+  );
+  assertEquals(resolveConfirmationChannel("auto", human({ reminder_channels: ["sms"] })), { channel: "sms" });
+});
+
 Deno.test("channelAvailableFor: SMS does not depend on the optional humans.sms tickbox", () => {
   assertEquals(channelAvailableFor(human({ sms: false }), "sms"), true);
   assertEquals(channelAvailableFor(human({ sms: null }), "sms"), true);

@@ -179,7 +179,7 @@ export async function getBookingRules(
 // ---------------------------------------------------------------------------
 
 /** The columns the collection-notice recipient list renders. */
-export const CONTACT_CARD_COLS = "id, name, surname, phone, whatsapp_opted_out, sms_opted_out";
+export const CONTACT_CARD_COLS = "id, name, surname, phone, whatsapp_opted_out, sms_opted_out, reminder_channels";
 
 /** One contact card by human id (owner or trusted contact). */
 export function getContactCard(client: SupabaseClient, humanId: string) {

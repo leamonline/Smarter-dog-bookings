@@ -45,6 +45,28 @@ describe("collectionNoticeRoute", () => {
     ).toEqual({ channel: null, reason: "Opted out of WhatsApp and SMS" });
   });
 
+  it("texts a customer whose reminder preferences ask for SMS rather than WhatsApp", () => {
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: ["sms"] })).toEqual({
+      channel: "sms",
+      because: "sms_preferred",
+    });
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: ["sms", "email"] }).channel).toBe("sms");
+  });
+
+  it("keeps WhatsApp first when WhatsApp is among the preferences, or none is recorded", () => {
+    const whatsapp = { channel: "whatsapp" };
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: ["whatsapp"] })).toEqual(whatsapp);
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: ["whatsapp", "sms"] })).toEqual(whatsapp);
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: ["email"] })).toEqual(whatsapp);
+    expect(collectionNoticeRoute({ phone: mobile, reminder_channels: null })).toEqual(whatsapp);
+  });
+
+  it("an SMS preference never beats an SMS opt-out: that customer stays on WhatsApp", () => {
+    expect(
+      collectionNoticeRoute({ phone: mobile, reminder_channels: ["sms"], sms_opted_out: true }),
+    ).toEqual({ channel: "whatsapp" });
+  });
+
   it("sends nothing without a usable UK mobile, whichever channel", () => {
     const none = { channel: null, reason: "No mobile number on file" };
     expect(collectionNoticeRoute({ phone: null })).toEqual(none);

@@ -15,7 +15,12 @@ page is wrong.
    false, so consulting it silently suppressed reminders and fallbacks.)
 2. **WhatsApp preferred, SMS as the fallback.** WhatsApp is used where the
    customer is set up for it. SMS is used whenever WhatsApp is unavailable or
-   its delivery fails.
+   its delivery fails. **Unless the customer prefers SMS:** when the "Reminder
+   preferences" on their profile name SMS and not WhatsApp
+   (`humans.reminder_channels`), essential messages are texted first and WhatsApp
+   becomes the fallback (`prefersSms` / `smsBeforeWhatsApp` in `channelPolicy.ts`).
+   The preference only changes the order; it never beats an SMS opt-out. This is
+   not the optional `humans.sms` tickbox, which is still not consulted.
 3. **No separate consent for essential messages.** The requirement is explained
    at sign-up, on profile completion and on the booking confirm step
    (`ESSENTIAL_MESSAGES_NOTICE` in `src/constants/salonPolicies.ts`).
@@ -32,7 +37,7 @@ page is wrong.
 | The policy (pure, shared by edge functions, staff UI and tests) | [`supabase/functions/_shared/channelPolicy.ts`](../supabase/functions/_shared/channelPolicy.ts) |
 | Channel choice for confirmations, reminders, cancellations, SMS fallback | [`_shared/recipients.ts`](../supabase/functions/_shared/recipients.ts) (`channelAvailableFor`, `pickChannel`) |
 | Day-closure broadcast, staff-composed reminders, welcome message | `_shared/broadcast.ts`, `reminder-send`, `notify-customer-welcome` |
-| Collection notice (WhatsApp, or SMS where WhatsApp can't reach them) | [`src/engine/collectionNotice.ts`](../src/engine/collectionNotice.ts) |
+| Collection notice (WhatsApp, or SMS where they prefer it or WhatsApp can't reach them) | [`src/engine/collectionNotice.ts`](../src/engine/collectionNotice.ts) |
 | Staff reminder modal's channel pills | `src/components/modals/send-reminder/channelAvailability.js` |
 | STOP on texts: record it and flag staff | [`_shared/smsStop.ts`](../supabase/functions/_shared/smsStop.ts), called by `sms-send` |
 | STOP on WhatsApp: record it | `whatsapp-agent` (`recordOptOut`) and [`whatsapp-agent.md`](whatsapp-agent.md#customer-opt-out) |
@@ -79,6 +84,7 @@ email stays on email instead of being sent to a channel that cannot deliver.
 |---|---|---|---|
 | Ordinary, WhatsApp set up | yes | fallback | last resort |
 | WhatsApp not set up, optional SMS box off (the default) | no | **yes** | last resort |
+| Reminder preferences say SMS, not WhatsApp | fallback | **yes, first** | last resort |
 | No number | no | no | if an address is held |
 | Landline-only number (UK landlines can't receive texts) | only if set up | **no** (stays on email) | yes |
 | Opted out of SMS | unaffected | **never** | last resort |

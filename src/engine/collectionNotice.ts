@@ -18,23 +18,27 @@
 
 import { BOOKING_STATUS } from "../constants/salon";
 import { normaliseUkMobile } from "../utils/phone.js";
-import { blockReason, blockText } from "../../supabase/functions/_shared/channelPolicy";
+import { blockReason, blockText, prefersSms } from "../../supabase/functions/_shared/channelPolicy";
 
 export interface CollectionContact {
   phone?: string | null;
   whatsapp_opted_out?: boolean | null;
   sms_opted_out?: boolean | null;
+  /** The profile's "Reminder preferences", e.g. ["sms"]. */
+  reminder_channels?: unknown;
 }
 
 export type CollectionRoute =
   | { channel: "whatsapp" }
-  | { channel: "sms"; because: "whatsapp_unreachable" | "whatsapp_opted_out" }
+  | { channel: "sms"; because: "whatsapp_unreachable" | "whatsapp_opted_out" | "sms_preferred" }
   | { channel: null; reason: string };
 
 /**
  * Which channel a collection notice goes out on for one recipient.
  *
- * WhatsApp first. It falls back to SMS when WhatsApp cannot reach them. SMS is a
+ * WhatsApp first, unless their reminder preferences ask for SMS rather than
+ * WhatsApp, in which case it is a text. It also falls back to SMS when WhatsApp
+ * cannot reach them. SMS is a
  * required operational channel, so the optional "SMS reminders" tickbox
  * (`humans.sms`, default off) is never needed. The rules are the shared messaging
  * policy (supabase/functions/_shared/channelPolicy.ts), the same code the edge
@@ -44,6 +48,9 @@ export type CollectionRoute =
  *     few WhatsApp sends were all undeliverable) -> text it.
  *   - they replied STOP on WhatsApp -> WhatsApp stays off and the notice goes by
  *     SMS instead. A STOP is honoured for the channel it was sent on.
+ *   - they prefer SMS (`reminder_channels` names SMS and not WhatsApp) -> text
+ *     it, as long as a text may go. If they have opted out of SMS the preference
+ *     is moot and WhatsApp is used as usual.
  *   - an SMS opt-out always wins, and no usable mobile means no notice at all.
  *
  * sms-send does not check opt-outs itself, so this is where they are enforced.
@@ -58,11 +65,16 @@ export function collectionNoticeRoute(
   const whatsappOptedOut = Boolean(contact?.whatsapp_opted_out);
   const unreachable = Boolean(opts.whatsappUnreachable);
 
+  const smsBlocked = blockReason({ phone: contact?.phone, ...contact }, "sms");
+  if (smsBlocked === null && contact && prefersSms(contact) && !whatsappOptedOut && !unreachable) {
+    return { channel: "sms", because: "sms_preferred" };
+  }
+
   // A pickup notice is operational, so it doesn't need the `whatsapp` preference
   // ticked either (it defaults to false on most rows, trusted contacts included).
   if (!whatsappOptedOut && !unreachable) return { channel: "whatsapp" };
 
-  const blocked = blockReason({ phone: contact?.phone, ...contact }, "sms");
+  const blocked = smsBlocked;
   if (blocked === null) {
     return { channel: "sms", because: whatsappOptedOut ? "whatsapp_opted_out" : "whatsapp_unreachable" };
   }
