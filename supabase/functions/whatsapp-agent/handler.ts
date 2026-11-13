@@ -91,6 +91,7 @@ import {
 import { isOptOutRequest, phoneMatchKey, phoneMatchPattern } from "../_shared/optOut.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import { notificationLogPatchForStatus } from "../_shared/deliveryStatus.ts";
+import { chaseFailedCollectionNotice } from "../_shared/collectionFallback.ts";
 import { raiseFollowUpTodo } from "../_shared/staffFollowUp.ts";
 import { detectReplyConfirmation } from "../_shared/reminderConfirmation.ts";
 import {
@@ -2562,6 +2563,30 @@ async function saveBookingAction(
 }
 
 // ── Delivery status handler ─────────────────────────────────
+// sms-send as an internal caller, the same way the notify-* functions call it.
+// sms-send refuses opted-out and untextable numbers itself and logs the text
+// to the customer's inbox thread.
+async function sendCollectionFallbackSms(
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; detail?: string }> {
+  if (!SEND_INTERNAL_SECRET) return { ok: false, detail: "SEND_INTERNAL_SECRET is not set" };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sms-send`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-internal-secret": SEND_INTERNAL_SECRET,
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, detail: `sms-send ${res.status}: ${(await res.text()).slice(0, 200)}` };
+  } catch (err) {
+    return { ok: false, detail: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
   if (!status.id || !status.status) return;
 
@@ -2574,6 +2599,18 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
   }
   if (status.status === "failed") {
     patch.error_message = JSON.stringify(status.errors ?? []);
+    // A failed "ready for collection" notice is texted at once: the owner is
+    // waiting to hear, and the hourly SMS fallback would be far too late. This
+    // must run BEFORE the update below, because it claims the message's first
+    // move to 'failed' and that is what stops a repeated status texting twice.
+    // It never throws (see _shared/collectionFallback.ts).
+    const outcome = await chaseFailedCollectionNotice(status.id, {
+      supabase,
+      sendSms: sendCollectionFallbackSms,
+    });
+    if (outcome === "sent" || outcome === "send_failed") {
+      console.log(`handleStatus: collection notice ${status.id} failed on WhatsApp; SMS fallback ${outcome}`);
+    }
   }
 
   const { error } = await supabase

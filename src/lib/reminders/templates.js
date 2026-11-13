@@ -12,6 +12,7 @@
 // ============================================================
 
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../constants/whatsappTemplates.js";
+import { collectionSmsText } from "../../../supabase/functions/_shared/collectionFallback";
 
 // The Meta-approved template used for appointment reminders. Must stay
 // in sync with an Active template in WhatsApp Manager.
@@ -104,8 +105,8 @@ export function renderSmsReminder({ firstName, dogNames, date, slot, service }) 
  * One dog stays within a single GSM-7 segment.
  */
 export function renderSmsCollectionNotice({ dogNames, minutes }) {
-  const dogs = joinNames(dogNames) || "your dog";
-  return `Hi! We've finished pampering ${dogs} and they're ready to head home in ${minutes} mins. See you soon! X - Smarter Dog Grooming`;
+  // The words live with the automatic fallback so the two can never drift.
+  return collectionSmsText(joinNames(dogNames), minutes);
 }
 
 /** Email reminder subject + plain-text body (the SendGrid sender is text/plain). */
