@@ -64,16 +64,24 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
             <Input id="nc-address" value={human.address}
               onChange={(e) => onChange("address", e.target.value)} />
           </div>
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-body text-slate-700">
-              <input type="checkbox" checked={human.sms} onChange={(e) => onChange("sms", e.target.checked)} />
-              Optional SMS (essential texts are always sent)
-            </label>
-            <label className="flex items-center gap-2 text-body text-slate-700">
-              <input type="checkbox" checked={human.whatsapp} onChange={(e) => onChange("whatsapp", e.target.checked)} />
-              WhatsApp
-            </label>
-          </div>
+          {/* One switch, the same one the customer profile shows: stored as
+              humans.whatsapp (true = WhatsApp, false = SMS). Everyone can be
+              texted; WhatsApp says they have it and may be contacted there. */}
+          <fieldset className="border-0 p-0 m-0">
+            <legend className={LABEL}>Preferred method of contact</legend>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-body text-slate-700">
+                <input type="radio" name="nc-preferred-contact" checked={!!human.whatsapp}
+                  onChange={() => onChange("whatsapp", true)} />
+                WhatsApp
+              </label>
+              <label className="flex items-center gap-2 text-body text-slate-700">
+                <input type="radio" name="nc-preferred-contact" checked={!human.whatsapp}
+                  onChange={() => onChange("whatsapp", false)} />
+                SMS
+              </label>
+            </div>
+          </fieldset>
           <div>
             <label className={LABEL} htmlFor="nc-notes">Notes</label>
             <Textarea id="nc-notes" rows={2} value={human.notes}
