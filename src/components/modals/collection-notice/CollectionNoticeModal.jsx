@@ -7,15 +7,15 @@
 // contact, with a staff-entered ETA in minutes. Staff opt in before
 // recipient data is loaded; each recipient then has its own Send button.
 //
-// WhatsApp is the default: the whatsapp-send edge function (Meta Cloud API
+// For a customer whose preferred method of contact is WhatsApp, the whatsapp-send edge function (Meta Cloud API
 // template, the same path the inbox compose-new flow uses) sends from the
 // salon's WhatsApp Business number and logs to the recipient's inbox thread.
 // The ready_for_collection_v2 template must be Approved in Meta before live
 // sends succeed.
 //
 // When WhatsApp can't reach someone (their number looks like it isn't on
-// WhatsApp, or they replied STOP to it), or their reminder preferences ask for
-// SMS rather than WhatsApp, the same button sends the same words
+// WhatsApp, or they replied STOP to it), or their preferred method of contact is
+// SMS, the same button sends the same words
 // as an SMS through sms-send instead. Which channel, and who may not be
 // messaged at all, is decided in engine/collectionNotice.ts.
 // ============================================================

@@ -58,6 +58,7 @@ const supabase = {
                   name: "Sarah",
                   surname: "Jones",
                   phone: "07123456789",
+                  whatsapp: true,
                   whatsapp_opted_out: false,
                   ...ownerOverrides,
                 },
@@ -258,6 +259,7 @@ describe("CollectionNoticeModal", () => {
       name: "Alex",
       surname: "Jones",
       phone: "07123456780",
+      whatsapp: true,
       whatsapp_opted_out: false,
     }];
     renderModal();

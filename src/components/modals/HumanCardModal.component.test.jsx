@@ -493,11 +493,11 @@ describe("HumanCardModal — WhatsApp switched off", () => {
         <Harness />
       </ToastProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "SMS preference on" }));
+    fireEvent.click(screen.getByRole("radio", { name: "SMS" }));
 
     expect(await screen.findByText("sarah.jones@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "SMS preference off" })).toBeInTheDocument();
-    expect(payloads).toEqual([{ sms: false }]);
+    expect(screen.getByRole("radio", { name: "SMS" })).toBeChecked();
+    expect(payloads).toEqual([{ whatsapp: false }]);
     expect(screen.getByText("WhatsApp is off — they said STOP.")).toBeInTheDocument();
     expect(screen.getByText("WhatsApp stopped")).toBeInTheDocument();
   });

@@ -13,10 +13,11 @@
 //     defaults to false that silently suppressed reminders and fallbacks.
 //  2. WhatsApp is preferred where the customer is set up for it; SMS is the
 //     fallback whenever WhatsApp is unavailable or fails.
-//     The exception is a customer whose "Reminder preferences" on their profile
-//     name SMS and not WhatsApp (`humans.reminder_channels`). That is an explicit
-//     choice, so they are texted first and WhatsApp becomes their fallback. It
-//     only changes the ORDER: it never opens a channel a STOP has closed.
+//     "Set up for it" is the customer's PREFERRED METHOD OF CONTACT, the two
+//     pills on their profile, stored as `humans.whatsapp`: true = WhatsApp
+//     (they have it and can be reached on it), false = SMS. Everyone can be
+//     texted; the WhatsApp pill only says WhatsApp may be tried first. It is
+//     the single switch, set by staff, by sign-up and by the customer portal.
 //  3. A STOP is honoured for the channel it was sent on, and never overridden
 //     automatically. A STOP on WhatsApp (`whatsapp_opted_out`) switches WhatsApp
 //     off; essential messages then go by SMS instead. An SMS opt-out
@@ -39,18 +40,13 @@ export type MessageClass = "operational" | "marketing";
 export interface PolicyContact {
   phone?: string | null;
   email?: string | null;
-  /** WhatsApp "set up" preference. Still consulted for WhatsApp (not for SMS). */
+  /** Preferred method of contact: true = WhatsApp, false = SMS. Gates WhatsApp only. */
   whatsapp?: boolean | null;
   /** Optional "SMS reminders" tickbox. Deliberately NOT consulted by this policy. */
   sms?: boolean | null;
   whatsapp_opted_out?: boolean | null;
   sms_opted_out?: boolean | null;
   email_opted_out?: boolean | null;
-  /**
-   * `humans.reminder_channels`: the "Reminder preferences" pills on the customer
-   * profile, e.g. ["sms"]. Read only by `prefersSms`. Defaults to ["whatsapp"].
-   */
-  reminder_channels?: unknown;
   /** Does not exist in the database yet. Marketing SMS stays impossible until it does and is true. */
   marketing_sms_consent?: boolean | null;
 }
@@ -108,28 +104,6 @@ export function blockReason(contact: PolicyContact, channel: PolicyChannel): Blo
 /** Can an essential service message go on this channel right now? */
 export function operationalChannelAvailable(contact: PolicyContact, channel: PolicyChannel): boolean {
   return blockReason(contact, channel) === null;
-}
-
-/**
- * Has this customer asked for texts rather than WhatsApp? True only when their
- * reminder preferences name SMS and leave WhatsApp out, which someone has to
- * choose on purpose (the default is WhatsApp). A missing or malformed value is
- * not a preference. This is not the optional `sms` tickbox, which stays
- * unconsulted: that one used to GATE texts, this one only ranks them.
- */
-export function prefersSms(contact: PolicyContact): boolean {
-  const chosen = contact.reminder_channels;
-  if (!Array.isArray(chosen)) return false;
-  return chosen.includes("sms") && !chosen.includes("whatsapp");
-}
-
-/**
- * Should an essential message try SMS before WhatsApp for this customer? Only
- * when they prefer it AND a text can actually go: a preference never beats an SMS
- * opt-out or an untextable number, so those customers stay on WhatsApp first.
- */
-export function smsBeforeWhatsApp(contact: PolicyContact): boolean {
-  return prefersSms(contact) && operationalChannelAvailable(contact, "sms");
 }
 
 /**

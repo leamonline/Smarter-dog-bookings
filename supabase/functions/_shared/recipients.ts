@@ -13,7 +13,7 @@ import {
   STAFF_RESCHEDULE_CANCEL_REASON,
   WHATSAPP_RESCHEDULE_CANCEL_REASON,
 } from "./cancelReasons.ts";
-import { operationalChannelAvailable, smsBeforeWhatsApp } from "./channelPolicy.ts";
+import { operationalChannelAvailable } from "./channelPolicy.ts";
 
 export interface RecipientHuman {
   id: string;
@@ -25,12 +25,10 @@ export interface RecipientHuman {
   whatsapp_opted_out: boolean | null;
   sms_opted_out: boolean | null;
   email_opted_out: boolean | null;
-  /** The profile's "Reminder preferences", e.g. ["sms"]. See channelPolicy.prefersSms. */
-  reminder_channels?: unknown;
 }
 
 export const HUMAN_CONTACT_COLUMNS =
-  "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, reminder_channels";
+  "id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out";
 
 export interface BookingConfirmationRecord {
   confirmation_channel?: unknown;
@@ -350,10 +348,10 @@ export function channelAvailableFor(
 }
 
 // Channel preference: WhatsApp -> SMS -> email, skipping any channel the
-// customer has opted out of (PECR). null means no usable channel. A customer
-// whose reminder preferences ask for SMS rather than WhatsApp is texted first.
+// customer has opted out of (PECR). null means no usable channel. WhatsApp is
+// only "available" for a customer whose preferred method of contact is WhatsApp
+// (humans.whatsapp); one who prefers SMS is texted.
 export function pickChannel(human: RecipientHuman): NotifyChannel | null {
-  if (smsBeforeWhatsApp(human)) return "sms";
   if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
   if (channelAvailableFor(human, "sms")) return "sms";
   if (channelAvailableFor(human, "email")) return "email";

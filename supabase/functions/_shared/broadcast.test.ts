@@ -30,11 +30,6 @@ Deno.test("pickChannelWaSms prefers WhatsApp when usable", () => {
   assertEquals(pickChannelWaSms(human({})), "whatsapp");
 });
 
-Deno.test("pickChannelWaSms texts a customer who prefers SMS to WhatsApp", () => {
-  assertEquals(pickChannelWaSms(human({ reminder_channels: ["sms"] })), "sms");
-  assertEquals(pickChannelWaSms(human({ reminder_channels: ["sms"], sms_opted_out: true })), "whatsapp");
-});
-
 Deno.test("pickChannelWaSms falls back to SMS when WhatsApp isn't set up", () => {
   assertEquals(pickChannelWaSms(human({ whatsapp: false })), "sms");
 });

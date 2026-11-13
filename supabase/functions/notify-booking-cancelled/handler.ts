@@ -19,7 +19,6 @@ import {
   type RecipientHuman,
   type StaffRescheduleLookupResult,
 } from "../_shared/recipients.ts";
-import { smsBeforeWhatsApp } from "../_shared/channelPolicy.ts";
 import { STAFF_RESCHEDULE_CANCEL_REASON } from "../_shared/cancelReasons.ts";
 
 // Cancellation notices. Reschedule skips are unchanged (see
@@ -106,13 +105,9 @@ export function isSalonCancellation(cause: string | null): boolean {
 }
 
 // Salon + flag on: WhatsApp, then SMS, then email. Every other cancellation:
-// SMS, then email. Never the apology template unless the cause is salon. A
-// customer who prefers SMS to WhatsApp is texted in the salon case too.
+// SMS, then email. Never the apology template unless the cause is salon.
 function cancellationChannel(human: RecipientHuman, salon: boolean): NotifyChannel | null {
-  if (
-    salon && cancellationWhatsAppEnabled() && !smsBeforeWhatsApp(human) &&
-    channelAvailableFor(human, "whatsapp")
-  ) {
+  if (salon && cancellationWhatsAppEnabled() && channelAvailableFor(human, "whatsapp")) {
     return "whatsapp";
   }
   if (channelAvailableFor(human, "sms")) return "sms";
