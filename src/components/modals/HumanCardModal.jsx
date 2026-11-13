@@ -4,13 +4,13 @@ import {
   HumanEventTimeline,
   HumanHeader,
   ContactPanel,
-  ChannelsPanel,
+  SocialMediaPanel,
   NotesPanel,
   AtAGlanceStrip,
   DogsPanel,
   LinkDogActions,
   TrustedHumansPanel,
-  RemindersPanel,
+  PreferredContactPanel,
   AiMessagingPanel,
   BookingRulesPanel,
   MergeHumanDialog,
@@ -357,14 +357,16 @@ export function HumanCardModal({
               addressInputRef={addressInputRef}
               emailInputRef={emailInputRef}
             />
-            <ChannelsPanel
+            <PreferredContactPanel
               isEditing={isEditing}
               human={human}
               onUpdateHuman={onUpdateHuman}
-              editSms={draft.sms}
-              setEditSms={(v) => setDraftField("sms", v)}
               editWhatsapp={draft.whatsapp}
               setEditWhatsapp={(v) => setDraftField("whatsapp", v)}
+            />
+            <SocialMediaPanel
+              isEditing={isEditing}
+              human={human}
               editFb={draft.fb}
               setEditFb={(v) => setDraftField("fb", v)}
               editInsta={draft.insta}
@@ -372,7 +374,6 @@ export function HumanCardModal({
               editTiktok={draft.tiktok}
               setEditTiktok={(v) => setDraftField("tiktok", v)}
             />
-            <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
             <AiMessagingPanel human={human} onUpdateHuman={onUpdateHuman} />
             <div className="@3xl:col-span-2">
               <BookingRulesPanel human={human} onUpdateHuman={onUpdateHuman} />

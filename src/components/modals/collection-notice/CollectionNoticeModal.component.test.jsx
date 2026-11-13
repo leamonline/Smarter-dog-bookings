@@ -58,6 +58,7 @@ const supabase = {
                   name: "Sarah",
                   surname: "Jones",
                   phone: "07123456789",
+                  whatsapp: true,
                   whatsapp_opted_out: false,
                   ...ownerOverrides,
                 },
@@ -136,7 +137,7 @@ describe("CollectionNoticeModal", () => {
       await openCompose();
 
       expect(screen.getByText(/Not on WhatsApp, will send as SMS/i)).toBeInTheDocument();
-      expect(screen.getByText(/SMS version, for those not on WhatsApp/i)).toBeInTheDocument();
+      expect(screen.getByText(/SMS version, for those who get a text instead/i)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Send SMS" }));
@@ -258,6 +259,7 @@ describe("CollectionNoticeModal", () => {
       name: "Alex",
       surname: "Jones",
       phone: "07123456780",
+      whatsapp: true,
       whatsapp_opted_out: false,
     }];
     renderModal();

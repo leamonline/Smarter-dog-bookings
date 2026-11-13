@@ -13,6 +13,11 @@
 //     defaults to false that silently suppressed reminders and fallbacks.
 //  2. WhatsApp is preferred where the customer is set up for it; SMS is the
 //     fallback whenever WhatsApp is unavailable or fails.
+//     "Set up for it" is the customer's PREFERRED METHOD OF CONTACT, the two
+//     pills on their profile, stored as `humans.whatsapp`: true = WhatsApp
+//     (they have it and can be reached on it), false = SMS. Everyone can be
+//     texted; the WhatsApp pill only says WhatsApp may be tried first. It is
+//     the single switch, set by staff, by sign-up and by the customer portal.
 //  3. A STOP is honoured for the channel it was sent on, and never overridden
 //     automatically. A STOP on WhatsApp (`whatsapp_opted_out`) switches WhatsApp
 //     off; essential messages then go by SMS instead. An SMS opt-out
@@ -35,7 +40,7 @@ export type MessageClass = "operational" | "marketing";
 export interface PolicyContact {
   phone?: string | null;
   email?: string | null;
-  /** WhatsApp "set up" preference. Still consulted for WhatsApp (not for SMS). */
+  /** Preferred method of contact: true = WhatsApp, false = SMS. Gates WhatsApp only. */
   whatsapp?: boolean | null;
   /** Optional "SMS reminders" tickbox. Deliberately NOT consulted by this policy. */
   sms?: boolean | null;

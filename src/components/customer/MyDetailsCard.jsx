@@ -133,18 +133,31 @@ export function MyDetailsCard({
           editing={false}
         />
 
+        {/* The same single switch staff see on the profile (humans.whatsapp):
+            WhatsApp, or text. Everyone can be texted either way. */}
         {editing && (
           <div className="portal-detail-row">
-            <span className="portal-detail-label">WhatsApp</span>
-            <button
-              type="button"
-              aria-pressed={details.whatsapp}
-              aria-label="Toggle WhatsApp"
-              className={`relative w-12 h-[26px] rounded-full border-none cursor-pointer transition-colors ${details.whatsapp ? "bg-emerald-500" : "bg-slate-300"}`}
-              onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))}
-            >
-              <div className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow-sm transition-[left] ${details.whatsapp ? "left-[25px]" : "left-[3px]"}`} />
-            </button>
+            <span className="portal-detail-label" id="portal-preferred-contact">Preferred contact</span>
+            <div role="radiogroup" aria-labelledby="portal-preferred-contact" className="inline-flex rounded-full bg-slate-200 p-0.5">
+              {[
+                { label: "WhatsApp", value: true },
+                { label: "Text (SMS)", value: false },
+              ].map((option) => {
+                const active = !!details.whatsapp === option.value;
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    className={`min-h-9 px-3 rounded-full border-none cursor-pointer text-sm font-semibold font-[inherit] transition-colors ${active ? "bg-emerald-500 text-white" : "bg-transparent text-slate-600"}`}
+                    onClick={() => setDetails(d => ({ ...d, whatsapp: option.value }))}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
