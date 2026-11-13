@@ -42,7 +42,7 @@ item and this adds evidence or changes the recommendation.
 | 3 | N-03 | Sign-in failure says "give the salon a ring"; there is no phone line | Low | New | Fixed (copy) |
 | 4 | N-04 | Staff error messages are pale coral on pale coral, about 2.9:1 | Medium | New | Fixed (visual) |
 | 5 | N-05 | AI draft cards show machine labels to salon staff | Medium | New | Fixed (copy) |
-| 6 | N-06 | On a phone, more than half of the first Today screen is header before the first dog | Medium | New | Built and measured; not shipped. Needs a decision |
+| 6 | N-06 | On a phone, more than half of the first Today screen is header before the first dog | Medium | New | Fixed on the second attempt (13 Nov) |
 | 7 | N-07 | Three places change a status, with different safeguards | Low | New | Needs a decision |
 | 8 | N-08 | Terms page says "full grooms only"; the salon sells four services | Medium | New | Fixed (wording approved 11 Nov) |
 | 9 | N-09 | The approval wait does not say you can close the page, and the step before it says "you're all done" | Low | Sharpened (P-01) | Fixed (copy) |
@@ -196,7 +196,7 @@ Effort: S is under an hour, M is half a day, L is more.
 - **Fix.** Plain labels ("Booking question"), drop the model name from the card, and "Not
   sent automatically: replies about bookings and times always wait for you." S.
 
-### N-06 Half the phone screen is gone before the first dog (Medium, new, needs a decision)
+### N-06 Half the phone screen is gone before the first dog (Medium, new, fixed on the second attempt)
 
 - **What happens.** On a 390 × 844 phone the first dog card on Today starts about 465px
   down. Above it: logo row, six-item menu, date, Availability, a waiting and money line,
@@ -215,6 +215,14 @@ Effort: S is under an hour, M is half a day, L is more.
   save is about 36px. The estimate of "about two cards" was wrong. A real gain would need a
   different change, such as putting the Availability button beside the date on phones or a
   shorter date format, which is a new decision.
+- **Second attempt, 13 November.** The owner chose the alternative: Availability beside the
+  date on phones. Below 640px the date row no longer wraps; the calendar icon steps aside
+  (the chevron still marks the date as a picker), the button's padding tightens, and the
+  date uses a short weekday ("Wed 18 November", or "Wed 18 Nov" below 360px) so it is never
+  cut off. Screen readers still hear the full date. Measured on sample data on three phones
+  (320, 390 and 412px wide) and four dates, including the longest Wednesday: the header is
+  50px shorter on every one (199 to 149px on a busy day, 135 to 85px on a quiet one) and the
+  first dog card moves up 50px (321 to 271px). Desktop and tablet are unchanged.
 
 ### N-07 Three places change a status, with different safeguards (Low, new, needs a decision)
 
@@ -460,7 +468,8 @@ N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08
   from about 465px to about 330px, so two cards show instead of one. *Risk:* totals take
   one tap to see on a phone; the 144px card header and all stack sizing stay untouched.
   *Outcome:* built and measured, then not shipped: the real gain was far smaller than this
-  estimate. See the N-06 section above.
+  estimate. A second approach (Availability beside the date) shipped instead; see the N-06
+  section above.
 - **N-13 Sign-up, dog step.** *What:* show "Still needed: breed, birth year" under the
   disabled button, and add "Not sure" to birth year. *Why:* removes a silent dead end.
   *Risk:* none found on checking: nothing reads a dog's age for eligibility (Puppy Groom

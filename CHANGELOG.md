@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Today's date and Availability share one line on phones
+
+- On phones the Today header no longer drops Availability onto its own line: the date uses a short weekday ("Wed 18 November", or "Wed 18 Nov" on the narrowest phones) and sits beside the button, so the header is 50px shorter and the first dog card 50px higher. Screen readers still hear the full date; tablet and desktop are unchanged (N-06).
+
 ## Unreleased — three small layout fixes from the UX audit
 
 - Sign-up: the dog step names the details still needed under the greyed-out button, and the birth year offers "Not sure" for dogs of unknown age, which switches the month off; a real year still needs its month, so a year is never dropped (N-13).

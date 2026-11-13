@@ -95,7 +95,7 @@ placement. The `menusAndToggles` ratchet counts the hand-written ones left.
 
 ## Today screen hierarchy
 
-Keep the selected date and availability action first. Keep actionable attention
+Keep the selected date and availability action first; below 640px they share one line, with a short weekday date ("Wed 18 November", "Wed 18 Nov" below 360px) so neither wraps nor truncates, while the date button's accessible name keeps the full date. Keep actionable attention
 segments prominent and separate from the labelled Day totals group. Put salon
 open/closed state, online availability status, day shape and collected total in
 that quieter group; none is removed or available only through an accessible name.
