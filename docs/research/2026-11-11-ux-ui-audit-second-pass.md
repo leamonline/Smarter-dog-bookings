@@ -461,8 +461,10 @@ N-11, N-12, N-21; and, after the owner's decisions on 11 November, N-02 and N-08
   one tap to see on a phone; the 144px card header and all stack sizing stay untouched.
 - **N-13 Sign-up, dog step.** *What:* show "Still needed: breed, birth year" under the
   disabled button, and add "Not sure" to birth year. *Why:* removes a silent dead end.
-  *Risk:* "Not sure" must not upset the Puppy Groom age check, so that part needs your
-  word on how an unknown age should be treated.
+  *Risk:* none found on checking: nothing reads a dog's age for eligibility (Puppy Groom
+  has no age check). *Outcome:* shipped in #1206 with "Not sure" on the year only, because
+  everything that reads a birth date expects "YYYY-MM"; a database test proves a dog of
+  unknown age is saved with no birth date.
 - **N-22 Calm chips.** *What:* show "All sorted" and the other all-clear chips in one calm
   colour instead of each card's identity colour. *Why:* red text saying "All sorted" reads
   as a problem. *Risk:* the chips lose the colour link to their cards; the labels still
