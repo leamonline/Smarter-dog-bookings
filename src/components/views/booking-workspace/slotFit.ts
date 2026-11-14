@@ -94,7 +94,7 @@ export function describeDayAvailability({
   dailyDogCap: number;
   overrides?: Record<string, SlotOverrides>;
 }): Record<string, SlotFit> {
-  const selectable = (dogs || []).filter((dog) => dog?.id && dog.size).slice(0, 4);
+  const selectable = (dogs || []).filter((dog) => dog?.id && dog.size);
   const result: Record<string, SlotFit> = {};
 
   if (selectable.length === 0) {
@@ -102,6 +102,20 @@ export function describeDayAvailability({
       result[slot] = {
         kind: "unselected",
         label: "Choose dogs to check",
+        assignment: null,
+        choosable: false,
+      };
+    }
+    return result;
+  }
+
+  // The engine refuses a group larger than four. Checking a silent subset
+  // would mark a time available while the reply still names every dog.
+  if (selectable.length > 4) {
+    for (const slot of activeSlots) {
+      result[slot] = {
+        kind: "partial",
+        label: "Choose up to 4 dogs",
         assignment: null,
         choosable: false,
       };
@@ -191,8 +205,10 @@ export function findNextAvailableDate({
   if (!dogs.length || !fromDate) return null;
   let cursor = addDays(fromDate, 1);
   for (let step = 0; step < horizon; step += 1) {
-    if (isDateOpen(cursor, null, daySettings as Record<string, { isOpen?: boolean }>)) {
-      const settings = daySettings[cursor] || {};
+    // Only dates present in the loaded diary. A missing key is not an empty
+    // open day — the window simply has not been fetched yet.
+    const settings = daySettings[cursor];
+    if (settings && isDateOpen(cursor, null, daySettings as Record<string, { isOpen?: boolean }>)) {
       const activeSlots = buildSlotGrid(settings.extraSlots || []);
       const fits = describeDayAvailability({
         dogs,

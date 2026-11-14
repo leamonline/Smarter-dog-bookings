@@ -92,6 +92,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   const toast = useToast();
   const navigate = useNavigate();
   const [failedFocus, setFailedFocus] = useState(null);
+  const clearFailedFocus = useCallback(() => setFailedFocus(null), []);
   // The authoritative cap lives in salon_config; fall back to the shared
   // constant only while that loads so the diary never over-offers.
   const { config: salonConfig } = useSalonConfig();
@@ -329,7 +330,12 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       onRejectBookingAction={actions.rejectBookingAction}
       autoFocusSignal={compose.composeFocusSignal}
       textareaRef={composerTextareaRef}
-      focusMessageId={failedFocus?.conversationId === selectedId ? failedFocus.messageId : null}
+      focusMessageId={
+        failedFocus?.conversationId === selectedId
+          ? (failedFocus.messageId || "")
+          : undefined
+      }
+      onFailedFocusHandled={clearFailedFocus}
       onOpenHuman={onOpenHuman}
       onWhatsappReenabled={(result) => {
         onWhatsappReenabled?.(result.humanIds);

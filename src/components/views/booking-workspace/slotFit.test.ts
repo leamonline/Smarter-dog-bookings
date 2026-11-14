@@ -107,8 +107,45 @@ describe("describeDayAvailability", () => {
   });
 });
 
+describe("describeDayAvailability groups", () => {
+  it("refuses a selection larger than the engine allows instead of dropping dogs", () => {
+    const dogs = ["a", "b", "c", "d", "e"].map((id) => ({
+      id,
+      name: id,
+      size: DOG_SIZE.SMALL,
+    }));
+    const fits = describeDayAvailability({
+      dogs,
+      dayBookings: [],
+      activeSlots: ["08:30"],
+      dailyDogCap: 14,
+    });
+    expect(fits["08:30"]).toMatchObject({
+      label: "Choose up to 4 dogs",
+      choosable: false,
+    });
+  });
+});
+
 describe("findNextAvailableDate", () => {
-  it("skips a closed day and a full open day", () => {
+  it("skips a closed day and a full open day inside the loaded diary", () => {
+    const next = findNextAvailableDate({
+      fromDate: "2026-08-10",
+      dogs: [luna],
+      dailyDogCap: 14,
+      daySettings: {
+        "2026-08-11": { isOpen: false, extraSlots: [], overrides: {} },
+        "2026-08-12": { isOpen: true, extraSlots: [], overrides: {} },
+        "2026-08-17": { isOpen: true, extraSlots: [], overrides: {} },
+      },
+      bookingsByDate: {
+        "2026-08-12": SALON_SLOTS.flatMap((slot) => [booked(slot), booked(slot)]),
+      },
+    });
+    expect(next).toBe("2026-08-17");
+  });
+
+  it("does not treat a date outside the loaded diary as an empty opening", () => {
     const next = findNextAvailableDate({
       fromDate: "2026-08-10",
       dogs: [luna],
@@ -121,7 +158,7 @@ describe("findNextAvailableDate", () => {
         "2026-08-12": SALON_SLOTS.flatMap((slot) => [booked(slot), booked(slot)]),
       },
     });
-    expect(next).toBe("2026-08-17");
+    expect(next).toBeNull();
   });
 
   it("returns nothing when no dog is selected", () => {

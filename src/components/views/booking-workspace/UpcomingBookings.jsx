@@ -14,7 +14,7 @@ export function UpcomingBookings({ bookings, onViewBooking, onReschedule, compac
 
   if (compact) {
     return (
-      <section aria-label="Upcoming bookings" className="shrink-0 border-b border-slate-200 bg-brand-paper px-3 py-2">
+      <section aria-label="Upcoming bookings" className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-b border-slate-200 bg-brand-paper px-3 py-2">
         <h2 className="text-xs font-extrabold text-brand-ink">{heading}</h2>
         <ul className="mt-1 flex flex-col gap-1">
           {bookings.map((booking) => (
