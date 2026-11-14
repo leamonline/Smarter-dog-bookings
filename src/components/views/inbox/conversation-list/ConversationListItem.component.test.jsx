@@ -36,7 +36,11 @@ describe("ConversationListItem", () => {
       />,
     );
 
-    expect(screen.getByText("Closes in 3h 0m")).toBeInTheDocument();
+    expect(screen.getByText("3h 0m left")).toBeInTheDocument();
+    expect(screen.getByText("3h 0m left")).toHaveAttribute(
+      "title",
+      "Free-form replies available for 3h 0m",
+    );
   });
 
   it("shows a template-needed chip once an awaiting-reply WhatsApp window is closed", () => {
@@ -69,11 +73,9 @@ describe("ConversationListItem", () => {
       />,
     );
 
-    expect(screen.getByText("Failed send")).toBeInTheDocument();
-    expect(screen.getByText("Failed send")).toHaveAttribute(
-      "title",
-      "Latest failed send: Meta rejected it",
-    );
+    const failed = screen.getByRole("button", { name: /Latest failed send: Meta rejected it/ });
+    expect(failed).toHaveTextContent("Failed send");
+    expect(failed).toHaveAttribute("title", "Latest failed send: Meta rejected it");
   });
 
   it("renders one winning status plus an independent closing-window constraint", () => {
@@ -94,8 +96,8 @@ describe("ConversationListItem", () => {
     );
 
     expect(screen.getByText("Draft pending")).toBeInTheDocument();
-    expect(screen.queryByText("3")).not.toBeInTheDocument();
-    expect(screen.getByText(/Closes/)).toBeInTheDocument();
+    expect(screen.getByText("Unread")).toHaveAttribute("aria-label", "3 unread messages");
+    expect(screen.getByText(/left/)).toBeInTheDocument();
   });
 
   it("drops New and suggested-close row chips deliberately", () => {
@@ -183,7 +185,7 @@ describe("ConversationListItem", () => {
       />,
     );
 
-    expect(screen.getByRole("button").closest("div")).toHaveClass("min-h-16", "max-h-[72px]");
+    expect(screen.getByRole("button").closest("div")).toHaveClass("min-h-16");
     expect(screen.getByRole("checkbox").parentElement).toHaveClass("min-h-11", "min-w-11");
   });
 
@@ -221,7 +223,7 @@ describe("ConversationListItem", () => {
     // The name is muted, NOT struck through (strikethrough reads as deleted).
     const name = screen.getByText("Sarah Jones");
     expect(name.className).not.toContain("line-through");
-    expect(name.className).toContain("text-brand-ink/55");
+    expect(name.className).toContain("text-brand-ink/70");
   });
 
   it("never shows a 'Handled by staff' badge for human-takeover threads", () => {
@@ -320,7 +322,7 @@ describe("ConversationListItem", () => {
  it("shows waiting time as accessible text without clipping the extra line", () => {
   render(<ConversationListItem conv={baseConversation()} waitingLabel="Waiting 2h 30m working time" onSelect={vi.fn()} />);
   expect(screen.getByText("Waiting 2h 30m working time")).toBeInTheDocument();
-  expect(screen.getByRole("button").closest("div")).toHaveClass("max-h-[96px]");
+  expect(screen.getByRole("button").closest("div")).not.toHaveClass("overflow-hidden");
 });
 it("shows unavailable instead of guessed waiting time", () => {
   render(<ConversationListItem conv={baseConversation()} waitingLabel="Waiting time unavailable" onSelect={vi.fn()} />);

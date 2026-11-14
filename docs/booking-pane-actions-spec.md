@@ -33,6 +33,8 @@ This spec replaces that with two explicit staff-driven actions.
 
 ### Entry
 
+The inbox shows upcoming confirmed bookings first. The diary stays closed until staff choose **Suggest appointment times**. View booking and Reschedule open the existing booking detail (Reschedule also opens its reschedule step). Creating a booking from the inbox is still unavailable.
+
 The pane opens with two actions where "Choose a request first" currently sits:
 
 - **Available appointments?** → offer flow (Phase 1)

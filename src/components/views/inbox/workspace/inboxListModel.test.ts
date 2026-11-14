@@ -32,6 +32,7 @@ describe("splitByClosed + countInboxFilters", () => {
     expect(active.map((r) => r.id)).toEqual(["a", "b"]);
     expect(closed.map((r) => r.id)).toEqual(["c"]);
     expect(countInboxFilters(active, closed)).toEqual({
+      needs_attention: 2,
       all: 2,
       awaiting_reply: 1,
       failed_sends: 1,
@@ -42,9 +43,24 @@ describe("splitByClosed + countInboxFilters", () => {
   });
 });
 
+describe("needs attention", () => {
+  it("leaves a replied, read conversation out of the queue", () => {
+    const quiet = {
+      id: "q",
+      last_inbound_at: "2026-08-10T08:00:00Z",
+      last_outbound_at: "2026-08-10T09:00:00Z",
+      unread_count: 0,
+    };
+    const { active, closed } = splitByClosed([quiet]);
+    expect(filterInboxConversations("needs_attention", active, closed)).toEqual([]);
+    expect(countInboxFilters(active, closed).needs_attention).toBe(0);
+  });
+});
+
 describe("filterInboxConversations", () => {
   const { active, closed } = splitByClosed(rows);
   it("returns the pile each mode names", () => {
+    expect(filterInboxConversations("needs_attention", active, closed).map((r) => r.id)).toEqual(["a", "b"]);
     expect(filterInboxConversations("all", active, closed).map((r) => r.id)).toEqual(["a", "b"]);
     expect(filterInboxConversations("awaiting_reply", active, closed).map((r) => r.id)).toEqual(["a"]);
     expect(filterInboxConversations("failed_sends", active, closed).map((r) => r.id)).toEqual(["b"]);

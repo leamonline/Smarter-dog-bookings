@@ -10,13 +10,14 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import { canBookSlot, findGroupedSlots } from "../../../engine/capacity";
+import { canBookSlot } from "../../../engine/capacity";
 import { excludeCancelled } from "../../../engine/occupancy";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { isDateOpen } from "../../../engine/utils";
 import { seatOccupancy } from "./bookingComposerModel.js";
 import { slotChoiceKey } from "./bookingWorkspaceModel.js";
-import { Button } from "../../ui";
+import { describeDayAvailability, findNextAvailableDate } from "./slotFit";
+import { Button, Input } from "../../ui";
 
 export function parseDate(dateStr) {
   const [year, month, day] = String(dateStr).split("-").map(Number);
@@ -169,7 +170,9 @@ export function BookingPane({
   onClear,
   onInsertIntoReply,
   showInsertAction = false,
+  requestedDates = [],
 }) {
+  void offerActionLabel;
   const currentDate = parseDate(currentDateStr);
   const settings = daySettings[currentDateStr] || {};
   const open = isDateOpen(currentDateStr, null, daySettings);
@@ -193,31 +196,42 @@ export function BookingPane({
     if (Array.isArray(dogs)) {
       return dogs
         .filter((dog) => dog?.size)
-        .map((dog) => ({ id: dog.id, size: dog.size }));
+        .map((dog) => ({ id: dog.id, name: dog.name, size: dog.size, service: dog.service }));
     }
     if (request?.size && request.dogName) {
-      return [{ id: request.dog?.id || `${request.id}-dog`, size: request.size }];
+      return [{ id: request.dog?.id || `${request.id}-dog`, name: request.dogName, size: request.size }];
     }
     return [];
   }, [dogs, request]);
 
   const hasSelection = capacityDogs.length > 0;
 
-  const bookableSlots = useMemo(() => {
-    if (!open || !hasSelection) return new Set();
-    const allocations = findGroupedSlots(
-      capacityDogs,
+  const fitsBySlot = useMemo(
+    () => describeDayAvailability({
+      dogs: capacityDogs,
       dayBookings,
       activeSlots,
       dailyDogCap,
-      settings.overrides || {},
-    );
-    return new Set(
-      allocations.flatMap((allocation) =>
-        allocation.assignments.map((assignment) => assignment.slot),
-      ),
-    );
-  }, [activeSlots, capacityDogs, dailyDogCap, dayBookings, hasSelection, open, settings.overrides]);
+      overrides: settings.overrides || {},
+    }),
+    [activeSlots, capacityDogs, dailyDogCap, dayBookings, settings.overrides],
+  );
+
+  const nextAvailable = useMemo(
+    () => findNextAvailableDate({
+      fromDate: currentDateStr,
+      daySettings,
+      bookingsByDate,
+      dogs: capacityDogs,
+      dailyDogCap,
+    }),
+    [bookingsByDate, capacityDogs, currentDateStr, dailyDogCap, daySettings],
+  );
+
+  const bookableSlots = useMemo(() => {
+    if (!open || !hasSelection) return new Set();
+    return new Set(activeSlots.filter((slot) => fitsBySlot[slot]?.choosable));
+  }, [activeSlots, fitsBySlot, hasSelection, open]);
 
   function moveDay(delta) {
     const next = new Date(currentDate);
@@ -233,26 +247,60 @@ export function BookingPane({
           true. Before that, the pane is just the empty state below. */}
       {hasSelection ? (
         <>
-          {/* Vertical budget matters most on a 375px phone, where this header
-              competes directly with the slot list it exists to introduce. The
-              title and its explanatory line are desktop-only; narrow keeps just
-              the date and its two arrows. */}
-          <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 sm:min-h-[62px]">
-            <div className="hidden sm:block">
-              <h2 id="booking-desk-diary" className="font-display text-lg font-extrabold text-brand-ink">Bookings</h2>
-              <p className="text-caption text-slate-500">Read-only · choose up to 3 draft times</p>
+          {/* Title, date and arrows stack on a phone so the heading is not clipped. */}
+          <div className="flex shrink-0 flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 id="booking-desk-diary" className="font-display text-base font-extrabold text-brand-ink sm:text-lg">Suggest appointment times</h2>
+              <p className="text-caption font-semibold text-ink-muted">Choose up to 3 options to include in your reply.</p>
             </div>
-            <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end">
-              <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50">
+            <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:shrink-0 sm:justify-end">
+              <button type="button" onClick={() => moveDay(-1)} aria-label="Previous day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink">
                 <ChevronLeft aria-hidden="true" size={18} />
               </button>
-              <div className="min-w-0 flex-1 truncate text-center font-display text-sm font-extrabold text-brand-ink sm:min-w-[150px] sm:flex-none">
-                {formatDate(currentDateStr, { year: "numeric" })}
-              </div>
-              <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50">
+              <Input
+                type="date"
+                size="sm"
+                aria-label="Choose a date"
+                value={currentDateStr}
+                onChange={(event) => {
+                  if (event.target.value) onPickDate(parseDate(event.target.value));
+                }}
+                className="min-w-0 flex-1 text-center sm:w-[150px] sm:flex-none"
+              />
+              <button type="button" onClick={() => moveDay(1)} aria-label="Next day" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-slate-200 text-brand-ink hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ink">
                 <ChevronRight aria-hidden="true" size={18} />
               </button>
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={!nextAvailable}
+              onClick={() => nextAvailable && onPickDate(parseDate(nextAvailable))}
+              aria-describedby={nextAvailable ? undefined : "next-available-reason"}
+              className="min-h-11"
+            >
+              Next available
+            </Button>
+            {!nextAvailable ? (
+              <p id="next-available-reason" className="text-caption font-semibold text-ink-muted">
+                No opening in the next 3 weeks.
+              </p>
+            ) : null}
+            {requestedDates.map((date) => (
+              <Button
+                key={date}
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => onPickDate(parseDate(date))}
+                className="min-h-11"
+              >
+                Customer asked for {formatDate(date)}
+              </Button>
+            ))}
           </div>
 
           <DateStrip
@@ -284,20 +332,23 @@ export function BookingPane({
         </div>
       ) : null}
 
+      {hasSelection ? (
       <div className="min-h-0 flex-1 overflow-y-auto">
         {activeSlots.map((slot) => {
           const choice = { dateStr: currentDateStr, slot };
           const selected = choicesSet.has(slotChoiceKey(choice));
           const bookable = bookableSlots.has(slot);
           const occupancy = seatOccupancy(slot, dayBookings, activeSlots);
-          const capacityCheck = hasSelection
-            ? canBookSlot(dayBookings, slot, capacityDogs[0].size, activeSlots, {
-                overrides: settings.overrides?.[slot] || {},
-                dogId: capacityDogs[0].id,
-              })
-            : null;
-          const disabled = !selected && (!open || !hasSelection || !bookable || choices.length >= 3);
-          const free = !open ? null : occupancy.free;
+          const fit = fitsBySlot[slot];
+          const capacityCheck = canBookSlot(dayBookings, slot, capacityDogs[0].size, activeSlots, {
+            overrides: settings.overrides?.[slot] || {},
+            dogId: capacityDogs[0].id,
+          });
+          const disabled = !selected && (!open || !bookable || choices.length >= 3);
+          const fitLabel = !open ? "Closed" : (fit?.label || "Full");
+          const disabledReason = fit?.kind === "partial"
+            ? fit.label
+            : capacityCheck?.reason || fitLabel;
 
           return (
             <button
@@ -306,8 +357,8 @@ export function BookingPane({
               disabled={disabled}
               onClick={() => onToggleChoice(choice)}
               aria-pressed={selected}
-              title={disabled && capacityCheck?.reason ? capacityCheck.reason : undefined}
-              className={`grid w-full grid-cols-[52px_minmax(0,1fr)_auto] items-start text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink ${
+              title={disabled ? disabledReason : undefined}
+              className={`grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink ${
                 selected
                   ? "bg-brand-teal/[0.08]"
                   : bookable && open
@@ -315,32 +366,22 @@ export function BookingPane({
                     : "bg-slate-50/60"
               } disabled:cursor-not-allowed`}
             >
-              {/* The number staff actually scan for — how many spaces —
-                  leads the row, sized to match. Time is real information
-                  too, but it's the row's label, not its headline. */}
-              <span className="flex min-h-[62px] flex-col items-center justify-center gap-0.5 py-3">
-                <span
-                  className={`font-display text-xl font-black leading-none ${
-                    !open ? "text-slate-300" : free > 0 ? "text-brand-teal-text" : "text-slate-300"
-                  }`}
-                >
-                  {!open ? "–" : free}
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                  {!open ? "closed" : free > 0 ? (free === 1 ? "space" : "spaces") : "full"}
-                </span>
+              <span className="flex min-h-[62px] items-center justify-center px-2 font-display text-sm font-black text-brand-ink">
+                {slot}
               </span>
               <span className="min-w-0 px-3 py-3">
-                <span className="block text-xs font-bold text-brand-ink">{slot}</span>
-                {/* Existing bookings stay visible even when the slot is
-                    selected — that context is exactly what staff want to
-                    sanity-check before offering or booking a time. */}
+                <span className={`block text-xs font-bold ${bookable && open ? "text-brand-ink" : "text-ink-muted"}`}>
+                  {fitLabel}
+                </span>
+                {fit?.assignment ? (
+                  <span className="mt-0.5 block text-micro font-semibold text-ink-muted">{fit.assignment}</span>
+                ) : null}
                 {occupancy.dogs.length > 0 ? (
                   <span className="mt-1 block">
                     {occupancy.dogs.map((dog, index) => (
                       <span
                         key={`${dog.name}-${index}`}
-                        className="block break-words text-micro text-slate-500"
+                        className="block break-words text-micro font-medium text-ink-muted"
                       >
                         {dog.name}
                         {dog.breed ? ` (${dog.breed})` : ""} booked
@@ -351,30 +392,17 @@ export function BookingPane({
               </span>
               <span className="px-3 py-3 text-right">
                 {selected ? (
-                  // Same teal-and-check language as a chosen dog — settles
-                  // in rather than snapping, so it reads as calm, not a
-                  // toggle firing.
                   <span className="motion-safe:animate-[popIn_140ms_ease-out] inline-flex min-h-6 items-center gap-1 rounded-full bg-brand-teal/15 px-2 text-micro font-bold text-brand-teal-text">
                     <Check aria-hidden="true" size={12} />
                     Selected
                   </span>
-                ) : bookable && open ? (
-                  <span className="text-micro font-bold text-brand-teal-text">
-                    {offerActionLabel}
-                  </span>
-                ) : !open ? (
-                  <span className="text-micro font-semibold text-slate-400">Closed</span>
-                ) : hasSelection ? (
-                  // Only a claim about the CURRENT selection. With no dogs
-                  // chosen there is nothing to not fit, so saying "No space"
-                  // would contradict the free-seat count on the left.
-                  <span className="text-micro font-semibold text-slate-400">No space</span>
                 ) : null}
               </span>
             </button>
           );
         })}
       </div>
+      ) : null}
 
       {onClear ? (
         <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 shadow-[0_-5px_20px_rgba(31,31,31,0.08)]">

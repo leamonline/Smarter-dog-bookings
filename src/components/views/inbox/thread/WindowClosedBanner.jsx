@@ -36,6 +36,7 @@ export function WindowClosedBanner({ conversation }) {
     >
       <span aria-hidden="true" className="mt-px">⏱</span>
       <p className="m-0">
+        <span className="font-bold">Free-form replies are no longer available.</span>{" "}
         <span className="font-bold">24-hour reply window closed.</span>{" "}
         <span className="text-feedback-warning-ink">
           Choose an approved template below to reopen the chat.

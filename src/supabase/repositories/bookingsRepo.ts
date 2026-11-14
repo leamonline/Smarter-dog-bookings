@@ -747,6 +747,32 @@ export function listRecentPastForOwner(
   return signal ? q.abortSignal(signal) : q;
 }
 
+/**
+ * A customer's upcoming live visits, soonest first. Cancelled, no-show and
+ * completed rows are history. A NULL status is kept: the database treats it
+ * as Booked. Raw PostgREST result, same shape as the past-booking read.
+ */
+export function listUpcomingForOwner(
+  client: SupabaseClient,
+  { humanId, from, limit = 20 }: { humanId: string; from: string; limit?: number },
+  signal?: AbortSignal,
+) {
+  const q = client
+    .from("bookings")
+    .select("id, booking_date, slot, service, status, size, dog_id, dogs!inner(name, human_id)")
+    .eq("dogs.human_id", humanId)
+    .gte("booking_date", from)
+    .or(keepingNullStatusOr([
+      BOOKING_STATUS.CANCELLED,
+      BOOKING_STATUS.NO_SHOW,
+      BOOKING_STATUS.COMPLETED,
+    ]))
+    .order("booking_date", { ascending: true })
+    .order("slot", { ascending: true })
+    .limit(limit);
+  return signal ? q.abortSignal(signal) : q;
+}
+
 /** The seat-level columns the inbox capacity preview feeds to the engine. */
 export interface SeatRow {
   id: string;

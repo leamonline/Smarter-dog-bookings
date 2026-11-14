@@ -27,17 +27,13 @@
 //   useInboxWorkspaceState — pane / context-rail / per-conversation drafts
 //   BulkActionBar          — the floating close-N pill
 // ============================================================
-import { useEffect, useMemo, useCallback, useRef } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DAILY_DOG_CAP } from "../../../../constants/salon";
 import { useWhatsAppInbox } from "../../../../supabase/hooks/useWhatsAppInbox";
 import { useInboxDiaryData } from "../../../../supabase/hooks/useInboxDiaryData";
 import { useSalonConfig } from "../../../../supabase/hooks/useSalonConfig";
 import { useToast } from "../../../../contexts/ToastContext.jsx";
-import {
-  PageHeader,
-  PageHeaderAction,
-} from "../../../ui/index.js";
 import { ComposeNewModal } from "../compose-new/ComposeNewModal.jsx";
 import { CustomerContextPanel } from "../customer-context/CustomerContextPanel.jsx";
 import { useCustomerContext } from "../hooks/useCustomerContext.js";
@@ -46,7 +42,9 @@ import { BookingActionsPane } from "../../booking-workspace/BookingActionsPane.j
 import {
   buildBookingRequest,
   isActiveAppointmentRequest,
+  mergedRequestState,
 } from "../../booking-workspace/bookingWorkspaceModel.js";
+import { selectUpcomingBookings, structuredRequestDates } from "../../booking-workspace/upcomingBookings";
 import { BookingCustomerPane } from "./BookingCustomerPane.jsx";
 import { BulkActionBar } from "./BulkActionBar.jsx";
 import { ConversationPane } from "./ConversationPane.jsx";
@@ -92,6 +90,9 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
     refreshList,
   } = inbox;
   const toast = useToast();
+  const navigate = useNavigate();
+  const [failedFocus, setFailedFocus] = useState(null);
+  const clearFailedFocus = useCallback(() => setFailedFocus(null), []);
   // The authoritative cap lives in salon_config; fall back to the shared
   // constant only while that loads so the diary never over-offers.
   const { config: salonConfig } = useSalonConfig();
@@ -133,6 +134,22 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
     () => buildDiaryDates(selectedWork.dateStr),
     [selectedWork.dateStr],
   );
+  const requestedDates = useMemo(
+    () => structuredRequestDates([
+      bookingRequest?.preferredDay,
+      mergedRequestState(selectedConversation || {}).preferredDay,
+    ]),
+    [bookingRequest, selectedConversation],
+  );
+  const openRecordedBooking = useCallback((booking, reschedule = false) => {
+    if (!booking?.id || !booking.date) return;
+    const params = new URLSearchParams({
+      booking: String(booking.id),
+      date: booking.date,
+    });
+    if (reschedule) params.set("reschedule", "1");
+    navigate(`/today?${params.toString()}`);
+  }, [navigate]);
 
   const handlePickDate = useCallback((date) => {
     if (!selectedId) return;
@@ -155,6 +172,11 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   }, [selectedId, selectedWork.draft, workspaceActions]);
 
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
+  const todayStr = toLocalDateStr(new Date());
+  const upcomingBookings = useMemo(
+    () => selectUpcomingBookings(customerContext.upcomingBookings || [], todayStr),
+    [customerContext.upcomingBookings, todayStr],
+  );
 
   // The conversation row already carries this customer's dogs (id, name,
   // breed, size), so the booking pane can render immediately rather than
@@ -231,23 +253,6 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   const rootRef = useRef(null);
   const fillHeight = useFillViewportHeight(rootRef);
 
-  const pageHeader = (
-    <PageHeader
-      title="Inbox"
-      className="!min-h-0 !py-1.5 !mb-2"
-      actions={
-        <PageHeaderAction
-          type="button"
-          onClick={() => compose.openCompose()}
-          title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
-          icon={Plus}
-        >
-          New message
-        </PageHeaderAction>
-      }
-    />
-  );
-
   const conversationPane = (
     <ConversationPane
       conversations={conversations}
@@ -272,8 +277,19 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       conversationSummary={list.conversationSummary}
       selectedId={selectedId}
       selectedIds={list.selectedIds}
-      onSelectConversation={workspaceActions.selectConversation}
+      onSelectConversation={(conversationId) => {
+        setFailedFocus(null);
+        workspaceActions.selectConversation(conversationId);
+      }}
       onToggleSelect={list.toggleSelect}
+      onNewMessage={() => compose.openCompose()}
+      onShowFailed={(conversation) => {
+        workspaceActions.selectConversation(conversation.id);
+        setFailedFocus({
+          conversationId: conversation.id,
+          messageId: conversation.latest_failed_message?.id ?? null,
+        });
+      }}
     />
   );
 
@@ -314,6 +330,12 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       onRejectBookingAction={actions.rejectBookingAction}
       autoFocusSignal={compose.composeFocusSignal}
       textareaRef={composerTextareaRef}
+      focusMessageId={
+        failedFocus?.conversationId === selectedId
+          ? (failedFocus.messageId || "")
+          : undefined
+      }
+      onFailedFocusHandled={clearFailedFocus}
       onOpenHuman={onOpenHuman}
       onWhatsappReenabled={(result) => {
         onWhatsappReenabled?.(result.humanIds);
@@ -344,6 +366,10 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
           dailyDogCap={dailyDogCap}
           onPickDate={handlePickDate}
           onInsertIntoReply={handleInsertOfferText}
+          upcomingBookings={upcomingBookings}
+          requestedDates={requestedDates}
+          onViewBooking={(booking) => openRecordedBooking(booking, false)}
+          onReschedule={(booking) => openRecordedBooking(booking, true)}
         />
       }
       customerPane={
@@ -359,10 +385,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   ) : null;
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
-      <div className={workspaceState.mobilePane === "list" ? "shrink-0" : "hidden shrink-0 md:block"}>
-        {pageHeader}
-      </div>
+    <div className="flex min-h-0 flex-col">
       <InboxWorkspaceShell
         rootRef={rootRef}
         fillHeight={fillHeight}

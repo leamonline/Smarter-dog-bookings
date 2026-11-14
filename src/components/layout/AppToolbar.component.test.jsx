@@ -95,7 +95,7 @@ describe("AppToolbar", () => {
     renderToolbar();
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(
-      within(nav).getByRole("link", { name: "Inbox — 12 to reply" }),
+      within(nav).getByRole("link", { name: "Inbox — 12 unread messages" }),
     ).toBeInTheDocument();
     expect(
       within(nav).getByRole("link", {
@@ -122,7 +122,7 @@ describe("MobileNavStrip", () => {
     renderStrip();
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(
-      within(nav).getByRole("link", { name: "Inbox — 3 to reply" }),
+      within(nav).getByRole("link", { name: "Inbox — 3 unread messages" }),
     ).toBeInTheDocument();
   });
 });

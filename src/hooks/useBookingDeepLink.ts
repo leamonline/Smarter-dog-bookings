@@ -38,6 +38,8 @@ export interface UseBookingDeepLinkOptions {
   onPickDate: (date: Date) => void;
   /** Open a booking's detail modal by id. */
   onOpenBooking: (bookingId: string) => void;
+  /** When the link also says `reschedule=1`, open the existing reschedule flow. */
+  onPrepareReschedule?: () => void;
 }
 
 export function useBookingDeepLink({
@@ -46,6 +48,7 @@ export function useBookingDeepLink({
   currentDateStr,
   onPickDate,
   onOpenBooking,
+  onPrepareReschedule,
 }: UseBookingDeepLinkOptions): void {
   const [searchParams, setSearchParams] = useSearchParams();
   // Remembers the date we have already navigated to for this link, so the
@@ -54,6 +57,7 @@ export function useBookingDeepLink({
 
   const targetBookingId = searchParams.get("booking");
   const targetDate = searchParams.get("date");
+  const wantsReschedule = searchParams.get("reschedule") === "1";
 
   const clearParams = useCallback(() => {
     const next = new URLSearchParams(searchParams);
@@ -83,7 +87,10 @@ export function useBookingDeepLink({
     const found = Object.values(bookingsByDate || {})
       .some((list) => (list || []).some((b) => b.id === targetBookingId));
 
-    if (found) onOpenBooking(targetBookingId);
+    if (found) {
+      onOpenBooking(targetBookingId);
+      if (wantsReschedule) onPrepareReschedule?.();
+    }
 
     // Clear either way. A booking that is genuinely not there — deleted, or
     // the link carried the wrong date — must not leave the param in the URL
@@ -93,11 +100,13 @@ export function useBookingDeepLink({
   }, [
     targetBookingId,
     targetDate,
+    wantsReschedule,
     currentDateStr,
     bookingsLoading,
     bookingsByDate,
     onPickDate,
     onOpenBooking,
+    onPrepareReschedule,
     clearParams,
   ]);
 }

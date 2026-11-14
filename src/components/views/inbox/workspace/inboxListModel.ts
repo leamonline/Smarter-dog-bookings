@@ -9,6 +9,7 @@
 import { displayName, isAwaitingReply } from "../helpers.js";
 
 export const INBOX_LIST_FILTERS = [
+  "needs_attention",
   "all",
   "awaiting_reply",
   "failed_sends",
@@ -21,6 +22,7 @@ export type InboxListFilter = (typeof INBOX_LIST_FILTERS)[number];
 
 /** Chip labels used by the summary line ("Filtered: unread · 3 of 12"). */
 export const INBOX_FILTER_LABELS: Record<InboxListFilter, string> = {
+  needs_attention: "needs attention",
   all: "active conversations",
   awaiting_reply: "awaiting reply",
   failed_sends: "failed sends",
@@ -37,6 +39,8 @@ export interface InboxListConversation {
   unread_count?: number | null;
   has_failed_message?: boolean | null;
   has_pending_draft?: boolean | null;
+  has_pending_booking_action?: boolean | null;
+  needs_human_review?: boolean | null;
   phone_e164?: string | null;
   last_customer_text?: string | null;
   notes?: string | null;
@@ -60,14 +64,33 @@ export function splitByClosed<T extends InboxListConversation>(
   return { active, closed };
 }
 
+/**
+ * Needs attention is the union of the states staff can act on. It does not
+ * invent a stored status: a conversation counts when it is waiting on a
+ * reply, still unread, holding a draft or booking proposal, flagged for
+ * review, or carrying a failed send. Closed conversations are Done.
+ */
+export function conversationNeedsAttention(conversation: InboxListConversation): boolean {
+  if (conversation.closed_at) return false;
+  return Boolean(
+    isAwaitingReply(conversation)
+    || (conversation.unread_count || 0) > 0
+    || conversation.has_failed_message
+    || conversation.has_pending_draft
+    || conversation.has_pending_booking_action
+    || conversation.needs_human_review,
+  );
+}
+
 /** Counts are computed over ACTIVE only (except Done, which is the closed-pile
- *  count). A closed conversation shouldn't bump the Unread or Needs review
+ *  count). A closed conversation shouldn't bump the Unread or Needs attention
  *  chips — closing it is what dropped it off the queue. */
 export function countInboxFilters<T extends InboxListConversation>(
   active: T[],
   closed: T[],
 ): Record<InboxListFilter, number> {
   return {
+    needs_attention: active.filter((c) => conversationNeedsAttention(c)).length,
     all: active.length,
     awaiting_reply: active.filter((c) => isAwaitingReply(c)).length,
     failed_sends: active.filter((c) => !!c.has_failed_message).length,
@@ -85,6 +108,8 @@ export function filterInboxConversations<T extends InboxListConversation>(
   closed: T[],
 ): T[] {
   switch (filter) {
+    case "needs_attention":
+      return active.filter((c) => conversationNeedsAttention(c));
     case "awaiting_reply":
       return active.filter((c) => isAwaitingReply(c));
     case "failed_sends":

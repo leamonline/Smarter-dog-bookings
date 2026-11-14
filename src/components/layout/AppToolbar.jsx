@@ -104,7 +104,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           {PRIMARY_NAV.map((item) => {
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
-                ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} to reply`
+                ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread ${waUnread === 1 ? "message" : "messages"}`
                 : item.to === "/humans" && pendingSignups > 0
                   ? `${item.label} — ${pendingSignups > 99 ? "99 plus" : pendingSignups} new ${pendingSignups === 1 ? "customer" : "customers"} awaiting approval`
                   : item.label;

@@ -138,8 +138,17 @@ export function windowCountdown(lastInboundAt, nowMs = Date.now()) {
   if (remaining <= 0) return null;
   const hours = Math.floor(remaining / (60 * 60 * 1000));
   const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-  if (hours >= 1) return `Window closes in ${hours}h ${mins}m`;
-  return `Window closes in ${mins}m`;
+  if (hours >= 1) return `Free-form replies available for ${hours}h ${mins}m`;
+  return `Free-form replies available for ${mins}m`;
+}
+
+export function windowTimeLeft(lastInboundAt, nowMs = Date.now()) {
+  const remaining = windowRemainingMs(lastInboundAt, nowMs);
+  if (remaining <= 0) return null;
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours >= 1) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
 }
 
 // For the "New message" composer: find an existing WhatsApp conversation
@@ -195,7 +204,8 @@ export function inboxWindowBadge(conv, nowMs = Date.now()) {
   if (!isWindowClosingSoon(conv, nowMs)) return null;
   return {
     kind: "closing_soon",
-    label: windowCountdown(conv.last_inbound_at, nowMs)?.replace(/^Window closes/, "Closes") ?? "Closes soon",
-    title: "The WhatsApp free-form reply window is nearly closed.",
+    label: windowTimeLeft(conv.last_inbound_at, nowMs) ?? "Closing soon",
+    title: windowCountdown(conv.last_inbound_at, nowMs)
+      ?? "The WhatsApp free-form reply window is nearly closed.",
   };
 }

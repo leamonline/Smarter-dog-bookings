@@ -48,6 +48,8 @@ export function ThreadPane({
   onRejectBookingAction,
   autoFocusSignal,
   textareaRef,
+  focusMessageId,
+  onFailedFocusHandled,
   // Optional: without them (the Booking Desk) a stopped thread shows its
   // status with no buttons.
   onWhatsappReenabled,
@@ -75,6 +77,24 @@ export function ThreadPane({
     }
     lastConversationIdRef.current = selectedId;
   }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
+
+  useEffect(() => {
+    // Absent means "leave the thread where it is". An empty string is the
+    // explicit request to show the failed message when it has no id. A real
+    // id focuses that message. The request is cleared after it lands so a
+    // later message does not pull focus back.
+    if (typeof focusMessageId !== "string" || loadingDetail) return undefined;
+    const root = threadScrollRef.current;
+    if (!root) return undefined;
+    const target = focusMessageId
+      ? root.querySelector(`[data-message-id="${focusMessageId.replace(/"/g, "")}"]`)
+      : root.querySelector("[data-delivery-failed='true']");
+    if (!(target instanceof HTMLElement)) return undefined;
+    target.scrollIntoView({ block: "center" });
+    target.focus();
+    onFailedFocusHandled?.();
+    return undefined;
+  }, [focusMessageId, loadingDetail, messages.length, onFailedFocusHandled, selectedId]);
 
   // Re-pin to the newest message when the log itself changes height — a
   // phone keyboard opening takes half of it — so the message being replied

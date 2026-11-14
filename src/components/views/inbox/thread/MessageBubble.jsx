@@ -70,9 +70,6 @@ export function MessageBubble({ message, onRetry }) {
     );
   }
 
-  const outboundColor = isSMS
-    ? "bg-sky-100 text-slate-800 rounded-br-sm"
-    : "bg-green-100 text-slate-800 rounded-br-sm";
   const failedColor = "bg-rose-50 border border-rose-200 text-rose-950 rounded-br-sm";
 
   // A stored customer photo (downloaded from Meta into the whatsapp-media
@@ -92,9 +89,16 @@ export function MessageBubble({ message, onRetry }) {
   const system = !isInbound && parsed.kind === "system" ? parsed : null;
 
   const channelLabel = CHANNEL_LABEL[channel] ?? channel.toUpperCase();
-  const metaParts = [channelLabel, formatDayToken(message.sent_at), formatTime(message.sent_at)]
-    .filter(Boolean)
-    .join(" · ");
+  const dayToken = formatDayToken(message.sent_at);
+  const clock = formatTime(message.sent_at);
+  const absoluteWhen = message.sent_at ? new Date(message.sent_at).toLocaleString("en-GB") : "";
+  const isAutomated = Boolean(template || system);
+  const visibleStatus = !isInbound && message.status && message.status !== "sent" ? message.status : null;
+  const outboundColor = isAutomated
+    ? "border border-brand-paper-line bg-brand-paper text-brand-ink rounded-br-sm"
+    : isSMS
+      ? "bg-sky-100 text-slate-800 rounded-br-sm"
+      : "bg-green-100 text-slate-800 rounded-br-sm";
 
   async function handleConfirmedRetry() {
     setRetryState("sending");
@@ -107,7 +111,12 @@ export function MessageBubble({ message, onRetry }) {
   }
 
   return (
-    <div className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}>
+    <div
+      className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}
+      data-message-id={message.id || undefined}
+      data-delivery-failed={isFailed ? "true" : undefined}
+      tabIndex={isFailed ? -1 : undefined}
+    >
       {/* wrap-anywhere, not break-words: as a flex item the bubble's minimum
           width is its min-content width, and only overflow-wrap:anywhere
           lets an unbroken URL contribute break points to that — break-word
@@ -169,13 +178,17 @@ export function MessageBubble({ message, onRetry }) {
         ) : (
           message.content ?? <span className="italic text-slate-500">(non-text message)</span>
         )}
-        <div className="mt-1 text-right text-micro text-slate-600">
-          {metaParts}
-          {!isInbound && message.status && message.status !== "sent" && (
-            <span className={isFailed ? "font-bold text-rose-700" : ""}>
-              {" · "}{message.status}
+        <div className="mt-1 text-right text-micro font-medium text-ink-muted">
+          <span className="sr-only">
+            {`${channelLabel}${dayToken ? `, ${dayToken}` : ""}${absoluteWhen ? `, ${absoluteWhen}` : ""}${isAutomated ? ", automated" : ""}`}
+          </span>
+          <span aria-hidden="true">{clock}</span>
+          {visibleStatus ? (
+            <span className={isFailed ? "font-bold text-rose-700" : "font-semibold text-ink-muted"} aria-hidden="true">
+              {" · "}{visibleStatus}
             </span>
-          )}
+          ) : null}
+          {visibleStatus ? <span className="sr-only">{visibleStatus}</span> : null}
         </div>
         {isFailed && retryState === "succeeded" && (
           <div

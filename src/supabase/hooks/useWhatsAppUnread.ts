@@ -62,9 +62,12 @@ async function refresh(): Promise<void> {
     if (state.loading) setState({ loading: false });
     return;
   }
+  // Active conversations only, matching the inbox Unread filter's scope.
+  // The number is still a sum of unread messages, not a conversation count.
   const { data, error } = await supabase
     .from("whatsapp_conversations")
-    .select("unread_count");
+    .select("unread_count")
+    .is("closed_at", null);
 
   if (error) {
     logger.warn("useWhatsAppUnread refresh failed", {

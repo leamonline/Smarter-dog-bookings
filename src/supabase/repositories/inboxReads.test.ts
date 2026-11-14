@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import { BOOKING_STATUS, keepingNullStatusOr, occupyingStatusOr } from "../../constants/salon";
-import { listOwnerBookingsOnDate, listRecentPastForOwner, listSeatsOnDate } from "./bookingsRepo";
+import { listOwnerBookingsOnDate, listRecentPastForOwner, listSeatsOnDate, listUpcomingForOwner } from "./bookingsRepo";
 import { listCustomerContextDogs } from "./dogsRepo";
 import { getCustomerContextProfile, listTrustedContactsWithNames } from "./humansRepo";
 import { escapeLike, searchMessageConversationIds } from "./whatsappRepo";
@@ -21,7 +21,7 @@ type Call = { method: string; args: unknown[] };
 function fakeQuery(result: unknown) {
   const calls: Call[] = [];
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lt", "or", "not", "neq", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
+  for (const method of ["select", "eq", "lt", "gte", "or", "not", "neq", "order", "limit", "ilike", "abortSignal", "maybeSingle"]) {
     builder[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -100,6 +100,27 @@ describe("listRecentPastForOwner", () => {
     await listRecentPastForOwner(client, { humanId: HUMAN, before: "2026-09-02", limit: 5 });
 
     expect(argsOf(calls, "limit")).toEqual([[5]]);
+  });
+});
+
+describe("listUpcomingForOwner", () => {
+  it("keeps a NULL status, drops ended visits, and lists soonest first", async () => {
+    const { client, calls } = fakeQuery({ data: [], error: null });
+    const signal = new AbortController().signal;
+
+    await listUpcomingForOwner(client, { humanId: HUMAN, from: "2026-11-14" }, signal);
+
+    expect(argsOf(calls, "gte")).toEqual([["booking_date", "2026-11-14"]]);
+    expect(argsOf(calls, "or")).toEqual([[keepingNullStatusOr([
+      BOOKING_STATUS.CANCELLED,
+      BOOKING_STATUS.NO_SHOW,
+      BOOKING_STATUS.COMPLETED,
+    ])]]);
+    expect(argsOf(calls, "order")).toEqual([
+      ["booking_date", { ascending: true }],
+      ["slot", { ascending: true }],
+    ]);
+    expect(argsOf(calls, "abortSignal")).toEqual([[signal]]);
   });
 });
 

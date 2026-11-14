@@ -53,6 +53,29 @@ describe("useBookingDeepLink", () => {
     expect(onOpenBooking).toHaveBeenCalledWith("b-1");
   });
 
+  it("asks for the existing reschedule flow when the link says so", () => {
+    const onPrepareReschedule = vi.fn();
+    const onOpenBooking = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter initialEntries={[`/today?booking=b-1&date=${TODAY}&reschedule=1`]}>
+        {children}
+      </MemoryRouter>
+    );
+    renderHook(
+      () => useBookingDeepLink({
+        bookingsByDate: { [TODAY]: [{ id: "b-1" }] },
+        bookingsLoading: false,
+        currentDateStr: TODAY,
+        onPickDate: vi.fn(),
+        onOpenBooking,
+        onPrepareReschedule,
+      }),
+      { wrapper },
+    );
+    expect(onOpenBooking).toHaveBeenCalledWith("b-1");
+    expect(onPrepareReschedule).toHaveBeenCalledTimes(1);
+  });
+
   it("does nothing without a booking param", () => {
     const { onOpenBooking, onPickDate } = render({ url: "/today" });
     expect(onOpenBooking).not.toHaveBeenCalled();

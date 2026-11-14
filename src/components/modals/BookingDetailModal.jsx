@@ -67,6 +67,7 @@ export function BookingDetailModal({
   fetchHumanById,
   daySettings = {},
   onRefresh,
+  initialReschedule = false,
 }) {
   const configPricing = useSalonPricing();
   const dogData = useMemo(
@@ -121,8 +122,15 @@ export function BookingDetailModal({
   // the pop-up colour-matches the card it was opened from.
   const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
   const [showSeries, setShowSeries] = useState(false);
-  const [showReschedule, setShowReschedule] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(initialReschedule);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+
+  // The modal stays mounted while staff open another visit, including a
+  // Reschedule link from the inbox. Initial state alone would keep the
+  // previous step: reschedule would not open, or View booking would leave it open.
+  useEffect(() => {
+    setShowReschedule(Boolean(initialReschedule));
+  }, [booking.id, initialReschedule]);
 
   // Optimistic "reminder sent" flip + the send modal flag; both reset when a
   // different booking is shown (see useReminderSentOverride).

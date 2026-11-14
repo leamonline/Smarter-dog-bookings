@@ -74,6 +74,8 @@ interface UseModalStateReturn {
   setCollectionNotice: (request: CollectionNoticeRequest | null) => void;
   selectedBooking: Booking | null;
   setSelectedBooking: (booking: Booking | null) => void;
+  openWithReschedule: boolean;
+  setOpenWithReschedule: (open: boolean) => void;
 }
 
 export function useModalState(): UseModalStateReturn {
@@ -86,6 +88,7 @@ export function useModalState(): UseModalStateReturn {
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
   const [collectionNotice, setCollectionNotice] = useState<CollectionNoticeRequest | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [openWithReschedule, setOpenWithReschedule] = useState(false);
 
   return {
     selectedHumanId,
@@ -106,5 +109,7 @@ export function useModalState(): UseModalStateReturn {
     setCollectionNotice,
     selectedBooking,
     setSelectedBooking,
+    openWithReschedule,
+    setOpenWithReschedule,
   };
 }
