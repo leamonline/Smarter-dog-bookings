@@ -43,7 +43,7 @@ function renderPane(props = {}) {
 }
 
 async function startOfferFlow(user) {
-  await user.click(screen.getByRole("button", { name: /Available appointments\?/ }));
+  await user.click(screen.getByRole("button", { name: /Suggest appointment times/ }));
 }
 
 describe("BookingActionsPane", () => {
@@ -51,7 +51,7 @@ describe("BookingActionsPane", () => {
     const user = userEvent.setup();
     renderPane();
     expect(
-      screen.getByRole("button", { name: /Available appointments\?/ }),
+      screen.getByRole("button", { name: /Suggest appointment times/ }),
     ).toBeInTheDocument();
     const booking = screen.getByRole("button", { name: /Book from Inbox.*not available/i });
     expect(booking).toBeDisabled();
@@ -86,7 +86,8 @@ describe("BookingActionsPane", () => {
     const user = userEvent.setup();
     renderPane();
     await startOfferFlow(user);
-    expect(screen.getByRole("button", { name: /Add to reply/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Add times to reply/i })).toBeDisabled();
+    expect(screen.getByText(/Choose at least one dog before adding times/i)).toBeInTheDocument();
   });
 
   it("inserts the composed offer into the reply", async () => {
@@ -100,7 +101,7 @@ describe("BookingActionsPane", () => {
     expect(bookable).toBeDefined();
     await user.click(bookable);
 
-    const addToReply = screen.getByRole("button", { name: /Add to reply/i });
+    const addToReply = screen.getByRole("button", { name: /Add 1 time to reply/i });
     expect(addToReply).toBeEnabled();
     await user.click(addToReply);
 
@@ -117,7 +118,7 @@ describe("BookingActionsPane", () => {
     await startOfferFlow(user);
     await user.click(screen.getByRole("button", { name: /Cancel/i }));
     expect(
-      screen.getByRole("button", { name: /Available appointments\?/ }),
+      screen.getByRole("button", { name: /Suggest appointment times/ }),
     ).toBeInTheDocument();
   });
 
@@ -133,7 +134,7 @@ describe("BookingActionsPane", () => {
     renderPane({ bookingSuggested: true });
     // Still both actions, still no gate.
     expect(
-      screen.getByRole("button", { name: /Available appointments\?/ }),
+      screen.getByRole("button", { name: /Suggest appointment times/ }),
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: /Book from Inbox.*not available/i })).toBeDisabled();
   });

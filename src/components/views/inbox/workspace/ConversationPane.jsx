@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useInboxWaitingTimes } from "../../../../supabase/hooks/useInboxWaitingTimes";
-import { Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
+import { PageHeaderAction } from "../../../ui/index.js";
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { InboxFilterChip } from "../InboxFilterChip.jsx";
 import { ConversationListItem } from "../conversation-list/ConversationListItem.jsx";
 
-const FILTERS = [
+const PRIMARY_FILTERS = [
+  {
+    key: "needs_attention",
+    label: "Needs attention",
+    color: "amber",
+    hint: "Active conversations waiting on a reply, a review, a draft, a booking decision, an unread message, or a failed send.",
+  },
   {
     key: "all",
     label: "All",
@@ -14,10 +21,19 @@ const FILTERS = [
     hint: "Show every active conversation.",
   },
   {
-    key: "awaiting_reply",
-    label: "Awaiting reply",
-    color: "purple",
-    hint: "Show active conversations where the latest customer message is newer than the latest staff reply.",
+    key: "done",
+    label: "Done",
+    color: "slate",
+    hint: "Show conversations that have been marked complete. They reopen automatically if the customer messages again.",
+  },
+];
+
+const SECONDARY_FILTERS = [
+  {
+    key: "drafts",
+    label: "Drafts",
+    color: "amber",
+    hint: "Show only conversations with a pending AI draft waiting for staff approval.",
   },
   {
     key: "failed_sends",
@@ -32,20 +48,15 @@ const FILTERS = [
     hint: "Show only conversations with unread customer messages.",
   },
   {
-    key: "drafts",
-    label: "Drafts",
-    color: "amber",
-    hint: "Show only conversations with a pending AI draft waiting for staff approval.",
-  },
-  {
-    key: "done",
-    label: "Done",
-    color: "slate",
-    hint: "Show conversations that have been marked complete. They reopen automatically if the customer messages again.",
+    key: "awaiting_reply",
+    label: "Awaiting reply",
+    color: "purple",
+    hint: "Show active conversations where the latest customer message is newer than the latest staff reply.",
   },
 ];
 
 const FILTER_LABELS = {
+  needs_attention: "needs attention",
   all: "active conversations",
   awaiting_reply: "awaiting reply",
   failed_sends: "failed sends",
@@ -73,6 +84,8 @@ export function ConversationPane({
   selectedIds,
   onSelectConversation,
   onToggleSelect,
+  onNewMessage,
+  onShowFailed,
 }) {
   const waitingTimes = useInboxWaitingTimes(conversations);
   const selectedIndex = displayedConversations.findIndex(
@@ -125,6 +138,20 @@ export function ConversationPane({
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-white">
       <div className="shrink-0 border-b border-slate-200 px-2 py-2">
+        <div data-testid="page-header" className="mb-2 flex items-center justify-between gap-2">
+          <h1 className="font-display text-base font-extrabold text-brand-ink">Inbox</h1>
+          {onNewMessage ? (
+            <PageHeaderAction
+              type="button"
+              onClick={onNewMessage}
+              title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
+              icon={Plus}
+              className="!min-h-9 px-3"
+            >
+              New message
+            </PageHeaderAction>
+          ) : null}
+        </div>
         <div className="relative">
           <Search
             aria-hidden="true"
@@ -153,22 +180,22 @@ export function ConversationPane({
           )}
         </div>
 
-        <div
-          className="mt-2 flex min-w-0 items-center gap-1.5 overflow-x-auto pr-5 [scrollbar-width:thin] [mask-image:linear-gradient(to_right,black_calc(100%-16px),transparent)]"
-          role="group"
-          aria-label="Filter conversations"
-        >
-          {FILTERS.map((filter) => (
-            <InboxFilterChip
-              key={filter.key}
-              label={filter.label}
-              count={filterCounts[filter.key] ?? 0}
-              active={listFilter === filter.key}
-              onClick={() => onFilterChange(filter.key)}
-              color={filter.color}
-              clearable={filter.clearable}
-              hint={filter.hint}
-            />
+        <div className="mt-2 flex flex-col gap-1.5" role="group" aria-label="Filter conversations">
+          {[PRIMARY_FILTERS, SECONDARY_FILTERS].map((group, index) => (
+            <div key={index === 0 ? "primary" : "secondary"} className="flex flex-wrap gap-1.5">
+              {group.map((filter) => (
+                <InboxFilterChip
+                  key={filter.key}
+                  label={filter.label}
+                  count={filterCounts[filter.key] ?? 0}
+                  active={listFilter === filter.key}
+                  onClick={() => onFilterChange(filter.key)}
+                  color={filter.color}
+                  clearable={filter.clearable}
+                  hint={filter.hint}
+                />
+              ))}
+            </div>
           ))}
         </div>
         <span className="sr-only" role="status">{conversationSummary}</span>
@@ -257,6 +284,7 @@ export function ConversationPane({
                 onSelect={(conversationId) => handleSelect(index, conversationId)}
                 isChecked={selectedIds.has(conversation.id)}
                 onToggleSelect={onToggleSelect}
+                onShowFailed={onShowFailed}
               />
             </div>
           ))

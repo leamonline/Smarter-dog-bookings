@@ -83,6 +83,16 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
 
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
 
+function isoDaysAhead(days) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export const SAMPLE_WHATSAPP_CONVERSATIONS = [
   {
     id: "sample-request-sarah",
@@ -92,7 +102,10 @@ export const SAMPLE_WHATSAPP_CONVERSATIONS = [
     humans: {
       name: "Sarah",
       surname: "Jones",
-      dogs: [{ id: "sample-luna", name: "Luna", breed: "Cockapoo", size: "small" }],
+      dogs: [
+        { id: "sample-luna", name: "Luna", breed: "Cockapoo", size: "small" },
+        { id: "sample-biscuit", name: "Biscuit", breed: "Cocker Spaniel", size: "small" },
+      ],
     },
     agent_state: {
       dogName: "Luna",
@@ -141,7 +154,10 @@ export const SAMPLE_WHATSAPP_CONVERSATIONS = [
     unread_count: 0,
     closed_at: null,
     has_failed_message: true,
-    latest_failed_message: { error_message: "Meta rejected the send (re-engagement window closed)." },
+    latest_failed_message: {
+      id: "d3",
+      error_message: "Meta rejected the send (re-engagement window closed).",
+    },
     whatsapp_drafts: [],
   },
   {
@@ -197,6 +213,26 @@ export const SAMPLE_WHATSAPP_CONVERSATIONS = [
     whatsapp_drafts: [],
     whatsapp_booking_actions: [],
   },
+  {
+    id: "sample-closed-long-name",
+    phone_e164: "+447700900150",
+    channel: "whatsapp",
+    human_id: "h-long",
+    humans: {
+      name: "Alexandria",
+      surname: "Worthington-Smith",
+      dogs: [{ id: "sample-pepper", name: "Pepper", breed: "Dachshund", size: "small" }],
+    },
+    last_customer_text: "Thanks, see you next time",
+    last_message_text: "Thanks, see you next time",
+    last_message_direction: "inbound",
+    last_inbound_at: minutesAgo(60 * 24 * 6),
+    last_outbound_at: minutesAgo(60 * 24 * 5),
+    last_message_at: minutesAgo(60 * 24 * 5),
+    unread_count: 0,
+    closed_at: minutesAgo(60 * 24 * 5),
+    whatsapp_drafts: [],
+  },
 ];
 
 const sampleMessage = (id, direction, content, minutes, overrides = {}) => ({
@@ -240,6 +276,9 @@ export const SAMPLE_WHATSAPP_MESSAGES = {
   "sample-stopped-unknown": [
     sampleMessage("x1", "inbound", "STOP", 60 * 24 * 4),
   ],
+  "sample-closed-long-name": [
+    sampleMessage("long-1", "inbound", "Thanks, see you next time", 60 * 24 * 6),
+  ],
 };
 
 // One pending AI draft so the thread's DraftPanel renders offline. Keyed by
@@ -261,7 +300,10 @@ export const SAMPLE_WHATSAPP_DRAFTS = {
 };
 
 export const SAMPLE_WHATSAPP_DOG_NAMES = {
-  "sample-request-sarah": [{ id: "sample-luna", name: "Luna" }],
+  "sample-request-sarah": [
+    { id: "sample-luna", name: "Luna" },
+    { id: "sample-biscuit", name: "Biscuit" },
+  ],
   "sample-request-david": [{ id: "sample-milo", name: "Milo" }],
   "sample-request-priya": [],
   "sample-stopped-unknown": [],
@@ -291,8 +333,37 @@ export const SAMPLE_CUSTOMER_CONTEXT = {
         alerts: [],
         groomNotes: "Not scared of the dryer. Prefers light scissoring on face.",
       },
+      {
+        id: "sample-biscuit",
+        name: "Biscuit",
+        breed: "Cocker Spaniel",
+        age: "6",
+        size: "small",
+        alerts: [],
+        groomNotes: "",
+      },
     ],
     lastBooking: null,
+    upcomingBookings: [
+      {
+        id: "sample-upcoming-luna",
+        date: isoDaysAhead(3),
+        slot: "09:30",
+        service: "full-groom",
+        status: "Booked",
+        dogName: "Luna",
+        dogId: "sample-luna",
+      },
+      {
+        id: "sample-upcoming-biscuit",
+        date: isoDaysAhead(10),
+        slot: "11:00",
+        service: "bath-and-brush",
+        status: "Reconfirmed",
+        dogName: "Biscuit",
+        dogId: "sample-biscuit",
+      },
+    ],
     trustedContacts: [{ id: "h2", fullName: "David Miller", relationship: "Partner" }],
     summary: "Sarah Jones · Luna (Cockapoo, small) · prefers morning appointments.",
   },

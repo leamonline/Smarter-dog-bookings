@@ -21,6 +21,7 @@ import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { BookingPane } from "./BookingPane.jsx";
 import { DogServicePicker } from "./DogServicePicker.jsx";
 import { MAX_OFFER_SLOTS } from "./bookingComposerModel.js";
+import { UpcomingBookings } from "./UpcomingBookings.jsx";
 import { useBookingComposer } from "./useBookingComposer.js";
 
 // Below the inbox's `md` breakpoint the pane is full-screen, so the flow is
@@ -43,23 +44,34 @@ const BOOK_BTN =
 // The header above this pane already carries the "Booking suggested" badge
 // (BookingCustomerPane, fed independently from the same signal) — that's the
 // one place this gets said. Nothing here repeats it.
-function EntryChoice({ onChoose }) {
+function replyActionLabel(count) {
+  if (!count) return "Add times to reply";
+  return `Add ${count} ${count === 1 ? "time" : "times"} to reply`;
+}
+
+function EntryChoice({ upcomingCount, onChoose }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 px-4 py-6">
+      {upcomingCount === 0 ? (
+        <p className="text-center text-sm font-bold text-brand-ink">No upcoming bookings</p>
+      ) : null}
       <button type="button" onClick={() => onChoose("offer")} className={OFFER_BTN}>
         <MessageSquareText aria-hidden="true" size={17} />
-        Available appointments?
+        Suggest appointment times
       </button>
+      <p className="text-center text-xs font-semibold text-ink-muted">
+        Choose up to 3 options to include in your reply. Nothing is sent until you press Send.
+      </p>
       <button
         type="button"
         disabled
         aria-describedby="inbox-booking-unavailable"
-        className={`${BOOK_BTN} cursor-not-allowed border-slate-200 text-slate-500 opacity-70`}
+        className={`${BOOK_BTN} cursor-not-allowed border-slate-200 text-ink-muted opacity-70`}
       >
         <CalendarPlus aria-hidden="true" size={17} />
         Book from Inbox (not available)
       </button>
-      <p id="inbox-booking-unavailable" className="-mt-1 text-center text-xs text-slate-500">
+      <p id="inbox-booking-unavailable" className="-mt-1 text-center text-xs font-semibold text-ink-muted">
         Booking straight from the Inbox is not available yet. Use Bookings to make a booking.
       </p>
     </div>
@@ -78,6 +90,10 @@ export function BookingActionsPane({
   dailyDogCap,
   onPickDate,
   onInsertIntoReply,
+  upcomingBookings = [],
+  onViewBooking,
+  onReschedule,
+  requestedDates = [],
 }) {
   const narrow = useMediaQuery(NARROW_QUERY);
   const headingRef = useRef(null);
@@ -98,9 +114,19 @@ export function BookingActionsPane({
     return `${names} · ${times} of ${MAX_OFFER_SLOTS} times chosen`;
   }, [selectedDogs, slotChoices.length]);
 
-  if (!mode) {
-    return <EntryChoice onChoose={actions.setMode} />;
-  }
+  const diaryDogs = selectedDogs.map((dog) => ({
+    ...dog,
+    service: composer.servicesByDogId[dog.id] || null,
+  }));
+  const offerDisabledReason = selectedDogs.length === 0
+    ? "Choose at least one dog before adding times."
+    : slotChoices.length === 0
+      ? "Choose at least one time to include in your reply."
+      : null;
+
+  const home = !mode ? (
+    <EntryChoice upcomingCount={upcomingBookings.length} onChoose={actions.setMode} />
+  ) : null;
 
   // Narrow layouts show one stage at a time; wide shows the lot in one scroller.
   const showDogs = !narrow || stage === "dogs";
@@ -108,6 +134,15 @@ export function BookingActionsPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <UpcomingBookings
+        bookings={upcomingBookings}
+        onViewBooking={onViewBooking}
+        onReschedule={onReschedule}
+        compact={Boolean(mode)}
+      />
+      {home}
+      {mode ? (
+      <>
       {/* One compact line on narrow — the shell already shows a "Booking"
           header above this, so a second stacked two-line header would cost
           scarce phone height for no new information. */}
@@ -133,10 +168,11 @@ export function BookingActionsPane({
 
         {showSlots ? (
           <BookingPane
-            dogs={selectedDogs}
+            dogs={diaryDogs}
             emptyStateTitle="Choose a dog to see availability"
             emptyStateBody="Bookings checks capacity against each dog's recorded size."
             offerActionLabel="Offer this time"
+            requestedDates={requestedDates}
             dates={dates}
             currentDateStr={currentDateStr}
             daySettings={daySettings}
@@ -187,14 +223,27 @@ export function BookingActionsPane({
               type="button"
               disabled={!composer.canSubmitOffer}
               onClick={handleInsert}
+              aria-describedby={offerDisabledReason ? "offer-disabled-reason" : undefined}
               className={PRIMARY_BTN}
             >
               <CornerUpLeft aria-hidden="true" size={15} />
-              Add to reply
+              {replyActionLabel(slotChoices.length)}
             </button>
           )}
         </div>
+        {!(narrow && stage === "dogs") && offerDisabledReason ? (
+          <p id="offer-disabled-reason" className="mt-2 text-xs font-semibold text-ink-muted">
+            {offerDisabledReason}
+          </p>
+        ) : null}
+        {!(narrow && stage === "dogs") && !offerDisabledReason ? (
+          <p className="mt-2 text-xs font-semibold text-ink-muted">
+            Adds the times to your reply. It does not send the message or confirm a booking.
+          </p>
+        ) : null}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

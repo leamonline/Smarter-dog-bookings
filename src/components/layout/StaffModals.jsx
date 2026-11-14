@@ -95,6 +95,8 @@ export function StaffModals({ data, nav, modals, session, ui }) {
     setCollectionNotice,
     selectedBooking,
     setSelectedBooking,
+    openWithReschedule,
+    setOpenWithReschedule,
   } = modals;
   const {
     draftPick,
@@ -270,7 +272,11 @@ export function StaffModals({ data, nav, modals, session, ui }) {
           <Suspense fallback={null}>
             <BookingDetailModal
               booking={selectedBooking}
-              onClose={() => setSelectedBooking(null)}
+              onClose={() => {
+                setSelectedBooking(null);
+                setOpenWithReschedule(false);
+              }}
+              initialReschedule={openWithReschedule}
               onAdd={handleAdd}
               onRemove={handleRemove}
               onOpenHuman={onOpenHuman}

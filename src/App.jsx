@@ -265,6 +265,7 @@ function AuthedApp({
     setPendingBooking,
     setCollectionNotice,
     setSelectedBooking,
+    setOpenWithReschedule,
   } = modals;
 
   const profile = useProfileRouting({
@@ -391,6 +392,7 @@ function AuthedApp({
   const handleOpenBooking = useCallback(
     (bookingId, fallbackBooking = null) => {
       if (!bookingId) return;
+      setOpenWithReschedule(false);
       for (const list of Object.values(bookingsByDate || {})) {
         const match = (list || []).find((b) => b.id === bookingId);
         if (match) {
@@ -405,7 +407,7 @@ function AuthedApp({
         setSelectedBooking(fallbackBooking);
       }
     },
-    [bookingsByDate, setSelectedBooking],
+    [bookingsByDate, setOpenWithReschedule, setSelectedBooking],
   );
 
   // "Open booking" links from outside the app (the #salon-today Slack
@@ -416,6 +418,7 @@ function AuthedApp({
     currentDateStr,
     onPickDate: handleDatePick,
     onOpenBooking: handleOpenBooking,
+    onPrepareReschedule: () => setOpenWithReschedule(true),
   });
 
   const handleOpenClosureVisit = useCallback(

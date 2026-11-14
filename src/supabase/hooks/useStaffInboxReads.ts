@@ -4,7 +4,7 @@
 // client directly. Raw PostgREST results on purpose — the hooks keep their
 // own shaping, timeouts and error handling.
 import { supabase } from "../client";
-import { listRecentPastForOwner, listSeatsOnDate } from "../repositories/bookingsRepo";
+import { listRecentPastForOwner, listSeatsOnDate, listUpcomingForOwner } from "../repositories/bookingsRepo";
 import { listCustomerContextDogs } from "../repositories/dogsRepo";
 import { getCustomerContextProfile, listTrustedContactsWithNames } from "../repositories/humansRepo";
 import { searchMessageConversationIds } from "../repositories/whatsappRepo";
@@ -27,6 +27,7 @@ export function loadCustomerContext(
     listCustomerContextDogs(client, humanId, signal),
     listRecentPastForOwner(client, { humanId, before }, signal),
     listTrustedContactsWithNames(client, humanId, signal),
+    listUpcomingForOwner(client, { humanId, from: before }, signal),
   ] as const);
 }
 

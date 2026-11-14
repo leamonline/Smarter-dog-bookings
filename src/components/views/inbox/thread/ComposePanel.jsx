@@ -201,9 +201,17 @@ export function ComposePanel({
           Enter to send · Shift+Enter for new line
         </span>
         {countdown && (
-          <span className="ml-auto shrink-0 text-caption text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
-            {countdown}
-          </span>
+          <>
+            <span
+              className="ml-auto shrink-0 text-caption font-semibold text-ink-muted"
+              aria-describedby="reply-window-help"
+            >
+              {countdown}
+            </span>
+            <span id="reply-window-help" className="sr-only">
+              WhatsApp allows a free-form reply for 24 hours after the customer&apos;s last message. After that, send an approved template. Choosing a time or generating a reply never sends a message on its own.
+            </span>
+          </>
         )}
       </div>
     </div>

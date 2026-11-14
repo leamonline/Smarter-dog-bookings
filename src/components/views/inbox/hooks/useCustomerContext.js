@@ -32,6 +32,7 @@ const EMPTY_RESULT = Object.freeze({
   lastBooking: null,
   lastServiceByDogId: {},
   trustedContacts: [],
+  upcomingBookings: [],
   summary: "",
 });
 
@@ -102,7 +103,7 @@ export function useCustomerContext(humanId) {
         // customer's dogs, newest-first: row 0 is the "last booking" on the
         // customer card, and the same rows give each dog its most recent
         // service, which prefills the booking pane's service selectors.
-        const [humanRes, dogsRes, lastBookingRes, trustedRes] =
+        const [humanRes, dogsRes, lastBookingRes, trustedRes, upcomingRes] =
           await inboxReads.loadCustomerContext(humanId, {
             before: today,
             signal: controller.signal,
@@ -119,6 +120,7 @@ export function useCustomerContext(humanId) {
           throw lastBookingRes.error;
         }
         if (trustedRes.error) throw trustedRes.error;
+        if (upcomingRes.error) throw upcomingRes.error;
 
         const human = humanRes.data
           ? {
@@ -184,9 +186,19 @@ export function useCustomerContext(humanId) {
           })
           .filter(Boolean);
 
+        const upcomingBookings = (upcomingRes.data || []).map((row) => ({
+          id: row.id,
+          date: row.booking_date,
+          slot: row.slot,
+          service: row.service,
+          status: row.status,
+          dogName: row.dogs?.name || "",
+          dogId: row.dog_id,
+        }));
+
         const summary = buildCustomerSummary({ human, dogs, lastBooking });
 
-        setData({ human, dogs, lastBooking, lastServiceByDogId, trustedContacts, summary });
+        setData({ human, dogs, lastBooking, lastServiceByDogId, trustedContacts, upcomingBookings, summary });
       } catch (err) {
         if (cancelled) return;
         logger.error("useCustomerContext:", err);

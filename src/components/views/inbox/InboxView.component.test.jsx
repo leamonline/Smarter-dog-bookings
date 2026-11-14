@@ -760,7 +760,7 @@ describe("InboxView", () => {
     // docs/booking-pane-actions-spec.md.
     function startOfferFlow() {
       fireEvent.click(
-        within(contextRegion()).getByRole("button", { name: /Available appointments\?/ }),
+        within(contextRegion()).getByRole("button", { name: /Suggest appointment times/ }),
       );
     }
 
@@ -776,7 +776,7 @@ describe("InboxView", () => {
 
     function addToReply() {
       fireEvent.click(
-        within(contextRegion()).getByRole("button", { name: /Add to reply/i }),
+        within(contextRegion()).getByRole("button", { name: /to reply/i }),
       );
     }
 
@@ -867,7 +867,7 @@ describe("InboxView", () => {
       await waitFor(() => expect(screen.getByLabelText("Write a reply")).toHaveValue(""));
       openBookingSection();
       expect(
-        within(contextRegion()).getByRole("button", { name: /Available appointments\?/ }),
+        within(contextRegion()).getByRole("button", { name: /Suggest appointment times/ }),
       ).toBeInTheDocument();
 
       // Sarah's own reply is intact on return.
@@ -908,7 +908,7 @@ describe("InboxView", () => {
       chooseDog("Bella");
       expect(within(contextRegion()).getByRole("checkbox", { name: /Bella/ })).not.toBeChecked();
       // With nothing selected, offering a time has nothing to attach to.
-      expect(within(contextRegion()).getByRole("button", { name: /Add to reply/i })).toBeDisabled();
+      expect(within(contextRegion()).getByRole("button", { name: /to reply/i })).toBeDisabled();
     });
   });
 

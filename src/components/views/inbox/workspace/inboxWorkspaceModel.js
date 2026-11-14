@@ -23,13 +23,8 @@ function reviewTitle(conversation) {
   return REVIEW_COPY.fallback;
 }
 
-export function getConversationRowStatus(conversation) {
-  if (conversation?.has_failed_message) {
-    const title = conversation.latest_failed_message?.error_message
-      ? `Latest failed send: ${conversation.latest_failed_message.error_message}`
-      : "Latest send failed. Open the thread to check the delivery state.";
-    return status("failed", "Failed send", "danger", title);
-  }
+function workflowStatus(conversation) {
+  if (conversation?.closed_at) return status("closed", "Closed", "neutral", "Conversation closed");
   if (conversation?.needs_human_review) {
     const title = reviewTitle(conversation);
     return status("review", "Action needed", "danger", title);
@@ -46,15 +41,12 @@ export function getConversationRowStatus(conversation) {
   if (conversation?.has_pending_booking_action) {
     return status(
       "booking-action",
-      "Booking action pending",
+      "Booking to review",
       "success",
       "The AI is proposing a booking (create / reschedule / cancel) — open to review the proposed dog, date, and slot before applying.",
       "Booking proposal pending approval",
     );
   }
-  const unread = conversation?.unread_count ?? 0;
-  if (unread > 0) return status("unread", "Unread", "info", `${unread} unread`);
-  if (conversation?.closed_at) return status("closed", "Closed", "neutral", "Conversation closed");
   if (conversation?.state === "snoozed") {
     return status("snoozed", "Snoozed", "neutral", "Conversation snoozed");
   }
@@ -62,6 +54,48 @@ export function getConversationRowStatus(conversation) {
     return status("takeover", "Taken over", "neutral", "Conversation taken over by staff");
   }
   return null;
+}
+
+/**
+ * Workflow (closed, review, draft, booking proposal, snooze, takeover) is
+ * separate from unread and from a failed send. Stored flags are unchanged;
+ * this only decides what the row shows at once.
+ */
+export function getConversationPresentation(conversation) {
+  const workflow = workflowStatus(conversation);
+  const unreadCount = conversation?.unread_count ?? 0;
+  const failedTitle = conversation?.latest_failed_message?.error_message
+    ? `Latest failed send: ${conversation.latest_failed_message.error_message}`
+    : "Latest send failed. Show the message that did not send.";
+  return {
+    workflow,
+    unread: unreadCount > 0
+      ? {
+        label: "Unread",
+        ariaLabel: `${unreadCount} unread ${unreadCount === 1 ? "message" : "messages"}`,
+      }
+      : null,
+    failed: conversation?.has_failed_message
+      ? {
+        label: "Failed send",
+        title: failedTitle,
+        messageId: conversation.latest_failed_message?.id ?? null,
+      }
+      : null,
+    booking: conversation?.has_pending_booking_action && workflow?.key !== "booking-action"
+      ? {
+        label: "Booking to review",
+        ariaLabel: "Booking proposal pending approval",
+        title: "The AI is proposing a booking — open to review it before applying.",
+      }
+      : null,
+  };
+}
+
+/** @deprecated Row rendering uses getConversationPresentation. Kept so a
+ *  workflow-only caller still has one label. */
+export function getConversationRowStatus(conversation) {
+  return workflowStatus(conversation);
 }
 
 function parseLocalDate(dateStr) {

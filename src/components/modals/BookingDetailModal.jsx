@@ -67,6 +67,7 @@ export function BookingDetailModal({
   fetchHumanById,
   daySettings = {},
   onRefresh,
+  initialReschedule = false,
 }) {
   const configPricing = useSalonPricing();
   const dogData = useMemo(
@@ -121,7 +122,7 @@ export function BookingDetailModal({
   // the pop-up colour-matches the card it was opened from.
   const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
   const [showSeries, setShowSeries] = useState(false);
-  const [showReschedule, setShowReschedule] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(initialReschedule);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
   // Optimistic "reminder sent" flip + the send modal flag; both reset when a
