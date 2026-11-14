@@ -264,6 +264,42 @@ describe("InboxView", () => {
       if (scenario === "different customer") expect(state.selectConversation).not.toHaveBeenCalled();
       else expect(state.selectConversation).toHaveBeenCalledWith("c");
     });
+
+    it("steps a phone back to the list once, not out of the inbox", async () => {
+      // Clearing the selection is announced twice: by the completion handler,
+      // then by the effect that mirrors the hook's selectedId. Each used to pop
+      // history, and the second pop landed on whatever came before /inbox.
+      const originalMatchMedia = Object.getOwnPropertyDescriptor(window, "matchMedia");
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+      });
+      try {
+        vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+        const historyBack = vi.spyOn(window.history, "back").mockImplementation(() => {});
+        const selected = conversation("a");
+        const state = baseState({
+          conversations: [selected],
+          selectedId: selected.id,
+          selectedConversation: selected,
+          resolveConversation: vi.fn().mockResolvedValue({ ok: true }),
+        });
+        const view = renderInbox(state);
+        state.selectConversation.mockImplementation((id) => {
+          setInboxState({ ...state, selectedId: id, selectedConversation: null });
+          view.rerender(<MemoryRouter><ToastProvider><InboxView /></ToastProvider></MemoryRouter>);
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Mark conversation complete" }));
+
+        await waitFor(() => expect(state.selectConversation).toHaveBeenCalledWith(null));
+        expect(threadPaneSpy.props.at(-1).selectedId).toBeNull();
+        expect(historyBack).toHaveBeenCalledTimes(1);
+      } finally {
+        if (originalMatchMedia) Object.defineProperty(window, "matchMedia", originalMatchMedia);
+        else delete window.matchMedia;
+      }
+    });
   });
 
   it("composes the Inbox through the three workspace regions", () => {

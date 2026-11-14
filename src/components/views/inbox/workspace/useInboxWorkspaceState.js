@@ -142,6 +142,7 @@ export function useInboxWorkspaceState({
   const stateRef = useRef(state);
   const onSelectConversationRef = useRef(onSelectConversation);
   const liveSentinelRef = useRef(false);
+  const popInFlightRef = useRef(false);
 
   stateRef.current = state;
   onSelectConversationRef.current = onSelectConversation;
@@ -160,8 +161,16 @@ export function useInboxWorkspaceState({
   // clear — it owns the resulting pane step. Only ever called for a
   // deliberate in-app Back: nothing that merely re-measures the layout may
   // move the browser through history (see the popstate effect below).
+  //
+  // `history.back()` is asynchronous, so the flag stays set until popstate
+  // arrives — and one cleared selection reaches here more than once in that
+  // gap (completing the last conversation clears it, then the controller
+  // mirrors the hook's selectedId back in). One entry was pushed, so one pop
+  // is all it can answer: a second walks past it and out of /inbox.
   const consumeSentinel = useCallback(() => {
     if (!liveSentinelRef.current || typeof window === "undefined") return false;
+    if (popInFlightRef.current) return true;
+    popInFlightRef.current = true;
     window.history.back();
     return true;
   }, []);
@@ -208,6 +217,7 @@ export function useInboxWorkspaceState({
       // Not our entry: let the router answer the Back press.
       if (!liveSentinelRef.current) return;
       liveSentinelRef.current = false;
+      popInFlightRef.current = false;
       const currentState = stateRef.current;
       const depth = mobileDepth(currentState);
       if (depth === 0) return;
