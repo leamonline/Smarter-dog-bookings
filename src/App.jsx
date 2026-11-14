@@ -28,7 +28,7 @@ import { AppContextRow } from "./components/layout/AppContextRow.jsx";
 import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
 import { StaffRoutes } from "./components/layout/StaffRoutes.jsx";
 import { StaffModals } from "./components/layout/StaffModals.jsx";
-import { sectionScrollsInShell } from "./components/layout/navConfig.jsx";
+import { sectionScrollsInShell, sectionSurfaceClass } from "./components/layout/navConfig.jsx";
 import { useDocumentTitle } from "./hooks/useDocumentTitle.js";
 
 // Vercel page-view analytics. Dynamically imported so the library stays out
@@ -474,7 +474,7 @@ function AuthedApp({
         <AppFrame
           className="text-slate-800"
           mainRef={mainRef}
-          mainProps={{ id: "main-content" }}
+          mainProps={{ id: "main-content", className: sectionSurfaceClass(location.pathname) }}
           scroll={sectionScrollsInShell(location.pathname)}
           chrome={
             <>

@@ -17,7 +17,7 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
     <div
       aria-label="End of day"
       role="group"
-      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-brand-paper-line px-1 pt-2.5 text-xs text-slate-500"
+      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-brand-paper-line px-1 pt-2.5 text-xs text-ink-muted"
     >
       {summary.arrived > 0 ? (
         <span className="whitespace-nowrap">
@@ -52,7 +52,7 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
         ) : null}
         {takings && takings.total > 0
           ? takings.byMethod.map((method) => (
-            <span key={method.method} className="whitespace-nowrap text-slate-500">
+            <span key={method.method} className="whitespace-nowrap text-ink-muted">
               {method.label} <span className="tabular-nums">{formatMoney(method.amount)}</span>
             </span>
           ))

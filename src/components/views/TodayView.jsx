@@ -49,6 +49,8 @@ import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
+import { TodayEmptyState } from "./today/TodayEmptyState.jsx";
+import { addDaysStr } from "../../hooks/useUnpaidFortnight";
 import { MissingSizeNotice } from "./today/MissingSizeNotice.jsx";
 import { useBookingActions } from "./today/useBookingActions.ts";
 import { EndOfDayFacts } from "./today/EndOfDayFacts.jsx";
@@ -87,6 +89,8 @@ export function TodayView({
   selectedDateObj,
   selectedDateStr,
   onOpenDatePicker,
+  /** Moves the shared date selection; receives a Date (local noon). */
+  onSelectDate,
   onOpenDog,
   onOpenHuman,
   bookingsByDate,
@@ -438,6 +442,16 @@ export function TodayView({
   useEffect(() => setNotesReady(true), []);
   const onOpenReports = useCallback(() => navigate("/reports"), [navigate]);
 
+  // Day stepping. Noon, not midnight, so a clock change can never tip the
+  // picked Date into the neighbouring day (same convention as the calendar).
+  const goToDate = useCallback(
+    (targetStr) => onSelectDate?.(new Date(`${targetStr}T12:00:00`)),
+    [onSelectDate],
+  );
+  const goToPreviousDay = useCallback(() => goToDate(addDaysStr(dateStr, -1)), [goToDate, dateStr]);
+  const goToNextDay = useCallback(() => goToDate(addDaysStr(dateStr, 1)), [goToDate, dateStr]);
+  const goToToday = useCallback(() => goToDate(realTodayStr), [goToDate, realTodayStr]);
+
   // Dogs in this week's diary whose RECORD has no size. Anchored to the REAL
   // today, not the browsed date, so navigating the calendar doesn't change
   // what is outstanding.
@@ -497,7 +511,10 @@ export function TodayView({
   }, [attention.reasons]);
 
   return (
-    <PullToRefresh onRefresh={onRefresh} className="min-h-full bg-brand-paper">
+    // The warm paper is painted on the scroll area itself (see
+    // sectionSurfaceClass), so it runs to the same edges as the header and to
+    // the bottom of the screen instead of stopping inside the gutter.
+    <PullToRefresh onRefresh={onRefresh}>
       <TodayHeader
         dateLabel={dateLabel}
         dateLabelShort={dateLabelShort}
@@ -511,8 +528,12 @@ export function TodayView({
         unpaidTotal={unpaidTotal}
         isDayOpen={isDayOpen}
         isToday={isToday}
+        isEmptyDay={!bookingsLoading && !bookingsError && isEmptyDay}
         nextOnlineSlot={availabilityView.nextOnlineSlot}
         onOpenDatePicker={onOpenDatePicker}
+        onPreviousDay={onSelectDate ? goToPreviousDay : undefined}
+        onNextDay={onSelectDate ? goToNextDay : undefined}
+        onToday={onSelectDate ? goToToday : undefined}
         onManageAvailability={() => setShowAvailability(true)}
         attentionReason={attentionReason}
         onSelectAttentionReason={selectAttentionReason}
@@ -544,15 +565,17 @@ export function TodayView({
         {bookingsLoading && selectedBookings.length === 0 ? (
           <StackSkeleton />
         ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
-          <>
-            <div className="px-4 py-14 text-center">
-              <p className="font-display text-[17px] font-bold text-brand-ink">No bookings on this date</p>
-              <p className="mt-1 text-body text-slate-500">
-                Choose another day from the date above, or open slots with Manage availability.
-              </p>
-            </div>
-            {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
-          </>
+          <TodayEmptyState
+            dateStr={dateStr}
+            isToday={isToday}
+            isDayOpen={isDayOpen}
+            hasFreeSlots={availabilityView.rows.length > 0}
+            isOnline={isOnline}
+            notesReady={notesReady}
+            onGoToDate={onSelectDate ? goToDate : undefined}
+            onManageAvailability={() => setShowAvailability(true)}
+            onOpenReports={onOpenReports}
+          />
         ) : (
           <>
             {isToday && (
@@ -590,7 +613,7 @@ export function TodayView({
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
-              <p className="text-center text-xs text-slate-500">Sample data preview — changes won&apos;t save.</p>
+              <p className="text-center text-xs text-ink-muted">Sample data preview — changes won&apos;t save.</p>
             )}
           </>
         )}

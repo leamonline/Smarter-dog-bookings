@@ -3,7 +3,7 @@
 // strip, and the context-row section title. Wayfinding is carried by
 // the icon + label pair and one uniform active state — the nav is
 // quiet chrome, so the day's work below it holds all the colour.
-import { DogSilhouette } from "../decor/index.jsx";
+import { Dog } from "lucide-react";
 
 // Primary sections — shown in the desktop nav and the mobile strip.
 // Settings lives in the tools menu (SETTINGS_ITEM), not the primary nav.
@@ -36,10 +36,10 @@ export const PRIMARY_NAV = [
     key: "dogs",
     to: "/dogs",
     label: "Dogs",
-    // Uses the brand silhouette via the same CSS-mask technique as
-    // FloatingDecor — fills with currentColor so it follows the
-    // active/inactive nav colour exactly.
-    icon: <DogSilhouette color="currentColor" size={22} ariaHidden />,
+    // An outline drawn on the same 24px grid, 2px stroke and round caps as
+    // its neighbours. The filled brand silhouette (at 22px) was the one solid
+    // glyph in an outline row and sat its label 2px lower than the rest.
+    icon: <Dog size={20} strokeWidth={2} aria-hidden="true" />,
   },
   {
     key: "humans",
@@ -150,4 +150,14 @@ const WORKSPACE_SECTIONS = new Set(["bookings"]);
 
 export function sectionScrollsInShell(pathname) {
   return !WORKSPACE_SECTIONS.has(sectionKeyFor(pathname));
+}
+
+// Sections that sit on the warm paper rather than the staff canvas. Painted on
+// <main> so the surface reaches the same edges as the full-bleed page header
+// and the bottom of the screen; painted on the view, it stopped at the gutter
+// and wherever the content ran out.
+const PAPER_SECTIONS = new Set(["today"]);
+
+export function sectionSurfaceClass(pathname) {
+  return PAPER_SECTIONS.has(sectionKeyFor(pathname)) ? "bg-brand-paper" : "";
 }

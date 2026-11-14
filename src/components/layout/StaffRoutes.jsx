@@ -281,6 +281,7 @@ export function StaffRoutes({ data, nav, ui }) {
           selectedDateObj={currentDateObj}
           selectedDateStr={currentDateStr}
           onOpenDatePicker={() => setShowDatePicker(true)}
+          onSelectDate={handleDatePick}
           onOpenDog={onOpenDog}
           onOpenHuman={onOpenHuman}
           bookingsByDate={bookingsByDate}

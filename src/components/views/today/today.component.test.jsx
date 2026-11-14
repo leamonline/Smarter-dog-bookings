@@ -110,13 +110,73 @@ function action(label, dogName = "Jack") {
 }
 
 describe("the day stack page — selected-date operations", () => {
-  it("uses the selected closed date for the heading, the empty state and new bookings", () => {
-    const onNewBooking = vi.fn();
-    renderToday({ bookingsByDate: { "2026-07-16": [] }, onNewBooking });
+  it("uses the selected closed date for the heading, and points the empty state at the next open day", async () => {
+    const onSelectDate = vi.fn();
+    renderToday({ bookingsByDate: { "2026-07-16": [] }, onSelectDate });
 
     expect(screen.getByRole("button", { name: "Thursday 16 July — choose a different date" })).toBeInTheDocument();
     expect(screen.getByText("Salon closed")).toBeInTheDocument();
-    expect(screen.getByText("No bookings on this date")).toBeInTheDocument();
+    // Closed implies online booking is closed; it is not said twice.
+    expect(screen.queryByText("Online booking closed")).not.toBeInTheDocument();
+    // Nothing on the day to be "on track" about.
+    expect(screen.queryByText("Everything's on track")).not.toBeInTheDocument();
+    expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
+
+    // Thursday → the next default-open day is Monday 20 July.
+    const next = await screen.findByRole("region", { name: "Next open day" });
+    expect(next).toHaveTextContent("Monday 20 July");
+    fireEvent.click(within(next).getByRole("button", { name: "Go to Monday 20 July" }));
+    expect(onSelectDate).toHaveBeenCalledTimes(1);
+    const picked = onSelectDate.mock.calls[0][0];
+    expect([picked.getFullYear(), picked.getMonth(), picked.getDate(), picked.getHours()]).toEqual([2026, 6, 20, 12]);
+  });
+
+  it("steps one day either side of the selected date, and only offers Back to today away from today", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-14T09:00:00+01:00"));
+    const onSelectDate = vi.fn();
+    renderToday({ onSelectDate });
+
+    const ymd = (date) => [date.getFullYear(), date.getMonth() + 1, date.getDate()];
+    fireEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to today" }));
+    expect(onSelectDate.mock.calls.map(([date]) => ymd(date))).toEqual([
+      [2026, 7, 15],
+      [2026, 7, 17],
+      [2026, 7, 14],
+    ]);
+  });
+
+  it("offers Manage availability, by that name, on an open today with free slots and no bookings", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-14T08:00:00+01:00"));
+    renderToday({
+      selectedDateObj: new Date(2026, 6, 14),
+      selectedDateStr: "2026-07-14",
+      bookingsByDate: { "2026-07-14": [] },
+      daySettings: { "2026-07-14": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-14": true },
+    });
+
+    expect(screen.queryByRole("button", { name: "Back to today" })).not.toBeInTheDocument();
+    const empty = screen.getByRole("region", { name: "No bookings" });
+    expect(empty).toHaveTextContent("No bookings today");
+    fireEvent.click(within(empty).getByRole("button", { name: "Manage availability" }));
+    expect(screen.getByRole("heading", { name: "Manage availability" })).toBeInTheDocument();
+  });
+
+  it("does not offer Manage availability on an open past date", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-20T08:00:00+01:00"));
+    renderToday({
+      bookingsByDate: { "2026-07-16": [] },
+      dayOpenState: { "2026-07-16": true },
+    });
+
+    const empty = screen.getByRole("region", { name: "No bookings" });
+    expect(empty).toHaveTextContent("No bookings on this date");
+    expect(within(empty).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("shows a no-show as its own card, with no status-fix alert and no empty-day message", () => {
@@ -860,7 +920,80 @@ describe("TodayHeader", () => {
     expect(screen.getByText("Wed 18 November")).toHaveClass("hidden", "min-[360px]:inline", "sm:hidden");
     expect(screen.getByText("Wednesday 18 November")).toHaveClass("hidden", "sm:inline");
     // One line on phones; the row may wrap again from the sm breakpoint up.
-    expect(dateButton.parentElement).toHaveClass("flex-nowrap", "sm:flex-wrap");
+    expect(dateButton.parentElement.parentElement).toHaveClass("flex-nowrap", "sm:flex-wrap");
+  });
+
+  it("puts day arrows beside the date, switching phones to the short date so the line still fits", () => {
+    const onPreviousDay = vi.fn();
+    const onNextDay = vi.fn();
+    render(
+      <TodayHeader
+        dateLabel="Wednesday 18 November"
+        dateLabelShort="Wed 18 November"
+        dateLabelNarrow="Wed 18 Nov"
+        dogsBooked={0}
+        attention={attention()}
+        zoneCounts={[]}
+        isDayOpen
+        isToday
+        onOpenDatePicker={noop}
+        onPreviousDay={onPreviousDay}
+        onNextDay={onNextDay}
+        onToday={noop}
+        onManageAvailability={noop}
+        onSelectAttentionReason={noop}
+      />,
+    );
+    expect(screen.getByText("Wed 18 Nov")).toHaveClass("sm:hidden");
+    expect(screen.getByText("Wed 18 November")).toHaveClass("hidden", "sm:inline", "md:hidden");
+    expect(screen.getByText("Wednesday 18 November")).toHaveClass("hidden", "md:inline");
+    fireEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next day" }));
+    expect(onPreviousDay).toHaveBeenCalledTimes(1);
+    expect(onNextDay).toHaveBeenCalledTimes(1);
+    // Already on today: no shortcut back to it.
+    expect(screen.queryByRole("button", { name: "Back to today" })).not.toBeInTheDocument();
+  });
+
+  it("offers Back to today while another date is showing", () => {
+    const onToday = vi.fn();
+    render(
+      <TodayHeader
+        dateLabel="Thursday 2 July"
+        dogsBooked={0}
+        attention={attention()}
+        zoneCounts={[]}
+        isDayOpen
+        isToday={false}
+        onOpenDatePicker={noop}
+        onPreviousDay={noop}
+        onNextDay={noop}
+        onToday={onToday}
+        onManageAvailability={noop}
+        onSelectAttentionReason={noop}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back to today" }));
+    expect(onToday).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the reassurance on an empty day, where the empty state speaks instead", () => {
+    render(
+      <TodayHeader
+        dateLabel="Monday 13 July"
+        dogsBooked={0}
+        attention={attention()}
+        zoneCounts={[]}
+        isDayOpen
+        isToday
+        isEmptyDay
+        onOpenDatePicker={noop}
+        onManageAvailability={noop}
+        onSelectAttentionReason={noop}
+      />,
+    );
+    expect(screen.queryByText("Everything's on track")).not.toBeInTheDocument();
+    expect(screen.getByText("Salon open")).toBeInTheDocument();
   });
 
   it("keeps availability management visible when the salon is closed", () => {
@@ -878,6 +1011,32 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByText(/salon closed/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Manage availability — Online booking closed/ })).toBeInTheDocument();
+  });
+
+  it("states closed in neutral ink, once — online booking always follows a closed salon", () => {
+    render(
+      <TodayHeader
+        dateLabel="Saturday 14 November"
+        dogsBooked={0}
+        attention={attention()}
+        zoneCounts={[]}
+        isDayOpen={false}
+        isToday
+        // A slot flagged before the day was closed: the database refuses it
+        // anyway (calendar_closed), so the header must not advertise it.
+        nextOnlineSlot="10:00"
+        onOpenDatePicker={noop}
+        onManageAvailability={noop}
+        onSelectAttentionReason={noop}
+      />,
+    );
+    const closed = screen.getByText("Salon closed");
+    expect(closed).toHaveClass("text-ink-muted");
+    expect(closed).not.toHaveClass("text-brand-coral-text");
+    const totals = screen.getByRole("group", { name: "Day totals" });
+    expect(totals).not.toHaveTextContent("Online booking closed");
+    expect(totals).not.toHaveTextContent("Next online");
+    expect(screen.getByRole("button", { name: "Manage availability — Online booking closed" })).toBeInTheDocument();
   });
 });
 

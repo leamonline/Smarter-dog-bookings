@@ -58,7 +58,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
       </summary>
 
       {rows.length === 0 ? (
-        <p className="px-0.5 py-2 text-sm text-slate-400">Nothing collected yet.</p>
+        <p className="px-0.5 py-2 text-sm text-ink-muted">Nothing collected yet.</p>
       ) : (
         <>
           {/* The split first: it is what the end of the day is actually for. */}
@@ -70,7 +70,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
                   <b className="font-medium tabular-nums text-brand-ink">
                     {moneyLabel(entry.amount)}
                   </b>{" "}
-                  <span className="text-slate-400">· {dogLabel(entry.count)}</span>
+                  <span className="text-ink-muted">· {dogLabel(entry.count)}</span>
                 </span>
               ))}
             </div>
@@ -99,7 +99,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
                       "£42 card" and one that reads "£42 owed" are opposite
                       facts, and the difference must survive being read aloud.
                     */}
-                    <span className={row.settled ? "text-slate-500" : ""}>
+                    <span className={row.settled ? "text-ink-muted" : ""}>
                       {row.settled ? row.label.toLowerCase() : row.label}
                     </span>
                   </span>
