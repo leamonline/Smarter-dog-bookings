@@ -234,6 +234,39 @@ describe("useInboxWorkspaceState", () => {
     expect(onSelectConversation).toHaveBeenLastCalledWith(null);
   });
 
+  it("pops its history entry once when a cleared selection is announced twice", () => {
+    // Completing the last open conversation clears the selection through
+    // selectConversation(null); the controller then mirrors the hook's
+    // selectedId back through syncSelectedConversation(null) before the first
+    // pop's popstate has arrived. A second history.back() there walks past our
+    // entry and takes staff out of /inbox.
+    installMatchMedia(true);
+    const pushState = vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    const historyBack = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { result } = renderHook(() => useInboxWorkspaceState({
+      initialConversationId: null,
+      initialDateStr: "2026-08-02",
+      onSelectConversation: vi.fn(),
+    }));
+
+    act(() => result.current.actions.selectConversation("a"));
+    act(() => result.current.actions.selectConversation(null));
+    act(() => result.current.actions.syncSelectedConversation(null));
+    act(() => result.current.actions.paneBack());
+
+    expect(historyBack).toHaveBeenCalledTimes(1);
+    expect(result.current.state.mobilePane).toBe("list");
+
+    // The pop lands: the entry is spent, and the next thread gets a fresh one
+    // that a later Back can pop in its turn.
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(result.current.state.mobilePane).toBe("list");
+    act(() => result.current.actions.selectConversation("b"));
+    expect(pushState).toHaveBeenCalledTimes(2);
+    act(() => result.current.actions.paneBack());
+    expect(historyBack).toHaveBeenCalledTimes(2);
+  });
+
   it("leaves a Back press the hook did not push to the router", () => {
     // No sentinel of ours on the stack means the press belongs to whatever
     // navigated here. Swallowing it would strand staff on /inbox.
