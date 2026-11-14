@@ -125,6 +125,13 @@ export function BookingDetailModal({
   const [showReschedule, setShowReschedule] = useState(initialReschedule);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
+  // The modal stays mounted while staff open another visit, including a
+  // Reschedule link from the inbox. Initial state alone would keep the
+  // previous step: reschedule would not open, or View booking would leave it open.
+  useEffect(() => {
+    setShowReschedule(Boolean(initialReschedule));
+  }, [booking.id, initialReschedule]);
+
   // Optimistic "reminder sent" flip + the send modal flag; both reset when a
   // different booking is shown (see useReminderSentOverride).
   const {

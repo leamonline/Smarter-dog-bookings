@@ -280,7 +280,11 @@ export function StaffModals({ data, nav, modals, session, ui }) {
               onAdd={handleAdd}
               onRemove={handleRemove}
               onOpenHuman={onOpenHuman}
-              onMessageOwner={(hid) => { setSelectedBooking(null); navigate(`/inbox?human=${hid}`); }}
+              onMessageOwner={(hid) => {
+                setSelectedBooking(null);
+                setOpenWithReschedule(false);
+                navigate(`/inbox?human=${hid}`);
+              }}
               onOpenDog={onOpenDog}
               onUpdate={handleUpdate}
               currentDateStr={selectedBooking._bookingDate || currentDateStr}
