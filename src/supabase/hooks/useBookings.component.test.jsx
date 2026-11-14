@@ -94,8 +94,21 @@ function makeSupabaseStub({
   deferUpdate,
   deferDelete,
   rpcImpl,
+  // Stateful mode: an array of booking rows standing in for the table. The
+  // week fetch reads it, and an UPDATE is applied to the rows that match every
+  // .eq() filter, the way PostgREST would. The tests can then assert the row
+  // that was written, not just the payload handed to the writer
+  // (CONTRIBUTING.md, "Two standing rules").
+  store,
 } = {}) {
   const channel = makeChannel();
+  const applyToStore = (builder) => {
+    const matches = store.filter((row) =>
+      builder._filters.every(([column, value]) => row[column] === value),
+    );
+    for (const row of matches) Object.assign(row, builder._payload);
+    return matches.map((row) => ({ ...row }));
+  };
   const fromCalls = [];
   let fetchCount = 0;
   // Deferred-insert mode: .insert().select().single() stays pending until
@@ -147,7 +160,11 @@ function makeSupabaseStub({
       });
       builder.gte = vi.fn(() => builder);
       builder.lte = vi.fn(() => builder);
-      builder.eq = vi.fn(() => builder);
+      builder._filters = [];
+      builder.eq = vi.fn((column, value) => {
+        builder._filters.push([column, value]);
+        return builder;
+      });
       builder.order = vi.fn(() => builder);
       // .limit() is the terminal call of the booking-history query only,
       // so it can resolve directly without disturbing the other chains.
@@ -156,14 +173,31 @@ function makeSupabaseStub({
       );
       builder.abortSignal = vi.fn(() => {
         fetchCount += 1;
-        const result = typeof selectResult === "function"
-          ? selectResult(fetchCount)
-          : selectResult;
+        const result = store && selectResult === undefined
+          ? { data: store.map((row) => ({ ...row })), error: null }
+          : typeof selectResult === "function"
+            ? selectResult(fetchCount)
+            : selectResult;
         return deferSelect
           ? selectPromise
           : Promise.resolve(result ?? { data: [], error: null });
       });
       builder.single = vi.fn(() => {
+        if (store && builder._op === "update") {
+          const written = applyToStore(builder);
+          return Promise.resolve(
+            written.length === 1
+              ? { data: written[0], error: null }
+              : {
+                  data: null,
+                  error: {
+                    code: "PGRST116",
+                    message: "JSON object requested, multiple (or no) rows returned",
+                    details: `The result contains ${written.length} rows`,
+                  },
+                },
+          );
+        }
         if (fromCalls.at(-1)?.op === "insert") {
           return deferInsert
             ? insertPromise
@@ -176,8 +210,16 @@ function makeSupabaseStub({
       // Track the most recent terminal op so .single() returns the
       // right result. Payloads are kept so tests can assert what the
       // hook actually sent (id resolution, optional columns).
+      // Stateful mode only: no matching row is { data: null, error: null },
+      // which is what PostgREST gives .maybeSingle() for an empty result.
+      builder.maybeSingle = vi.fn(() => {
+        const written = applyToStore(builder);
+        return Promise.resolve({ data: written[0] ?? null, error: null });
+      });
       const wrap = (op, fn) => (...args) => {
         fromCalls.push({ table, op, payload: args[0] });
+        builder._op = op;
+        builder._payload = args[0];
         return fn(...args);
       };
       builder.insert = wrap("insert", builder.insert);
@@ -824,81 +866,93 @@ describe("useBookings", () => {
       );
     });
 
-    it("Today: undoing a Confirm that advanced the booking puts the status back as well", async () => {
-      // Confirm moves a Booked appointment that is still to come on to
-      // Reconfirmed, so its Undo has to name the status too or the booking
-      // is left Reconfirmed with no confirmation behind it.
-      vi.useFakeTimers({ toFake: ["Date"] });
-      vi.setSystemTime(new Date(2026, 4, 17, 12));
-      try {
-        const stub = makeSupabaseStub({
-          selectResult: { data: [unpaidRow], error: null },
-          updateResult: {
-            data: { ...PAID_ELSEWHERE, status: "Reconfirmed", reminder_confirmed_source: "staff" },
-            error: null,
-          },
-        });
+    // Confirm moves a Booked appointment that is still to come on to
+    // Reconfirmed, so its Undo has to put the status back as well, but only
+    // while the SAVED row is still Reconfirmed. These run against a stateful
+    // store and assert the row that ends up written.
+    describe("Today: undoing a Confirm that moved the booking on", () => {
+      const PAID = { payment: "Paid in Full", payment_method: "card", paid_amount: 42 };
+      const UNCONFIRMED = { reminder_confirmed_at: null, reminder_confirmed_source: null };
+      const CHECKED_IN = { status: "Arrived", checked_in_at: "2026-05-18T08:58:00.000Z" };
+
+      // Another device writes to the booking. `heard` says whether its
+      // realtime echo has reached this device yet.
+      function otherDevice(stub, store, changes, { heard }) {
+        Object.assign(store[0], changes);
+        if (heard) act(() => stub._channel.fire("UPDATE", { new: { ...store[0] }, old: OLD_KEY }));
+      }
+
+      async function confirmThenUndo({ beforeUndo }) {
+        const store = [{ ...unpaidRow, reminder_confirmed_at: null, reminder_confirmed_source: null }];
+        const stub = makeSupabaseStub({ store });
         const { result, toast } = renderActions(stub);
         await waitFor(() => expect(result.current.bookings.loading).toBe(false));
         const heldSnapshot = result.current.bookings.bookingsByDate["2026-05-18"][0];
-        act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+        otherDevice(stub, store, PAID, { heard: true });
 
         await act(async () => {
           await result.current.actions.runTokenAction({ booking: heldSnapshot }, { id: "confirm" });
         });
-        expect(stub.getLastPayload("update")).toMatchObject({
-          status: "Reconfirmed",
-          reminder_confirmed_source: "staff",
-        });
-        for (const column of PAYMENT_COLUMNS) expect(stub.getLastPayload("update")).not.toHaveProperty(column);
+        expect(store[0]).toMatchObject({ status: "Reconfirmed", reminder_confirmed_source: "staff", ...PAID });
 
+        beforeUndo?.(stub, store);
+        const writesBeforeUndo = stub.from.mock.calls.length;
         await act(async () => {
           lastToastAction(toast).onClick();
         });
-        await waitFor(() =>
-          expect(stub.getLastPayload("update")).toEqual({
-            status: "Booked",
-            reminder_confirmed_at: null,
-            reminder_confirmed_source: null,
-          }),
-        );
-      } finally {
-        vi.useRealTimers();
+        await waitFor(() => expect(stub.from.mock.calls.length).toBeGreaterThan(writesBeforeUndo));
+        await act(async () => {});
+        return { store, result, toast };
       }
-    });
 
-    it("Today: undoing a Confirm leaves the status alone once the dog has arrived", async () => {
-      vi.useFakeTimers({ toFake: ["Date"] });
-      vi.setSystemTime(new Date(2026, 4, 17, 12));
-      try {
-        const reconfirmed = { ...PAID_ELSEWHERE, status: "Reconfirmed", reminder_confirmed_source: "staff" };
-        const stub = makeSupabaseStub({
-          selectResult: { data: [unpaidRow], error: null },
-          updateResult: { data: reconfirmed, error: null },
-        });
-        const { result, toast } = renderActions(stub);
-        await waitFor(() => expect(result.current.bookings.loading).toBe(false));
-        await act(async () => {
-          await result.current.actions.runTokenAction(
-            { booking: result.current.bookings.bookingsByDate["2026-05-18"][0] },
-            { id: "confirm" },
-          );
-        });
-        // Checked in on another device while the Undo toast is still up.
-        act(() => stub._channel.fire("UPDATE", { new: { ...reconfirmed, status: "Arrived" }, old: OLD_KEY }));
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date(2026, 4, 17, 12));
+      });
+      afterEach(() => vi.useRealTimers());
 
-        await act(async () => {
-          lastToastAction(toast).onClick();
+      it("puts the booking back to Booked and keeps a newer payment", async () => {
+        const { store, result } = await confirmThenUndo({});
+
+        expect(store[0]).toMatchObject({ status: "Booked", ...UNCONFIRMED, ...PAID });
+        const shown = result.current.bookings.bookingsByDate["2026-05-18"][0];
+        expect(shown.status).toBe("Booked");
+        expect(shown.payment).toBe("Paid in Full");
+      });
+
+      it("leaves an arrival this device has heard about alone", async () => {
+        const { store, result } = await confirmThenUndo({
+          beforeUndo: (stub, rows) => otherDevice(stub, rows, CHECKED_IN, { heard: true }),
         });
-        await waitFor(() =>
-          expect(stub.getLastPayload("update")).toEqual({
-            reminder_confirmed_at: null,
-            reminder_confirmed_source: null,
-          }),
-        );
-      } finally {
-        vi.useRealTimers();
-      }
+
+        expect(store[0]).toMatchObject({ ...CHECKED_IN, ...UNCONFIRMED, ...PAID });
+        expect(result.current.bookings.bookingsByDate["2026-05-18"][0].status).toBe("Arrived");
+      });
+
+      it("leaves an arrival alone when the check-in has not reached this device yet", async () => {
+        // This device still believes the booking is Reconfirmed, so only the
+        // database can tell that Booked must not go back.
+        const { store, result } = await confirmThenUndo({
+          beforeUndo: (stub, rows) => otherDevice(stub, rows, CHECKED_IN, { heard: false }),
+        });
+
+        expect(store[0]).toMatchObject({ ...CHECKED_IN, ...UNCONFIRMED, ...PAID });
+        expect(result.current.bookings.bookingsByDate["2026-05-18"][0].status).toBe("Arrived");
+      });
+
+      it("never wipes a customer's own confirmation that landed first", async () => {
+        const CUSTOMER_CONFIRMED = {
+          reminder_confirmed_at: "2026-05-17T12:01:00.000Z",
+          reminder_confirmed_source: "customer",
+        };
+        const { store, toast } = await confirmThenUndo({
+          beforeUndo: (stub, rows) => otherDevice(stub, rows, CUSTOMER_CONFIRMED, { heard: false }),
+        });
+
+        expect(store[0]).toMatchObject({ status: "Reconfirmed", ...CUSTOMER_CONFIRMED, ...PAID });
+        await waitFor(() => expect(toast.show.mock.calls.at(-1)[0]).toMatch(/^Couldn't undo/));
+        expect(toast.show.mock.calls.at(-1)[1]).toBe("info");
+      });
     });
 
     it("Calendar card: a status change and its Undo write the status and leave a newer payment alone", async () => {

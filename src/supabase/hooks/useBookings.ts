@@ -720,7 +720,9 @@ export function useBookings(
 
       // Undoing a staff Confirm puts Booked back only while the booking is
       // still Reconfirmed. If the dog has arrived in the meantime, the undo
-      // clears the confirmation and leaves the arrival alone.
+      // clears the confirmation and leaves the arrival alone. This local check
+      // only saves a write that is bound to miss: the UPDATE below re-checks
+      // the saved status itself, because this device's copy can be behind.
       if (
         updatedBooking._unconfirmArrival
         && "status" in updatePayload
@@ -748,17 +750,41 @@ export function useBookings(
         );
       });
 
-      let updateQuery = supabase
-        .from("bookings")
-        .update(updatePayload)
-        .eq("id", updatedBooking.id);
-      // Unconfirm only ever clears a STAFF stamp: if the customer's own
-      // confirmation landed in between, this matches 0 rows and .single()
-      // errors — the rollback below then restores the local row untouched.
-      if (updatedBooking._unconfirmArrival) {
-        updateQuery = updateQuery.eq("reminder_confirmed_source", "staff");
+      const client = supabase;
+      const sendUpdate = (payload: typeof updatePayload) => {
+        let updateQuery = client
+          .from("bookings")
+          .update(payload)
+          .eq("id", updatedBooking.id);
+        // Unconfirm only ever clears a STAFF stamp: if the customer's own
+        // confirmation landed in between, this matches 0 rows and .single()
+        // errors — the rollback below then restores the local row untouched.
+        if (updatedBooking._unconfirmArrival) {
+          updateQuery = updateQuery.eq("reminder_confirmed_source", "staff");
+        }
+        return updateQuery;
+      };
+
+      // An Undo that puts Booked back asks the database to do so only while
+      // the saved row is still Reconfirmed, in the same UPDATE. A check-in
+      // made on another device that has not reached this one yet must not be
+      // overwritten: the lifecycle trigger would clear checked_in_at. When no
+      // row matches, the booking has moved on (or the customer confirmed), so
+      // the Undo retries clearing only the confirmation, under the same
+      // staff-source guard, and the newer status stands.
+      const restoresBooked = Boolean(updatedBooking._unconfirmArrival) && "status" in updatePayload;
+      let response = restoresBooked
+        ? await sendUpdate(updatePayload)
+          .eq("status", BOOKING_STATUS.RECONFIRMED)
+          .select("*")
+          .maybeSingle()
+        : await sendUpdate(updatePayload).select("*").single();
+      if (restoresBooked && !response.error && !response.data) {
+        const confirmationOnly = { ...updatePayload };
+        delete (confirmationOnly as { status?: string }).status;
+        response = await sendUpdate(confirmationOnly).select("*").single();
       }
-      const { data: updated, error: err } = await updateQuery.select("*").single();
+      const { data: updated, error: err } = response;
       const data = updated as DbBookingRow | null;
       // Read only after the await, for the same reason as removeBooking.
       const prevRow = snapshot.row;
