@@ -3,7 +3,7 @@
 ## Unreleased — Undo on a Confirm puts the booking back to Booked
 
 - On Today, confirming a Booked appointment that is still to come moves it on to Reconfirmed. Since staff saves started writing only the fields they name (#1192), pressing Undo cleared the confirmation but left the booking Reconfirmed. Undo now puts it back to Booked when that Confirm was what moved it on.
-- If the booking has moved on between the Confirm and the Undo (the dog has arrived, say), Undo still clears the confirmation but leaves the newer status alone.
+- If the booking has moved on between the Confirm and the Undo (the dog has arrived, say), Undo still clears the confirmation but leaves the newer status alone. The database makes that check as it saves, so this holds even when the check-in was made on another device and has not reached this one yet.
 
 ## Unreleased — Today's date and Availability share one line on phones
 
