@@ -290,7 +290,7 @@ export function useBookingActions({
     return saved;
   }, [changeStatus, onSendCollection]);
 
-  const unconfirmArrival = useCallback(async (booking: Booking) => {
+  const unconfirmArrival = useCallback(async (booking: Booking, { restoreBooked = false } = {}) => {
     // The write is filtered on reminder_confirmed_source='staff', so a
     // customer confirmation that raced in matches nothing and their word
     // stands. The quiet info toast covers that case and a save failure alike —
@@ -305,6 +305,11 @@ export function useBookingActions({
         reminderConfirmedAt: null,
         reminderConfirmedBy: null,
         reminderState: revertState,
+        // Confirm advances a Booked appointment that is still to come on to
+        // Reconfirmed. The write is limited to the fields named here, so when
+        // that happened the way back has to be named too. The write path
+        // drops it again if the booking has since moved on.
+        ...(restoreBooked ? { status: BOOKING_STATUS.BOOKED } : {}),
       } as Partial<Booking>,
       `${booking.dogName}'s booking is unconfirmed again`,
       undefined,
@@ -319,12 +324,15 @@ export function useBookingActions({
     return result;
   }, [patch, toast]);
 
-  const confirmArrival = useCallback((booking: Booking) => {
+  const confirmArrival = useCallback(async (booking: Booking) => {
     // Staff reached the owner off-channel (phone, in person). `_confirmArrival`
     // makes the write path stamp reminder_confirmed_at/_source='staff'; a later
     // real customer confirmation overwrites it server-side, never the reverse.
     // The Undo closes over the PRE-confirm booking, so it reverts exactly.
-    return patch(
+    // Filled in once the save answers, so the Undo knows whether this
+    // Confirm moved the booking on from Booked.
+    const saved: { row: Booking | null } = { row: null };
+    const persisted = await patch(
       booking,
       {
         _confirmArrival: true,
@@ -335,8 +343,20 @@ export function useBookingActions({
       } as Partial<Booking>,
       `${booking.dogName}'s booking confirmed`,
       "Confirming this booking could not be saved.",
-      { successAction: { label: "Undo", onClick: () => { void unconfirmArrival(booking); } } },
+      {
+        successAction: {
+          label: "Undo",
+          onClick: () => {
+            void unconfirmArrival(booking, {
+              restoreBooked: booking.status === BOOKING_STATUS.BOOKED
+                && saved.row?.status === BOOKING_STATUS.RECONFIRMED,
+            });
+          },
+        },
+      },
     );
+    saved.row = persisted;
+    return persisted;
   }, [patch, unconfirmArrival]);
 
   /**

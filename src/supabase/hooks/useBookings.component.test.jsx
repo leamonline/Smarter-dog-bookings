@@ -824,6 +824,83 @@ describe("useBookings", () => {
       );
     });
 
+    it("Today: undoing a Confirm that advanced the booking puts the status back as well", async () => {
+      // Confirm moves a Booked appointment that is still to come on to
+      // Reconfirmed, so its Undo has to name the status too or the booking
+      // is left Reconfirmed with no confirmation behind it.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 4, 17, 12));
+      try {
+        const stub = makeSupabaseStub({
+          selectResult: { data: [unpaidRow], error: null },
+          updateResult: {
+            data: { ...PAID_ELSEWHERE, status: "Reconfirmed", reminder_confirmed_source: "staff" },
+            error: null,
+          },
+        });
+        const { result, toast } = renderActions(stub);
+        await waitFor(() => expect(result.current.bookings.loading).toBe(false));
+        const heldSnapshot = result.current.bookings.bookingsByDate["2026-05-18"][0];
+        act(() => stub._channel.fire("UPDATE", { new: PAID_ELSEWHERE, old: OLD_KEY }));
+
+        await act(async () => {
+          await result.current.actions.runTokenAction({ booking: heldSnapshot }, { id: "confirm" });
+        });
+        expect(stub.getLastPayload("update")).toMatchObject({
+          status: "Reconfirmed",
+          reminder_confirmed_source: "staff",
+        });
+        for (const column of PAYMENT_COLUMNS) expect(stub.getLastPayload("update")).not.toHaveProperty(column);
+
+        await act(async () => {
+          lastToastAction(toast).onClick();
+        });
+        await waitFor(() =>
+          expect(stub.getLastPayload("update")).toEqual({
+            status: "Booked",
+            reminder_confirmed_at: null,
+            reminder_confirmed_source: null,
+          }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("Today: undoing a Confirm leaves the status alone once the dog has arrived", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 4, 17, 12));
+      try {
+        const reconfirmed = { ...PAID_ELSEWHERE, status: "Reconfirmed", reminder_confirmed_source: "staff" };
+        const stub = makeSupabaseStub({
+          selectResult: { data: [unpaidRow], error: null },
+          updateResult: { data: reconfirmed, error: null },
+        });
+        const { result, toast } = renderActions(stub);
+        await waitFor(() => expect(result.current.bookings.loading).toBe(false));
+        await act(async () => {
+          await result.current.actions.runTokenAction(
+            { booking: result.current.bookings.bookingsByDate["2026-05-18"][0] },
+            { id: "confirm" },
+          );
+        });
+        // Checked in on another device while the Undo toast is still up.
+        act(() => stub._channel.fire("UPDATE", { new: { ...reconfirmed, status: "Arrived" }, old: OLD_KEY }));
+
+        await act(async () => {
+          lastToastAction(toast).onClick();
+        });
+        await waitFor(() =>
+          expect(stub.getLastPayload("update")).toEqual({
+            reminder_confirmed_at: null,
+            reminder_confirmed_source: null,
+          }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("Calendar card: a status change and its Undo write the status and leave a newer payment alone", async () => {
       const stub = makeSupabaseStub({
         selectResult: { data: [unpaidRow], error: null },

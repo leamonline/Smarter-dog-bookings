@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Undo on a Confirm puts the booking back to Booked
+
+- On Today, confirming a Booked appointment that is still to come moves it on to Reconfirmed. Since staff saves started writing only the fields they name (#1192), pressing Undo cleared the confirmation but left the booking Reconfirmed. Undo now puts it back to Booked when that Confirm was what moved it on.
+- If the booking has moved on between the Confirm and the Undo (the dog has arrived, say), Undo still clears the confirmation but leaves the newer status alone.
+
 ## Unreleased — Today's date and Availability share one line on phones
 
 - On phones the Today header no longer drops Availability onto its own line: the date uses a short weekday ("Wed 18 November", or "Wed 18 Nov" on the narrowest phones) and sits beside the button, so the header is 50px shorter and the first dog card 50px higher. Screen readers still hear the full date; tablet and desktop are unchanged (N-06).
