@@ -24,6 +24,7 @@ export function TodayHeader({
   capacityTotal = DAY_CAPACITY,
   attention = { count: 0, headline: "", ids: [], reasons: { late: [], toConfirm: [], waiting: [], unpaid: [] } },
   zoneCounts = [],
+  /** Every Paid-in-Full booking today, in or out of the door: shown as "taken". */
   collectedTotal = 0,
   /** Actionable balance across the strip's unpaid dogs (Ready onward). */
   dueNow = 0,
@@ -174,8 +175,13 @@ export function TodayHeader({
               // till, the strip says what is due right now, and the end-of-day
               // facts carry the day total. Repeating all three here made the
               // same story speak in several voices at once.
-              <span className="whitespace-nowrap text-slate-500" data-testid="board-money">
-                <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(collectedTotal)}</strong> collected
+              //
+              // "taken", not "collected": this is every Paid-in-Full booking,
+              // including dogs that paid ahead and are still here, so it is the
+              // end-of-day line's "Taken £84". "Collected today" further down is
+              // a different number — the dogs that have gone home.
+              <span className="whitespace-nowrap text-ink-muted" data-testid="board-money">
+                <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(collectedTotal)}</strong> taken
               </span>
             ) : dogsBooked > 0 && unpaidTotal === 0 ? (
               <span className="whitespace-nowrap font-bold text-brand-teal-text">All paid</span>

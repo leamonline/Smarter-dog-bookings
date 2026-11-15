@@ -296,13 +296,43 @@ describe("highlighting an attention reason", () => {
     // Still present: the list has to stay the day.
     expect(card("bathing")).toBeTruthy();
   });
+
+  it("brings the requested dog forward without opening it, closing any other open card", () => {
+    const { rerender } = renderStack();
+    const first = document.querySelector("[data-stack-card]").dataset.bookingId;
+    expect(card(first).dataset.focused).toBe("true");
+    fireEvent.click(head(first));
+    expect(head(first).getAttribute("aria-expanded")).toBe("true");
+
+    const target = [...document.querySelectorAll("[data-stack-card]")].at(-1).dataset.bookingId;
+    const rows = buildDayStack({ bookings: BOOKINGS, dateStr: TODAY, now: NOW, breedById: {} });
+    const props = {
+      rows,
+      resolve: (b) => ({ dogName: b.dogName, breed: "", owner: "Priya Raman", ownerPhone: "", dogMissing: false, ownerMissing: false }),
+      getWelfare: () => ({ alerts: [], pregnant: false, notes: "" }),
+      paymentOf: () => ({ kind: "due", amountDue: 42, subtotal: 42 }),
+      lastVisitFor: () => null,
+    };
+    rerender(<DayStack {...props} focusRequest={{ id: target, key: 1 }} />);
+
+    expect(card(target).dataset.focused).toBe("true");
+    expect(head(target).getAttribute("aria-expanded")).toBe("false");
+    expect(card(first).dataset.focused).toBe("false");
+    expect(head(first).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("ignores a request for a dog that is not on the day", () => {
+    renderStack({ focusRequest: { id: "not-here", key: 1 } });
+    const first = document.querySelector("[data-stack-card]").dataset.bookingId;
+    expect(card(first).dataset.focused).toBe("true");
+  });
 });
 
 describe("the owner-on-the-way signal", () => {
   it("survived the move off the board, and is spoken", () => {
     renderStack({ onTheWaySignals: { waiting: { onTheWay: true } } });
     expect(within(card("waiting")).getByText("On the way")).toBeTruthy();
-    expect(head("waiting").getAttribute("aria-label")).toContain("Owner on the way");
+    expect(head("waiting").getAttribute("aria-label")).toContain("On the way");
   });
 });
 
