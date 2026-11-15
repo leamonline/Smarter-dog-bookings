@@ -277,6 +277,27 @@ describe("MessageBubble — special message rendering", () => {
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
+  // A signed link expires after an hour, and the image is lazy-loaded, so a
+  // photo further up a long thread can be fetched only after its link died.
+  it("falls back to the friendly chip when the photo won't load", async () => {
+    const { container } = render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "inbound",
+          content: "[image message — no text content]",
+          media_path: "conv-1/expired.jpg",
+          media_mime: "image/jpeg",
+        }}
+      />,
+    );
+    fireEvent.error(await screen.findByRole("img", { name: /photo from customer/i }));
+    expect(screen.getByText("Photo")).toBeInTheDocument();
+    expect(container.textContent).toContain("📷");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Open full size")).not.toBeInTheDocument();
+  });
+
   it("makes failed outbound sends prominent and names the failure reason", () => {
     render(
       <MessageBubble
