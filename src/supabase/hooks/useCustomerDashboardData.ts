@@ -288,21 +288,37 @@ export function useCustomerDashboardData(
     if (!customerSupabase) {
       return { contact: null as CustomerTrustedHumanRow | null, error: new Error("Not connected") as unknown };
     }
-    const { data, error } = await saveCustomerTrustedContact(customerSupabase, input);
-    const row = Array.isArray(data) ? data[0] : null;
-    if (error || !row) return { contact: null, error: error ?? new Error("No contact returned") };
+    let row: CustomerTrustedHumanRow | null;
+    try {
+      const { data, error } = await saveCustomerTrustedContact(customerSupabase, input);
+      row = Array.isArray(data) ? data[0] ?? null : null;
+      if (error || !row) return { contact: null, error: error ?? new Error("No contact returned") };
+    } catch (error) {
+      logger.error("Saving a trusted contact failed", error, {
+        tags: { component: "CustomerDashboard", op: "saveTrustedContact" },
+      });
+      return { contact: null, error };
+    }
+    const saved: CustomerTrustedHumanRow = row;
     setCustomerContacts((prev) =>
-      prev.some((c) => c.id === row.id)
-        ? prev.map((c) => (c.id === row.id ? row : c))
-        : [...prev, row],
+      prev.some((c) => c.id === saved.id)
+        ? prev.map((c) => (c.id === saved.id ? saved : c))
+        : [...prev, saved],
     );
-    return { contact: row, error: null };
+    return { contact: saved, error: null };
   }, []);
 
   const removeTrustedContact = useCallback(async (id: string) => {
     if (!customerSupabase) return { error: new Error("Not connected") as unknown };
-    const { error } = await removeCustomerTrustedContact(customerSupabase, id);
-    if (error) return { error };
+    try {
+      const { error } = await removeCustomerTrustedContact(customerSupabase, id);
+      if (error) return { error };
+    } catch (error) {
+      logger.error("Removing a trusted contact failed", error, {
+        tags: { component: "CustomerDashboard", op: "removeTrustedContact" },
+      });
+      return { error };
+    }
     setCustomerContacts((prev) => prev.filter((c) => c.id !== id));
     return { error: null };
   }, []);

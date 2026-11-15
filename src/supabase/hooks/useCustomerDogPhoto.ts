@@ -35,8 +35,10 @@ function newObjectName(dogId: string): string {
 
 async function deleteObject(path: string, context: string) {
   if (!customerSupabase || !path) return;
-  const { error } = await customerSupabase.storage.from(DOG_PHOTOS_BUCKET).remove([path]);
-  if (error) {
+  try {
+    const { error } = await customerSupabase.storage.from(DOG_PHOTOS_BUCKET).remove([path]);
+    if (error) logger.warn("Dog photo object could not be deleted", { extra: { context, error } });
+  } catch (error) {
     logger.warn("Dog photo object could not be deleted", { extra: { context, error } });
   }
   urlCache.delete(path);
@@ -52,42 +54,44 @@ export function useCustomerDogPhoto() {
       return { photoPath: null, error };
     }
 
+    const client = customerSupabase;
     const path = newObjectName(dogId);
-    const upload = await customerSupabase.storage
-      .from(DOG_PHOTOS_BUCKET)
-      .upload(path, blob, { contentType: "image/jpeg", upsert: false, cacheControl: "3600" });
-    if (upload.error) {
-      logger.error("Dog photo upload failed", upload.error, {
-        tags: { component: "useCustomerDogPhoto", op: "upload" },
-      });
-      return { photoPath: null, error: upload.error };
-    }
+    let uploaded = false;
+    try {
+      const upload = await client.storage
+        .from(DOG_PHOTOS_BUCKET)
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false, cacheControl: "3600" });
+      if (upload.error) throw upload.error;
+      uploaded = true;
 
-    const { data, error } = await setCustomerDogPhoto(customerSupabase, { dogId, photoPath: path });
-    if (error) {
-      logger.error("Setting the dog photo failed", error, {
-        tags: { component: "useCustomerDogPhoto", op: "set_customer_dog_photo" },
+      const { data, error } = await setCustomerDogPhoto(client, { dogId, photoPath: path });
+      if (error) throw error;
+      const previous = previousPathFrom(data);
+      if (previous && previous !== path) await deleteObject(previous, "replaced photo");
+      return { photoPath: path, error: null };
+    } catch (error) {
+      logger.error(uploaded ? "Setting the dog photo failed" : "Dog photo upload failed", error, {
+        tags: { component: "useCustomerDogPhoto", op: uploaded ? "set_customer_dog_photo" : "upload" },
       });
-      await deleteObject(path, "orphaned upload");
+      if (uploaded) await deleteObject(path, "orphaned upload");
       return { photoPath: null, error };
     }
-    const previous = previousPathFrom(data);
-    if (previous && previous !== path) await deleteObject(previous, "replaced photo");
-    return { photoPath: path, error: null };
   }, []);
 
   const removeDogPhoto = useCallback(async (dogId: string): Promise<DogPhotoResult> => {
     if (!customerSupabase) return { photoPath: null, error: new Error("Not connected") };
-    const { data, error } = await setCustomerDogPhoto(customerSupabase, { dogId, photoPath: null });
-    if (error) {
+    try {
+      const { data, error } = await setCustomerDogPhoto(customerSupabase, { dogId, photoPath: null });
+      if (error) throw error;
+      const previous = previousPathFrom(data);
+      if (previous) await deleteObject(previous, "removed photo");
+      return { photoPath: null, error: null };
+    } catch (error) {
       logger.error("Removing the dog photo failed", error, {
         tags: { component: "useCustomerDogPhoto", op: "set_customer_dog_photo" },
       });
       return { photoPath: null, error };
     }
-    const previous = previousPathFrom(data);
-    if (previous) await deleteObject(previous, "removed photo");
-    return { photoPath: null, error: null };
   }, []);
 
   return { uploadDogPhoto, removeDogPhoto };
@@ -122,6 +126,9 @@ export function useDogPhotoUrl(path: string | null | undefined): string | null {
         }
         urlCache.set(path, data.signedUrl);
         if (!cancelled) setUrl(data.signedUrl);
+      })
+      .catch((error: unknown) => {
+        logger.warn("Dog photo signed URL failed", { extra: { error } });
       });
     return () => { cancelled = true; };
   }, [path]);
