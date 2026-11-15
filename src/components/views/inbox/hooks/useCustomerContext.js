@@ -6,7 +6,8 @@
 //   - the matched humans row (name, phone, email, address, notes)
 //   - all their dogs (size, breed, age, alerts, groom notes)
 //   - the single most-recent past booking across all their dogs
-//   - their trusted contacts (people allowed to pick up the dog)
+//   - their trusted contacts (people allowed to pick up the dog): the
+//     staff-linked customers and the people the customer added in the portal
 //
 // No realtime — refreshes whenever humanId changes. The data is
 // low-churn within a single session, so the cheap "refetch on
@@ -32,6 +33,7 @@ const EMPTY_RESULT = Object.freeze({
   lastBooking: null,
   lastServiceByDogId: {},
   trustedContacts: [],
+  customerAddedContacts: [],
   upcomingBookings: [],
   summary: "",
 });
@@ -103,7 +105,7 @@ export function useCustomerContext(humanId) {
         // customer's dogs, newest-first: row 0 is the "last booking" on the
         // customer card, and the same rows give each dog its most recent
         // service, which prefills the booking pane's service selectors.
-        const [humanRes, dogsRes, lastBookingRes, trustedRes, upcomingRes] =
+        const [humanRes, dogsRes, lastBookingRes, trustedRes, upcomingRes, customerAddedRes] =
           await inboxReads.loadCustomerContext(humanId, {
             before: today,
             signal: controller.signal,
@@ -121,6 +123,9 @@ export function useCustomerContext(humanId) {
         }
         if (trustedRes.error) throw trustedRes.error;
         if (upcomingRes.error) throw upcomingRes.error;
+        // Fail closed: a missing customer-added list must not read as "no
+        // one else may collect", so it fails the panel like the others.
+        if (customerAddedRes.error) throw customerAddedRes.error;
 
         const human = humanRes.data
           ? {
@@ -186,6 +191,17 @@ export function useCustomerContext(humanId) {
           })
           .filter(Boolean);
 
+        // Never customer records: shown, not clickable, marked as the
+        // customer's own addition.
+        const customerAddedContacts = (customerAddedRes.contacts || [])
+          .map((c) => ({
+            id: c.id,
+            fullName: `${c.name || ""} ${c.surname || ""}`.trim(),
+            relationship: c.relationship || "",
+            addedByCustomer: true,
+          }))
+          .filter((c) => c.fullName);
+
         const upcomingBookings = (upcomingRes.data || []).map((row) => ({
           id: row.id,
           date: row.booking_date,
@@ -198,7 +214,7 @@ export function useCustomerContext(humanId) {
 
         const summary = buildCustomerSummary({ human, dogs, lastBooking });
 
-        setData({ human, dogs, lastBooking, lastServiceByDogId, trustedContacts, upcomingBookings, summary });
+        setData({ human, dogs, lastBooking, lastServiceByDogId, trustedContacts, customerAddedContacts, upcomingBookings, summary });
       } catch (err) {
         if (cancelled) return;
         logger.error("useCustomerContext:", err);

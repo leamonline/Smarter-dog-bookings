@@ -3,7 +3,9 @@
 //
 // Tiny pills listing who else is allowed to collect / drop off this
 // customer's dog(s). Renders nothing when the list is empty so the
-// section header can disappear with it.
+// section header can disappear with it. A contact the customer added in
+// the portal (`addedByCustomer`) is not a customer record: its pill says
+// so and does not open a profile.
 // ============================================================
 
 import { titleCase } from "../../../../utils/text";
@@ -16,8 +18,9 @@ export function TrustedHumansChips({ contacts, onOpenHuman }) {
       {contacts.map((c) => {
         const name = titleCase(c.fullName || "");
         const relationship = c.relationship?.trim() || "";
-        const label = relationship ? `${name} (${relationship})` : name;
-        const clickable = !!onOpenHuman;
+        const base = relationship ? `${name} (${relationship})` : name;
+        const label = c.addedByCustomer ? `${base} · added by customer` : base;
+        const clickable = !!onOpenHuman && !c.addedByCustomer;
         return (
           <button
             key={c.id}

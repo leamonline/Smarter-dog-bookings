@@ -1,10 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useCustomerDogActions } from "../../supabase/hooks/useCustomerDogActions";
+import { useCustomerDogPhoto, useDogPhotoUrl } from "../../supabase/hooks/useCustomerDogPhoto";
+import { friendlyDogPhotoError } from "../../lib/dogPhoto";
 import { getSizeForBreed } from "../../constants/breeds";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { PawPrint, Pencil, Plus, X } from "lucide-react";
+import { Camera, PawPrint, Pencil, Plus, X } from "lucide-react";
 import { titleCase } from "../../utils/text";
 import { Input, Select } from "../ui/index.js";
 
@@ -59,6 +61,79 @@ function avatarTintFor(id) {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
+/**
+ * The dog's picture, and the way to add or change it: tapping it opens the
+ * photo picker (the familiar profile-picture convention). Without a photo it
+ * shows the dog's initial and a small camera badge. Removing a photo lives in
+ * the dog's Edit form, with every other change to the dog.
+ */
+function DogAvatar({ dog, tint, onPhotoChanged, onError }) {
+  const toast = useToast();
+  const inputRef = useRef(null);
+  const { uploadDogPhoto } = useCustomerDogPhoto();
+  const signedUrl = useDogPhotoUrl(dog.photoPath);
+  // A photo that will not load (expired link, file gone, offline) shows the
+  // initial rather than an empty circle; a new URL gets a fresh try.
+  const [brokenUrl, setBrokenUrl] = useState(null);
+  const photoUrl = signedUrl && signedUrl !== brokenUrl ? signedUrl : null;
+  const [uploading, setUploading] = useState(false);
+  const name = titleCase(dog.name) || "your dog";
+  const label = dog.photoPath ? `Change ${name}'s photo` : `Add a photo of ${name}`;
+
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    onError?.(null);
+    const { photoPath, error: uploadError } = await uploadDogPhoto(dog.id, file);
+    setUploading(false);
+    if (uploadError) {
+      onError?.(friendlyDogPhotoError(uploadError));
+      return;
+    }
+    // Only the field this action changed: the dog captured when the upload
+    // began may be older than an edit saved while it was in flight.
+    onPhotoChanged?.({ id: dog.id, photoPath });
+    toast.show(`${name}'s photo saved`, "success");
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`portal-avatar portal-avatar--lg portal-avatar--${tint} portal-avatar-button`}
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        aria-busy={uploading || undefined}
+        aria-label={label}
+        title={label}
+      >
+        {photoUrl ? (
+          <img className="portal-avatar-photo" src={photoUrl} alt="" onError={() => setBrokenUrl(photoUrl)} />
+        ) : (
+          <span aria-hidden="true">{(dog.name || "?").trim().charAt(0).toUpperCase()}</span>
+        )}
+        {!dog.photoPath && (
+          <span className="portal-avatar-badge" aria-hidden="true">
+            <Camera size={11} />
+          </span>
+        )}
+        {uploading && <span className="portal-avatar-busy" aria-hidden="true" />}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={handleFile}
+      />
+    </>
+  );
+}
+
 function lastGroomLabel(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr + "T00:00:00");
@@ -68,9 +143,25 @@ function lastGroomLabel(dateStr) {
 function DogRow({ dog, lastGroomDate, onSaved }) {
   const toast = useToast();
   const { updateDog } = useCustomerDogActions();
+  const { removeDogPhoto } = useCustomerDogPhoto();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
   const [error, setError] = useState(null);
+  const [photoError, setPhotoError] = useState(null);
+
+  const handleRemovePhoto = useCallback(async () => {
+    setRemovingPhoto(true);
+    setError(null);
+    const { error: removeError } = await removeDogPhoto(dog.id);
+    setRemovingPhoto(false);
+    if (removeError) {
+      setError("We couldn't remove the photo. Please try again.");
+      return;
+    }
+    onSaved?.({ id: dog.id, photoPath: null });
+    toast.show(`${titleCase(dog.name) || "Your dog"}'s photo removed`, "success");
+  }, [dog, onSaved, removeDogPhoto, toast]);
   const [form, setForm] = useState({
     name: dog.name || "",
     breed: dog.breed || "",
@@ -168,9 +259,20 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
             {DOB_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </Select>
         </div>
+        {dog.photoPath && (
+          <button
+            type="button"
+            className="portal-btn portal-btn--ghost portal-btn--small portal-btn--align-start"
+            onClick={handleRemovePhoto}
+            disabled={removingPhoto || saving}
+          >
+            <X size={12} aria-hidden="true" />
+            {removingPhoto ? "Removing photo…" : "Remove photo"}
+          </button>
+        )}
         {error && <div role="alert" className="portal-inline-error">{error}</div>}
         <div className="portal-inline-form-actions">
-          <button type="submit" className="portal-btn portal-btn--primary portal-btn--small" disabled={saving}>
+          <button type="submit" className="portal-btn portal-btn--primary portal-btn--small" disabled={saving || removingPhoto}>
             {saving ? "Saving…" : "Save"}
           </button>
           <button type="button" className="portal-btn portal-btn--ghost portal-btn--small" onClick={reset}>
@@ -182,17 +284,14 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
     );
   }
 
-  const initial = (dog.name || "?").trim().charAt(0).toUpperCase();
-  const tint = avatarTintFor(dog.id);
   const sizeLabel = displaySize(dog);
   const sizeBit = sizeLabel ? ` · ${sizeLabel}` : "";
   const lastGroom = lastGroomLabel(lastGroomDate);
 
   return (
+    <>
     <div className="portal-entity-row">
-      <span className={`portal-avatar portal-avatar--${tint}`} aria-hidden="true">
-        {initial}
-      </span>
+      <DogAvatar dog={dog} tint={avatarTintFor(dog.id)} onPhotoChanged={onSaved} onError={setPhotoError} />
       <div className="portal-entity-row-body">
         <p className="portal-entity-row-name">{titleCase(dog.name)}</p>
         <p className="portal-entity-row-meta">
@@ -212,6 +311,8 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
         Edit
       </button>
     </div>
+    {photoError && <div role="alert" className="portal-inline-error">{photoError}</div>}
+    </>
   );
 }
 

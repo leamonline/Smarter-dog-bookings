@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — dog photos and customer-added trusted humans in the portal
+
+- Customers can add a photo of their dog by tapping its picture on the dashboard. Photos are shrunk and re-encoded in the browser (removing location data), stored in a private bucket limited to the dog's own folder, and removable from the dog's Edit form.
+- Customers can add, edit and remove the people allowed to drop off or collect their dog, live on save (owner decision, [ADR 014](docs/architecture/decisions/014-customer-added-trusted-humans-live-on-save.md)). Contacts are stored apart from customer records and never looked up against them; staff see them marked "Added by customer" and can remove them, and a merge keeps them. Replaces the "temporarily unavailable" placeholder.
+- The website's privacy policy now covers dog photos and the people customers add, including a section for someone a customer has added (what we hold, that they get no messages, how to have their details removed).
+- Staff also see customer-added trusted humans in the Inbox customer panel; a failed read of that list says so, with a retry, instead of "No trusted humans". A photo save whose reply is lost is checked against the dog before its upload is deleted, and a finished upload no longer restores dog details edited while it ran. A concurrency gate proves two simultaneous additions cannot exceed the cap of six.
+- Needs migrations `20261115120000` and `20261115120100` applied to production before merge.
+
 ## Unreleased — customer dashboard: next free slot, white cards, one edit pattern
 
 - With nothing booked, the booking card shows the next free slot for the customer's dog beside "Book a groom" (the next 28 days, from the same reads and capacity rules as the wizard; nothing is shown if a read fails). Once a groom is booked, its Calendar, Reschedule and Cancel actions sit in a right-hand column from tablet width.

@@ -47,7 +47,7 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                             This policy explains how we collect and use personal data at Smarter Dog Grooming Salon. We're committed to protecting your privacy and being transparent about how we handle your information.
                         </p>
                         <p className="body-font text-base mt-4" style={{ color: colors.teal }}>
-                            <strong>Last updated:</strong> December 2024
+                            <strong>Last updated:</strong> November 2026
                         </p>
                     </div>
 
@@ -80,6 +80,14 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
                                     <span><strong>Your dog's details:</strong> Name, breed, age, weight, and coat type</span>
+                                </li>
+                                <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
+                                    <span style={{ color: colors.teal }}>•</span>
+                                    <span><strong>Your dog's photo:</strong> If you choose to add one in your account. We remove location and other hidden details from the photo before it's saved, and only you and our team can see it</span>
+                                </li>
+                                <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
+                                    <span style={{ color: colors.teal }}>•</span>
+                                    <span><strong>People you trust with your dog:</strong> If you add someone who can drop off or collect your dog, we keep the name, phone number and relationship you give us. Please let them know you've shared their details with us</span>
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
@@ -119,6 +127,10 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
+                                    <span><strong>Safe handovers:</strong> So our team knows who you've said can drop off or collect your dog</span>
+                                </li>
+                                <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
+                                    <span style={{ color: colors.teal }}>•</span>
                                     <span><strong>Contacting you:</strong> To discuss bookings, share updates, or reach you in an emergency</span>
                                 </li>
                             </ul>
@@ -141,6 +153,14 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
                                     <span><strong>Health/incident notes:</strong> Kept for 3 years for safety and liability purposes</span>
+                                </li>
+                                <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
+                                    <span style={{ color: colors.teal }}>•</span>
+                                    <span><strong>Your dog's photo:</strong> Kept until you change or remove it in your account. When you do, we delete the old photo</span>
+                                </li>
+                                <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
+                                    <span style={{ color: colors.teal }}>•</span>
+                                    <span><strong>People you trust with your dog:</strong> Kept until you remove them in your account, or until your client record is deleted</span>
                                 </li>
                             </ul>
                             <p className="body-font text-lg leading-relaxed mt-4" style={{ color: colors.teal }}>
@@ -170,6 +190,19 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                                     <span><strong>Legal requirements:</strong> Only if required by law or court order</span>
                                 </li>
                             </ul>
+                        </div>
+
+                        {/* People a customer added (UK GDPR Art. 14: data not obtained from the person) */}
+                        <div className="bg-white rounded-2xl p-8 shadow-sm border-l-4" style={{ borderLeftColor: colors.cyan }}>
+                            <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
+                                If a Customer Has Added You
+                            </h2>
+                            <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.teal }}>
+                                A customer may have given us your name and phone number so that you can drop off or collect their dog. We use them only to check who is collecting the dog. We don't send you messages, we don't add you to any mailing list, and we don't link your details to any other record we hold.
+                            </p>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                                If you'd like your details removed, contact us using the details below and we'll remove them. You have all the rights listed under Your Rights.
+                            </p>
                         </div>
 
                         {/* Data Security */}

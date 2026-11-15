@@ -56,6 +56,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     bookings,
     olderBookings,
     trustedHumans,
+    customerContacts,
     // `loading` gates only on dogs → bookings, the reads the booking card
     // needs. `loadError` is their failure; trusted humans has its own.
     loading,
@@ -78,6 +79,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     saveContactDetails,
     updateDog,
     addDog,
+    saveTrustedContact,
+    removeTrustedContact,
   } = useCustomerDashboardData(humanRecord);
   const [editing, setEditing] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -391,8 +394,18 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
             <TrustedHumansSection
               trustedHumans={trustedHumans}
+              customerContacts={customerContacts}
               status={loaded.trustedHumans ? "loaded" : trustedHumansError ? "error" : "loading"}
               onRetry={retryTrustedHumans}
+              onSave={saveTrustedContact}
+              onRemove={removeTrustedContact}
+              onChanged={(outcome) =>
+                toast.show(
+                  outcome === "added" ? "Trusted human added" : outcome === "removed" ? "Trusted human removed" : "Trusted human saved",
+                  "success",
+                )
+              }
+              dogName={dogs.length === 1 ? dogs[0].name : "your dogs"}
             />
           </div>
 

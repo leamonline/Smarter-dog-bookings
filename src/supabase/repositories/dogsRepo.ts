@@ -17,6 +17,8 @@ export interface CustomerDog {
   // "YYYY-MM" (month & year only); older rows may hold a full "YYYY-MM-DD".
   // Optional: only dashboard reads carry it — wizard-side dog shapes don't.
   dob?: string | null;
+  /** Path in the private dog-photos bucket; null = no photo. Dashboard reads only. */
+  photoPath?: string | null;
 }
 
 interface DbDogRow {
@@ -27,6 +29,7 @@ interface DbDogRow {
   reported_size: string | null;
   is_pregnant: boolean | null;
   dob: string | null;
+  photo_path?: string | null;
 }
 
 function dbRowToCustomerDog(row: DbDogRow): CustomerDog {
@@ -38,6 +41,7 @@ function dbRowToCustomerDog(row: DbDogRow): CustomerDog {
     reportedSize: (row.reported_size as DogSize | null) ?? null,
     isPregnant: row.is_pregnant ?? false,
     dob: row.dob ?? null,
+    photoPath: row.photo_path ?? null,
   };
 }
 
@@ -139,7 +143,7 @@ export async function listForHuman(
 ): Promise<{ dogs: CustomerDog[]; error: Error | null }> {
   let q = client
     .from("dogs")
-    .select("id, name, breed, size, reported_size, is_pregnant, dob")
+    .select("id, name, breed, size, reported_size, is_pregnant, dob, photo_path")
     .eq("human_id", humanId)
     .order("name");
   if (signal) q = q.abortSignal(signal);
@@ -149,6 +153,25 @@ export async function listForHuman(
     dogs: (data ?? []).map((row: DbDogRow) => dbRowToCustomerDog(row)),
     error: null,
   };
+}
+
+/**
+ * The dog's current photo path, read back to settle a photo save whose
+ * outcome is unknown (the request may have committed before its reply was
+ * lost). Customers can read their own dogs, so RLS scopes this.
+ */
+export async function getDogPhotoPath(
+  client: SupabaseClient,
+  dogId: string,
+): Promise<{ photoPath: string | null; error: Error | null }> {
+  const { data, error } = await client
+    .from("dogs")
+    .select("photo_path")
+    .eq("id", dogId)
+    .maybeSingle();
+  if (error) return { photoPath: null, error: new Error(error.message) };
+  if (!data) return { photoPath: null, error: new Error("Dog not found") };
+  return { photoPath: (data as { photo_path?: string | null }).photo_path ?? null, error: null };
 }
 
 /** The dog columns the inbox customer-context panel reads; raw PostgREST result. */

@@ -34,6 +34,7 @@ export function CustomerContextPanel({
   titleId,
 }) {
   const { human, dogs, lastBooking, trustedContacts, summary, loading, error } = context;
+  const customerAddedContacts = context.customerAddedContacts ?? [];
   const displayHuman = loading ? null : human;
   const [updatingNotes, setUpdatingNotes] = useState(false);
 
@@ -228,10 +229,10 @@ export function CustomerContextPanel({
 
               <LastBookingChip lastBooking={lastBooking} />
 
-              {trustedContacts.length > 0 && (
+              {(trustedContacts.length > 0 || customerAddedContacts.length > 0) && (
                 <Section title="Trusted contacts">
                   <TrustedHumansChips
-                    contacts={trustedContacts}
+                    contacts={[...trustedContacts, ...customerAddedContacts]}
                     onOpenHuman={onOpenHuman}
                   />
                 </Section>

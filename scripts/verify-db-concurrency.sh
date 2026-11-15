@@ -8,3 +8,5 @@ bash "$SCRIPT_DIR/verify-whatsapp-reschedule-concurrency.sh"
 bash "$SCRIPT_DIR/verify-capacity-concurrency.sh"
 
 bash "$SCRIPT_DIR/verify-holiday-concurrency.sh"
+
+bash "$SCRIPT_DIR/verify-trusted-contacts-concurrency.sh"

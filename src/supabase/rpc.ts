@@ -120,6 +120,62 @@ export function listCustomerTrustedHumans(client: SupabaseClient) {
     .overrideTypes<CustomerTrustedHumanRow[], { merge: false }>();
 }
 
+// Customer-added trusted contacts (20261115120100). Live on save, stored in
+// their own table and never matched to a humans row: the database returns only
+// what the customer typed. The owner is always derived from auth.uid().
+export function listCustomerTrustedContacts(client: SupabaseClient) {
+  return client
+    .rpc("list_customer_trusted_contacts")
+    .overrideTypes<CustomerTrustedHumanRow[], { merge: false }>();
+}
+
+export interface CustomerTrustedContactInput {
+  /** null adds a new contact; an id edits one of the caller's own. */
+  id: string | null;
+  name: string;
+  surname: string;
+  phone: string;
+  relationship: string;
+}
+
+export function saveCustomerTrustedContact(
+  client: SupabaseClient,
+  input: CustomerTrustedContactInput,
+) {
+  return client
+    .rpc("save_customer_trusted_contact", {
+      p_id: input.id,
+      p_name: input.name,
+      p_surname: input.surname,
+      p_phone: input.phone,
+      p_relationship: input.relationship,
+    })
+    .overrideTypes<CustomerTrustedHumanRow[], { merge: false }>();
+}
+
+export function removeCustomerTrustedContact(client: SupabaseClient, id: string) {
+  return client.rpc("remove_customer_trusted_contact", { p_id: id });
+}
+
+// Customer dog photos (20261115120000). Points the dog at an object already
+// uploaded to its folder in the private dog-photos bucket (null clears it) and
+// returns the previous path, which the caller then deletes from storage.
+export function setCustomerDogPhoto(
+  client: SupabaseClient,
+  params: { dogId: string; photoPath: string | null },
+) {
+  return client.rpc("set_customer_dog_photo", {
+    p_dog_id: params.dogId,
+    p_photo_path: params.photoPath,
+  });
+}
+
+/** One row: the dog's new photo path and the one it replaced. */
+export interface SetCustomerDogPhotoRow {
+  photo_path: string | null;
+  previous_photo_path: string | null;
+}
+
 // Customer profile editing --------------------------------------------
 
 export interface CustomerContactDetailsInput {

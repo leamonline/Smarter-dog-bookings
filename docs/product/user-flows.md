@@ -344,3 +344,32 @@ fresh booking for the same owner. This change adds no initial send path, schema
 change or automatic retry.
 
 Tracked in [issue #1201](https://github.com/leamonline/Smarter-dog-bookings/issues/1201).
+
+## Customer adds a dog photo and trusted humans
+
+On the portal dashboard a customer taps their dog's picture to add or change its
+photo. The browser shrinks and re-encodes the photo as JPEG before upload, which
+also removes EXIF data such as GPS location. The file goes into a new randomly
+named object in that dog's folder in the private `dog-photos` bucket, and
+`set_customer_dog_photo` points the dog at it. The previous file is then deleted.
+Removing a photo is in the dog's Edit form. Customers can only use the folders
+of their own non-archived dogs; staff can read and delete any photo. The staff
+app does not show the photo yet.
+
+The Trusted humans card lists people the salon linked (read-only, "Added by the
+salon") and people the customer added. A customer adds someone with a first name,
+an optional surname, a phone number and an optional relationship, and the person
+is trusted as soon as they are saved ([ADR 014](../architecture/decisions/014-customer-added-trusted-humans-live-on-save.md)).
+The phone follows the staff form's rule: a UK mobile is stored as +447…, a
+broken mobile is refused, and other numbers need at least 10 digits. A customer
+can hold six, and edits or removes them through the row's Edit button; the cap
+holds under concurrent additions (`scripts/verify-trusted-contacts-concurrency.py`).
+Nothing is looked up against existing customers and no customer record is
+created. Staff see these people, marked "Added by customer", on the dog card,
+booking detail and customer profile (where they can remove them) and in the
+Inbox customer panel (shown, not clickable). If that list cannot be read, staff
+see that it failed, with a retry, rather than "No trusted humans". A staff merge
+keeps them on the surviving record.
+
+Both features depend on migrations `20261115120000` and `20261115120100` being
+applied to production before the portal change merges.

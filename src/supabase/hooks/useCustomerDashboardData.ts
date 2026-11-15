@@ -13,9 +13,14 @@ import {
   type CustomerBookingSummary,
 } from "../repositories/bookingsRepo";
 import {
+  listCustomerTrustedContacts,
   listCustomerTrustedHumans,
+  removeCustomerTrustedContact,
+  saveCustomerTrustedContact,
   updateCustomerContactDetails,
   type CustomerContactDetailsInput,
+  type CustomerTrustedContactInput,
+  type CustomerTrustedHumanRow,
 } from "../rpc";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
@@ -67,6 +72,10 @@ export function useCustomerDashboardData(
   const [bookings, setBookings] = useState<CustomerBookingSummary[]>([]);
   const [olderBookings, setOlderBookings] = useState<CustomerBookingSummary[]>([]);
   const [trustedHumans, setTrustedHumans] = useState<unknown[]>([]);
+  // Contacts the customer added themselves (live on save, their own table).
+  // Read together with the salon-added links above: the card only claims
+  // "nobody yet" once both reads have succeeded.
+  const [customerContacts, setCustomerContacts] = useState<CustomerTrustedHumanRow[]>([]);
   // `loading` covers only the first dogs → bookings read: the booking card
   // needs both, and nothing else holds the page back. A retry after a
   // failure reports `retrying` instead, so the page stays on screen.
@@ -158,10 +167,15 @@ export function useCustomerDashboardData(
     const isCurrent = () => run === trustedRun.current;
     setTrustedHumansError(null);
     try {
-      const { data, error } = await listCustomerTrustedHumans(client);
-      if (error) throw error;
+      const [linked, added] = await Promise.all([
+        listCustomerTrustedHumans(client),
+        listCustomerTrustedContacts(client),
+      ]);
+      if (linked.error) throw linked.error;
+      if (added.error) throw added.error;
       if (!isCurrent()) return;
-      setTrustedHumans(Array.isArray(data) ? data : []);
+      setTrustedHumans(Array.isArray(linked.data) ? linked.data : []);
+      setCustomerContacts(Array.isArray(added.data) ? added.data : []);
       markLoaded("trustedHumans");
     } catch (err) {
       logger.error("CustomerDashboard trusted humans fetch failed", err, {
@@ -178,6 +192,7 @@ export function useCustomerDashboardData(
     setBookings([]);
     setOlderBookings([]);
     setTrustedHumans([]);
+    setCustomerContacts([]);
     setHasMorePast(false);
     setLoaded(NOTHING_LOADED);
     setLoadError(null);
@@ -266,11 +281,54 @@ export function useCustomerDashboardData(
     setDogs((prev) => (prev.some((d) => d.id === row.id) ? prev : [...prev, row]));
   }, []);
 
+  // Adds (input.id null) or edits one of the customer's own trusted contacts.
+  // The list adopts the row the database stored (normalised phone, trimmed
+  // names), never what was typed.
+  const saveTrustedContact = useCallback(async (input: CustomerTrustedContactInput) => {
+    if (!customerSupabase) {
+      return { contact: null as CustomerTrustedHumanRow | null, error: new Error("Not connected") as unknown };
+    }
+    let row: CustomerTrustedHumanRow | null;
+    try {
+      const { data, error } = await saveCustomerTrustedContact(customerSupabase, input);
+      row = Array.isArray(data) ? data[0] ?? null : null;
+      if (error || !row) return { contact: null, error: error ?? new Error("No contact returned") };
+    } catch (error) {
+      logger.error("Saving a trusted contact failed", error, {
+        tags: { component: "CustomerDashboard", op: "saveTrustedContact" },
+      });
+      return { contact: null, error };
+    }
+    const saved: CustomerTrustedHumanRow = row;
+    setCustomerContacts((prev) =>
+      prev.some((c) => c.id === saved.id)
+        ? prev.map((c) => (c.id === saved.id ? saved : c))
+        : [...prev, saved],
+    );
+    return { contact: saved, error: null };
+  }, []);
+
+  const removeTrustedContact = useCallback(async (id: string) => {
+    if (!customerSupabase) return { error: new Error("Not connected") as unknown };
+    try {
+      const { error } = await removeCustomerTrustedContact(customerSupabase, id);
+      if (error) return { error };
+    } catch (error) {
+      logger.error("Removing a trusted contact failed", error, {
+        tags: { component: "CustomerDashboard", op: "removeTrustedContact" },
+      });
+      return { error };
+    }
+    setCustomerContacts((prev) => prev.filter((c) => c.id !== id));
+    return { error: null };
+  }, []);
+
   return {
     dogs,
     bookings,
     olderBookings,
     trustedHumans,
+    customerContacts,
     loading,
     retrying,
     loadError,
@@ -285,5 +343,7 @@ export function useCustomerDashboardData(
     saveContactDetails,
     updateDog,
     addDog,
+    saveTrustedContact,
+    removeTrustedContact,
   };
 }

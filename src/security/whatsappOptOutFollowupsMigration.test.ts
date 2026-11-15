@@ -76,9 +76,22 @@ describe("WhatsApp opt-out follow-ups migration (20261016120000)", () => {
     expect(removeOnce(removeOnce(after, MERGE_AT_BRANCH), MERGE_REASON_BRANCH)).toBe(before);
   });
 
-  it("is the last migration defining merge_humans and humans_guard_whatsapp_reenable", () => {
-    expect(lastDefiner("merge_humans")).toBe(NEW_FILE);
+  it("is the last migration defining humans_guard_whatsapp_reenable", () => {
     expect(lastDefiner("humans_guard_whatsapp_reenable")).toBe(NEW_FILE);
+  });
+
+  it("keeps both STOP-label branches in whichever migration defines merge_humans last", () => {
+    // Later migrations may re-issue merge_humans for their own audited
+    // addition (20261115120100 moves customer-added trusted contacts); none
+    // may drop the branches that keep a STOP label across a merge.
+    const last = lastDefiner("merge_humans");
+    expect(last).toBeDefined();
+    const merge = extractFunction(
+      read(last as string),
+      "create or replace function public.merge_humans(p_winner uuid, p_loser uuid)",
+    );
+    expect(merge).toContain(MERGE_AT_BRANCH);
+    expect(merge).toContain(MERGE_REASON_BRANCH);
   });
 
   it("re-issues humans_guard_whatsapp_reenable with only the link refusal added", () => {

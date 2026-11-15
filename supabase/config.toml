@@ -46,10 +46,6 @@ enabled = true
 port = 54324
 [storage]
 enabled = true
-[storage.buckets.dog-photos]
-public = false
-file_size_limit = "5MiB"
-allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 [auth]
 enabled = true
 site_url = "https://smarterdoggrooming.co.uk"
