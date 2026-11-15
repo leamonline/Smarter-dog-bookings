@@ -1,5 +1,5 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const bucket = { upload: vi.fn(), remove: vi.fn(), createSignedUrl: vi.fn() };
@@ -17,10 +17,20 @@ vi.mock("../customerClient", () => ({
 vi.mock("../rpc", () => ({ setCustomerDogPhoto: mocks.setCustomerDogPhoto }));
 vi.mock("../../lib/dogPhoto", () => ({ prepareDogPhoto: mocks.prepareDogPhoto }));
 
-import { useCustomerDogPhoto } from "./useCustomerDogPhoto";
+import { useCustomerDogPhoto, useDogPhotoUrl } from "./useCustomerDogPhoto";
 
 const DOG = "26300000-0000-4000-8000-000000000001";
 const FILE = new File(["x"], "tipi.jpg", { type: "image/jpeg" });
+// The exact shape set_customer_dog_photo accepts (20261115120000). Anything
+// else is uploaded, refused by the database and deleted again.
+const SERVER_PATH = new RegExp(
+  `^${DOG}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|webp)$`,
+);
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   mocks.bucket.upload.mockReset().mockResolvedValue({ data: {}, error: null });
@@ -35,7 +45,7 @@ describe("useCustomerDogPhoto", () => {
     const { result } = renderHook(() => useCustomerDogPhoto());
     const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
     expect(error).toBeNull();
-    expect(photoPath).toMatch(new RegExp(`^${DOG}/[0-9a-f-]{36}\\.jpg$`));
+    expect(photoPath).toMatch(SERVER_PATH);
     expect(mocks.from).toHaveBeenCalledWith("dog-photos");
     const [path, blob, options] = mocks.bucket.upload.mock.calls[0];
     expect(path).toBe(photoPath);
@@ -43,6 +53,23 @@ describe("useCustomerDogPhoto", () => {
     expect(options).toMatchObject({ contentType: "image/jpeg", upsert: false });
     expect(mocks.setCustomerDogPhoto).toHaveBeenCalledWith(expect.anything(), { dogId: DOG, photoPath });
     expect(mocks.bucket.remove).not.toHaveBeenCalled();
+  });
+
+  // iOS before 15.4 and other older browsers have no crypto.randomUUID.
+  it("names the upload in the shape the database accepts when crypto.randomUUID is missing", async () => {
+    const real = globalThis.crypto;
+    vi.stubGlobal("crypto", { getRandomValues: (bytes) => real.getRandomValues(bytes) });
+    const { result } = renderHook(() => useCustomerDogPhoto());
+    const { photoPath } = await result.current.uploadDogPhoto(DOG, FILE);
+    expect(photoPath).toMatch(SERVER_PATH);
+    expect(mocks.bucket.upload.mock.calls[0][0]).toMatch(SERVER_PATH);
+  });
+
+  it("names the upload in the shape the database accepts with no Web Crypto at all", async () => {
+    vi.stubGlobal("crypto", undefined);
+    const { result } = renderHook(() => useCustomerDogPhoto());
+    const { photoPath } = await result.current.uploadDogPhoto(DOG, FILE);
+    expect(photoPath).toMatch(SERVER_PATH);
   });
 
   it("deletes the previous photo once the dog points at the new one", async () => {
@@ -104,5 +131,46 @@ describe("useCustomerDogPhoto", () => {
     expect(error).toBeNull();
     expect(mocks.setCustomerDogPhoto).toHaveBeenCalledWith(expect.anything(), { dogId: DOG, photoPath: null });
     expect(mocks.bucket.remove).toHaveBeenCalledWith([`${DOG}/old.jpg`]);
+  });
+});
+
+describe("useDogPhotoUrl", () => {
+  const signed = (signedUrl) => ({ data: { signedUrl }, error: null });
+
+  beforeEach(() => {
+    mocks.bucket.createSignedUrl.mockReset();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-15T09:00:00Z"));
+  });
+
+  it("reuses a signed URL that still has plenty of life left", async () => {
+    const path = `${DOG}/fresh.jpg`;
+    mocks.bucket.createSignedUrl.mockResolvedValueOnce(signed("https://signed.example/one"));
+    const first = renderHook(() => useDogPhotoUrl(path));
+    await waitFor(() => expect(first.result.current).toBe("https://signed.example/one"));
+    first.unmount();
+
+    vi.setSystemTime(new Date("2026-11-15T09:30:00Z"));
+    const second = renderHook(() => useDogPhotoUrl(path));
+    expect(second.result.current).toBe("https://signed.example/one");
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(1);
+  });
+
+  // The portal stays open for hours as a home-screen app; a cached URL that
+  // has expired would show an empty avatar instead of the dog's initial.
+  it("signs again once the cached URL is about to expire", async () => {
+    const path = `${DOG}/stale.jpg`;
+    mocks.bucket.createSignedUrl
+      .mockResolvedValueOnce(signed("https://signed.example/old"))
+      .mockResolvedValueOnce(signed("https://signed.example/new"));
+    const first = renderHook(() => useDogPhotoUrl(path));
+    await waitFor(() => expect(first.result.current).toBe("https://signed.example/old"));
+    first.unmount();
+
+    vi.setSystemTime(new Date("2026-11-15T09:58:00Z"));
+    const second = renderHook(() => useDogPhotoUrl(path));
+    expect(second.result.current).toBeNull();
+    await waitFor(() => expect(second.result.current).toBe("https://signed.example/new"));
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
   });
 });

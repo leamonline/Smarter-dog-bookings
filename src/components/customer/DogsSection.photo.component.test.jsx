@@ -67,6 +67,14 @@ describe("DogsSection photos", () => {
     expect(button.querySelector("img")).toHaveAttribute("src", "https://signed.example/dog-1/current.jpg");
   });
 
+  it("falls back to the dog's initial when the photo will not load", () => {
+    renderDogs({ ...DOG, photoPath: "dog-1/current.jpg" });
+    const button = screen.getByRole("button", { name: "Change Tipi's photo" });
+    fireEvent.error(button.querySelector("img"));
+    expect(button.querySelector("img")).toBeNull();
+    expect(button).toHaveTextContent("T");
+  });
+
   it("removes a photo from the dog's Edit form", async () => {
     mocks.removeDogPhoto.mockResolvedValue({ photoPath: null, error: null });
     const { onDogUpdated } = renderDogs({ ...DOG, photoPath: "dog-1/current.jpg" });
