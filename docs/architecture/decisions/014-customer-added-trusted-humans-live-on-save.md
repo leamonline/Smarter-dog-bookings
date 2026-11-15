@@ -26,7 +26,7 @@ The acceptance step is dropped. The customer is asked, in the form, to tell the 
 
 ## Consequences
 
-- A customer can add someone who does not know they have been added. The salon holds that person's name and phone number on the customer's say-so. The privacy notice should say that the salon keeps contacts customers provide for drop-off and collection, and how to ask for removal. That wording is an owner/legal task outside this repository.
+- A customer can add someone who does not know they have been added. The salon holds that person's name and phone number on the customer's say-so. The privacy notice says so: the website's privacy policy (`website/src/components/pages/PrivacyPolicyPage.jsx`, updated November 2026) lists what is kept and for how long, asks customers to tell the person, and has a section addressed to someone a customer has added, covering what is held, that they receive no messages, and how to have their details removed.
 - These contacts receive no messages. Nothing reads them for notifications, and portal bookings still do not set `notify_human_ids`. Changing either is a separate decision.
 - Staff keep their existing route for linking an existing customer as a trusted human. The two lists sit side by side and are not merged.
 - Rollback: the migration is expand-only. Hiding the portal form (UI) or revoking the three functions removes the capability without touching stored rows.
