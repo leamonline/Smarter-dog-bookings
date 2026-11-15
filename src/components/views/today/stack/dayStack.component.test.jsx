@@ -321,6 +321,37 @@ describe("highlighting an attention reason", () => {
     expect(head(first).getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("scrolls to the dog again when the same dog is requested again", () => {
+    // Highlight a late dog, scroll away, press the segment off and on: the dog
+    // is already in front, so no state changes, but the new request must still
+    // bring it back into view. jsdom gives <main> no height, so every card
+    // counts as off screen and each honoured request scrolls.
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => { cb(0); return 1; });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const scrollTo = vi.fn();
+    const original = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo;
+    try {
+      const rows = buildDayStack({ bookings: BOOKINGS, dateStr: TODAY, now: NOW, breedById: {} });
+      const target = rows.at(-1).id;
+      const props = {
+        rows,
+        resolve: (b) => ({ dogName: b.dogName, breed: "", owner: "", ownerPhone: "", dogMissing: false, ownerMissing: false }),
+        getWelfare: () => ({ alerts: [], pregnant: false, notes: "" }),
+        paymentOf: () => ({ kind: "due", amountDue: 42, subtotal: 42 }),
+        lastVisitFor: () => null,
+      };
+      const { rerender } = render(<main><DayStack {...props} focusRequest={{ id: target, key: 1 }} /></main>);
+      const afterFirst = scrollTo.mock.calls.length;
+      expect(afterFirst).toBeGreaterThan(0);
+      rerender(<main><DayStack {...props} focusRequest={{ id: target, key: 2 }} /></main>);
+      expect(scrollTo.mock.calls.length).toBe(afterFirst + 1);
+    } finally {
+      HTMLElement.prototype.scrollTo = original;
+      vi.restoreAllMocks();
+    }
+  });
+
   it("ignores a request for a dog that is not on the day", () => {
     renderStack({ focusRequest: { id: "not-here", key: 1 } });
     const first = document.querySelector("[data-stack-card]").dataset.bookingId;
