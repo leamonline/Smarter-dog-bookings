@@ -82,8 +82,11 @@ One card per dog, in appointment order. No grouping, and no re-sorting by status
 
 **Collapsed**, a card carries the time in tabular figures, the dog's name, its
 breed and service, the status **as a word**, the safety note if there is one, and
-one timing line. **Expanded**, it adds owner, phone, last visit, price, notes and
-that dog's actions. One card is open at a time: the cards are tinted by status
+one timing line. The timing line sits **under the dog's name, in the heading
+row**: the overlap only ever exposes a card's top 96px (heading and safety row),
+and in the metadata line below it was covered by the next card, so a dog 1 hr 50
+min late read only as "Expected" until someone opened it. **Expanded**, it adds
+owner, phone, last visit, price, notes and that dog's actions. One card is open at a time: the cards are tinted by status
 and an open one is tall, so two at once pushes the day off screen.
 
 **Overlapping appointment cards (#891).** The first appointment is initially
@@ -277,8 +280,11 @@ carries its own state in its accessible name. Beneath: the attention sentence,
 then the quieter day totals — salon open/closed, the online status, the shape of
 the day (`3 arriving · 6 with us · 2 ready` — phrased in the zone vocabulary
 `salonBoard.ts` still owns, because the counts are the same selectors), and money
-kept secondary (`£286 collected · £152 to collect`), with an over-cap day in
-coral. Deliberately not a KPI row.
+kept secondary (`£286 taken`, or `All paid`), with an over-cap day in coral.
+Deliberately not a KPI row. The header's figure is every Paid-in-Full booking,
+including dogs that paid ahead and are still here, so it says **taken**, like the
+end-of-day line's "Taken £286"; "Collected today" further down is a different
+number, the dogs that have gone home, and is the only thing called collected.
 
 "Salon closed" is neutral ink, not red: closed is the salon's normal state four
 days a week, not a fault. On a closed day the online status is not repeated,
@@ -326,15 +332,19 @@ is exactly the existing `needsAction` union — the segments name reasons, they 
 not invent a second definition. The `£` segment carries the **due-now** amount
 (dogs from Ready onward, where taking it unblocks the door); the whole-day
 total lives in the end-of-day facts, and the header's money says only what is
-in the till — one financial voice per surface. Selecting a segment also scrolls
-to its first dog **only if that dog is off screen**; that press is the one
-place the viewport is allowed to move.
+in the till — one financial voice per surface. Selecting a segment also
+**brings its first dog forward in the stack**, as a tap on that card would but
+with the drawer still closed (`DayStack`'s `focusRequest`), so the named dog is
+not left half-covered; it scrolls to that dog **only if it is off screen**, and
+that press is the one place the viewport is allowed to move.
 
 ### Everything neither redesign replaced
 
 `AwaitingDepositsCard`, `MissingSizeNotice`, `TodayBriefNotes`, the
 Manage-availability modal (still `buildSlotOpportunities` → `buildAvailabilityView`,
-which **never** forks the capacity engine), `MiniInvoiceModal`, the care-step `ConfirmDialog` and the
+which **never** forks the capacity engine; on a closed day it drops the online
+toggles and says customers can't book, because `validate_booking_calendar`
+refuses every customer booking on a closed date, while staff keep **Book in**), `MiniInvoiceModal`, the care-step `ConfirmDialog` and the
 end-of-day facts row (arrived, till by method, expected revenue, capacity) all
 carry over unchanged. Writes go through **one** path — `useBookingActions` →
 the same `onUpdateBooking` the booking detail modal uses — so the three

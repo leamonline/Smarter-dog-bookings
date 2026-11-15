@@ -14,7 +14,8 @@
 //                         "review before handling" prompt when they cannot all fit.
 //   • the balance       — bold tabular figures and the word "due".
 //   • urgency           — weight on the left rule AND the wording of the timing
-//                         line. Never a new hue.
+//                         line, which sits under the dog's name so the stack's
+//                         overlap never hides it. Never a new hue.
 //   • an undeliverable WhatsApp message shares the safety row, because the
 //     header's height is fixed and a new row would move every card below it.
 //     Safety wins the width: beside a safety note it shrinks to an icon.
@@ -92,12 +93,16 @@ export function DayCard({
   const ruleWidth = readyOverdue ? RULE_OVERDUE : urgent ? RULE_URGENT : RULE_CALM;
   const drawerId = `stack-drawer-${id}`;
 
-  // Keep the visible time, name, status and balance together so speech
-  // controls can match the heading. Append the extra spoken context.
-  // The separate safety button also names every warning for direct navigation.
+  // Speak the heading's visible words first and in the order they appear —
+  // time, name, timing, status, balance — so a voice-control user who says
+  // what they see matches the button (WCAG 2.5.3, label in name). Append the
+  // extra spoken context after. The separate safety button also names every
+  // warning for direct navigation.
   const spoken = [
     time || "--:--",
     dogName,
+    timing,
+    onTheWay ? "On the way" : null,
     tone.label,
     balance?.kind === "due"
       ? `${balance.text} due`
@@ -107,9 +112,7 @@ export function DayCard({
           ? "Payment not known"
           : null,
     subtitle,
-    timing,
     spokenTime && spokenTime !== time ? `Appointment time ${spokenTime}` : null,
-    onTheWay ? "Owner on the way" : null,
     ownerName ? `owner ${ownerName}` : null,
     safetyFacts.length ? `Safety note: ${safetyFacts.join(". ")}` : null,
     undelivered ? undelivered.chip : null,
@@ -163,7 +166,27 @@ export function DayCard({
             {time || "--:--"}
           </span>{" "}
 
-          <span className="wallet-name block truncate text-[17px] font-medium">{dogName}</span>{" "}
+          {/* The timing sits under the name, inside the 48px heading row, because
+              the stack's overlap only ever exposes the top 96px of a card: the
+              heading and the safety row. In the metadata line below it was
+              covered by the next card, so a dog 1 hr 50 min late read only as
+              "Expected" until someone opened it. */}
+          <span className="wallet-name flex min-w-0 flex-col justify-center">
+            <span className="block truncate text-[17px] font-medium leading-tight">{dogName}</span>
+            {/* A real space, so the button's text reads "Max 30 min late",
+                not "Max30 min late" — the label-in-name check compares text. */}
+            {timing || onTheWay ? " " : null}
+            {timing || onTheWay ? (
+              <span
+                data-stack-timing
+                className={`flex min-w-0 flex-wrap items-center gap-x-3 text-xs leading-[1.3] ${urgent ? "font-bold" : ""}`}
+                style={{ color: "var(--card-meta)" }}
+              >
+                {timing && <span>{readyOverdue && <Clock size={12} aria-hidden="true" className="mr-1 inline" />}{timing}</span>}
+                {onTheWay && <span><Car size={12} aria-hidden="true" className="mr-1 inline" />On the way</span>}
+              </span>
+            ) : null}
+          </span>{" "}
           <span className="wallet-status text-right text-xs leading-[1.3]">
             <BookingStatusBadge
               status={status}
@@ -182,10 +205,6 @@ export function DayCard({
         </button>
         <span className="wallet-metadata text-xs" style={{ color: "var(--card-meta)" }}>
           <span className="block truncate">{subtitle}</span>
-          <span className={`flex flex-wrap items-center gap-x-3 ${urgent ? "font-bold" : ""}`}>
-            {timing && <span>{readyOverdue && <Clock size={12} aria-hidden="true" className="mr-1 inline" />}{timing}</span>}
-            {onTheWay && <span><Car size={12} aria-hidden="true" className="mr-1 inline" />On the way</span>}
-          </span>
         </span>
         <div className="wallet-safety flex items-center gap-2">
           {safetyFacts.length > 0 && (

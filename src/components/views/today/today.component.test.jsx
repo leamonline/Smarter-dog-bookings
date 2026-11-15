@@ -166,6 +166,51 @@ describe("the day stack page — selected-date operations", () => {
     expect(screen.getByRole("heading", { name: "Manage availability" })).toBeInTheDocument();
   });
 
+  it("brings the first dog an attention segment names forward, without opening it", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-16T10:00:00+01:00"));
+    const arrived = {
+      ...selectedBooking,
+      id: "b-arrived",
+      dogName: "Bella",
+      slot: "08:30",
+      status: "Arrived",
+      checkedInAt: "2026-07-16T07:35:00Z",
+    };
+    const late = { ...selectedBooking, id: "b-late", dogName: "Max", slot: "09:00" };
+    renderToday({
+      bookingsByDate: { "2026-07-16": [arrived, late] },
+      dayOpenState: { "2026-07-16": true },
+    });
+
+    // The earliest dog is in front by default; the late one is half-covered.
+    expect(card("b-arrived")).toHaveAttribute("data-focused", "true");
+    expect(card("b-late")).toHaveAttribute("data-focused", "false");
+    // Its timing is in the heading row, the part of a card the stack never covers.
+    expect(card("b-late").querySelector(".wallet-heading [data-stack-timing]")).toHaveTextContent("late");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Highlight 1 late/ }));
+    expect(card("b-late")).toHaveAttribute("data-focused", "true");
+    expect(head("b-late")).toHaveAttribute("aria-expanded", "false");
+    expect(card("b-arrived")).toHaveAttribute("data-focused", "false");
+  });
+
+  it("keeps Manage availability from offering online slots on a closed day", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-16T07:00:00+01:00"));
+    renderToday({ bookingsByDate: { "2026-07-16": [] } });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Manage availability/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("note")).toHaveTextContent(
+      "The salon is closed today, so customers can't book online.",
+    );
+    expect(within(dialog).queryByRole("button", { name: /online|offline/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Online slots let customers book themselves", { exact: false })).not.toBeInTheDocument();
+    // Staff can still book a dog in; the gates bypass for staff.
+    expect(within(dialog).getAllByRole("button", { name: "Book in" }).length).toBeGreaterThan(0);
+  });
+
   it("does not offer Manage availability on an open past date", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-20T08:00:00+01:00"));
@@ -603,7 +648,7 @@ describe("the day stack page — selected-date operations", () => {
     expect(card("b-calm").className).toMatch(/opacity-50/);
     expect(card("b-action").className).toMatch(/opacity-100/);
     expect(
-      screen.getByText(/Highlighting 1 dogs waiting to be collected — every other dog is dimmed, not hidden/),
+      screen.getByText(/Highlighting 1 dog waiting to be collected — every other dog is dimmed, not hidden/),
     ).toHaveAttribute("role", "status");
 
     fireEvent.click(active);
@@ -791,9 +836,11 @@ describe("TodayHeader", () => {
     expect(status).toHaveTextContent("2 ready");
     // One financial voice here: the till. Due-now lives in the strip; the day
     // total lives in the end-of-day facts.
-    expect(status).toHaveTextContent("£286 collected");
+    expect(status).toHaveTextContent("£286 taken");
     const totals = within(status).getByRole("group", { name: "Day totals" });
-    expect(totals).toHaveTextContent("£286 collected");
+    expect(totals).toHaveTextContent("£286 taken");
+    // "collected" is reserved for the dogs that have gone home, further down.
+    expect(status).not.toHaveTextContent("collected");
     expect(totals).toHaveTextContent("3 arriving");
     expect(totals).not.toHaveTextContent("1 late");
     expect(within(status).getByRole("group", { name: "Needs attention" })).toBeInTheDocument();
@@ -1085,6 +1132,25 @@ describe("AvailabilityModal", () => {
     render(<AvailabilityModal onClose={onClose} view={view} dogsBooked={11} onToggleImmediate={noop} />);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("names a closed browsed date without calling it today, and keeps Book in", () => {
+    render(
+      <AvailabilityModal
+        onClose={noop}
+        view={view}
+        dogsBooked={0}
+        onToggleImmediate={noop}
+        onNewBooking={noop}
+        isDayOpen={false}
+        isToday={false}
+      />,
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("The salon is closed on this day");
+    expect(screen.queryByText("Online")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Next online slot/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Book in" })).toHaveLength(3);
   });
 
   it("handles an empty day", () => {
