@@ -228,7 +228,7 @@ export function DogsSection({ dogs, lastGroomByDog = {}, humanId, dataLoaded = t
   const isEmpty = dogs.length === 0;
 
   return (
-    <div className="portal-card portal-card--coral" style={cardAnim(0.1)}>
+    <div className="portal-card" style={cardAnim(0.1)}>
       <div className="portal-card-header">
         <span className="portal-card-iconbadge portal-card-iconbadge--coral">
           <PawPrint size={18} aria-hidden="true" />

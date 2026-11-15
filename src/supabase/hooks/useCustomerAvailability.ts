@@ -92,11 +92,17 @@ export async function loadPageAvailability(rangeStart: string, rangeEnd: string)
   ] as const);
 }
 
+/** This owner's preferred/blocked slots (null = none, or the read failed). */
+export async function loadBookingRules(humanId: string) {
+  return getBookingRules(requireClient(), humanId);
+}
+
 const availability = {
   /** False in sample-data mode or before credentials exist; the loaders throw. */
   get connected(): boolean {
     return Boolean(customerSupabase);
   },
+  loadBookingRules,
   loadDayAvailability,
   loadImmediateSlots,
   loadPageAvailability,

@@ -6,7 +6,7 @@ import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { DepositHoldInstructions } from "./DepositHoldInstructions";
-import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
+import { ArrowRight, CalendarClock, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
 import { groupUpcomingBookings } from "./groupUpcomingBookings";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 import { Input, Select } from "../ui/index.js";
@@ -14,8 +14,60 @@ import { Input, Select } from "../ui/index.js";
 /**
  * Upcoming appointments, grouped by the existing customer command boundary.
  * Each card owns its action state and keeps the authoritative booking ID.
- * An empty list retains the existing booking prompt.
+ * An empty list retains the existing booking prompt, with the next free slot
+ * (when one is known) beside it.
  */
+
+function longDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/**
+ * `nextSlot` is the useNextAvailableSlot state. Only "loading", "found" and
+ * "none" have anything to say — an idle or failed preview shows nothing rather
+ * than a guess, and the card stays single-column.
+ */
+function showsNextSlot(nextSlot) {
+  return ["loading", "found", "none"].includes(nextSlot?.status);
+}
+
+/** The right-hand side of the empty booking card. */
+function NextSlotPanel({ nextSlot, dogName }) {
+  return (
+    <section className="portal-booking-card-side" aria-label="Next free slot" aria-busy={nextSlot.status === "loading" || undefined}>
+      <span className="portal-card-iconbadge portal-card-iconbadge--sky">
+        <CalendarClock size={18} aria-hidden="true" />
+      </span>
+      <div className="portal-next-slot">
+        <p className="portal-text-kicker">Next free slot{dogName ? ` for ${dogName}` : ""}</p>
+        {nextSlot.status === "loading" && (
+          <p className="portal-next-slot-help">Checking the diary…</p>
+        )}
+        {nextSlot.status === "found" && (
+          <>
+            <p className="portal-next-slot-date">{longDate(nextSlot.slot.date)}</p>
+            <p className="portal-next-slot-time">{formatSlot(nextSlot.slot.dropOffTime)} drop-off</p>
+            <p className="portal-next-slot-help">
+              Choose it, or any other date, when you book.
+            </p>
+          </>
+        )}
+        {nextSlot.status === "none" && (
+          <>
+            <p className="portal-next-slot-date">Nothing free in the next four weeks</p>
+            <p className="portal-next-slot-help">
+              Tap Book a groom to look further ahead or join the waitlist.
+            </p>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function friendlyCancellationError(error) {
   if (error?.code === "SDC01") {
@@ -47,7 +99,7 @@ export function BookingCard(props) {
   ));
 }
 
-function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext }) {
+function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext, nextSlot, nextSlotDogName }) {
   const navigate = useNavigate();
   const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
@@ -84,26 +136,30 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
   // ----- Empty state -----
   if (!next) {
     const friendlyName = dogs[0]?.name || "your pup";
+    const hasPanel = showsNextSlot(nextSlot);
     return (
-      <div className="portal-booking-card portal-booking-card--empty portal-section--full">
-        <h2 className="portal-booking-card-title">
-          Ready to book {friendlyName} in?
-        </h2>
-        <p className="portal-booking-card-body">
-          Pick a date that suits you.
-        </p>
-        <div className="portal-booking-card-actions portal-booking-card-actions--single">
-          <button className="portal-btn portal-btn--cta" onClick={onBook}>
-            <PawPrint size={18} aria-hidden="true" />
-            Book a groom
-            <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
-          </button>
-          {onBookAgain && (
-            <button className="portal-btn portal-btn--secondary" onClick={onBookAgain}>
-              Book the same groom again
+      <div className={`portal-booking-card portal-booking-card--empty portal-section--full${hasPanel ? " portal-booking-card--split" : ""}`}>
+        <div className="portal-booking-card-main">
+          <h2 className="portal-booking-card-title">
+            Ready to book {friendlyName} in?
+          </h2>
+          <p className="portal-booking-card-body">
+            Pick a date that suits you.
+          </p>
+          <div className="portal-booking-card-actions portal-booking-card-actions--single">
+            <button className="portal-btn portal-btn--cta" onClick={onBook}>
+              <PawPrint size={18} aria-hidden="true" />
+              Book a groom
+              <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
             </button>
-          )}
+            {onBookAgain && (
+              <button className="portal-btn portal-btn--secondary" onClick={onBookAgain}>
+                Book the same groom again
+              </button>
+            )}
+          </div>
         </div>
+        {hasPanel && <NextSlotPanel nextSlot={nextSlot} dogName={nextSlotDogName} />}
       </div>
     );
   }
@@ -179,7 +235,8 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
 
   return (
     <>
-      <div role="region" aria-label={`Appointment for ${dogName} on ${dateStr} at ${timeStr}`} className="portal-booking-card portal-booking-card--booked portal-section--full">
+      <div role="region" aria-label={`Appointment for ${dogName} on ${dateStr} at ${timeStr}`} className={`portal-booking-card portal-booking-card--booked portal-section--full${cancelling ? "" : " portal-booking-card--split portal-booking-card--split-actions"}`}>
+        <div className="portal-booking-card-main">
         <div className="flex items-center gap-2">
           <span className="portal-card-iconbadge portal-card-iconbadge--mint">
             <Scissors size={18} aria-hidden="true" />
@@ -219,10 +276,11 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             />
           </div>
         ))}
+        </div>
 
         {!cancelling && (
           <div
-            className={`portal-booking-card-actions ${
+            className={`portal-booking-card-actions portal-booking-card-actions--stack ${
               requiresStaffApproval
                 ? "portal-booking-card-actions--request"
                 : ""

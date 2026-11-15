@@ -1,10 +1,14 @@
 import { cardAnim } from "./dashboardConstants.js";
-import { User, Plus, Pencil, X } from "lucide-react";
+import { User, Pencil, X } from "lucide-react";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 import { AddressPicker } from "./onboarding/AddressPicker.jsx";
 import { Input } from "../ui/index.js";
 
-function DetailRow({ label, value, editing, editor, addPrompt, onAdd, stackWhenEditing = false }) {
+// One edit pattern across the portal: a small "Edit" button at the top right
+// of the thing it edits (this card's header, each dog's row). An empty value
+// reads "Not added" — the card's Edit button is how it gets added, so there is
+// no second, row-level control to learn.
+function DetailRow({ label, value, editing, editor, stackWhenEditing = false }) {
   const stacked = editing && stackWhenEditing;
   return (
     <div className={`portal-detail-row${stacked ? " portal-detail-row--stacked" : ""}`}>
@@ -14,12 +18,7 @@ function DetailRow({ label, value, editing, editor, addPrompt, onAdd, stackWhenE
       ) : value ? (
         <span className="portal-detail-value">{value}</span>
       ) : (
-        <span className="portal-detail-value">
-          <button type="button" className="portal-ghost-add" onClick={onAdd}>
-            <Plus size={12} aria-hidden="true" />
-            {addPrompt}
-          </button>
-        </span>
+        <span className="portal-detail-value portal-detail-value--empty">Not added</span>
       )}
     </div>
   );
@@ -43,12 +42,23 @@ export function MyDetailsCard({
   const startEdit = () => setEditing(true);
 
   return (
-    <div className={`portal-card portal-card--sky${editing ? " portal-card--static" : ""}`} style={cardAnim(0.05)}>
+    <div className={`portal-card${editing ? " portal-card--static" : ""}`} style={cardAnim(0.05)}>
       <div className="portal-card-header">
         <span className="portal-card-iconbadge portal-card-iconbadge--sky">
           <User size={18} aria-hidden="true" />
         </span>
         <h2 className="portal-card-title">My details</h2>
+        {!editing && (
+          <button
+            type="button"
+            className="portal-btn portal-btn--ghost portal-btn--small"
+            onClick={startEdit}
+            aria-label="Edit details"
+          >
+            <Pencil size={12} aria-hidden="true" />
+            Edit
+          </button>
+        )}
       </div>
 
       <div className="flex-1">
@@ -188,17 +198,8 @@ export function MyDetailsCard({
         </div>
       )}
 
-      <div className="portal-card-bottom-action">
-        {!editing ? (
-          <button
-            type="button"
-            className="portal-btn portal-btn--secondary w-full"
-            onClick={startEdit}
-          >
-            <Pencil size={14} aria-hidden="true" />
-            Edit details
-          </button>
-        ) : (
+      {editing && (
+        <div className="portal-card-bottom-action">
           <div className="flex gap-2">
             <button
               type="button"
@@ -217,8 +218,8 @@ export function MyDetailsCard({
               Cancel
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
