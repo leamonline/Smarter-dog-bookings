@@ -8,6 +8,21 @@
 These flows describe observable product behaviour. They do not authorise policy
 activation, production writes or customer contact.
 
+## Staff calendar subscription
+
+Staff can subscribe to the appointment feed from Settings. Each event is titled
+`Dog | Breed | Service - Owner`; missing breed or owner details are omitted
+without leaving empty separators. The event includes the salon name, address
+and map coordinates, a link to [smarterdog.co.uk](https://smarterdog.co.uk), and
+the owner's name in its notes. Existing event identifiers, appointment times,
+cancellations and the requested 15-minute refresh interval are preserved, so
+existing subscriptions pick up the presentation on their next refresh after
+the Edge Function update is deployed.
+
+Calendar apps control the final layout, calendar colour and travel alerts.
+Customer subscriptions and individual customer downloads keep their existing
+presentation and do not include staff-only owner details.
+
 ## `FLOW-01` — staff reschedules an appointment
 
 ### Current

@@ -107,18 +107,18 @@ export async function handleCalendarFeed(req: Request): Promise<Response> {
       bookings = data ?? [];
     }
 
-    // 4. Batch-fetch dog names and human names for all bookings
+    // 4. Batch-fetch dog details and human names for all bookings
     const dogIds = [...new Set(bookings.map((b) => b.dog_id))];
 
     const { data: dogs } = await supabase
       .from("dogs")
-      .select("id, name, human_id")
+      .select("id, name, breed, human_id")
       .in("id", dogIds.length > 0 ? dogIds : ["__none__"]);
 
-    const dogMap = new Map<string, { name: string; humanId: string }>();
+    const dogMap = new Map<string, { name: string; breed: string | null; humanId: string }>();
     const humanIds = new Set<string>();
     for (const d of dogs ?? []) {
-      dogMap.set(d.id, { name: d.name, humanId: d.human_id });
+      dogMap.set(d.id, { name: d.name, breed: d.breed, humanId: d.human_id });
       if (d.human_id) humanIds.add(d.human_id);
     }
 
@@ -150,7 +150,9 @@ export async function handleCalendarFeed(req: Request): Promise<Response> {
         bookingDate: b.booking_date,
         slot: b.slot,
         dogName: dogInfo.name,
+        dogBreed: tokenInfo.feedType === "staff" ? dogInfo.breed : undefined,
         humanName,
+        feedType: tokenInfo.feedType,
         service: b.service,
         status: b.status,
         pickupOffsetMins: pickupOffset,

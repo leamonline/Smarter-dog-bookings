@@ -1,6 +1,10 @@
 // _shared/ics-generator.ts — RFC 5545 ICS generation for calendar sync
 // Used by calendar-ics (single-event download) and calendar-feed (subscribable feed)
 
+import { SALON_LOCATION } from "./salonConstants.ts";
+
+const SALON_WEBSITE_URL = "https://smarterdog.co.uk";
+
 /** Service ID → human-readable label mapping */
 const SERVICE_LABELS: Record<string, string> = {
   "full-groom": "Full Groom",
@@ -70,7 +74,9 @@ export interface VEventInput {
   bookingDate: string;  // YYYY-MM-DD
   slot: string;         // HH:MM
   dogName: string;
+  dogBreed?: string | null;
   humanName?: string;   // included in staff feed
+  feedType?: "customer" | "staff"; // defaults to customer presentation
   service: string;      // service ID like "full-groom"
   status: string;       // booking status
   pickupOffsetMins: number;
@@ -90,19 +96,21 @@ function mapStatus(appStatus: string): string {
  */
 export function generateVEvent(input: VEventInput, tzid: string): string {
   const {
-    bookingId, bookingDate, slot, dogName, humanName,
-    service, status, pickupOffsetMins, updatedAt,
+    bookingId, bookingDate, slot, dogName, dogBreed, humanName,
+    service, status, pickupOffsetMins, updatedAt, feedType,
   } = input;
 
   const serviceLabel = SERVICE_LABELS[service] || service;
   const endSlot = addMinutesToSlot(slot, pickupOffsetMins);
-  const summary = humanName
-    ? `${escapeIcsText(dogName)} (${escapeIcsText(humanName)}) - ${serviceLabel}`
-    : `Dog Grooming - ${escapeIcsText(dogName)} (${serviceLabel})`;
+  const isStaffFeed = feedType === "staff";
+  const staffTitle = [dogName, dogBreed?.trim(), serviceLabel].filter(Boolean).join(" | ");
+  const summary = isStaffFeed
+    ? `${staffTitle}${humanName ? ` - ${humanName}` : ""}`
+    : `Dog Grooming - ${dogName} (${serviceLabel})`;
 
-  const description = humanName
-    ? `${serviceLabel} for ${escapeIcsText(dogName)}. Owner: ${escapeIcsText(humanName)}. Drop off at ${slot}.`
-    : `${serviceLabel} for ${escapeIcsText(dogName)} at Smarter Dog Grooming. Drop off at ${slot}.`;
+  const description = isStaffFeed
+    ? [humanName ? `Owner: ${humanName}` : undefined, SALON_WEBSITE_URL].filter(Boolean).join("\n")
+    : `${serviceLabel} for ${dogName} at Smarter Dog Grooming. Drop off at ${slot}.`;
 
   const now = formatIcsUtcTimestamp();
   const lastMod = updatedAt ? formatIcsUtcTimestamp(updatedAt) : now;
@@ -113,8 +121,13 @@ export function generateVEvent(input: VEventInput, tzid: string): string {
     foldLine(`DTSTAMP:${now}`),
     foldLine(`DTSTART;${formatIcsDateTime(bookingDate, slot, tzid)}`),
     foldLine(`DTEND;${formatIcsDateTime(bookingDate, endSlot, tzid)}`),
-    foldLine(`SUMMARY:${summary}`),
-    foldLine(`DESCRIPTION:${description}`),
+    foldLine(`SUMMARY:${escapeIcsText(summary)}`),
+    foldLine(`DESCRIPTION:${escapeIcsText(description)}`),
+    ...(isStaffFeed ? [
+      foldLine(`LOCATION:${escapeIcsText(`${SALON_LOCATION.name}\n${SALON_LOCATION.address}, England`)}`),
+      `GEO:${SALON_LOCATION.latitude};${SALON_LOCATION.longitude}`,
+      `URL:${SALON_WEBSITE_URL}`,
+    ] : []),
     `STATUS:${mapStatus(status)}`,
     foldLine(`LAST-MODIFIED:${lastMod}`),
     "END:VEVENT",
