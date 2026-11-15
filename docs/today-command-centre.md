@@ -342,9 +342,10 @@ that press is the one place the viewport is allowed to move.
 
 `AwaitingDepositsCard`, `MissingSizeNotice`, `TodayBriefNotes`, the
 Manage-availability modal (still `buildSlotOpportunities` → `buildAvailabilityView`,
-which **never** forks the capacity engine; on a closed day it drops the online
-toggles and says customers can't book, because `validate_booking_calendar`
-refuses every customer booking on a closed date, while staff keep **Book in**), `MiniInvoiceModal`, the care-step `ConfirmDialog` and the
+which **never** forks the capacity engine; on a closed day it lists no slots
+and says the day can't be booked until it is reopened from the Bookings
+calendar, because `validate_booking_calendar` refuses every customer booking on
+a closed date and `NewBookingModal` refuses a closed date for staff too), `MiniInvoiceModal`, the care-step `ConfirmDialog` and the
 end-of-day facts row (arrived, till by method, expected revenue, capacity) all
 carry over unchanged. Writes go through **one** path — `useBookingActions` →
 the same `onUpdateBooking` the booking detail modal uses — so the three

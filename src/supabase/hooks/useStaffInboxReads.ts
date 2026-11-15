@@ -8,6 +8,7 @@ import { listRecentPastForOwner, listSeatsOnDate, listUpcomingForOwner } from ".
 import { listCustomerContextDogs } from "../repositories/dogsRepo";
 import { getCustomerContextProfile, listTrustedContactsWithNames } from "../repositories/humansRepo";
 import { searchMessageConversationIds } from "../repositories/whatsappRepo";
+import { listCustomerAddedContacts } from "../repositories/trustedContactsRepo";
 
 type Client = NonNullable<typeof supabase>;
 
@@ -28,6 +29,9 @@ export function loadCustomerContext(
     listRecentPastForOwner(client, { humanId, before }, signal),
     listTrustedContactsWithNames(client, humanId, signal),
     listUpcomingForOwner(client, { humanId, from: before }, signal),
+    // Trusted humans the customer added in the portal (20261115120100). Staff
+    // check collection against these too, so the panel shows them.
+    listCustomerAddedContacts(client, humanId, signal),
   ] as const);
 }
 

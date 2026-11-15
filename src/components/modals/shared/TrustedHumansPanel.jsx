@@ -8,6 +8,8 @@ import { validateContactPhone } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { logger } from "../../../lib/logger";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
+import { Button } from "../../ui/index.js";
+import { useCustomerAddedContacts } from "../../../supabase/hooks/useCustomerAddedContacts";
 
 const EMPTY_TRUSTED_CONTACTS = [];
 
@@ -98,8 +100,15 @@ export function TrustedHumansPanel({
   const [newPhone, setNewPhone] = useState("");
   const [newRelationship, setNewRelationship] = useState("");
   const [trustedToRemove, setTrustedToRemove] = useState(null);
+  const [customerAddedToRemove, setCustomerAddedToRemove] = useState(null);
 
   const myId = human?.id || null;
+  const {
+    contacts: customerAdded,
+    status: customerAddedStatus,
+    retry: retryCustomerAdded,
+    remove: removeCustomerAdded,
+  } = useCustomerAddedContacts(myId);
   const contacts = human?.trustedContacts || EMPTY_TRUSTED_CONTACTS;
   const canManage = Boolean(myId && onUpdateHuman);
 
@@ -244,6 +253,22 @@ export function TrustedHumansPanel({
   };
 
   const hasTrusted = contacts.length > 0;
+  const hasCustomerAdded = customerAdded.length > 0;
+  // "No trusted humans" is a claim staff act on at collection, so it waits for
+  // the customer-added list to have loaded; until then only the staff-linked
+  // list is known.
+  const customerAddedKnown = customerAddedStatus === "loaded";
+
+  const confirmRemoveCustomerAdded = async () => {
+    const target = customerAddedToRemove;
+    setCustomerAddedToRemove(null);
+    if (!target) return;
+    const removed = await removeCustomerAdded(target.id);
+    toast.show(
+      removed ? "Trusted human removed" : "Couldn't remove trusted human — please try again.",
+      removed ? "success" : "error",
+    );
+  };
 
   return (
     <>
@@ -253,6 +278,50 @@ export function TrustedHumansPanel({
         accent="sky"
         className={className}
       >
+        {/* People the customer added in the portal: trusted as soon as they
+            were saved, never matched to a customer record. Staff can see and
+            remove them; the customer edits them from the portal. */}
+        {human && customerAddedStatus === "error" && (
+          <div role="alert" className="text-xs text-slate-600 mb-2 flex items-center flex-wrap gap-1.5">
+            <span>Couldn&apos;t load the trusted humans this customer added.</span>
+            <Button variant="link" size="sm" onClick={retryCustomerAdded}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {human && hasCustomerAdded && (
+          <div className="divide-y divide-slate-100 mb-1" aria-label="Added by the customer">
+            {customerAdded.map((person) => {
+              const label = titleCase(`${person.name} ${person.surname || ""}`.trim());
+              return (
+                <div key={person.id} className="py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-brand-ink flex-1 min-w-0 truncate">
+                      {label}
+                    </span>
+                    <span className="text-micro font-bold uppercase tracking-wide text-slate-500 bg-slate-100 rounded-full px-2 py-0.5 shrink-0">
+                      Added by customer
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerAddedToRemove(person)}
+                      aria-label={`Remove ${label} as trusted human`}
+                      title="Remove"
+                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-300 hover:text-brand-coral hover:bg-brand-coral-light/60 transition-colors"
+                    >
+                      <X size={12} strokeWidth={2.4} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {[person.relationship, person.phone].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {!human ? (
           <div className="text-sm text-slate-400 italic">
             {missingHumanMessage}
@@ -321,7 +390,9 @@ export function TrustedHumansPanel({
           </>
         ) : (
           <div className="text-sm text-slate-500 flex items-center flex-wrap gap-1.5">
-            <span className="text-slate-400 italic">No trusted humans</span>
+            <span className="text-slate-400 italic">
+              {hasCustomerAdded || !customerAddedKnown ? "None added by staff" : "No trusted humans"}
+            </span>
             {canManage && (
               <span aria-hidden="true" className="text-slate-300">·</span>
             )}
@@ -463,6 +534,16 @@ export function TrustedHumansPanel({
           variant="danger"
           onConfirm={confirmRemoveTrusted}
           onCancel={() => setTrustedToRemove(null)}
+        />
+      )}
+      {customerAddedToRemove && (
+        <ConfirmDialog
+          title="Remove trusted human?"
+          message="The customer added this person in the portal. They won't be trusted to drop off or collect any more, and the customer will see they've gone."
+          confirmLabel="Remove"
+          variant="danger"
+          onConfirm={confirmRemoveCustomerAdded}
+          onCancel={() => setCustomerAddedToRemove(null)}
         />
       )}
     </>

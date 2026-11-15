@@ -195,20 +195,21 @@ describe("the day stack page — selected-date operations", () => {
     expect(card("b-arrived")).toHaveAttribute("data-focused", "false");
   });
 
-  it("keeps Manage availability from offering online slots on a closed day", () => {
+  it("makes Manage availability say a closed day can't be booked, and offer nothing that would fail", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-16T07:00:00+01:00"));
     renderToday({ bookingsByDate: { "2026-07-16": [] } });
 
     fireEvent.click(screen.getByRole("button", { name: /^Manage availability/ }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByRole("note")).toHaveTextContent(
-      "The salon is closed today, so customers can't book online.",
-    );
+    const note = within(dialog).getByRole("note");
+    expect(note).toHaveTextContent("The salon is closed today, so it can't be booked.");
+    expect(note).toHaveTextContent("reopen the day from the Bookings calendar first");
+    // Put online would change nothing for customers (calendar_closed), and
+    // Book in would end at NewBookingModal's "We're closed that day".
     expect(within(dialog).queryByRole("button", { name: /online|offline/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Book in" })).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Online slots let customers book themselves", { exact: false })).not.toBeInTheDocument();
-    // Staff can still book a dog in; the gates bypass for staff.
-    expect(within(dialog).getAllByRole("button", { name: "Book in" }).length).toBeGreaterThan(0);
   });
 
   it("does not offer Manage availability on an open past date", () => {
@@ -1134,7 +1135,7 @@ describe("AvailabilityModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("names a closed browsed date without calling it today, and keeps Book in", () => {
+  it("names a closed browsed date without calling it today, and lists no slots to act on", () => {
     render(
       <AvailabilityModal
         onClose={noop}
@@ -1146,11 +1147,12 @@ describe("AvailabilityModal", () => {
         isToday={false}
       />,
     );
-    expect(screen.getByRole("note")).toHaveTextContent("The salon is closed on this day");
+    expect(screen.getByRole("note")).toHaveTextContent("The salon is closed on this day, so it can't be booked.");
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(screen.queryByText("Online")).not.toBeInTheDocument();
-    expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
     expect(screen.queryByText(/Next online slot/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Book in" })).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "Book in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /online|offline/i })).not.toBeInTheDocument();
   });
 
   it("handles an empty day", () => {
