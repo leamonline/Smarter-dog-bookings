@@ -270,12 +270,46 @@ history of its deleted directory, not here.
 
 One anatomy at every width. The date **is** the date-picker control and never
 leaves the screen — it is the only guard against doing today's work on
-Thursday's bookings. Beside it the salon open/closed pill and the
-Manage-availability button carrying its own state. Beneath: the attention
-sentence, the shape of the day (`3 arriving · 6 with us · 2 ready` — phrased in
-the zone vocabulary `salonBoard.ts` still owns, because the counts are the same
-selectors), and money kept secondary (`£286 collected · £152 to collect`), with
-an over-cap day in coral. Deliberately not a KPI row.
+Thursday's bookings. **Previous day** and **Next day** arrows sit either side of
+it and step one calendar day; while any other date is showing, **Back to today**
+appears on the attention line. Beside the date, the Manage-availability button
+carries its own state in its accessible name. Beneath: the attention sentence,
+then the quieter day totals — salon open/closed, the online status, the shape of
+the day (`3 arriving · 6 with us · 2 ready` — phrased in the zone vocabulary
+`salonBoard.ts` still owns, because the counts are the same selectors), and money
+kept secondary (`£286 collected · £152 to collect`), with an over-cap day in
+coral. Deliberately not a KPI row.
+
+"Salon closed" is neutral ink, not red: closed is the salon's normal state four
+days a week, not a fault. On a closed day the online status is not repeated,
+because `validate_booking_calendar` refuses every customer booking on a closed
+date (`calendar_closed`) before it looks at same-day slots, so "Online booking
+closed" always follows. For the same reason closed beats a flagged slot: the
+header never says "Next online 10:00" on a closed day. The button's name keeps
+"Online booking closed" for screen readers. An empty day drops "Everything's on
+track" — there is nothing on it to be on track — and lets the empty state speak.
+
+### The empty day
+
+`TodayEmptyState` gives a day with no bookings a job instead of "No bookings on
+this date":
+
+- **Closed day:** the next open day, what is booked on it (`6 dogs booked ·
+  first at 09:00`) and **Go to Monday**. The lookup is `useNextOpenDayBrief`,
+  which reads `day_settings` and `bookings` itself because `useBookings` holds
+  only the current week, and on a Saturday the next open day is always in the
+  next one. A failed read says it could not check — never "Nothing booked" —
+  and sample mode names the day without asserting its diary.
+- **Open today with free slots:** a real **Manage availability** button, by the
+  name of the dialog it opens. Not on other dates or once today's slots have
+  passed, because the dialog sets same-day online slots.
+- **Every empty day:** **Needs you** links unread messages (`/inbox`) and new
+  customers awaiting approval (`/humans`) — the two counts already badged in the
+  navigation — and the Later notes open by default.
+
+The Later disclosure itself names what it holds (`Later · 3 unpaid grooms · 4
+dogs due back`) instead of "2 things worth reviewing", and stays closed on a
+working day.
 
 ### Needs attention
 

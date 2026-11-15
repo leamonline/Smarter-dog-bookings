@@ -24,21 +24,32 @@ afterEach(() => {
 });
 
 describe("TodayBriefNotes", () => {
-  it("reports the correct count on Later and reveals both notes once opened", () => {
-    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
+  it("names what is inside Later, stays closed by default, and reveals both notes once opened", () => {
+    const { container } = render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
 
     expect(screen.getByText("Later")).toBeInTheDocument();
-    expect(screen.getByText("2 things worth reviewing")).toBeInTheDocument();
+    // Says what the notes are, not "2 things worth reviewing".
+    expect(screen.getByText("2 unpaid grooms · 3 dogs due back")).toBeInTheDocument();
+    expect(container.querySelector("details")).not.toHaveAttribute("open");
 
     fireEvent.click(screen.getByText("Later"));
     expect(screen.getByText(/2 grooms in the last fortnight/)).toBeInTheDocument();
     expect(screen.getByText(/3 dogs are due back with no booking/)).toBeInTheDocument();
   });
 
-  it("uses singular copy for one note", () => {
-    retentionState.available = false;
+  it("uses singular copy for one of each", () => {
+    unpaidState.count = 1;
+    retentionState.overdueCount = 1;
     render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
-    expect(screen.getByText("1 thing worth reviewing")).toBeInTheDocument();
+    expect(screen.getByText("1 unpaid groom · 1 dog due back")).toBeInTheDocument();
+  });
+
+  it("opens by default when asked — the empty day's only remaining work", () => {
+    const { container } = render(
+      <TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} defaultOpen />,
+    );
+    expect(container.querySelector("details")).toHaveAttribute("open");
+    expect(screen.getByText(/2 grooms in the last fortnight/)).toBeVisible();
   });
 
   it("renders nothing when neither source is available (offline)", () => {
@@ -51,7 +62,7 @@ describe("TodayBriefNotes", () => {
   it("hides a zero-count note rather than saying zero", () => {
     unpaidState.count = 0;
     render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} />);
-    expect(screen.getByText("1 thing worth reviewing")).toBeInTheDocument();
+    expect(screen.getByText("3 dogs due back")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Later"));
     expect(screen.queryByText(/fortnight/)).not.toBeInTheDocument();
   });
