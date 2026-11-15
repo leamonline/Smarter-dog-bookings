@@ -41,6 +41,7 @@ describe("ICS text escaping", () => {
         slot: "09:00",
         dogName: "Bella\rSUMMARY:Injected",
         humanName: "Lee\nDESCRIPTION:Injected",
+        feedType: "staff",
         service: "full-groom",
         status: "Booked",
         pickupOffsetMins: 120,

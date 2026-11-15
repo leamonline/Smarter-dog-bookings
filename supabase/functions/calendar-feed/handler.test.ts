@@ -14,8 +14,8 @@
 //     outage degrading this endpoint to an open feed is the failure mode these
 //     assertions exist to rule out.
 //
-// The positive path (valid token → ICS) requires a real token row and is
-// deliberately out of scope here: the static verdict-flow guard proves the
+// The positive path (valid token → ICS) uses synthetic REST responses in
+// content.test.ts. The static verdict-flow guard proves the
 // validator's verdict gates the response, and the data-exposure audit
 // (docs/research/2026-08-18-edge-function-data-exposure-audit.md) covers what
 // each feed type may contain.
