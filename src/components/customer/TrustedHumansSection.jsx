@@ -15,7 +15,7 @@ function avatarTintFor(id) {
 export function TrustedHumansSection({ trustedHumans, status = "loaded", onRetry }) {
   return (
     <div
-      className="portal-card portal-card--buttercup"
+      className="portal-card"
       style={cardAnim(0.15)}
       aria-busy={status === "loading" || undefined}
     >

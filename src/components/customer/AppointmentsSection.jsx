@@ -42,7 +42,7 @@ export function AppointmentsSection({
   const showEmptyCopy = isEmpty && dataLoaded;
 
   return (
-    <div className="portal-card portal-card--lavender">
+    <div className="portal-card">
       <button
         type="button"
         className="flex justify-between items-center w-full bg-transparent border-none cursor-pointer p-0"

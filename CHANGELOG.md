@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — customer dashboard: next free slot, white cards, one edit pattern
+
+- With nothing booked, the booking card shows the next free slot for the customer's dog beside "Book a groom" (the next 28 days, from the same reads and capacity rules as the wizard; nothing is shown if a read fails). Once a groom is booked, its Calendar, Reschedule and Cancel actions sit in a right-hand column from tablet width.
+- Dashboard cards are white; colour stays on each card's icon square, leaving yellow for actions.
+- One slogan, "Smarter grooming for a Smarter Dog.", under the greeting and in the footer (the footer said "Smarter grooming, Smarter Dog.").
+- One edit pattern: a small Edit button at the top right of what it edits. My details moves its full-width "Edit details" button to the card header, and an empty email reads "Not added" instead of carrying its own "+ Add email" button.
+
 ## Unreleased — Undo on a Confirm puts the booking back to Booked
 
 - On Today, confirming a Booked appointment that is still to come moves it on to Reconfirmed. Since staff saves started writing only the fields they name (#1192), pressing Undo cleared the confirmation but left the booking Reconfirmed. Undo now puts it back to Booked when that Confirm was what moved it on.
