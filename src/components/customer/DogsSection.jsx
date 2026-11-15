@@ -92,7 +92,9 @@ function DogAvatar({ dog, tint, onPhotoChanged, onError }) {
       onError?.(friendlyDogPhotoError(uploadError));
       return;
     }
-    onPhotoChanged?.({ ...dog, photoPath });
+    // Only the field this action changed: the dog captured when the upload
+    // began may be older than an edit saved while it was in flight.
+    onPhotoChanged?.({ id: dog.id, photoPath });
     toast.show(`${name}'s photo saved`, "success");
   };
 
@@ -157,7 +159,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
       setError("We couldn't remove the photo. Please try again.");
       return;
     }
-    onSaved?.({ ...dog, photoPath: null });
+    onSaved?.({ id: dog.id, photoPath: null });
     toast.show(`${titleCase(dog.name) || "Your dog"}'s photo removed`, "success");
   }, [dog, onSaved, removeDogPhoto, toast]);
   const [form, setForm] = useState({

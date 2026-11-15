@@ -25,12 +25,15 @@ interface Row {
 export async function listCustomerAddedContacts(
   client: SupabaseClient,
   ownerHumanId: string,
+  signal?: AbortSignal,
 ): Promise<{ contacts: CustomerAddedContact[]; error: Error | null }> {
-  const { data, error } = await client
+  let query = client
     .from("customer_trusted_contacts")
     .select("id, name, surname, phone, relationship, created_at")
     .eq("owner_human_id", ownerHumanId)
     .order("created_at");
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
   if (error) return { contacts: [], error: new Error(error.message) };
   return {
     contacts: ((data ?? []) as Row[]).map((row) => ({

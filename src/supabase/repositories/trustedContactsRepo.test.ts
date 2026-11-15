@@ -5,7 +5,7 @@ import { listCustomerAddedContacts, removeCustomerAddedContact } from "./trusted
 // A chainable PostgREST stand-in that records each call and resolves to `result`.
 function fakeClient(result: { data: unknown; error: { message: string } | null }) {
   const q: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order", "delete"]) q[m] = vi.fn(() => q);
+  for (const m of ["select", "eq", "order", "delete", "abortSignal"]) q[m] = vi.fn(() => q);
   q.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
   const from = vi.fn(() => q);
@@ -26,6 +26,13 @@ describe("listCustomerAddedContacts", () => {
     expect(contacts).toEqual([
       { id: "cc-1", name: "Gran", surname: null, phone: "+447700900124", relationship: "Mum", addedAt: "2026-11-15T01:00:00Z" },
     ]);
+  });
+
+  it("passes a caller's abort signal through", async () => {
+    const { client, q } = fakeClient({ data: [], error: null });
+    const controller = new AbortController();
+    await listCustomerAddedContacts(client, "owner-1", controller.signal);
+    expect(q.abortSignal).toHaveBeenCalledWith(controller.signal);
   });
 
   it("returns the error and no contacts when the read fails", async () => {

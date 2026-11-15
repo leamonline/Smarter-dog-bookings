@@ -48,7 +48,8 @@ describe("DogsSection photos", () => {
     expect(document.querySelector('input[type="file"]')).toHaveAttribute("accept", "image/*");
 
     choosePhoto();
-    await waitFor(() => expect(onDogUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: "dog-1", photoPath: "dog-1/new.jpg" })));
+    // Only the changed field: a stale copy of the dog must never be merged back.
+    await waitFor(() => expect(onDogUpdated).toHaveBeenCalledWith({ id: "dog-1", photoPath: "dog-1/new.jpg" }));
     expect(mocks.uploadDogPhoto).toHaveBeenCalledWith("dog-1", expect.any(File));
   });
 
@@ -80,7 +81,7 @@ describe("DogsSection photos", () => {
     const { onDogUpdated } = renderDogs({ ...DOG, photoPath: "dog-1/current.jpg" });
     fireEvent.click(screen.getByRole("button", { name: "Edit Tipi" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
-    await waitFor(() => expect(onDogUpdated).toHaveBeenCalledWith(expect.objectContaining({ photoPath: null })));
+    await waitFor(() => expect(onDogUpdated).toHaveBeenCalledWith({ id: "dog-1", photoPath: null }));
     expect(mocks.removeDogPhoto).toHaveBeenCalledWith("dog-1");
   });
 

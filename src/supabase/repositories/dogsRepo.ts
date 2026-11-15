@@ -155,6 +155,25 @@ export async function listForHuman(
   };
 }
 
+/**
+ * The dog's current photo path, read back to settle a photo save whose
+ * outcome is unknown (the request may have committed before its reply was
+ * lost). Customers can read their own dogs, so RLS scopes this.
+ */
+export async function getDogPhotoPath(
+  client: SupabaseClient,
+  dogId: string,
+): Promise<{ photoPath: string | null; error: Error | null }> {
+  const { data, error } = await client
+    .from("dogs")
+    .select("photo_path")
+    .eq("id", dogId)
+    .maybeSingle();
+  if (error) return { photoPath: null, error: new Error(error.message) };
+  if (!data) return { photoPath: null, error: new Error("Dog not found") };
+  return { photoPath: (data as { photo_path?: string | null }).photo_path ?? null, error: null };
+}
+
 /** The dog columns the inbox customer-context panel reads; raw PostgREST result. */
 export function listCustomerContextDogs(client: SupabaseClient, humanId: string, signal?: AbortSignal) {
   const q = client

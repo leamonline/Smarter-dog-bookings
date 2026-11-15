@@ -8,6 +8,7 @@ import { validateContactPhone } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { logger } from "../../../lib/logger";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
+import { Button } from "../../ui/index.js";
 import { useCustomerAddedContacts } from "../../../supabase/hooks/useCustomerAddedContacts";
 
 const EMPTY_TRUSTED_CONTACTS = [];
@@ -102,7 +103,12 @@ export function TrustedHumansPanel({
   const [customerAddedToRemove, setCustomerAddedToRemove] = useState(null);
 
   const myId = human?.id || null;
-  const { contacts: customerAdded, remove: removeCustomerAdded } = useCustomerAddedContacts(myId);
+  const {
+    contacts: customerAdded,
+    status: customerAddedStatus,
+    retry: retryCustomerAdded,
+    remove: removeCustomerAdded,
+  } = useCustomerAddedContacts(myId);
   const contacts = human?.trustedContacts || EMPTY_TRUSTED_CONTACTS;
   const canManage = Boolean(myId && onUpdateHuman);
 
@@ -248,6 +254,10 @@ export function TrustedHumansPanel({
 
   const hasTrusted = contacts.length > 0;
   const hasCustomerAdded = customerAdded.length > 0;
+  // "No trusted humans" is a claim staff act on at collection, so it waits for
+  // the customer-added list to have loaded; until then only the staff-linked
+  // list is known.
+  const customerAddedKnown = customerAddedStatus === "loaded";
 
   const confirmRemoveCustomerAdded = async () => {
     const target = customerAddedToRemove;
@@ -271,6 +281,15 @@ export function TrustedHumansPanel({
         {/* People the customer added in the portal: trusted as soon as they
             were saved, never matched to a customer record. Staff can see and
             remove them; the customer edits them from the portal. */}
+        {human && customerAddedStatus === "error" && (
+          <div role="alert" className="text-xs text-slate-600 mb-2 flex items-center flex-wrap gap-1.5">
+            <span>Couldn&apos;t load the trusted humans this customer added.</span>
+            <Button variant="link" size="sm" onClick={retryCustomerAdded}>
+              Try again
+            </Button>
+          </div>
+        )}
+
         {human && hasCustomerAdded && (
           <div className="divide-y divide-slate-100 mb-1" aria-label="Added by the customer">
             {customerAdded.map((person) => {
@@ -372,7 +391,7 @@ export function TrustedHumansPanel({
         ) : (
           <div className="text-sm text-slate-500 flex items-center flex-wrap gap-1.5">
             <span className="text-slate-400 italic">
-              {hasCustomerAdded ? "None added by staff" : "No trusted humans"}
+              {hasCustomerAdded || !customerAddedKnown ? "None added by staff" : "No trusted humans"}
             </span>
             {canManage && (
               <span aria-hidden="true" className="text-slate-300">·</span>

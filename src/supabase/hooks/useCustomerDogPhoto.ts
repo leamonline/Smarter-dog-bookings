@@ -7,11 +7,16 @@
 //   3. point the dog at it with set_customer_dog_photo, which checks the
 //      object exists in that dog's folder on the caller's own account;
 //   4. delete the previous object through the Storage API.
-// If step 3 fails the new upload is deleted again; if step 4 fails the photo
-// has still changed, so the leftover file is logged, not shown as an error.
+// If the database refuses step 3, the new upload is deleted again. If step 3's
+// outcome is unknown (a dropped connection can lose the reply to a committed
+// save), the dog's current photo is read back first: the upload is deleted
+// only when nothing points at it, and kept when that cannot be confirmed. If
+// step 4 fails the photo has still changed, so the leftover file is logged,
+// not shown as an error.
 import { useCallback, useEffect, useState } from "react";
 import { customerSupabase } from "../customerClient";
 import { setCustomerDogPhoto, type SetCustomerDogPhotoRow } from "../rpc";
+import { getDogPhotoPath } from "../repositories/dogsRepo";
 import { prepareDogPhoto } from "../../lib/dogPhoto";
 import { logger } from "../../lib/logger";
 
@@ -33,6 +38,17 @@ function cachedUrl(path: string | null | undefined): string | null {
 }
 
 export type DogPhotoResult = { photoPath: string | null; error: unknown };
+
+/**
+ * True when PostgREST relayed an answer from the database (an SQLSTATE or
+ * PGRST code), so the write is known not to have happened. A transport
+ * failure — a thrown fetch error, or supabase-js's code-less wrapper of one —
+ * leaves the outcome unknown.
+ */
+function isDatabaseRefusal(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && code.length > 0;
+}
 
 function previousPathFrom(data: unknown): string | null {
   const row = (Array.isArray(data) ? data[0] : data) as SetCustomerDogPhotoRow | null | undefined;
@@ -84,26 +100,55 @@ export function useCustomerDogPhoto() {
 
     const client = customerSupabase;
     const path = newObjectName(dogId);
-    let uploaded = false;
     try {
       const upload = await client.storage
         .from(DOG_PHOTOS_BUCKET)
         .upload(path, blob, { contentType: "image/jpeg", upsert: false, cacheControl: "3600" });
       if (upload.error) throw upload.error;
-      uploaded = true;
-
-      const { data, error } = await setCustomerDogPhoto(client, { dogId, photoPath: path });
-      if (error) throw error;
-      const previous = previousPathFrom(data);
-      if (previous && previous !== path) await deleteObject(previous, "replaced photo");
-      return { photoPath: path, error: null };
     } catch (error) {
-      logger.error(uploaded ? "Setting the dog photo failed" : "Dog photo upload failed", error, {
-        tags: { component: "useCustomerDogPhoto", op: uploaded ? "set_customer_dog_photo" : "upload" },
+      logger.error("Dog photo upload failed", error, {
+        tags: { component: "useCustomerDogPhoto", op: "upload" },
       });
-      if (uploaded) await deleteObject(path, "orphaned upload");
       return { photoPath: null, error };
     }
+
+    let setError: unknown;
+    try {
+      const { data, error } = await setCustomerDogPhoto(client, { dogId, photoPath: path });
+      if (!error) {
+        const previous = previousPathFrom(data);
+        if (previous && previous !== path) await deleteObject(previous, "replaced photo");
+        return { photoPath: path, error: null };
+      }
+      setError = error;
+    } catch (error) {
+      setError = error;
+    }
+    logger.error("Setting the dog photo failed", setError, {
+      tags: { component: "useCustomerDogPhoto", op: "set_customer_dog_photo" },
+    });
+
+    // A refusal the database actually sent means nothing points at the
+    // upload, so it can go. Anything else (a dropped connection, a lost
+    // reply) may have committed: read back what the dog points at before
+    // deleting, and keep the file when even that cannot be answered — a
+    // spare object is harmless, deleting the dog's saved photo is not.
+    if (isDatabaseRefusal(setError)) {
+      await deleteObject(path, "refused upload");
+      return { photoPath: null, error: setError };
+    }
+    const current = await getDogPhotoPath(client, dogId).catch((error: unknown) => ({
+      photoPath: null,
+      error: error instanceof Error ? error : new Error(String(error)),
+    }));
+    if (!current.error && current.photoPath === path) {
+      // It saved. The photo it replaced is now unreferenced, but its path
+      // was in the lost reply; it stays behind as a harmless leftover.
+      return { photoPath: path, error: null };
+    }
+    if (!current.error) await deleteObject(path, "unreferenced upload");
+    else logger.warn("Kept a dog photo upload whose save could not be confirmed", { extra: { error: current.error } });
+    return { photoPath: null, error: setError };
   }, []);
 
   const removeDogPhoto = useCallback(async (dogId: string): Promise<DogPhotoResult> => {

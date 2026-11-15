@@ -1,16 +1,23 @@
 // Staff see the trusted humans a customer added in the portal, marked as such,
 // on every surface that shows the shared panel (dog card, booking, customer).
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
 const mocks = vi.hoisted(() => ({
   contacts: [],
+  status: "loaded",
+  retry: vi.fn(),
   remove: vi.fn(),
 }));
 
 vi.mock("../../../supabase/hooks/useCustomerAddedContacts", () => ({
-  useCustomerAddedContacts: () => ({ contacts: mocks.contacts, remove: mocks.remove }),
+  useCustomerAddedContacts: () => ({
+    contacts: mocks.contacts,
+    status: mocks.status,
+    retry: mocks.retry,
+    remove: mocks.remove,
+  }),
 }));
 
 import { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
@@ -35,6 +42,11 @@ function renderPanel() {
 }
 
 describe("TrustedHumansPanel — customer-added contacts", () => {
+  beforeEach(() => {
+    mocks.status = "loaded";
+    mocks.retry.mockReset();
+  });
+
   it("shows each one with its relationship and phone, marked as added by the customer", () => {
     mocks.contacts = [{ id: "cc-1", name: "gran", surname: "smith", phone: "+447700900124", relationship: "Mum" }];
     renderPanel();
@@ -61,5 +73,26 @@ describe("TrustedHumansPanel — customer-added contacts", () => {
     renderPanel();
     expect(screen.queryByLabelText("Added by the customer")).not.toBeInTheDocument();
     expect(screen.getByText("No trusted humans")).toBeInTheDocument();
+  });
+
+  // Staff decide who may collect a dog from this panel: a failed or pending
+  // read must never be shown as "nobody is trusted".
+  it("says the customer-added list could not load, offers a retry, and claims nothing", () => {
+    mocks.contacts = [];
+    mocks.status = "error";
+    renderPanel();
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load the trusted humans this customer added.");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mocks.retry).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("No trusted humans")).not.toBeInTheDocument();
+    expect(screen.getByText("None added by staff")).toBeInTheDocument();
+  });
+
+  it("does not claim nobody is trusted while the customer-added list is loading", () => {
+    mocks.contacts = [];
+    mocks.status = "loading";
+    renderPanel();
+    expect(screen.queryByText("No trusted humans")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

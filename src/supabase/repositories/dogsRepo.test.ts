@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { createForHuman, listForHuman, requestSizeCheck, updateForCustomer } from "./dogsRepo";
+import { createForHuman, getDogPhotoPath, listForHuman, requestSizeCheck, updateForCustomer } from "./dogsRepo";
 import type { Database } from "../database.types";
 
 const DOG = "42000000-0000-4000-8000-000000000001";
@@ -83,6 +83,34 @@ describe("updateForCustomer", () => {
 
     expect(dog).toBeNull();
     expect(error?.message).toMatch(/returned no row/);
+  });
+});
+
+describe("getDogPhotoPath", () => {
+  function client(result: { data: unknown; error: { message: string } | null }) {
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "eq"]) q[m] = vi.fn(() => q);
+    q.maybeSingle = vi.fn(() => Promise.resolve(result));
+    return { client: { from: vi.fn(() => q) } as unknown as SupabaseClient, q };
+  }
+
+  it("reads back the dog's current photo path", async () => {
+    const { client: c, q } = client({ data: { photo_path: `${DOG}/a.jpg` }, error: null });
+    expect(await getDogPhotoPath(c, DOG)).toEqual({ photoPath: `${DOG}/a.jpg`, error: null });
+    expect(q.select).toHaveBeenCalledWith("photo_path");
+    expect(q.eq).toHaveBeenCalledWith("id", DOG);
+  });
+
+  it("answers null for a dog with no photo", async () => {
+    const { client: c } = client({ data: { photo_path: null }, error: null });
+    expect(await getDogPhotoPath(c, DOG)).toEqual({ photoPath: null, error: null });
+  });
+
+  it("reports an error, never a guess, when the read fails or finds no dog", async () => {
+    const failed = client({ data: null, error: { message: "network" } });
+    expect((await getDogPhotoPath(failed.client, DOG)).error?.message).toBe("network");
+    const missing = client({ data: null, error: null });
+    expect((await getDogPhotoPath(missing.client, DOG)).error?.message).toBe("Dog not found");
   });
 });
 

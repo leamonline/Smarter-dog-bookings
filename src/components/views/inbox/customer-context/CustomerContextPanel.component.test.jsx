@@ -133,4 +133,40 @@ describe("CustomerContextPanel", () => {
     expect(screen.queryByRole("button", { name: /Book appointment/i })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/Booking from Inbox is not available yet/i);
   });
+
+  // Staff check collection here too, so people the customer added in the
+  // portal must appear — marked, and never opening a customer profile.
+  it("lists customer-added trusted humans beside staff-linked ones, without linking them", () => {
+    const onOpenHuman = vi.fn();
+    render(
+      <CustomerContextPanel
+        context={matchedContext({
+          trustedContacts: [{ id: "h2", fullName: "David Miller", relationship: "Partner" }],
+          customerAddedContacts: [
+            { id: "cc-1", fullName: "Gran Smith", relationship: "Mum", addedByCustomer: true },
+          ],
+        })}
+        onOpenHuman={onOpenHuman}
+      />,
+    );
+    const linked = screen.getByRole("button", { name: "David Miller (Partner)" });
+    const added = screen.getByRole("button", { name: "Gran Smith (Mum) · added by customer" });
+    expect(added).toBeDisabled();
+    fireEvent.click(added);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+    fireEvent.click(linked);
+    expect(onOpenHuman).toHaveBeenCalledWith("h2");
+  });
+
+  it("shows the section when the only trusted humans are customer-added", () => {
+    render(
+      <CustomerContextPanel
+        context={matchedContext({
+          customerAddedContacts: [{ id: "cc-1", fullName: "Gran Smith", relationship: "", addedByCustomer: true }],
+        })}
+      />,
+    );
+    expect(screen.getByText("Trusted contacts")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gran Smith · added by customer" })).toBeInTheDocument();
+  });
 });

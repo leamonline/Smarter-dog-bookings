@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     from: vi.fn(() => bucket),
     setCustomerDogPhoto: vi.fn(),
     prepareDogPhoto: vi.fn(),
+    getDogPhotoPath: vi.fn(),
   };
 });
 
@@ -16,6 +17,7 @@ vi.mock("../customerClient", () => ({
 }));
 vi.mock("../rpc", () => ({ setCustomerDogPhoto: mocks.setCustomerDogPhoto }));
 vi.mock("../../lib/dogPhoto", () => ({ prepareDogPhoto: mocks.prepareDogPhoto }));
+vi.mock("../repositories/dogsRepo", () => ({ getDogPhotoPath: mocks.getDogPhotoPath }));
 
 import { useCustomerDogPhoto, useDogPhotoUrl } from "./useCustomerDogPhoto";
 
@@ -37,6 +39,7 @@ beforeEach(() => {
   mocks.bucket.remove.mockReset().mockResolvedValue({ data: [], error: null });
   mocks.setCustomerDogPhoto.mockReset().mockResolvedValue({ data: [{ previous_photo_path: null }], error: null });
   mocks.prepareDogPhoto.mockReset().mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
+  mocks.getDogPhotoPath.mockReset().mockResolvedValue({ photoPath: null, error: null });
   mocks.from.mockClear();
 });
 
@@ -80,11 +83,14 @@ describe("useCustomerDogPhoto", () => {
   });
 
   it("deletes its own upload again when the database refuses it", async () => {
-    mocks.setCustomerDogPhoto.mockResolvedValue({ data: null, error: { message: "photo_not_uploaded" } });
+    const refusal = { code: "22023", message: "photo_not_uploaded" };
+    mocks.setCustomerDogPhoto.mockResolvedValue({ data: null, error: refusal });
     const { result } = renderHook(() => useCustomerDogPhoto());
     const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
     expect(photoPath).toBeNull();
-    expect(error).toEqual({ message: "photo_not_uploaded" });
+    expect(error).toEqual(refusal);
+    // A refusal the database sent is certain: no read-back needed.
+    expect(mocks.getDogPhotoPath).not.toHaveBeenCalled();
     const uploaded = mocks.bucket.upload.mock.calls[0][0];
     expect(mocks.bucket.remove).toHaveBeenCalledWith([uploaded]);
   });
@@ -106,13 +112,52 @@ describe("useCustomerDogPhoto", () => {
     expect(mocks.setCustomerDogPhoto).not.toHaveBeenCalled();
   });
 
-  it("turns a thrown network error into a returned error, cleaning up its upload", async () => {
-    mocks.setCustomerDogPhoto.mockRejectedValue(new TypeError("Failed to fetch"));
-    const { result } = renderHook(() => useCustomerDogPhoto());
-    const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
-    expect(photoPath).toBeNull();
-    expect(error).toEqual(new TypeError("Failed to fetch"));
-    expect(mocks.bucket.remove).toHaveBeenCalledWith([mocks.bucket.upload.mock.calls[0][0]]);
+  // A dropped connection can lose the reply to a save that committed. The
+  // upload must not be deleted until the dog is known not to point at it.
+  describe("when the save's outcome is unknown", () => {
+    it("treats it as saved when the dog already points at the upload", async () => {
+      mocks.setCustomerDogPhoto.mockRejectedValue(new TypeError("Failed to fetch"));
+      mocks.getDogPhotoPath.mockImplementation(async () => ({
+        photoPath: mocks.bucket.upload.mock.calls[0][0],
+        error: null,
+      }));
+      const { result } = renderHook(() => useCustomerDogPhoto());
+      const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
+      expect(error).toBeNull();
+      expect(photoPath).toBe(mocks.bucket.upload.mock.calls[0][0]);
+      expect(mocks.getDogPhotoPath).toHaveBeenCalledWith(expect.anything(), DOG);
+      expect(mocks.bucket.remove).not.toHaveBeenCalled();
+    });
+
+    it("deletes the upload when the dog does not point at it", async () => {
+      // supabase-js reports a fetch failure as a code-less error object.
+      mocks.setCustomerDogPhoto.mockResolvedValue({ data: null, error: { message: "TypeError: Failed to fetch", code: "" } });
+      mocks.getDogPhotoPath.mockResolvedValue({ photoPath: `${DOG}/older.jpg`, error: null });
+      const { result } = renderHook(() => useCustomerDogPhoto());
+      const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
+      expect(photoPath).toBeNull();
+      expect(error).toEqual({ message: "TypeError: Failed to fetch", code: "" });
+      expect(mocks.bucket.remove).toHaveBeenCalledWith([mocks.bucket.upload.mock.calls[0][0]]);
+    });
+
+    it("keeps the upload when the read-back fails too", async () => {
+      mocks.setCustomerDogPhoto.mockRejectedValue(new TypeError("Failed to fetch"));
+      mocks.getDogPhotoPath.mockResolvedValue({ photoPath: null, error: new Error("offline") });
+      const { result } = renderHook(() => useCustomerDogPhoto());
+      const { photoPath, error } = await result.current.uploadDogPhoto(DOG, FILE);
+      expect(photoPath).toBeNull();
+      expect(error).toEqual(new TypeError("Failed to fetch"));
+      expect(mocks.bucket.remove).not.toHaveBeenCalled();
+    });
+
+    it("keeps the upload when the read-back throws", async () => {
+      mocks.setCustomerDogPhoto.mockRejectedValue(new TypeError("Failed to fetch"));
+      mocks.getDogPhotoPath.mockRejectedValue(new TypeError("Failed to fetch"));
+      const { result } = renderHook(() => useCustomerDogPhoto());
+      const { error } = await result.current.uploadDogPhoto(DOG, FILE);
+      expect(error).toEqual(new TypeError("Failed to fetch"));
+      expect(mocks.bucket.remove).not.toHaveBeenCalled();
+    });
   });
 
   it("returns an error rather than throwing when the upload itself throws", async () => {

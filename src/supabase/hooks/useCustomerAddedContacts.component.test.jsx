@@ -29,21 +29,41 @@ describe("useCustomerAddedContacts", () => {
     mocks.list.mockResolvedValue({ contacts: [GRAN], error: null });
     const { result } = renderHook(() => useCustomerAddedContacts("owner-1"));
     await waitFor(() => expect(result.current.contacts).toEqual([GRAN]));
+    expect(result.current.status).toBe("loaded");
     expect(mocks.list).toHaveBeenCalledWith({}, "owner-1");
   });
 
   it("logs a thrown read and stays empty instead of rejecting unhandled", async () => {
     mocks.list.mockImplementation(() => { throw new TypeError("order is not a function"); });
     const { result } = renderHook(() => useCustomerAddedContacts("owner-1"));
-    await waitFor(() => expect(mocks.error).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(mocks.error).toHaveBeenCalledTimes(1);
     expect(result.current.contacts).toEqual([]);
   });
 
   it("logs a returned read error and stays empty", async () => {
     mocks.list.mockResolvedValue({ contacts: [], error: new Error("permission denied") });
     const { result } = renderHook(() => useCustomerAddedContacts("owner-1"));
-    await waitFor(() => expect(mocks.error).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current.status).toBe("error"));
     expect(result.current.contacts).toEqual([]);
+  });
+
+  it("starts as loading and a retry after a failure loads the list", async () => {
+    mocks.list
+      .mockResolvedValueOnce({ contacts: [], error: new Error("network") })
+      .mockResolvedValueOnce({ contacts: [GRAN], error: null });
+    const { result } = renderHook(() => useCustomerAddedContacts("owner-1"));
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    act(() => { result.current.retry(); });
+    await waitFor(() => expect(result.current.status).toBe("loaded"));
+    expect(result.current.contacts).toEqual([GRAN]);
+  });
+
+  it("is honestly loaded and empty when there is no customer to look up", () => {
+    const { result } = renderHook(() => useCustomerAddedContacts(null));
+    expect(result.current.status).toBe("loaded");
+    expect(mocks.list).not.toHaveBeenCalled();
   });
 
   it("drops a contact only when a row was really removed", async () => {

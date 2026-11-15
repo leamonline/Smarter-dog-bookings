@@ -362,10 +362,14 @@ an optional surname, a phone number and an optional relationship, and the person
 is trusted as soon as they are saved ([ADR 014](../architecture/decisions/014-customer-added-trusted-humans-live-on-save.md)).
 The phone follows the staff form's rule: a UK mobile is stored as +447…, a
 broken mobile is refused, and other numbers need at least 10 digits. A customer
-can hold six, and edits or removes them through the row's Edit button. Nothing is
-looked up against existing customers and no customer record is created. Staff
-see these people, marked "Added by customer", wherever trusted humans appear,
-and can remove them. A staff merge keeps them on the surviving record.
+can hold six, and edits or removes them through the row's Edit button; the cap
+holds under concurrent additions (`scripts/verify-trusted-contacts-concurrency.py`).
+Nothing is looked up against existing customers and no customer record is
+created. Staff see these people, marked "Added by customer", on the dog card,
+booking detail and customer profile (where they can remove them) and in the
+Inbox customer panel (shown, not clickable). If that list cannot be read, staff
+see that it failed, with a retry, rather than "No trusted humans". A staff merge
+keeps them on the surviving record.
 
 Both features depend on migrations `20261115120000` and `20261115120100` being
 applied to production before the portal change merges.
