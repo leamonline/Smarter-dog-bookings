@@ -904,6 +904,35 @@ migration file names to `scripts/apply-hosted-migrations.sh`, which:
   comments only, or just that pair), a migration named by more than one
   ledger row, and symbolic links under `supabase/migrations/` are refused.
 
+GitHub-hosted runners have no IPv6 route, and the staging project is on the
+Free plan, so its direct database host is IPv6-only. The CLI reaches it only
+through the shared session pooler (IPv4, port 5432), and only when `supabase
+link` has saved that address in `supabase/.temp/pooler-url`. CLI 2.109.1 fetches
+the address from `GET /v1/projects/{ref}/config/database/pooler` and, on any
+failure, throws the error away: `link` still exits 0. The next command then
+reports `IPv6 is not supported on your current network`, which is the symptom.
+Runs
+[42846080538](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/42846080538),
+[42912560257](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/42912560257)
+and
+[43705701536](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/43705701536)
+failed that way. The last green staging run was
+[40292129065](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/40292129065)
+on 26 October 2026, with the same pinned CLI. Production uses the same CLI and
+the same `link` command; a project whose direct host answers on IPv4 does not
+depend on the saved pooler file.
+
+After `link`, the staging workflow runs
+[`scripts/ensure-linked-session-pooler.sh`](../scripts/ensure-linked-session-pooler.sh).
+It prints the pooler endpoint's HTTP status and the non-secret fields (host,
+port, pool mode, database user) and, when `link` saved nothing, writes a
+password-less session URL on port 5432. The short-lived login is unchanged. The
+script refuses any other port. A 403 means the staging access token is missing
+the `database:read` scope that endpoint requires (`database_pooling_config_read`);
+recreate the token with that scope. Do not add a database password secret. The
+dashboard Connect dialog showing a Session pooler is not, by itself, evidence
+that `link` saved the address.
+
 The optional `reapply` input names files to run again even though they are
 already in the ledger. Staging has received migrations out of repository
 order, so an older file that redefines a function a newer, already-applied
@@ -1124,6 +1153,11 @@ Read the first red line.
 - A wrong ref, a missing `main` branch rule, a missing token, a closed pull
   request, or a bad SHA stops the run before it connects. Fix the input or
   the one-time setup and run again. Nothing was written.
+- A staging run that stops on `IPv6 is not supported`, or on the pooler
+  step's own status line, has not applied SQL. Read `Pooler API status` in
+  that step. 403 means the staging token needs the `database:read` scope.
+  The dashboard Connect dialog is not the check. Do not add a database
+  password to fix it.
 - A failure in the middle means earlier files in that run are applied and
   recorded, the failing file is rolled back, and later files were not
   started. Run again with the same SHA and the same names. A file whose

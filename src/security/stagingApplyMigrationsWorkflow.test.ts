@@ -118,8 +118,15 @@ describe("staging apply-migrations workflow", () => {
       'scripts/apply-hosted-migrations.sh "$STAGING_PROJECT_REF" $MIGRATIONS',
     );
 
-    expect(stagingLink).toBeLessThan(migrationList);
+    const repair = positionOf(
+      'scripts/ensure-linked-session-pooler.sh "$STAGING_PROJECT_REF"',
+    );
+    expect(stagingLink).toBeLessThan(repair);
+    expect(repair).toBeLessThan(migrationList);
     expect(migrationList).toBeLessThan(apply);
+    expect(workflow).not.toContain(
+      "check that a Session pooler connection is offered",
+    );
     expect(workflow).toContain(
       `${targetAssertion}\n          supabase migration list --linked`,
     );

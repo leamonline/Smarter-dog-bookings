@@ -165,19 +165,20 @@ jobs:
           set -euo pipefail
           # Every linked command from here targets staging.
           supabase link --project-ref "$STAGING_PROJECT_REF"
-          # Diagnosis only; it never stops the run. A hosted runner has no
-          # IPv6 route and a project's direct database host is IPv6-only, so
-          # the CLI depends on the IPv4 pooler address that link saves. When
-          # that is missing, the next command fails with "IPv6 is not
-          # supported on your current network", which names the symptom and
-          # not the cause (runs 42846080538, 10 November 2026). Only file
-          # names and the pooler host are printed: no user, no password.
+          # CLI 2.109.1 asks the Management API for the pooler while linking
+          # and, on any failure, discards the error (it is logged only with
+          # --debug, which would also print keys). link still exits 0 and
+          # can leave pooler-url unwritten. The next linked command then
+          # dials the direct host. Staging is a Free project, so that host
+          # is IPv6-only, and a GitHub runner has no IPv6 route: the CLI
+          # reports "IPv6 is not supported on your current network" (runs
+          # 42846080538, 42912560257, 43705701536). The script calls the same
+          # pooler endpoint, prints only status, host, port, pool mode and
+          # database user, and writes a password-less session URL on port
+          # 5432 when link saved none. The short-lived login is unchanged.
           echo "Files link saved: $(ls -1 supabase/.temp | tr '\n' ' ')"
-          if [ -s supabase/.temp/pooler-url ]; then
-            echo "Pooler host saved by link: $(sed -E 's#^[a-z]+://([^@/]*@)?([^:/?]+).*$#\2#' supabase/.temp/pooler-url)"
-          else
-            echo "::warning::supabase link saved no pooler address for staging. If the next command reports that IPv6 is not supported, that is why: open the staging project in the Supabase dashboard, click Connect, and check that a Session pooler connection is offered."
-          fi
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          scripts/ensure-linked-session-pooler.sh "$STAGING_PROJECT_REF"
           test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
           supabase migration list --linked
 
