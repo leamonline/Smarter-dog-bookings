@@ -6,11 +6,12 @@
 // the app has no per-size online availability. All counts come from the same
 // rows they head, so they can never disagree.
 //
-// On a closed day the online controls go. validate_booking_calendar refuses
-// every customer booking on a closed date (calendar_closed) before it reads the
-// same-day flags, so "Put online" there changed a setting and nothing else,
-// under copy promising customers could book. Staff can still book in: the
-// gates bypass on is_staff().
+// On a closed day there is nothing here to act on, so the slot list goes and a
+// note says why. validate_booking_calendar refuses every customer booking on a
+// closed date (calendar_closed) before it reads the same-day flags, so "Put
+// online" changed a setting and nothing else; and staff cannot book it either,
+// because NewBookingModal refuses a closed date before it writes ("We're closed
+// that day"). Reopening the day is the only way forward for both.
 import { useId } from "react";
 import { X } from "lucide-react";
 import { HeaderIconButton } from "../../modals/shell/index.js";
@@ -32,7 +33,7 @@ function SizeChip({ label }) {
   );
 }
 
-function AvailabilityRow({ row, onToggleImmediate, onNewBooking, isDayOpen = true }) {
+function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
   const sizes = [
     row.sizes.small && "Small",
     row.sizes.medium && "Medium",
@@ -47,12 +48,12 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking, isDayOpen = tru
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-body font-semibold text-slate-700">{seatsLabel(row.seatsFree)}</span>
-          {!isDayOpen ? null : row.isOnline ? (
+          {row.isOnline ? (
             <Chip dot className="bg-brand-teal/15 text-brand-teal-text">Online</Chip>
           ) : (
             <Chip dot className="bg-slate-100 text-slate-600">Hidden</Chip>
           )}
-          {isDayOpen && pastCutoff && (
+          {pastCutoff && (
             <span className="text-xs text-slate-500">past today&apos;s cutoff</span>
           )}
         </div>
@@ -64,7 +65,7 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking, isDayOpen = tru
         </div>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        {!isDayOpen ? null : row.isOnline ? (
+        {row.isOnline ? (
           <SecondaryButton
             onClick={() => onToggleImmediate(row.slot)}
             aria-label={`Take ${row.slot} offline`}
@@ -127,60 +128,58 @@ export function AvailabilityModal({
       }
     >
       <div className="px-5 pb-5">
-        <div className="rounded-card bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
-          <p className="text-body text-slate-700">
-            <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
-            {" · "}
-            <span className="font-bold text-slate-800">{unbookedSlots}</span> unbooked {unbookedSlots === 1 ? "slot" : "slots"}
-            {isDayOpen ? (
-              <>
+        {isDayOpen ? (
+          <>
+            <div className="rounded-card bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
+              <p className="text-body text-slate-700">
+                <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
+                {" · "}
+                <span className="font-bold text-slate-800">{unbookedSlots}</span> unbooked {unbookedSlots === 1 ? "slot" : "slots"}
                 {" · "}
                 <span className="font-bold text-slate-800">{onlineCount}</span> online
-              </>
-            ) : null}
-          </p>
-          {isDayOpen ? (
-            <p className="text-body text-slate-600 mt-0.5">
-              Next online slot:{" "}
-              {nextOnlineSlot ? (
-                <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
-              ) : (
-                <span className="font-semibold text-slate-500">none open</span>
-              )}
+              </p>
+              <p className="text-body text-slate-600 mt-0.5">
+                Next online slot:{" "}
+                {nextOnlineSlot ? (
+                  <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
+                ) : (
+                  <span className="font-semibold text-slate-500">none open</span>
+                )}
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-500 mb-2.5">
+              Online slots let customers book themselves today, up to 30 minutes before the start. Hidden slots
+              stay yours to fill.
             </p>
-          ) : null}
-        </div>
 
-        {isDayOpen ? (
-          <p className="text-xs text-slate-500 mb-2.5">
-            Online slots let customers book themselves today, up to 30 minutes before the start. Hidden slots
-            stay yours to fill.
-          </p>
+            {rows.length === 0 ? (
+              <p className="rounded-card border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
+                No free slots left today.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {rows.map((row) => (
+                  <AvailabilityRow
+                    key={row.slot}
+                    row={row}
+                    onToggleImmediate={onToggleImmediate}
+                    onNewBooking={onNewBooking}
+                  />
+                ))}
+              </ul>
+            )}
+          </>
         ) : (
-          <p role="note" className="mb-2.5 rounded-card border border-slate-200 bg-white px-4 py-3 text-body text-slate-700">
-            <span className="font-bold text-slate-800">
-              The salon is closed {isToday ? "today" : "on this day"}, so customers can&apos;t book online.
-            </span>{" "}
-            To put slots online, reopen the day from the Bookings calendar. You can still book a dog in yourself.
+          <p role="note" className="rounded-card border border-slate-200 bg-white px-4 py-4 text-body text-slate-700">
+            <span className="block font-bold text-slate-800">
+              The salon is closed {isToday ? "today" : "on this day"}, so it can&apos;t be booked.
+            </span>
+            <span className="mt-1 block">
+              That goes for customers online and for bookings made here. To take bookings, reopen the day from
+              the Bookings calendar first.
+            </span>
           </p>
-        )}
-
-        {rows.length === 0 ? (
-          <p className="rounded-card border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
-            No free slots left today.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {rows.map((row) => (
-              <AvailabilityRow
-                key={row.slot}
-                row={row}
-                onToggleImmediate={onToggleImmediate}
-                onNewBooking={onNewBooking}
-                isDayOpen={isDayOpen}
-              />
-            ))}
-          </ul>
         )}
       </div>
     </ModalShell>

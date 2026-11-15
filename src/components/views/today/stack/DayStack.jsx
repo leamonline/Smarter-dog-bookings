@@ -7,7 +7,7 @@
 //
 // This component only owns presentation. All appointment actions still go
 // through `tokenActions` and the existing booking write path.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { usePullToRefresh } from "../../../shared/PullToRefresh.jsx";
 import { stackLayout, STACK_HEADER_HEIGHT } from "./stackLayout";
 import { useStackGeometry } from "./useStackGeometry.js";
@@ -59,7 +59,11 @@ export function DayStack({
     count: rows.length, selectedIndex, ...geometry, pullProgress: refresh.progress,
   });
 
-  useEffect(() => {
+  // A layout effect, declared before the reveal below, so the flag is set in
+  // the same commit the reveal runs in. As a passive effect it ran after the
+  // reveal had already passed, and a repeat request for the dog already in
+  // front changed no state, so nothing re-rendered and the scroll never came.
+  useLayoutEffect(() => {
     const id = focusRequest?.id;
     if (!id || !rows.some((row) => row.id === id)) return;
     revealIfHiddenRef.current = true;
@@ -89,7 +93,7 @@ export function DayStack({
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [selectedId, openId, selectedIndex, layout.positions]);
+  }, [selectedId, openId, selectedIndex, layout.positions, focusRequest]);
 
   const toggle = useCallback((id) => {
     revealRef.current = id !== openId;
