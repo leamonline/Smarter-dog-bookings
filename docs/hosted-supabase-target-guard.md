@@ -3,7 +3,7 @@
 **Status:** Active
 **Authority:** Executable repository target-control contract
 **Issue:** [#618](https://github.com/leamonline/Smarter-dog-bookings/issues/618)
-**Last verified:** 6 October 2026
+**Last verified:** 15 November 2026
 
 ## Rule
 
@@ -30,6 +30,7 @@ the separate human authority defined in [ADR 006](architecture/decisions/006-man
 | `scripts/run-hosted-pgtap.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded staging ref and differ from production; adjacent link-state assertion | Retrieves ephemeral connection details for staging pgTAP | Script accepts staging only |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase link --project-ref "$STAGING_PROJECT_REF"` | Explicit staging ref; staging ref must differ from production | Sets local link state | Named `staging` GitHub environment and manual exact-ref confirmation |
 | `.github/workflows/staging-apply-migrations.yml` | `supabase migration list --linked` | Adjacent assertion of `STAGING_PROJECT_REF` | Hosted migration-state read | Named `staging` environment |
+| `scripts/ensure-linked-session-pooler.sh` (called by the staging apply workflow) | `GET /v1/projects/{ref}/config/database/pooler` | Explicit ref argument, which must equal `supabase/.temp/project-ref` before the request | Reads the shared pooler host, port, mode and user. When `supabase link` saved no `pooler-url`, writes a password-less session URL on port 5432 so the later linked commands can use the existing short-lived login | Named `staging` environment; the same access token `link` already uses. No database password is stored or written |
 | `scripts/apply-hosted-migrations.sh` | `supabase db dump --linked --schema public --dry-run` | Caller ref must equal the hard-coded ref of the declared target: staging by default, production only with `HOSTED_MIGRATION_TARGET=production` and a matching `CONFIRM_PRODUCTION_REF`; the two refs must differ; adjacent link-state assertion | Retrieves ephemeral connection details, then applies the named committed migration files with `psql`, one transaction per file including its ledger row, and fails unless every requested name is recorded afterwards | Staging by default; production only through the manual-only workflow under the `production` environment |
 | `.github/workflows/production-apply-migrations.yml` | `supabase link --project-ref "$PRODUCTION_PROJECT_REF"` | Explicit production ref, typed again by the operator as the first step before checkout | Sets local link state | Named `production` GitHub environment whose deployment branch rule is exactly `main`, plus the environment-only `PRODUCTION_SUPABASE_ACCESS_TOKEN` secret (the first step fails closed without either); manual-only dispatch. Required reviewers are not used: a private repository on the current plan cannot have them |
 | `.github/workflows/production-apply-migrations.yml` | `supabase migration list --linked` (before and after the apply) | Adjacent assertion of `PRODUCTION_PROJECT_REF` | Hosted migration-state read | Named `production` environment |
