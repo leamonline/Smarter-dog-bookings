@@ -54,6 +54,15 @@ Reschedule and cancellation confirmations name the dogs on the selected card.
 This display correction is tracked in [issue #854](https://github.com/leamonline/Smarter-dog-bookings/issues/854)
 and does not switch customer reads or writes to the dormant visit commands.
 
+From tablet width each appointment card puts its actions (add to calendar,
+reschedule, cancel) in a right-hand column. With nothing booked, the card offers
+the booking prompt and, beside it, the next free slot for the customer's first
+online-bookable dog over the next 28 days. The preview reads what the wizard's
+date step reads, applies the same capacity engine and the owner's blocked
+slots, excludes same-day openings, and shows nothing when any read fails. It is
+a preview only: the wizard and the database re-check before anything is
+written.
+
 The customer portal and WhatsApp Flow have existing change paths. The repository
 also contains visit projections and v1 customer commands, but the v1 mutation
 commands are dark while `previous_day_1500_v1` is inactive.

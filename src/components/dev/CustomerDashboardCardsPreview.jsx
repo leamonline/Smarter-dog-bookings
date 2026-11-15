@@ -14,6 +14,8 @@ import { BookingCard } from "../customer/BookingCard.jsx";
 import { TrustedHumansSection } from "../customer/TrustedHumansSection.jsx";
 import { DepositHoldInstructions } from "../customer/DepositHoldInstructions";
 import { MyDetailsCard } from "../customer/MyDetailsCard.jsx";
+import { DogsSection } from "../customer/DogsSection.jsx";
+import { AppointmentsSection } from "../customer/AppointmentsSection.jsx";
 
 const SAMPLE_DETAILS = {
   name: "Sam",
@@ -25,6 +27,18 @@ const SAMPLE_DETAILS = {
   fb: "",
   insta: "",
   tiktok: "",
+};
+
+const SAMPLE_BOOKING = {
+  id: "00000000-0000-4000-8000-000000000001",
+  bookingDate: "2026-11-17",
+  slot: "09:00",
+  service: "full-groom",
+  status: "Booked",
+  groupId: null,
+  visitId: null,
+  dogId: "dog-1",
+  dog: { name: "Alfie" },
 };
 import "../../customer-portal.css";
 
@@ -56,7 +70,7 @@ export function CustomerDashboardCardsPreview() {
         state centres in the card rather than sitting at the top with a gap.
       </p>
 
-      <Frame title="BookingCard — empty state, wide (was: 2/3 dead space next to the CTA)" wide>
+      <Frame title="BookingCard — empty state, no slot preview (single column)" wide>
         <BookingCard
           upcomingBookings={[]}
           dogs={[{ id: "dog-1", name: "Alfie" }]}
@@ -65,9 +79,81 @@ export function CustomerDashboardCardsPreview() {
         />
       </Frame>
 
+      <Frame title="BookingCard — empty state with the next free slot" wide>
+        <BookingCard
+          upcomingBookings={[]}
+          dogs={[{ id: "dog-1", name: "Alfie" }]}
+          dataLoaded
+          nextSlot={{ status: "found", slot: { date: "2026-11-17", dropOffTime: "09:00" } }}
+          nextSlotDogName="Alfie"
+          onBook={() => {}}
+          onBookingChanged={async () => {}}
+        />
+      </Frame>
+
+      <Frame title="BookingCard — empty state, nothing free in the window" wide>
+        <BookingCard
+          upcomingBookings={[]}
+          dogs={[{ id: "dog-1", name: "Alfie" }]}
+          dataLoaded
+          nextSlot={{ status: "none" }}
+          nextSlotDogName="Alfie"
+          onBook={() => {}}
+          onBookingChanged={async () => {}}
+        />
+      </Frame>
+
+      <Frame title="BookingCard — booked, actions in the right-hand column" wide>
+        <BookingCard
+          upcomingBookings={[SAMPLE_BOOKING]}
+          dogs={[{ id: "dog-1", name: "Alfie" }]}
+          dataLoaded
+          onBook={() => {}}
+          onBookingChanged={async () => {}}
+        />
+      </Frame>
+
+      <Frame title="Dashboard row — white cards, one edit pattern" wide>
+        <div className="portal-trio">
+          <MyDetailsCard
+            editing={false}
+            setEditing={() => {}}
+            saving={false}
+            saveError={null}
+            details={{ ...SAMPLE_DETAILS, email: "" }}
+            setDetails={() => {}}
+            humanRecord={{ phone: "+447700900123" }}
+            savedAddress={SAMPLE_DETAILS.address}
+            savedPostcode={SAMPLE_DETAILS.postcode}
+            onAddressChange={() => {}}
+            onSave={() => {}}
+            onCancel={() => {}}
+          />
+          <DogsSection
+            dogs={[{ id: "dog-1", name: "Alfie", breed: "Lagotto Romagnolo", size: "medium" }]}
+            lastGroomByDog={{ "dog-1": "2026-09-30" }}
+            humanId="human-1"
+          />
+          <TrustedHumansSection
+            trustedHumans={[{ id: "th-1", name: "Jo", surname: "Bloggs", relationship: "Partner", phone: "07000 000000" }]}
+          />
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <AppointmentsSection
+            pastBookings={[]}
+            pastExpanded={false}
+            setPastExpanded={() => {}}
+            hasMorePast={false}
+            loadingMore={false}
+            onLoadMore={() => {}}
+            onSubscribe={null}
+          />
+        </div>
+      </Frame>
+
       <Frame title="TrustedHumansSection — empty, next to a taller sibling" wide>
         <div className="portal-trio" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, alignItems: "stretch" }}>
-          <div className="portal-card portal-card--sky" style={{ height: 260 }}>
+          <div className="portal-card" style={{ height: 260 }}>
             <div className="portal-card-header">
               <h2 className="portal-card-title">Tall sibling card</h2>
             </div>

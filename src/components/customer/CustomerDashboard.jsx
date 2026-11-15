@@ -15,6 +15,8 @@ import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
 import { lastVisitEntries } from "../../engine/repeatBooking";
+import { isOnlineBookableDog } from "../../engine/nextAvailableSlot";
+import { useNextAvailableSlot } from "../../supabase/hooks/useNextAvailableSlot";
 import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
@@ -25,6 +27,7 @@ import {
   SALON_PRIVACY_URL,
   SALON_TERMS_URL,
 } from "../../constants/salonPolicies.ts";
+import { SALON_SLOGAN } from "../../constants/salonBrand";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 
@@ -245,6 +248,15 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     [pastBookings]
   );
 
+  // The booking card's "next free slot": only while nothing is booked, and
+  // only for a dog the wizard would actually let them book online.
+  const nextSlotDog = useMemo(() => dogs.find(isOnlineBookableDog) ?? null, [dogs]);
+  const nextSlot = useNextAvailableSlot(
+    nextSlotDog,
+    humanRecord?.id,
+    loaded.bookings && upcomingBookings.length === 0,
+  );
+
   if (loading) {
     return (
       <div className="portal-loading">
@@ -307,7 +319,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                 </svg>
               </span>
             </h1>
-            <p className="portal-tagline">Smarter grooming for a Smarter Dog.</p>
+            <p className="portal-tagline">{SALON_SLOGAN}</p>
             {statusLine && (
               <p className={`portal-status-line portal-status-line--${statusLine.tone}`}>
                 {statusLine.text}
@@ -346,6 +358,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             onBook={handleBook}
             onBookAgain={repeatEntries.length > 0 ? handleBookAgain : undefined}
             onBookingChanged={refreshBookings}
+            nextSlot={nextSlot}
+            nextSlotDogName={nextSlotDog?.name}
           />
 
           {/* Three-column row: My details | My dogs | Trusted humans */}
@@ -403,7 +417,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         <footer className="portal-footer">
           <div className="portal-footer-inner">
             <div className="portal-footer-row">
-              <p className="portal-footer-tagline">Smarter grooming, Smarter Dog.</p>
+              <p className="portal-footer-tagline">{SALON_SLOGAN}</p>
               <span className="portal-footer-contact">
                 <a
                   className="portal-footer-phone"

@@ -258,12 +258,8 @@
   padding-top: 14px;
 }
 
-.portal-card--sky      { background: var(--color-sd-sky-tint); }
-.portal-card--coral    { background: var(--color-sd-coral-tint); }
-.portal-card--buttercup{ background: var(--color-sd-buttercup-tint); }
-.portal-card--mint     { background: var(--color-sd-mint-tint); }
-.portal-card--lavender { background: var(--color-sd-cloud-tint); }
-.portal-card--paper    { background: #FAF7EF; }
+/* Cards are white. Colour lives only on each card's icon square
+   (.portal-card-iconbadge--*), so yellow stays reserved for actions. */
 
 .portal-card-header {
   display: flex;
@@ -445,48 +441,6 @@
   font-size: 12px;
 }
 
-/* Inline "add" link (legacy — used by portal-detail-row empty values) */
-.portal-add-prompt {
-  color: var(--color-brand-cyan-dark);
-  font-weight: 700;
-  text-decoration: none;
-  border-bottom: 1.5px dashed rgba(0, 89, 134, 0.4);
-  cursor: pointer;
-  background: transparent;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  padding: 0 0 1px;
-  font: inherit;
-}
-.portal-add-prompt:hover {
-  color: var(--color-ink);
-  border-bottom-color: var(--color-ink);
-}
-
-/* Ghost "+ Add x" pill — softer affordance than .portal-add-prompt for
-   empty-value placeholders inside cards. */
-.portal-ghost-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
-  background: rgba(31, 31, 31, 0.04);
-  border: 1px dashed rgba(31, 31, 31, 0.18);
-  border-radius: 9999px;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-.portal-ghost-add:hover {
-  background: rgba(31, 31, 31, 0.08);
-  border-color: var(--color-ink);
-  color: var(--color-ink);
-}
-
 /* --- Detail rows --- */
 .portal-detail-row {
   display: flex;
@@ -523,6 +477,11 @@
   text-align: right;
   flex: 1;
   word-break: break-word;
+}
+/* An empty value: the card's Edit button adds it. */
+.portal-detail-value--empty {
+  color: var(--color-ink-muted);
+  font-weight: 500;
 }
 
 /* --- Polaroid empty state (smaller) --- */
@@ -903,8 +862,68 @@
   flex-direction: column;
   gap: 14px;
 }
-.portal-booking-card--booked { background: var(--color-sd-mint-tint); border-color: rgba(0, 194, 71, 0.20); }
-.portal-booking-card--empty  { background: var(--color-surface-card); }
+.portal-booking-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Split layout: the booking prompt (or the appointment) on the left, and the
+   rest of the card's width used on the right — the next free slot when
+   nothing is booked, the appointment's actions once it is. Stacks on phones. */
+@media (min-width: 768px) {
+  .portal-booking-card--split {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr);
+    gap: 24px;
+    align-items: stretch;
+  }
+  .portal-booking-card--split-actions {
+    grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr);
+    align-items: center;
+  }
+}
+
+.portal-booking-card-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 31, 31, 0.08);
+  background: var(--color-surface-card);
+}
+@media (min-width: 768px) {
+  .portal-booking-card-side { align-self: stretch; align-items: center; }
+}
+
+.portal-next-slot { min-width: 0; }
+.portal-next-slot .portal-text-kicker { margin: 0; }
+.portal-next-slot-date {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-ink);
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  margin: 4px 0 0;
+}
+.portal-next-slot-time {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 2px 0 0;
+}
+.portal-next-slot-help {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+  margin: 6px 0 0;
+}
 
 .portal-booking-card-title {
   font-family: var(--font-display);
@@ -944,6 +963,13 @@
   .portal-booking-card-actions--request > :nth-child(2) {
     grid-column: 1 / -1;
     grid-row: 1;
+  }
+}
+/* The booked card's actions stack in their own right-hand column from tablet
+   up. Declared after the three-column default so it wins. */
+@media (min-width: 768px) {
+  .portal-booking-card-actions--stack {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
