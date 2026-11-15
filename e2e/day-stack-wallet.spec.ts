@@ -109,3 +109,20 @@ test("scrolling down the day does not start refresh and reduced motion has no sp
   await page.locator("[data-stack-head]").last().click();
   await expect(page.locator("[data-stack-head]").last()).toHaveAttribute("aria-expanded", "true");
 });
+
+test("a covered card still shows how late, how long or how soon", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const timings = page.locator("[data-stack-card] [data-stack-timing]");
+  expect(await timings.count()).toBeGreaterThan(1);
+  // Hit-test each timing line: the point must land inside its own card, not on
+  // the card stacked over it. Before the timing moved into the heading row it
+  // sat at 96px, exactly where the next card begins.
+  const covered = await timings.evaluateAll((nodes) => nodes.filter((node) => {
+    const card = node.closest("[data-stack-card]");
+    const r = node.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + Math.min(8, r.width / 2), r.top + r.height / 2);
+    return !card!.contains(hit);
+  }).map((node) => node.closest("[data-stack-card]")!.getAttribute("data-booking-id")));
+  expect(covered).toEqual([]);
+});

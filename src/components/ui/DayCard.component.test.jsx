@@ -107,6 +107,23 @@ describe("DayCard states", () => {
     expect(screen.getByText("Running late").closest("span").parentElement.className).toContain("font-bold");
   });
 
+  it("puts the timing and on-the-way signal in the heading row, which the stack never covers", () => {
+    const { container } = renderCard({ timing: "1 hr 50 min late", urgent: true, onTheWay: true });
+    const heading = container.querySelector(".wallet-heading");
+    const timing = heading.querySelector("[data-stack-timing]");
+    expect(timing).toHaveTextContent("1 hr 50 min late");
+    expect(timing).toHaveTextContent("On the way");
+    expect(timing.className).toContain("font-bold");
+    // Not repeated in the metadata line, which sits under the next card.
+    expect(container.querySelector(".wallet-metadata")).not.toHaveTextContent("late");
+    expect(container.querySelector(".wallet-metadata")).toHaveTextContent("Full Groom · Cockapoo");
+  });
+
+  it("draws no timing line when there is nothing to time", () => {
+    const { container } = renderCard({ timing: undefined });
+    expect(container.querySelector("[data-stack-timing]")).toBeNull();
+  });
+
   it("uses the widest rule for a dog left in Ready too long", () => {
     const { container } = renderCard({ status: "Ready", readyOverdue: true, urgent: true });
     expect(container.querySelector("[data-stack-card]").style.borderLeftWidth).toBe("14px");
@@ -115,7 +132,7 @@ describe("DayCard states", () => {
   it("keeps the visible heading together before extra spoken context", () => {
     const { container } = renderCard({ status: "Ready for collection", balance: { kind: "paid" } });
     expect(container.querySelector("[data-stack-head]")).toHaveAccessibleName(
-      /^09:00[. ]+Biscuit[. ]+Ready[. ]+Paid[. ]+Full Groom/,
+      /^09:00[. ]+Biscuit[. ]+Due in 10 min[. ]+Ready[. ]+Paid[. ]+Full Groom/,
     );
   });
 
@@ -124,8 +141,10 @@ describe("DayCard states", () => {
     const label = container.querySelector("[data-stack-head]").getAttribute("aria-label");
     expect(label).toContain("09:00");
     expect(label).toContain("Biscuit");
-    expect(label).toContain("Owner on the way");
+    expect(label).toContain("On the way");
     expect(label).toContain("Safety note: Bites");
+    // The visible heading, word for word and in order, comes first (label in name).
+    expect(label.startsWith(`09:00. Biscuit. Due in 10 min. On the way. ${resolveDayStatus("Booked", null).label}`)).toBe(true);
   });
 
   it("makes the closed drawer inert and the open one reachable", () => {

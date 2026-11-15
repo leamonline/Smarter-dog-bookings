@@ -124,6 +124,8 @@ export function TodayView({
   // Which attention reason is highlighted, or null. Per-reason rather than a
   // single union toggle: "highlight the 2 late dogs" beats "highlight all 11".
   const [attentionReason, setAttentionReason] = useState(null);
+  // The dog a pressed attention segment asked the stack to bring forward.
+  const [stackFocus, setStackFocus] = useState(null);
   // A colleague's status change on another till, spoken for screen readers.
   // The stack keeps its own open-row state inside DayStack.
   const [boardAnnouncement, setBoardAnnouncement] = useState("");
@@ -381,6 +383,7 @@ export function TodayView({
 
   useEffect(() => {
     setAttentionReason(null);
+    setStackFocus(null);
   }, [dateStr]);
   useEffect(() => {
     // A reason whose last dog was dealt with clears itself — an empty
@@ -460,12 +463,14 @@ export function TodayView({
     [bookingsByDate, dogs, realTodayStr],
   );
 
+  // [one, many] — "1 late arrival", never "1 late arrivals".
   const ATTENTION_STATUS_COPY = {
-    late: "late arrivals",
-    toConfirm: "bookings to confirm",
-    waiting: "dogs waiting to be collected",
-    unpaid: "unpaid balances",
+    late: ["late arrival", "late arrivals"],
+    toConfirm: ["booking to confirm", "bookings to confirm"],
+    waiting: ["dog waiting to be collected", "dogs waiting to be collected"],
+    unpaid: ["unpaid balance", "unpaid balances"],
   };
+  const highlightedCount = attentionReason ? new Set(attention.reasons[attentionReason]).size : 0;
 
   const dateLabel = dateObj.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -491,8 +496,9 @@ export function TodayView({
   const isRefreshing = bookingsLoading && selectedBookings.length > 0;
 
   /**
-   * Selecting a segment also takes you to the first dog it names, but only if
-   * that dog is off screen — the viewport never moves on its own, and the
+   * Selecting a segment also brings the first dog it names forward in the
+   * stack, as a tap on its card would (drawer still closed), and scrolls to it
+   * only if it is off screen — the viewport never moves on its own, and the
    * date must stay put. This is the one deliberate exception, on a press.
    */
   const selectAttentionReason = useCallback((reason) => {
@@ -500,14 +506,7 @@ export function TodayView({
     if (!reason) return;
     const firstId = attention.reasons[reason]?.[0];
     if (!firstId) return;
-    requestAnimationFrame(() => {
-      const target = document.querySelector(`[data-booking-id="${firstId}"] [data-stack-head]`);
-      if (!target) return;
-      const box = target.getBoundingClientRect();
-      if (box.top >= 0 && box.bottom <= window.innerHeight) return;
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-      target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-    });
+    setStackFocus((previous) => ({ id: String(firstId), key: (previous?.key ?? 0) + 1 }));
   }, [attention.reasons]);
 
   return (
@@ -550,8 +549,8 @@ export function TodayView({
 
         {attentionReason ? (
           <p role="status" className="-mb-2 px-1 text-xs font-semibold text-brand-ink">
-            Highlighting {new Set(attention.reasons[attentionReason]).size}{" "}
-            {ATTENTION_STATUS_COPY[attentionReason]} — every other dog is dimmed, not hidden.
+            Highlighting {highlightedCount}{" "}
+            {ATTENTION_STATUS_COPY[attentionReason][highlightedCount === 1 ? 0 : 1]} — every other dog is dimmed, not hidden.
           </p>
         ) : null}
 
@@ -606,6 +605,7 @@ export function TodayView({
                 onSetPrice={actions.setPrice}
                 onOpenInvoice={actions.setInvoiceBooking}
                 busyIds={actions.busyIds}
+                focusRequest={stackFocus}
               />
             </div>
             <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
@@ -623,6 +623,8 @@ export function TodayView({
             onClose={() => setShowAvailability(false)}
             view={availabilityView}
             dogsBooked={summary.dogsBooked}
+            isDayOpen={isDayOpen}
+            isToday={isToday}
             onToggleImmediate={(slot) => toggleImmediateSlot(slot)}
             onNewBooking={(slot) => { setShowAvailability(false); onNewBooking({ dateStr, slot }); }}
           />

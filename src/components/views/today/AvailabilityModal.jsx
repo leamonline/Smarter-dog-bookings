@@ -5,6 +5,12 @@
 // capacity engine) — they are honest indicators, not per-size settings, because
 // the app has no per-size online availability. All counts come from the same
 // rows they head, so they can never disagree.
+//
+// On a closed day the online controls go. validate_booking_calendar refuses
+// every customer booking on a closed date (calendar_closed) before it reads the
+// same-day flags, so "Put online" there changed a setting and nothing else,
+// under copy promising customers could book. Staff can still book in: the
+// gates bypass on is_staff().
 import { useId } from "react";
 import { X } from "lucide-react";
 import { HeaderIconButton } from "../../modals/shell/index.js";
@@ -26,7 +32,7 @@ function SizeChip({ label }) {
   );
 }
 
-function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
+function AvailabilityRow({ row, onToggleImmediate, onNewBooking, isDayOpen = true }) {
   const sizes = [
     row.sizes.small && "Small",
     row.sizes.medium && "Medium",
@@ -41,12 +47,12 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-body font-semibold text-slate-700">{seatsLabel(row.seatsFree)}</span>
-          {row.isOnline ? (
+          {!isDayOpen ? null : row.isOnline ? (
             <Chip dot className="bg-brand-teal/15 text-brand-teal-text">Online</Chip>
           ) : (
             <Chip dot className="bg-slate-100 text-slate-600">Hidden</Chip>
           )}
-          {pastCutoff && (
+          {isDayOpen && pastCutoff && (
             <span className="text-xs text-slate-500">past today&apos;s cutoff</span>
           )}
         </div>
@@ -58,7 +64,7 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
         </div>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        {row.isOnline ? (
+        {!isDayOpen ? null : row.isOnline ? (
           <SecondaryButton
             onClick={() => onToggleImmediate(row.slot)}
             aria-label={`Take ${row.slot} offline`}
@@ -83,7 +89,15 @@ function AvailabilityRow({ row, onToggleImmediate, onNewBooking }) {
   );
 }
 
-export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate, onNewBooking }) {
+export function AvailabilityModal({
+  onClose,
+  view,
+  dogsBooked,
+  onToggleImmediate,
+  onNewBooking,
+  isDayOpen = true,
+  isToday = true,
+}) {
   const titleId = useId();
   const { rows, unbookedSlots, onlineCount, nextOnlineSlot } = view;
 
@@ -118,23 +132,38 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
             <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
             {" · "}
             <span className="font-bold text-slate-800">{unbookedSlots}</span> unbooked {unbookedSlots === 1 ? "slot" : "slots"}
-            {" · "}
-            <span className="font-bold text-slate-800">{onlineCount}</span> online
+            {isDayOpen ? (
+              <>
+                {" · "}
+                <span className="font-bold text-slate-800">{onlineCount}</span> online
+              </>
+            ) : null}
           </p>
-          <p className="text-body text-slate-600 mt-0.5">
-            Next online slot:{" "}
-            {nextOnlineSlot ? (
-              <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
-            ) : (
-              <span className="font-semibold text-slate-500">none open</span>
-            )}
-          </p>
+          {isDayOpen ? (
+            <p className="text-body text-slate-600 mt-0.5">
+              Next online slot:{" "}
+              {nextOnlineSlot ? (
+                <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
+              ) : (
+                <span className="font-semibold text-slate-500">none open</span>
+              )}
+            </p>
+          ) : null}
         </div>
 
-        <p className="text-xs text-slate-500 mb-2.5">
-          Online slots let customers book themselves today, up to 30 minutes before the start. Hidden slots
-          stay yours to fill.
-        </p>
+        {isDayOpen ? (
+          <p className="text-xs text-slate-500 mb-2.5">
+            Online slots let customers book themselves today, up to 30 minutes before the start. Hidden slots
+            stay yours to fill.
+          </p>
+        ) : (
+          <p role="note" className="mb-2.5 rounded-card border border-slate-200 bg-white px-4 py-3 text-body text-slate-700">
+            <span className="font-bold text-slate-800">
+              The salon is closed {isToday ? "today" : "on this day"}, so customers can&apos;t book online.
+            </span>{" "}
+            To put slots online, reopen the day from the Bookings calendar. You can still book a dog in yourself.
+          </p>
+        )}
 
         {rows.length === 0 ? (
           <p className="rounded-card border border-slate-200 bg-white px-4 py-8 text-center text-body text-slate-600">
@@ -148,6 +177,7 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
                 row={row}
                 onToggleImmediate={onToggleImmediate}
                 onNewBooking={onNewBooking}
+                isDayOpen={isDayOpen}
               />
             ))}
           </ul>

@@ -97,7 +97,8 @@ placement. The `menusAndToggles` ratchet counts the hand-written ones left.
 
 Keep the selected date and availability action first; below 640px they share one line, with a short weekday date ("Wed 18 November", "Wed 18 Nov" below 360px) so neither wraps nor truncates, while the date button's accessible name keeps the full date. Previous-day and next-day arrows flank the date; with them in the row, phones show "Wed 18 Nov", 640–767px "Wed 18 November" and 768px up the full date, and below 400px the Availability button drops its clock icon so the line still fits at 360px. Back to today appears on the attention line only while another date is showing. Keep actionable attention
 segments prominent and separate from the labelled Day totals group. Put salon
-open/closed state, online availability status, day shape and collected total in
+open/closed state, online availability status, day shape and the till total
+("£84 taken", never "collected", which belongs to the dogs that have gone home) in
 that quieter group; none is removed or available only through an accessible name,
 with one exception: on a closed day the online status is not repeated, because a
 closed salon always means online booking is closed (the database refuses every
@@ -111,8 +112,11 @@ full-bleed header; grey text on that paper uses `text-ink-muted` (5.1:1), never
 `slate-500` (4.2:1) or lighter.
 Over-capacity and unknown-status/deposit warnings remain visible before the dog
 stack. Preserve count calculations, status labels, chronology and highlight
-behaviour. This refinement changes TodayHeader only: DayCard's 144px normal
-header and all stack geometry/expansion calculations remain unchanged.
+behaviour. DayCard's 144px normal header and all stack geometry/expansion
+calculations remain unchanged. Anything staff must read without opening a card
+belongs in its exposed top 96px (the 48px heading row and the 44px safety row):
+the timing line ("1 hr 50 min late", "waiting 25 min", "On the way") sits under
+the dog's name for that reason, and the breed/service line below may be covered.
 
 ## Security check
 

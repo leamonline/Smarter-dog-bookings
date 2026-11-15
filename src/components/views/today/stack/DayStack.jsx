@@ -7,7 +7,7 @@
 //
 // This component only owns presentation. All appointment actions still go
 // through `tokenActions` and the existing booking write path.
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePullToRefresh } from "../../../shared/PullToRefresh.jsx";
 import { stackLayout, STACK_HEADER_HEIGHT } from "./stackLayout";
 import { useStackGeometry } from "./useStackGeometry.js";
@@ -36,11 +36,21 @@ export function DayStack({
   onOpenInvoice,
   busyIds = null,
   emptyMessage = "No bookings on this date",
+  /**
+   * `{ id, key }` — bring that dog's card forward, as a tap on it would, but
+   * without opening its drawer. A new `key` repeats the request for the same
+   * dog. Sent when staff press an attention segment ("1 late"): dimming the
+   * others alone left the named dog half-covered by the next card.
+   */
+  focusRequest = null,
 }) {
   const [openId, setOpenId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const listRef = useRef(null);
   const revealRef = useRef(false);
+  // A focus request moves the viewport only when the card is off screen: the
+  // press is deliberate, but a card already in view needs no scroll.
+  const revealIfHiddenRef = useRef(false);
   const refresh = usePullToRefresh();
   const rowKey = rows.map((row) => row.id).join("|");
   const geometry = useStackGeometry(listRef, openId, rowKey);
@@ -49,17 +59,30 @@ export function DayStack({
     count: rows.length, selectedIndex, ...geometry, pullProgress: refresh.progress,
   });
 
+  useEffect(() => {
+    const id = focusRequest?.id;
+    if (!id || !rows.some((row) => row.id === id)) return;
+    revealIfHiddenRef.current = true;
+    setSelectedId(id);
+    setOpenId((current) => (current === id ? current : null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to a new request only, not to every row refresh
+  }, [focusRequest]);
+
   useLayoutEffect(() => {
-    if (!revealRef.current) return;
+    if (!revealRef.current && !revealIfHiddenRef.current) return;
     const list = listRef.current;
     const main = list?.closest("main");
-    if (!main) { revealRef.current = false; return; }
+    if (!main) { revealRef.current = false; revealIfHiddenRef.current = false; return; }
     // Wait for the measured drawer height to reach the DOM; otherwise the
     // browser clamps the target to the previous (collapsed) scroll height.
     const frame = requestAnimationFrame(() => {
+      const onlyIfHidden = !revealRef.current;
       revealRef.current = false;
-      const target = main.scrollTop + list.getBoundingClientRect().top
-        - main.getBoundingClientRect().top + layout.positions[selectedIndex] - 12;
+      revealIfHiddenRef.current = false;
+      const offset = list.getBoundingClientRect().top - main.getBoundingClientRect().top
+        + layout.positions[selectedIndex];
+      if (onlyIfHidden && offset >= 0 && offset + STACK_HEADER_HEIGHT <= main.clientHeight) return;
+      const target = main.scrollTop + offset - 12;
       main.scrollTo({
         top: Math.max(0, target),
         behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
