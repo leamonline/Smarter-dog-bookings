@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   listOlderCustomerBookings: vi.fn(),
   hasCustomerBookingsBefore: vi.fn(),
   listCustomerTrustedHumans: vi.fn(),
+  listCustomerTrustedContacts: vi.fn(),
+  saveCustomerTrustedContact: vi.fn(),
+  removeCustomerTrustedContact: vi.fn(),
   updateCustomerContactDetails: vi.fn(),
 }));
 
@@ -26,6 +29,9 @@ vi.mock("../repositories/bookingsRepo", () => ({
 
 vi.mock("../rpc", () => ({
   listCustomerTrustedHumans: mocks.listCustomerTrustedHumans,
+  listCustomerTrustedContacts: mocks.listCustomerTrustedContacts,
+  saveCustomerTrustedContact: mocks.saveCustomerTrustedContact,
+  removeCustomerTrustedContact: mocks.removeCustomerTrustedContact,
   updateCustomerContactDetails: mocks.updateCustomerContactDetails,
 }));
 
@@ -82,6 +88,11 @@ describe("useCustomerDashboardData", () => {
     mocks.listCustomerTrustedHumans
       .mockReset()
       .mockResolvedValue({ data: [{ id: "th-1" }], error: null });
+    mocks.listCustomerTrustedContacts
+      .mockReset()
+      .mockResolvedValue({ data: [{ id: "cc-1", name: "Gran" }], error: null });
+    mocks.saveCustomerTrustedContact.mockReset();
+    mocks.removeCustomerTrustedContact.mockReset();
     mocks.updateCustomerContactDetails
       .mockReset()
       .mockResolvedValue({ error: null });
@@ -95,6 +106,7 @@ describe("useCustomerDashboardData", () => {
     expect(result.current.dogs).toEqual([DOG]);
     expect(result.current.bookings).toEqual([BOOKING]);
     expect(result.current.trustedHumans).toEqual([{ id: "th-1" }]);
+    expect(result.current.customerContacts).toEqual([{ id: "cc-1", name: "Gran" }]);
     expect(result.current.hasMorePast).toBe(true);
     expect(result.current.loadError).toBeNull();
     expect(mocks.listCustomerBookings).toHaveBeenCalledWith(expect.anything(), {
@@ -159,6 +171,17 @@ describe("useCustomerDashboardData", () => {
       expect(result.current.loaded.dogs).toBe(true);
       expect(result.current.loaded.bookings).toBe(true);
       expect(result.current.loaded.trustedHumans).toBe(false);
+    });
+
+    it("does not claim the trusted list is known when only the customer-added read fails", async () => {
+      mocks.listCustomerTrustedContacts.mockResolvedValue({
+        data: null,
+        error: new Error("function does not exist"),
+      });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.trustedHumansError).toBeInstanceOf(Error));
+      expect(result.current.loaded.trustedHumans).toBe(false);
+      expect(result.current.loaded.bookings).toBe(true);
     });
 
     it("leaves bookings unloaded when the booking query itself fails", async () => {
@@ -432,5 +455,58 @@ describe("useCustomerDashboardData", () => {
 
     expect(result.current.dogs).toHaveLength(1);
     expect(result.current.dogs[0].name).toBe("Alfred");
+  });
+
+  describe("customer-added trusted contacts", () => {
+    it("adopts the row the database stored when a contact is added", async () => {
+      mocks.saveCustomerTrustedContact.mockResolvedValue({
+        data: [{ id: "cc-2", name: "Neighbour", surname: null, phone: "+447700900123", relationship: null }],
+        error: null,
+      });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loaded.trustedHumans).toBe(true));
+
+      let outcome;
+      await act(async () => {
+        outcome = await result.current.saveTrustedContact({
+          id: null, name: "Neighbour", surname: "", phone: "07700 900123", relationship: "",
+        });
+      });
+      expect(outcome.error).toBeNull();
+      expect(result.current.customerContacts.map((c) => c.phone)).toEqual([undefined, "+447700900123"]);
+    });
+
+    it("replaces an edited contact in place and leaves the list alone on failure", async () => {
+      mocks.saveCustomerTrustedContact
+        .mockResolvedValueOnce({ data: [{ id: "cc-1", name: "Granny" }], error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: "invalid_mobile" } });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loaded.trustedHumans).toBe(true));
+
+      await act(async () => {
+        await result.current.saveTrustedContact({ id: "cc-1", name: "Granny", surname: "", phone: "07700900123", relationship: "" });
+      });
+      expect(result.current.customerContacts).toEqual([{ id: "cc-1", name: "Granny" }]);
+
+      let outcome;
+      await act(async () => {
+        outcome = await result.current.saveTrustedContact({ id: "cc-1", name: "Granny", surname: "", phone: "0770", relationship: "" });
+      });
+      expect(outcome.error).toEqual({ message: "invalid_mobile" });
+      expect(result.current.customerContacts).toEqual([{ id: "cc-1", name: "Granny" }]);
+    });
+
+    it("drops a contact only once the database has removed it", async () => {
+      mocks.removeCustomerTrustedContact
+        .mockResolvedValueOnce({ data: null, error: { message: "network" } })
+        .mockResolvedValueOnce({ data: true, error: null });
+      const { result } = renderHook(() => useCustomerDashboardData(HUMAN));
+      await waitFor(() => expect(result.current.loaded.trustedHumans).toBe(true));
+
+      await act(async () => { await result.current.removeTrustedContact("cc-1"); });
+      expect(result.current.customerContacts).toHaveLength(1);
+      await act(async () => { await result.current.removeTrustedContact("cc-1"); });
+      expect(result.current.customerContacts).toHaveLength(0);
+    });
   });
 });

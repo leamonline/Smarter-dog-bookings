@@ -1042,6 +1042,67 @@
   letter-spacing: 0.02em;
   user-select: none;
 }
+/* The dog's picture: larger, a button that opens the photo picker. */
+.portal-avatar--lg {
+  width: 48px;
+  height: 48px;
+  font-size: 17px;
+}
+.portal-avatar-button {
+  position: relative;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: visible;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.portal-avatar-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px rgba(31, 31, 31, 0.3);
+}
+.portal-avatar-button:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+.portal-avatar-button:disabled { cursor: progress; }
+.portal-avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+/* "Add a photo" hint on a dog without one. */
+.portal-avatar-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-card);
+  color: var(--color-ink);
+  box-shadow: 0 1px 4px rgba(31, 31, 31, 0.25);
+}
+.portal-avatar-busy {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  border-top-color: var(--color-ink);
+  animation: portalSpin 0.9s linear infinite;
+}
+@keyframes portalSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .portal-avatar-busy { animation: none; border-top-color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.5); }
+}
+.portal-btn--align-start { align-self: flex-start; }
+.portal-btn--danger-text { color: var(--color-brand-coral-text); margin-left: auto; }
+.portal-btn--danger-text:hover { color: var(--color-brand-coral-text); background: var(--color-sd-coral-tint); }
+
 /* Four deterministic palette tints — pick by hash(id) % 4 in JSX. */
 .portal-avatar--sky      { background: #CDEBFF; color: var(--color-brand-cyan-dark); }
 .portal-avatar--buttercup{ background: #FFE9A8; color: #8A6300; }

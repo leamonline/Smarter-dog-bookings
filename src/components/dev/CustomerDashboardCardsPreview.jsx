@@ -136,6 +136,10 @@ export function CustomerDashboardCardsPreview() {
           />
           <TrustedHumansSection
             trustedHumans={[{ id: "th-1", name: "Jo", surname: "Bloggs", relationship: "Partner", phone: "07000 000000" }]}
+            customerContacts={[{ id: "cc-1", name: "Gran", surname: "Smith", relationship: "Mum", phone: "+447700900124" }]}
+            onSave={async () => ({ contact: null, error: null })}
+            onRemove={async () => ({ error: null })}
+            dogName="Alfie"
           />
         </div>
         <div style={{ marginTop: 20 }}>

@@ -87,7 +87,7 @@ describe("updateForCustomer", () => {
 });
 
 describe("listForHuman", () => {
-  it("maps rows to CustomerDog including dob", async () => {
+  it("maps rows to CustomerDog including dob and the photo path", async () => {
     const row = {
       id: DOG,
       name: "alfie",
@@ -96,6 +96,7 @@ describe("listForHuman", () => {
       reported_size: null,
       is_pregnant: true,
       dob: "2022-05",
+      photo_path: `${DOG}/photo.jpg`,
     };
     const q: Record<string, unknown> = {};
     for (const m of ["select", "eq", "order"]) {
@@ -117,8 +118,10 @@ describe("listForHuman", () => {
         reportedSize: null,
         isPregnant: true,
         dob: "2022-05",
+        photoPath: `${DOG}/photo.jpg`,
       },
     ]);
+    expect(q.select).toHaveBeenCalledWith(expect.stringContaining("photo_path"));
   });
 });
 
