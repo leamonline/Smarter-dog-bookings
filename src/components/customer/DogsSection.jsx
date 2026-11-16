@@ -71,11 +71,9 @@ function DogAvatar({ dog, tint, onPhotoChanged, onError }) {
   const toast = useToast();
   const inputRef = useRef(null);
   const { uploadDogPhoto } = useCustomerDogPhoto();
-  const signedUrl = useDogPhotoUrl(dog.photoPath);
-  // A photo that will not load (expired link, file gone, offline) shows the
-  // initial rather than an empty circle; a new URL gets a fresh try.
-  const [brokenUrl, setBrokenUrl] = useState(null);
-  const photoUrl = signedUrl && signedUrl !== brokenUrl ? signedUrl : null;
+  // The hook keeps the link fresh and, if the image fails, fetches one new
+  // link before falling back to the initial (never an empty circle).
+  const { url: photoUrl, onLoadError: onPhotoLoadError } = useDogPhotoUrl(dog.photoPath);
   const [uploading, setUploading] = useState(false);
   const name = titleCase(dog.name) || "your dog";
   const label = dog.photoPath ? `Change ${name}'s photo` : `Add a photo of ${name}`;
@@ -110,7 +108,7 @@ function DogAvatar({ dog, tint, onPhotoChanged, onError }) {
         title={label}
       >
         {photoUrl ? (
-          <img className="portal-avatar-photo" src={photoUrl} alt="" onError={() => setBrokenUrl(photoUrl)} />
+          <img className="portal-avatar-photo" src={photoUrl} alt="" onError={onPhotoLoadError} />
         ) : (
           <span aria-hidden="true">{(dog.name || "?").trim().charAt(0).toUpperCase()}</span>
         )}

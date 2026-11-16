@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -192,12 +192,12 @@ describe("useDogPhotoUrl", () => {
     const path = `${DOG}/fresh.jpg`;
     mocks.bucket.createSignedUrl.mockResolvedValueOnce(signed("https://signed.example/one"));
     const first = renderHook(() => useDogPhotoUrl(path));
-    await waitFor(() => expect(first.result.current).toBe("https://signed.example/one"));
+    await waitFor(() => expect(first.result.current.url).toBe("https://signed.example/one"));
     first.unmount();
 
     vi.setSystemTime(new Date("2026-11-15T09:30:00Z"));
     const second = renderHook(() => useDogPhotoUrl(path));
-    expect(second.result.current).toBe("https://signed.example/one");
+    expect(second.result.current.url).toBe("https://signed.example/one");
     expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(1);
   });
 
@@ -209,13 +209,86 @@ describe("useDogPhotoUrl", () => {
       .mockResolvedValueOnce(signed("https://signed.example/old"))
       .mockResolvedValueOnce(signed("https://signed.example/new"));
     const first = renderHook(() => useDogPhotoUrl(path));
-    await waitFor(() => expect(first.result.current).toBe("https://signed.example/old"));
+    await waitFor(() => expect(first.result.current.url).toBe("https://signed.example/old"));
     first.unmount();
 
     vi.setSystemTime(new Date("2026-11-15T09:58:00Z"));
     const second = renderHook(() => useDogPhotoUrl(path));
-    expect(second.result.current).toBeNull();
-    await waitFor(() => expect(second.result.current).toBe("https://signed.example/new"));
+    expect(second.result.current.url).toBeNull();
+    await waitFor(() => expect(second.result.current.url).toBe("https://signed.example/new"));
     expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+  });
+
+  // An avatar left on screen must not sit on a link that lapses under it.
+  it("re-signs while on screen shortly before the link lapses, keeping the old one meanwhile", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(new Date("2026-11-15T09:00:00Z"));
+    const path = `${DOG}/onscreen.jpg`;
+    let resolveSecond;
+    mocks.bucket.createSignedUrl
+      .mockResolvedValueOnce(signed("https://signed.example/first"))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve; }));
+    const { result } = renderHook(() => useDogPhotoUrl(path));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.url).toBe("https://signed.example/first");
+
+    // 55 minutes in: still the first link, no second signing yet.
+    await act(async () => { await vi.advanceTimersByTimeAsync(55 * 60 * 1000 - 1000); });
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(1);
+
+    // Inside the five-minute margin it signs again, showing the old link
+    // until the new one arrives.
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+    expect(result.current.url).toBe("https://signed.example/first");
+    await act(async () => { resolveSecond(signed("https://signed.example/second")); });
+    expect(result.current.url).toBe("https://signed.example/second");
+  });
+
+  it("fetches one fresh link when the photo fails to load, then falls back to the initial", async () => {
+    const path = `${DOG}/broken.jpg`;
+    mocks.bucket.createSignedUrl
+      .mockResolvedValueOnce(signed("https://signed.example/dead"))
+      .mockResolvedValueOnce(signed("https://signed.example/retry"));
+    const { result } = renderHook(() => useDogPhotoUrl(path));
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/dead"));
+
+    act(() => { result.current.onLoadError(); });
+    // The broken image is hidden at once, while a new link is fetched.
+    expect(result.current.url).toBeNull();
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/retry"));
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+
+    // The fresh link fails too: give up and show the initial, no loop.
+    act(() => { result.current.onLoadError(); });
+    expect(result.current.url).toBeNull();
+    await act(async () => {});
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives a different photo its own retry", async () => {
+    mocks.bucket.createSignedUrl
+      .mockResolvedValueOnce(signed("https://signed.example/a1"))
+      .mockResolvedValueOnce(signed("https://signed.example/a2"))
+      .mockResolvedValueOnce(signed("https://signed.example/b1"))
+      .mockResolvedValueOnce(signed("https://signed.example/b2"));
+    const { result, rerender } = renderHook(({ path }) => useDogPhotoUrl(path), {
+      initialProps: { path: `${DOG}/a.jpg` },
+    });
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/a1"));
+    act(() => { result.current.onLoadError(); });
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/a2"));
+
+    rerender({ path: `${DOG}/b.jpg` });
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/b1"));
+    act(() => { result.current.onLoadError(); });
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/b2"));
+  });
+
+  it("has no link and nothing to retry without a photo", () => {
+    const { result } = renderHook(() => useDogPhotoUrl(null));
+    expect(result.current.url).toBeNull();
+    act(() => { result.current.onLoadError(); });
+    expect(mocks.bucket.createSignedUrl).not.toHaveBeenCalled();
   });
 });

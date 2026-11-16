@@ -13,7 +13,7 @@
 // only when nothing points at it, and kept when that cannot be confirmed. If
 // step 4 fails the photo has still changed, so the leftover file is logged,
 // not shown as an error.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { customerSupabase } from "../customerClient";
 import { setCustomerDogPhoto, type SetCustomerDogPhotoRow } from "../rpc";
 import { getDogPhotoPath } from "../repositories/dogsRepo";
@@ -171,28 +171,64 @@ export function useCustomerDogPhoto() {
 }
 
 /**
- * A short-lived signed URL for a dog photo, or null while signing, on
- * failure, or offline — callers show the initial instead.
+ * A signed URL for a dog photo, kept usable for as long as it is on screen.
+ *
+ * Signed URLs last an hour, but the portal stays open for hours as a
+ * home-screen app. So while a photo is shown its URL is re-signed shortly
+ * before it lapses (the old one keeps showing meanwhile), and if the image
+ * still fails to load — an expired link after the phone slept, a blip — one
+ * fresh URL is fetched before giving up. `url` is null while signing, offline,
+ * on a signing failure, or once the photo has failed again after that retry;
+ * callers then show the dog's initial. Pass `onLoadError` to the <img>.
  */
-export function useDogPhotoUrl(path: string | null | undefined): string | null {
-  const [url, setUrl] = useState<string | null>(() => cachedUrl(path));
+export function useDogPhotoUrl(path: string | null | undefined): {
+  url: string | null;
+  onLoadError: () => void;
+} {
+  const [entry, setEntry] = useState<{ path: string; url: string } | null>(() => {
+    const cached = path ? cachedUrl(path) : null;
+    return path && cached ? { path, url: cached } : null;
+  });
+  // Bumped to re-sign: by the expiry timer, or once after a failed load.
+  const [refresh, setRefresh] = useState(0);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const retriesLeft = useRef(1);
+
+  useEffect(() => {
+    // A new photo gets a fresh error budget.
+    retriesLeft.current = 1;
+    setFailedUrl(null);
+  }, [path]);
 
   useEffect(() => {
     if (!path || !customerSupabase) {
-      setUrl(null);
+      setEntry(null);
       return undefined;
     }
-    const cached = cachedUrl(path);
-    if (cached) {
-      setUrl(cached);
-      return undefined;
-    }
+    const client = customerSupabase;
     let cancelled = false;
-    setUrl(null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Re-sign once this URL is inside the refresh margin. The extra second
+    // means the cache already counts it as stale when the timer fires.
+    const scheduleRefresh = (expiresAt: number) => {
+      const delay = Math.max(0, expiresAt - REFRESH_MARGIN_MS - Date.now() + 1000);
+      timer = setTimeout(() => setRefresh((n) => n + 1), delay);
+    };
+
+    const cached = urlCache.get(path);
+    if (cached && cachedUrl(path)) {
+      setEntry({ path, url: cached.url });
+      scheduleRefresh(cached.expiresAt);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+
     // Counted from before the request, so the cache never thinks a URL lives
     // longer than it does.
     const expiresAt = Date.now() + SIGNED_URL_TTL_SECONDS * 1000;
-    void customerSupabase.storage
+    void client.storage
       .from(DOG_PHOTOS_BUCKET)
       .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
       .then(({ data, error }) => {
@@ -201,13 +237,31 @@ export function useDogPhotoUrl(path: string | null | undefined): string | null {
           return;
         }
         urlCache.set(path, { url: data.signedUrl, expiresAt });
-        if (!cancelled) setUrl(data.signedUrl);
+        if (cancelled) return;
+        setEntry({ path, url: data.signedUrl });
+        scheduleRefresh(expiresAt);
       })
       .catch((error: unknown) => {
         logger.warn("Dog photo signed URL failed", { extra: { error } });
       });
-    return () => { cancelled = true; };
-  }, [path]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [path, refresh]);
 
-  return url;
+  const current = entry && entry.path === path ? entry.url : null;
+
+  const onLoadError = useCallback(() => {
+    if (!path || !current) return;
+    // Hide the broken image straight away; the initial shows meanwhile.
+    setFailedUrl(current);
+    if (retriesLeft.current > 0) {
+      retriesLeft.current -= 1;
+      urlCache.delete(path);
+      setRefresh((n) => n + 1);
+    }
+  }, [path, current]);
+
+  return { url: current && current !== failedUrl ? current : null, onLoadError };
 }
