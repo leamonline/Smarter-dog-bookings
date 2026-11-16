@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   uploadDogPhoto: vi.fn(),
   removeDogPhoto: vi.fn(),
+  onLoadError: vi.fn(),
+  photoUrl: (path) => (path ? `https://signed.example/${path}` : null),
 }));
 
 vi.mock("../../supabase/hooks/useCustomerDogPhoto", () => ({
   useCustomerDogPhoto: () => ({ uploadDogPhoto: mocks.uploadDogPhoto, removeDogPhoto: mocks.removeDogPhoto }),
-  useDogPhotoUrl: (path) => (path ? `https://signed.example/${path}` : null),
+  useDogPhotoUrl: (path) => ({ url: mocks.photoUrl(path), onLoadError: mocks.onLoadError }),
 }));
 
 vi.mock("../../supabase/hooks/useCustomerDogActions", () => ({
@@ -38,6 +40,8 @@ function choosePhoto(file = new File(["x"], "tipi.jpg", { type: "image/jpeg" }))
 beforeEach(() => {
   mocks.uploadDogPhoto.mockReset();
   mocks.removeDogPhoto.mockReset();
+  mocks.onLoadError.mockReset();
+  mocks.photoUrl = (path) => (path ? `https://signed.example/${path}` : null);
 });
 
 describe("DogsSection photos", () => {
@@ -68,10 +72,19 @@ describe("DogsSection photos", () => {
     expect(button.querySelector("img")).toHaveAttribute("src", "https://signed.example/dog-1/current.jpg");
   });
 
-  it("falls back to the dog's initial when the photo will not load", () => {
+  // The hook decides what a failed load means (one fresh link, then the
+  // initial); the avatar only has to report it and render what it is given.
+  it("reports a photo that will not load to the link hook", () => {
     renderDogs({ ...DOG, photoPath: "dog-1/current.jpg" });
     const button = screen.getByRole("button", { name: "Change Tipi's photo" });
     fireEvent.error(button.querySelector("img"));
+    expect(mocks.onLoadError).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the dog's initial when the hook has no usable link", () => {
+    mocks.photoUrl = () => null;
+    renderDogs({ ...DOG, photoPath: "dog-1/current.jpg" });
+    const button = screen.getByRole("button", { name: "Change Tipi's photo" });
     expect(button.querySelector("img")).toBeNull();
     expect(button).toHaveTextContent("T");
   });
