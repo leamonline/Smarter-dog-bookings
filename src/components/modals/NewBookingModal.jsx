@@ -14,7 +14,7 @@ import { BookingConfirmationSection } from "./new-booking/BookingConfirmationSec
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
 import { useConfirmationContact } from "../../supabase/hooks/useBookingConfirmation";
-import { confirmationChoiceAvailable, preferredServiceAvailable } from "../../engine/bookingConfirmation";
+import { confirmationChoiceAvailable } from "../../engine/bookingConfirmation";
 import { BookingReceipt } from "./new-booking/BookingReceipt.jsx";
 
 // A dog whose record carries no size must have one CHOSEN, never assumed.
@@ -263,7 +263,10 @@ export function NewBookingModal({
     smsOptedOut: selectedOwner.smsOptedOut === true, emailOptedOut: selectedOwner.emailOptedOut === true,
   } : null);
   const explicitChannel = confirmationChannel === "whatsapp" || confirmationChannel === "sms" || confirmationChannel === "email";
-  const preferenceUnavailable = confirmationChannel === "auto" && (contactState.loading || contactState.error || !preferredServiceAvailable(contactState.contact));
+  // Only an unknown preference (loading or failed read) holds the automatic
+  // choice. An owner nobody can reach does not: the recipient picker comes
+  // after this, and a trusted contact chosen there is still confirmed.
+  const preferenceUnavailable = confirmationChannel === "auto" && (contactState.loading || contactState.error);
   // Block a forced channel once this owner's record shows it cannot be used,
   // and while that record is still loading so staff do not save blind.
   const explicitUnavailable = explicitChannel && (

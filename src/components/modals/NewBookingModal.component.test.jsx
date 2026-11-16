@@ -315,15 +315,31 @@ describe("NewBookingModal — inline confirmation recovery", () => {
     expect(await screen.findByText("Send via preferred service - [not known]")).toBeInTheDocument();
   });
 
-  it("blocks automatic confirmation for a customer nothing can reach until staff choose not to send", async () => {
-    renderModal({ initialEntries: [resumeEntry], humans: { owner: {
-      id: "emma-id", phone: null, email: null, whatsapp: true,
-    } } });
+  // An owner nobody can reach must not block the automatic choice: the
+  // recipient picker comes after it, and a trusted contact chosen there is
+  // still confirmed (the server resolves 'auto' for each recipient).
+  it("lets an unreachable owner's booking reach the recipient picker and confirm a trusted contact", async () => {
+    const stored = [];
+    renderModal({
+      initialEntries: [resumeEntry],
+      humans: { owner: {
+        id: "emma-id", fullName: "Emma Wilson", phone: null, email: null, whatsapp: true,
+        trustedContacts: [{ id: "trusted-id", fullName: "Sam Trusted", relationship: "partner" }],
+      } },
+      onAdd: async (rows) => { stored.push(...structuredClone(rows)); return { ok: true, bookings: stored }; },
+    });
     expect(await screen.findByText("Send via preferred service - [no contact method]")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeDisabled();
-    expect(screen.getByText(/can't be reached on WhatsApp, SMS or email/)).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: "Customer confirmation" }), { target: { value: "none" } });
-    expect(screen.getByRole("button", { name: "Create booking" })).toBeEnabled();
+    expect(screen.getByText(/owner can't be reached on WhatsApp, SMS or email/)).toBeInTheDocument();
+    const book = screen.getByRole("button", { name: "Book & send confirmation" });
+    expect(book).toBeEnabled();
+    fireEvent.click(book);
+    expect(await screen.findByRole("heading", { name: "Who should we notify?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Sam Trusted/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm booking" }));
+    await screen.findByRole("heading", { name: "Booking created" });
+    expect(stored).toHaveLength(1);
+    expect(stored[0].confirmation_channel).toBe("auto");
+    expect(stored[0].notify_human_ids).toContain("trusted-id");
   });
 
   it("keeps extras in a saved agreed price instead of using the guide", async () => {
