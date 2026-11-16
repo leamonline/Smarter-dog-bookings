@@ -3,7 +3,7 @@ import { SERVICES } from "../../../constants/index";
 import { FROM_PRICED_SERVICES } from "../../../constants/salon";
 import { computeBookingPricing } from "../../../engine/bookingRules";
 import {
-  confirmationChoiceAvailable, confirmationServiceLabel, preferredConfirmationService, preferredServiceAvailable,
+  confirmationChoiceAvailable, confirmationServiceLabel, preferredConfirmationService,
 } from "../../../engine/bookingConfirmation";
 import { formatGBP, poundsToPence } from "../../../utils/money";
 import { titleCase } from "./helpers.js";
@@ -36,13 +36,13 @@ export function BookingConfirmationSection({
   const preferred = contact ? preferredConfirmationService(contact) : null;
   const preferredLabel = contactState?.loading ? "loading…" : contactState?.error ? "unavailable"
     : !contact ? "not known" : preferred ? confirmationServiceLabel(preferred) : "no contact method";
-  const preferenceBlocked = contact && !preferredServiceAvailable(contact);
+  const ownerUnreachable = contact && !preferred;
   const explicitChannel = confirmationChannel === "whatsapp" || confirmationChannel === "sms" || confirmationChannel === "email";
   const explicitBlocked = explicitChannel && contact && !confirmationChoiceAvailable(contact, confirmationChannel);
   const methodHelp = confirmationChannel === "auto"
     ? contactState?.loading ? "Loading the customer's saved preference."
       : contactState?.error ? "Couldn't load the preferred service. Choose a service or try again."
-        : preferenceBlocked ? "This customer can't be reached on WhatsApp, SMS or email. Choose \"Don't send a confirmation\", or update their contact details first."
+        : ownerUnreachable ? "The owner can't be reached on WhatsApp, SMS or email, so they won't be sent a confirmation. Any trusted contacts you choose still will be."
           : contact ? "Follows the preferred method of contact on the customer's profile. Contact settings are checked again when sending."
             : "Uses the first available method when sending: WhatsApp, SMS, then email."
     : confirmationChannel === "none"

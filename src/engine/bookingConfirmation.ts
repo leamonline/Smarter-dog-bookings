@@ -26,13 +26,9 @@ export function preferredConfirmationService(contact: ConfirmationContact): Conf
   // identity fields are placeholders.
   return pickChannel({ id: "", name: "", sms: null, ...policyContact(contact) });
 }
-
-// A missing record does not invent a block: the server still checks
-// eligibility and opt-outs when it sends.
-export function preferredServiceAvailable(contact: ConfirmationContact | null): boolean {
-  if (!contact) return true;
-  return preferredConfirmationService(contact) !== null;
-}
+// An owner with no usable channel (null) deliberately does not block the
+// automatic choice: staff may still pick trusted contacts in the recipient
+// picker, and the server resolves 'auto' for each recipient on its own.
 
 // An explicit WhatsApp, SMS or email choice is blocked only when this owner's
 // saved contact record shows that channel cannot be used. Auto and "don't

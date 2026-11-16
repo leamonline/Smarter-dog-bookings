@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmationChoiceAvailable, confirmationOutcome, preferredConfirmationService, preferredServiceAvailable } from "./bookingConfirmation";
+import { confirmationChoiceAvailable, confirmationOutcome, preferredConfirmationService } from "./bookingConfirmation";
 import { resolveConfirmationChannel } from "../../supabase/functions/_shared/recipients";
 import type { ConfirmationContact, ConfirmationLog, ConfirmationSnapshot } from "../supabase/repositories/bookingConfirmationRepo";
 
@@ -92,18 +92,14 @@ describe("preferred service follows the profile's preferred method of contact", 
   it("is WhatsApp when the profile says WhatsApp, SMS when it says SMS", () => {
     expect(preferredConfirmationService(contact)).toBe("whatsapp");
     expect(preferredConfirmationService({ ...contact, whatsapp: false })).toBe("sms");
-    expect(preferredServiceAvailable(contact)).toBe(true);
   });
   it("honours a STOP and an unreachable number instead of showing the profile blindly", () => {
     expect(preferredConfirmationService({ ...contact, whatsappOptedOut: true })).toBe("sms");
     expect(preferredConfirmationService({ ...contact, whatsapp: false, smsOptedOut: true })).toBe("email");
     expect(preferredConfirmationService({ ...contact, whatsapp: false, phone: "01632 960123" })).toBe("email");
   });
-  it("is blocked only when nothing can reach the customer, never for a missing record", () => {
-    const unreachable = { ...contact, phone: null, email: null };
-    expect(preferredConfirmationService(unreachable)).toBeNull();
-    expect(preferredServiceAvailable(unreachable)).toBe(false);
-    expect(preferredServiceAvailable(null)).toBe(true);
+  it("is null when nothing can reach the customer", () => {
+    expect(preferredConfirmationService({ ...contact, phone: null, email: null })).toBeNull();
   });
   it("matches the channel the server sends an automatic confirmation on", () => {
     const variants: ConfirmationContact[] = [

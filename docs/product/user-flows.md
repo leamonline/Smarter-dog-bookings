@@ -322,9 +322,10 @@ shows **[SMS]**, and a landline-only customer with an email shows **[Email]**.
 The older `humans.preferred_channel` column is not read; nothing sets it. The
 choice is saved as `auto`, so the server resolves every recipient chosen for the
 booking by that same rule and a trusted contact who isn't on WhatsApp is still
-texted. Without a contact record (sample data) the label is **[not known]**. A
-customer nothing can reach shows **[no contact method]** and requires a
-different choice, usually **Don't send a confirmation**. Loading/read errors are
+texted. Without a contact record (sample data) the label is **[not known]**. An
+owner nothing can reach shows **[no contact method]** but does not block the
+automatic choice: the trusted-contact picker still follows, and any trusted
+contact chosen there is still confirmed. Loading/read errors are
 explicit and prevent the preferred route until resolved or staff choose another
 method. Selecting a service applies to all recipients chosen for this booking; it
 does not change anyone's saved preference.
