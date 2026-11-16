@@ -16,13 +16,23 @@ function clientWith(results: Record<string, { data: unknown; error: unknown }>) 
 }
 
 describe("booking confirmation repository", () => {
-  it("reads the saved preference and all eligibility flags for just the selected owner", async () => {
+  it("reads the profile's preferred method and all eligibility flags for just the selected owner", async () => {
     const { client, calls } = clientWith({ humans: { data: {
-      preferred_channel: "sms", phone: "+447700900123", whatsapp: true, email: null,
+      phone: "+447700900123", whatsapp: false, email: null,
       whatsapp_opted_out: false, sms_opted_out: true, email_opted_out: false,
     }, error: null } });
-    expect(await fetchConfirmationContact(client, "owner-id")).toMatchObject({ preferredService: "sms", smsOptedOut: true, whatsapp: true });
+    expect(await fetchConfirmationContact(client, "owner-id")).toEqual({
+      phone: "+447700900123", whatsapp: false, email: null,
+      whatsappOptedOut: false, smsOptedOut: true, emailOptedOut: false,
+    });
     expect(calls).toContainEqual({ table: "humans", method: "eq", args: ["id", "owner-id"] });
+  });
+  it("does not read the legacy preferred_channel column, which could contradict the profile", async () => {
+    const { client, calls } = clientWith({ humans: { data: null, error: null } });
+    await fetchConfirmationContact(client, "owner-id");
+    const select = calls.find((call) => call.table === "humans" && call.method === "select");
+    expect(String(select?.args[0])).not.toContain("preferred_channel");
+    expect(String(select?.args[0])).toContain("whatsapp");
   });
   it("does not substitute a preference for a missing or failed read", async () => {
     const missing = clientWith({ humans: { data: null, error: null } });

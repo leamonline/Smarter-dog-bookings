@@ -216,7 +216,8 @@ describe("NewBookingModal — book another for owner (C-2)", () => {
     const onBookAnother = vi.fn();
     const props = renderModal({
       initialEntries: [resumeEntry],
-      humans: { "emma-id": { id: "emma-id", name: "Emma", fullName: "Emma Wilson" } },
+      // Reachable, so the automatic confirmation is not blocked.
+      humans: { "emma-id": { id: "emma-id", name: "Emma", fullName: "Emma Wilson", phone: "+447700900123", whatsapp: true } },
       onBookAnother,
       onAdd: vi.fn().mockResolvedValue({ ok: true }),
     });
@@ -243,7 +244,7 @@ describe("NewBookingModal — confirmation method", () => {
     expect(await screen.findByRole("heading", { name: "Ready to book" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Customer confirmation" })).toHaveValue("auto");
     expect(screen.getByText("Guide total: £42+")).toBeInTheDocument();
-    expect(screen.getByText(/No preferred service is saved/i)).toBeInTheDocument();
+    expect(screen.getByText(/Uses the first available method when sending/i)).toBeInTheDocument();
     expect(onAdd).not.toHaveBeenCalled();
     await confirmWithMethod();
     await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
@@ -283,32 +284,46 @@ describe("NewBookingModal — confirmation method", () => {
 });
 
 describe("NewBookingModal — inline confirmation recovery", () => {
-  it.each(["sms", "whatsapp"])("shows and uses the saved %s preference", async (preferredChannel) => {
+  // The preferred service is the profile's preferred method of contact
+  // (humans.whatsapp). It is saved as 'auto' so the server routes each recipient
+  // by that same rule, keeping the SMS route for anyone not on WhatsApp.
+  it.each([[true, "WhatsApp"], [false, "SMS"]])("shows the profile's preference (whatsapp=%s → %s) and saves it as auto", async (whatsapp, label) => {
     const stored = [];
     renderModal({
       initialEntries: [resumeEntry],
-      humans: { owner: { id: "emma-id", fullName: "Emma Wilson", preferredChannel, phone: "+447700900123", whatsapp: true } },
+      humans: { owner: { id: "emma-id", fullName: "Emma Wilson", phone: "+447700900123", whatsapp } },
       onAdd: async (rows) => { stored.push(...structuredClone(rows)); return { ok: true, bookings: stored }; },
     });
-    expect(await screen.findByText(`Send via preferred service - [${preferredChannel === "sms" ? "SMS" : "WhatsApp"}]`)).toBeInTheDocument();
+    expect(await screen.findByText(`Send via preferred service - [${label}]`)).toBeInTheDocument();
+    expect(screen.getByText(/Follows the preferred method of contact on the customer's profile/)).toBeInTheDocument();
     await confirmWithMethod();
     await screen.findByRole("heading", { name: "Booking created" });
     expect(stored).toHaveLength(1);
-    expect(stored[0].confirmation_channel).toBe(preferredChannel);
+    expect(stored[0].confirmation_channel).toBe("auto");
   });
 
-  it("does not invent a saved preference", async () => {
-    renderModal({ initialEntries: [resumeEntry] });
-    expect(await screen.findByText("Send via preferred service - [not set]")).toBeInTheDocument();
-  });
-
-  it("blocks an unavailable saved preference until staff choose another service", async () => {
+  it("shows SMS, not WhatsApp, for a customer who sent STOP on WhatsApp", async () => {
     renderModal({ initialEntries: [resumeEntry], humans: { owner: {
-      id: "emma-id", preferredChannel: "whatsapp", phone: "+447700900123", whatsapp: true, whatsappOptedOut: true,
+      id: "emma-id", phone: "+447700900123", whatsapp: true, whatsappOptedOut: true,
     } } });
-    expect(await screen.findByRole("button", { name: "Book & send confirmation" })).toBeDisabled();
-    fireEvent.change(screen.getByRole("combobox", { name: "Customer confirmation" }), { target: { value: "sms" } });
+    expect(await screen.findByText("Send via preferred service - [SMS]")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeEnabled();
+  });
+
+  it("does not invent a preference without a contact record", async () => {
+    renderModal({ initialEntries: [resumeEntry] });
+    expect(await screen.findByText("Send via preferred service - [not known]")).toBeInTheDocument();
+  });
+
+  it("blocks automatic confirmation for a customer nothing can reach until staff choose not to send", async () => {
+    renderModal({ initialEntries: [resumeEntry], humans: { owner: {
+      id: "emma-id", phone: null, email: null, whatsapp: true,
+    } } });
+    expect(await screen.findByText("Send via preferred service - [no contact method]")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Book & send confirmation" })).toBeDisabled();
+    expect(screen.getByText(/can't be reached on WhatsApp, SMS or email/)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Customer confirmation" }), { target: { value: "none" } });
+    expect(screen.getByRole("button", { name: "Create booking" })).toBeEnabled();
   });
 
   it("keeps extras in a saved agreed price instead of using the guide", async () => {
@@ -366,7 +381,7 @@ describe("NewBookingModal — inline confirmation recovery", () => {
 
   it("blocks an explicit channel this customer cannot use", async () => {
     renderModal({ initialEntries: [resumeEntry], humans: { owner: {
-      id: "emma-id", fullName: "Emma Wilson", preferredChannel: "sms",
+      id: "emma-id", fullName: "Emma Wilson",
       phone: "+447700900123", whatsapp: true, whatsappOptedOut: true, email: "owner@example.test",
     } } });
     const picker = await screen.findByRole("combobox", { name: "Customer confirmation" });

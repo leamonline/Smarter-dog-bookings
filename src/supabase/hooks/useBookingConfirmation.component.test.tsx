@@ -14,7 +14,7 @@ const failed: ConfirmationSnapshot = { logs: [{
   bookingId: "actual-saved-id", groupId: null, humanId: "owner", trigger: "confirmed", channel: "sms",
   status: "failed", error: "Provider refused", createdAt: "2026-11-11T10:00:00Z", providerId: null,
 }], deliveries: [] };
-const contact: ConfirmationContact = { preferredService: "sms", phone: "+447700900123", whatsapp: true, email: null, whatsappOptedOut: false, smsOptedOut: false, emailOptedOut: false };
+const contact: ConfirmationContact = { phone: "+447700900123", whatsapp: false, email: null, whatsappOptedOut: false, smsOptedOut: false, emailOptedOut: false };
 
 beforeEach(() => { vi.clearAllMocks(); mocks.read.mockResolvedValue(structuredClone(failed)); });
 describe("booking receipt status and recovery", () => {
@@ -59,17 +59,17 @@ describe("booking receipt status and recovery", () => {
 });
 
 describe("preferred service read", () => {
-  it("loads the saved preference instead of inferring it from WhatsApp availability", async () => {
+  it("loads the owner's saved preferred method of contact", async () => {
     mocks.contact.mockResolvedValue(contact);
     const { result } = renderHook(() => useConfirmationContact("owner", null));
-    await waitFor(() => expect(result.current.contact?.preferredService).toBe("sms"));
+    await waitFor(() => expect(result.current.contact).toEqual(contact));
     expect(result.current.loading).toBe(false);
   });
-  it("distinguishes no preference from a failed contact read", async () => {
-    mocks.contact.mockResolvedValue({ ...contact, preferredService: null });
+  it("distinguishes a loaded record from a failed contact read", async () => {
+    mocks.contact.mockResolvedValue(contact);
     const { result } = renderHook(() => useConfirmationContact("owner", null));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.contact?.preferredService).toBeNull(); expect(result.current.error).toBe(false);
+    expect(result.current.contact?.whatsapp).toBe(false); expect(result.current.error).toBe(false);
     mocks.contact.mockRejectedValue(new Error("unavailable"));
     act(() => result.current.refresh());
     await waitFor(() => expect(result.current.error).toBe(true));

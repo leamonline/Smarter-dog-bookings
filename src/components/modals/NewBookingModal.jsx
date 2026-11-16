@@ -258,7 +258,6 @@ export function NewBookingModal({
   const selectedHumanId = dogEntries[0]?.dog?._humanId || null;
   const selectedOwner = Object.values(humans || {}).find((human) => human?.id === selectedHumanId);
   const contactState = useConfirmationContact(selectedHumanId, selectedOwner ? {
-    preferredService: selectedOwner.preferredChannel || null,
     phone: selectedOwner.phone || null, whatsapp: selectedOwner.whatsapp === true,
     email: selectedOwner.email || null, whatsappOptedOut: selectedOwner.whatsappOptedOut === true,
     smsOptedOut: selectedOwner.smsOptedOut === true, emailOptedOut: selectedOwner.emailOptedOut === true,
@@ -593,8 +592,11 @@ export function NewBookingModal({
             ...(notifyHumanIdsRef.current?.length
               ? { notify_human_ids: notifyHumanIdsRef.current }
               : {}),
-            confirmation_channel: confirmationChannel === "auto"
-              ? contactState.contact?.preferredService || "auto" : confirmationChannel,
+            // "Preferred service" is saved as 'auto', not as the channel the
+            // label shows: the server then resolves each recipient (owner and
+            // any trusted contacts) with the same rule, so someone who isn't on
+            // WhatsApp is still texted rather than skipped.
+            confirmation_channel: confirmationChannel,
           });
         });
       } else if (i === 0) {
