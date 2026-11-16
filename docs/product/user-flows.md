@@ -313,15 +313,21 @@ as such. Variable guide totals say **Final price may vary with coat condition.**
 Repeating bookings label the total per appointment and retain the full-date skip
 rule.
 
-The default method reads **Send via preferred service - [SMS]** or **[WhatsApp]**
-from the selected owner's saved preference (Email is also supported). The chosen
-preference is recorded as the explicit confirmation channel; server-side contact
-settings and opt-outs still apply. An absent preference is shown as **[not set]**,
-with the existing automatic first-eligible route explained, rather than inventing
-a preference. Loading/read errors are explicit and prevent the preferred route
-until resolved or staff choose another method. A saved but unavailable service
-requires a different choice. Selecting a service applies to all recipients chosen
-for this booking; it does not change anyone's saved preference.
+The default method reads **Send via preferred service - [WhatsApp]** or **[SMS]**
+from the selected owner's **Preferred method of contact** on their profile
+(`humans.whatsapp`), resolved by the server's own rule (`pickChannel`: WhatsApp,
+then SMS, then email, skipping a channel they can't be reached on or have opted
+out of). A customer whose profile says WhatsApp but who sent STOP there therefore
+shows **[SMS]**, and a landline-only customer with an email shows **[Email]**.
+The older `humans.preferred_channel` column is not read; nothing sets it. The
+choice is saved as `auto`, so the server resolves every recipient chosen for the
+booking by that same rule and a trusted contact who isn't on WhatsApp is still
+texted. Without a contact record (sample data) the label is **[not known]**. A
+customer nothing can reach shows **[no contact method]** and requires a
+different choice, usually **Don't send a confirmation**. Loading/read errors are
+explicit and prevent the preferred route until resolved or staff choose another
+method. Selecting a service applies to all recipients chosen for this booking; it
+does not change anyone's saved preference.
 
 Staff selects **Book & send confirmation**, or **Create booking** when messaging
 is suppressed. There is no second method dialog. Trusted-recipient selection,

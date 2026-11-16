@@ -1,7 +1,8 @@
 import { operationalChannelAvailable } from "../../supabase/functions/_shared/channelPolicy";
+import { pickChannel } from "../../supabase/functions/_shared/recipients";
 import { isUnknownOutcomeLogMessage } from "../../supabase/functions/_shared/sendOutcome";
 import { isDeliveryUnconfirmed } from "../../supabase/functions/_shared/twilioDelivery";
-import type { ConfirmationContact, ConfirmationLog, ConfirmationSnapshot } from "../supabase/repositories/bookingConfirmationRepo";
+import type { ConfirmationContact, ConfirmationLog, ConfirmationService, ConfirmationSnapshot } from "../supabase/repositories/bookingConfirmationRepo";
 
 export const confirmationServiceLabel = (service: string | null | undefined): string =>
   service === "whatsapp" ? "WhatsApp" : service === "sms" ? "SMS" : service === "email" ? "Email" : "not set";
@@ -14,9 +15,23 @@ function policyContact(contact: ConfirmationContact) {
   };
 }
 
+// Where an automatic ("Preferred service") confirmation goes for this owner.
+// Their preferred method of contact is the profile switch (humans.whatsapp), and
+// this asks the server's own rule, pickChannel in _shared/recipients.ts:
+// WhatsApp, then SMS, then email, skipping any channel they can't be reached on
+// or have opted out of. Using the same function means the drawer's label and
+// the actual send cannot disagree. null = no usable channel at all.
+export function preferredConfirmationService(contact: ConfirmationContact): ConfirmationService | null {
+  // pickChannel takes a recipient row; it reads only the contact fields, so the
+  // identity fields are placeholders.
+  return pickChannel({ id: "", name: "", sms: null, ...policyContact(contact) });
+}
+
+// A missing record does not invent a block: the server still checks
+// eligibility and opt-outs when it sends.
 export function preferredServiceAvailable(contact: ConfirmationContact | null): boolean {
-  if (!contact?.preferredService) return true;
-  return operationalChannelAvailable(policyContact(contact), contact.preferredService);
+  if (!contact) return true;
+  return preferredConfirmationService(contact) !== null;
 }
 
 // An explicit WhatsApp, SMS or email choice is blocked only when this owner's

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { confirmationChoiceAvailable, confirmationOutcome, preferredServiceAvailable } from "./bookingConfirmation";
+import { confirmationChoiceAvailable, confirmationOutcome, preferredConfirmationService, preferredServiceAvailable } from "./bookingConfirmation";
+import { resolveConfirmationChannel } from "../../supabase/functions/_shared/recipients";
 import type { ConfirmationContact, ConfirmationLog, ConfirmationSnapshot } from "../supabase/repositories/bookingConfirmationRepo";
 
 const row = (patch: Partial<ConfirmationLog> = {}): ConfirmationLog => ({
@@ -86,16 +87,38 @@ describe("booking confirmation outcomes", () => {
   });
 });
 
-describe("saved preferred service", () => {
-  const contact: ConfirmationContact = { preferredService: "sms", phone: "+447700900123", whatsapp: true, email: "sample@example.test", whatsappOptedOut: false, smsOptedOut: false, emailOptedOut: false };
-  it("keeps a saved SMS preference valid even when WhatsApp is available", () => {
+describe("preferred service follows the profile's preferred method of contact", () => {
+  const contact: ConfirmationContact = { phone: "+447700900123", whatsapp: true, email: "sample@example.test", whatsappOptedOut: false, smsOptedOut: false, emailOptedOut: false };
+  it("is WhatsApp when the profile says WhatsApp, SMS when it says SMS", () => {
+    expect(preferredConfirmationService(contact)).toBe("whatsapp");
+    expect(preferredConfirmationService({ ...contact, whatsapp: false })).toBe("sms");
     expect(preferredServiceAvailable(contact)).toBe(true);
-    expect(contact.preferredService).toBe("sms");
   });
-  it("honours channel opt-outs and reachability", () => {
-    expect(preferredServiceAvailable({ ...contact, smsOptedOut: true })).toBe(false);
-    expect(preferredServiceAvailable({ ...contact, phone: null })).toBe(false);
-    expect(preferredServiceAvailable({ ...contact, preferredService: "whatsapp", whatsappOptedOut: true })).toBe(false);
+  it("honours a STOP and an unreachable number instead of showing the profile blindly", () => {
+    expect(preferredConfirmationService({ ...contact, whatsappOptedOut: true })).toBe("sms");
+    expect(preferredConfirmationService({ ...contact, whatsapp: false, smsOptedOut: true })).toBe("email");
+    expect(preferredConfirmationService({ ...contact, whatsapp: false, phone: "01632 960123" })).toBe("email");
+  });
+  it("is blocked only when nothing can reach the customer, never for a missing record", () => {
+    const unreachable = { ...contact, phone: null, email: null };
+    expect(preferredConfirmationService(unreachable)).toBeNull();
+    expect(preferredServiceAvailable(unreachable)).toBe(false);
+    expect(preferredServiceAvailable(null)).toBe(true);
+  });
+  it("matches the channel the server sends an automatic confirmation on", () => {
+    const variants: ConfirmationContact[] = [
+      contact, { ...contact, whatsapp: false }, { ...contact, whatsappOptedOut: true },
+      { ...contact, phone: null }, { ...contact, phone: "01632 960123", whatsapp: false },
+      { ...contact, smsOptedOut: true, whatsapp: false }, { ...contact, phone: null, email: null },
+      { ...contact, emailOptedOut: true, phone: null },
+    ];
+    for (const variant of variants) {
+      const server = resolveConfirmationChannel("auto", {
+        id: "owner", name: "Owner", sms: null, phone: variant.phone, whatsapp: variant.whatsapp, email: variant.email,
+        whatsapp_opted_out: variant.whatsappOptedOut, sms_opted_out: variant.smsOptedOut, email_opted_out: variant.emailOptedOut,
+      });
+      expect(preferredConfirmationService(variant)).toBe(server.channel);
+    }
   });
   it("blocks an explicit channel the saved contact cannot use", () => {
     expect(confirmationChoiceAvailable(contact, "auto")).toBe(true);

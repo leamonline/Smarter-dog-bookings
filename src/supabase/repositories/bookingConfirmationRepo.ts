@@ -3,8 +3,11 @@ import type { Database } from "../database.types";
 
 type Client = SupabaseClient<Database>;
 export type ConfirmationService = "sms" | "whatsapp" | "email";
+// The owner's contact record. Their preferred method of contact is `whatsapp`
+// (the profile switch: true = WhatsApp, false = SMS). The older
+// humans.preferred_channel column is deliberately not read: nothing in the app
+// sets it, and a second preference could disagree with the profile.
 export interface ConfirmationContact {
-  preferredService: ConfirmationService | null;
   phone: string | null;
   whatsapp: boolean;
   email: string | null;
@@ -15,13 +18,11 @@ export interface ConfirmationContact {
 
 export async function fetchConfirmationContact(client: Client, humanId: string): Promise<ConfirmationContact | null> {
   const { data, error } = await client.from("humans")
-    .select("preferred_channel, phone, whatsapp, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
+    .select("phone, whatsapp, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
     .eq("id", humanId).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return {
-    preferredService: ["sms", "whatsapp", "email"].includes(data.preferred_channel ?? "")
-      ? data.preferred_channel as ConfirmationService : null,
     phone: data.phone,
     whatsapp: data.whatsapp === true,
     email: data.email,

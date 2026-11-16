@@ -2,7 +2,9 @@ import { useId } from "react";
 import { SERVICES } from "../../../constants/index";
 import { FROM_PRICED_SERVICES } from "../../../constants/salon";
 import { computeBookingPricing } from "../../../engine/bookingRules";
-import { confirmationChoiceAvailable, confirmationServiceLabel, preferredServiceAvailable } from "../../../engine/bookingConfirmation";
+import {
+  confirmationChoiceAvailable, confirmationServiceLabel, preferredConfirmationService, preferredServiceAvailable,
+} from "../../../engine/bookingConfirmation";
 import { formatGBP, poundsToPence } from "../../../utils/money";
 import { titleCase } from "./helpers.js";
 import { Button, Field, Select } from "../../ui";
@@ -29,16 +31,20 @@ export function BookingConfirmationSection({
   const allAgreed = dogEntries.every(hasAgreedPrice);
   const fromPriced = dogEntries.some((entry) => !hasAgreedPrice(entry) && FROM_PRICED_SERVICES.has(entry.service));
   const contact = contactState?.contact;
-  const preferredLabel = contactState?.loading ? "loading…" : contactState?.error ? "unavailable" : confirmationServiceLabel(contact?.preferredService);
+  // The preferred service is the owner's preferred method of contact (the
+  // profile switch), resolved by the same rule the server sends with.
+  const preferred = contact ? preferredConfirmationService(contact) : null;
+  const preferredLabel = contactState?.loading ? "loading…" : contactState?.error ? "unavailable"
+    : !contact ? "not known" : preferred ? confirmationServiceLabel(preferred) : "no contact method";
   const preferenceBlocked = contact && !preferredServiceAvailable(contact);
   const explicitChannel = confirmationChannel === "whatsapp" || confirmationChannel === "sms" || confirmationChannel === "email";
   const explicitBlocked = explicitChannel && contact && !confirmationChoiceAvailable(contact, confirmationChannel);
   const methodHelp = confirmationChannel === "auto"
     ? contactState?.loading ? "Loading the customer's saved preference."
       : contactState?.error ? "Couldn't load the preferred service. Choose a service or try again."
-        : preferenceBlocked ? "The preferred service is unavailable in this customer's contact settings. Choose another service or don't send."
-          : contact?.preferredService ? "Uses the customer's saved preference. Contact settings are checked again when sending."
-            : "No preferred service is saved. Choose a service, or use the first available method: WhatsApp, SMS, then email."
+        : preferenceBlocked ? "This customer can't be reached on WhatsApp, SMS or email. Choose \"Don't send a confirmation\", or update their contact details first."
+          : contact ? "Follows the preferred method of contact on the customer's profile. Contact settings are checked again when sending."
+            : "Uses the first available method when sending: WhatsApp, SMS, then email."
     : confirmationChannel === "none"
       ? "Creates the booking without sending a confirmation."
       : contactState?.loading
